@@ -1,0 +1,18 @@
+[package]
+name = "opencut-headless"
+description = "Typed local headless interface for the OpenCut editor core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "opencut-headless"
+path = "src/main.rs"
+
+[dependencies]
+opencut-editor-core = { path = "../../crates/editor-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.23"

@@ -1,3 +1,10 @@
+//! Dormant GPUI component prototypes retained for planned desktop work.
+//!
+//! Keep this allowance at this module boundary only. Remove each exemption when
+//! the corresponding component is wired into the desktop or delete the stale
+//! prototype instead.
+#![allow(dead_code, unused_imports)]
+
 mod badge;
 mod button;
 mod context_menu;

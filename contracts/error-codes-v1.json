@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "codes": {
+    "INVALID_ARGUMENT": {
+      "retryable": false,
+      "layer": "core",
+      "description": "invalid argument"
+    },
+    "VALIDATION_FAILED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "validation failed"
+    },
+    "REVISION_CONFLICT": {
+      "retryable": true,
+      "layer": "core",
+      "description": "revision conflict"
+    },
+    "PATH_NOT_ALLOWED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "path not allowed"
+    },
+    "PATH_TRAVERSAL": {
+      "retryable": false,
+      "layer": "core",
+      "description": "path traversal"
+    },
+    "PROJECT_NOT_FOUND": {
+      "retryable": false,
+      "layer": "core",
+      "description": "project not found"
+    },
+    "ASSET_NOT_FOUND": {
+      "retryable": false,
+      "layer": "core",
+      "description": "asset not found"
+    },
+    "ASSET_IN_USE": {
+      "retryable": false,
+      "layer": "core",
+      "description": "asset in use"
+    },
+    "ASSET_INTEGRITY_FAILED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "asset integrity failed"
+    },
+    "ITEM_NOT_FOUND": {
+      "retryable": false,
+      "layer": "core",
+      "description": "item not found"
+    },
+    "TRACK_NOT_FOUND": {
+      "retryable": false,
+      "layer": "core",
+      "description": "track not found"
+    },
+    "TRACK_LOCKED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "track locked"
+    },
+    "DRAFT_NOT_FOUND": {
+      "retryable": false,
+      "layer": "core",
+      "description": "draft not found"
+    },
+    "DRAFT_LIMIT_REACHED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "draft limit reached"
+    },
+    "EXPORT_EXISTS": {
+      "retryable": false,
+      "layer": "core",
+      "description": "export exists"
+    },
+    "DEPENDENCY_UNAVAILABLE": {
+      "retryable": false,
+      "layer": "runtime",
+      "description": "dependency unavailable"
+    },
+    "UNSUPPORTED_MEDIA": {
+      "retryable": false,
+      "layer": "core",
+      "description": "unsupported media"
+    },
+    "JOB_FAILED": {
+      "retryable": false,
+      "layer": "runtime",
+      "description": "job failed"
+    },
+    "INTERNAL_ERROR": {
+      "retryable": false,
+      "layer": "runtime",
+      "description": "internal error"
+    },
+    "INVALID_CONFIGURATION": {
+      "retryable": false,
+      "layer": "bridge",
+      "description": "invalid configuration"
+    },
+    "BRIDGE_SHUTTING_DOWN": {
+      "retryable": true,
+      "layer": "bridge",
+      "description": "bridge shutting down"
+    },
+    "HEADLESS_TIMEOUT": {
+      "retryable": true,
+      "layer": "bridge",
+      "description": "headless timeout"
+    },
+    "JOB_CANCELLED": {
+      "retryable": true,
+      "layer": "job",
+      "description": "job cancelled"
+    },
+    "JOB_NOT_CANCELLABLE": {
+      "retryable": false,
+      "layer": "job",
+      "description": "job not cancellable"
+    },
+    "JOB_NOT_FOUND": {
+      "retryable": false,
+      "layer": "job",
+      "description": "job not found"
+    },
+    "JOB_REGISTRY_FULL": {
+      "retryable": true,
+      "layer": "job",
+      "description": "job registry full"
+    },
+    "GENERATED_ARTIFACT_NOT_FOUND": {
+      "retryable": false,
+      "layer": "speech",
+      "description": "generated artifact not found"
+    },
+    "TTS_INVALID_CAPABILITIES": {
+      "retryable": false,
+      "layer": "speech",
+      "description": "tts invalid capabilities"
+    },
+    "TTS_INVALID_OUTPUT": {
+      "retryable": false,
+      "layer": "speech",
+      "description": "tts invalid output"
+    },
+    "TTS_QUEUE_FULL": {
+      "retryable": true,
+      "layer": "speech",
+      "description": "tts queue full"
+    },
+    "TTS_TIMEOUT": {
+      "retryable": true,
+      "layer": "speech",
+      "description": "tts timeout"
+    },
+    "TTS_UNAVAILABLE": {
+      "retryable": false,
+      "layer": "speech",
+      "description": "tts unavailable"
+    },
+    "TTS_WORKER_TERMINATED": {
+      "retryable": true,
+      "layer": "speech",
+      "description": "tts worker terminated"
+    },
+    "TTS_SYNTHESIS_FAILED": {
+      "retryable": true,
+      "layer": "speech",
+      "description": "tts synthesis failed"
+    },
+    "TTS_PROVIDER_FAILED": {
+      "retryable": true,
+      "layer": "speech",
+      "description": "tts provider failed"
+    },
+    "TRANSCRIPTION_UNAVAILABLE": { "retryable": false, "layer": "transcription", "description": "transcription unavailable" },
+    "TRANSCRIPTION_INVALID_CAPABILITIES": { "retryable": false, "layer": "transcription", "description": "transcription invalid capabilities" },
+    "TRANSCRIPTION_INVALID_OUTPUT": { "retryable": false, "layer": "transcription", "description": "transcription invalid output" },
+    "TRANSCRIPTION_QUEUE_FULL": { "retryable": true, "layer": "transcription", "description": "transcription queue full" },
+    "TRANSCRIPTION_TIMEOUT": { "retryable": true, "layer": "transcription", "description": "transcription timeout" },
+    "TRANSCRIPTION_WORKER_TERMINATED": { "retryable": true, "layer": "transcription", "description": "transcription worker terminated" },
+    "TRANSCRIPTION_PROVIDER_FAILED": { "retryable": true, "layer": "transcription", "description": "transcription provider failed" },
+    "TRANSCRIPTION_PREVIEW_NOT_FOUND": { "retryable": false, "layer": "transcription", "description": "transcription preview not found" },
+    "TEMP_FILE_CLEANUP_FAILED": {
+      "retryable": false,
+      "layer": "warning",
+      "description": "temp file cleanup failed"
+    },
+    "ASSET_GC_FAILED": {
+      "retryable": false,
+      "layer": "warning",
+      "description": "asset gc failed"
+    }
+  }
+}

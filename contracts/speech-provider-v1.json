@@ -1,0 +1,83 @@
+{
+  "origin": {
+    "type": "speech_synthesis",
+    "generation": {
+      "request": {
+        "text": "Contract speech",
+        "language": "en-US",
+        "voiceId": "contract_voice",
+        "speed": 1.0,
+        "textOptions": {
+          "normalization": "basic",
+          "pronunciations": [],
+          "chunking": "sentence",
+          "sentencePauseMs": 120
+        }
+      },
+      "providerId": "contract-provider",
+      "modelId": "contract/model",
+      "modelVersion": "1",
+      "sampleRateHz": 24000,
+      "generatedAtMs": 1
+    }
+  },
+  "status": {
+    "ready": true,
+    "version": "1.0",
+    "providerId": "contract-provider",
+    "modelId": "contract/model",
+    "modelVersion": "1",
+    "models": [
+      {
+        "id": "contract/model",
+        "version": "1",
+        "sampleRateHz": 24000
+      }
+    ],
+    "device": "test",
+    "devices": ["test"],
+    "modelCached": true,
+    "modelLoaded": true,
+    "sampleRateHz": 24000,
+    "languages": ["en-US"],
+    "voices": ["contract_voice"],
+    "defaultLanguage": "en-US",
+    "defaultVoiceId": "contract_voice",
+    "defaultSpeed": 1.0,
+    "limits": {
+      "maxTextCharacters": 5000,
+      "minSpeed": 0.5,
+      "maxSpeed": 2.0
+    },
+    "resources": {
+      "execution": "local",
+      "minimumLogicalCpus": 2,
+      "recommendedLogicalCpus": 4,
+      "minimumRamBytes": 2147483648,
+      "recommendedRamBytes": 4294967296
+    }
+  },
+  "voices": [
+    {
+      "accent": "Contract English",
+      "available": true,
+      "id": "contract_voice",
+      "label": "Contract Voice",
+      "language": "en-US",
+      "locale": "en-US",
+      "modelId": "contract/model",
+      "previewSupported": true,
+      "providerId": "contract-provider",
+      "isDefault": true
+    }
+  ],
+  "synthesis": {
+    "durationMs": 100,
+    "providerId": "contract-provider",
+    "modelId": "contract/model",
+    "modelVersion": "1",
+    "sampleRateHz": 24000,
+    "language": "en-US",
+    "voiceId": "contract_voice"
+  }
+}
