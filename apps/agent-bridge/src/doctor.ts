@@ -90,9 +90,7 @@ const checkTranscription = async (
     }
     await mkdir(work, { recursive: true });
     const generated = await platform.capture(
-      Object.hasOwn(config.environment, "OPENCUT_FFMPEG_PATH")
-        ? config.environment.OPENCUT_FFMPEG_PATH
-        : "ffmpeg",
+      config.environment.OPENCUT_FFMPEG_PATH || "ffmpeg",
       [
         "-f",
         "lavfi",
