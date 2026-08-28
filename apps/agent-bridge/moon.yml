@@ -1,0 +1,75 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'typescript'
+layer: 'application'
+
+tasks:
+  dev:
+    command: 'bun run dev'
+    deps:
+      - 'headless:build'
+    options:
+      runInCI: false
+
+  dev-with-desktop:
+    command: 'bun run src/index.ts --with-desktop'
+    deps:
+      - 'headless:build'
+    options:
+      runInCI: false
+
+  health:
+    command: 'bun run health'
+    deps:
+      - 'headless:build'
+
+  doctor:
+    command: 'bun run doctor'
+    deps:
+      - 'headless:build'
+    options:
+      cache: false
+      runInCI: false
+
+  bench-headless:
+    command: 'bun run bench:headless'
+    options:
+      cache: false
+      runInCI: false
+
+  typecheck:
+    command: 'bun run typecheck'
+
+  lint:
+    command: 'bun run lint'
+
+  test:
+    command: 'bun run test:unit'
+
+  test-integration:
+    command: 'bun run test:integration'
+
+  test-smoke:
+    command: 'bun run test:smoke'
+    options:
+      cache: false
+
+  test-tts-real:
+    command: 'bun run test:tts-real'
+    deps:
+      - '~:build'
+    options:
+      cache: false
+      runInCI: false
+
+  build:
+    command: 'bun run build'
+    deps:
+      - 'headless:build'
+    outputs:
+      - 'dist'
+
+  smoke:
+    command: 'bun run test:smoke'
+    options:
+      cache: false
