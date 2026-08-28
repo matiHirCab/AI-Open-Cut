@@ -1,10 +1,14 @@
 node_modules/
 dist/
 target/
+local-data/
+__pycache__/
+*.pyc
 .env
 .env.*
 !.env.example
-docs/
+# Generated documentation output only; authored guides and ADRs are tracked.
+docs/generated/
 
 # moon runtime cache
 .moon/cache/
