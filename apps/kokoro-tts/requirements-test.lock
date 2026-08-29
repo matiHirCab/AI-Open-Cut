@@ -1,0 +1,5 @@
+# Minimal cross-platform worker-test environment. No Kokoro, Torch, or model weights.
+cffi==2.1.1
+numpy==2.4.6
+pycparser==3.0
+soundfile==0.13.1

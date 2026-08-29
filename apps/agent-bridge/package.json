@@ -1,0 +1,35 @@
+{
+  "name": "@opencut/agent-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "health": "bun run src/index.ts --health",
+    "doctor": "bun run src/index.ts --doctor",
+    "typecheck": "tsc --noEmit",
+    "lint": "ultracite check src tests",
+    "test": "bun run test:unit",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:integration": "cargo build -p opencut-headless && vitest run --config vitest.integration.config.ts",
+    "test:smoke": "bun run scripts/run-packaged-smoke.ts",
+    "test:tts-real": "vitest run tests/tts-real.test.ts",
+    "build": "bun run build:bridge && bun run scripts/copy-sidecar.ts",
+    "build:bridge": "bun build src/index.ts --target=bun --compile --outfile=dist/opencut-agent-bridge",
+    "bench:headless": "cargo build --release -p opencut-headless && bun run scripts/benchmark-headless.ts",
+    "smoke": "bun run test:smoke"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/node": "^24.3.0",
+    "typescript": "^6.0.2",
+    "ultracite": "^7.1.5",
+    "vitest": "^4.1.5"
+  }
+}

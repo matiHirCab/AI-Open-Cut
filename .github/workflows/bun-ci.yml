@@ -1,37 +1,79 @@
-name: Bun CI
+name: OpenCut CI
 
 concurrency:
-  group: bun-ci-${{ github.ref }}
+  group: opencut-ci-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "*.md"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "*.md"
 
 jobs:
-  ci:
+  correctness:
+    name: Correctness (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-
-      - name: Setup toolchain
+          python-version: "3.11"
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev
+      - name: Setup pinned toolchain
         uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
           auto-setup: true
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Rust formatting
+        run: cargo fmt --check --all
+      - name: Strict workspace Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Rust tests
+        run: cargo test --workspace
+      - name: TypeScript typecheck
+        working-directory: apps/agent-bridge
+        run: bun run typecheck
+      - name: TypeScript lint
+        working-directory: apps/agent-bridge
+        run: bun run lint
+      - name: Hermetic TypeScript unit tests
+        working-directory: apps/agent-bridge
+        run: bun run test
+      - name: Minimal Python worker tests
+        run: bun run apps/agent-bridge/scripts/run-python-tests.ts
 
-      - name: Run CI
-        run: moon ci
+  packaged-smoke:
+    name: Packaged fake-provider integration and smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Build debug headless
+        run: cargo build -p opencut-headless
+      - name: Fake-provider MCP integration
+        working-directory: apps/agent-bridge
+        run: bun run test:integration
+      - name: Isolated packaged smoke
+        working-directory: apps/agent-bridge
+        run: bun run test:smoke

@@ -1,0 +1,14 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'rust'
+layer: 'library'
+
+tasks:
+  format:
+    command: 'cargo fmt --check --all'
+
+  lint:
+    command: 'cargo clippy --workspace --all-targets -- -D warnings'
+
+  test:
+    command: 'cargo test -p opencut-editor-core'

@@ -1,0 +1,14 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'python'
+layer: 'application'
+
+tasks:
+  test:
+    command: 'bun run ../agent-bridge/scripts/run-python-tests.ts'
+
+  setup:
+    command: 'powershell -ExecutionPolicy Bypass -File setup.ps1'
+    options:
+      cache: false
+      runInCI: false

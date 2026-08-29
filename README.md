@@ -61,6 +61,10 @@ moon run api:dev       # localhost:8787
 moon run desktop:dev   # see apps/desktop/README.md
 ```
 
+### Local agent bridge
+
+The experimental OpenCut Agent Bridge exposes the canonical project/timeline core to MCP clients without an OpenAI API key. It supports typed batch edits, durable drafts, revisioned resources and workflow prompts, local Kokoro speech, local faster-whisper captions, and STDIO or authenticated trusted-LAN Streamable HTTP. See [`docs/agent-bridge.md`](docs/agent-bridge.md) for setup and safety details.
+
 ## Contributing
 
 We're not set up to take outside contributions yet while the architecture is being designed. If you want to follow along, ask questions, or just hang out, [join the Discord](https://discord.gg/zmR9N35cjK) or [open an issue](https://github.com/opencut-app/opencut/issues).

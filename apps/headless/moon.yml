@@ -1,0 +1,23 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'rust'
+layer: 'application'
+
+tasks:
+  check:
+    command: 'cargo check -p opencut-headless'
+    inputs:
+      - 'src/**/*'
+      - 'Cargo.toml'
+      - '/crates/editor-core/src/**/*'
+      - '/Cargo.toml'
+      - '/Cargo.lock'
+
+  test:
+    command: 'cargo test -p opencut-editor-core -p opencut-headless'
+
+  build:
+    command: 'cargo build --release -p opencut-headless'
+    outputs:
+      - '/target/release/opencut-headless'
+      - '/target/release/opencut-headless.exe'

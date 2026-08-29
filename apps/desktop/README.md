@@ -17,6 +17,10 @@ moon run desktop:build   # cargo build --release
 
 The first build compiles GPUI from source and takes a while. The root `Cargo.lock` is committed.
 
+## Prototype warning boundary
+
+The primitives under `src/components` are dormant prototypes for planned UI work. Their module has a narrowly scoped allowance for `dead_code` and `unused_imports` while they remain intentionally unused. Remove an allowance as soon as a component is used, or delete the component if the prototype is abandoned. Warnings everywhere else in the desktop crate and workspace remain errors under the strict workspace Clippy check.
+
 ## Platform requirements
 
 - **macOS**: Xcode command line tools (Metal renderer).
