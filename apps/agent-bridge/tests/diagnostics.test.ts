@@ -33,6 +33,9 @@ describe("runtime path diagnostics", () => {
       writeFile(worker, "# worker\n"),
       writeFile(executable, ""),
     ]);
+    if (process.platform !== "win32") {
+      await chmod(executable, 0o755);
+    }
 
     const paths = await runtimePathDiagnostics({
       allowedMediaDirectories: [media],

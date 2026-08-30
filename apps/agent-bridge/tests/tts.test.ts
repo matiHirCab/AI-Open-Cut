@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -117,7 +123,7 @@ it("resolves the configured bare Python executable through the child PATH", asyn
     ready: true,
   });
   expect(status.paths?.python.resolvedPath.toLowerCase()).toBe(
-    resolvedPython.toLowerCase()
+    realpathSync(resolvedPython).toLowerCase()
   );
 });
 
