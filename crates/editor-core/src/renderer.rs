@@ -75,28 +75,37 @@ pub struct ProbeResult {
 
 struct BuiltCommand {
     command: Command,
-    temporary_files: Vec<PathBuf>,
+    _workspace: RenderWorkspace,
     warnings: Vec<String>,
+}
+
+struct RenderWorkspace {
+    path: PathBuf,
+}
+
+struct PreparedText {
+    file_path: PathBuf,
+    font_path: Option<PathBuf>,
+    layer_width: u32,
+    layer_height: u32,
+    canvas_width: u32,
+    canvas_height: u32,
+    text_x: u32,
+    text_y: u32,
 }
 
 struct FilterContext<'a> {
     asset_by_id: &'a HashMap<&'a str, &'a crate::Asset>,
     input_indexes: &'a HashMap<String, usize>,
-    text_files: &'a HashMap<String, PathBuf>,
+    text_layers: &'a HashMap<String, PreparedText>,
     width: u32,
     height: u32,
     fps: u32,
 }
 
-impl Drop for BuiltCommand {
+impl Drop for RenderWorkspace {
     fn drop(&mut self) {
-        for path in &self.temporary_files {
-            if path.is_dir() {
-                let _ = std::fs::remove_dir_all(path);
-            } else {
-                let _ = std::fs::remove_file(path);
-            }
-        }
+        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 
@@ -362,30 +371,7 @@ impl Renderer {
             options.height,
             options.fps,
         )?;
-        built
-            .command
-            .args(["-ss", &seconds(options.start_ms), "-map", "[video]"]);
-        if options.include_audio {
-            built.command.args(["-map", "[audio]", "-c:a", "aac"]);
-        }
-        built
-            .command
-            .args([
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "28",
-                "-pix_fmt",
-                "yuv420p",
-                "-movflags",
-                "+faststart",
-                "-t",
-                &seconds(options.end_ms - options.start_ms),
-                "-y",
-            ])
-            .arg(&temporary);
+        configure_preview_range_outputs(&mut built.command, options, &temporary);
         if let Err(error) = run_to_completion(
             &mut built.command,
             options.end_ms - options.start_ms,
@@ -479,17 +465,16 @@ impl Renderer {
             next_input += 1;
         }
 
-        let workspace = render_workspace(project_dir)?;
-        let temporary_files = vec![workspace.clone()];
+        let workspace = RenderWorkspace::create(project_dir)?;
         let mut warnings = Vec::new();
-        let text_files = self.prepare_text_files(project, &workspace)?;
-        let filter_path = workspace.join("filter.txt");
+        let text_layers = self.prepare_text_layers(project, workspace.path(), &mut warnings)?;
+        let filter_path = workspace.path().join("filter.txt");
         let filter = self.build_filter(
             project,
             FilterContext {
                 asset_by_id: &asset_by_id,
                 input_indexes: &input_indexes,
-                text_files: &text_files,
+                text_layers: &text_layers,
                 width,
                 height,
                 fps,
@@ -503,16 +488,17 @@ impl Renderer {
         command.arg("-filter_complex_script").arg(&filter_path);
         Ok(BuiltCommand {
             command,
-            temporary_files,
+            _workspace: workspace,
             warnings,
         })
     }
 
-    fn prepare_text_files(
+    fn prepare_text_layers(
         &self,
         project: &Project,
         workspace: &Path,
-    ) -> Result<HashMap<String, PathBuf>, CoreError> {
+        warnings: &mut Vec<String>,
+    ) -> Result<HashMap<String, PreparedText>, CoreError> {
         let mut result = HashMap::new();
         for text in project
             .tracks
@@ -524,10 +510,82 @@ impl Renderer {
             })
         {
             let path = workspace.join(format!("text-{}.txt", text.id));
-            let content = wrap_text(&text.text, text.style.wrap_width_px, text.font_size);
+            let font_path = self.resolve_text_font(text, warnings);
+            let content = wrap_text(
+                &text.text,
+                text.style.wrap_width_px,
+                text.font_size,
+                font_path.as_deref(),
+            );
             std::fs::write(&path, content.as_bytes())
                 .map_err(|error| CoreError::io("cannot write renderer text file", error))?;
-            result.insert(text.id.clone(), path);
+            let metrics = measure_text_block(&content, text.font_size, font_path.as_deref());
+            let outline = text.style.outline_width_px;
+            let shadow_left = text.style.shadow.offset_x.unsigned_abs()
+                * u32::from(text.style.shadow.offset_x < 0);
+            let shadow_right = text.style.shadow.offset_x.max(0) as u32;
+            let shadow_top = text.style.shadow.offset_y.unsigned_abs()
+                * u32::from(text.style.shadow.offset_y < 0);
+            let shadow_bottom = text.style.shadow.offset_y.max(0) as u32;
+            let text_x = text
+                .style
+                .padding
+                .left
+                .saturating_add(outline)
+                .saturating_add(shadow_left);
+            let text_y = text
+                .style
+                .padding
+                .top
+                .saturating_add(outline)
+                .saturating_add(shadow_top);
+            let layer_width = text_x
+                .saturating_add(metrics.width.ceil() as u32)
+                .saturating_add(text.style.padding.right)
+                .saturating_add(outline)
+                .saturating_add(shadow_right)
+                .saturating_add(2)
+                .max(1);
+            let line_spacing = text
+                .style
+                .line_spacing_px
+                .saturating_mul(metrics.line_count.saturating_sub(1) as i32);
+            let text_height = (metrics.height + f64::from(line_spacing)).max(1.0);
+            let layer_height = text_y
+                .saturating_add(text_height.ceil() as u32)
+                .saturating_add(text.style.padding.bottom)
+                .saturating_add(outline)
+                .saturating_add(shadow_bottom)
+                .saturating_add(2)
+                .max(1);
+            let maximum_scale = text
+                .keyframes
+                .iter()
+                .filter_map(|keyframe| match (keyframe.property, &keyframe.value) {
+                    (KeyframeProperty::Scale, KeyframeValue::Scalar { value }) => Some(*value),
+                    _ => None,
+                })
+                .fold(text.transform.scale, f64::max)
+                .max(0.01);
+            let canvas_width = ((f64::from(layer_width) * maximum_scale).ceil() as u32)
+                .saturating_add(2)
+                .max(1);
+            let canvas_height = ((f64::from(layer_height) * maximum_scale).ceil() as u32)
+                .saturating_add(2)
+                .max(1);
+            result.insert(
+                text.id.clone(),
+                PreparedText {
+                    file_path: path,
+                    font_path,
+                    layer_width,
+                    layer_height,
+                    canvas_width,
+                    canvas_height,
+                    text_x,
+                    text_y,
+                },
+            );
         }
         Ok(result)
     }
@@ -580,12 +638,12 @@ impl Renderer {
         &self,
         project: &Project,
         context: FilterContext<'_>,
-        warnings: &mut Vec<String>,
+        _warnings: &mut Vec<String>,
     ) -> Result<String, CoreError> {
         let FilterContext {
             asset_by_id,
             input_indexes,
-            text_files,
+            text_layers,
             width,
             height,
             fps,
@@ -604,23 +662,25 @@ impl Renderer {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        let voiceover_intervals = project
-            .tracks
-            .iter()
-            .filter(|track| {
-                !track.hidden
-                    && !track.muted
-                    && track.audio_role == crate::AudioTrackRole::Voiceover
-            })
-            .flat_map(|track| track.items.iter())
-            .filter_map(|item| match item {
-                TimelineItem::Media(media) if !media.hidden && !media.audio.muted => Some((
-                    media.start_ms,
-                    media.start_ms.saturating_add(media.duration_ms),
-                )),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let voiceover_intervals = merge_intervals(
+            project
+                .tracks
+                .iter()
+                .filter(|track| {
+                    !track.hidden
+                        && !track.muted
+                        && track.audio_role == crate::AudioTrackRole::Voiceover
+                })
+                .flat_map(|track| track.items.iter())
+                .filter_map(|item| match item {
+                    TimelineItem::Media(media) if !media.hidden && !media.audio.muted => Some((
+                        media.start_ms,
+                        media.start_ms.saturating_add(media.duration_ms),
+                    )),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+        );
 
         for track in &project.tracks {
             if track.hidden {
@@ -751,31 +811,32 @@ impl Renderer {
                             text.start_ms,
                             "T",
                         );
-                        let text_path = text_files.get(&text.id).ok_or_else(|| {
+                        let prepared_text = text_layers.get(&text.id).ok_or_else(|| {
                             CoreError::new(
                                 ErrorCode::InternalError,
                                 "renderer text file is missing",
                             )
                         })?;
-                        let font_path = self.resolve_text_font(text, warnings);
-                        let font = font_path
+                        let font = prepared_text
+                            .font_path
                             .as_ref()
-                            .map(|path| {
-                                format!("fontfile='{}':", escape_filter(&path.to_string_lossy()))
-                            })
+                            .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
                             .unwrap_or_default();
-                        let (x, y) = anchored_text_position(&x, &y, text.style.anchor);
+                        let (x, y) = anchored_layer_position(&x, &y, text.style.anchor);
                         let alignment = match text.style.alignment {
                             crate::TextAlignment::Left => "L",
                             crate::TextAlignment::Center => "C",
                             crate::TextAlignment::Right => "R",
                         };
                         let padding = &text.style.padding;
+                        let (pad_x, pad_y) = text_layer_padding(text.style.anchor);
                         let transition = transition_filters(&text.id, &transitions, text.start_ms);
                         filters.push(format!(
-                            "color=c=black@0.0:s={width}x{height}:r={fps}:d={},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize='{}*({scale})':fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x='{x}':y='{y}':enable='between(t,{},{})',geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]",
+                            "color=c=black@0.0:s={}x{}:r={fps}:d={},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,pad={}:{}:{pad_x}:{pad_y}:color=black@0:eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]",
+                            prepared_text.layer_width,
+                            prepared_text.layer_height,
                             seconds(project.duration_ms().max(1)),
-                            escape_filter(&text_path.to_string_lossy()),
+                            escape_filter_path(&prepared_text.file_path),
                             text.font_size,
                             text.color,
                             text.style.outline_width_px,
@@ -788,10 +849,12 @@ impl Renderer {
                             text.style.background_opacity,
                             padding.top, padding.right, padding.bottom, padding.left,
                             text.style.line_spacing_px,
-                            seconds(text.start_ms),
-                            seconds(text.start_ms.saturating_add(text.duration_ms)),
+                            prepared_text.text_x,
+                            prepared_text.text_y,
+                            prepared_text.canvas_width,
+                            prepared_text.canvas_height,
                         ));
-                        filters.push(format!("[{current_video}][{prepared}]overlay=x=0:y=0:enable='between(t,{},{})'[{composited}]", seconds(text.start_ms), seconds(text.start_ms.saturating_add(text.duration_ms))));
+                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(text.start_ms), seconds(text.start_ms.saturating_add(text.duration_ms))));
                         current_video = composited;
                     }
                     TimelineItem::SolidColor(shape) => {
@@ -870,9 +933,7 @@ impl Renderer {
                         let font = self
                             .default_font_path
                             .as_ref()
-                            .map(|path| {
-                                format!("fontfile='{}':", escape_filter(&path.to_string_lossy()))
-                            })
+                            .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
                             .unwrap_or_default();
                         filters.push(format!(
                         "[{current_video}]drawtext={font}text='{}':fontsize={}:fontcolor={}:box=1:boxcolor={}@0.75:boxborderw=12:x='(w-text_w)/2':y='h-text_h-{}':enable='between(t,{},{})'[{composited}]",
@@ -908,32 +969,108 @@ fn stream<'a>(streams: &'a [serde_json::Value], kind: &str) -> Option<&'a serde_
         .find(|stream| stream.get("codec_type").and_then(serde_json::Value::as_str) == Some(kind))
 }
 
-fn wrap_text(text: &str, width_px: Option<u32>, font_size: u32) -> String {
+struct TextMetrics {
+    width: f64,
+    height: f64,
+    line_count: usize,
+}
+
+fn wrap_text(
+    text: &str,
+    width_px: Option<u32>,
+    font_size: u32,
+    font_path: Option<&Path>,
+) -> String {
     let Some(width_px) = width_px else {
         return text.to_owned();
     };
-    let maximum = ((width_px as f64 / (font_size as f64 * 0.6)).floor() as usize).max(1);
+    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
+    let face = font_data
+        .as_deref()
+        .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
+    wrap_text_with_measure(text, f64::from(width_px), |value| {
+        measure_text_run(value, font_size, face.as_ref())
+    })
+}
+
+fn wrap_text_with_measure(text: &str, maximum_width: f64, measure: impl Fn(&str) -> f64) -> String {
     text.split('\n')
         .map(|line| {
             let mut lines = Vec::new();
             let mut current = String::new();
             for word in line.split_whitespace() {
-                let proposed = current.chars().count()
-                    + usize::from(!current.is_empty())
-                    + word.chars().count();
-                if proposed > maximum && !current.is_empty() {
-                    lines.push(std::mem::take(&mut current));
+                let proposed = if current.is_empty() {
+                    word.to_owned()
+                } else {
+                    format!("{current} {word}")
+                };
+                if measure(&proposed) <= maximum_width {
+                    current = proposed;
+                    continue;
                 }
                 if !current.is_empty() {
-                    current.push(' ');
+                    lines.push(std::mem::take(&mut current));
                 }
-                current.push_str(word);
+                if measure(word) <= maximum_width {
+                    current.push_str(word);
+                    continue;
+                }
+                for character in word.chars() {
+                    let mut candidate = current.clone();
+                    candidate.push(character);
+                    if !current.is_empty() && measure(&candidate) > maximum_width {
+                        lines.push(std::mem::take(&mut current));
+                    }
+                    current.push(character);
+                }
             }
             lines.push(current);
             lines.join("\n")
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn measure_text_block(text: &str, font_size: u32, font_path: Option<&Path>) -> TextMetrics {
+    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
+    let face = font_data
+        .as_deref()
+        .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
+    let line_count = text.split('\n').count().max(1);
+    let width = text
+        .split('\n')
+        .map(|line| measure_text_run(line, font_size, face.as_ref()))
+        .fold(0.0_f64, f64::max);
+    let line_height = face.as_ref().map_or(f64::from(font_size) * 1.2, |face| {
+        let units = f64::from(face.units_per_em());
+        let height = f64::from(face.ascender() - face.descender() + face.line_gap());
+        (height / units * f64::from(font_size)).max(1.0)
+    });
+    TextMetrics {
+        width,
+        height: line_height * line_count as f64,
+        line_count,
+    }
+}
+
+fn measure_text_run(text: &str, font_size: u32, face: Option<&ttf_parser::Face<'_>>) -> f64 {
+    let Some(face) = face else {
+        return text.chars().count() as f64 * f64::from(font_size) * 0.6;
+    };
+    let units = f64::from(face.units_per_em());
+    let fallback = face
+        .glyph_index('\u{fffd}')
+        .or_else(|| face.glyph_index('?'));
+    let advance = text
+        .chars()
+        .map(|character| {
+            face.glyph_index(character)
+                .or(fallback)
+                .and_then(|glyph| face.glyph_hor_advance(glyph))
+                .map_or(units * 0.6, f64::from)
+        })
+        .sum::<f64>();
+    advance / units * f64::from(font_size)
 }
 
 fn ffmpeg_color(color: &str) -> String {
@@ -968,19 +1105,34 @@ fn find_font_file(root: &Path, normalized_family: &str) -> Option<PathBuf> {
     None
 }
 
-fn anchored_text_position(x: &str, y: &str, anchor: crate::AnchorPoint) -> (String, String) {
+fn anchored_layer_position(x: &str, y: &str, anchor: crate::AnchorPoint) -> (String, String) {
     use crate::AnchorPoint::*;
     let anchored_x = match anchor {
-        TopCenter | Center | BottomCenter => format!("({x})-(text_w/2)"),
-        TopRight | CenterRight | BottomRight => format!("({x})-text_w"),
+        TopCenter | Center | BottomCenter => format!("({x})-(overlay_w/2)"),
+        TopRight | CenterRight | BottomRight => format!("({x})-overlay_w"),
         _ => x.into(),
     };
     let anchored_y = match anchor {
-        CenterLeft | Center | CenterRight => format!("({y})-(text_h/2)"),
-        BottomLeft | BottomCenter | BottomRight => format!("({y})-text_h"),
+        CenterLeft | Center | CenterRight => format!("({y})-(overlay_h/2)"),
+        BottomLeft | BottomCenter | BottomRight => format!("({y})-overlay_h"),
         _ => y.into(),
     };
     (anchored_x, anchored_y)
+}
+
+fn text_layer_padding(anchor: crate::AnchorPoint) -> (&'static str, &'static str) {
+    use crate::AnchorPoint::*;
+    let x = match anchor {
+        TopCenter | Center | BottomCenter => "(ow-iw)/2",
+        TopRight | CenterRight | BottomRight => "ow-iw",
+        _ => "0",
+    };
+    let y = match anchor {
+        CenterLeft | Center | CenterRight => "(oh-ih)/2",
+        BottomLeft | BottomCenter | BottomRight => "oh-ih",
+        _ => "0",
+    };
+    (x, y)
 }
 
 fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String {
@@ -991,14 +1143,14 @@ fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String 
         return "1".into();
     }
     let mut expression = "1".to_owned();
-    for (start, end) in intervals.iter().rev() {
+    for (start, end) in intervals {
         let attack_start = start.saturating_sub(settings.attack_ms);
         let release_end = end.saturating_add(settings.release_ms);
         let attack = seconds(settings.attack_ms.max(1));
         let release = seconds(settings.release_ms.max(1));
         let gain = format_number(settings.gain);
-        expression = format!(
-            "if(between(t,{},{}) ,1-(1-({gain}))*((t-{})/{attack}),if(between(t,{},{}) ,({gain}),if(between(t,{},{}) ,({gain})+(1-({gain}))*((t-{})/{release}),{expression})))",
+        let envelope = format!(
+            "if(between(t,{},{}),1-(1-({gain}))*((t-{})/{attack}),if(between(t,{},{}),({gain}),if(between(t,{},{}),({gain})+(1-({gain}))*((t-{})/{release}),1)))",
             seconds(attack_start),
             seconds(*start),
             seconds(attack_start),
@@ -1008,8 +1160,49 @@ fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String 
             seconds(release_end),
             seconds(*end),
         );
+        expression = format!("min({expression},{envelope})");
     }
     expression
+}
+
+fn merge_intervals(mut intervals: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
+    intervals.retain(|(start, end)| start < end);
+    intervals.sort_unstable_by_key(|(start, end)| (*start, *end));
+    let mut merged: Vec<(u64, u64)> = Vec::with_capacity(intervals.len());
+    for (start, end) in intervals {
+        if let Some((_, previous_end)) = merged.last_mut()
+            && start <= *previous_end
+        {
+            *previous_end = (*previous_end).max(end);
+        } else {
+            merged.push((start, end));
+        }
+    }
+    merged
+}
+
+#[cfg(test)]
+fn ducking_gain_at(
+    settings: &crate::DuckingSettings,
+    intervals: &[(u64, u64)],
+    time_ms: u64,
+) -> f64 {
+    intervals.iter().fold(1.0, |gain, (start, end)| {
+        let attack_start = start.saturating_sub(settings.attack_ms);
+        let release_end = end.saturating_add(settings.release_ms);
+        let envelope = if (attack_start..*start).contains(&time_ms) {
+            let progress = (time_ms - attack_start) as f64 / settings.attack_ms.max(1) as f64;
+            1.0 - (1.0 - settings.gain) * progress
+        } else if (*start..=*end).contains(&time_ms) {
+            settings.gain
+        } else if (*end < time_ms) && time_ms <= release_end {
+            let progress = (time_ms - end) as f64 / settings.release_ms.max(1) as f64;
+            settings.gain + (1.0 - settings.gain) * progress
+        } else {
+            1.0
+        };
+        gain.min(envelope)
+    })
 }
 
 fn stream_string(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<String> {
@@ -1040,20 +1233,60 @@ fn temporary_output(parent: &Path, extension: &str) -> PathBuf {
     parent.join(format!(".opencut-{request_id}.{extension}"))
 }
 
-fn render_workspace(project_dir: &Path) -> Result<PathBuf, CoreError> {
-    let request_id = env::var("OPENCUT_REQUEST_ID")
-        .ok()
-        .filter(|value| {
-            !value.is_empty()
-                && value
-                    .chars()
-                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
-        })
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-    let path = project_dir.join(format!(".opencut-work-{request_id}"));
-    std::fs::create_dir(&path)
-        .map_err(|error| CoreError::io("cannot create render workspace", error))?;
-    Ok(path)
+fn configure_preview_range_outputs(
+    command: &mut Command,
+    options: PreviewRangeOptions,
+    temporary: &Path,
+) {
+    let duration = seconds(options.end_ms - options.start_ms);
+    command.args(["-ss", &seconds(options.start_ms), "-map", "[video]"]);
+    if options.include_audio {
+        command.args(["-map", "[audio]", "-c:a", "aac"]);
+    }
+    command
+        .args([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "28",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-t",
+            &duration,
+            "-y",
+        ])
+        .arg(temporary);
+    if !options.include_audio {
+        command
+            .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
+            .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
+    }
+}
+
+impl RenderWorkspace {
+    fn create(project_dir: &Path) -> Result<Self, CoreError> {
+        let request_id = env::var("OPENCUT_REQUEST_ID")
+            .ok()
+            .filter(|value| {
+                !value.is_empty()
+                    && value
+                        .chars()
+                        .all(|character| character.is_ascii_alphanumeric() || character == '-')
+            })
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        let path = project_dir.join(format!(".opencut-work-{request_id}"));
+        std::fs::create_dir(&path)
+            .map_err(|error| CoreError::io("cannot create render workspace", error))?;
+        Ok(Self { path })
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
 fn publish_output(temporary: &Path, output: &Path, overwrite: bool) -> Result<(), CoreError> {
@@ -1241,6 +1474,10 @@ fn escape_filter(value: &str) -> String {
         .replace('\n', "\\n")
 }
 
+fn escape_filter_path(path: &Path) -> String {
+    escape_filter(&path.to_string_lossy().replace('\\', "/"))
+}
+
 fn seconds(milliseconds: u64) -> String {
     format!("{:.3}", milliseconds as f64 / 1_000.0)
 }
@@ -1328,40 +1565,62 @@ fn run_to_completion(
 }
 
 fn sanitize_stderr(stderr: &str) -> String {
-    let tail = stderr
+    let sanitized = stderr
+        .lines()
+        .map(sanitize_stderr_line)
+        .collect::<Vec<_>>()
+        .join("\n");
+    sanitized
         .chars()
         .rev()
         .take(4_096)
         .collect::<String>()
         .chars()
         .rev()
-        .collect::<String>();
-    tail.lines()
-        .map(sanitize_stderr_line)
-        .collect::<Vec<_>>()
-        .join("\n")
+        .collect::<String>()
 }
 
 fn sanitize_stderr_line(line: &str) -> String {
-    line.split_whitespace()
-        .map(|part| {
-            let normalized = part.trim_matches(['\'', '"', '(', ')', '[', ']', ',', ';']);
-            let has_windows_path = normalized.as_bytes().windows(3).any(|window| {
-                window[0].is_ascii_alphabetic()
-                    && window[1] == b':'
-                    && matches!(window[2], b'\\' | b'/')
-            });
-            let has_posix_path = normalized.starts_with('/')
-                || normalized.contains("=/")
-                || normalized.contains("file:/");
-            if has_windows_path || has_posix_path {
-                "[path]"
-            } else {
-                part
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    let mut sanitized = String::with_capacity(line.len());
+    let mut cursor = 0;
+    while let Some(relative_start) = find_absolute_path_start(&line[cursor..]) {
+        let start = cursor + relative_start;
+        sanitized.push_str(&line[cursor..start]);
+        let quote = line[..start]
+            .chars()
+            .next_back()
+            .filter(|character| matches!(character, '\'' | '"'));
+        let path_tail = &line[start..];
+        let end = quote
+            .and_then(|quote| path_tail[1..].find(quote).map(|index| start + index + 1))
+            .or_else(|| {
+                path_tail[3.min(path_tail.len())..]
+                    .find(": ")
+                    .map(|index| start + 3.min(path_tail.len()) + index)
+            })
+            .unwrap_or(line.len());
+        sanitized.push_str("[path]");
+        cursor = end;
+    }
+    sanitized.push_str(&line[cursor..]);
+    sanitized
+}
+
+fn find_absolute_path_start(value: &str) -> Option<usize> {
+    let bytes = value.as_bytes();
+    let windows = bytes.windows(3).position(|window| {
+        window[0].is_ascii_alphabetic() && window[1] == b':' && matches!(window[2], b'\\' | b'/')
+    });
+    let posix = bytes.iter().enumerate().find_map(|(index, byte)| {
+        if *byte != b'/' {
+            return None;
+        }
+        let boundary = index == 0
+            || bytes[index - 1].is_ascii_whitespace()
+            || matches!(bytes[index - 1], b'=' | b'\'' | b'"' | b'(' | b'[');
+        boundary.then_some(index)
+    });
+    windows.into_iter().chain(posix).min()
 }
 
 #[cfg(test)]
@@ -1383,6 +1642,34 @@ mod tests {
         assert!(expression.contains("if(lt((t),"));
         assert!(!expression.contains('$'));
         assert!(!expression.contains('`'));
+    }
+
+    #[test]
+    fn preview_range_without_audio_consumes_the_labeled_audio_output() {
+        let mut command = Command::new("ffmpeg");
+        configure_preview_range_outputs(
+            &mut command,
+            PreviewRangeOptions {
+                start_ms: 100,
+                end_ms: 1_100,
+                width: 320,
+                height: 180,
+                fps: 15,
+                include_audio: false,
+            },
+            Path::new("preview.mp4"),
+        );
+        let arguments = command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        let audio_map = arguments
+            .windows(2)
+            .filter(|window| *window == ["-map", "[audio]"])
+            .count();
+        assert_eq!(audio_map, 1);
+        assert!(arguments.windows(2).any(|window| window == ["-f", "null"]));
+        assert!(!arguments.windows(2).any(|window| window == ["-c:a", "aac"]));
     }
 
     #[test]
@@ -1446,9 +1733,158 @@ mod tests {
     #[test]
     fn wrapping_preserves_newlines_and_unicode_without_filter_escaping() {
         let value = "It's: 100% \\ café →\nsecond line";
-        assert_eq!(wrap_text(value, None, 48), value);
-        let wrapped = wrap_text("one two three", Some(80), 20);
+        assert_eq!(wrap_text(value, None, 48, None), value);
+        let wrapped = wrap_text("one two three", Some(80), 20, None);
         assert!(wrapped.contains('\n'));
+    }
+
+    #[test]
+    fn wrapping_uses_proportional_and_unicode_glyph_measurements() {
+        let measure = |value: &str| {
+            value
+                .chars()
+                .map(|character| match character {
+                    'W' => 10.0,
+                    'i' => 2.0,
+                    'é' => 7.0,
+                    '→' => 9.0,
+                    ' ' => 3.0,
+                    _ => 5.0,
+                })
+                .sum()
+        };
+        assert_eq!(
+            wrap_text_with_measure("iiii WWWW", 20.0, measure),
+            "iiii\nWW\nWW"
+        );
+        assert_eq!(wrap_text_with_measure("café →", 30.0, measure), "café\n→");
+    }
+
+    #[test]
+    fn overlapping_voiceovers_remain_ducked_and_adjacent_envelopes_take_minimum_gain() {
+        let settings = crate::DuckingSettings {
+            enabled: true,
+            gain: 0.2,
+            attack_ms: 200,
+            release_ms: 200,
+        };
+        let merged = merge_intervals(vec![(900, 2_000), (0, 1_000)]);
+        assert_eq!(merged, vec![(0, 2_000)]);
+        assert_eq!(ducking_gain_at(&settings, &merged, 1_100), settings.gain);
+
+        let adjacent = vec![(0, 1_000), (1_100, 2_000)];
+        assert!(ducking_gain_at(&settings, &adjacent, 1_050) < 0.5);
+        let track = Track {
+            id: "music".into(),
+            name: "Music".into(),
+            track_type: TrackType::Audio,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Music,
+            ducking: Some(settings),
+            items: vec![],
+        };
+        assert!(
+            ducking_expression(&track, &adjacent)
+                .matches("min(")
+                .count()
+                >= 2
+        );
+    }
+
+    #[test]
+    fn text_scale_applies_to_the_complete_isolated_styled_layer() {
+        let root = tempdir().unwrap();
+        let style = crate::TextStyle {
+            outline_width_px: 3,
+            shadow: crate::TextShadow {
+                offset_x: 4,
+                offset_y: 5,
+                ..crate::TextShadow::default()
+            },
+            background_opacity: 0.6,
+            padding: crate::TextPadding {
+                top: 13,
+                right: 12,
+                bottom: 14,
+                left: 11,
+            },
+            line_spacing_px: 7,
+            anchor: crate::AnchorPoint::Center,
+            ..crate::TextStyle::default()
+        };
+        let project = Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "project".into(),
+            revision: 0,
+            name: "text scale".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            settings: ProjectSettings::default(),
+            assets: vec![],
+            tracks: vec![Track {
+                id: "overlay".into(),
+                name: "Overlay".into(),
+                track_type: TrackType::Overlay,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
+                items: vec![TimelineItem::Text(crate::TextItem {
+                    id: "text".into(),
+                    text: "Styled\ntext".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 40,
+                    color: "#ffffff".into(),
+                    font_family: None,
+                    font_path: None,
+                    style,
+                    transform: Transform {
+                        position_x: 100.0,
+                        position_y: 200.0,
+                        scale: 2.0,
+                        opacity: 0.75,
+                    },
+                    keyframes: vec![],
+                    hidden: false,
+                })],
+            }],
+        };
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None);
+        let mut warnings = Vec::new();
+        let text_layers = renderer
+            .prepare_text_layers(&project, root.path(), &mut warnings)
+            .unwrap();
+        let asset_by_id = HashMap::new();
+        let input_indexes = HashMap::new();
+        let filter = renderer
+            .build_filter(
+                &project,
+                FilterContext {
+                    asset_by_id: &asset_by_id,
+                    input_indexes: &input_indexes,
+                    text_layers: &text_layers,
+                    width: 1920,
+                    height: 1080,
+                    fps: 30,
+                },
+                &mut warnings,
+            )
+            .unwrap();
+        assert!(filter.contains("fontsize=40"));
+        assert!(!filter.contains("fontsize='40*"));
+        assert!(filter.contains("borderw=3"));
+        assert!(filter.contains("shadowx=4:shadowy=5"));
+        assert!(filter.contains("boxborderw=13|12|14|11"));
+        assert!(filter.contains("line_spacing=7"));
+        assert!(filter.contains("scale=w='iw*(2.000000)':h='ih*(2.000000)':eval=frame"));
+        assert!(filter.contains("pad="));
+        assert!(filter.contains(":(ow-iw)/2:(oh-ih)/2:color=black@0:eval=frame"));
+        assert!(filter.contains("overlay_w/2"));
+        assert!(filter.contains("overlay_h/2"));
     }
 
     #[test]
@@ -1459,15 +1895,84 @@ mod tests {
     #[test]
     fn ffmpeg_stderr_is_path_redacted_and_tail_bounded() {
         let stderr = format!(
-            "{} input=C:\\Users\\private\\secret.mov /var/private/secret.mov\nfinal diagnostic",
+            "{} input=C:\\Users\\Jane Doe\\private clip.mov: Invalid argument\nsource='/var/private/project clip.mov': Permission denied\nfinal diagnostic",
             "x".repeat(5_000)
         );
         let sanitized = sanitize_stderr(&stderr);
         assert!(sanitized.chars().count() <= 4_096);
         assert!(!sanitized.contains("C:\\Users"));
+        assert!(!sanitized.contains("Jane Doe"));
+        assert!(!sanitized.contains("private clip.mov"));
         assert!(!sanitized.contains("/var/private"));
         assert!(sanitized.contains("[path]"));
+        assert!(sanitized.contains("Invalid argument"));
+        assert!(sanitized.contains("Permission denied"));
         assert!(sanitized.ends_with("final diagnostic"));
+    }
+
+    #[test]
+    fn render_workspace_is_removed_when_text_preparation_fails() {
+        let root = tempdir().unwrap();
+        let project = Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "project".into(),
+            revision: 0,
+            name: "cleanup".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            settings: ProjectSettings::default(),
+            assets: vec![],
+            tracks: vec![Track {
+                id: "overlay".into(),
+                name: "Overlay".into(),
+                track_type: TrackType::Overlay,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
+                items: vec![TimelineItem::Text(crate::TextItem {
+                    id: "missing/parent".into(),
+                    text: "failure".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 40,
+                    color: "#ffffff".into(),
+                    font_family: None,
+                    font_path: None,
+                    style: crate::TextStyle::default(),
+                    transform: Transform::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                })],
+            }],
+        };
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None);
+        assert!(
+            renderer
+                .build_command(&project, root.path(), 320, 180, 15)
+                .is_err()
+        );
+        assert!(std::fs::read_dir(root.path()).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".opencut-work-")
+        }));
+    }
+
+    #[test]
+    fn render_workspace_guard_removes_completed_preparation_files() {
+        let root = tempdir().unwrap();
+        let workspace_path;
+        {
+            let workspace = RenderWorkspace::create(root.path()).unwrap();
+            workspace_path = workspace.path().to_owned();
+            std::fs::write(workspace.path().join("filter.txt"), b"fixture").unwrap();
+            assert!(workspace_path.exists());
+        }
+        assert!(!workspace_path.exists());
     }
 
     #[test]
@@ -1544,21 +2049,84 @@ mod tests {
                 muted: false,
                 audio_role: crate::AudioTrackRole::Unassigned,
                 ducking: None,
-                items: vec![TimelineItem::SolidColor(SolidColorItem {
-                    id: "background".into(),
-                    color: "#cc3311".into(),
-                    start_ms: 0,
-                    duration_ms: 1_000,
-                    transform: Transform {
-                        opacity: 0.7,
-                        ..Transform::default()
-                    },
-                    keyframes: vec![],
-                    hidden: false,
-                })],
+                items: vec![
+                    TimelineItem::SolidColor(SolidColorItem {
+                        id: "background".into(),
+                        color: "#cc3311".into(),
+                        start_ms: 0,
+                        duration_ms: 1_000,
+                        transform: Transform {
+                            opacity: 0.7,
+                            ..Transform::default()
+                        },
+                        keyframes: vec![],
+                        hidden: false,
+                    }),
+                    TimelineItem::Text(crate::TextItem {
+                        id: "animated-text".into(),
+                        text: "café →\nWWWW iiii".into(),
+                        start_ms: 0,
+                        duration_ms: 1_000,
+                        font_size: 20,
+                        color: "#ffffff".into(),
+                        font_family: None,
+                        font_path: None,
+                        style: crate::TextStyle {
+                            wrap_width_px: Some(100),
+                            line_spacing_px: 3,
+                            outline_width_px: 1,
+                            background_opacity: 0.4,
+                            padding: crate::TextPadding {
+                                top: 2,
+                                right: 4,
+                                bottom: 3,
+                                left: 5,
+                            },
+                            anchor: crate::AnchorPoint::Center,
+                            ..crate::TextStyle::default()
+                        },
+                        transform: Transform {
+                            position_x: 80.0,
+                            position_y: 45.0,
+                            scale: 1.0,
+                            opacity: 0.8,
+                        },
+                        keyframes: vec![
+                            Keyframe {
+                                property: KeyframeProperty::Scale,
+                                time_ms: 0,
+                                value: KeyframeValue::Scalar { value: 0.8 },
+                                easing: Easing::EaseInOut,
+                            },
+                            Keyframe {
+                                property: KeyframeProperty::Scale,
+                                time_ms: 1_000,
+                                value: KeyframeValue::Scalar { value: 1.2 },
+                                easing: Easing::Linear,
+                            },
+                            Keyframe {
+                                property: KeyframeProperty::Opacity,
+                                time_ms: 0,
+                                value: KeyframeValue::Scalar { value: 0.4 },
+                                easing: Easing::Linear,
+                            },
+                            Keyframe {
+                                property: KeyframeProperty::Opacity,
+                                time_ms: 1_000,
+                                value: KeyframeValue::Scalar { value: 1.0 },
+                                easing: Easing::Linear,
+                            },
+                        ],
+                        hidden: false,
+                    }),
+                ],
             }],
         };
-        let renderer = Renderer::new(&ffmpeg, ffprobe, None);
+        let renderer = Renderer::new(
+            &ffmpeg,
+            ffprobe,
+            env::var_os("OPENCUT_TEST_FONT_PATH").map(PathBuf::from),
+        );
         let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
         let range = renderer
             .render_preview_range(
@@ -1672,7 +2240,7 @@ mod tests {
             }],
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
-        let text_files = HashMap::new();
+        let text_layers = HashMap::new();
         let asset_by_id = HashMap::new();
         let input_indexes = HashMap::new();
         let mut warnings = Vec::new();
@@ -1682,7 +2250,7 @@ mod tests {
                 FilterContext {
                     asset_by_id: &asset_by_id,
                     input_indexes: &input_indexes,
-                    text_files: &text_files,
+                    text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
                     fps: 30,
@@ -1699,7 +2267,7 @@ mod tests {
                 FilterContext {
                     asset_by_id: &asset_by_id,
                     input_indexes: &input_indexes,
-                    text_files: &text_files,
+                    text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
                     fps: 30,

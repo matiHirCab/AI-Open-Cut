@@ -366,7 +366,7 @@ export const errorBody = (error: unknown) => {
       failedStage: error.failedStage,
       ffmpegExitCode: error.ffmpegExitCode,
       ffmpegStderrExcerpt: error.ffmpegStderrExcerpt
-        ? redactPaths(error.ffmpegStderrExcerpt).slice(-4096)
+        ? redactPaths(error.ffmpegStderrExcerpt, 4096, true)
         : null,
       message: redactPaths(error.message),
       retryable: error.retryable,
@@ -392,8 +392,12 @@ export const errorBody = (error: unknown) => {
   };
 };
 
-const redactPaths = (message: string) =>
-  message
-    .replace(/[A-Za-z]:[\\/][^\r\n"'<>]*/g, "[path]")
-    .replace(/(^|\s)\/(?:[^\s\r\n"'<>/]+\/)*[^\s\r\n"'<>/]*/g, "$1[path]")
-    .slice(0, 500);
+const redactPaths = (message: string, limit = 500, tail = false) => {
+  const sanitized = message
+    .replace(/[A-Za-z]:[\\/][^\r\n]*?(?=: |$)/gm, "[path]")
+    .replace(/(^|[\s='"([])\/[^\r\n]*?(?=: |$)/gm, "$1[path]");
+  const characters = [...sanitized];
+  return (tail ? characters.slice(-limit) : characters.slice(0, limit)).join(
+    ""
+  );
+};

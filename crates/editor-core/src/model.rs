@@ -1,8 +1,16 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
 pub const PROJECT_SCHEMA_VERSION: u32 = 6;
+
+fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -695,7 +703,7 @@ impl Default for AudioSettings {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyframeProperty {
     Position,
@@ -807,9 +815,17 @@ pub enum EditOperation {
         width: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         height: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         font_family: Option<Option<String>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         font_path: Option<Option<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         style: Option<TextStyle>,
@@ -878,7 +894,11 @@ pub enum EditOperation {
         muted: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
         audio_role: Option<AudioTrackRole>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
         ducking: Option<Option<DuckingSettings>>,
     },
     DeleteTrack {
@@ -919,6 +939,57 @@ pub struct History {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nullable_edit_fields_distinguish_missing_clear_and_set() {
+        let clear_item: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation": "update_item",
+            "itemId": "text",
+            "fontFamily": null,
+            "fontPath": null
+        }))
+        .unwrap();
+        let EditOperation::UpdateItem {
+            font_family,
+            font_path,
+            ..
+        } = &clear_item
+        else {
+            panic!("expected update_item")
+        };
+        assert_eq!(font_family, &Some(None));
+        assert_eq!(font_path, &Some(None));
+        let serialized = serde_json::to_value(clear_item).unwrap();
+        assert!(serialized["fontFamily"].is_null());
+        assert!(serialized["fontPath"].is_null());
+
+        let omitted_item: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation": "update_item",
+            "itemId": "text"
+        }))
+        .unwrap();
+        let EditOperation::UpdateItem {
+            font_family,
+            font_path,
+            ..
+        } = omitted_item
+        else {
+            panic!("expected update_item")
+        };
+        assert_eq!(font_family, None);
+        assert_eq!(font_path, None);
+
+        let clear_track: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation": "update_track",
+            "trackId": "music",
+            "ducking": null
+        }))
+        .unwrap();
+        let EditOperation::UpdateTrack { ducking, .. } = clear_track else {
+            panic!("expected update_track")
+        };
+        assert_eq!(ducking, Some(None));
+    }
 
     #[test]
     fn speech_generation_uses_provider_neutral_json() {

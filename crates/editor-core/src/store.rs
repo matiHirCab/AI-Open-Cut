@@ -1980,7 +1980,7 @@ fn validate_audio(audio: &AudioSettings) -> Result<(), CoreError> {
 }
 
 fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
-    let mut previous: Option<(KeyframeProperty, u64)> = None;
+    let mut previous_by_property = BTreeMap::new();
     for keyframe in keyframes {
         match (keyframe.property, &keyframe.value) {
             (KeyframeProperty::Position, KeyframeValue::Position { x, y })
@@ -1998,16 +1998,15 @@ fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
                 ));
             }
         }
-        if let Some((property, time_ms)) = previous
-            && property == keyframe.property
-            && keyframe.time_ms <= time_ms
+        if let Some(time_ms) = previous_by_property.get(&keyframe.property)
+            && keyframe.time_ms <= *time_ms
         {
             return Err(CoreError::new(
                 ErrorCode::ValidationFailed,
                 "keyframes for a property must be strictly increasing",
             ));
         }
-        previous = Some((keyframe.property, keyframe.time_ms));
+        previous_by_property.insert(keyframe.property, keyframe.time_ms);
     }
     Ok(())
 }
@@ -2845,6 +2844,123 @@ mod tests {
             validate_keyframes(&invalid).unwrap_err().code,
             ErrorCode::ValidationFailed
         );
+
+        let interleaved = vec![
+            Keyframe {
+                property: KeyframeProperty::Volume,
+                time_ms: 1_000,
+                value: KeyframeValue::Scalar { value: 1.0 },
+                easing: crate::Easing::Linear,
+            },
+            Keyframe {
+                property: KeyframeProperty::Opacity,
+                time_ms: 0,
+                value: KeyframeValue::Scalar { value: 1.0 },
+                easing: crate::Easing::Linear,
+            },
+            Keyframe {
+                property: KeyframeProperty::Volume,
+                time_ms: 500,
+                value: KeyframeValue::Scalar { value: 0.5 },
+                easing: crate::Easing::Linear,
+            },
+        ];
+        assert_eq!(
+            validate_keyframes(&interleaved).unwrap_err().code,
+            ErrorCode::ValidationFailed
+        );
+    }
+
+    #[test]
+    fn nullable_item_and_track_updates_clear_stored_values() {
+        let (core, _) = core();
+        let created = core
+            .create_project("nullable updates", ProjectSettings::default())
+            .unwrap();
+        let project = core.get_project(&created.project_id).unwrap();
+        let overlay = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Overlay)
+            .unwrap()
+            .id
+            .clone();
+        let audio = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        let added = core
+            .edit(
+                &created.project_id,
+                0,
+                EditOperation::AddText {
+                    track_id: overlay,
+                    text: "clear selectors".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 48,
+                    color: "#ffffff".into(),
+                    font_family: Some("Requested Family".into()),
+                    font_path: Some("requested.ttf".into()),
+                    style: TextStyle::default(),
+                    transform: Transform::default(),
+                },
+            )
+            .unwrap();
+        let item_id = added.changed_ids[0].clone();
+        let clear_item: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation": "update_item",
+            "itemId": item_id,
+            "fontFamily": null,
+            "fontPath": null
+        }))
+        .unwrap();
+        core.edit(&created.project_id, 1, clear_item).unwrap();
+
+        core.edit(
+            &created.project_id,
+            2,
+            EditOperation::UpdateTrack {
+                track_id: audio.clone(),
+                name: None,
+                index: None,
+                locked: None,
+                hidden: None,
+                muted: None,
+                audio_role: Some(AudioTrackRole::Music),
+                ducking: Some(Some(DuckingSettings {
+                    enabled: true,
+                    gain: 0.25,
+                    attack_ms: 100,
+                    release_ms: 200,
+                })),
+            },
+        )
+        .unwrap();
+        let clear_ducking: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation": "update_track",
+            "trackId": audio,
+            "ducking": null
+        }))
+        .unwrap();
+        core.edit(&created.project_id, 3, clear_ducking).unwrap();
+
+        let project = core.get_project(&created.project_id).unwrap();
+        let TimelineItem::Text(text) = project.find_item(&item_id).unwrap() else {
+            panic!("expected text item")
+        };
+        assert_eq!(text.font_family, None);
+        assert_eq!(text.font_path, None);
+        let audio = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap();
+        assert_eq!(audio.audio_role, AudioTrackRole::Music);
+        assert_eq!(audio.ducking, None);
     }
 
     #[test]

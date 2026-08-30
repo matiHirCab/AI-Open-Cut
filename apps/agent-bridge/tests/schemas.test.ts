@@ -91,6 +91,23 @@ describe("MCP contracts", () => {
     expect(result.message).not.toContain("C:\\Users\\person");
   });
 
+  it("redacts spaced paths and preserves the diagnostic stderr tail", () => {
+    const result = errorBody(
+      new BridgeError("FFMPEG_FAILED", "render failed", false, undefined, {
+        failedStage: "render",
+        ffmpegExitCode: 1,
+        ffmpegStderrExcerpt: `${"early ".repeat(900)}input=C:\\Users\\Jane Doe\\private clip.mov: Invalid argument\nfinal diagnostic`,
+      })
+    );
+    expect(result.ffmpegStderrExcerpt).not.toContain("Jane Doe");
+    expect(result.ffmpegStderrExcerpt).not.toContain("private clip.mov");
+    expect(result.ffmpegStderrExcerpt).toContain("[path]: Invalid argument");
+    expect(result.ffmpegStderrExcerpt?.endsWith("final diagnostic")).toBe(true);
+    expect([...(result.ffmpegStderrExcerpt ?? "")].length).toBeLessThanOrEqual(
+      4096
+    );
+  });
+
   it("derives retryability and provider mappings from the shared error catalog", () => {
     expect(new BridgeError("HEADLESS_TIMEOUT", "timeout").retryable).toBe(true);
     expect(new BridgeError("ASSET_IN_USE", "used").retryable).toBe(false);
