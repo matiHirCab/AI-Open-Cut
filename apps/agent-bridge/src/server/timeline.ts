@@ -141,6 +141,54 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_add_solid_color",
+    {
+      annotations: WRITE,
+      description:
+        "Add a native solid-color visual item with transforms, keyframes, transitions, and history support.",
+      inputSchema: schemas.timelineAddSolidColor,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_solid_color",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "timeline_add_rectangle",
+    {
+      annotations: WRITE,
+      description:
+        "Add a native rectangle visual item with transforms, keyframes, transitions, and history support.",
+      inputSchema: schemas.timelineAddRectangle,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_rectangle",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_move_item",
     {
       annotations: WRITE,
@@ -336,7 +384,7 @@ export const registerTimelineTools = (
     {
       annotations: WRITE,
       description:
-        "Apply up to 100 typed edits atomically as one revision and undo step.",
+        "Validate and apply up to 100 typed edits atomically as one revision and undo step; creation edits may publish resultAlias values referenced later as @alias.",
       inputSchema: schemas.timelineBatchEdit,
       outputSchema: writeResultSchema,
     },

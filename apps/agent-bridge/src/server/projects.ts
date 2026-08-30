@@ -1,5 +1,5 @@
 import type { z } from "zod/v4";
-
+import { runtimePathDiagnostics } from "../diagnostics";
 import { errorBody } from "../headless";
 import {
   headlessStatusSchema,
@@ -23,12 +23,13 @@ export const registerProjectTools = (
   server: Server,
   dependencies: ServerDependencies
 ) => {
-  const { headless, session, speech, transcription } = dependencies;
+  const { config, headless, session, speech, transcription } = dependencies;
   server.registerTool(
     "editor_get_status",
     {
       annotations: READ_ONLY,
-      description: "Check editor and optional subsystem readiness.",
+      description:
+        "Check editor and optional subsystem readiness with sanitized diagnostics for media, project, export, generated-media, FFmpeg, FFprobe, and Kokoro paths.",
       inputSchema: schemas.editorGetStatus,
       outputSchema: statusSchema,
     },
@@ -52,7 +53,7 @@ export const registerProjectTools = (
           }
           speechSubsystem = {
             capabilities: speechStatus.ready ? ["tts"] : [],
-            error: null,
+            error: speechStatus.startupError ?? null,
             modelId: speechStatus.modelId,
             providerId: speechStatus.providerId,
             queue: speechStatus.queue,
@@ -97,6 +98,7 @@ export const registerProjectTools = (
           ...status,
           activeProjectId: session.activeProjectId,
           capabilities,
+          paths: await runtimePathDiagnostics(config),
           subsystems: {
             ...status.subsystems,
             speech: speechSubsystem,

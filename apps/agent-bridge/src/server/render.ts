@@ -96,4 +96,52 @@ export const registerRenderTools = (
       }
     }
   );
+
+  server.registerTool(
+    "preview_render_range",
+    {
+      annotations: WRITE,
+      description:
+        "Queue a cancellable lightweight MP4 preview for an immutable project revision using final-export rendering behavior.",
+      inputSchema: schemas.previewRenderRange,
+      outputSchema: jobSchema,
+    },
+    async ({
+      projectId,
+      expectedRevision,
+      startMs,
+      endMs,
+      resolution,
+      fps,
+      includeAudio,
+    }) => {
+      try {
+        const state = await headless.call(
+          { operation: "get_state", projectId },
+          projectStateSchema
+        );
+        if (state.project.revision !== expectedRevision) {
+          throw new BridgeError(
+            "REVISION_CONFLICT",
+            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
+          );
+        }
+        return success(
+          jobs.start("preview_range", projectId, expectedRevision, {
+            endMs,
+            expectedRevision,
+            fps,
+            height: resolution.height,
+            includeAudio,
+            operation: "render_preview_range",
+            projectId,
+            startMs,
+            width: resolution.width,
+          })
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
 };

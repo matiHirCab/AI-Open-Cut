@@ -175,7 +175,7 @@ export const registerSpeechTools = (
     {
       annotations: READ_ONLY,
       description:
-        "Check local speech readiness, voices, limits, and FIFO queue health.",
+        "Check local speech readiness, voices, limits, FIFO queue health, configured path diagnostics, and actionable startup errors.",
       inputSchema: schemas.ttsGetStatus,
       outputSchema: ttsStatusSchema,
     },

@@ -73,7 +73,13 @@ export class JobRegistry {
     revision: number,
     request: Extract<
       HeadlessRequest,
-      { operation: "render_preview" | "render_draft_preview" | "export_video" }
+      {
+        operation:
+          | "render_preview"
+          | "render_preview_range"
+          | "render_draft_preview"
+          | "export_video";
+      }
     >
   ) {
     if (!this.#headless) {
@@ -247,6 +253,9 @@ export class JobRegistry {
     this.#finish(entry, {
       error: {
         code: "JOB_CANCELLED",
+        failedStage: null,
+        ffmpegExitCode: null,
+        ffmpegStderrExcerpt: null,
         message: "Job was cancelled",
         retryable: true,
       },

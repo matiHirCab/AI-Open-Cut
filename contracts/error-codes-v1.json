@@ -86,6 +86,11 @@
       "layer": "core",
       "description": "unsupported media"
     },
+    "FFMPEG_FAILED": {
+      "retryable": false,
+      "layer": "runtime",
+      "description": "ffmpeg render failed"
+    },
     "JOB_FAILED": {
       "retryable": false,
       "layer": "runtime",

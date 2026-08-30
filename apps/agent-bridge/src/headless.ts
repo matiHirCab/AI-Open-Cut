@@ -13,7 +13,14 @@ import { type Logger, NOOP_LOGGER } from "./logger";
 const NEWLINE_PATTERN = /\r?\n/;
 
 const errorSchema = z
-  .object({ code: z.string(), message: z.string(), retryable: z.boolean() })
+  .object({
+    code: z.string(),
+    failedStage: z.string().nullable().default(null),
+    ffmpegExitCode: z.number().int().nullable().default(null),
+    ffmpegStderrExcerpt: z.string().nullable().default(null),
+    message: z.string(),
+    retryable: z.boolean(),
+  })
   .strict();
 
 const eventSchema = z.discriminatedUnion("type", [
@@ -25,17 +32,28 @@ const eventSchema = z.discriminatedUnion("type", [
 export class BridgeError extends Error {
   readonly code: string;
   readonly retryable: boolean;
+  readonly failedStage: string | null;
+  readonly ffmpegExitCode: number | null;
+  readonly ffmpegStderrExcerpt: string | null;
 
   constructor(
     code: string,
     message: string,
     _retryable = retryableFor(code),
-    options?: ErrorOptions
+    options?: ErrorOptions,
+    details: {
+      failedStage?: string | null;
+      ffmpegExitCode?: number | null;
+      ffmpegStderrExcerpt?: string | null;
+    } = {}
   ) {
     super(message, options);
     this.name = "BridgeError";
     this.code = code;
-    this.retryable = retryableFor(code);
+    this.retryable = _retryable;
+    this.failedStage = details.failedStage ?? null;
+    this.ffmpegExitCode = details.ffmpegExitCode ?? null;
+    this.ffmpegStderrExcerpt = details.ffmpegStderrExcerpt ?? null;
   }
 }
 
@@ -148,7 +166,9 @@ export const callHeadless = async <Output>(
 
     const cleanup = async () => {
       await Promise.all(
-        ownedPaths.map(async (path) => await rm(path, { force: true }))
+        ownedPaths.map(
+          async (path) => await rm(path, { force: true, recursive: true })
+        )
       );
     };
     const finishReject = (error: BridgeError) => {
@@ -198,7 +218,9 @@ export const callHeadless = async <Output>(
         reportedError = new BridgeError(
           event.error.code,
           event.error.message,
-          event.error.retryable
+          event.error.retryable,
+          undefined,
+          event.error
         );
       } else {
         result = schema.parse(event.result);
@@ -274,7 +296,8 @@ const ownedTemporaryPaths = (
   requestId: string
 ) => {
   if (
-    request.operation === "render_preview" &&
+    (request.operation === "render_preview" ||
+      request.operation === "render_preview_range") &&
     typeof request.projectId === "string" &&
     config.projectsDirectory
   ) {
@@ -282,8 +305,13 @@ const ownedTemporaryPaths = (
       join(
         config.projectsDirectory,
         request.projectId,
+        `.opencut-work-${requestId}`
+      ),
+      join(
+        config.projectsDirectory,
+        request.projectId,
         "previews",
-        `.opencut-${requestId}.png`
+        `.opencut-${requestId}.${request.operation === "render_preview_range" ? "mp4" : "png"}`
       ),
     ];
   }
@@ -293,6 +321,15 @@ const ownedTemporaryPaths = (
     config.exportsDirectory
   ) {
     return [
+      ...(config.projectsDirectory && typeof request.projectId === "string"
+        ? [
+            join(
+              config.projectsDirectory,
+              request.projectId,
+              `.opencut-work-${requestId}`
+            ),
+          ]
+        : []),
       join(
         config.exportsDirectory,
         dirname(request.relativePath),
@@ -326,6 +363,11 @@ export const errorBody = (error: unknown) => {
   if (error instanceof BridgeError) {
     return {
       code: error.code,
+      failedStage: error.failedStage,
+      ffmpegExitCode: error.ffmpegExitCode,
+      ffmpegStderrExcerpt: error.ffmpegStderrExcerpt
+        ? redactPaths(error.ffmpegStderrExcerpt, 4096, true)
+        : null,
       message: redactPaths(error.message),
       retryable: error.retryable,
     };
@@ -333,19 +375,29 @@ export const errorBody = (error: unknown) => {
   if (error instanceof z.ZodError) {
     return {
       code: "INTERNAL_ERROR",
+      failedStage: null,
+      ffmpegExitCode: null,
+      ffmpegStderrExcerpt: null,
       message: "OpenCut returned data that failed contract validation",
       retryable: false,
     };
   }
   return {
     code: "INTERNAL_ERROR",
+    failedStage: null,
+    ffmpegExitCode: null,
+    ffmpegStderrExcerpt: null,
     message: "OpenCut bridge encountered an internal error",
     retryable: false,
   };
 };
 
-const redactPaths = (message: string) =>
-  message
-    .replace(/[A-Za-z]:[\\/][^\r\n"'<>]*/g, "[path]")
-    .replace(/(^|\s)\/(?:[^\s\r\n"'<>/]+\/)*[^\s\r\n"'<>/]*/g, "$1[path]")
-    .slice(0, 500);
+const redactPaths = (message: string, limit = 500, tail = false) => {
+  const sanitized = message
+    .replace(/[A-Za-z]:[\\/][^\r\n]*?(?=: |$)/gm, "[path]")
+    .replace(/(^|[\s='"([])\/[^\r\n]*?(?=: |$)/gm, "$1[path]");
+  const characters = [...sanitized];
+  return (tail ? characters.slice(-limit) : characters.slice(0, limit)).join(
+    ""
+  );
+};

@@ -5,6 +5,17 @@ const milliseconds = z.int().nonnegative();
 const positiveMilliseconds = z.int().positive();
 const finite = z.number().finite();
 
+export const publicErrorSchema = z
+  .object({
+    code: z.string(),
+    failedStage: z.string().nullable().default(null),
+    ffmpegExitCode: z.int().nullable().default(null),
+    ffmpegStderrExcerpt: z.string().nullable().default(null),
+    message: z.string(),
+    retryable: z.boolean(),
+  })
+  .strict();
+
 export const projectRevisionSchema = z
   .object({ expectedRevision: z.int().nonnegative(), projectId: id })
   .strict();
@@ -35,6 +46,80 @@ export const audioSchema = z
   })
   .strict();
 
+export const audioRoleSchema = z.enum([
+  "unassigned",
+  "voiceover",
+  "music",
+  "sound_effects",
+]);
+
+export const duckingSchema = z
+  .object({
+    attackMs: milliseconds.max(60_000),
+    enabled: z.boolean(),
+    gain: finite.min(0).max(1),
+    releaseMs: milliseconds.max(60_000),
+  })
+  .strict();
+
+const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
+export const textStyleSchema = z
+  .object({
+    alignment: z.enum(["left", "center", "right"]).default("left"),
+    anchor: z
+      .enum([
+        "top_left",
+        "top_center",
+        "top_right",
+        "center_left",
+        "center",
+        "center_right",
+        "bottom_left",
+        "bottom_center",
+        "bottom_right",
+      ])
+      .default("top_left"),
+    backgroundColor: color.default("#000000"),
+    backgroundOpacity: finite.min(0).max(1).default(0),
+    lineSpacingPx: z.int().min(-4320).max(4320).default(0),
+    outlineColor: color.default("#000000"),
+    outlineWidthPx: z.int().min(0).max(100).default(0),
+    padding: z
+      .object({
+        bottom: z.int().min(0).max(4320).default(0),
+        left: z.int().min(0).max(4320).default(0),
+        right: z.int().min(0).max(4320).default(0),
+        top: z.int().min(0).max(4320).default(0),
+      })
+      .strict()
+      .default({ bottom: 0, left: 0, right: 0, top: 0 }),
+    shadow: z
+      .object({
+        color: color.default("#000000"),
+        offsetX: z.int().default(0),
+        offsetY: z.int().default(0),
+        opacity: finite.min(0).max(1).default(0),
+      })
+      .strict()
+      .default({ color: "#000000", offsetX: 0, offsetY: 0, opacity: 0 }),
+    wrapWidthPx: z.int().positive().max(7680).nullable().default(null),
+  })
+  .strict();
+
+const DEFAULT_TEXT_STYLE = {
+  alignment: "left" as const,
+  anchor: "top_left" as const,
+  backgroundColor: "#000000",
+  backgroundOpacity: 0,
+  lineSpacingPx: 0,
+  outlineColor: "#000000",
+  outlineWidthPx: 0,
+  padding: { bottom: 0, left: 0, right: 0, top: 0 },
+  shadow: { color: "#000000", offsetX: 0, offsetY: 0, opacity: 0 },
+  wrapWidthPx: null,
+};
+
 const positionKeyframe = z
   .object({
     easing: z.enum(["hold", "linear", "ease_in", "ease_out", "ease_in_out"]),
@@ -49,7 +134,7 @@ const positionKeyframe = z
 const scalarKeyframe = z
   .object({
     easing: z.enum(["hold", "linear", "ease_in", "ease_out", "ease_in_out"]),
-    property: z.enum(["scale", "opacity"]),
+    property: z.enum(["scale", "opacity", "volume"]),
     timeMs: milliseconds,
     value: z.object({ type: z.literal("scalar"), value: finite }).strict(),
   })
@@ -62,6 +147,7 @@ export const keyframeSchema = z.discriminatedUnion("property", [
 
 export const writeResultSchema = z
   .object({
+    aliases: z.record(z.string(), id).default({}),
     changedIds: z.array(id),
     projectId: id,
     revision: z.int().nonnegative(),
@@ -70,52 +156,61 @@ export const writeResultSchema = z
   })
   .strict();
 
+export const pathDiagnosticSchema = z
+  .object({
+    error: z.string().nullable(),
+    executable: z.boolean(),
+    exists: z.boolean(),
+    readable: z.boolean(),
+    ready: z.boolean(),
+    resolvedPath: z.string(),
+    writable: z.boolean(),
+  })
+  .strict();
+
 export const statusSchema = z
   .object({
     activeProjectId: id.nullable(),
     capabilities: z.array(z.string()),
+    paths: z
+      .object({
+        allowedMediaDirectories: z.array(pathDiagnosticSchema),
+        exportsDirectory: pathDiagnosticSchema,
+        ffmpeg: pathDiagnosticSchema,
+        ffprobe: pathDiagnosticSchema,
+        generatedMediaDirectories: z.array(pathDiagnosticSchema),
+        kokoro: z
+          .object({
+            modelDirectory: pathDiagnosticSchema,
+            python: pathDiagnosticSchema,
+            workDirectory: pathDiagnosticSchema,
+            worker: pathDiagnosticSchema,
+          })
+          .strict(),
+        projectsDirectory: pathDiagnosticSchema,
+      })
+      .strict(),
     ready: z.boolean(),
     subsystems: z
       .object({
         editor: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             ready: z.boolean(),
           })
           .strict(),
         rendering: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             ready: z.boolean(),
           })
           .strict(),
         speech: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             modelId: id.nullable(),
             providerId: id.nullable(),
             queue: z
@@ -134,14 +229,7 @@ export const statusSchema = z
         transcription: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             modelId: id.nullable(),
             providerId: id.nullable(),
             queue: z
@@ -164,35 +252,21 @@ export const statusSchema = z
   .strict();
 
 export const headlessStatusSchema = statusSchema
-  .omit({ activeProjectId: true, subsystems: true })
+  .omit({ activeProjectId: true, paths: true, subsystems: true })
   .extend({
     subsystems: z
       .object({
         editor: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             ready: z.boolean(),
           })
           .strict(),
         rendering: z
           .object({
             capabilities: z.array(z.string()),
-            error: z
-              .object({
-                code: z.string(),
-                message: z.string(),
-                retryable: z.boolean(),
-              })
-              .strict()
-              .nullable(),
+            error: publicErrorSchema.nullable(),
             ready: z.boolean(),
           })
           .strict(),
@@ -206,6 +280,7 @@ export const artifactSchema = z
     mimeType: z.string(),
     relativePath: z.string(),
     sizeBytes: z.int().positive(),
+    warnings: z.array(z.string()).default([]),
   })
   .strict();
 
@@ -291,6 +366,15 @@ export const ttsStatusSchema = z
     modelLoaded: z.boolean(),
     models: z.array(speechModelSchema).min(1),
     modelVersion: z.string().min(1).nullable(),
+    paths: z
+      .object({
+        modelDirectory: pathDiagnosticSchema,
+        python: pathDiagnosticSchema,
+        workDirectory: pathDiagnosticSchema,
+        worker: pathDiagnosticSchema,
+      })
+      .strict()
+      .optional(),
     providerId: id,
     queue: z
       .object({
@@ -305,6 +389,7 @@ export const ttsStatusSchema = z
     ready: z.boolean(),
     resources: speechResourcesSchema,
     sampleRateHz: z.int().positive(),
+    startupError: publicErrorSchema.nullable().optional(),
     version: z.string(),
     voices: z.array(speechVoiceIdSchema).min(1),
   })
@@ -575,14 +660,38 @@ const textItemSchema = z
     color: z.string(),
     durationMs: positiveMilliseconds,
     fontFamily: z.string().nullable(),
+    fontPath: z.string().nullable(),
     fontSize: z.int().positive(),
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
     startMs: milliseconds,
+    style: textStyleSchema,
     text: z.string(),
     transform: transformSchema,
     type: z.literal("text"),
+  })
+  .strict();
+
+const solidColorItemSchema = z
+  .object({
+    color,
+    durationMs: positiveMilliseconds,
+    hidden: z.boolean(),
+    id,
+    keyframes: z.array(keyframeSchema),
+    startMs: milliseconds,
+    transform: transformSchema,
+    type: z.literal("solid_color"),
+  })
+  .strict();
+
+const rectangleItemSchema = solidColorItemSchema
+  .omit({ type: true })
+  .extend({
+    height: z.int().positive().max(4320),
+    type: z.literal("rectangle"),
+    width: z.int().positive().max(7680),
   })
   .strict();
 
@@ -643,6 +752,8 @@ const transitionItemSchema = z
 export const timelineItemSchema = z.discriminatedUnion("type", [
   mediaItemSchema,
   textItemSchema,
+  solidColorItemSchema,
+  rectangleItemSchema,
   captionItemSchema,
   transitionItemSchema,
 ]);
@@ -720,6 +831,8 @@ export const projectStateSchema = z
         tracks: z.array(
           z
             .object({
+              audioRole: audioRoleSchema,
+              ducking: duckingSchema.nullable(),
               hidden: z.boolean(),
               id,
               items: z.array(timelineItemSchema),
@@ -766,10 +879,7 @@ export const jobSchema = z
   .object({
     artifact: artifactSchema.optional(),
     createdAtMs: milliseconds,
-    error: z
-      .object({ code: z.string(), message: z.string(), retryable: z.boolean() })
-      .strict()
-      .optional(),
+    error: publicErrorSchema.optional(),
     expiresAtMs: milliseconds.nullable(),
     generatedArtifact: z
       .object({ expiresAtMs: milliseconds, token: id })
@@ -778,6 +888,7 @@ export const jobSchema = z
     jobId: id,
     kind: z.enum([
       "preview",
+      "preview_range",
       "export",
       "tts",
       "speech_preview",
@@ -802,6 +913,10 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       assetId: id,
       durationMs: positiveMilliseconds,
       operation: z.literal("add_media"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
       sourceInMs: milliseconds,
       startMs: milliseconds,
       trackId: id,
@@ -812,9 +927,15 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
       durationMs: positiveMilliseconds,
       fontFamily: z.string().min(1).max(200).optional(),
+      fontPath: z.string().min(1).max(1000).optional(),
       fontSize: z.int().min(1).max(1000),
       operation: z.literal("add_text"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
       startMs: milliseconds,
+      style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
       text: z.string().min(1).max(4096),
       trackId: id,
       transform: transformSchema,
@@ -822,10 +943,46 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
+      color,
+      durationMs: positiveMilliseconds,
+      operation: z.literal("add_solid_color"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+      startMs: milliseconds,
+      trackId: id,
+      transform: transformSchema,
+    })
+    .strict(),
+  z
+    .object({
+      color,
+      durationMs: positiveMilliseconds,
+      height: z.int().positive().max(4320),
+      operation: z.literal("add_rectangle"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+      startMs: milliseconds,
+      trackId: id,
+      transform: transformSchema,
+      width: z.int().positive().max(7680),
+    })
+    .strict(),
+  z
+    .object({
+      color: color.optional(),
+      fontFamily: z.string().min(1).max(200).nullable().optional(),
+      fontPath: z.string().min(1).max(1000).nullable().optional(),
+      height: z.int().positive().max(4320).optional(),
       itemId: id,
       operation: z.literal("update_item"),
+      style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),
+      width: z.int().positive().max(7680).optional(),
     })
     .strict(),
   z
@@ -858,6 +1015,10 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       durationMs: positiveMilliseconds,
       fromItemId: id,
       operation: z.literal("add_transition"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
       startMs: milliseconds,
       toItemId: id.optional(),
       trackId: id,
@@ -887,14 +1048,22 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
+      audioRole: audioRoleSchema.default("unassigned"),
+      ducking: duckingSchema.optional(),
       index: z.int().nonnegative().optional(),
       name: z.string().trim().min(1).max(128),
       operation: z.literal("create_track"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
       trackType: z.enum(["video", "overlay", "audio", "caption"]),
     })
     .strict(),
   z
     .object({
+      audioRole: audioRoleSchema.optional(),
+      ducking: duckingSchema.nullable().optional(),
       hidden: z.boolean().optional(),
       index: z.int().nonnegative().optional(),
       locked: z.boolean().optional(),
@@ -961,6 +1130,23 @@ export const schemas = {
   previewRenderFrame: projectRevisionSchema
     .extend({ timeMs: milliseconds })
     .strict(),
+  previewRenderRange: projectRevisionSchema
+    .extend({
+      endMs: positiveMilliseconds,
+      fps: z.int().min(1).max(120),
+      includeAudio: z.boolean().default(false),
+      resolution: z
+        .object({
+          height: z.int().positive().max(4320),
+          width: z.int().positive().max(7680),
+        })
+        .strict(),
+      startMs: milliseconds,
+    })
+    .refine(
+      (value) => value.startMs < value.endMs,
+      "startMs must be less than endMs"
+    ),
   projectCreate: z
     .object({
       fps: z.int().min(1).max(120).default(30),
@@ -1037,6 +1223,36 @@ export const schemas = {
       trackId: id,
     })
     .strict(),
+  timelineAddRectangle: projectRevisionSchema
+    .extend({
+      color,
+      durationMs: positiveMilliseconds,
+      height: z.int().positive().max(4320),
+      startMs: milliseconds,
+      trackId: id,
+      transform: transformSchema.default({
+        opacity: 1,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+      }),
+      width: z.int().positive().max(7680),
+    })
+    .strict(),
+  timelineAddSolidColor: projectRevisionSchema
+    .extend({
+      color,
+      durationMs: positiveMilliseconds,
+      startMs: milliseconds,
+      trackId: id,
+      transform: transformSchema.default({
+        opacity: 1,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+      }),
+    })
+    .strict(),
   timelineAddText: projectRevisionSchema
     .extend({
       color: z
@@ -1045,8 +1261,10 @@ export const schemas = {
         .default("#ffffff"),
       durationMs: positiveMilliseconds,
       fontFamily: z.string().min(1).max(200).optional(),
+      fontPath: z.string().min(1).max(1000).optional(),
       fontSize: z.int().min(1).max(1000).default(64),
       startMs: milliseconds,
+      style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
       text: z.string().min(1).max(4096),
       trackId: id,
       transform: transformSchema.default({
@@ -1079,7 +1297,16 @@ export const schemas = {
     .strict(),
   timelineGetItems: z
     .object({
-      itemType: z.enum(["media", "text", "caption", "transition"]).optional(),
+      itemType: z
+        .enum([
+          "media",
+          "text",
+          "solid_color",
+          "rectangle",
+          "caption",
+          "transition",
+        ])
+        .optional(),
       projectId: id,
       timeRange: timeRangeSchema.optional(),
       trackId: id.optional(),
@@ -1110,17 +1337,30 @@ export const schemas = {
     .strict(),
   timelineUpdateItem: projectRevisionSchema
     .extend({
+      color: color.optional(),
+      fontFamily: z.string().min(1).max(200).nullable().optional(),
+      fontPath: z.string().min(1).max(1000).nullable().optional(),
+      height: z.int().positive().max(4320).optional(),
       itemId: id,
+      style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),
+      width: z.int().positive().max(7680).optional(),
     })
     .strict()
     .refine(
-      (value) => value.transform !== undefined || value.text !== undefined,
-      "provide transform or text"
+      (value) =>
+        Object.entries(value).some(
+          ([key, entry]) =>
+            !["projectId", "expectedRevision", "itemId"].includes(key) &&
+            entry !== undefined
+        ),
+      "provide an item update"
     ),
   trackCreate: projectRevisionSchema
     .extend({
+      audioRole: audioRoleSchema.default("unassigned"),
+      ducking: duckingSchema.optional(),
       index: z.int().nonnegative().optional(),
       name: z.string().trim().min(1).max(128),
       trackType: z.enum(["video", "overlay", "audio", "caption"]),
@@ -1129,6 +1369,8 @@ export const schemas = {
   trackDelete: projectRevisionSchema.extend({ trackId: id }).strict(),
   trackUpdate: projectRevisionSchema
     .extend({
+      audioRole: audioRoleSchema.optional(),
+      ducking: duckingSchema.nullable().optional(),
       hidden: z.boolean().optional(),
       index: z.int().nonnegative().optional(),
       locked: z.boolean().optional(),
@@ -1140,6 +1382,8 @@ export const schemas = {
     .refine(
       (value) =>
         value.hidden !== undefined ||
+        value.audioRole !== undefined ||
+        value.ducking !== undefined ||
         value.index !== undefined ||
         value.locked !== undefined ||
         value.muted !== undefined ||
