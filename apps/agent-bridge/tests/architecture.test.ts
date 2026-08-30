@@ -114,11 +114,12 @@ it("enumerates every Rust headless request discriminant", () => {
     redo: true,
     render_draft_preview: true,
     render_preview: true,
+    render_preview_range: true,
     replace_generated_asset: true,
     resolve_asset_input: true,
     status: true,
     undo: true,
     update_draft: true,
   } satisfies Record<HeadlessRequest["operation"], true>;
-  expect(Object.keys(operations)).toHaveLength(25);
+  expect(Object.keys(operations)).toHaveLength(26);
 });

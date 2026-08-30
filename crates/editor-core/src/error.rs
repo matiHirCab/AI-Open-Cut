@@ -21,6 +21,7 @@ pub enum ErrorCode {
     ExportExists,
     DependencyUnavailable,
     UnsupportedMedia,
+    FfmpegFailed,
     JobFailed,
     InternalError,
 }
@@ -37,6 +38,9 @@ pub struct CoreError {
     pub code: ErrorCode,
     pub message: String,
     pub retryable: bool,
+    pub failed_stage: Option<String>,
+    pub ffmpeg_exit_code: Option<i32>,
+    pub ffmpeg_stderr_excerpt: Option<String>,
 }
 
 impl CoreError {
@@ -45,6 +49,20 @@ impl CoreError {
             code,
             message: message.into(),
             retryable: code.retryable(),
+            failed_stage: None,
+            ffmpeg_exit_code: None,
+            ffmpeg_stderr_excerpt: None,
+        }
+    }
+
+    pub fn render_failure(stage: &str, exit_code: Option<i32>, stderr: Option<String>) -> Self {
+        Self {
+            code: ErrorCode::FfmpegFailed,
+            message: "FFmpeg render failed".into(),
+            retryable: false,
+            failed_stage: Some(stage.into()),
+            ffmpeg_exit_code: exit_code,
+            ffmpeg_stderr_excerpt: stderr,
         }
     }
 
@@ -88,6 +106,7 @@ mod tests {
             ErrorCode::ExportExists,
             ErrorCode::DependencyUnavailable,
             ErrorCode::UnsupportedMedia,
+            ErrorCode::FfmpegFailed,
             ErrorCode::JobFailed,
             ErrorCode::InternalError,
         ] {

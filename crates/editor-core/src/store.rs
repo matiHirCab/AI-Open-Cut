@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs::{File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -11,11 +12,12 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    Asset, AudioSettings, CaptionItem, CaptionSource, CaptionStyle, CaptionWord, ContentHash,
-    CoreError, EditOperation, ErrorCode, GeneratedAssetOrigin, History, Keyframe, KeyframeProperty,
-    KeyframeValue, MediaItem, MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION, PathPolicy,
-    Project, ProjectSettings, ProjectState, TextItem, TimelineItem, Track, TrackType, Transform,
-    TransitionItem,
+    Asset, AudioSettings, AudioTrackRole, BatchEditOperation, CaptionItem, CaptionSource,
+    CaptionStyle, CaptionWord, ContentHash, CoreError, DuckingSettings, EditOperation, ErrorCode,
+    GeneratedAssetOrigin, History, Keyframe, KeyframeProperty, KeyframeValue, MediaItem,
+    MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION, PathPolicy, Project, ProjectSettings,
+    ProjectState, RectangleItem, SolidColorItem, TextItem, TextStyle, TimelineItem, Track,
+    TrackType, Transform, TransitionItem,
 };
 
 const HISTORY_LIMIT: usize = 100;
@@ -31,6 +33,8 @@ pub struct WriteResult {
     pub changed_ids: Vec<String>,
     pub summary: String,
     pub warnings: Vec<String>,
+    #[serde(default)]
+    pub aliases: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -196,6 +200,8 @@ impl EditorCore {
                     locked: false,
                     hidden: false,
                     muted: false,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
                     items: vec![],
                 },
                 Track {
@@ -205,6 +211,8 @@ impl EditorCore {
                     locked: false,
                     hidden: false,
                     muted: false,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
                     items: vec![],
                 },
                 Track {
@@ -214,6 +222,8 @@ impl EditorCore {
                     locked: false,
                     hidden: false,
                     muted: false,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
                     items: vec![],
                 },
                 Track {
@@ -223,6 +233,8 @@ impl EditorCore {
                     locked: false,
                     hidden: false,
                     muted: false,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
                     items: vec![],
                 },
             ],
@@ -236,6 +248,7 @@ impl EditorCore {
             changed_ids: vec![id],
             summary: "Created project".into(),
             warnings: vec![],
+            aliases: BTreeMap::new(),
         })
     }
 
@@ -562,13 +575,18 @@ impl EditorCore {
         Ok(result)
     }
 
-    pub fn edit_batch(
+    pub fn edit_batch<T: Into<BatchEditOperation>>(
         &self,
         project_id: &str,
         expected_revision: u64,
-        operations: Vec<EditOperation>,
+        operations: Vec<T>,
     ) -> Result<WriteResult, CoreError> {
-        validate_operations(&operations)?;
+        if operations.is_empty() || operations.len() > EDIT_LIMIT {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "edit batches must contain between 1 and 100 operations",
+            ));
+        }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
         let mut project = read_project(&project_path(&dir))?;
@@ -576,14 +594,43 @@ impl EditorCore {
         let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
-        for operation in operations {
+        let mut aliases = BTreeMap::new();
+        for batch_operation in operations {
+            let BatchEditOperation {
+                mut edit,
+                result_alias,
+            } = batch_operation.into();
+            resolve_operation_aliases(&mut edit, &aliases)?;
+            if result_alias.is_some() && !is_single_id_creator(&edit) {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "resultAlias requires an operation that creates exactly one ID",
+                ));
+            }
+            if let Some(alias) = result_alias.as_deref() {
+                validate_alias(alias)?;
+                if aliases.contains_key(alias) {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "resultAlias must be unique within the batch",
+                    ));
+                }
+            }
+            let operation = edit;
             let (ids, _) = apply_operation(&mut project, operation)?;
+            if let Some(alias) = result_alias {
+                let id = ids.first().ok_or_else(|| {
+                    CoreError::new(ErrorCode::InternalError, "aliased operation returned no ID")
+                })?;
+                aliases.insert(alias, id.clone());
+            }
             changed_ids.extend(ids);
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         persist(&dir, &project, &history)?;
         let mut result = write_result(&project, changed_ids, "Applied timeline edit batch");
+        result.aliases = aliases;
         result.warnings = garbage_collect(&dir, &project, &history);
         Ok(result)
     }
@@ -833,6 +880,8 @@ impl EditorCore {
                 locked: false,
                 hidden: false,
                 muted: false,
+                audio_role: AudioTrackRole::Unassigned,
+                ducking: None,
                 items: vec![],
             });
             project.tracks.len() - 1
@@ -973,6 +1022,97 @@ impl EditorCore {
     }
 }
 
+fn validate_alias(alias: &str) -> Result<(), CoreError> {
+    if alias.is_empty()
+        || alias.len() > 64
+        || !alias
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphabetic())
+        || !alias
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "resultAlias has an invalid format",
+        ));
+    }
+    Ok(())
+}
+
+fn is_single_id_creator(edit: &EditOperation) -> bool {
+    matches!(
+        edit,
+        EditOperation::AddMedia { .. }
+            | EditOperation::AddText { .. }
+            | EditOperation::AddSolidColor { .. }
+            | EditOperation::AddRectangle { .. }
+            | EditOperation::AddTransition { .. }
+            | EditOperation::CreateTrack { .. }
+    )
+}
+
+fn resolve_alias(value: &mut String, aliases: &BTreeMap<String, String>) -> Result<(), CoreError> {
+    let Some(alias) = value.strip_prefix('@') else {
+        return Ok(());
+    };
+    *value = aliases.get(alias).cloned().ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::ValidationFailed,
+            format!("batch alias @{alias} is missing or referenced before creation"),
+        )
+    })?;
+    Ok(())
+}
+
+fn resolve_operation_aliases(
+    edit: &mut EditOperation,
+    aliases: &BTreeMap<String, String>,
+) -> Result<(), CoreError> {
+    match edit {
+        EditOperation::AddMedia { track_id, .. }
+        | EditOperation::AddText { track_id, .. }
+        | EditOperation::AddSolidColor { track_id, .. }
+        | EditOperation::AddRectangle { track_id, .. } => resolve_alias(track_id, aliases)?,
+        EditOperation::UpdateItem { item_id, .. }
+        | EditOperation::TrimItem { item_id, .. }
+        | EditOperation::DeleteItem { item_id }
+        | EditOperation::SetKeyframes { item_id, .. }
+        | EditOperation::SetAudio { item_id, .. }
+        | EditOperation::SplitItem { item_id, .. }
+        | EditOperation::SetItemVisibility { item_id, .. } => resolve_alias(item_id, aliases)?,
+        EditOperation::MoveItem {
+            item_id, track_id, ..
+        } => {
+            resolve_alias(item_id, aliases)?;
+            resolve_alias(track_id, aliases)?;
+        }
+        EditOperation::AddTransition {
+            track_id,
+            from_item_id,
+            to_item_id,
+            ..
+        } => {
+            resolve_alias(track_id, aliases)?;
+            resolve_alias(from_item_id, aliases)?;
+            if let Some(value) = to_item_id {
+                resolve_alias(value, aliases)?;
+            }
+        }
+        EditOperation::DuplicateItems { item_ids, .. } => {
+            for value in item_ids {
+                resolve_alias(value, aliases)?;
+            }
+        }
+        EditOperation::UpdateTrack { track_id, .. } | EditOperation::DeleteTrack { track_id } => {
+            resolve_alias(track_id, aliases)?
+        }
+        EditOperation::CreateTrack { .. } => {}
+    }
+    Ok(())
+}
+
 fn apply_operation(
     project: &mut Project,
     operation: EditOperation,
@@ -1025,11 +1165,14 @@ fn apply_operation(
             font_size,
             color,
             font_family,
+            font_path,
+            style,
             transform,
         } => {
             validate_duration(duration_ms)?;
             validate_transform(&transform)?;
             validate_text(&text, font_size, &color)?;
+            validate_text_style(&style)?;
             let track = editable_track_mut(project, &track_id)?;
             if track.track_type != TrackType::Overlay {
                 return Err(CoreError::new(
@@ -1046,16 +1189,77 @@ fn apply_operation(
                 font_size,
                 color,
                 font_family,
+                font_path,
+                style,
                 transform,
                 keyframes: vec![],
                 hidden: false,
             }));
             Ok((vec![id], "Added text item"))
         }
+        EditOperation::AddSolidColor {
+            track_id,
+            color,
+            start_ms,
+            duration_ms,
+            transform,
+        } => {
+            validate_duration(duration_ms)?;
+            validate_color(&color)?;
+            validate_transform(&transform)?;
+            let track = editable_track_mut(project, &track_id)?;
+            validate_visual_track(track.track_type)?;
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::SolidColor(SolidColorItem {
+                id: id.clone(),
+                color,
+                start_ms,
+                duration_ms,
+                transform,
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added solid color item"))
+        }
+        EditOperation::AddRectangle {
+            track_id,
+            color,
+            width,
+            height,
+            start_ms,
+            duration_ms,
+            transform,
+        } => {
+            validate_duration(duration_ms)?;
+            validate_color(&color)?;
+            validate_dimensions(width, height)?;
+            validate_transform(&transform)?;
+            let track = editable_track_mut(project, &track_id)?;
+            validate_visual_track(track.track_type)?;
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Rectangle(RectangleItem {
+                id: id.clone(),
+                color,
+                width,
+                height,
+                start_ms,
+                duration_ms,
+                transform,
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added rectangle item"))
+        }
         EditOperation::UpdateItem {
             item_id,
             transform,
             text,
+            color,
+            width,
+            height,
+            font_family,
+            font_path,
+            style,
         } => {
             let item = find_editable_item_mut(project, &item_id)?;
             if let Some(transform) = transform {
@@ -1063,6 +1267,8 @@ fn apply_operation(
                 match item {
                     TimelineItem::Media(media) => media.transform = transform,
                     TimelineItem::Text(text_item) => text_item.transform = transform,
+                    TimelineItem::SolidColor(item) => item.transform = transform,
+                    TimelineItem::Rectangle(item) => item.transform = transform,
                     TimelineItem::Caption(_) => {
                         return Err(CoreError::new(
                             ErrorCode::ValidationFailed,
@@ -1093,6 +1299,51 @@ fn apply_operation(
                             "only text items accept text updates",
                         ));
                     }
+                }
+            }
+            if let Some(color) = color {
+                validate_color(&color)?;
+                match item {
+                    TimelineItem::Text(text) => text.color = color,
+                    TimelineItem::SolidColor(shape) => shape.color = color,
+                    TimelineItem::Rectangle(shape) => shape.color = color,
+                    _ => {
+                        return Err(CoreError::new(
+                            ErrorCode::ValidationFailed,
+                            "item does not accept color updates",
+                        ));
+                    }
+                }
+            }
+            if width.is_some() || height.is_some() {
+                let TimelineItem::Rectangle(rectangle) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "dimensions require a rectangle item",
+                    ));
+                };
+                let width = width.unwrap_or(rectangle.width);
+                let height = height.unwrap_or(rectangle.height);
+                validate_dimensions(width, height)?;
+                rectangle.width = width;
+                rectangle.height = height;
+            }
+            if font_family.is_some() || font_path.is_some() || style.is_some() {
+                let TimelineItem::Text(text) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "font and style updates require a text item",
+                    ));
+                };
+                if let Some(value) = font_family {
+                    text.font_family = value;
+                }
+                if let Some(value) = font_path {
+                    text.font_path = value;
+                }
+                if let Some(value) = style {
+                    validate_text_style(&value)?;
+                    text.style = value;
                 }
             }
             Ok((vec![item_id], "Updated timeline item"))
@@ -1130,6 +1381,14 @@ fn apply_operation(
                     text.start_ms = start_ms;
                     text.duration_ms = duration_ms;
                 }
+                TimelineItem::SolidColor(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
+                TimelineItem::Rectangle(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
                 TimelineItem::Caption(caption) => {
                     caption.start_ms = start_ms;
                     caption.duration_ms = duration_ms;
@@ -1158,6 +1417,16 @@ fn apply_operation(
         EditOperation::SetKeyframes { item_id, keyframes } => {
             validate_keyframes(&keyframes)?;
             let item = find_editable_item_mut(project, &item_id)?;
+            if keyframes
+                .iter()
+                .any(|keyframe| keyframe.property == KeyframeProperty::Volume)
+                && !matches!(item, TimelineItem::Media(_))
+            {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "volume keyframes require a media item",
+                ));
+            }
             let destination = item.keyframes_mut().ok_or_else(|| {
                 CoreError::new(
                     ErrorCode::ValidationFailed,
@@ -1252,6 +1521,22 @@ fn apply_operation(
                     text.duration_ms = left_duration;
                     TimelineItem::Text(right)
                 }
+                TimelineItem::SolidColor(shape) => {
+                    let mut right = shape.clone();
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    shape.duration_ms = left_duration;
+                    TimelineItem::SolidColor(right)
+                }
+                TimelineItem::Rectangle(shape) => {
+                    let mut right = shape.clone();
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    shape.duration_ms = left_duration;
+                    TimelineItem::Rectangle(right)
+                }
                 TimelineItem::Caption(caption) => {
                     let mut right = caption.clone();
                     right.id = right_id.clone();
@@ -1314,6 +1599,8 @@ fn apply_operation(
             name,
             track_type,
             index,
+            audio_role,
+            ducking,
         } => {
             let name = name.trim();
             if name.is_empty() || name.chars().count() > 128 {
@@ -1323,6 +1610,7 @@ fn apply_operation(
                 ));
             }
             let id = Uuid::new_v4().to_string();
+            validate_track_audio_settings(track_type, audio_role, ducking.as_ref())?;
             let track = Track {
                 id: id.clone(),
                 name: name.into(),
@@ -1330,6 +1618,8 @@ fn apply_operation(
                 locked: false,
                 hidden: false,
                 muted: false,
+                audio_role,
+                ducking,
                 items: vec![],
             };
             let index = index.unwrap_or(project.tracks.len());
@@ -1349,6 +1639,8 @@ fn apply_operation(
             locked,
             hidden,
             muted,
+            audio_role,
+            ducking,
         } => {
             let current_index = project
                 .tracks
@@ -1360,7 +1652,9 @@ fn apply_operation(
                     && name.is_none()
                     && index.is_none()
                     && hidden.is_none()
-                    && muted.is_none())
+                    && muted.is_none()
+                    && audio_role.is_none()
+                    && ducking.is_none())
             {
                 return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
             }
@@ -1382,6 +1676,18 @@ fn apply_operation(
             }
             if let Some(muted) = muted {
                 project.tracks[current_index].muted = muted;
+            }
+            if audio_role.is_some() || ducking.is_some() {
+                let role = audio_role.unwrap_or(project.tracks[current_index].audio_role);
+                let settings =
+                    ducking.unwrap_or_else(|| project.tracks[current_index].ducking.clone());
+                validate_track_audio_settings(
+                    project.tracks[current_index].track_type,
+                    role,
+                    settings.as_ref(),
+                )?;
+                project.tracks[current_index].audio_role = role;
+                project.tracks[current_index].ducking = settings;
             }
             if let Some(index) = index {
                 if index >= project.tracks.len() {
@@ -1610,6 +1916,46 @@ fn validate_text(text: &str, font_size: u32, color: &str) -> Result<(), CoreErro
     Ok(())
 }
 
+fn validate_text_style(style: &TextStyle) -> Result<(), CoreError> {
+    validate_color(&style.outline_color)?;
+    validate_color(&style.shadow.color)?;
+    validate_color(&style.background_color)?;
+    if style
+        .wrap_width_px
+        .is_some_and(|value| value == 0 || value > 7_680)
+        || style.outline_width_px > 100
+        || !style.shadow.opacity.is_finite()
+        || !(0.0..=1.0).contains(&style.shadow.opacity)
+        || !style.background_opacity.is_finite()
+        || !(0.0..=1.0).contains(&style.background_opacity)
+        || style.line_spacing_px.unsigned_abs() > 4_320
+        || [
+            style.padding.top,
+            style.padding.right,
+            style.padding.bottom,
+            style.padding.left,
+        ]
+        .into_iter()
+        .any(|value| value > 4_320)
+    {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "text style is outside supported bounds",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_dimensions(width: u32, height: u32) -> Result<(), CoreError> {
+    if width == 0 || height == 0 || width > 7_680 || height > 4_320 {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "shape dimensions are outside supported bounds",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_color(color: &str) -> Result<(), CoreError> {
     if color.len() != 7
         || !color.starts_with('#')
@@ -1643,6 +1989,8 @@ fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
                 if value.is_finite() && *value > 0.0 && *value <= 100.0 => {}
             (KeyframeProperty::Opacity, KeyframeValue::Scalar { value })
                 if value.is_finite() && (0.0..=1.0).contains(value) => {}
+            (KeyframeProperty::Volume, KeyframeValue::Scalar { value })
+                if value.is_finite() && (0.0..=4.0).contains(value) => {}
             _ => {
                 return Err(CoreError::new(
                     ErrorCode::ValidationFailed,
@@ -1662,6 +2010,54 @@ fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
         previous = Some((keyframe.property, keyframe.time_ms));
     }
     Ok(())
+}
+
+fn validate_ducking(settings: &DuckingSettings) -> Result<(), CoreError> {
+    if !settings.gain.is_finite()
+        || !(0.0..=1.0).contains(&settings.gain)
+        || settings.attack_ms > 60_000
+        || settings.release_ms > 60_000
+    {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "ducking settings are invalid",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_track_audio_settings(
+    track_type: TrackType,
+    role: AudioTrackRole,
+    ducking: Option<&DuckingSettings>,
+) -> Result<(), CoreError> {
+    if track_type != TrackType::Audio && (role != AudioTrackRole::Unassigned || ducking.is_some()) {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "audio roles require an audio track",
+        ));
+    }
+    if ducking.is_some() && role != AudioTrackRole::Music {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "ducking settings require a music track",
+        ));
+    }
+    if let Some(settings) = ducking {
+        validate_ducking(settings)?;
+    }
+    Ok(())
+}
+
+fn validate_visual_track(track: TrackType) -> Result<(), CoreError> {
+    if matches!(track, TrackType::Video | TrackType::Overlay) {
+        Ok(())
+    } else {
+        Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "visual items require a video or overlay track",
+        ))
+    }
 }
 
 fn validate_track_media(track: TrackType, media: MediaType) -> Result<(), CoreError> {
@@ -1686,6 +2082,14 @@ fn validate_item_track(item: &TimelineItem, track: TrackType) -> Result<(), Core
             ErrorCode::ValidationFailed,
             "text items require an overlay track",
         )),
+        TimelineItem::SolidColor(_) | TimelineItem::Rectangle(_)
+            if !matches!(track, TrackType::Video | TrackType::Overlay) =>
+        {
+            Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "shape items require a video or overlay track",
+            ))
+        }
         TimelineItem::Caption(_) if track != TrackType::Caption => Err(CoreError::new(
             ErrorCode::ValidationFailed,
             "caption items require a caption track",
@@ -1772,6 +2176,8 @@ fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
     match item {
         TimelineItem::Media(media) => media.start_ms = start_ms,
         TimelineItem::Text(text) => text.start_ms = start_ms,
+        TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
+        TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
         TimelineItem::Caption(caption) => caption.start_ms = start_ms,
         TimelineItem::Transition(transition) => transition.start_ms = start_ms,
     }
@@ -1781,6 +2187,8 @@ fn set_item_id(item: &mut TimelineItem, id: String) {
     match item {
         TimelineItem::Media(media) => media.id = id,
         TimelineItem::Text(text) => text.id = id,
+        TimelineItem::SolidColor(shape) => shape.id = id,
+        TimelineItem::Rectangle(shape) => shape.id = id,
         TimelineItem::Caption(caption) => caption.id = id,
         TimelineItem::Transition(transition) => transition.id = id,
     }
@@ -1823,6 +2231,7 @@ fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> W
         changed_ids,
         summary: summary.into(),
         warnings: vec![],
+        aliases: BTreeMap::new(),
     }
 }
 
@@ -1877,7 +2286,7 @@ fn read_history_or_default(path: &Path) -> Result<History, CoreError> {
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     match project.schema_version {
-        1..=4 => {
+        1..=5 => {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
@@ -2285,6 +2694,8 @@ mod tests {
                     font_size: 48,
                     color: "#ffffff".into(),
                     font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
                     transform: Transform::default(),
                 },
             )
@@ -2353,12 +2764,22 @@ mod tests {
         let migrated = core.get_project(&created.project_id).unwrap();
         assert_eq!(migrated.schema_version, PROJECT_SCHEMA_VERSION);
         assert!(migrated.tracks.iter().all(|track| {
-            !track.locked && !track.hidden && !track.muted && track.track_type != TrackType::Caption
+            !track.locked
+                && !track.hidden
+                && !track.muted
+                && track.audio_role == AudioTrackRole::Unassigned
+                && track.ducking.is_none()
+                && track.track_type != TrackType::Caption
         }));
         let history: History = read_history_or_default(&history_path(&dir)).unwrap();
         assert_eq!(history.undo[0].schema_version, PROJECT_SCHEMA_VERSION);
         assert!(history.undo[0].tracks.iter().all(|track| {
-            !track.locked && !track.hidden && !track.muted && track.track_type != TrackType::Caption
+            !track.locked
+                && !track.hidden
+                && !track.muted
+                && track.audio_role == AudioTrackRole::Unassigned
+                && track.ducking.is_none()
+                && track.track_type != TrackType::Caption
         }));
     }
 
@@ -2389,6 +2810,8 @@ mod tests {
                     font_size: 48,
                     color: "#ffffff".into(),
                     font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
                     transform: Transform::default(),
                 },
             )
@@ -2887,6 +3310,8 @@ mod tests {
                     font_size: 16,
                     color: "#ffffff".into(),
                     font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
                     transform: Transform::default(),
                 },
             )
@@ -3025,6 +3450,8 @@ mod tests {
                         name: "Temporary".into(),
                         track_type: TrackType::Overlay,
                         index: None,
+                        audio_role: AudioTrackRole::Unassigned,
+                        ducking: None,
                     },
                     EditOperation::DeleteTrack {
                         track_id: "missing".into(),
@@ -3047,11 +3474,15 @@ mod tests {
                         name: "Captions 2".into(),
                         track_type: TrackType::Caption,
                         index: None,
+                        audio_role: AudioTrackRole::Unassigned,
+                        ducking: None,
                     },
                     EditOperation::CreateTrack {
                         name: "B-roll".into(),
                         track_type: TrackType::Video,
                         index: Some(1),
+                        audio_role: AudioTrackRole::Unassigned,
+                        ducking: None,
                     },
                 ],
             )
@@ -3091,6 +3522,8 @@ mod tests {
                     font_size: 48,
                     color: "#ffffff".into(),
                     font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
                     transform: Transform::default(),
                 },
             )
@@ -3106,6 +3539,8 @@ mod tests {
                 locked: Some(true),
                 hidden: None,
                 muted: None,
+                audio_role: None,
+                ducking: None,
             },
         )
         .unwrap();
@@ -3132,6 +3567,8 @@ mod tests {
                 locked: Some(false),
                 hidden: None,
                 muted: None,
+                audio_role: None,
+                ducking: None,
             },
         )
         .unwrap();
@@ -3191,6 +3628,8 @@ mod tests {
                     name: "Agent captions".into(),
                     track_type: TrackType::Caption,
                     index: None,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
                 }],
                 Some("caption plan".into()),
             )
@@ -3211,6 +3650,8 @@ mod tests {
                 name: "Concurrent".into(),
                 track_type: TrackType::Overlay,
                 index: None,
+                audio_role: AudioTrackRole::Unassigned,
+                ducking: None,
             },
         )
         .unwrap();
@@ -3234,6 +3675,70 @@ mod tests {
                 .unwrap_err()
                 .code,
             ErrorCode::DraftNotFound
+        );
+    }
+
+    #[test]
+    fn batch_aliases_resolve_shapes_and_roll_back_forward_references() {
+        let (core, _) = core();
+        let created = core
+            .create_project("aliases", ProjectSettings::default())
+            .unwrap();
+        let overlay = core
+            .get_project(&created.project_id)
+            .unwrap()
+            .tracks
+            .into_iter()
+            .find(|track| track.track_type == TrackType::Overlay)
+            .unwrap()
+            .id;
+        let operations: Vec<BatchEditOperation> = serde_json::from_value(serde_json::json!([
+            {
+                "operation": "add_rectangle", "trackId": overlay, "color": "#112233",
+                "width": 320, "height": 180, "startMs": 100, "durationMs": 1000,
+                "transform": { "positionX": 10.0, "positionY": 20.0, "scale": 1.0, "opacity": 1.0 },
+                "resultAlias": "panel"
+            },
+            {
+                "operation": "set_keyframes", "itemId": "@panel",
+                "keyframes": [{ "property": "opacity", "timeMs": 0, "value": { "type": "scalar", "value": 0.5 }, "easing": "linear" }]
+            }
+        ])).unwrap();
+        let result = core.edit_batch(&created.project_id, 0, operations).unwrap();
+        let panel = result.aliases.get("panel").unwrap();
+        assert_eq!(result.revision, 1);
+        assert!(matches!(
+            core.get_project(&created.project_id)
+                .unwrap()
+                .find_item(panel),
+            Some(TimelineItem::Rectangle(_))
+        ));
+        core.undo(&created.project_id, 1).unwrap();
+        assert!(
+            core.get_project(&created.project_id)
+                .unwrap()
+                .find_item(panel)
+                .is_none()
+        );
+
+        let before = core.get_project(&created.project_id).unwrap();
+        let invalid: Vec<BatchEditOperation> = serde_json::from_value(serde_json::json!([
+            { "operation": "delete_item", "itemId": "@later" },
+            {
+                "operation": "add_solid_color", "trackId": overlay, "color": "#000000",
+                "startMs": 0, "durationMs": 100, "transform": { "positionX": 0.0, "positionY": 0.0, "scale": 1.0, "opacity": 1.0 },
+                "resultAlias": "later"
+            }
+        ])).unwrap();
+        assert_eq!(
+            core.edit_batch(&created.project_id, before.revision, invalid)
+                .unwrap_err()
+                .code,
+            ErrorCode::ValidationFailed
+        );
+        assert_eq!(
+            core.get_project(&created.project_id).unwrap().revision,
+            before.revision
         );
     }
 }

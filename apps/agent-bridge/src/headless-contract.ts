@@ -15,15 +15,18 @@ export type HeadlessEdit =
       sourceInMs: number;
       startMs: number;
       trackId: string;
+      resultAlias?: string | undefined;
     }
   | {
       operation: "add_text";
       color: string;
       durationMs: number;
       fontFamily?: string | undefined;
+      fontPath?: string | undefined;
       fontSize: number;
       startMs: number;
       text: string;
+      style: Record<string, unknown>;
       trackId: string;
       transform: {
         opacity: number;
@@ -31,11 +34,47 @@ export type HeadlessEdit =
         positionY: number;
         scale: number;
       };
+      resultAlias?: string | undefined;
+    }
+  | {
+      operation: "add_solid_color";
+      color: string;
+      durationMs: number;
+      startMs: number;
+      trackId: string;
+      transform: {
+        opacity: number;
+        positionX: number;
+        positionY: number;
+        scale: number;
+      };
+      resultAlias?: string | undefined;
+    }
+  | {
+      operation: "add_rectangle";
+      color: string;
+      durationMs: number;
+      height: number;
+      startMs: number;
+      trackId: string;
+      transform: {
+        opacity: number;
+        positionX: number;
+        positionY: number;
+        scale: number;
+      };
+      width: number;
+      resultAlias?: string | undefined;
     }
   | {
       operation: "update_item";
       itemId: string;
+      color?: string | undefined;
+      fontFamily?: string | null | undefined;
+      fontPath?: string | null | undefined;
+      height?: number | undefined;
       text?: string | undefined;
+      style?: Record<string, unknown> | undefined;
       transform?:
         | {
             opacity: number;
@@ -44,6 +83,7 @@ export type HeadlessEdit =
             scale: number;
           }
         | undefined;
+      width?: number | undefined;
     }
   | { operation: "move_item"; itemId: string; startMs: number; trackId: string }
   | {
@@ -63,6 +103,7 @@ export type HeadlessEdit =
       toItemId?: string | undefined;
       trackId: string;
       transitionType: "fade" | "crossfade";
+      resultAlias?: string | undefined;
     }
   | {
       operation: "set_audio";
@@ -81,10 +122,35 @@ export type HeadlessEdit =
       index?: number | undefined;
       name: string;
       trackType: "video" | "overlay" | "audio" | "caption";
+      audioRole: "unassigned" | "voiceover" | "music" | "sound_effects";
+      ducking?:
+        | {
+            attackMs: number;
+            enabled: boolean;
+            gain: number;
+            releaseMs: number;
+          }
+        | undefined;
+      resultAlias?: string | undefined;
     }
   | {
       operation: "update_track";
       hidden?: boolean | undefined;
+      audioRole?:
+        | "unassigned"
+        | "voiceover"
+        | "music"
+        | "sound_effects"
+        | undefined;
+      ducking?:
+        | {
+            attackMs: number;
+            enabled: boolean;
+            gain: number;
+            releaseMs: number;
+          }
+        | null
+        | undefined;
       index?: number | undefined;
       locked?: boolean | undefined;
       muted?: boolean | undefined;
@@ -188,6 +254,15 @@ export type HeadlessRequest =
     })
   | (Revisioned & { operation: "undo" | "redo" })
   | (Revisioned & { operation: "render_preview"; timeMs: number })
+  | (Revisioned & {
+      operation: "render_preview_range";
+      startMs: number;
+      endMs: number;
+      width: number;
+      height: number;
+      fps: number;
+      includeAudio: boolean;
+    })
   | (Revisioned & {
       height: number;
       operation: "export_video";

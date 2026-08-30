@@ -8,9 +8,13 @@ import type { LogLevel } from "./logger";
 const PATH_SEPARATOR_PATTERN = /[\\/]/u;
 
 export interface BridgeConfig {
+  readonly allowedFontDirectories: readonly string[];
+  readonly allowedMediaDirectories: readonly string[];
   readonly configRoot: string;
   readonly environment: Readonly<Record<string, string>>;
   readonly exportsDirectory: string | undefined;
+  readonly ffmpegPath: string;
+  readonly ffprobePath: string;
   readonly generatedArtifactTtlMs: number;
   readonly generatedMediaDirectories: readonly string[];
   readonly headlessArguments: readonly string[];
@@ -237,6 +241,22 @@ export const loadBridgeConfig = (
   )
     .filter(Boolean)
     .map((path) => resolve(configRoot, path));
+  const allowedFontDirectories =
+    source.OPENCUT_ALLOWED_FONT_DIRS?.split(delimiter)
+      .filter(Boolean)
+      .map((path) => resolve(configRoot, path)) ?? [];
+  const ffmpegPath = configuredExecutable(
+    source,
+    "OPENCUT_FFMPEG_PATH",
+    "ffmpeg",
+    configRoot
+  );
+  const ffprobePath = configuredExecutable(
+    source,
+    "OPENCUT_FFPROBE_PATH",
+    "ffprobe",
+    configRoot
+  );
   const { httpAuthToken, httpHost, transport } = resolveHttpSettings(source);
   const environment = Object.freeze({
     ...Object.fromEntries(
@@ -252,6 +272,9 @@ export const loadBridgeConfig = (
     ...(allowedMediaDirectories
       ? { OPENCUT_ALLOWED_MEDIA_DIRS: allowedMediaDirectories.join(delimiter) }
       : {}),
+    ...(allowedFontDirectories.length > 0
+      ? { OPENCUT_ALLOWED_FONT_DIRS: allowedFontDirectories.join(delimiter) }
+      : {}),
     ...(source.OPENCUT_DEFAULT_FONT_PATH
       ? {
           OPENCUT_DEFAULT_FONT_PATH: resolve(
@@ -262,31 +285,25 @@ export const loadBridgeConfig = (
       : {}),
     ...(source.OPENCUT_FFMPEG_PATH
       ? {
-          OPENCUT_FFMPEG_PATH: configuredExecutable(
-            source,
-            "OPENCUT_FFMPEG_PATH",
-            "ffmpeg",
-            configRoot
-          ),
+          OPENCUT_FFMPEG_PATH: ffmpegPath,
         }
       : {}),
     ...(source.OPENCUT_FFPROBE_PATH
       ? {
-          OPENCUT_FFPROBE_PATH: configuredExecutable(
-            source,
-            "OPENCUT_FFPROBE_PATH",
-            "ffprobe",
-            configRoot
-          ),
+          OPENCUT_FFPROBE_PATH: ffprobePath,
         }
       : {}),
     ...(projectsDirectory ? { OPENCUT_PROJECTS_DIR: projectsDirectory } : {}),
     ...(exportsDirectory ? { OPENCUT_EXPORTS_DIR: exportsDirectory } : {}),
   });
   return Object.freeze({
+    allowedFontDirectories: Object.freeze(allowedFontDirectories),
+    allowedMediaDirectories: Object.freeze(allowedMediaDirectories ?? []),
     configRoot,
     environment,
     exportsDirectory,
+    ffmpegPath,
+    ffprobePath,
     generatedArtifactTtlMs: positiveInteger(
       source,
       "OPENCUT_GENERATED_ARTIFACT_TTL_MS",

@@ -186,9 +186,13 @@ it("reports worker startup errors and can continue with a replacement provider",
       OPENCUT_KOKORO_PYTHON: join(root, "missing-python"),
     })
   );
-  await expect(provider.status()).rejects.toMatchObject({
-    code: "TTS_WORKER_TERMINATED",
-    retryable: true,
+  await expect(provider.status()).resolves.toMatchObject({
+    ready: false,
+    startupError: {
+      code: "TTS_UNAVAILABLE",
+      message: "Configured Kokoro Python executable is missing",
+      retryable: false,
+    },
   });
   await provider.close();
   provider = new KokoroSpeechSynthesizer(loadBridgeConfig());

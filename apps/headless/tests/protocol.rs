@@ -134,6 +134,9 @@ fn revision_conflicts_are_typed_error_envelopes_with_nonzero_exit() {
             "type": "error",
             "error": {
                 "code": "REVISION_CONFLICT",
+                "failedStage": null,
+                "ffmpegExitCode": null,
+                "ffmpegStderrExcerpt": null,
                 "message": "expected revision 99, current revision is 0",
                 "retryable": true
             }

@@ -5,9 +5,10 @@ use std::{
 };
 
 use opencut_editor_core::{
-    CaptionStyle, CommitGeneratedAssetRequest, CommitTranscriptionRequest, CoreError,
-    EditOperation, EditorCore, ExportOptions, GeneratedAssetOrigin, MediaProbeFacts, MediaType,
-    PathPolicy, ProjectSettings, Renderer, ReplaceGeneratedAssetRequest, TranscriptionSegment,
+    BatchEditOperation, CaptionStyle, CommitGeneratedAssetRequest, CommitTranscriptionRequest,
+    CoreError, EditOperation, EditorCore, ExportOptions, GeneratedAssetOrigin, MediaProbeFacts,
+    MediaType, PathPolicy, PreviewRangeOptions, ProjectSettings, Renderer,
+    ReplaceGeneratedAssetRequest, TranscriptionSegment,
 };
 use serde::{Deserialize, Serialize};
 
@@ -69,7 +70,7 @@ enum Request {
     EditBatch {
         project_id: String,
         expected_revision: u64,
-        operations: Vec<EditOperation>,
+        operations: Vec<BatchEditOperation>,
     },
     CreateDraft {
         project_id: String,
@@ -141,6 +142,16 @@ enum Request {
         expected_revision: u64,
         time_ms: u64,
     },
+    RenderPreviewRange {
+        project_id: String,
+        expected_revision: u64,
+        start_ms: u64,
+        end_ms: u64,
+        width: u32,
+        height: u32,
+        fps: u32,
+        include_audio: bool,
+    },
     ExportVideo {
         project_id: String,
         expected_revision: u64,
@@ -165,6 +176,9 @@ struct ErrorBody {
     code: opencut_editor_core::ErrorCode,
     message: String,
     retryable: bool,
+    failed_stage: Option<String>,
+    ffmpeg_exit_code: Option<i32>,
+    ffmpeg_stderr_excerpt: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -197,6 +211,9 @@ fn main() {
                 code: error.code,
                 message: error.message,
                 retryable: error.retryable,
+                failed_stage: error.failed_stage,
+                ffmpeg_exit_code: error.ffmpeg_exit_code,
+                ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
             },
         });
         std::process::exit(1);
@@ -502,6 +519,36 @@ fn run() -> Result<(), CoreError> {
             let project_dir = core.paths().project_dir(&project_id)?;
             emit_value(renderer.render_preview(&project, &project_dir, time_ms)?)
         }
+        Request::RenderPreviewRange {
+            project_id,
+            expected_revision,
+            start_ms,
+            end_ms,
+            width,
+            height,
+            fps,
+            include_audio,
+        } => {
+            let project = core.validate_revision(&project_id, expected_revision)?;
+            let project_dir = core.paths().project_dir(&project_id)?;
+            emit_value(renderer.render_preview_range(
+                &project,
+                &project_dir,
+                PreviewRangeOptions {
+                    start_ms,
+                    end_ms,
+                    width,
+                    height,
+                    fps,
+                    include_audio,
+                },
+                |progress| {
+                    let _ = emit(Event::<serde_json::Value>::Progress {
+                        progress: progress.progress,
+                    });
+                },
+            )?)
+        }
         Request::ExportVideo {
             project_id,
             expected_revision,
@@ -567,9 +614,12 @@ fn configured_services() -> Result<(EditorCore, Renderer), CoreError> {
     let font = env::var_os("OPENCUT_DEFAULT_FONT_PATH")
         .map(PathBuf::from)
         .or_else(discover_default_font);
+    let font_roots = env::var_os("OPENCUT_ALLOWED_FONT_DIRS")
+        .map(|value| env::split_paths(&value).collect::<Vec<_>>())
+        .unwrap_or_default();
     Ok((
         EditorCore::new(policy),
-        Renderer::new(ffmpeg, ffprobe, font),
+        Renderer::new(ffmpeg, ffprobe, font).with_font_roots(font_roots),
     ))
 }
 
@@ -599,15 +649,20 @@ fn editor_capabilities() -> Vec<&'static str> {
         "assets",
         "timeline",
         "text",
+        "text_styling",
+        "solid_color",
+        "rectangle",
         "keyframes",
         "transitions",
         "audio",
+        "audio_roles",
+        "audio_ducking",
         "undo_redo",
     ]
 }
 
 fn render_capabilities() -> Vec<&'static str> {
-    vec!["preview", "mp4_export"]
+    vec!["preview", "preview_range", "mp4_export"]
 }
 
 fn status(renderer: &Renderer) -> Status {
@@ -624,6 +679,9 @@ fn status(renderer: &Renderer) -> Status {
                 code: error.code,
                 message: error.message,
                 retryable: error.retryable,
+                failed_stage: error.failed_stage,
+                ffmpeg_exit_code: error.ffmpeg_exit_code,
+                ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
             }),
         },
     };

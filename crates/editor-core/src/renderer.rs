@@ -5,6 +5,7 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
+    thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,7 @@ pub struct Renderer {
     ffmpeg_path: PathBuf,
     ffprobe_path: PathBuf,
     default_font_path: Option<PathBuf>,
+    font_roots: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -28,6 +30,8 @@ pub struct RenderArtifact {
     pub relative_path: String,
     pub mime_type: String,
     pub size_bytes: u64,
+    #[serde(default)]
+    pub warnings: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -42,6 +46,16 @@ pub struct ExportOptions<'a> {
     pub width: u32,
     pub height: u32,
     pub overwrite: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct PreviewRangeOptions {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub width: u32,
+    pub height: u32,
+    pub fps: u32,
+    pub include_audio: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -59,6 +73,33 @@ pub struct ProbeResult {
     pub audio_sample_rate_hz: Option<u32>,
 }
 
+struct BuiltCommand {
+    command: Command,
+    temporary_files: Vec<PathBuf>,
+    warnings: Vec<String>,
+}
+
+struct FilterContext<'a> {
+    asset_by_id: &'a HashMap<&'a str, &'a crate::Asset>,
+    input_indexes: &'a HashMap<String, usize>,
+    text_files: &'a HashMap<String, PathBuf>,
+    width: u32,
+    height: u32,
+    fps: u32,
+}
+
+impl Drop for BuiltCommand {
+    fn drop(&mut self) {
+        for path in &self.temporary_files {
+            if path.is_dir() {
+                let _ = std::fs::remove_dir_all(path);
+            } else {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
 impl Renderer {
     pub fn new(
         ffmpeg_path: impl Into<PathBuf>,
@@ -69,7 +110,13 @@ impl Renderer {
             ffmpeg_path: ffmpeg_path.into(),
             ffprobe_path: ffprobe_path.into(),
             default_font_path,
+            font_roots: vec![],
         }
+    }
+
+    pub fn with_font_roots(mut self, roots: impl IntoIterator<Item = PathBuf>) -> Self {
+        self.font_roots = roots.into_iter().collect();
+        self
     }
 
     pub fn readiness(&self) -> Result<(), CoreError> {
@@ -191,13 +238,15 @@ impl Renderer {
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(output.parent().unwrap_or(project_dir), "png");
-        let mut command = self.build_command(
+        let mut built = self.build_command(
             project,
             project_dir,
             project.settings.width,
             project.settings.height,
+            project.settings.fps,
         )?;
-        command
+        built
+            .command
             .args([
                 "-ss",
                 &seconds(time_ms),
@@ -209,12 +258,17 @@ impl Renderer {
             .arg(&temporary)
             .args(["-map", "[audio]", "-f", "null"])
             .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-        if let Err(error) = run_to_completion(&mut command, project.duration_ms(), |_| {}) {
+        if let Err(error) = run_to_completion(&mut built.command, project.duration_ms(), |_| {}) {
             let _ = std::fs::remove_file(&temporary);
             return Err(error);
         }
         publish_output(&temporary, &output, false)?;
-        artifact(&output, format!("previews/{file_name}"), "image/png")
+        artifact(
+            &output,
+            format!("previews/{file_name}"),
+            "image/png",
+            built.warnings.clone(),
+        )
     }
 
     pub fn export_video(
@@ -234,9 +288,14 @@ impl Renderer {
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let mut command =
-            self.build_command(project, project_dir, options.width, options.height)?;
-        command.args([
+        let mut built = self.build_command(
+            project,
+            project_dir,
+            options.width,
+            options.height,
+            project.settings.fps,
+        )?;
+        built.command.args([
             "-map",
             "[video]",
             "-map",
@@ -252,10 +311,12 @@ impl Renderer {
             "-t",
             &seconds(project.duration_ms()),
         ]);
-        command.arg("-y").arg(&temporary);
-        if let Err(error) = run_to_completion(&mut command, project.duration_ms(), |progress| {
-            on_progress(progress)
-        }) {
+        built.command.arg("-y").arg(&temporary);
+        if let Err(error) =
+            run_to_completion(&mut built.command, project.duration_ms(), |progress| {
+                on_progress(progress)
+            })
+        {
             let _ = std::fs::remove_file(&temporary);
             return Err(error);
         }
@@ -269,6 +330,76 @@ impl Renderer {
                 .unwrap_or("export.mp4")
                 .to_owned(),
             "video/mp4",
+            built.warnings.clone(),
+        )
+    }
+
+    pub fn render_preview_range(
+        &self,
+        project: &Project,
+        project_dir: &Path,
+        options: PreviewRangeOptions,
+        on_progress: impl FnMut(RenderProgress),
+    ) -> Result<RenderArtifact, CoreError> {
+        if options.start_ms >= options.end_ms
+            || options.end_ms > project.duration_ms()
+            || options.width == 0
+            || options.height == 0
+            || !(1..=120).contains(&options.fps)
+        {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "preview range options are invalid",
+            ));
+        }
+        let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
+        let output = project_dir.join("previews").join(&file_name);
+        let temporary = temporary_output(output.parent().unwrap_or(project_dir), "mp4");
+        let mut built = self.build_command(
+            project,
+            project_dir,
+            options.width,
+            options.height,
+            options.fps,
+        )?;
+        built
+            .command
+            .args(["-ss", &seconds(options.start_ms), "-map", "[video]"]);
+        if options.include_audio {
+            built.command.args(["-map", "[audio]", "-c:a", "aac"]);
+        }
+        built
+            .command
+            .args([
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "28",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                "-t",
+                &seconds(options.end_ms - options.start_ms),
+                "-y",
+            ])
+            .arg(&temporary);
+        if let Err(error) = run_to_completion(
+            &mut built.command,
+            options.end_ms - options.start_ms,
+            on_progress,
+        ) {
+            let _ = std::fs::remove_file(&temporary);
+            return Err(error);
+        }
+        publish_output(&temporary, &output, false)?;
+        artifact(
+            &output,
+            format!("previews/{file_name}"),
+            "video/mp4",
+            built.warnings.clone(),
         )
     }
 
@@ -278,7 +409,8 @@ impl Renderer {
         project_dir: &Path,
         width: u32,
         height: u32,
-    ) -> Result<Command, CoreError> {
+        fps: u32,
+    ) -> Result<BuiltCommand, CoreError> {
         let duration_ms = project.duration_ms().max(1);
         let mut command = Command::new(&self.ffmpeg_path);
         command.args([
@@ -295,7 +427,7 @@ impl Renderer {
                 "color=c=black:s={}x{}:r={}:d={}",
                 width,
                 height,
-                project.settings.fps,
+                fps,
                 seconds(duration_ms)
             ),
             "-f",
@@ -347,24 +479,117 @@ impl Renderer {
             next_input += 1;
         }
 
-        let filter_path = project_dir.join(format!("filter-{}.txt", Uuid::new_v4()));
-        let filter = self.build_filter(project, &asset_by_id, &input_indexes, width, height)?;
+        let workspace = render_workspace(project_dir)?;
+        let temporary_files = vec![workspace.clone()];
+        let mut warnings = Vec::new();
+        let text_files = self.prepare_text_files(project, &workspace)?;
+        let filter_path = workspace.join("filter.txt");
+        let filter = self.build_filter(
+            project,
+            FilterContext {
+                asset_by_id: &asset_by_id,
+                input_indexes: &input_indexes,
+                text_files: &text_files,
+                width,
+                height,
+                fps,
+            },
+            &mut warnings,
+        )?;
         let mut file = File::create(&filter_path)
             .map_err(|error| CoreError::io("cannot create FFmpeg filter script", error))?;
         file.write_all(filter.as_bytes())
             .map_err(|error| CoreError::io("cannot write FFmpeg filter script", error))?;
-        command.arg("-filter_complex_script").arg(filter_path);
-        Ok(command)
+        command.arg("-filter_complex_script").arg(&filter_path);
+        Ok(BuiltCommand {
+            command,
+            temporary_files,
+            warnings,
+        })
+    }
+
+    fn prepare_text_files(
+        &self,
+        project: &Project,
+        workspace: &Path,
+    ) -> Result<HashMap<String, PathBuf>, CoreError> {
+        let mut result = HashMap::new();
+        for text in project
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .filter_map(|item| match item {
+                TimelineItem::Text(text) if !text.hidden => Some(text),
+                _ => None,
+            })
+        {
+            let path = workspace.join(format!("text-{}.txt", text.id));
+            let content = wrap_text(&text.text, text.style.wrap_width_px, text.font_size);
+            std::fs::write(&path, content.as_bytes())
+                .map_err(|error| CoreError::io("cannot write renderer text file", error))?;
+            result.insert(text.id.clone(), path);
+        }
+        Ok(result)
+    }
+
+    fn resolve_text_font(
+        &self,
+        text: &crate::TextItem,
+        warnings: &mut Vec<String>,
+    ) -> Option<PathBuf> {
+        if let Some(requested) = text.font_path.as_deref() {
+            let requested = PathBuf::from(requested);
+            let candidates = if requested.is_absolute() {
+                vec![requested]
+            } else {
+                self.font_roots
+                    .iter()
+                    .map(|root| root.join(&requested))
+                    .collect()
+            };
+            for candidate in candidates {
+                if let Ok(resolved) = candidate.canonicalize()
+                    && resolved.is_file()
+                    && self
+                        .font_roots
+                        .iter()
+                        .filter_map(|root| root.canonicalize().ok())
+                        .any(|root| resolved.starts_with(root))
+                {
+                    return Some(resolved);
+                }
+            }
+            warnings.push(format!(
+                "Text item {} requested a font path that could not be resolved; using fallback",
+                text.id
+            ));
+        }
+        if let Some(family) = text.font_family.as_deref() {
+            let needle = family.to_lowercase().replace([' ', '-', '_'], "");
+            for root in &self.font_roots {
+                if let Some(path) = find_font_file(root, &needle) {
+                    return Some(path);
+                }
+            }
+            warnings.push(format!("Text item {} requested font family {family:?} that could not be resolved; using fallback", text.id));
+        }
+        self.default_font_path.clone()
     }
 
     fn build_filter(
         &self,
         project: &Project,
-        asset_by_id: &HashMap<&str, &crate::Asset>,
-        input_indexes: &HashMap<String, usize>,
-        width: u32,
-        height: u32,
+        context: FilterContext<'_>,
+        warnings: &mut Vec<String>,
     ) -> Result<String, CoreError> {
+        let FilterContext {
+            asset_by_id,
+            input_indexes,
+            text_files,
+            width,
+            height,
+            fps,
+        } = context;
         let mut filters = vec!["[0:v]format=yuv420p[base0]".to_owned()];
         let mut current_video = "base0".to_owned();
         let mut visual_count = 0_usize;
@@ -376,6 +601,23 @@ impl Renderer {
             .flat_map(|track| &track.items)
             .filter_map(|item| match item {
                 TimelineItem::Transition(value) if !value.hidden => Some(value),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let voiceover_intervals = project
+            .tracks
+            .iter()
+            .filter(|track| {
+                !track.hidden
+                    && !track.muted
+                    && track.audio_role == crate::AudioTrackRole::Voiceover
+            })
+            .flat_map(|track| track.items.iter())
+            .filter_map(|item| match item {
+                TimelineItem::Media(media) if !media.hidden && !media.audio.muted => Some((
+                    media.start_ms,
+                    media.start_ms.saturating_add(media.duration_ms),
+                )),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -424,15 +666,16 @@ impl Renderer {
                                 media.transform.position_y,
                                 media.start_ms,
                             );
-                            let opacity = scalar_expression(
+                            let opacity = scalar_expression_for(
                                 &media.keyframes,
                                 KeyframeProperty::Opacity,
                                 media.transform.opacity,
                                 media.start_ms,
+                                "T",
                             );
                             let fade = transition_filters(&media.id, &transitions, media.start_ms);
                             filters.push(format!(
-                            "[{input}:v]setpts=PTS-STARTPTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,format=rgba,colorchannelmixer=aa='{opacity}'{fade}[{prepared}]",
+                            "[{input}:v]setpts=PTS-STARTPTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{fade}[{prepared}]",
                             seconds(media.start_ms)
                         ));
                             filters.push(format!(
@@ -444,11 +687,16 @@ impl Renderer {
                         }
                         if asset.has_audio && !track.muted && !media.audio.muted {
                             let label = format!("audio{}", audio_labels.len());
+                            let volume = scalar_expression(
+                                &media.keyframes,
+                                KeyframeProperty::Volume,
+                                media.audio.volume,
+                                0,
+                            );
+                            let ducking = ducking_expression(track, &voiceover_intervals);
                             let mut chain = format!(
-                                "[{input}:a]atrim=duration={},asetpts=PTS-STARTPTS+{}/TB,volume={}",
+                                "[{input}:a]atrim=duration={},asetpts=PTS-STARTPTS,volume='{volume}':eval=frame",
                                 seconds(media.duration_ms),
-                                seconds(media.start_ms),
-                                media.audio.volume
                             );
                             if media.audio.fade_in_ms > 0 {
                                 chain.push_str(&format!(
@@ -465,6 +713,10 @@ impl Renderer {
                                     seconds(media.audio.fade_out_ms)
                                 ));
                             }
+                            chain.push_str(&format!(
+                                ",asetpts=PTS+{}/TB,volume='{ducking}':eval=frame",
+                                seconds(media.start_ms)
+                            ));
                             chain.push_str(&format!("[{label}]"));
                             filters.push(chain);
                             audio_labels.push(format!("[{label}]"));
@@ -472,6 +724,7 @@ impl Renderer {
                     }
                     TimelineItem::Text(text) => {
                         visual_count += 1;
+                        let prepared = format!("visual{visual_count}");
                         let composited = format!("base{visual_count}");
                         let x = position_expression(
                             &text.keyframes,
@@ -485,26 +738,130 @@ impl Renderer {
                             text.transform.position_y,
                             text.start_ms,
                         );
-                        let font = self
-                            .default_font_path
+                        let scale = scalar_expression(
+                            &text.keyframes,
+                            KeyframeProperty::Scale,
+                            text.transform.scale,
+                            text.start_ms,
+                        );
+                        let opacity = scalar_expression_for(
+                            &text.keyframes,
+                            KeyframeProperty::Opacity,
+                            text.transform.opacity,
+                            text.start_ms,
+                            "T",
+                        );
+                        let text_path = text_files.get(&text.id).ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::InternalError,
+                                "renderer text file is missing",
+                            )
+                        })?;
+                        let font_path = self.resolve_text_font(text, warnings);
+                        let font = font_path
                             .as_ref()
                             .map(|path| {
                                 format!("fontfile='{}':", escape_filter(&path.to_string_lossy()))
                             })
-                            .unwrap_or_else(|| {
-                                text.font_family
-                                    .as_ref()
-                                    .map(|family| format!("font='{}':", escape_filter(family)))
-                                    .unwrap_or_default()
-                            });
+                            .unwrap_or_default();
+                        let (x, y) = anchored_text_position(&x, &y, text.style.anchor);
+                        let alignment = match text.style.alignment {
+                            crate::TextAlignment::Left => "L",
+                            crate::TextAlignment::Center => "C",
+                            crate::TextAlignment::Right => "R",
+                        };
+                        let padding = &text.style.padding;
+                        let transition = transition_filters(&text.id, &transitions, text.start_ms);
                         filters.push(format!(
-                        "[{current_video}]drawtext={font}text='{}':fontsize={}:fontcolor={}:x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]",
-                        escape_filter(&text.text),
-                        text.font_size,
-                        text.color,
-                        seconds(text.start_ms),
-                        seconds(text.start_ms.saturating_add(text.duration_ms))
-                    ));
+                            "color=c=black@0.0:s={width}x{height}:r={fps}:d={},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize='{}*({scale})':fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x='{x}':y='{y}':enable='between(t,{},{})',geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]",
+                            seconds(project.duration_ms().max(1)),
+                            escape_filter(&text_path.to_string_lossy()),
+                            text.font_size,
+                            text.color,
+                            text.style.outline_width_px,
+                            text.style.outline_color,
+                            text.style.shadow.offset_x,
+                            text.style.shadow.offset_y,
+                            text.style.shadow.color,
+                            text.style.shadow.opacity,
+                            text.style.background_color,
+                            text.style.background_opacity,
+                            padding.top, padding.right, padding.bottom, padding.left,
+                            text.style.line_spacing_px,
+                            seconds(text.start_ms),
+                            seconds(text.start_ms.saturating_add(text.duration_ms)),
+                        ));
+                        filters.push(format!("[{current_video}][{prepared}]overlay=x=0:y=0:enable='between(t,{},{})'[{composited}]", seconds(text.start_ms), seconds(text.start_ms.saturating_add(text.duration_ms))));
+                        current_video = composited;
+                    }
+                    TimelineItem::SolidColor(shape) => {
+                        visual_count += 1;
+                        let prepared = format!("visual{visual_count}");
+                        let composited = format!("base{visual_count}");
+                        let scale = scalar_expression(
+                            &shape.keyframes,
+                            KeyframeProperty::Scale,
+                            shape.transform.scale,
+                            shape.start_ms,
+                        );
+                        let opacity = scalar_expression_for(
+                            &shape.keyframes,
+                            KeyframeProperty::Opacity,
+                            shape.transform.opacity,
+                            shape.start_ms,
+                            "T",
+                        );
+                        let x = position_expression(
+                            &shape.keyframes,
+                            true,
+                            shape.transform.position_x,
+                            shape.start_ms,
+                        );
+                        let y = position_expression(
+                            &shape.keyframes,
+                            false,
+                            shape.transform.position_y,
+                            shape.start_ms,
+                        );
+                        let transition =
+                            transition_filters(&shape.id, &transitions, shape.start_ms);
+                        filters.push(format!("color=c={}:s={width}x{height}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(&shape.color), seconds(shape.duration_ms), seconds(shape.start_ms)));
+                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(shape.start_ms), seconds(shape.start_ms.saturating_add(shape.duration_ms))));
+                        current_video = composited;
+                    }
+                    TimelineItem::Rectangle(shape) => {
+                        visual_count += 1;
+                        let prepared = format!("visual{visual_count}");
+                        let composited = format!("base{visual_count}");
+                        let scale = scalar_expression(
+                            &shape.keyframes,
+                            KeyframeProperty::Scale,
+                            shape.transform.scale,
+                            shape.start_ms,
+                        );
+                        let opacity = scalar_expression_for(
+                            &shape.keyframes,
+                            KeyframeProperty::Opacity,
+                            shape.transform.opacity,
+                            shape.start_ms,
+                            "T",
+                        );
+                        let x = position_expression(
+                            &shape.keyframes,
+                            true,
+                            shape.transform.position_x,
+                            shape.start_ms,
+                        );
+                        let y = position_expression(
+                            &shape.keyframes,
+                            false,
+                            shape.transform.position_y,
+                            shape.start_ms,
+                        );
+                        let transition =
+                            transition_filters(&shape.id, &transitions, shape.start_ms);
+                        filters.push(format!("color=c={}:s={}x{}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(&shape.color), shape.width, shape.height, seconds(shape.duration_ms), seconds(shape.start_ms)));
+                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(shape.start_ms), seconds(shape.start_ms.saturating_add(shape.duration_ms))));
                         current_video = composited;
                     }
                     TimelineItem::Caption(caption) => {
@@ -551,6 +908,110 @@ fn stream<'a>(streams: &'a [serde_json::Value], kind: &str) -> Option<&'a serde_
         .find(|stream| stream.get("codec_type").and_then(serde_json::Value::as_str) == Some(kind))
 }
 
+fn wrap_text(text: &str, width_px: Option<u32>, font_size: u32) -> String {
+    let Some(width_px) = width_px else {
+        return text.to_owned();
+    };
+    let maximum = ((width_px as f64 / (font_size as f64 * 0.6)).floor() as usize).max(1);
+    text.split('\n')
+        .map(|line| {
+            let mut lines = Vec::new();
+            let mut current = String::new();
+            for word in line.split_whitespace() {
+                let proposed = current.chars().count()
+                    + usize::from(!current.is_empty())
+                    + word.chars().count();
+                if proposed > maximum && !current.is_empty() {
+                    lines.push(std::mem::take(&mut current));
+                }
+                if !current.is_empty() {
+                    current.push(' ');
+                }
+                current.push_str(word);
+            }
+            lines.push(current);
+            lines.join("\n")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn ffmpeg_color(color: &str) -> String {
+    format!("0x{}", color.trim_start_matches('#'))
+}
+
+fn find_font_file(root: &Path, normalized_family: &str) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(found) = find_font_file(&path, normalized_family) {
+                return Some(found);
+            }
+        } else if matches!(
+            path.extension()
+                .and_then(|value| value.to_str())
+                .map(str::to_ascii_lowercase)
+                .as_deref(),
+            Some("ttf" | "otf" | "ttc")
+        ) {
+            let stem = path
+                .file_stem()?
+                .to_string_lossy()
+                .to_lowercase()
+                .replace([' ', '-', '_'], "");
+            if stem.contains(normalized_family) {
+                return path.canonicalize().ok();
+            }
+        }
+    }
+    None
+}
+
+fn anchored_text_position(x: &str, y: &str, anchor: crate::AnchorPoint) -> (String, String) {
+    use crate::AnchorPoint::*;
+    let anchored_x = match anchor {
+        TopCenter | Center | BottomCenter => format!("({x})-(text_w/2)"),
+        TopRight | CenterRight | BottomRight => format!("({x})-text_w"),
+        _ => x.into(),
+    };
+    let anchored_y = match anchor {
+        CenterLeft | Center | CenterRight => format!("({y})-(text_h/2)"),
+        BottomLeft | BottomCenter | BottomRight => format!("({y})-text_h"),
+        _ => y.into(),
+    };
+    (anchored_x, anchored_y)
+}
+
+fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String {
+    let Some(settings) = track.ducking.as_ref().filter(|settings| settings.enabled) else {
+        return "1".into();
+    };
+    if track.audio_role != crate::AudioTrackRole::Music || intervals.is_empty() {
+        return "1".into();
+    }
+    let mut expression = "1".to_owned();
+    for (start, end) in intervals.iter().rev() {
+        let attack_start = start.saturating_sub(settings.attack_ms);
+        let release_end = end.saturating_add(settings.release_ms);
+        let attack = seconds(settings.attack_ms.max(1));
+        let release = seconds(settings.release_ms.max(1));
+        let gain = format_number(settings.gain);
+        expression = format!(
+            "if(between(t,{},{}) ,1-(1-({gain}))*((t-{})/{attack}),if(between(t,{},{}) ,({gain}),if(between(t,{},{}) ,({gain})+(1-({gain}))*((t-{})/{release}),{expression})))",
+            seconds(attack_start),
+            seconds(*start),
+            seconds(attack_start),
+            seconds(*start),
+            seconds(*end),
+            seconds(*end),
+            seconds(release_end),
+            seconds(*end),
+        );
+    }
+    expression
+}
+
 fn stream_string(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<String> {
     stream(streams, kind)?
         .get(field)?
@@ -577,6 +1038,22 @@ fn temporary_output(parent: &Path, extension: &str) -> PathBuf {
         })
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     parent.join(format!(".opencut-{request_id}.{extension}"))
+}
+
+fn render_workspace(project_dir: &Path) -> Result<PathBuf, CoreError> {
+    let request_id = env::var("OPENCUT_REQUEST_ID")
+        .ok()
+        .filter(|value| {
+            !value.is_empty()
+                && value
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
+        })
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let path = project_dir.join(format!(".opencut-work-{request_id}"));
+    std::fs::create_dir(&path)
+        .map_err(|error| CoreError::io("cannot create render workspace", error))?;
+    Ok(path)
 }
 
 fn publish_output(temporary: &Path, output: &Path, overwrite: bool) -> Result<(), CoreError> {
@@ -627,23 +1104,21 @@ fn resolve_project_asset(project_dir: &Path, relative: &Path) -> Result<PathBuf,
 fn transition_filters(
     item_id: &str,
     transitions: &[&crate::TransitionItem],
-    item_start_ms: u64,
+    _item_start_ms: u64,
 ) -> String {
     let mut result = String::new();
     for transition in transitions {
         if transition.from_item_id == item_id {
-            let local_start = transition.start_ms.saturating_sub(item_start_ms);
             result.push_str(&format!(
                 ",fade=t=out:st={}:d={}:alpha=1",
-                seconds(local_start),
+                seconds(transition.start_ms),
                 seconds(transition.duration_ms)
             ));
         }
         if transition.to_item_id.as_deref() == Some(item_id) {
-            let local_start = transition.start_ms.saturating_sub(item_start_ms);
             result.push_str(&format!(
                 ",fade=t=in:st={}:d={}:alpha=1",
-                seconds(local_start),
+                seconds(transition.start_ms),
                 seconds(transition.duration_ms)
             ));
         }
@@ -657,6 +1132,16 @@ fn scalar_expression(
     default: f64,
     item_start_ms: u64,
 ) -> String {
+    scalar_expression_for(keyframes, property, default, item_start_ms, "t")
+}
+
+fn scalar_expression_for(
+    keyframes: &[Keyframe],
+    property: KeyframeProperty,
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
+) -> String {
     let values = keyframes
         .iter()
         .filter_map(|keyframe| {
@@ -669,7 +1154,7 @@ fn scalar_expression(
             Some((keyframe.time_ms, value, keyframe.easing))
         })
         .collect::<Vec<_>>();
-    piecewise_expression(&values, default, item_start_ms)
+    piecewise_expression_for(&values, default, item_start_ms, time_variable)
 }
 
 fn position_expression(
@@ -698,6 +1183,15 @@ fn position_expression(
 }
 
 fn piecewise_expression(values: &[(u64, f64, Easing)], default: f64, item_start_ms: u64) -> String {
+    piecewise_expression_for(values, default, item_start_ms, "t")
+}
+
+fn piecewise_expression_for(
+    values: &[(u64, f64, Easing)],
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
+) -> String {
     if values.is_empty() {
         return format_number(default);
     }
@@ -708,19 +1202,20 @@ fn piecewise_expression(values: &[(u64, f64, Easing)], default: f64, item_start_
         let global_start = seconds(item_start_ms.saturating_add(start_time));
         let global_end = seconds(item_start_ms.saturating_add(end_time));
         let span = seconds(end_time.saturating_sub(start_time).max(1));
-        let progress = format!("(t-{global_start})/{span}");
+        let progress = format!("(({time_variable})-({global_start}))/({span})");
         let eased = easing_expression(&progress, easing);
         let interpolated = format!(
-            "{}+({}-{})*({eased})",
+            "({})+(({})-({}))*({eased})",
             format_number(start_value),
             format_number(end_value),
             format_number(start_value)
         );
-        expression = format!("if(lt(t,{global_end}),{interpolated},{expression})");
+        expression =
+            format!("if(lt(({time_variable}),({global_end})),{interpolated},{expression})");
     }
     let first_time = seconds(item_start_ms.saturating_add(values[0].0));
     format!(
-        "if(lt(t,{first_time}),{},{expression})",
+        "if(lt(({time_variable}),({first_time})),({}),{expression})",
         format_number(values[0].1)
     )
 }
@@ -758,6 +1253,7 @@ fn artifact(
     path: &Path,
     relative_path: String,
     mime_type: &str,
+    warnings: Vec<String>,
 ) -> Result<RenderArtifact, CoreError> {
     let size_bytes = path
         .metadata()
@@ -773,6 +1269,7 @@ fn artifact(
         relative_path,
         mime_type: mime_type.into(),
         size_bytes,
+        warnings,
     })
 }
 
@@ -783,15 +1280,27 @@ fn run_to_completion(
 ) -> Result<(), CoreError> {
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = command.spawn().map_err(|error| {
-        CoreError::new(
-            ErrorCode::DependencyUnavailable,
-            format!("cannot start FFmpeg: {error}"),
-        )
+        CoreError::render_failure("spawn", None, Some(sanitize_stderr(&error.to_string())))
     })?;
     let stdout = child
         .stdout
         .take()
         .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "cannot read FFmpeg progress"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "cannot read FFmpeg stderr"))?;
+    let stderr_reader = thread::spawn(move || {
+        let mut text = String::new();
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            text.push_str(&line);
+            text.push('\n');
+            if text.len() > 16_384 {
+                text.drain(..text.len() - 16_384);
+            }
+        }
+        text
+    });
     for line in BufReader::new(stdout).lines() {
         let line = line.map_err(|error| CoreError::io("cannot read FFmpeg progress", error))?;
         if let Some(value) = line.strip_prefix("out_time_ms=")
@@ -803,19 +1312,56 @@ fn run_to_completion(
             });
         }
     }
-    let output = child
-        .wait_with_output()
+    let status = child
+        .wait()
         .map_err(|error| CoreError::io("cannot wait for FFmpeg", error))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let summary = stderr.lines().last().unwrap_or("FFmpeg failed");
-        return Err(CoreError::new(
-            ErrorCode::JobFailed,
-            format!("FFmpeg render failed: {summary}"),
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if !status.success() {
+        return Err(CoreError::render_failure(
+            "render",
+            status.code(),
+            Some(sanitize_stderr(&stderr)),
         ));
     }
     on_progress(RenderProgress { progress: 1.0 });
     Ok(())
+}
+
+fn sanitize_stderr(stderr: &str) -> String {
+    let tail = stderr
+        .chars()
+        .rev()
+        .take(4_096)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    tail.lines()
+        .map(sanitize_stderr_line)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn sanitize_stderr_line(line: &str) -> String {
+    line.split_whitespace()
+        .map(|part| {
+            let normalized = part.trim_matches(['\'', '"', '(', ')', '[', ']', ',', ';']);
+            let has_windows_path = normalized.as_bytes().windows(3).any(|window| {
+                window[0].is_ascii_alphabetic()
+                    && window[1] == b':'
+                    && matches!(window[2], b'\\' | b'/')
+            });
+            let has_posix_path = normalized.starts_with('/')
+                || normalized.contains("=/")
+                || normalized.contains("file:/");
+            if has_windows_path || has_posix_path {
+                "[path]"
+            } else {
+                part
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]
@@ -823,7 +1369,7 @@ mod tests {
     use super::*;
     use crate::{
         CaptionItem, CaptionSource, CaptionStyle, PROJECT_SCHEMA_VERSION, ProjectSettings,
-        TimelineItem, Track, TrackType,
+        SolidColorItem, TimelineItem, Track, TrackType, Transform,
     };
     use tempfile::tempdir;
 
@@ -834,14 +1380,94 @@ mod tests {
             1.0,
             500,
         );
-        assert!(expression.contains("if(lt(t,"));
+        assert!(expression.contains("if(lt((t),"));
         assert!(!expression.contains('$'));
         assert!(!expression.contains('`'));
     }
 
     #[test]
+    fn keyframe_interpolation_parenthesizes_every_sign_and_easing_combination() {
+        let easings = [
+            Easing::Hold,
+            Easing::Linear,
+            Easing::EaseIn,
+            Easing::EaseOut,
+            Easing::EaseInOut,
+        ];
+        for easing in easings {
+            for (start, end) in [
+                (288.0, 250.0),
+                (288.0, -250.0),
+                (-288.0, 250.0),
+                (-288.0, -250.0),
+            ] {
+                for property in [
+                    KeyframeProperty::Position,
+                    KeyframeProperty::Scale,
+                    KeyframeProperty::Opacity,
+                    KeyframeProperty::Volume,
+                ] {
+                    let values = vec![
+                        Keyframe {
+                            property,
+                            time_ms: 0,
+                            value: if property == KeyframeProperty::Position {
+                                KeyframeValue::Position { x: start, y: start }
+                            } else {
+                                KeyframeValue::Scalar { value: start }
+                            },
+                            easing,
+                        },
+                        Keyframe {
+                            property,
+                            time_ms: 1_000,
+                            value: if property == KeyframeProperty::Position {
+                                KeyframeValue::Position { x: end, y: end }
+                            } else {
+                                KeyframeValue::Scalar { value: end }
+                            },
+                            easing: Easing::Linear,
+                        },
+                    ];
+                    let expression = if property == KeyframeProperty::Position {
+                        position_expression(&values, true, start, 0)
+                    } else {
+                        scalar_expression(&values, property, start, 0)
+                    };
+                    assert!(expression.contains(&format!("({:.6})", start)));
+                    assert!(expression.contains(&format!("({:.6})", end)));
+                    assert!(!expression.contains("-288.000000--250.000000"));
+                    assert!(!expression.contains("288.000000--250.000000"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn wrapping_preserves_newlines_and_unicode_without_filter_escaping() {
+        let value = "It's: 100% \\ café →\nsecond line";
+        assert_eq!(wrap_text(value, None, 48), value);
+        let wrapped = wrap_text("one two three", Some(80), 20);
+        assert!(wrapped.contains('\n'));
+    }
+
+    #[test]
     fn filter_text_is_escaped() {
         assert_eq!(escape_filter("it's: 100%"), "it\\'s\\: 100\\%");
+    }
+
+    #[test]
+    fn ffmpeg_stderr_is_path_redacted_and_tail_bounded() {
+        let stderr = format!(
+            "{} input=C:\\Users\\private\\secret.mov /var/private/secret.mov\nfinal diagnostic",
+            "x".repeat(5_000)
+        );
+        let sanitized = sanitize_stderr(&stderr);
+        assert!(sanitized.chars().count() <= 4_096);
+        assert!(!sanitized.contains("C:\\Users"));
+        assert!(!sanitized.contains("/var/private"));
+        assert!(sanitized.contains("[path]"));
+        assert!(sanitized.ends_with("final diagnostic"));
     }
 
     #[test]
@@ -879,6 +1505,132 @@ mod tests {
     }
 
     #[test]
+    fn native_preview_range_and_export_frames_are_consistent_when_ffmpeg_is_available() {
+        let (Ok(ffmpeg), Ok(ffprobe)) = (
+            env::var("OPENCUT_FFMPEG_PATH"),
+            env::var("OPENCUT_FFPROBE_PATH"),
+        ) else {
+            return;
+        };
+        if !Command::new(&ffmpeg)
+            .arg("-version")
+            .output()
+            .is_ok_and(|output| output.status.success())
+        {
+            return;
+        }
+
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let project = Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "renderer-consistency".into(),
+            revision: 7,
+            name: "renderer consistency".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            settings: ProjectSettings {
+                width: 160,
+                height: 90,
+                fps: 10,
+            },
+            assets: vec![],
+            tracks: vec![Track {
+                id: "overlay".into(),
+                name: "Overlay".into(),
+                track_type: TrackType::Overlay,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
+                items: vec![TimelineItem::SolidColor(SolidColorItem {
+                    id: "background".into(),
+                    color: "#cc3311".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    transform: Transform {
+                        opacity: 0.7,
+                        ..Transform::default()
+                    },
+                    keyframes: vec![],
+                    hidden: false,
+                })],
+            }],
+        };
+        let renderer = Renderer::new(&ffmpeg, ffprobe, None);
+        let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
+        let range = renderer
+            .render_preview_range(
+                &project,
+                root.path(),
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1_000,
+                    width: 160,
+                    height: 90,
+                    fps: 10,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        let export_path = root.path().join("export.mp4");
+        renderer
+            .export_video(
+                &project,
+                root.path(),
+                ExportOptions {
+                    output: &export_path,
+                    width: 160,
+                    height: 90,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+
+        let preview_frame = decode_rgb_frame(&ffmpeg, &root.path().join(preview.relative_path), 0);
+        let range_frame = decode_rgb_frame(&ffmpeg, &root.path().join(range.relative_path), 500);
+        let export_frame = decode_rgb_frame(&ffmpeg, &export_path, 500);
+        assert_frames_close(&preview_frame, &range_frame, 8.0);
+        assert_frames_close(&preview_frame, &export_frame, 8.0);
+    }
+
+    fn decode_rgb_frame(ffmpeg: &str, path: &Path, time_ms: u64) -> Vec<u8> {
+        let output = Command::new(ffmpeg)
+            .args(["-hide_banner", "-loglevel", "error", "-ss"])
+            .arg(seconds(time_ms))
+            .arg("-i")
+            .arg(path)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "pipe:1",
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(!output.stdout.is_empty());
+        output.stdout
+    }
+
+    fn assert_frames_close(left: &[u8], right: &[u8], tolerance: f64) {
+        assert_eq!(left.len(), right.len());
+        let mean_error = left
+            .iter()
+            .zip(right)
+            .map(|(left, right)| f64::from(left.abs_diff(*right)))
+            .sum::<f64>()
+            / left.len() as f64;
+        assert!(mean_error <= tolerance, "mean pixel error was {mean_error}");
+    }
+
+    #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
             schema_version: PROJECT_SCHEMA_VERSION,
@@ -896,6 +1648,8 @@ mod tests {
                 locked: false,
                 hidden: false,
                 muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
                 items: vec![TimelineItem::Caption(CaptionItem {
                     id: "caption".into(),
                     text: "It's: 100%".into(),
@@ -918,14 +1672,40 @@ mod tests {
             }],
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
+        let text_files = HashMap::new();
+        let asset_by_id = HashMap::new();
+        let input_indexes = HashMap::new();
+        let mut warnings = Vec::new();
         let filter = renderer
-            .build_filter(&project, &HashMap::new(), &HashMap::new(), 1920, 1080)
+            .build_filter(
+                &project,
+                FilterContext {
+                    asset_by_id: &asset_by_id,
+                    input_indexes: &input_indexes,
+                    text_files: &text_files,
+                    width: 1920,
+                    height: 1080,
+                    fps: 30,
+                },
+                &mut warnings,
+            )
             .unwrap();
         assert!(filter.contains("x='(w-text_w)/2':y='h-text_h-64'"));
         assert!(filter.contains("It\\'s\\: 100\\%"));
         project.tracks[0].hidden = true;
         let hidden = renderer
-            .build_filter(&project, &HashMap::new(), &HashMap::new(), 1920, 1080)
+            .build_filter(
+                &project,
+                FilterContext {
+                    asset_by_id: &asset_by_id,
+                    input_indexes: &input_indexes,
+                    text_files: &text_files,
+                    width: 1920,
+                    height: 1080,
+                    fps: 30,
+                },
+                &mut warnings,
+            )
             .unwrap();
         assert!(!hidden.contains("drawtext"));
     }

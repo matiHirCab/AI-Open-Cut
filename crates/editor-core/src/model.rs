@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 5;
+pub const PROJECT_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -304,6 +304,10 @@ pub struct Track {
     pub hidden: bool,
     #[serde(default)]
     pub muted: bool,
+    #[serde(default)]
+    pub audio_role: AudioTrackRole,
+    #[serde(default)]
+    pub ducking: Option<DuckingSettings>,
     pub items: Vec<TimelineItem>,
 }
 
@@ -312,6 +316,8 @@ pub struct Track {
 pub enum TimelineItem {
     Media(MediaItem),
     Text(TextItem),
+    SolidColor(SolidColorItem),
+    Rectangle(RectangleItem),
     Caption(CaptionItem),
     Transition(TransitionItem),
 }
@@ -321,6 +327,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => &item.id,
             Self::Text(item) => &item.id,
+            Self::SolidColor(item) => &item.id,
+            Self::Rectangle(item) => &item.id,
             Self::Caption(item) => &item.id,
             Self::Transition(item) => &item.id,
         }
@@ -330,6 +338,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => item.start_ms,
             Self::Text(item) => item.start_ms,
+            Self::SolidColor(item) => item.start_ms,
+            Self::Rectangle(item) => item.start_ms,
             Self::Caption(item) => item.start_ms,
             Self::Transition(item) => item.start_ms,
         }
@@ -339,6 +349,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => item.duration_ms,
             Self::Text(item) => item.duration_ms,
+            Self::SolidColor(item) => item.duration_ms,
+            Self::Rectangle(item) => item.duration_ms,
             Self::Caption(item) => item.duration_ms,
             Self::Transition(item) => item.duration_ms,
         }
@@ -356,6 +368,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => Some(&mut item.keyframes),
             Self::Text(item) => Some(&mut item.keyframes),
+            Self::SolidColor(item) => Some(&mut item.keyframes),
+            Self::Rectangle(item) => Some(&mut item.keyframes),
             Self::Caption(_) => None,
             Self::Transition(_) => None,
         }
@@ -365,6 +379,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => item.hidden,
             Self::Text(item) => item.hidden,
+            Self::SolidColor(item) => item.hidden,
+            Self::Rectangle(item) => item.hidden,
             Self::Caption(item) => item.hidden,
             Self::Transition(item) => item.hidden,
         }
@@ -374,6 +390,8 @@ impl TimelineItem {
         match self {
             Self::Media(item) => item.hidden = hidden,
             Self::Text(item) => item.hidden = hidden,
+            Self::SolidColor(item) => item.hidden = hidden,
+            Self::Rectangle(item) => item.hidden = hidden,
             Self::Caption(item) => item.hidden = hidden,
             Self::Transition(item) => item.hidden = hidden,
         }
@@ -405,6 +423,137 @@ pub struct TextItem {
     pub font_size: u32,
     pub color: String,
     pub font_family: Option<String>,
+    #[serde(default)]
+    pub font_path: Option<String>,
+    #[serde(default)]
+    pub style: TextStyle,
+    pub transform: Transform,
+    pub keyframes: Vec<Keyframe>,
+    #[serde(default)]
+    pub hidden: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TextAlignment {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnchorPoint {
+    #[default]
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextShadow {
+    pub color: String,
+    pub opacity: f64,
+    pub offset_x: i32,
+    pub offset_y: i32,
+}
+
+impl Default for TextShadow {
+    fn default() -> Self {
+        Self {
+            color: "#000000".into(),
+            opacity: 0.0,
+            offset_x: 0,
+            offset_y: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextPadding {
+    pub top: u32,
+    pub right: u32,
+    pub bottom: u32,
+    pub left: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextStyle {
+    #[serde(default)]
+    pub alignment: TextAlignment,
+    #[serde(default)]
+    pub wrap_width_px: Option<u32>,
+    #[serde(default)]
+    pub line_spacing_px: i32,
+    #[serde(default = "default_black")]
+    pub outline_color: String,
+    #[serde(default)]
+    pub outline_width_px: u32,
+    #[serde(default)]
+    pub shadow: TextShadow,
+    #[serde(default = "default_black")]
+    pub background_color: String,
+    #[serde(default)]
+    pub background_opacity: f64,
+    #[serde(default)]
+    pub padding: TextPadding,
+    #[serde(default)]
+    pub anchor: AnchorPoint,
+}
+
+fn default_black() -> String {
+    "#000000".into()
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            alignment: TextAlignment::Left,
+            wrap_width_px: None,
+            line_spacing_px: 0,
+            outline_color: default_black(),
+            outline_width_px: 0,
+            shadow: TextShadow::default(),
+            background_color: default_black(),
+            background_opacity: 0.0,
+            padding: TextPadding::default(),
+            anchor: AnchorPoint::TopLeft,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SolidColorItem {
+    pub id: String,
+    pub color: String,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    pub transform: Transform,
+    pub keyframes: Vec<Keyframe>,
+    #[serde(default)]
+    pub hidden: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RectangleItem {
+    pub id: String,
+    pub color: String,
+    pub width: u32,
+    pub height: u32,
+    pub start_ms: u64,
+    pub duration_ms: u64,
     pub transform: Transform,
     pub keyframes: Vec<Keyframe>,
     #[serde(default)]
@@ -516,6 +665,25 @@ pub struct AudioSettings {
     pub fade_out_ms: u64,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioTrackRole {
+    #[default]
+    Unassigned,
+    Voiceover,
+    Music,
+    SoundEffects,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DuckingSettings {
+    pub enabled: bool,
+    pub gain: f64,
+    pub attack_ms: u64,
+    pub release_ms: u64,
+}
+
 impl Default for AudioSettings {
     fn default() -> Self {
         Self {
@@ -533,6 +701,7 @@ pub enum KeyframeProperty {
     Position,
     Scale,
     Opacity,
+    Volume,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -604,6 +773,26 @@ pub enum EditOperation {
         color: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         font_family: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        font_path: Option<String>,
+        #[serde(default)]
+        style: TextStyle,
+        transform: Transform,
+    },
+    AddSolidColor {
+        track_id: String,
+        color: String,
+        start_ms: u64,
+        duration_ms: u64,
+        transform: Transform,
+    },
+    AddRectangle {
+        track_id: String,
+        color: String,
+        width: u32,
+        height: u32,
+        start_ms: u64,
+        duration_ms: u64,
         transform: Transform,
     },
     UpdateItem {
@@ -612,6 +801,18 @@ pub enum EditOperation {
         transform: Option<Transform>,
         #[serde(skip_serializing_if = "Option::is_none")]
         text: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        width: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        height: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        font_family: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        font_path: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        style: Option<TextStyle>,
     },
     MoveItem {
         item_id: String,
@@ -658,6 +859,10 @@ pub enum EditOperation {
         track_type: TrackType,
         #[serde(skip_serializing_if = "Option::is_none")]
         index: Option<usize>,
+        #[serde(default)]
+        audio_role: AudioTrackRole,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ducking: Option<DuckingSettings>,
     },
     UpdateTrack {
         track_id: String,
@@ -671,6 +876,10 @@ pub enum EditOperation {
         hidden: Option<bool>,
         #[serde(skip_serializing_if = "Option::is_none")]
         muted: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        audio_role: Option<AudioTrackRole>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ducking: Option<Option<DuckingSettings>>,
     },
     DeleteTrack {
         track_id: String,
@@ -679,6 +888,24 @@ pub enum EditOperation {
         item_id: String,
         hidden: bool,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchEditOperation {
+    #[serde(flatten)]
+    pub edit: EditOperation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_alias: Option<String>,
+}
+
+impl From<EditOperation> for BatchEditOperation {
+    fn from(edit: EditOperation) -> Self {
+        Self {
+            edit,
+            result_alias: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -848,6 +1075,8 @@ mod tests {
             font_size: 48,
             color: "#ffffff".into(),
             font_family: None,
+            font_path: None,
+            style: TextStyle::default(),
             transform: Transform::default(),
             keyframes: vec![],
             hidden: false,

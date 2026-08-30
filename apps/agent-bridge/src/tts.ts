@@ -1,11 +1,13 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { constants, existsSync } from "node:fs";
+import { access, mkdir, readdir, rm, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import { z } from "zod/v4";
 
 import type { BridgeConfig } from "./config";
+import { runtimePathDiagnostics } from "./diagnostics";
 import { normalizeProviderErrorCode, publicDescriptionFor } from "./errors";
 import { BridgeError } from "./headless";
 import { type Logger, NOOP_LOGGER } from "./logger";
@@ -82,14 +84,102 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
     if (this.#active && this.#cachedStatus) {
       return { ...this.#cachedStatus, queue: this.queueStatus() };
     }
-    const status = ttsStatusSchema.parse(
-      await this.#request(
-        { operation: "status" },
-        this.#config.ttsControlTimeoutMs
-      )
-    );
+    const paths = (await runtimePathDiagnostics(this.#config)).kokoro;
+    let status: z.infer<typeof ttsStatusSchema>;
+    try {
+      await this.#preflight();
+      status = ttsStatusSchema.parse({
+        ...((await this.#request(
+          { operation: "status" },
+          this.#config.ttsControlTimeoutMs
+        )) as Record<string, unknown>),
+        paths,
+        startupError: null,
+      });
+    } catch (error) {
+      const detail =
+        error instanceof BridgeError
+          ? error
+          : new BridgeError("TTS_UNAVAILABLE", "Kokoro path validation failed");
+      status = ttsStatusSchema.parse({
+        defaultLanguage: "en-US",
+        defaultSpeed: 1,
+        defaultVoiceId: "af_heart",
+        device: "cpu",
+        devices: ["cpu"],
+        languages: ["en-US", "en-GB"],
+        limits: { maxSpeed: 2, maxTextCharacters: 5000, minSpeed: 0.5 },
+        modelCached: false,
+        modelId: "hexgrad/Kokoro-82M",
+        modelLoaded: false,
+        models: [
+          { id: "hexgrad/Kokoro-82M", sampleRateHz: 24_000, version: null },
+        ],
+        modelVersion: null,
+        paths,
+        providerId: "kokoro",
+        ready: false,
+        resources: {
+          execution: "local",
+          minimumLogicalCpus: 2,
+          minimumRamBytes: 2_147_483_648,
+          recommendedLogicalCpus: 4,
+          recommendedRamBytes: 4_294_967_296,
+        },
+        sampleRateHz: 24_000,
+        startupError: {
+          code: detail.code,
+          failedStage: detail.failedStage,
+          ffmpegExitCode: null,
+          ffmpegStderrExcerpt: null,
+          message: detail.message,
+          retryable: detail.retryable,
+        },
+        version: "unavailable",
+        voices: ["af_heart"],
+      });
+    }
     this.#cachedStatus = status;
     return { ...status, queue: this.queueStatus() };
+  }
+
+  async #preflight() {
+    if (
+      !(
+        existsSync(this.#config.ttsPythonPath) ||
+        !PATH_SEPARATOR_PATTERN.test(this.#config.ttsPythonPath)
+      )
+    ) {
+      throw new BridgeError(
+        "TTS_UNAVAILABLE",
+        "Configured Kokoro Python executable is missing"
+      );
+    }
+    if (
+      !(
+        existsSync(this.#config.ttsWorkerPath) &&
+        (await stat(this.#config.ttsWorkerPath)).isFile()
+      )
+    ) {
+      throw new BridgeError(
+        "TTS_UNAVAILABLE",
+        "Configured Kokoro worker script is missing"
+      );
+    }
+    if (
+      !(
+        existsSync(this.#config.ttsModelDirectory) &&
+        (await stat(this.#config.ttsModelDirectory)).isDirectory()
+      )
+    ) {
+      throw new BridgeError(
+        "TTS_UNAVAILABLE",
+        "Configured Kokoro model directory is missing"
+      );
+    }
+    await mkdir(this.#config.ttsWorkDirectory, { recursive: true });
+    await access(this.#config.ttsWorkDirectory, constants.R_OK);
+    await access(this.#config.ttsWorkDirectory, constants.W_OK);
   }
 
   async listVoices() {
@@ -425,6 +515,7 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
       this.#config.ttsPythonPath,
       [this.#config.ttsWorkerPath],
       {
+        cwd: dirname(this.#config.ttsWorkerPath),
         env: {
           ...this.#config.environment,
           CUDA_VISIBLE_DEVICES: "",
