@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { loadBridgeConfig } from "../src/config";
+import { resolveExecutablePath } from "../src/diagnostics";
 import { KokoroSpeechSynthesizer } from "../src/tts";
 
 const environmentNames = [
@@ -76,6 +77,48 @@ it("uses worker-advertised provider capabilities and synthesis metadata", async 
   expect(existsSync(generated.outputPath)).toBe(true);
   await provider.cleanup(generated.outputPath);
   expect(existsSync(generated.outputPath)).toBe(false);
+});
+
+it("reports a work directory created by the first status call as ready", async () => {
+  await provider?.close();
+  rmSync(join(root, "work"), { force: true, recursive: true });
+  provider = new KokoroSpeechSynthesizer(loadBridgeConfig());
+
+  await expect(provider.status()).resolves.toMatchObject({
+    paths: {
+      workDirectory: {
+        error: null,
+        exists: true,
+        readable: true,
+        ready: true,
+        writable: true,
+      },
+    },
+    ready: true,
+    startupError: null,
+  });
+});
+
+it("resolves the configured bare Python executable through the child PATH", async () => {
+  await provider?.close();
+  const configuredPython = process.env.OPENCUT_TEST_PYTHON ?? "python";
+  const resolvedPython = resolveExecutablePath(configuredPython, process.env);
+  provider = new KokoroSpeechSynthesizer(
+    loadBridgeConfig({
+      ...process.env,
+      OPENCUT_KOKORO_PYTHON: basename(resolvedPython),
+      PATH: dirname(resolvedPython),
+    })
+  );
+
+  const status = await provider.status();
+  expect(status).toMatchObject({
+    paths: { python: { ready: true } },
+    ready: true,
+  });
+  expect(status.paths?.python.resolvedPath.toLowerCase()).toBe(
+    resolvedPython.toLowerCase()
+  );
 });
 
 it("cancels active provider work with a stable retryable error", async () => {
@@ -183,7 +226,7 @@ it("reports worker startup errors and can continue with a replacement provider",
   provider = new KokoroSpeechSynthesizer(
     loadBridgeConfig({
       ...process.env,
-      OPENCUT_KOKORO_PYTHON: join(root, "missing-python"),
+      OPENCUT_KOKORO_PYTHON: "definitely-missing-python-command",
     })
   );
   await expect(provider.status()).resolves.toMatchObject({

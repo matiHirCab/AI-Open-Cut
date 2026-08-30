@@ -1,3 +1,4 @@
+mod animation;
 mod error;
 mod model;
 mod path_policy;

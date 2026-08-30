@@ -1,13 +1,13 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { constants, existsSync } from "node:fs";
+import { constants } from "node:fs";
 import { access, mkdir, readdir, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { z } from "zod/v4";
 
 import type { BridgeConfig } from "./config";
-import { runtimePathDiagnostics } from "./diagnostics";
+import { resolveExecutablePath, runtimePathDiagnostics } from "./diagnostics";
 import { normalizeProviderErrorCode, publicDescriptionFor } from "./errors";
 import { BridgeError } from "./headless";
 import { type Logger, NOOP_LOGGER } from "./logger";
@@ -84,23 +84,31 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
     if (this.#active && this.#cachedStatus) {
       return { ...this.#cachedStatus, queue: this.queueStatus() };
     }
-    const paths = (await runtimePathDiagnostics(this.#config)).kokoro;
-    let status: z.infer<typeof ttsStatusSchema>;
+    let workerStatus: Record<string, unknown> | undefined;
+    let startupError: BridgeError | undefined;
     try {
-      await this.#preflight();
-      status = ttsStatusSchema.parse({
-        ...((await this.#request(
-          { operation: "status" },
-          this.#config.ttsControlTimeoutMs
-        )) as Record<string, unknown>),
-        paths,
-        startupError: null,
-      });
+      workerStatus = (await this.#request(
+        { operation: "status" },
+        this.#config.ttsControlTimeoutMs
+      )) as Record<string, unknown>;
     } catch (error) {
-      const detail =
+      startupError =
         error instanceof BridgeError
           ? error
           : new BridgeError("TTS_UNAVAILABLE", "Kokoro path validation failed");
+    }
+    const paths = (await runtimePathDiagnostics(this.#config)).kokoro;
+    let status: z.infer<typeof ttsStatusSchema>;
+    if (workerStatus) {
+      status = ttsStatusSchema.parse({
+        ...workerStatus,
+        paths,
+        startupError: null,
+      });
+    } else {
+      const detail =
+        startupError ??
+        new BridgeError("TTS_UNAVAILABLE", "Kokoro unavailable");
       status = ttsStatusSchema.parse({
         defaultLanguage: "en-US",
         defaultSpeed: 1,
@@ -144,42 +152,62 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
   }
 
   async #preflight() {
-    if (
-      !(
-        existsSync(this.#config.ttsPythonPath) ||
-        !PATH_SEPARATOR_PATTERN.test(this.#config.ttsPythonPath)
-      )
-    ) {
+    const pythonPath = resolveExecutablePath(
+      this.#config.ttsPythonPath,
+      this.#config.environment
+    );
+    try {
+      const metadata = await stat(pythonPath);
+      if (!metadata.isFile()) {
+        throw new Error("not a file");
+      }
+      await access(
+        pythonPath,
+        process.platform === "win32" ? constants.R_OK : constants.X_OK
+      );
+    } catch (error) {
+      // biome-ignore lint/style/useErrorCause: BridgeError receives ErrorOptions as its fourth argument.
       throw new BridgeError(
         "TTS_UNAVAILABLE",
-        "Configured Kokoro Python executable is missing"
+        "Configured Kokoro Python executable is missing",
+        undefined,
+        { cause: error }
       );
     }
-    if (
-      !(
-        existsSync(this.#config.ttsWorkerPath) &&
-        (await stat(this.#config.ttsWorkerPath)).isFile()
-      )
-    ) {
+    try {
+      const metadata = await stat(this.#config.ttsWorkerPath);
+      if (!metadata.isFile()) {
+        throw new Error("not a file");
+      }
+      await access(this.#config.ttsWorkerPath, constants.R_OK);
+    } catch (error) {
+      // biome-ignore lint/style/useErrorCause: BridgeError receives ErrorOptions as its fourth argument.
       throw new BridgeError(
         "TTS_UNAVAILABLE",
-        "Configured Kokoro worker script is missing"
+        "Configured Kokoro worker script is missing",
+        undefined,
+        { cause: error }
       );
     }
-    if (
-      !(
-        existsSync(this.#config.ttsModelDirectory) &&
-        (await stat(this.#config.ttsModelDirectory)).isDirectory()
-      )
-    ) {
+    try {
+      const metadata = await stat(this.#config.ttsModelDirectory);
+      if (!metadata.isDirectory()) {
+        throw new Error("not a directory");
+      }
+      await access(this.#config.ttsModelDirectory, constants.R_OK);
+    } catch (error) {
+      // biome-ignore lint/style/useErrorCause: BridgeError receives ErrorOptions as its fourth argument.
       throw new BridgeError(
         "TTS_UNAVAILABLE",
-        "Configured Kokoro model directory is missing"
+        "Configured Kokoro model directory is missing",
+        undefined,
+        { cause: error }
       );
     }
     await mkdir(this.#config.ttsWorkDirectory, { recursive: true });
     await access(this.#config.ttsWorkDirectory, constants.R_OK);
     await access(this.#config.ttsWorkDirectory, constants.W_OK);
+    return pythonPath;
   }
 
   async listVoices() {
@@ -473,7 +501,8 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
         true
       );
     }
-    const child = this.#ensureChild();
+    const pythonPath = await this.#preflight();
+    const child = this.#ensureChild(pythonPath);
     const id = randomUUID();
     return await new Promise<unknown>((resolvePromise, rejectPromise) => {
       const timer = setTimeout(() => {
@@ -505,29 +534,25 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
     });
   }
 
-  #ensureChild() {
+  #ensureChild(pythonPath: string) {
     if (this.#child && !this.#child.killed) {
       return this.#child;
     }
     this.#stdout = "";
     this.#stderr = "";
-    const child = spawn(
-      this.#config.ttsPythonPath,
-      [this.#config.ttsWorkerPath],
-      {
-        cwd: dirname(this.#config.ttsWorkerPath),
-        env: {
-          ...this.#config.environment,
-          CUDA_VISIBLE_DEVICES: "",
-          HF_HOME: this.#config.ttsModelDirectory,
-          HF_HUB_OFFLINE: "1",
-          OPENCUT_KOKORO_MODEL_DIR: this.#config.ttsModelDirectory,
-          OPENCUT_TTS_WORK_DIR: this.#config.ttsWorkDirectory,
-        },
-        stdio: ["pipe", "pipe", "pipe"],
-        windowsHide: true,
-      }
-    );
+    const child = spawn(pythonPath, [this.#config.ttsWorkerPath], {
+      cwd: dirname(this.#config.ttsWorkerPath),
+      env: {
+        ...this.#config.environment,
+        CUDA_VISIBLE_DEVICES: "",
+        HF_HOME: this.#config.ttsModelDirectory,
+        HF_HUB_OFFLINE: "1",
+        OPENCUT_KOKORO_MODEL_DIR: this.#config.ttsModelDirectory,
+        OPENCUT_TTS_WORK_DIR: this.#config.ttsWorkDirectory,
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
     this.#child = child;
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => this.#onStdout(chunk));

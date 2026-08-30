@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     env,
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
     thread,
@@ -13,8 +13,15 @@ use uuid::Uuid;
 
 use crate::{
     CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty, KeyframeValue, MediaType, Project,
-    TimelineItem,
+    TimelineItem, animation::positive_scalar_ranges,
 };
+
+const GRAPH_BUILD_STAGE: &str = "graph_build";
+const SPAWN_STAGE: &str = "spawn";
+const RENDER_STAGE: &str = "render";
+const PUBLISH_STAGE: &str = "publish";
+const STDERR_TAIL_BYTES: usize = 16_384;
+const STDERR_EXCERPT_BYTES: usize = 4_096;
 
 #[derive(Clone, Debug)]
 pub struct Renderer {
@@ -469,22 +476,24 @@ impl Renderer {
         let mut warnings = Vec::new();
         let text_layers = self.prepare_text_layers(project, workspace.path(), &mut warnings)?;
         let filter_path = workspace.path().join("filter.txt");
-        let filter = self.build_filter(
-            project,
-            FilterContext {
-                asset_by_id: &asset_by_id,
-                input_indexes: &input_indexes,
-                text_layers: &text_layers,
-                width,
-                height,
-                fps,
-            },
-            &mut warnings,
-        )?;
+        let filter = self
+            .build_filter(
+                project,
+                FilterContext {
+                    asset_by_id: &asset_by_id,
+                    input_indexes: &input_indexes,
+                    text_layers: &text_layers,
+                    width,
+                    height,
+                    fps,
+                },
+                &mut warnings,
+            )
+            .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
         let mut file = File::create(&filter_path)
-            .map_err(|error| CoreError::io("cannot create FFmpeg filter script", error))?;
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
         file.write_all(filter.as_bytes())
-            .map_err(|error| CoreError::io("cannot write FFmpeg filter script", error))?;
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
         command.arg("-filter_complex_script").arg(&filter_path);
         Ok(BuiltCommand {
             command,
@@ -518,7 +527,7 @@ impl Renderer {
                 font_path.as_deref(),
             );
             std::fs::write(&path, content.as_bytes())
-                .map_err(|error| CoreError::io("cannot write renderer text file", error))?;
+                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
             let metrics = measure_text_block(&content, text.font_size, font_path.as_deref());
             let outline = text.style.outline_width_px;
             let shadow_left = text.style.shadow.offset_x.unsigned_abs()
@@ -662,25 +671,7 @@ impl Renderer {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        let voiceover_intervals = merge_intervals(
-            project
-                .tracks
-                .iter()
-                .filter(|track| {
-                    !track.hidden
-                        && !track.muted
-                        && track.audio_role == crate::AudioTrackRole::Voiceover
-                })
-                .flat_map(|track| track.items.iter())
-                .filter_map(|item| match item {
-                    TimelineItem::Media(media) if !media.hidden && !media.audio.muted => Some((
-                        media.start_ms,
-                        media.start_ms.saturating_add(media.duration_ms),
-                    )),
-                    _ => None,
-                })
-                .collect::<Vec<_>>(),
-        );
+        let voiceover_intervals = audible_voiceover_intervals(project, asset_by_id);
 
         for track in &project.tracks {
             if track.hidden {
@@ -747,12 +738,14 @@ impl Renderer {
                         }
                         if asset.has_audio && !track.muted && !media.audio.muted {
                             let label = format!("audio{}", audio_labels.len());
-                            let volume = scalar_expression(
+                            let automation = scalar_expression(
                                 &media.keyframes,
                                 KeyframeProperty::Volume,
-                                media.audio.volume,
+                                1.0,
                                 0,
                             );
+                            let volume =
+                                format!("({})*({automation})", format_number(media.audio.volume));
                             let ducking = ducking_expression(track, &voiceover_intervals);
                             let mut chain = format!(
                                 "[{input}:a]atrim=duration={},asetpts=PTS-STARTPTS,volume='{volume}':eval=frame",
@@ -1165,6 +1158,51 @@ fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String 
     expression
 }
 
+fn audible_voiceover_intervals(
+    project: &Project,
+    asset_by_id: &HashMap<&str, &crate::Asset>,
+) -> Vec<(u64, u64)> {
+    merge_intervals(
+        project
+            .tracks
+            .iter()
+            .filter(|track| {
+                !track.hidden
+                    && !track.muted
+                    && track.audio_role == crate::AudioTrackRole::Voiceover
+            })
+            .flat_map(|track| track.items.iter())
+            .flat_map(|item| {
+                let TimelineItem::Media(media) = item else {
+                    return vec![];
+                };
+                if media.hidden
+                    || media.audio.muted
+                    || media.audio.volume == 0.0
+                    || !asset_by_id
+                        .get(media.asset_id.as_str())
+                        .is_some_and(|asset| asset.has_audio)
+                {
+                    return vec![];
+                }
+                positive_scalar_ranges(
+                    &media.keyframes,
+                    KeyframeProperty::Volume,
+                    media.duration_ms,
+                )
+                .into_iter()
+                .map(|(start, end)| {
+                    (
+                        media.start_ms.saturating_add(start),
+                        media.start_ms.saturating_add(end),
+                    )
+                })
+                .collect()
+            })
+            .collect(),
+    )
+}
+
 fn merge_intervals(mut intervals: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
     intervals.retain(|(start, end)| start < end);
     intervals.sort_unstable_by_key(|(start, end)| (*start, *end));
@@ -1280,7 +1318,7 @@ impl RenderWorkspace {
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let path = project_dir.join(format!(".opencut-work-{request_id}"));
         std::fs::create_dir(&path)
-            .map_err(|error| CoreError::io("cannot create render workspace", error))?;
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
         Ok(Self { path })
     }
 
@@ -1298,12 +1336,14 @@ fn publish_output(temporary: &Path, output: &Path, overwrite: bool) -> Result<()
                 "export already exists; pass overwrite=true only with explicit permission",
             ));
         }
-        std::fs::remove_file(output)
-            .map_err(|error| CoreError::io("cannot replace existing output", error))?;
+        if std::fs::remove_file(output).is_err() {
+            let _ = std::fs::remove_file(temporary);
+            return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
+        }
     }
-    std::fs::rename(temporary, output).map_err(|error| {
+    std::fs::rename(temporary, output).map_err(|_| {
         let _ = std::fs::remove_file(temporary);
-        CoreError::io("cannot publish rendered output", error)
+        CoreError::render_failure(PUBLISH_STAGE, None, None)
     })
 }
 
@@ -1320,11 +1360,11 @@ fn resolve_project_asset(project_dir: &Path, relative: &Path) -> Result<PathBuf,
     }
     let root = project_dir
         .canonicalize()
-        .map_err(|error| CoreError::io("cannot resolve project directory", error))?;
+        .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
     let resolved = project_dir
         .join(relative)
         .canonicalize()
-        .map_err(|error| CoreError::io("cannot resolve project asset", error))?;
+        .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
     if !resolved.starts_with(root) {
         return Err(CoreError::new(
             ErrorCode::PathNotAllowed,
@@ -1492,15 +1532,16 @@ fn artifact(
     mime_type: &str,
     warnings: Vec<String>,
 ) -> Result<RenderArtifact, CoreError> {
-    let size_bytes = path
-        .metadata()
-        .map_err(|error| CoreError::io("cannot inspect render output", error))?
-        .len();
+    let size_bytes = match path.metadata() {
+        Ok(metadata) => metadata.len(),
+        Err(_) => {
+            let _ = std::fs::remove_file(path);
+            return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
+        }
+    };
     if size_bytes == 0 {
-        return Err(CoreError::new(
-            ErrorCode::JobFailed,
-            "renderer produced an empty output",
-        ));
+        let _ = std::fs::remove_file(path);
+        return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
     }
     Ok(RenderArtifact {
         relative_path,
@@ -1516,30 +1557,27 @@ fn run_to_completion(
     mut on_progress: impl FnMut(RenderProgress),
 ) -> Result<(), CoreError> {
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|error| {
-        CoreError::render_failure("spawn", None, Some(sanitize_stderr(&error.to_string())))
-    })?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "cannot read FFmpeg progress"))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "cannot read FFmpeg stderr"))?;
-    let stderr_reader = thread::spawn(move || {
-        let mut text = String::new();
-        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-            text.push_str(&line);
-            text.push('\n');
-            if text.len() > 16_384 {
-                text.drain(..text.len() - 16_384);
-            }
-        }
-        text
-    });
+    let mut child = command
+        .spawn()
+        .map_err(|_| CoreError::render_failure(SPAWN_STAGE, None, None))?;
+    let Some(stdout) = child.stdout.take() else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
+    };
+    let Some(stderr) = child.stderr.take() else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
+    };
+    let stderr_reader = thread::spawn(move || read_bounded_tail(stderr, STDERR_TAIL_BYTES));
+    let mut progress_error = false;
     for line in BufReader::new(stdout).lines() {
-        let line = line.map_err(|error| CoreError::io("cannot read FFmpeg progress", error))?;
+        let Ok(line) = line else {
+            progress_error = true;
+            let _ = child.kill();
+            break;
+        };
         if let Some(value) = line.strip_prefix("out_time_ms=")
             && let Ok(microseconds) = value.parse::<u64>()
         {
@@ -1549,19 +1587,61 @@ fn run_to_completion(
             });
         }
     }
-    let status = child
-        .wait()
-        .map_err(|error| CoreError::io("cannot wait for FFmpeg", error))?;
-    let stderr = stderr_reader.join().unwrap_or_default();
-    if !status.success() {
+    let status = child.wait();
+    let stderr = stderr_reader.join();
+    let stderr = match stderr {
+        Ok(Ok(bytes)) => bytes,
+        Ok(Err(_)) | Err(_) => {
+            return Err(CoreError::render_failure(RENDER_STAGE, None, None));
+        }
+    };
+    let status = status
+        .map_err(|_| CoreError::render_failure(RENDER_STAGE, None, stderr_excerpt(&stderr)))?;
+    if progress_error || !status.success() {
         return Err(CoreError::render_failure(
-            "render",
+            RENDER_STAGE,
             status.code(),
-            Some(sanitize_stderr(&stderr)),
+            stderr_excerpt(&stderr),
         ));
     }
     on_progress(RenderProgress { progress: 1.0 });
     Ok(())
+}
+
+fn read_bounded_tail(mut reader: impl Read, limit: usize) -> std::io::Result<Vec<u8>> {
+    let mut tail = Vec::with_capacity(limit);
+    let mut buffer = [0_u8; 4_096];
+    loop {
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        if count >= limit {
+            tail.clear();
+            tail.extend_from_slice(&buffer[count - limit..count]);
+            continue;
+        }
+        let excess = tail.len().saturating_add(count).saturating_sub(limit);
+        if excess > 0 {
+            tail.drain(..excess);
+        }
+        tail.extend_from_slice(&buffer[..count]);
+    }
+    Ok(tail)
+}
+
+fn stderr_excerpt(stderr: &[u8]) -> Option<String> {
+    let excerpt = sanitize_stderr(&String::from_utf8_lossy(stderr));
+    (!excerpt.trim().is_empty()).then_some(excerpt)
+}
+
+fn map_renderer_error(error: CoreError, stage: &str) -> CoreError {
+    match error.code {
+        ErrorCode::InternalError | ErrorCode::JobFailed => {
+            CoreError::render_failure(stage, None, None)
+        }
+        _ => error,
+    }
 }
 
 fn sanitize_stderr(stderr: &str) -> String {
@@ -1570,14 +1650,14 @@ fn sanitize_stderr(stderr: &str) -> String {
         .map(sanitize_stderr_line)
         .collect::<Vec<_>>()
         .join("\n");
-    sanitized
-        .chars()
-        .rev()
-        .take(4_096)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect::<String>()
+    if sanitized.len() <= STDERR_EXCERPT_BYTES {
+        return sanitized;
+    }
+    let mut start = sanitized.len() - STDERR_EXCERPT_BYTES;
+    while !sanitized.is_char_boundary(start) {
+        start += 1;
+    }
+    sanitized[start..].to_owned()
 }
 
 fn sanitize_stderr_line(line: &str) -> String {
@@ -1794,6 +1874,121 @@ mod tests {
     }
 
     #[test]
+    fn voiceover_activity_excludes_manual_and_automated_silence() {
+        let assets = [crate::Asset {
+            id: "voice".into(),
+            media_type: MediaType::Audio,
+            file_name: "voice.wav".into(),
+            project_relative_path: "assets/voice.wav".into(),
+            duration_ms: Some(3_000),
+            has_audio: true,
+            origin: None,
+            content_hash: None,
+            size_bytes: None,
+            probe: None,
+        }];
+        let media = |id: &str, start_ms: u64, volume: f64, keyframes: Vec<Keyframe>| {
+            TimelineItem::Media(crate::MediaItem {
+                id: id.into(),
+                asset_id: "voice".into(),
+                start_ms,
+                duration_ms: 1_000,
+                source_in_ms: 0,
+                transform: Transform::default(),
+                audio: crate::AudioSettings {
+                    volume,
+                    ..crate::AudioSettings::default()
+                },
+                keyframes,
+                hidden: false,
+            })
+        };
+        let volume = |time_ms: u64, value: f64, easing: Easing| Keyframe {
+            property: KeyframeProperty::Volume,
+            time_ms,
+            value: KeyframeValue::Scalar { value },
+            easing,
+        };
+        let project = Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "voiceover-activity".into(),
+            revision: 0,
+            name: "voiceover activity".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            settings: ProjectSettings::default(),
+            assets: assets.to_vec(),
+            tracks: vec![Track {
+                id: "voiceover".into(),
+                name: "Voiceover".into(),
+                track_type: TrackType::Audio,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Voiceover,
+                ducking: None,
+                items: vec![
+                    media("manual-silent", 0, 0.0, vec![]),
+                    media(
+                        "automated-silent",
+                        1_000,
+                        1.0,
+                        vec![
+                            volume(0, 0.0, Easing::Hold),
+                            volume(1_000, 0.0, Easing::Linear),
+                        ],
+                    ),
+                    media(
+                        "mixed",
+                        2_000,
+                        0.5,
+                        vec![
+                            volume(0, 0.0, Easing::Hold),
+                            volume(500, 1.0, Easing::Linear),
+                            volume(1_000, 0.0, Easing::Linear),
+                        ],
+                    ),
+                ],
+            }],
+        };
+        let asset_by_id = assets
+            .iter()
+            .map(|asset| (asset.id.as_str(), asset))
+            .collect::<HashMap<_, _>>();
+        assert_eq!(
+            audible_voiceover_intervals(&project, &asset_by_id),
+            vec![(2_500, 3_000)]
+        );
+    }
+
+    #[test]
+    fn manual_volume_multiplies_the_automation_expression() {
+        let automation = scalar_expression(
+            &[
+                Keyframe {
+                    property: KeyframeProperty::Volume,
+                    time_ms: 0,
+                    value: KeyframeValue::Scalar { value: 0.5 },
+                    easing: Easing::Linear,
+                },
+                Keyframe {
+                    property: KeyframeProperty::Volume,
+                    time_ms: 1_000,
+                    value: KeyframeValue::Scalar { value: 1.0 },
+                    easing: Easing::Linear,
+                },
+            ],
+            KeyframeProperty::Volume,
+            1.0,
+            0,
+        );
+        let effective = format!("({})*({automation})", format_number(0.25));
+        assert!(effective.starts_with("(0.250000)*("));
+        assert!(effective.contains("(0.500000)"));
+        assert!(effective.contains("(1.000000)"));
+    }
+
+    #[test]
     fn text_scale_applies_to_the_complete_isolated_styled_layer() {
         let root = tempdir().unwrap();
         let style = crate::TextStyle {
@@ -1899,7 +2094,7 @@ mod tests {
             "x".repeat(5_000)
         );
         let sanitized = sanitize_stderr(&stderr);
-        assert!(sanitized.chars().count() <= 4_096);
+        assert!(sanitized.len() <= STDERR_EXCERPT_BYTES);
         assert!(!sanitized.contains("C:\\Users"));
         assert!(!sanitized.contains("Jane Doe"));
         assert!(!sanitized.contains("private clip.mov"));
@@ -1908,6 +2103,97 @@ mod tests {
         assert!(sanitized.contains("Invalid argument"));
         assert!(sanitized.contains("Permission denied"));
         assert!(sanitized.ends_with("final diagnostic"));
+    }
+
+    #[test]
+    fn bounded_stderr_tail_handles_unicode_without_splitting_panics() {
+        let stderr = format!(
+            "{}\nC:\\Users\\Private\\clip.mov: entrée rejetée → final diagnostic",
+            "é→".repeat(8_192)
+        );
+        let tail =
+            read_bounded_tail(std::io::Cursor::new(stderr.as_bytes()), STDERR_TAIL_BYTES).unwrap();
+        let excerpt = stderr_excerpt(&tail).unwrap();
+        assert!(excerpt.len() <= STDERR_EXCERPT_BYTES);
+        assert!(!excerpt.contains("C:\\Users"));
+        assert!(excerpt.contains("[path]"));
+        assert!(excerpt.ends_with("entrée rejetée → final diagnostic"));
+    }
+
+    #[test]
+    fn renderer_setup_and_publication_failures_are_structured() {
+        let root = tempdir().unwrap();
+        let invalid_project_dir = root.path().join("project-file");
+        std::fs::write(&invalid_project_dir, b"not a directory").unwrap();
+        let graph_error = RenderWorkspace::create(&invalid_project_dir).err().unwrap();
+        assert_eq!(graph_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(graph_error.failed_stage.as_deref(), Some(GRAPH_BUILD_STAGE));
+        assert_eq!(graph_error.ffmpeg_exit_code, None);
+        assert_eq!(graph_error.ffmpeg_stderr_excerpt, None);
+
+        let temporary = root.path().join("temporary.mp4");
+        std::fs::write(&temporary, b"partial").unwrap();
+        let output_directory = root.path().join("output.mp4");
+        std::fs::create_dir(&output_directory).unwrap();
+        let publish_error = publish_output(&temporary, &output_directory, true).unwrap_err();
+        assert_eq!(publish_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(publish_error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert_eq!(publish_error.ffmpeg_exit_code, None);
+        assert_eq!(publish_error.ffmpeg_stderr_excerpt, None);
+        assert!(!temporary.exists());
+
+        let inspection_error = artifact(
+            &root.path().join("missing.mp4"),
+            "missing.mp4".into(),
+            "video/mp4",
+            vec![],
+        )
+        .unwrap_err();
+        assert_eq!(inspection_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(
+            inspection_error.failed_stage.as_deref(),
+            Some(PUBLISH_STAGE)
+        );
+
+        let empty = root.path().join("empty.mp4");
+        File::create(&empty).unwrap();
+        let empty_error = artifact(&empty, "empty.mp4".into(), "video/mp4", vec![]).unwrap_err();
+        assert_eq!(empty_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(empty_error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert!(!empty.exists());
+    }
+
+    #[test]
+    fn process_spawn_and_exit_failures_are_structured() {
+        let mut missing = Command::new("definitely-missing-opencut-ffmpeg");
+        let spawn_error = run_to_completion(&mut missing, 1_000, |_| {}).unwrap_err();
+        assert_eq!(spawn_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(spawn_error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert_eq!(spawn_error.ffmpeg_exit_code, None);
+        assert_eq!(spawn_error.ffmpeg_stderr_excerpt, None);
+
+        #[cfg(windows)]
+        let mut failing = {
+            let mut command = Command::new("cmd");
+            command.args(["/C", "echo final diagnostic 1>&2 & exit /b 7"]);
+            command
+        };
+        #[cfg(not(windows))]
+        let mut failing = {
+            let mut command = Command::new("sh");
+            command.args(["-c", "echo final diagnostic >&2; exit 7"]);
+            command
+        };
+        let render_error = run_to_completion(&mut failing, 1_000, |_| {}).unwrap_err();
+        assert_eq!(render_error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(render_error.failed_stage.as_deref(), Some(RENDER_STAGE));
+        assert_eq!(render_error.ffmpeg_exit_code, Some(7));
+        assert!(
+            render_error
+                .ffmpeg_stderr_excerpt
+                .as_deref()
+                .is_some_and(|excerpt| excerpt.contains("final diagnostic"))
+        );
     }
 
     #[test]
@@ -2163,6 +2449,115 @@ mod tests {
         let export_frame = decode_rgb_frame(&ffmpeg, &export_path, 500);
         assert_frames_close(&preview_frame, &range_frame, 8.0);
         assert_frames_close(&preview_frame, &export_frame, 8.0);
+    }
+
+    #[test]
+    fn native_split_linear_keyframes_match_the_unsplit_render_when_ffmpeg_is_available() {
+        let (Ok(ffmpeg), Ok(ffprobe)) = (
+            env::var("OPENCUT_FFMPEG_PATH"),
+            env::var("OPENCUT_FFPROBE_PATH"),
+        ) else {
+            return;
+        };
+        if !Command::new(&ffmpeg)
+            .arg("-version")
+            .output()
+            .is_ok_and(|output| output.status.success())
+        {
+            return;
+        }
+
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let rectangle = crate::RectangleItem {
+            id: "animated".into(),
+            color: "#44aaee".into(),
+            width: 40,
+            height: 30,
+            start_ms: 0,
+            duration_ms: 1_000,
+            transform: Transform::default(),
+            keyframes: vec![
+                Keyframe {
+                    property: KeyframeProperty::Position,
+                    time_ms: 0,
+                    value: KeyframeValue::Position { x: 10.0, y: 10.0 },
+                    easing: Easing::Linear,
+                },
+                Keyframe {
+                    property: KeyframeProperty::Position,
+                    time_ms: 1_000,
+                    value: KeyframeValue::Position { x: 90.0, y: 45.0 },
+                    easing: Easing::Linear,
+                },
+                Keyframe {
+                    property: KeyframeProperty::Opacity,
+                    time_ms: 0,
+                    value: KeyframeValue::Scalar { value: 0.25 },
+                    easing: Easing::Linear,
+                },
+                Keyframe {
+                    property: KeyframeProperty::Opacity,
+                    time_ms: 1_000,
+                    value: KeyframeValue::Scalar { value: 1.0 },
+                    easing: Easing::Linear,
+                },
+            ],
+            hidden: false,
+        };
+        let project = Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "unsplit".into(),
+            revision: 0,
+            name: "unsplit".into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+            settings: ProjectSettings {
+                width: 160,
+                height: 90,
+                fps: 20,
+            },
+            assets: vec![],
+            tracks: vec![Track {
+                id: "overlay".into(),
+                name: "Overlay".into(),
+                track_type: TrackType::Overlay,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
+                items: vec![TimelineItem::Rectangle(rectangle.clone())],
+            }],
+        };
+        let mut split_project = project.clone();
+        let (left_keyframes, right_keyframes) =
+            crate::animation::split_keyframes(&rectangle.keyframes, 500, 1_000);
+        let mut left = rectangle.clone();
+        left.duration_ms = 500;
+        left.keyframes = left_keyframes;
+        let mut right = rectangle;
+        right.id = "animated-right".into();
+        right.start_ms = 500;
+        right.duration_ms = 500;
+        right.keyframes = right_keyframes;
+        split_project.tracks[0].items = vec![
+            TimelineItem::Rectangle(left),
+            TimelineItem::Rectangle(right),
+        ];
+
+        let renderer = Renderer::new(ffmpeg.clone(), ffprobe, None);
+        for time_ms in [250, 750] {
+            let unsplit = renderer
+                .render_preview(&project, root.path(), time_ms)
+                .unwrap();
+            let split = renderer
+                .render_preview(&split_project, root.path(), time_ms)
+                .unwrap();
+            let unsplit = decode_rgb_frame(&ffmpeg, &root.path().join(unsplit.relative_path), 0);
+            let split = decode_rgb_frame(&ffmpeg, &root.path().join(split.relative_path), 0);
+            assert_frames_close(&unsplit, &split, 1.0);
+        }
     }
 
     fn decode_rgb_frame(ffmpeg: &str, path: &Path, time_ms: u64) -> Vec<u8> {

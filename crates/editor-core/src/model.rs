@@ -731,7 +731,7 @@ pub struct Keyframe {
     pub easing: Easing,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum KeyframeValue {
     Position { x: f64, y: f64 },

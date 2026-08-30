@@ -17,7 +17,7 @@ use crate::{
     GeneratedAssetOrigin, History, Keyframe, KeyframeProperty, KeyframeValue, MediaItem,
     MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION, PathPolicy, Project, ProjectSettings,
     ProjectState, RectangleItem, SolidColorItem, TextItem, TextStyle, TimelineItem, Track,
-    TrackType, Transform, TransitionItem,
+    TrackType, Transform, TransitionItem, animation::split_keyframes,
 };
 
 const HISTORY_LIMIT: usize = 100;
@@ -1506,35 +1506,51 @@ fn apply_operation(
             let right = match item {
                 TimelineItem::Media(media) => {
                     let mut right = media.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&media.keyframes, left_duration, media.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
                     right.source_in_ms = right.source_in_ms.saturating_add(left_duration);
+                    right.keyframes = right_keyframes;
                     media.duration_ms = left_duration;
+                    media.keyframes = left_keyframes;
                     TimelineItem::Media(right)
                 }
                 TimelineItem::Text(text) => {
                     let mut right = text.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&text.keyframes, left_duration, text.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
                     text.duration_ms = left_duration;
+                    text.keyframes = left_keyframes;
                     TimelineItem::Text(right)
                 }
                 TimelineItem::SolidColor(shape) => {
                     let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
                     TimelineItem::SolidColor(right)
                 }
                 TimelineItem::Rectangle(shape) => {
                     let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
                     TimelineItem::Rectangle(right)
                 }
                 TimelineItem::Caption(caption) => {
@@ -3728,6 +3744,115 @@ mod tests {
             850
         );
         assert_eq!(items.len(), 3);
+    }
+
+    #[test]
+    fn splitting_an_animated_shape_rebases_keyframes_and_is_undoable() {
+        let (core, _) = core();
+        let created = core
+            .create_project("animated split", ProjectSettings::default())
+            .unwrap();
+        let overlay = core
+            .get_project(&created.project_id)
+            .unwrap()
+            .tracks
+            .into_iter()
+            .find(|track| track.track_type == TrackType::Overlay)
+            .unwrap()
+            .id;
+        let added = core
+            .edit(
+                &created.project_id,
+                0,
+                EditOperation::AddRectangle {
+                    track_id: overlay,
+                    color: "#336699".into(),
+                    width: 320,
+                    height: 180,
+                    start_ms: 100,
+                    duration_ms: 1_000,
+                    transform: Transform::default(),
+                },
+            )
+            .unwrap();
+        let item_id = added.changed_ids[0].clone();
+        let keyframes = vec![
+            Keyframe {
+                property: KeyframeProperty::Opacity,
+                time_ms: 0,
+                value: KeyframeValue::Scalar { value: 0.0 },
+                easing: crate::Easing::Linear,
+            },
+            Keyframe {
+                property: KeyframeProperty::Opacity,
+                time_ms: 1_000,
+                value: KeyframeValue::Scalar { value: 1.0 },
+                easing: crate::Easing::Linear,
+            },
+        ];
+        core.edit(
+            &created.project_id,
+            1,
+            EditOperation::SetKeyframes {
+                item_id: item_id.clone(),
+                keyframes: keyframes.clone(),
+            },
+        )
+        .unwrap();
+        let split = core
+            .edit(
+                &created.project_id,
+                2,
+                EditOperation::SplitItem {
+                    item_id: item_id.clone(),
+                    split_ms: 600,
+                },
+            )
+            .unwrap();
+        assert_eq!(split.revision, 3);
+        let right_id = &split.changed_ids[1];
+        let project = core.get_project(&created.project_id).unwrap();
+        let TimelineItem::Rectangle(left) = project.find_item(&item_id).unwrap() else {
+            panic!("expected left rectangle")
+        };
+        let TimelineItem::Rectangle(right) = project.find_item(right_id).unwrap() else {
+            panic!("expected right rectangle")
+        };
+        assert_eq!(left.duration_ms, 500);
+        assert_eq!(right.duration_ms, 500);
+        assert_eq!(left.keyframes.last().unwrap().time_ms, 500);
+        assert_eq!(right.keyframes.first().unwrap().time_ms, 0);
+        assert_eq!(
+            left.keyframes.last().unwrap().value,
+            right.keyframes[0].value
+        );
+        assert!(
+            right
+                .keyframes
+                .iter()
+                .all(|keyframe| keyframe.time_ms <= right.duration_ms)
+        );
+
+        core.undo(&created.project_id, 3).unwrap();
+        let project = core.get_project(&created.project_id).unwrap();
+        let TimelineItem::Rectangle(restored) = project.find_item(&item_id).unwrap() else {
+            panic!("expected restored rectangle")
+        };
+        assert_eq!(restored.duration_ms, 1_000);
+        assert_eq!(restored.keyframes.len(), keyframes.len());
+        assert!(project.find_item(right_id).is_none());
+
+        core.redo(&created.project_id, 4).unwrap();
+        let project = core.get_project(&created.project_id).unwrap();
+        let TimelineItem::Rectangle(redone_left) = project.find_item(&item_id).unwrap() else {
+            panic!("expected redone left rectangle")
+        };
+        let TimelineItem::Rectangle(redone_right) = project.find_item(right_id).unwrap() else {
+            panic!("expected redone right rectangle")
+        };
+        assert_eq!(redone_left.duration_ms, 500);
+        assert_eq!(redone_right.start_ms, 600);
+        assert_eq!(redone_right.keyframes.first().unwrap().time_ms, 0);
     }
 
     #[test]

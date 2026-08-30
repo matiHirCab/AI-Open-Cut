@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -84,5 +84,36 @@ describe("runtime path diagnostics", () => {
       ready: false,
     });
     expect(paths.ffmpeg.error).not.toContain(secret);
+  });
+
+  it("resolves bare executables from the configured child environment", async () => {
+    const root = await mkdtemp(join(tmpdir(), "opencut-diagnostics-path-"));
+    roots.push(root);
+    const executable = join(
+      root,
+      process.platform === "win32" ? "customffmpeg.exe" : "customffmpeg"
+    );
+    await writeFile(executable, "");
+    if (process.platform !== "win32") {
+      await chmod(executable, 0o755);
+    }
+    const environment =
+      process.platform === "win32"
+        ? { Path: root, PathExt: ".EXE" }
+        : { PATH: root };
+
+    const paths = await runtimePathDiagnostics({
+      configRoot: root,
+      environment,
+      ffmpegPath: "customffmpeg",
+    });
+
+    expect(paths.ffmpeg).toMatchObject({
+      error: null,
+      executable: true,
+      exists: true,
+      ready: true,
+      resolvedPath: executable,
+    });
   });
 });
