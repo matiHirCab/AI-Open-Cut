@@ -1,4 +1,11 @@
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -116,7 +123,7 @@ describe("runtime path diagnostics", () => {
       executable: true,
       exists: true,
       ready: true,
-      resolvedPath: executable,
+      resolvedPath: await realpath(executable),
     });
   });
 });
