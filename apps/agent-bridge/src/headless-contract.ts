@@ -161,7 +161,7 @@ export type HeadlessEdit =
   | { operation: "set_item_visibility"; hidden: boolean; itemId: string };
 
 export type HeadlessRequest =
-  | { operation: "status" }
+  | { operation: "status"; protocolVersion?: 1 | undefined }
   | { operation: "list_projects" }
   | {
       name: string;

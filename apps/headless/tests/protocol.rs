@@ -3,6 +3,14 @@ use std::process::{Command, Output, Stdio};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 
+fn headless_contract() -> Value {
+    serde_json::from_str(include_str!("../../../contracts/headless-protocol-v1.json")).unwrap()
+}
+
+fn error_catalog() -> Value {
+    serde_json::from_str(include_str!("../../../contracts/error-codes-v1.json")).unwrap()
+}
+
 struct Harness {
     root: TempDir,
 }
@@ -162,6 +170,45 @@ fn malformed_and_unknown_fields_are_invalid_argument_errors() {
 }
 
 #[test]
+fn canonical_status_requests_negotiate_protocol_version_and_capabilities() {
+    let harness = Harness::new();
+    let contract = headless_contract();
+
+    for request_name in ["statusDefault", "statusCurrent"] {
+        let status = result(&harness.request(contract["requests"][request_name].clone()));
+        assert_eq!(status["protocolVersion"], contract["version"]);
+        assert_eq!(
+            status["subsystems"]["editor"]["capabilities"],
+            contract["status"]["editorCapabilities"]
+        );
+        for field in contract["status"]["requiredFields"].as_array().unwrap() {
+            assert!(
+                status.get(field.as_str().unwrap()).is_some(),
+                "missing canonical status field {field}"
+            );
+        }
+    }
+}
+
+#[test]
+fn canonical_unsupported_version_and_unknown_field_are_stable_errors() {
+    let harness = Harness::new();
+    let contract = headless_contract();
+    let expected_error = &contract["negotiation"]["unsupportedError"];
+    let catalog = error_catalog();
+
+    for request_name in ["statusUnsupported", "statusUnknownField"] {
+        let output = harness.request(contract["requests"][request_name].clone());
+        assert!(!output.status.success());
+        let error = event(&output)["error"].clone();
+        assert_eq!(error["code"], expected_error["code"]);
+        assert_eq!(error["retryable"], expected_error["retryable"]);
+        let code = error["code"].as_str().unwrap();
+        assert_eq!(error["retryable"], catalog["codes"][code]["retryable"]);
+    }
+}
+
+#[test]
 fn every_stdout_line_is_a_json_event_envelope() {
     let harness = Harness::new();
     let output = harness.request(json!({ "operation": "status" }));
@@ -174,6 +221,12 @@ fn every_stdout_line_is_a_json_event_envelope() {
         parsed["type"].as_str(),
         Some("result" | "progress" | "error")
     ));
+    assert!(
+        headless_contract()["events"]
+            .as_array()
+            .unwrap()
+            .contains(&parsed["type"])
+    );
     assert!(output.stderr.is_empty());
 }
 

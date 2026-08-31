@@ -18,13 +18,28 @@ const jsonResource = (uri: URL, value: unknown) => ({
   ],
 });
 
+export const MCP_RESOURCE_URIS = {
+  jobStatus: "opencut://jobs/{jobId}",
+  projectDraft: "opencut://projects/{projectId}/drafts/{draftId}",
+  projectState: "opencut://projects/{projectId}/state",
+  projects: "opencut://projects",
+  projectTimeline: "opencut://projects/{projectId}/timeline",
+} as const;
+
+export const WORKFLOW_PROMPT_NAMES = [
+  "add_narration",
+  "assemble_clips",
+  "create_intro_video",
+  "transcribe_and_caption",
+] as const;
+
 export const registerContextResources = (
   server: McpServer,
   { headless, jobs }: ServerDependencies
 ) => {
   server.registerResource(
     "projects",
-    "opencut://projects",
+    MCP_RESOURCE_URIS.projects,
     {
       description:
         "Discover local OpenCut projects and their current revisions.",
@@ -52,9 +67,14 @@ export const registerContextResources = (
   ] as const) {
     server.registerResource(
       name,
-      new ResourceTemplate(`opencut://projects/{projectId}/${suffix}`, {
-        list: undefined,
-      }),
+      new ResourceTemplate(
+        suffix === "state"
+          ? MCP_RESOURCE_URIS.projectState
+          : MCP_RESOURCE_URIS.projectTimeline,
+        {
+          list: undefined,
+        }
+      ),
       { description, mimeType: "application/json" },
       async (uri, variables) => {
         const projectId = String(variables.projectId);
@@ -78,7 +98,7 @@ export const registerContextResources = (
 
   server.registerResource(
     "job-status",
-    new ResourceTemplate("opencut://jobs/{jobId}", { list: undefined }),
+    new ResourceTemplate(MCP_RESOURCE_URIS.jobStatus, { list: undefined }),
     {
       description: "Current process-local OpenCut job status.",
       mimeType: "application/json",
@@ -88,7 +108,7 @@ export const registerContextResources = (
 
   server.registerResource(
     "project-draft",
-    new ResourceTemplate("opencut://projects/{projectId}/drafts/{draftId}", {
+    new ResourceTemplate(MCP_RESOURCE_URIS.projectDraft, {
       list: undefined,
     }),
     {

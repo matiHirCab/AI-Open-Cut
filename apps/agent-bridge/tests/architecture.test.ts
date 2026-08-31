@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { HeadlessRequest } from "../src/headless-contract";
 import { registerJobTools } from "../src/server/jobs";
 import { registerProjectTools } from "../src/server/projects";
 import { registerRenderTools } from "../src/server/render";
@@ -20,6 +19,7 @@ class RegistrationHarness {
 
 const subsystemStatus = {
   capabilities: ["projects", "timeline"],
+  protocolVersion: 1,
   ready: true,
   subsystems: {
     editor: {
@@ -84,42 +84,11 @@ describe("capability registrar architecture", () => {
       response as { structuredContent: Record<string, unknown> }
     ).structuredContent;
     expect(structured.ready).toBe(true);
+    expect(structured.protocolVersion).toBe(1);
     expect(structured.capabilities).toEqual(["projects", "timeline"]);
     expect(structured.subsystems).toMatchObject({
       rendering: { ready: false },
       speech: { ready: false },
     });
   });
-});
-
-it("enumerates every Rust headless request discriminant", () => {
-  const operations = {
-    commit_draft: true,
-    commit_generated_asset: true,
-    commit_transcription: true,
-    create_draft: true,
-    create_project: true,
-    delete_asset: true,
-    discard_draft: true,
-    edit: true,
-    edit_batch: true,
-    export_video: true,
-    get_draft: true,
-    get_draft_state: true,
-    get_state: true,
-    import_asset: true,
-    list_projects: true,
-    open_project: true,
-    rebase_draft: true,
-    redo: true,
-    render_draft_preview: true,
-    render_preview: true,
-    render_preview_range: true,
-    replace_generated_asset: true,
-    resolve_asset_input: true,
-    status: true,
-    undo: true,
-    update_draft: true,
-  } satisfies Record<HeadlessRequest["operation"], true>;
-  expect(Object.keys(operations)).toHaveLength(26);
 });

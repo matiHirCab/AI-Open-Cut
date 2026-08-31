@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "negotiation": {
+    "defaultVersion": 1,
+    "supportedVersions": [1],
+    "unsupportedError": {
+      "code": "INVALID_ARGUMENT",
+      "retryable": false
+    }
+  },
+  "operations": [
+    "commit_draft",
+    "commit_generated_asset",
+    "commit_transcription",
+    "create_draft",
+    "create_project",
+    "delete_asset",
+    "discard_draft",
+    "edit",
+    "edit_batch",
+    "export_video",
+    "get_draft",
+    "get_draft_state",
+    "get_state",
+    "import_asset",
+    "list_projects",
+    "open_project",
+    "rebase_draft",
+    "redo",
+    "render_draft_preview",
+    "render_preview",
+    "render_preview_range",
+    "replace_generated_asset",
+    "resolve_asset_input",
+    "status",
+    "undo",
+    "update_draft"
+  ],
+  "requests": {
+    "statusDefault": { "operation": "status" },
+    "statusCurrent": { "operation": "status", "protocolVersion": 1 },
+    "statusUnsupported": { "operation": "status", "protocolVersion": 2 },
+    "statusUnknownField": { "operation": "status", "unexpected": true }
+  },
+  "events": ["progress", "result", "error"],
+  "status": {
+    "requiredFields": [
+      "ready",
+      "version",
+      "protocolVersion",
+      "capabilities",
+      "subsystems"
+    ],
+    "editorCapabilities": [
+      "projects",
+      "assets",
+      "timeline",
+      "text",
+      "text_styling",
+      "solid_color",
+      "rectangle",
+      "keyframes",
+      "transitions",
+      "audio",
+      "audio_roles",
+      "audio_ducking",
+      "undo_redo"
+    ],
+    "renderingCapabilities": ["preview", "preview_range", "mp4_export"]
+  }
+}

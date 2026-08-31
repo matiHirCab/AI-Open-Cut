@@ -30,6 +30,18 @@ These repository-local Codex workflows are skills, so invoke them with the `$ope
 
 Every requirement uses `SHALL` or `MUST`. Every requirement has at least one `#### Scenario:` expressed with `WHEN` and `THEN`. Public and persisted contract changes also cover compatibility, revision conflicts, migrations, and typed failures.
 
+## Cross-language public contracts
+
+ADR 0002 selects fixture-governed manual synchronization. Before changing a public request, response/event, stable error, capability, MCP tool or resource, provider protocol, persisted project shape, or version rule:
+
+1. Find its single canonical owner and governed consumers in `contracts/contract-ownership-v1.json`.
+2. Classify the change as additive or breaking in the OpenSpec proposal and delta requirements. Breaking changes require a new major contract and explicit migration path.
+3. Update the canonical fixture/catalog, every affected native declaration, and the shared parity tests in the same change.
+4. Run `bun run contracts:check` from `apps/agent-bridge`, followed by the affected Rust, TypeScript, integration, and smoke checks.
+5. Obtain review from the CODEOWNER designated for both the canonical artifact and its governed consumers.
+
+An implementation-local test is not equivalent evidence: the parity gate must consume the checked-in canonical artifacts and cover each affected Rust, TypeScript/Zod, MCP, or provider surface. Headless operation evidence is derived from the actual Rust request enum and checked against the Serde tags accepted on the wire. MCP evidence includes normalized structural input schemas, structural output schemas, and client-visible annotations for every registered tool; schema descriptions are documentation copy and are excluded recursively. The checked-in catalogs are reviewed and updated manually; parity tests never rewrite them.
+
 ## Validation
 
 After installing the pinned toolchain with `proto use`, validate all specs and active changes from the repository root:

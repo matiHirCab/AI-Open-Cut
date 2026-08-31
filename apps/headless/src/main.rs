@@ -12,15 +12,21 @@ use opencut_editor_core::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+const HEADLESS_PROTOCOL_VERSION: u32 = 1;
+
+#[derive(Debug, Deserialize, strum::VariantNames)]
 #[serde(
     tag = "operation",
     rename_all = "snake_case",
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+#[strum(serialize_all = "snake_case")]
 enum Request {
-    Status {},
+    Status {
+        #[serde(default)]
+        protocol_version: Option<u32>,
+    },
     ListProjects {},
     CreateProject {
         name: String,
@@ -200,6 +206,7 @@ struct HeadlessSubsystems {
 struct Status {
     ready: bool,
     version: &'static str,
+    protocol_version: u32,
     capabilities: Vec<&'static str>,
     subsystems: HeadlessSubsystems,
 }
@@ -243,7 +250,10 @@ fn run() -> Result<(), CoreError> {
         )
     })?;
     match request {
-        Request::Status {} => emit_value(status(&renderer)),
+        Request::Status { protocol_version } => {
+            negotiate_protocol_version(protocol_version)?;
+            emit_value(status(&renderer))
+        }
         Request::ListProjects {} => emit_value(core.list_projects()?),
         Request::CreateProject { name, settings } => {
             emit_value(core.create_project(&name, settings.unwrap_or_default())?)
@@ -665,6 +675,20 @@ fn render_capabilities() -> Vec<&'static str> {
     vec!["preview", "preview_range", "mp4_export"]
 }
 
+fn negotiate_protocol_version(requested: Option<u32>) -> Result<u32, CoreError> {
+    let requested = requested.unwrap_or(HEADLESS_PROTOCOL_VERSION);
+    if requested == HEADLESS_PROTOCOL_VERSION {
+        Ok(requested)
+    } else {
+        Err(CoreError::new(
+            opencut_editor_core::ErrorCode::InvalidArgument,
+            format!(
+                "unsupported headless protocol version {requested}; supported version is {HEADLESS_PROTOCOL_VERSION}"
+            ),
+        ))
+    }
+}
+
 fn status(renderer: &Renderer) -> Status {
     let rendering = match renderer.readiness() {
         Ok(()) => SubsystemStatus {
@@ -690,6 +714,7 @@ fn status(renderer: &Renderer) -> Status {
     Status {
         ready: true,
         version: env!("CARGO_PKG_VERSION"),
+        protocol_version: HEADLESS_PROTOCOL_VERSION,
         capabilities,
         subsystems: HeadlessSubsystems {
             editor: SubsystemStatus {
@@ -726,6 +751,68 @@ fn emit(event: impl Serialize) -> Result<(), CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::de::DeserializeOwned;
+    use strum::VariantNames;
+
+    const UNKNOWN_OPERATION_PROBE: &str = "__opencut_unknown_contract_operation__";
+
+    fn serde_accepts_operation<RequestType: DeserializeOwned>(operation: &str) -> bool {
+        match serde_json::from_value::<RequestType>(serde_json::json!({ "operation": operation })) {
+            Ok(_) => true,
+            Err(error) => !error.to_string().starts_with("unknown variant "),
+        }
+    }
+
+    #[derive(Deserialize, strum::VariantNames)]
+    #[serde(tag = "operation", rename_all = "snake_case")]
+    #[strum(serialize_all = "snake_case")]
+    enum RenamedRequestProbe {
+        #[serde(rename = "serde_wire_name")]
+        DerivedName {},
+    }
+
+    #[test]
+    fn capability_sets_match_the_canonical_headless_contract() {
+        let contract: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/headless-protocol-v1.json"))
+                .unwrap();
+        assert_eq!(
+            serde_json::to_value(editor_capabilities()).unwrap(),
+            contract["status"]["editorCapabilities"]
+        );
+        assert_eq!(
+            serde_json::to_value(render_capabilities()).unwrap(),
+            contract["status"]["renderingCapabilities"]
+        );
+        assert_eq!(
+            HEADLESS_PROTOCOL_VERSION,
+            contract["version"].as_u64().unwrap() as u32
+        );
+        let mut request_variants = Request::VARIANTS.to_vec();
+        request_variants.sort_unstable();
+        assert_eq!(serde_json::json!(request_variants), contract["operations"]);
+        assert!(!serde_accepts_operation::<Request>(UNKNOWN_OPERATION_PROBE));
+        for operation in Request::VARIANTS {
+            assert!(
+                serde_accepts_operation::<Request>(operation),
+                "derived operation {operation:?} is not accepted by the Request deserializer"
+            );
+        }
+    }
+
+    #[test]
+    fn serde_operation_probe_detects_renamed_variant_drift() {
+        assert_eq!(RenamedRequestProbe::VARIANTS, ["derived_name"]);
+        assert!(!serde_accepts_operation::<RenamedRequestProbe>(
+            UNKNOWN_OPERATION_PROBE
+        ));
+        assert!(!serde_accepts_operation::<RenamedRequestProbe>(
+            RenamedRequestProbe::VARIANTS[0]
+        ));
+        assert!(serde_accepts_operation::<RenamedRequestProbe>(
+            "serde_wire_name"
+        ));
+    }
 
     #[test]
     fn generated_asset_command_deserializes_provider_neutral_provenance() {

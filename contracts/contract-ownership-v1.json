@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "strategy": "fixture-governed-manual-synchronization",
+  "reviewer": "@matiHirCab",
+  "categories": {
+    "headlessProtocol": {
+      "canonical": "contracts/headless-protocol-v1.json",
+      "consumers": [
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
+      ]
+    },
+    "stableErrors": {
+      "canonical": "contracts/error-codes-v1.json",
+      "consumers": [
+        "crates/editor-core/src/error.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/errors.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
+      ]
+    },
+    "mcpSurface": {
+      "canonical": "contracts/mcp-surface-v1.json",
+      "consumers": [
+        "apps/agent-bridge/src/server",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
+      ]
+    },
+    "speechProvider": {
+      "canonical": "contracts/speech-provider-v1.json",
+      "consumers": [
+        "apps/kokoro-tts/worker.py",
+        "apps/agent-bridge/src/tts.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "crates/editor-core/src/model.rs"
+      ]
+    },
+    "transcriptionProvider": {
+      "canonical": "contracts/transcription-provider-v1.json",
+      "consumers": [
+        "apps/faster-whisper/worker.py",
+        "apps/agent-bridge/src/transcription.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "crates/editor-core/src/model.rs"
+      ]
+    },
+    "persistedProject": {
+      "canonical": "crates/editor-core/src/model.rs",
+      "consumers": [
+        "crates/editor-core/src/store.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/schemas.ts"
+      ]
+    }
+  }
+}

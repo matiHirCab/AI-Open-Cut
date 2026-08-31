@@ -13,6 +13,7 @@ path = "src/main.rs"
 opencut-editor-core = { path = "../../crates/editor-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+strum = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.23"

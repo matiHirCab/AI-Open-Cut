@@ -57,6 +57,9 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --workspace
+      - name: Cross-language contract parity
+        working-directory: apps/agent-bridge
+        run: bun run contracts:check
       - name: TypeScript typecheck
         working-directory: apps/agent-bridge
         run: bun run typecheck
