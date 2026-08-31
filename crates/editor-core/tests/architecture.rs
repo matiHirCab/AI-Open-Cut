@@ -1,4 +1,35 @@
-use std::{fs, path::PathBuf};
+use std::{collections::BTreeSet, fs, path::PathBuf};
+
+const OWNER_MATRIX: &[(&str, &[&str])] = &[
+    ("animation", &[]),
+    ("assets", &["persistence"]),
+    ("drafts", &["persistence"]),
+    ("error", &[]),
+    ("migrations", &[]),
+    ("model", &["error"]),
+    ("path_policy", &[]),
+    ("persistence", &[]),
+    ("render_artifact", &["render_plan"]),
+    ("render_plan", &["animation"]),
+    ("render_process", &["render_plan"]),
+    (
+        "renderer",
+        &["render_artifact", "render_plan", "render_process"],
+    ),
+    (
+        "store",
+        &[
+            "assets",
+            "drafts",
+            "migrations",
+            "persistence",
+            "timeline",
+            "validation",
+        ],
+    ),
+    ("timeline", &["animation", "validation"]),
+    ("validation", &[]),
+];
 
 fn source_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
@@ -17,6 +48,262 @@ fn production_source(source: &str) -> &str {
         .rfind("#[cfg(test)]")
         .expect("test module must have a cfg(test) guard");
     &source[..test_cfg_index]
+}
+
+fn is_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+fn mask_non_code(source: &str) -> String {
+    let bytes = source.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index..].starts_with(b"//") {
+            while index < bytes.len() && bytes[index] != b'\n' {
+                masked[index] = b' ';
+                index += 1;
+            }
+        } else if bytes[index..].starts_with(b"/*") {
+            let mut depth = 0;
+            while index < bytes.len() {
+                if bytes[index..].starts_with(b"/*") {
+                    depth += 1;
+                    masked[index] = b' ';
+                    masked[index + 1] = b' ';
+                    index += 2;
+                } else if bytes[index..].starts_with(b"*/") {
+                    depth -= 1;
+                    masked[index] = b' ';
+                    masked[index + 1] = b' ';
+                    index += 2;
+                    if depth == 0 {
+                        break;
+                    }
+                } else {
+                    if bytes[index] != b'\n' {
+                        masked[index] = b' ';
+                    }
+                    index += 1;
+                }
+            }
+        } else if bytes[index] == b'"' {
+            masked[index] = b' ';
+            index += 1;
+            while index < bytes.len() {
+                let byte = bytes[index];
+                if byte != b'\n' {
+                    masked[index] = b' ';
+                }
+                index += 1;
+                if byte == b'\\' && index < bytes.len() {
+                    if bytes[index] != b'\n' {
+                        masked[index] = b' ';
+                    }
+                    index += 1;
+                } else if byte == b'"' {
+                    break;
+                }
+            }
+        } else {
+            index += 1;
+        }
+    }
+
+    String::from_utf8(masked).expect("masking Rust source must preserve UTF-8")
+}
+
+fn crate_import_trees(source: &str) -> Vec<String> {
+    let source = mask_non_code(source);
+    let bytes = source.as_bytes();
+    let mut trees = Vec::new();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index..].starts_with(b"use")
+            && (index == 0 || !is_identifier_byte(bytes[index - 1]))
+            && (index + 3 == bytes.len() || !is_identifier_byte(bytes[index + 3]))
+        {
+            let mut cursor = index + 3;
+            while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            if bytes[cursor..].starts_with(b"crate")
+                && (cursor + 5 == bytes.len() || !is_identifier_byte(bytes[cursor + 5]))
+            {
+                cursor += 5;
+                while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+                    cursor += 1;
+                }
+                if bytes[cursor..].starts_with(b"::") {
+                    cursor += 2;
+                    let tree_start = cursor;
+                    while cursor < bytes.len() && bytes[cursor] != b';' {
+                        cursor += 1;
+                    }
+                    trees.push(source[tree_start..cursor].to_owned());
+                    index = cursor;
+                }
+            }
+        }
+        index += 1;
+    }
+
+    trees
+}
+
+fn first_identifier<'a>(source: &'a str, index: &mut usize) -> Option<&'a str> {
+    let bytes = source.as_bytes();
+    while *index < bytes.len() && bytes[*index].is_ascii_whitespace() {
+        *index += 1;
+    }
+    let start = *index;
+    while *index < bytes.len() && is_identifier_byte(bytes[*index]) {
+        *index += 1;
+    }
+    (start != *index).then_some(&source[start..*index])
+}
+
+fn root_imports(tree: &str) -> Vec<&str> {
+    let bytes = tree.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+        index += 1;
+    }
+    if bytes.get(index) != Some(&b'{') {
+        return first_identifier(tree, &mut index).into_iter().collect();
+    }
+
+    index += 1;
+    let mut depth = 1;
+    let mut expects_root = true;
+    let mut roots = Vec::new();
+    while index < bytes.len() && depth > 0 {
+        match bytes[index] {
+            b'{' => {
+                depth += 1;
+                index += 1;
+            }
+            b'}' => {
+                depth -= 1;
+                index += 1;
+            }
+            b',' if depth == 1 => {
+                expects_root = true;
+                index += 1;
+            }
+            _ if depth == 1 && expects_root => {
+                if let Some(root) = first_identifier(tree, &mut index) {
+                    roots.push(root);
+                    expects_root = false;
+                } else {
+                    index += 1;
+                }
+            }
+            _ => index += 1,
+        }
+    }
+    roots
+}
+
+fn known_owner(candidate: &str) -> Option<&'static str> {
+    OWNER_MATRIX
+        .iter()
+        .map(|(owner, _)| *owner)
+        .find(|owner| *owner == candidate)
+}
+
+fn imported_owner_dependencies(source: &str) -> BTreeSet<&'static str> {
+    let mut dependencies = BTreeSet::new();
+    for tree in crate_import_trees(source) {
+        for candidate in root_imports(&tree) {
+            if let Some(owner) = known_owner(candidate) {
+                dependencies.insert(owner);
+            }
+        }
+    }
+    dependencies
+}
+
+fn qualified_owner_dependencies(source: &str) -> BTreeSet<&'static str> {
+    let source = mask_non_code(source);
+    let bytes = source.as_bytes();
+    let mut dependencies = BTreeSet::new();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index..].starts_with(b"crate")
+            && (index == 0 || !is_identifier_byte(bytes[index - 1]))
+            && (index + 5 == bytes.len() || !is_identifier_byte(bytes[index + 5]))
+        {
+            let mut cursor = index + 5;
+            while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            if bytes[cursor..].starts_with(b"::") {
+                cursor += 2;
+                if let Some(candidate) = first_identifier(&source, &mut cursor)
+                    && let Some(owner) = known_owner(candidate)
+                {
+                    dependencies.insert(owner);
+                }
+            }
+        }
+        index += 1;
+    }
+
+    dependencies
+}
+
+fn referenced_owner_dependencies(source: &str) -> BTreeSet<&'static str> {
+    let mut dependencies = imported_owner_dependencies(source);
+    dependencies.extend(qualified_owner_dependencies(source));
+    dependencies
+}
+
+fn validate_owner_dependencies(owner: &str, allowed: &[&str], source: &str) -> Result<(), String> {
+    for dependency in referenced_owner_dependencies(source) {
+        if dependency != owner && !allowed.contains(&dependency) {
+            return Err(format!(
+                "owner `{owner}` imports `{dependency}`, but the ADR matrix allows only {allowed:?}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn crate_local_owner_dependencies_are_extracted_from_supported_forms() {
+    let source = r#"
+        use crate::persistence;
+        use crate::render_plan as plan;
+        use crate::{assets, drafts as pending};
+        use crate::{
+            render_artifact::{self, ArtifactIo},
+            render_process as process,
+        };
+        use crate::persistence_cache::Cache;
+        crate::validation::validate();
+        crate::validation_rules::validate();
+        // use crate::timeline;
+        let example = "use crate::model;";
+    "#;
+
+    assert_eq!(
+        referenced_owner_dependencies(source),
+        [
+            "assets",
+            "drafts",
+            "persistence",
+            "render_artifact",
+            "render_plan",
+            "render_process",
+            "validation",
+        ]
+        .into_iter()
+        .collect()
+    );
 }
 
 #[test]
@@ -72,50 +359,23 @@ fn stable_facade_remains_reexported() {
 
 #[test]
 fn private_owner_dependencies_match_the_approved_matrix() {
-    let matrix: &[(&str, &[&str])] = &[
-        ("animation", &[]),
-        ("assets", &["persistence"]),
-        ("drafts", &["persistence"]),
-        ("error", &[]),
-        ("migrations", &[]),
-        ("model", &["error"]),
-        ("path_policy", &[]),
-        ("persistence", &[]),
-        ("render_artifact", &["render_plan"]),
-        ("render_plan", &["animation"]),
-        ("render_process", &["render_plan"]),
-        (
-            "renderer",
-            &["render_artifact", "render_plan", "render_process"],
-        ),
-        (
-            "store",
-            &[
-                "assets",
-                "drafts",
-                "migrations",
-                "persistence",
-                "timeline",
-                "validation",
-            ],
-        ),
-        ("timeline", &["animation", "validation"]),
-        ("validation", &[]),
-    ];
-    for (owner, allowed) in matrix {
+    for (owner, allowed) in OWNER_MATRIX {
         let source = read_source(&format!("{owner}.rs"));
         let production = production_source(&source);
-        for (dependency, _) in matrix {
-            if owner == dependency {
-                continue;
-            }
-            let imported = production.contains(&format!("{dependency}::"));
-            assert!(
-                !imported || allowed.contains(dependency),
-                "owner `{owner}` imports `{dependency}`, but the ADR matrix allows only {allowed:?}"
-            );
-        }
+        validate_owner_dependencies(owner, allowed, production)
+            .unwrap_or_else(|message| panic!("{message}"));
     }
+}
+
+#[test]
+fn dependency_violation_diagnostics_name_the_boundary() {
+    let message =
+        validate_owner_dependencies("validation", &[], "use crate::{persistence as storage};")
+            .expect_err("the aliased persistence dependency must be forbidden");
+
+    assert!(message.contains("owner `validation`"));
+    assert!(message.contains("imports `persistence`"));
+    assert!(message.contains("allows only []"));
 }
 
 #[test]
