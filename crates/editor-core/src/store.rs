@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fs::{File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -46,6 +46,7 @@ enum PersistencePhase {
     AfterHistory,
     AfterDraftCleanup,
     AfterJournalCleanup,
+    GarbageCollection,
 }
 
 #[cfg(test)]
@@ -89,6 +90,30 @@ pub struct EditDraft {
     pub operations: Vec<EditOperation>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AssetReferenceKind {
+    MediaItem,
+    CaptionSource,
+    DraftOperation,
+}
+
+impl AssetReferenceKind {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::MediaItem => "media item",
+            Self::CaptionSource => "caption source",
+            Self::DraftOperation => "draft operation",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AssetReference {
+    asset_id: String,
+    kind: AssetReferenceKind,
+    owner_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -462,22 +487,23 @@ impl EditorCore {
         let _lock = ProjectLock::exclusive(&dir)?;
         let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
-        if project
-            .tracks
-            .iter()
-            .flat_map(|track| &track.items)
-            .any(|item| matches!(item, TimelineItem::Media(media) if media.asset_id == asset_id))
-        {
-            return Err(CoreError::new(
-                ErrorCode::AssetInUse,
-                "asset is used by the timeline",
-            ));
-        }
         let index = project
             .assets
             .iter()
             .position(|asset| asset.id == asset_id)
             .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
+        let drafts = read_all_drafts(&dir)?;
+        validate_draft_asset_references(&project, &drafts)?;
+        if let Some(reference) = blocking_asset_reference(&project, &drafts, asset_id) {
+            return Err(CoreError::new(
+                ErrorCode::AssetInUse,
+                format!(
+                    "asset is referenced by {} {}",
+                    reference.kind.label(),
+                    reference.owner_id
+                ),
+            ));
+        }
         let previous = project.clone();
         project.assets.remove(index);
         push_undo(&mut history, &previous);
@@ -501,6 +527,8 @@ impl EditorCore {
         let _lock = ProjectLock::exclusive(&dir)?;
         let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, request.expected_revision)?;
+        let drafts = read_all_drafts(&dir)?;
+        validate_draft_asset_references(&project, &drafts)?;
         let (track_index, item_index) = project
             .tracks
             .iter()
@@ -557,12 +585,7 @@ impl EditorCore {
         };
         item.asset_id = asset_id.clone();
         item.duration_ms = request.duration_ms;
-        if !project
-            .tracks
-            .iter()
-            .flat_map(|track| &track.items)
-            .any(|item| matches!(item, TimelineItem::Media(media) if media.asset_id == replaced_asset_id))
-        {
+        if blocking_asset_reference(&project, &drafts, &replaced_asset_id).is_none() {
             project.assets.retain(|asset| asset.id != replaced_asset_id);
         }
         push_undo(&mut history, &previous);
@@ -700,8 +723,10 @@ impl EditorCore {
     pub fn get_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let _ = load_project_data(&dir)?;
-        read_draft(&dir, draft_id)
+        let (project, _) = load_project_data(&dir)?;
+        let draft = read_draft(&dir, draft_id)?;
+        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        Ok(draft)
     }
 
     pub fn update_draft(
@@ -747,6 +772,7 @@ impl EditorCore {
         let (project, _) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         let mut draft = read_draft(&dir, draft_id)?;
+        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
         validate_operations_against(&project, &draft.operations)?;
         draft.base_revision = expected_revision;
         draft.updated_at_ms = now_ms()?;
@@ -763,6 +789,7 @@ impl EditorCore {
         let _lock = ProjectLock::exclusive(&dir)?;
         let (mut project, _) = load_project_data(&dir)?;
         let draft = read_draft(&dir, draft_id)?;
+        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
         check_revision(&project, draft.base_revision)?;
         for operation in draft.operations {
             apply_operation(&mut project, operation)?;
@@ -785,6 +812,7 @@ impl EditorCore {
         let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         let draft = read_draft(&dir, draft_id)?;
+        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
                 ErrorCode::RevisionConflict,
@@ -1011,6 +1039,19 @@ impl EditorCore {
             .checked_add(1)
             .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
         restored.updated_at_ms = now_ms()?;
+        let drafts = read_all_drafts(&dir)?;
+        validate_draft_asset_references(&project, &drafts)?;
+        if let Some(reference) = missing_draft_asset_reference(&restored, &drafts) {
+            return Err(CoreError::new(
+                ErrorCode::AssetInUse,
+                format!(
+                    "history change would detach {} {} from asset {}",
+                    reference.kind.label(),
+                    reference.owner_id,
+                    reference.asset_id
+                ),
+            ));
+        }
         if undo {
             history.redo.push(project);
         } else {
@@ -1887,6 +1928,164 @@ fn read_draft(project_dir: &Path, draft_id: &str) -> Result<EditDraft, CoreError
     Ok(draft)
 }
 
+fn read_all_drafts(project_dir: &Path) -> Result<Vec<EditDraft>, CoreError> {
+    let directory = draft_dir(project_dir);
+    if !directory.exists() {
+        return Ok(vec![]);
+    }
+    let entries = std::fs::read_dir(&directory)
+        .map_err(|error| CoreError::io("cannot list drafts", error))?;
+    let mut draft_ids = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| CoreError::io("cannot read draft entry", error))?;
+        if !entry
+            .file_type()
+            .map_err(|error| CoreError::io("cannot inspect draft entry", error))?
+            .is_file()
+            || entry.path().extension().and_then(|value| value.to_str()) != Some("json")
+        {
+            continue;
+        }
+        let id = entry
+            .path()
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "draft has an invalid identifier",
+                )
+            })?
+            .to_owned();
+        draft_ids.push(id);
+    }
+    draft_ids.sort();
+    draft_ids
+        .into_iter()
+        .map(|draft_id| read_draft(project_dir, &draft_id))
+        .collect()
+}
+
+fn project_asset_references(project: &Project) -> Vec<AssetReference> {
+    project
+        .tracks
+        .iter()
+        .flat_map(|track| &track.items)
+        .filter_map(|item| match item {
+            TimelineItem::Media(media) => Some(AssetReference {
+                asset_id: media.asset_id.clone(),
+                kind: AssetReferenceKind::MediaItem,
+                owner_id: media.id.clone(),
+            }),
+            TimelineItem::Caption(caption) => Some(AssetReference {
+                asset_id: caption.source.asset_id.clone(),
+                kind: AssetReferenceKind::CaptionSource,
+                owner_id: caption.id.clone(),
+            }),
+            TimelineItem::Text(_)
+            | TimelineItem::SolidColor(_)
+            | TimelineItem::Rectangle(_)
+            | TimelineItem::Transition(_) => None,
+        })
+        .collect()
+}
+
+fn draft_asset_references(draft: &EditDraft) -> Vec<AssetReference> {
+    draft
+        .operations
+        .iter()
+        .filter_map(|operation| match operation {
+            EditOperation::AddMedia { asset_id, .. } => Some(AssetReference {
+                asset_id: asset_id.clone(),
+                kind: AssetReferenceKind::DraftOperation,
+                owner_id: draft.id.clone(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
+fn blocking_asset_reference(
+    project: &Project,
+    drafts: &[EditDraft],
+    asset_id: &str,
+) -> Option<AssetReference> {
+    project_asset_references(project)
+        .into_iter()
+        .chain(drafts.iter().flat_map(draft_asset_references))
+        .find(|reference| reference.asset_id == asset_id)
+}
+
+fn validate_project_asset_references(project: &Project, context: &str) -> Result<(), CoreError> {
+    let assets = project
+        .assets
+        .iter()
+        .map(|asset| asset.id.as_str())
+        .collect::<HashSet<_>>();
+    if let Some(reference) = project_asset_references(project)
+        .into_iter()
+        .find(|reference| !assets.contains(reference.asset_id.as_str()))
+    {
+        return Err(CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            format!(
+                "{context} contains dangling {} {} reference to asset {}",
+                reference.kind.label(),
+                reference.owner_id,
+                reference.asset_id
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_retained_project_references(
+    project: &Project,
+    history: &History,
+) -> Result<(), CoreError> {
+    validate_project_asset_references(project, "current project")?;
+    for (index, snapshot) in history.undo.iter().enumerate() {
+        validate_project_asset_references(snapshot, &format!("undo history snapshot {index}"))?;
+    }
+    for (index, snapshot) in history.redo.iter().enumerate() {
+        validate_project_asset_references(snapshot, &format!("redo history snapshot {index}"))?;
+    }
+    Ok(())
+}
+
+fn validate_draft_asset_references(
+    project: &Project,
+    drafts: &[EditDraft],
+) -> Result<(), CoreError> {
+    if let Some(reference) = missing_draft_asset_reference(project, drafts) {
+        return Err(CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            format!(
+                "draft {} contains dangling {} reference to asset {}",
+                reference.owner_id,
+                reference.kind.label(),
+                reference.asset_id
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn missing_draft_asset_reference(
+    project: &Project,
+    drafts: &[EditDraft],
+) -> Option<AssetReference> {
+    let assets = project
+        .assets
+        .iter()
+        .map(|asset| asset.id.as_str())
+        .collect::<HashSet<_>>();
+    drafts
+        .iter()
+        .flat_map(draft_asset_references)
+        .find(|reference| !assets.contains(reference.asset_id.as_str()))
+}
+
 fn count_drafts(directory: &Path) -> Result<usize, CoreError> {
     let entries =
         std::fs::read_dir(directory).map_err(|error| CoreError::io("cannot list drafts", error))?;
@@ -2363,6 +2562,7 @@ fn load_project_data(dir: &Path) -> Result<(Project, History), CoreError> {
         changed |= migrate_project(snapshot)?;
         changed |= migrate_project_assets(snapshot, dir)?;
     }
+    validate_retained_project_references(&project, &history)?;
     if changed {
         let _ = persist(dir, &project, &history)?;
     }
@@ -2689,13 +2889,39 @@ fn migrate_project_assets(project: &mut Project, dir: &Path) -> Result<bool, Cor
     Ok(changed)
 }
 
-fn garbage_collect(dir: &Path, project: &Project, history: &History) -> Vec<String> {
-    let referenced = std::iter::once(project)
+fn retained_managed_paths(
+    project: &Project,
+    history: &History,
+    drafts: &[EditDraft],
+) -> Result<HashSet<String>, CoreError> {
+    validate_retained_project_references(project, history)?;
+    validate_draft_asset_references(project, drafts)?;
+    let mut referenced = std::iter::once(project)
         .chain(history.undo.iter())
         .chain(history.redo.iter())
         .flat_map(|snapshot| snapshot.assets.iter())
         .map(|asset| asset.project_relative_path.replace('\\', "/"))
-        .collect::<std::collections::HashSet<_>>();
+        .collect::<HashSet<_>>();
+    for reference in drafts.iter().flat_map(draft_asset_references) {
+        let asset = project
+            .assets
+            .iter()
+            .find(|asset| asset.id == reference.asset_id)
+            .expect("draft references were validated against current assets");
+        referenced.insert(asset.project_relative_path.replace('\\', "/"));
+    }
+    Ok(referenced)
+}
+
+fn garbage_collect(dir: &Path, project: &Project, history: &History) -> Vec<String> {
+    let drafts = match read_all_drafts(dir) {
+        Ok(drafts) => drafts,
+        Err(_) => return vec!["ASSET_GC_FAILED".into()],
+    };
+    let referenced = match retained_managed_paths(project, history, &drafts) {
+        Ok(referenced) => referenced,
+        Err(_) => return vec!["ASSET_GC_FAILED".into()],
+    };
     let root = dir.join("assets");
     let mut files = vec![];
     collect_files(&root, &mut files);
@@ -2706,7 +2932,10 @@ fn garbage_collect(dir: &Path, project: &Project, history: &History) -> Vec<Stri
             .unwrap_or(&file)
             .to_string_lossy()
             .replace('\\', "/");
-        if !referenced.contains(&relative) && std::fs::remove_file(&file).is_err() {
+        if !referenced.contains(&relative)
+            && (inject_persistence_fault(PersistencePhase::GarbageCollection).is_err()
+                || std::fs::remove_file(&file).is_err())
+        {
             failed = true;
         }
     }
@@ -2881,6 +3110,59 @@ mod tests {
             audio_role: AudioTrackRole::Unassigned,
             ducking: None,
         }
+    }
+
+    fn import_test_audio(
+        core: &EditorCore,
+        root: &tempfile::TempDir,
+        project_id: &str,
+        expected_revision: u64,
+        name: &str,
+    ) -> String {
+        let source = root.path().join("media").join(name);
+        std::fs::write(&source, format!("audio fixture {name}")).unwrap();
+        core.import_asset(
+            project_id,
+            expected_revision,
+            &source,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1_000),
+                has_audio: true,
+                ..MediaProbeFacts::default()
+            },
+        )
+        .unwrap()
+        .changed_ids
+        .remove(0)
+    }
+
+    fn commit_test_caption(
+        core: &EditorCore,
+        project_id: &str,
+        expected_revision: u64,
+        asset_id: &str,
+    ) -> WriteResult {
+        core.commit_transcription(CommitTranscriptionRequest {
+            project_id: project_id.into(),
+            expected_revision,
+            asset_id: asset_id.into(),
+            caption_track_id: None,
+            provider_id: "test-provider".into(),
+            model_id: "test-model".into(),
+            model_version: Some("1".into()),
+            language: "en".into(),
+            generated_at_ms: 1,
+            segments: vec![TranscriptionSegment {
+                text: "Caption source".into(),
+                start_ms: 0,
+                end_ms: 500,
+                confidence: Some(0.9),
+                words: vec![],
+            }],
+            style: CaptionStyle::default(),
+        })
+        .unwrap()
     }
 
     fn assert_no_managed_transaction_files(dir: &Path) {
@@ -3621,6 +3903,85 @@ mod tests {
     }
 
     #[test]
+    fn generated_audio_replacement_retains_a_caption_source_asset() {
+        let root = tempdir().unwrap();
+        let generated = root.path().join("generated");
+        let media = root.path().join("media");
+        std::fs::create_dir_all(&generated).unwrap();
+        std::fs::create_dir_all(&media).unwrap();
+        let first = generated.join("caption-source.wav");
+        let second = generated.join("caption-replacement.wav");
+        std::fs::write(&first, b"caption source speech").unwrap();
+        std::fs::write(&second, b"caption replacement speech").unwrap();
+        let policy = PathPolicy::new(
+            root.path().join("projects"),
+            [&media],
+            root.path().join("exports"),
+        )
+        .unwrap()
+        .with_generated_media_root(&generated)
+        .unwrap();
+        let core = EditorCore::new(policy);
+        let created = core
+            .create_project("captioned speech", ProjectSettings::default())
+            .unwrap();
+        let project = core.get_project(&created.project_id).unwrap();
+        let track_id = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        let inserted = core
+            .commit_generated_asset(CommitGeneratedAssetRequest {
+                project_id: created.project_id.clone(),
+                expected_revision: 0,
+                path: first,
+                track_id,
+                start_ms: 0,
+                duration_ms: 1_000,
+                display_name: "ignored.wav".into(),
+                origin: speech_origin(),
+                probe: MediaProbeFacts::default(),
+            })
+            .unwrap();
+        commit_test_caption(&core, &created.project_id, 1, &inserted.asset_id);
+        let replaced = core
+            .replace_generated_asset(ReplaceGeneratedAssetRequest {
+                project_id: created.project_id.clone(),
+                expected_revision: 2,
+                path: second,
+                item_id: inserted.item_id.clone(),
+                duration_ms: 1_500,
+                origin: speech_origin(),
+                probe: MediaProbeFacts::default(),
+            })
+            .unwrap();
+
+        let project = core.get_project(&created.project_id).unwrap();
+        assert!(
+            project
+                .assets
+                .iter()
+                .any(|asset| asset.id == inserted.asset_id)
+        );
+        assert!(
+            project
+                .assets
+                .iter()
+                .any(|asset| asset.id == replaced.asset_id)
+        );
+        assert!(project.tracks.iter().flat_map(|track| &track.items).any(
+            |item| matches!(item, TimelineItem::Caption(item) if item.source.asset_id == inserted.asset_id)
+        ));
+        let TimelineItem::Media(item) = project.find_item(&inserted.item_id).unwrap() else {
+            panic!("speech item must remain media")
+        };
+        assert_eq!(item.asset_id, replaced.asset_id);
+    }
+
+    #[test]
     fn duplicate_imports_share_storage_but_keep_logical_assets() {
         let (core, root) = core();
         let source = root.path().join("media/same.bin");
@@ -3731,6 +4092,53 @@ mod tests {
     }
 
     #[test]
+    fn asset_gc_failure_warns_after_metadata_commit() {
+        let (core, _) = core();
+        let created = core
+            .create_project("gc warning", ProjectSettings::default())
+            .unwrap();
+        let project = core.get_project(&created.project_id).unwrap();
+        let overlay = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Overlay)
+            .unwrap()
+            .id
+            .clone();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let orphan = dir.join("assets/orphan.bin");
+        std::fs::write(&orphan, b"unreachable").unwrap();
+
+        set_persistence_fault(PersistencePhase::GarbageCollection);
+        let result = core
+            .edit(
+                &created.project_id,
+                0,
+                EditOperation::AddText {
+                    track_id: overlay,
+                    text: "committed despite cleanup warning".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 24,
+                    color: "#ffffff".into(),
+                    font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
+                    transform: Transform::default(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(result.revision, 1);
+        assert_eq!(result.warnings, vec!["ASSET_GC_FAILED"]);
+        assert!(orphan.is_file());
+        let project = core.get_project(&created.project_id).unwrap();
+        assert_eq!(project.revision, 1);
+        assert!(project.find_item(&result.changed_ids[0]).is_some());
+        assert!(!orphan.exists());
+    }
+
+    #[test]
     fn asset_delete_rejects_in_use_assets_and_integrity_drift() {
         let (core, root) = core();
         let source = root.path().join("media/audio.bin");
@@ -3789,6 +4197,273 @@ mod tests {
             core.get_project(&created.project_id).unwrap_err().code,
             ErrorCode::AssetIntegrityFailed
         );
+    }
+
+    #[test]
+    fn caption_source_blocks_deletion_and_survives_reopen_undo_redo() {
+        let (core, root) = core();
+        let created = core
+            .create_project("caption ownership", ProjectSettings::default())
+            .unwrap();
+        let asset_id = import_test_audio(&core, &root, &created.project_id, 0, "caption.wav");
+        let asset_path = {
+            let project = core.get_project(&created.project_id).unwrap();
+            core.project_asset_path(
+                &created.project_id,
+                &project.assets[0].project_relative_path,
+            )
+            .unwrap()
+        };
+        let caption = commit_test_caption(&core, &created.project_id, 1, &asset_id);
+        let project_dir = core.paths().project_dir(&created.project_id).unwrap();
+        let persisted_before_reopen = std::fs::read(project_path(&project_dir)).unwrap();
+
+        let error = core
+            .delete_asset(&created.project_id, caption.revision, &asset_id)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetInUse);
+        assert!(error.message.contains("caption source"));
+        let reopened = core.get_project(&created.project_id).unwrap();
+        assert_eq!(
+            std::fs::read(project_path(&project_dir)).unwrap(),
+            persisted_before_reopen,
+            "valid caption provenance must not require a schema rewrite"
+        );
+        assert_eq!(reopened.assets[0].id, asset_id);
+        assert!(reopened.tracks.iter().flat_map(|track| &track.items).any(
+            |item| matches!(item, TimelineItem::Caption(item) if item.source.asset_id == asset_id)
+        ));
+        assert!(asset_path.is_file());
+
+        core.undo(&created.project_id, caption.revision).unwrap();
+        assert!(asset_path.is_file());
+        let redone = core
+            .redo(&created.project_id, caption.revision + 1)
+            .unwrap();
+        assert_eq!(redone.revision, caption.revision + 2);
+        let project = core.get_project(&created.project_id).unwrap();
+        assert!(project.tracks.iter().flat_map(|track| &track.items).any(
+            |item| matches!(item, TimelineItem::Caption(item) if item.source.asset_id == asset_id)
+        ));
+        assert!(asset_path.is_file());
+    }
+
+    #[test]
+    fn durable_draft_reference_blocks_deletion_until_discarded() {
+        let (core, root) = core();
+        let created = core
+            .create_project("draft ownership", ProjectSettings::default())
+            .unwrap();
+        let asset_id = import_test_audio(&core, &root, &created.project_id, 0, "draft.wav");
+        let project = core.get_project(&created.project_id).unwrap();
+        let audio_track = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        let draft = core
+            .create_draft(
+                &created.project_id,
+                1,
+                vec![EditOperation::AddMedia {
+                    track_id: audio_track,
+                    asset_id: asset_id.clone(),
+                    start_ms: 0,
+                    duration_ms: 500,
+                    source_in_ms: 0,
+                }],
+                Some("retained media".into()),
+            )
+            .unwrap();
+
+        let error = core
+            .delete_asset(&created.project_id, 1, &asset_id)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetInUse);
+        assert!(error.message.contains("draft operation"));
+        assert_eq!(
+            core.get_draft(&created.project_id, &draft.id).unwrap().id,
+            draft.id
+        );
+        assert_eq!(core.get_project(&created.project_id).unwrap().revision, 1);
+        let undo_error = core.undo(&created.project_id, 1).unwrap_err();
+        assert_eq!(undo_error.code, ErrorCode::AssetInUse);
+        assert!(undo_error.message.contains("draft operation"));
+        assert_eq!(core.get_project(&created.project_id).unwrap().revision, 1);
+
+        core.discard_draft(&created.project_id, &draft.id).unwrap();
+        assert_eq!(
+            core.delete_asset(&created.project_id, 1, &asset_id)
+                .unwrap()
+                .revision,
+            2
+        );
+    }
+
+    #[test]
+    fn dangling_persisted_references_fail_closed_with_deterministic_classes() {
+        let (core, root) = core();
+
+        let caption_project = core
+            .create_project("dangling caption", ProjectSettings::default())
+            .unwrap();
+        let caption_asset = import_test_audio(
+            &core,
+            &root,
+            &caption_project.project_id,
+            0,
+            "dangling-caption.wav",
+        );
+        commit_test_caption(&core, &caption_project.project_id, 1, &caption_asset);
+        let caption_dir = core
+            .paths()
+            .project_dir(&caption_project.project_id)
+            .unwrap();
+        let mut project: Project = read_json(&project_path(&caption_dir)).unwrap();
+        project.assets.clear();
+        write_json_atomic(&project_path(&caption_dir), &project).unwrap();
+        let error = core.get_project(&caption_project.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+        assert!(error.message.contains("caption source"));
+
+        let media_project = core
+            .create_project("dangling media", ProjectSettings::default())
+            .unwrap();
+        let media_asset = import_test_audio(
+            &core,
+            &root,
+            &media_project.project_id,
+            0,
+            "dangling-media.wav",
+        );
+        let media_dir = core.paths().project_dir(&media_project.project_id).unwrap();
+        let mut project = core.get_project(&media_project.project_id).unwrap();
+        let track_id = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        core.edit(
+            &media_project.project_id,
+            1,
+            EditOperation::AddMedia {
+                track_id,
+                asset_id: media_asset,
+                start_ms: 0,
+                duration_ms: 500,
+                source_in_ms: 0,
+            },
+        )
+        .unwrap();
+        project = read_json(&project_path(&media_dir)).unwrap();
+        project.assets.clear();
+        write_json_atomic(&project_path(&media_dir), &project).unwrap();
+        let error = core.get_project(&media_project.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+        assert!(error.message.contains("media item"));
+
+        let history_project = core
+            .create_project("dangling history", ProjectSettings::default())
+            .unwrap();
+        let history_asset = import_test_audio(
+            &core,
+            &root,
+            &history_project.project_id,
+            0,
+            "dangling-history.wav",
+        );
+        let history_dir = core
+            .paths()
+            .project_dir(&history_project.project_id)
+            .unwrap();
+        let project = core.get_project(&history_project.project_id).unwrap();
+        let track_id = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        core.edit(
+            &history_project.project_id,
+            1,
+            EditOperation::AddMedia {
+                track_id,
+                asset_id: history_asset,
+                start_ms: 0,
+                duration_ms: 500,
+                source_in_ms: 0,
+            },
+        )
+        .unwrap();
+        let mut corrupt_snapshot: Project = read_json(&project_path(&history_dir)).unwrap();
+        corrupt_snapshot.assets.clear();
+        let mut history: History = read_json(&history_path(&history_dir)).unwrap();
+        history.undo.push(corrupt_snapshot);
+        write_json_atomic(&history_path(&history_dir), &history).unwrap();
+        let error = core.get_project(&history_project.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+        assert!(error.message.contains("undo history snapshot"));
+        assert!(error.message.contains("media item"));
+
+        let draft_project = core
+            .create_project("dangling draft", ProjectSettings::default())
+            .unwrap();
+        let draft_asset = import_test_audio(
+            &core,
+            &root,
+            &draft_project.project_id,
+            0,
+            "dangling-draft.wav",
+        );
+        let draft_dir_path = core.paths().project_dir(&draft_project.project_id).unwrap();
+        let project = core.get_project(&draft_project.project_id).unwrap();
+        let track_id = project
+            .tracks
+            .iter()
+            .find(|track| track.track_type == TrackType::Audio)
+            .unwrap()
+            .id
+            .clone();
+        let draft = core
+            .create_draft(
+                &draft_project.project_id,
+                1,
+                vec![EditOperation::AddMedia {
+                    track_id,
+                    asset_id: draft_asset,
+                    start_ms: 0,
+                    duration_ms: 500,
+                    source_in_ms: 0,
+                }],
+                None,
+            )
+            .unwrap();
+        let retained_path = core
+            .project_asset_path(
+                &draft_project.project_id,
+                &project.assets[0].project_relative_path,
+            )
+            .unwrap();
+        let mut project: Project = read_json(&project_path(&draft_dir_path)).unwrap();
+        project.assets.clear();
+        write_json_atomic(&project_path(&draft_dir_path), &project).unwrap();
+        core.get_project(&draft_project.project_id).unwrap();
+        assert!(
+            retained_path.is_file(),
+            "garbage collection must fail safe while a retained draft is dangling"
+        );
+        let error = core
+            .get_draft(&draft_project.project_id, &draft.id)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+        assert!(error.message.contains("draft operation"));
+        core.discard_draft(&draft_project.project_id, &draft.id)
+            .unwrap();
     }
 
     #[test]
