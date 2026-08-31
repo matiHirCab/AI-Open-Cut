@@ -25,6 +25,8 @@ No agent, contributor, urgency label, or user request to "just code it" override
 
 ## Ownership boundaries
 
+ADR 0003 (`docs/adr/0003-editor-core-module-boundaries.md`) is the canonical editor-core ownership map and allowed dependency graph. Any new dependency edge requires the ADR and the editor-core architecture test to change in the same review. Headless, bridge, and desktop code must not add parallel validation for project, timeline, asset, draft, migration, or rendering semantics; submit typed input to `editor-core` and translate its result instead.
+
 - `crates/editor-core` owns domain models, validation, persistence, revisions, undo/redo, atomic mutations, schema migration, media ownership, integrity checks, garbage collection, and rendering rules. It must not depend on MCP, provider workers, environment configuration, or presentation concerns.
 - `apps/headless` is the typed JSON-lines process transport over `editor-core`. It deserializes requests, emits events and responses, and translates core errors without duplicating domain or persistence rules.
 - `apps/agent-bridge` owns application workflows, MCP adapters, process-local jobs, immutable runtime configuration, diagnostics, structured logging, and provider orchestration. Keep transport handlers thin and inject services rather than importing concrete providers into capability registrars.
