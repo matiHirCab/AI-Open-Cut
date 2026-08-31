@@ -11,6 +11,21 @@ on:
     branches: [main]
 
 jobs:
+  openspec:
+    name: OpenSpec validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+      - name: Validate living specs and active changes
+        run: moon run openspec-validate
+
   correctness:
     name: Correctness (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

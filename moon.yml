@@ -1,6 +1,18 @@
 $schema: 'https://moonrepo.dev/schemas/project.json'
 
 tasks:
+  openspec-validate:
+    script: |
+      bun run scripts/normalize-openspec-workflows.ts --check
+      bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive
+    inputs:
+      - '.codex/skills/openspec-*/SKILL.md'
+      - 'docs/spec-driven-development.md'
+      - 'openspec/**/*'
+      - 'scripts/normalize-openspec-workflows.ts'
+    options:
+      cache: false
+
   upload-logos:
     script: |
       set -eu

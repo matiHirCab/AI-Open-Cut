@@ -65,6 +65,10 @@ moon run desktop:dev   # see apps/desktop/README.md
 
 The experimental OpenCut Agent Bridge exposes the canonical project/timeline core to MCP clients without an OpenAI API key. It supports typed batch edits, durable drafts, revisioned resources and workflow prompts, local Kokoro speech, local faster-whisper captions, and STDIO or authenticated trusted-LAN Streamable HTTP. See [`docs/agent-bridge.md`](docs/agent-bridge.md) for setup and safety details.
 
+### Spec-driven development
+
+OpenCut uses OpenSpec for living capability requirements and reviewable change proposals. See [`docs/spec-driven-development.md`](docs/spec-driven-development.md) for the Codex workflows, authoring conventions, and validation command.
+
 ## Contributing
 
 We're not set up to take outside contributions yet while the architecture is being designed. If you want to follow along, ask questions, or just hang out, [join the Discord](https://discord.gg/zmR9N35cjK) or [open an issue](https://github.com/opencut-app/opencut/issues).
