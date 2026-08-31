@@ -18,7 +18,7 @@ Restart Codex after initial setup so generated workflows are discovered. Invoke 
 - `$openspec-verify-change` to check that implementation, specs, design, and tasks agree before archival.
 - `$openspec-onboard` for a guided walkthrough of the complete OpenSpec lifecycle.
 
-These repository-local Codex workflows are skills, so invoke them with the `$openspec-*` names above. The generated skill bodies are owned by OpenSpec and should be refreshed with the pinned CLI rather than edited by hand.
+These repository-local Codex workflows are skills, so invoke them with the `$openspec-*` names above. Every CLI call in the skills uses `bunx @fission-ai/openspec@1.5.0`; a global `openspec` installation is neither required nor accepted as the repository workflow. The generated skill bodies are owned by OpenSpec, then normalized by `scripts/normalize-openspec-workflows.ts` for pinned CLI and Codex skill compatibility rather than edited by hand.
 
 ## Adding or changing a capability
 
@@ -50,8 +50,9 @@ CI runs the same Moon task. A malformed requirement, scenario, or change blocks 
 
 This repository uses OpenSpec's custom profile with all eleven Codex skill workflows enabled. Upgrade deliberately and keep every version-sensitive surface synchronized:
 
-1. Choose the new version and run `bunx @fission-ai/openspec@<version> update` from the repository root while preserving the custom profile.
-2. Review every generated `.codex/skills/openspec-*/SKILL.md` change and confirm its `generatedBy` metadata names the new version. Do not hand-edit generated workflow bodies.
-3. Update the pinned package version in the `openspec-validate` task in `moon.yml` and both version references in this guide.
-4. Confirm `.github/workflows/bun-ci.yml` still runs `moon run openspec-validate`, so CI inherits the same pin instead of declaring a second one.
-5. Run the doctor, spec listing, strict Moon validation, and workflow syntax checks before merging the upgrade.
+1. Choose the new version and update `OPEN_SPEC_VERSION` in `scripts/normalize-openspec-workflows.ts`, the package pin in `moon.yml`, and all version references in this guide.
+2. Run `bunx @fission-ai/openspec@<version> update` from the repository root while preserving the custom profile.
+3. Run `bun run scripts/normalize-openspec-workflows.ts` to replace generated prompt aliases with repository-local `$openspec-*` skill names and route generated CLI calls through the pinned package.
+4. Review every generated `.codex/skills/openspec-*/SKILL.md` change and confirm its `generatedBy` metadata names the new version. Do not hand-edit generated workflow bodies.
+5. Confirm `.github/workflows/bun-ci.yml` still runs `moon run openspec-validate`, so CI inherits the same pin instead of declaring a second one.
+6. Run the doctor, spec listing, strict Moon validation, and workflow syntax checks before merging the upgrade.

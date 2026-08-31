@@ -2,7 +2,7 @@
 name: openspec-onboard
 description: Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.
 license: MIT
-compatibility: Requires openspec CLI.
+compatibility: Requires Bun to run @fission-ai/openspec@1.5.0.
 metadata:
   author: openspec
   version: "1.0"
@@ -11,7 +11,7 @@ metadata:
 
 Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `bunx @fission-ai/openspec@1.5.0 store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 ---
 
@@ -21,13 +21,13 @@ Before starting, check if the OpenSpec CLI is installed:
 
 ```bash
 # Unix/macOS
-openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
+bunx @fission-ai/openspec@1.5.0 --version 2>&1 || echo "CLI_NOT_INSTALLED"
 # Windows (PowerShell)
-# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
+# bunx @fission-ai/openspec@1.5.0 --version
 ```
 
 **If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to `/opsx:onboard`.
+> The pinned OpenSpec CLI could not run. Install Bun or resolve the reported package error, then come back to `$openspec-onboard`.
 
 Stop here if not installed.
 
@@ -154,7 +154,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Explore mode (`$openspec-explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
 Now let's create a change to hold our work.
 ```
@@ -169,14 +169,14 @@ Now let's create a change to hold our work.
 ```
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives at the `changeRoot` reported by `openspec status --change "<name>" --json` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives at the `changeRoot` reported by `bunx @fission-ai/openspec@1.5.0 status --change "<name>" --json` and holds your artifacts—proposal, specs, design, tasks.
 
 Let me create one for our task.
 ```
 
 **DO:** Create the change with a derived kebab-case name:
 ```bash
-openspec new change "<derived-name>"
+bunx @fission-ai/openspec@1.5.0 new change "<derived-name>"
 ```
 
 **SHOW:**
@@ -245,9 +245,9 @@ Does this capture the intent? I can adjust before we save it.
 
 After approval, save the proposal:
 ```bash
-openspec instructions proposal --change "<name>" --json
+bunx @fission-ai/openspec@1.5.0 instructions proposal --change "<name>" --json
 ```
-Then write the content to the `resolvedOutputPath` from `openspec instructions proposal --change "<name>" --json`.
+Then write the content to the `resolvedOutputPath` from `bunx @fission-ai/openspec@1.5.0 instructions proposal --change "<name>" --json`.
 
 ```
 Proposal saved. This is your "why" document—you can always come back and refine it as understanding evolves.
@@ -270,7 +270,7 @@ For a small task like this, we might only need one spec file.
 
 **DO:** Resolve where the spec file should be created:
 ```bash
-openspec instructions specs --change "<name>" --json
+bunx @fission-ai/openspec@1.5.0 instructions specs --change "<name>" --json
 # Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 ```
 
@@ -343,7 +343,7 @@ Here's the design:
 For a small task, this captures the key decisions without over-engineering.
 ```
 
-Save to the `resolvedOutputPath` from `openspec instructions design --change "<name>" --json`.
+Save to the `resolvedOutputPath` from `bunx @fission-ai/openspec@1.5.0 instructions design --change "<name>" --json`.
 
 ---
 
@@ -381,7 +381,7 @@ Each checkbox becomes a unit of work in the apply phase. Ready to implement?
 
 **PAUSE** - Wait for user to confirm they're ready to implement.
 
-Save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.
+Save to the `resolvedOutputPath` from `bunx @fission-ai/openspec@1.5.0 instructions tasks --change "<name>" --json`.
 
 ---
 
@@ -432,7 +432,7 @@ Archived changes become your project's decision history—you can always find th
 
 **DO:**
 ```bash
-openspec archive "<name>"
+bunx @fission-ai/openspec@1.5.0 archive "<name>"
 ```
 
 **SHOW:**
@@ -470,25 +470,25 @@ This same rhythm works for any size change—a small fix or a major feature.
 
  | Command           | What it does                               |
  |-------------------|--------------------------------------------|
- | `/opsx:propose` | Create a change and generate all artifacts |
- | `/opsx:explore` | Think through problems before/during work  |
- | `/opsx:apply`   | Implement tasks from a change              |
- | `/opsx:archive` | Archive a completed change                 |
+ | `$openspec-propose` | Create a change and generate all artifacts |
+ | `$openspec-explore` | Think through problems before/during work  |
+ | `$openspec-apply-change`   | Implement tasks from a change              |
+ | `$openspec-archive-change` | Archive a completed change                 |
 
 **Additional commands:**
 
  | Command            | What it does                                             |
  |--------------------|----------------------------------------------------------|
- | `/opsx:new`      | Start a new change, step through artifacts one at a time |
- | `/opsx:continue` | Continue working on an existing change                   |
- | `/opsx:ff`       | Fast-forward: create all artifacts at once               |
- | `/opsx:verify`   | Verify implementation matches artifacts                  |
+ | `$openspec-new-change`      | Start a new change, step through artifacts one at a time |
+ | `$openspec-continue-change` | Continue working on an existing change                   |
+ | `$openspec-ff-change`       | Fast-forward: create all artifacts at once               |
+ | `$openspec-verify-change`   | Verify implementation matches artifacts                  |
 
 ---
 
 ## What's Next?
 
-Try `/opsx:propose` on something you actually want to build. You've got the rhythm now!
+Try `$openspec-propose` on something you actually want to build. You've got the rhythm now!
 ```
 
 ---
@@ -500,11 +500,11 @@ Try `/opsx:propose` on something you actually want to build. You've got the rhyt
 If the user says they need to stop, want to pause, or seem disengaged:
 
 ```
-No problem! Your change is saved at the `changeRoot` reported by `openspec status --change "<name>" --json`.
+No problem! Your change is saved at the `changeRoot` reported by `bunx @fission-ai/openspec@1.5.0 status --change "<name>" --json`.
 
 To pick up where we left off later:
-- `/opsx:continue <name>` - Resume artifact creation
-- `/opsx:apply <name>` - Jump to implementation (if tasks exist)
+- `$openspec-continue-change <name>` - Resume artifact creation
+- `$openspec-apply-change <name>` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 ```
@@ -522,21 +522,21 @@ If the user says they just want to see the commands or skip the tutorial:
 
  | Command                  | What it does                               |
  |--------------------------|--------------------------------------------|
- | `/opsx:propose <name>` | Create a change and generate all artifacts |
- | `/opsx:explore`        | Think through problems (no code changes)   |
- | `/opsx:apply <name>`   | Implement tasks                            |
- | `/opsx:archive <name>` | Archive when done                          |
+ | `$openspec-propose <name>` | Create a change and generate all artifacts |
+ | `$openspec-explore`        | Think through problems (no code changes)   |
+ | `$openspec-apply-change <name>`   | Implement tasks                            |
+ | `$openspec-archive-change <name>` | Archive when done                          |
 
 **Additional commands:**
 
  | Command                   | What it does                        |
  |---------------------------|-------------------------------------|
- | `/opsx:new <name>`      | Start a new change, step by step    |
- | `/opsx:continue <name>` | Continue an existing change         |
- | `/opsx:ff <name>`       | Fast-forward: all artifacts at once |
- | `/opsx:verify <name>`   | Verify implementation               |
+ | `$openspec-new-change <name>`      | Start a new change, step by step    |
+ | `$openspec-continue-change <name>` | Continue an existing change         |
+ | `$openspec-ff-change <name>`       | Fast-forward: all artifacts at once |
+ | `$openspec-verify-change <name>`   | Verify implementation               |
 
-Try `/opsx:propose` to start your first change.
+Try `$openspec-propose` to start your first change.
 ```
 
 Exit gracefully.
