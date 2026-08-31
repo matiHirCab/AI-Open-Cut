@@ -25,7 +25,7 @@ OpenCut uses fixture-governed manual synchronization. Native Rust, TypeScript/Zo
 | Transcription provider protocol | `contracts/transcription-provider-v1.json` |
 | Persisted project document and migrations | `crates/editor-core/src/model.rs` |
 
-The parity gate is `bun run contracts:check` from `apps/agent-bridge`. It runs focused Rust and TypeScript tests against the same canonical artifacts. CI runs this gate explicitly, and `.github/CODEOWNERS` requests `@matiHirCab` for canonical artifacts and governed consumers.
+The parity gate is `bun run contracts:check` from `apps/agent-bridge`. It runs TypeScript checking plus focused Rust and TypeScript tests against the same canonical artifacts. The Rust operation check derives snake-case names from the actual headless request enum. The MCP check converts every registered tool's input and output Zod schemas to draft 2020-12 JSON Schema and compares those schemas and client-visible annotations with `contracts/mcp-surface-v1.json`; descriptions and non-representable runtime refinements remain outside that catalog. CI runs this gate explicitly, and `.github/CODEOWNERS` requests `@matiHirCab` for canonical artifacts and governed consumers.
 
 Protocol major version 1 is negotiated by status. Omitting `protocolVersion` selects the current version for compatibility; explicitly requesting an unsupported version fails before mutation with non-retryable `INVALID_ARGUMENT`.
 
@@ -47,4 +47,4 @@ Rejected because isolated native tests do not identify one canonical owner and c
 
 ## Consequences
 
-Contract changes require synchronized native declarations, fixtures/catalogs, parity tests, and owner review in one pull request. This retains some manual maintenance but makes drift observable and keeps each language's full validation expressiveness. Generation can be reconsidered if measured synchronization cost justifies a lossless intermediate representation.
+Contract changes require synchronized native declarations, fixtures/catalogs, parity tests, and owner review in one pull request. Canonical catalogs remain manually governed: parity tests read and compare them but do not rewrite them. This retains some manual maintenance but makes drift observable and keeps each language's full validation expressiveness. Generation can be reconsidered if measured synchronization cost justifies a lossless intermediate representation.

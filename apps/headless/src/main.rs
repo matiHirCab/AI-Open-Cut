@@ -13,43 +13,15 @@ use opencut_editor_core::{
 use serde::{Deserialize, Serialize};
 
 const HEADLESS_PROTOCOL_VERSION: u32 = 1;
-#[cfg(test)]
-const HEADLESS_OPERATIONS: [&str; 26] = [
-    "commit_draft",
-    "commit_generated_asset",
-    "commit_transcription",
-    "create_draft",
-    "create_project",
-    "delete_asset",
-    "discard_draft",
-    "edit",
-    "edit_batch",
-    "export_video",
-    "get_draft",
-    "get_draft_state",
-    "get_state",
-    "import_asset",
-    "list_projects",
-    "open_project",
-    "rebase_draft",
-    "redo",
-    "render_draft_preview",
-    "render_preview",
-    "render_preview_range",
-    "replace_generated_asset",
-    "resolve_asset_input",
-    "status",
-    "undo",
-    "update_draft",
-];
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, strum::VariantNames)]
 #[serde(
     tag = "operation",
     rename_all = "snake_case",
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+#[strum(serialize_all = "snake_case")]
 enum Request {
     Status {
         #[serde(default)]
@@ -779,6 +751,7 @@ fn emit(event: impl Serialize) -> Result<(), CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use strum::VariantNames;
 
     #[test]
     fn capability_sets_match_the_canonical_headless_contract() {
@@ -797,10 +770,9 @@ mod tests {
             HEADLESS_PROTOCOL_VERSION,
             contract["version"].as_u64().unwrap() as u32
         );
-        assert_eq!(
-            serde_json::to_value(HEADLESS_OPERATIONS).unwrap(),
-            contract["operations"]
-        );
+        let mut request_variants = Request::VARIANTS.to_vec();
+        request_variants.sort_unstable();
+        assert_eq!(serde_json::json!(request_variants), contract["operations"]);
     }
 
     #[test]

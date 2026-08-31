@@ -40,7 +40,7 @@ ADR 0002 selects fixture-governed manual synchronization. Before changing a publ
 4. Run `bun run contracts:check` from `apps/agent-bridge`, followed by the affected Rust, TypeScript, integration, and smoke checks.
 5. Obtain review from the CODEOWNER designated for both the canonical artifact and its governed consumers.
 
-An implementation-local test is not equivalent evidence: the parity gate must consume the checked-in canonical artifacts and cover each affected Rust, TypeScript/Zod, MCP, or provider surface.
+An implementation-local test is not equivalent evidence: the parity gate must consume the checked-in canonical artifacts and cover each affected Rust, TypeScript/Zod, MCP, or provider surface. Headless operation evidence is derived from the actual Rust request enum, and MCP evidence includes normalized input schemas, output schemas, and client-visible annotations for every registered tool. The checked-in catalogs are reviewed and updated manually; parity tests never rewrite them.
 
 ## Validation
 

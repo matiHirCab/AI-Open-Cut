@@ -11,7 +11,7 @@
     "lint": "ultracite check src tests",
     "test": "bun run test:unit",
     "test:unit": "vitest run --config vitest.unit.config.ts",
-    "contracts:check": "cargo test -p opencut-headless && vitest run --config vitest.unit.config.ts tests/contracts.test.ts",
+    "contracts:check": "bun run typecheck && cargo test -p opencut-headless && vitest run --config vitest.unit.config.ts tests/contracts.test.ts",
     "test:integration": "cargo build -p opencut-headless && vitest run --config vitest.integration.config.ts",
     "test:smoke": "bun run scripts/run-packaged-smoke.ts",
     "test:tts-real": "vitest run tests/tts-real.test.ts",

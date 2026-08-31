@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { z } from "zod/v4";
 
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
@@ -9,6 +10,7 @@ import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
+import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { headlessStatusSchema, schemas, ttsStatusSchema } from "../src/schemas";
@@ -27,10 +29,13 @@ import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
 
+const TYPECHECK_GATE_PREFIX = /^bun run typecheck && /;
+
 class ContractHarness {
   readonly prompts = new Set<string>();
   readonly resources = new Set<string>();
   readonly tools = new Set<string>();
+  readonly toolDefinitions = new Map<string, ToolDefinition>();
 
   registerPrompt(name: string) {
     this.prompts.add(name);
@@ -40,10 +45,64 @@ class ContractHarness {
     this.resources.add(name);
   }
 
-  registerTool(name: string) {
+  registerTool(name: string, definition: ToolDefinition) {
     this.tools.add(name);
+    this.toolDefinitions.set(name, definition);
   }
 }
+
+interface ToolDefinition {
+  annotations: Record<string, unknown>;
+  inputSchema: z.ZodType;
+  outputSchema: z.ZodType;
+}
+
+const normalizeJson = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeJson);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, normalizeJson(child)])
+    );
+  }
+  return value;
+};
+
+const schemaJson = (schema: z.ZodType, io: "input" | "output") =>
+  normalizeJson(
+    z.toJSONSchema(schema, {
+      io,
+      target: "draft-2020-12",
+      unrepresentable: "throw",
+    })
+  );
+
+const canonicalToolDefinitions = (harness: ContractHarness) =>
+  Object.fromEntries(
+    [...harness.toolDefinitions.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, definition]) => [
+        name,
+        {
+          annotations: normalizeJson(definition.annotations),
+          inputSchema: schemaJson(definition.inputSchema, "input"),
+          outputSchema: schemaJson(definition.outputSchema, "output"),
+        },
+      ])
+  );
+
+const mismatchedToolDefinitions = (
+  actual: Record<string, unknown>,
+  expected: Record<string, unknown>
+) =>
+  [...new Set([...Object.keys(actual), ...Object.keys(expected)])]
+    .sort()
+    .filter(
+      (name) => JSON.stringify(actual[name]) !== JSON.stringify(expected[name])
+    );
 
 const dependencies = {
   config: {},
@@ -144,6 +203,12 @@ describe("canonical public contracts", () => {
     );
   });
 
+  it("keeps TypeScript checking in the standalone contract gate", () => {
+    expect(AGENT_BRIDGE_PACKAGE.scripts["contracts:check"]).toMatch(
+      TYPECHECK_GATE_PREFIX
+    );
+  });
+
   it("keeps stable errors and provider versions aligned", () => {
     for (const [code, definition] of Object.entries(ERROR_CATALOG.codes)) {
       expect(retryableFor(code), `${code} retryability drifted`).toBe(
@@ -154,7 +219,7 @@ describe("canonical public contracts", () => {
     expect(TRANSCRIPTION_CONTRACT.version).toBe("transcription-provider-v1");
   });
 
-  it("registers exactly the canonical MCP tools, resources, and prompts", () => {
+  it("registers exactly the canonical MCP definitions and supporting surfaces", () => {
     const harness = new ContractHarness();
     const server = harness as unknown as Server;
     registerProjectTools(server, dependencies);
@@ -167,7 +232,20 @@ describe("canonical public contracts", () => {
     registerContextResources(server, dependencies);
     registerWorkflowPrompts(server);
 
-    expect([...harness.tools].sort()).toEqual(MCP_SURFACE.tools);
+    const registeredTools = [...harness.tools].sort();
+    const registeredDefinitions = canonicalToolDefinitions(harness);
+    expect(registeredTools).toEqual(MCP_SURFACE.tools);
+    expect(Object.keys(registeredDefinitions)).toEqual(MCP_SURFACE.tools);
+    expect(Object.keys(MCP_SURFACE.toolDefinitions).sort()).toEqual(
+      MCP_SURFACE.tools
+    );
+    expect(
+      mismatchedToolDefinitions(
+        registeredDefinitions,
+        MCP_SURFACE.toolDefinitions
+      )
+    ).toEqual([]);
+    expect(registeredDefinitions).toEqual(MCP_SURFACE.toolDefinitions);
     expect([...harness.resources].sort()).toEqual(
       MCP_SURFACE.resources.map((resource) => resource.name)
     );
@@ -176,5 +254,39 @@ describe("canonical public contracts", () => {
       MCP_SURFACE.resources.map((resource) => resource.uriTemplate).sort()
     );
     expect([...WORKFLOW_PROMPT_NAMES]).toEqual(MCP_SURFACE.prompts);
+  });
+
+  it("detects input, output, and annotation drift in MCP definitions", () => {
+    const catalog = structuredClone(MCP_SURFACE.toolDefinitions);
+    const toolName = "asset_delete";
+    const definition = catalog[toolName];
+
+    const inputDrift = {
+      ...catalog,
+      [toolName]: {
+        ...definition,
+        inputSchema: { ...definition.inputSchema, title: "drift" },
+      },
+    };
+    const outputDrift = {
+      ...catalog,
+      [toolName]: {
+        ...definition,
+        outputSchema: { ...definition.outputSchema, title: "drift" },
+      },
+    };
+    const annotationDrift = {
+      ...catalog,
+      [toolName]: {
+        ...definition,
+        annotations: { ...definition.annotations, readOnlyHint: "drift" },
+      },
+    };
+
+    expect(mismatchedToolDefinitions(inputDrift, catalog)).toEqual([toolName]);
+    expect(mismatchedToolDefinitions(outputDrift, catalog)).toEqual([toolName]);
+    expect(mismatchedToolDefinitions(annotationDrift, catalog)).toEqual([
+      toolName,
+    ]);
   });
 });
