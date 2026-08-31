@@ -1637,7 +1637,7 @@ fn stderr_excerpt(stderr: &[u8]) -> Option<String> {
 
 fn map_renderer_error(error: CoreError, stage: &str) -> CoreError {
     match error.code {
-        ErrorCode::InternalError | ErrorCode::JobFailed => {
+        ErrorCode::InternalError | ErrorCode::ProjectRecoveryFailed | ErrorCode::JobFailed => {
             CoreError::render_failure(stage, None, None)
         }
         _ => error,

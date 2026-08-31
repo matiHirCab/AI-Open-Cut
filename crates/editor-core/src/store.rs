@@ -24,6 +24,36 @@ const HISTORY_LIMIT: usize = 100;
 const DRAFT_VERSION: u32 = 1;
 const DRAFT_LIMIT: usize = 100;
 const EDIT_LIMIT: usize = 100;
+const TRANSACTION_VERSION: u32 = 1;
+const TRANSACTION_FILE: &str = ".project-transaction.json";
+const PERSISTENCE_RECOVERY_PENDING: &str = "PERSISTENCE_RECOVERY_PENDING";
+const DRAFT_CLEANUP_FAILED: &str = "DRAFT_CLEANUP_FAILED";
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProjectTransaction {
+    version: u32,
+    project: Project,
+    history: History,
+    committed_draft_id: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PersistencePhase {
+    BeforeJournal,
+    AfterJournal,
+    AfterProject,
+    AfterHistory,
+    AfterDraftCleanup,
+    AfterJournalCleanup,
+}
+
+#[cfg(test)]
+thread_local! {
+    static PERSISTENCE_FAULT: std::cell::Cell<Option<PersistencePhase>> = const {
+        std::cell::Cell::new(None)
+    };
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -240,14 +270,13 @@ impl EditorCore {
             ],
         };
         let _lock = ProjectLock::exclusive(&project_dir)?;
-        write_json_atomic(&project_path(&project_dir), &project)?;
-        write_json_atomic(&history_path(&project_dir), &History::default())?;
+        let warnings = persist(&project_dir, &project, &History::default())?;
         Ok(WriteResult {
             project_id: id.clone(),
             revision: 0,
             changed_ids: vec![id],
             summary: "Created project".into(),
-            warnings: vec![],
+            warnings,
             aliases: BTreeMap::new(),
         })
     }
@@ -255,8 +284,7 @@ impl EditorCore {
     pub fn get_project(&self, project_id: &str) -> Result<Project, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let project = read_project(&project_path(&dir))?;
-        let history = read_history_or_default(&history_path(&dir))?;
+        let (project, history) = load_project_data(&dir)?;
         let _ = garbage_collect(&dir, &project, &history);
         Ok(project)
     }
@@ -277,7 +305,9 @@ impl EditorCore {
             let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
                 continue;
             };
-            if !entry.path().join("project.json").is_file() {
+            if !entry.path().join("project.json").is_file()
+                && !entry.path().join(TRANSACTION_FILE).is_file()
+            {
                 continue;
             }
             let project = self.get_project(&id)?;
@@ -329,9 +359,8 @@ impl EditorCore {
         let source = self.paths.import_path(requested_path)?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let asset_id = Uuid::new_v4().to_string();
         let stored = store_content_addressed(&dir, &source)?;
         push_undo(&mut history, &project);
@@ -352,9 +381,9 @@ impl EditorCore {
             probe: Some(probe),
         });
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
+        let warnings = persist(&dir, &project, &history)?;
         let mut result = write_result(&project, vec![asset_id], "Imported asset");
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
@@ -369,7 +398,7 @@ impl EditorCore {
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, request.expected_revision)?;
         let track_index = project
             .tracks
@@ -378,7 +407,6 @@ impl EditorCore {
             .ok_or_else(|| CoreError::new(ErrorCode::ValidationFailed, "track was not found"))?;
         validate_track_media(project.tracks[track_index].track_type, MediaType::Audio)?;
 
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
         let item_id = Uuid::new_v4().to_string();
@@ -412,8 +440,8 @@ impl EditorCore {
             }));
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
-        let warnings = garbage_collect(&dir, &project, &history);
+        let warnings = persist(&dir, &project, &history)?;
+        let warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(CommitGeneratedAssetResult {
             project_id: project.id.clone(),
             revision: project.revision,
@@ -432,7 +460,7 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         if project
             .tracks
@@ -450,14 +478,13 @@ impl EditorCore {
             .iter()
             .position(|asset| asset.id == asset_id)
             .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         project.assets.remove(index);
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
+        let warnings = persist(&dir, &project, &history)?;
         let mut result = write_result(&project, vec![asset_id.to_owned()], "Deleted asset");
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
@@ -472,7 +499,7 @@ impl EditorCore {
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, request.expected_revision)?;
         let (track_index, item_index) = project
             .tracks
@@ -510,7 +537,6 @@ impl EditorCore {
             ));
         }
 
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
         let stored = store_content_addressed(&dir, &source)?;
@@ -541,8 +567,8 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
-        let warnings = garbage_collect(&dir, &project, &history);
+        let warnings = persist(&dir, &project, &history)?;
+        let warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(ReplaceGeneratedAssetResult {
             project_id: project.id,
             revision: project.revision,
@@ -562,16 +588,15 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let (changed_ids, summary) = apply_operation(&mut project, operation)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
+        let warnings = persist(&dir, &project, &history)?;
         let mut result = write_result(&project, changed_ids, summary);
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
@@ -589,9 +614,8 @@ impl EditorCore {
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
         let mut aliases = BTreeMap::new();
@@ -628,10 +652,10 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
+        let warnings = persist(&dir, &project, &history)?;
         let mut result = write_result(&project, changed_ids, "Applied timeline edit batch");
         result.aliases = aliases;
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
@@ -646,7 +670,7 @@ impl EditorCore {
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let project = read_project(&project_path(&dir))?;
+        let (project, _) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         validate_operations_against(&project, &operations)?;
         let drafts = draft_dir(&dir);
@@ -676,6 +700,7 @@ impl EditorCore {
     pub fn get_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
+        let _ = load_project_data(&dir)?;
         read_draft(&dir, draft_id)
     }
 
@@ -691,7 +716,7 @@ impl EditorCore {
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let project = read_project(&project_path(&dir))?;
+        let (project, _) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         let mut draft = read_draft(&dir, draft_id)?;
         if draft.base_revision != expected_revision {
@@ -719,7 +744,7 @@ impl EditorCore {
     ) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let project = read_project(&project_path(&dir))?;
+        let (project, _) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         let mut draft = read_draft(&dir, draft_id)?;
         validate_operations_against(&project, &draft.operations)?;
@@ -736,7 +761,7 @@ impl EditorCore {
     ) -> Result<ProjectState, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, _) = load_project_data(&dir)?;
         let draft = read_draft(&dir, draft_id)?;
         check_revision(&project, draft.base_revision)?;
         for operation in draft.operations {
@@ -757,7 +782,7 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
         let draft = read_draft(&dir, draft_id)?;
         if draft.base_revision != expected_revision {
@@ -769,7 +794,6 @@ impl EditorCore {
                 ),
             ));
         }
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
         for operation in draft.operations {
@@ -778,17 +802,16 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
-        std::fs::remove_file(draft_path(&dir, draft_id)?)
-            .map_err(|error| CoreError::io("cannot remove committed draft", error))?;
+        let warnings = persist_transaction(&dir, &project, &history, Some(draft_id))?;
         let mut result = write_result(&project, changed_ids, "Committed edit draft");
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
     pub fn discard_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
+        let _ = load_project_data(&dir)?;
         let draft = read_draft(&dir, draft_id)?;
         std::fs::remove_file(draft_path(&dir, draft_id)?)
             .map_err(|error| CoreError::io("cannot discard draft", error))?;
@@ -833,7 +856,7 @@ impl EditorCore {
         validate_transcription_request(&request)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let mut project = read_project(&project_path(&dir))?;
+        let (mut project, mut history) = load_project_data(&dir)?;
         check_revision(&project, request.expected_revision)?;
         let asset = project
             .assets
@@ -912,12 +935,11 @@ impl EditorCore {
                 }));
             changed_ids.push(id);
         }
-        let mut history = read_history_or_default(&history_path(&dir))?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        persist(&dir, &project, &history)?;
+        let warnings = persist(&dir, &project, &history)?;
         let mut result = write_result(&project, changed_ids, "Committed transcription captions");
-        result.warnings = garbage_collect(&dir, &project, &history);
+        result.warnings = finish_persistence(&dir, &project, &history, warnings);
         Ok(result)
     }
 
@@ -966,9 +988,8 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
-        let project = read_project(&project_path(&dir))?;
+        let (project, mut history) = load_project_data(&dir)?;
         check_revision(&project, expected_revision)?;
-        let mut history = read_history_or_default(&history_path(&dir))?;
         let target = if undo {
             history.undo.pop()
         } else {
@@ -995,7 +1016,7 @@ impl EditorCore {
         } else {
             history.undo.push(project);
         }
-        persist(&dir, &restored, &history)?;
+        let warnings = persist(&dir, &restored, &history)?;
         let mut result = write_result(
             &restored,
             vec![],
@@ -1005,13 +1026,13 @@ impl EditorCore {
                 "Redid last edit"
             },
         );
-        result.warnings = garbage_collect(&dir, &restored, &history);
+        result.warnings = finish_persistence(&dir, &restored, &history, warnings);
         Ok(result)
     }
 
     fn existing_project_dir(&self, project_id: &str) -> Result<PathBuf, CoreError> {
         let dir = self.paths.project_dir(project_id)?;
-        if !project_path(&dir).is_file() {
+        if !project_path(&dir).is_file() && !transaction_path(&dir).is_file() {
             return Err(CoreError::new(
                 ErrorCode::ProjectNotFound,
                 "project was not found",
@@ -2250,9 +2271,60 @@ fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> W
     }
 }
 
-fn persist(dir: &Path, project: &Project, history: &History) -> Result<(), CoreError> {
-    write_json_atomic(&project_path(dir), project)?;
-    write_json_atomic(&history_path(dir), history)
+fn persist(dir: &Path, project: &Project, history: &History) -> Result<Vec<String>, CoreError> {
+    persist_transaction(dir, project, history, None)
+}
+
+fn persist_transaction(
+    dir: &Path,
+    project: &Project,
+    history: &History,
+    committed_draft_id: Option<&str>,
+) -> Result<Vec<String>, CoreError> {
+    inject_persistence_fault(PersistencePhase::BeforeJournal)?;
+    let transaction = ProjectTransaction {
+        version: TRANSACTION_VERSION,
+        project: project.clone(),
+        history: history.clone(),
+        committed_draft_id: committed_draft_id.map(str::to_owned),
+    };
+    write_json_atomic(&transaction_path(dir), &transaction)?;
+
+    let mut warnings = Vec::new();
+    if inject_persistence_fault(PersistencePhase::AfterJournal).is_err()
+        || write_json_atomic(&project_path(dir), &transaction.project).is_err()
+        || inject_persistence_fault(PersistencePhase::AfterProject).is_err()
+        || write_json_atomic(&history_path(dir), &transaction.history).is_err()
+    {
+        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
+        return Ok(warnings);
+    }
+
+    if inject_persistence_fault(PersistencePhase::AfterHistory).is_err() {
+        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
+        if transaction.committed_draft_id.is_some() {
+            warnings.push(DRAFT_CLEANUP_FAILED.into());
+        }
+        return Ok(warnings);
+    }
+
+    if let Some(draft_id) = transaction.committed_draft_id.as_deref()
+        && remove_file_if_exists(&draft_path(dir, draft_id)?).is_err()
+    {
+        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
+        warnings.push(DRAFT_CLEANUP_FAILED.into());
+        return Ok(warnings);
+    }
+
+    if inject_persistence_fault(PersistencePhase::AfterDraftCleanup).is_err()
+        || remove_file_durable(&transaction_path(dir)).is_err()
+    {
+        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
+        return Ok(warnings);
+    }
+
+    let _ = inject_persistence_fault(PersistencePhase::AfterJournalCleanup);
+    Ok(warnings)
 }
 
 fn project_path(dir: &Path) -> PathBuf {
@@ -2263,6 +2335,10 @@ fn history_path(dir: &Path) -> PathBuf {
     dir.join("history.json")
 }
 
+fn transaction_path(dir: &Path) -> PathBuf {
+    dir.join(TRANSACTION_FILE)
+}
+
 fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
     let mut file = File::open(path).map_err(|error| CoreError::io("cannot open data", error))?;
     let mut data = String::new();
@@ -2271,32 +2347,133 @@ fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
     Ok(serde_json::from_str(&data)?)
 }
 
-fn read_project(path: &Path) -> Result<Project, CoreError> {
-    let mut project: Project = read_json(path)?;
-    let changed = migrate_project(&mut project)?
-        | migrate_project_assets(&mut project, path.parent().unwrap_or(Path::new(".")))?;
-    if changed {
-        write_json_atomic(path, &project)?;
-    }
-    Ok(project)
-}
-
-fn read_history_or_default(path: &Path) -> Result<History, CoreError> {
-    let mut history: History = if path.exists() {
-        read_json(path)?
+fn load_project_data(dir: &Path) -> Result<(Project, History), CoreError> {
+    recover_transaction(dir)?;
+    let project_file = project_path(dir);
+    let history_file = history_path(dir);
+    let mut project: Project = read_json(&project_file)?;
+    let mut history: History = if history_file.exists() {
+        read_json(&history_file)?
     } else {
         History::default()
     };
-    let mut changed = false;
-    let dir = path.parent().unwrap_or(Path::new("."));
-    for project in history.undo.iter_mut().chain(&mut history.redo) {
-        changed |= migrate_project(project)?;
-        changed |= migrate_project_assets(project, dir)?;
+
+    let mut changed = migrate_project(&mut project)? | migrate_project_assets(&mut project, dir)?;
+    for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
+        changed |= migrate_project(snapshot)?;
+        changed |= migrate_project_assets(snapshot, dir)?;
     }
     if changed {
-        write_json_atomic(path, &history)?;
+        let _ = persist(dir, &project, &history)?;
     }
-    Ok(history)
+    Ok((project, history))
+}
+
+fn recover_transaction(dir: &Path) -> Result<(), CoreError> {
+    cleanup_orphaned_transaction_temps(dir)?;
+    let path = transaction_path(dir);
+    if !path.exists() {
+        return Ok(());
+    }
+    let transaction = read_transaction(&path)?;
+    validate_transaction(dir, &transaction)?;
+    replay_transaction(dir, &transaction)
+}
+
+fn cleanup_orphaned_transaction_temps(dir: &Path) -> Result<(), CoreError> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|error| recovery_error(format!("cannot inspect transaction files: {error}")))?;
+    for entry in entries {
+        let entry = entry
+            .map_err(|error| recovery_error(format!("cannot inspect transaction file: {error}")))?;
+        let file_type = entry.file_type().map_err(|error| {
+            recovery_error(format!("cannot inspect transaction file type: {error}"))
+        })?;
+        if file_type.is_file() && is_transaction_temp_name(&entry.file_name()) {
+            remove_file_durable(&entry.path()).map_err(as_recovery_error)?;
+        }
+    }
+    Ok(())
+}
+
+fn is_transaction_temp_name(name: &std::ffi::OsStr) -> bool {
+    let Some(name) = name.to_str() else {
+        return false;
+    };
+    [".project-transaction.tmp-", "project.tmp-", "history.tmp-"]
+        .iter()
+        .any(|prefix| {
+            name.strip_prefix(prefix)
+                .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
+        })
+}
+
+fn read_transaction(path: &Path) -> Result<ProjectTransaction, CoreError> {
+    let data = std::fs::read(path)
+        .map_err(|error| recovery_error(format!("cannot read transaction journal: {error}")))?;
+    serde_json::from_slice(&data)
+        .map_err(|error| recovery_error(format!("invalid transaction journal: {error}")))
+}
+
+fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<(), CoreError> {
+    if transaction.version != TRANSACTION_VERSION {
+        return Err(recovery_error(format!(
+            "unsupported transaction journal version {}",
+            transaction.version
+        )));
+    }
+    let directory_id = dir
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| recovery_error("project directory has no valid identifier"))?;
+    if transaction.project.id != directory_id {
+        return Err(recovery_error(
+            "transaction project identity is inconsistent",
+        ));
+    }
+    for snapshot in std::iter::once(&transaction.project)
+        .chain(transaction.history.undo.iter())
+        .chain(transaction.history.redo.iter())
+    {
+        if snapshot.id != transaction.project.id {
+            return Err(recovery_error(
+                "transaction history contains a different project identity",
+            ));
+        }
+        if snapshot.schema_version != PROJECT_SCHEMA_VERSION {
+            return Err(recovery_error(format!(
+                "transaction contains unsupported project schema version {}",
+                snapshot.schema_version
+            )));
+        }
+    }
+    if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
+        draft_path(dir, draft_id)
+            .map_err(|_| recovery_error("transaction contains an invalid draft identifier"))?;
+    }
+    Ok(())
+}
+
+fn replay_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<(), CoreError> {
+    inject_persistence_fault(PersistencePhase::AfterJournal).map_err(as_recovery_error)?;
+    write_json_atomic(&project_path(dir), &transaction.project).map_err(as_recovery_error)?;
+    inject_persistence_fault(PersistencePhase::AfterProject).map_err(as_recovery_error)?;
+    write_json_atomic(&history_path(dir), &transaction.history).map_err(as_recovery_error)?;
+    inject_persistence_fault(PersistencePhase::AfterHistory).map_err(as_recovery_error)?;
+    if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
+        remove_file_if_exists(&draft_path(dir, draft_id)?).map_err(as_recovery_error)?;
+    }
+    inject_persistence_fault(PersistencePhase::AfterDraftCleanup).map_err(as_recovery_error)?;
+    remove_file_durable(&transaction_path(dir)).map_err(as_recovery_error)?;
+    inject_persistence_fault(PersistencePhase::AfterJournalCleanup).map_err(as_recovery_error)
+}
+
+fn recovery_error(message: impl Into<String>) -> CoreError {
+    CoreError::new(ErrorCode::ProjectRecoveryFailed, message)
+}
+
+fn as_recovery_error(error: CoreError) -> CoreError {
+    recovery_error(error.message)
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
@@ -2540,6 +2717,21 @@ fn garbage_collect(dir: &Path, project: &Project, history: &History) -> Vec<Stri
     }
 }
 
+fn finish_persistence(
+    dir: &Path,
+    project: &Project,
+    history: &History,
+    mut warnings: Vec<String>,
+) -> Vec<String> {
+    if !warnings
+        .iter()
+        .any(|warning| warning == PERSISTENCE_RECOVERY_PENDING)
+    {
+        warnings.extend(garbage_collect(dir, project, history));
+    }
+    warnings
+}
+
 fn collect_files(directory: &Path, output: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return;
@@ -2556,14 +2748,71 @@ fn collect_files(directory: &Path, output: &mut Vec<PathBuf>) {
 
 fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError> {
     let temp = path.with_extension(format!("tmp-{}", Uuid::new_v4()));
-    let data = serde_json::to_vec_pretty(value)?;
-    let mut file =
-        File::create(&temp).map_err(|error| CoreError::io("cannot create data", error))?;
-    file.write_all(&data)
-        .map_err(|error| CoreError::io("cannot write data", error))?;
-    file.sync_all()
-        .map_err(|error| CoreError::io("cannot sync data", error))?;
-    std::fs::rename(&temp, path).map_err(|error| CoreError::io("cannot replace data", error))
+    let result = (|| {
+        let data = serde_json::to_vec_pretty(value)?;
+        let mut file =
+            File::create(&temp).map_err(|error| CoreError::io("cannot create data", error))?;
+        file.write_all(&data)
+            .map_err(|error| CoreError::io("cannot write data", error))?;
+        file.sync_all()
+            .map_err(|error| CoreError::io("cannot sync data", error))?;
+        drop(file);
+        std::fs::rename(&temp, path)
+            .map_err(|error| CoreError::io("cannot replace data", error))?;
+        sync_parent(path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    result
+}
+
+fn remove_file_if_exists(path: &Path) -> Result<(), CoreError> {
+    match std::fs::remove_file(path) {
+        Ok(()) => sync_parent(path),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(CoreError::io("cannot remove data", error)),
+    }
+}
+
+fn remove_file_durable(path: &Path) -> Result<(), CoreError> {
+    std::fs::remove_file(path).map_err(|error| CoreError::io("cannot remove data", error))?;
+    sync_parent(path)
+}
+
+#[cfg(unix)]
+fn sync_parent(path: &Path) -> Result<(), CoreError> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "data path has no parent"))?;
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| CoreError::io("cannot sync data directory", error))
+}
+
+#[cfg(not(unix))]
+fn sync_parent(_path: &Path) -> Result<(), CoreError> {
+    Ok(())
+}
+
+fn inject_persistence_fault(phase: PersistencePhase) -> Result<(), CoreError> {
+    #[cfg(test)]
+    if PERSISTENCE_FAULT.with(|fault| {
+        if fault.get() == Some(phase) {
+            fault.set(None);
+            true
+        } else {
+            false
+        }
+    }) {
+        return Err(CoreError::new(
+            ErrorCode::InternalError,
+            format!("injected persistence fault after {phase:?}"),
+        ));
+    }
+    #[cfg(not(test))]
+    let _ = phase;
+    Ok(())
 }
 
 fn now_ms() -> Result<u64, CoreError> {
@@ -2618,6 +2867,32 @@ mod tests {
         )
         .unwrap();
         (EditorCore::new(policy), root)
+    }
+
+    fn set_persistence_fault(phase: PersistencePhase) {
+        PERSISTENCE_FAULT.with(|fault| fault.set(Some(phase)));
+    }
+
+    fn create_test_track() -> EditOperation {
+        EditOperation::CreateTrack {
+            name: "Recovery track".into(),
+            track_type: TrackType::Overlay,
+            index: None,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+        }
+    }
+
+    fn assert_no_managed_transaction_files(dir: &Path) {
+        let names = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name == TRANSACTION_FILE || name.contains(".tmp-"))
+            .collect::<Vec<_>>();
+        assert!(
+            names.is_empty(),
+            "managed transaction files remain: {names:?}"
+        );
     }
 
     fn speech_origin() -> GeneratedAssetOrigin {
@@ -2786,7 +3061,7 @@ mod tests {
                 && track.ducking.is_none()
                 && track.track_type != TrackType::Caption
         }));
-        let history: History = read_history_or_default(&history_path(&dir)).unwrap();
+        let history: History = read_json(&history_path(&dir)).unwrap();
         assert_eq!(history.undo[0].schema_version, PROJECT_SCHEMA_VERSION);
         assert!(history.undo[0].tracks.iter().all(|track| {
             !track.locked
@@ -3853,6 +4128,246 @@ mod tests {
         assert_eq!(redone_left.duration_ms, 500);
         assert_eq!(redone_right.start_ms, 600);
         assert_eq!(redone_right.keyframes.first().unwrap().time_ms, 0);
+    }
+
+    #[test]
+    fn persistence_transaction_recovers_every_publication_phase() {
+        let phases = [
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ];
+
+        for phase in phases {
+            let (core, _) = core();
+            let created = core
+                .create_project(&format!("phase {phase:?}"), ProjectSettings::default())
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            set_persistence_fault(phase);
+            let committed = core
+                .edit(&created.project_id, 0, create_test_track())
+                .unwrap();
+            assert_eq!(committed.revision, 1);
+            if phase == PersistencePhase::AfterJournalCleanup {
+                assert!(committed.warnings.is_empty());
+            } else {
+                assert_eq!(
+                    committed.warnings,
+                    vec![PERSISTENCE_RECOVERY_PENDING.to_owned()]
+                );
+                assert!(transaction_path(&dir).is_file());
+            }
+
+            let reopened = EditorCore::new(core.paths().clone());
+            let project = reopened.get_project(&created.project_id).unwrap();
+            let history: History = read_json(&history_path(&dir)).unwrap();
+            assert_eq!(project.revision, 1, "failed after {phase:?}");
+            assert_eq!(history.undo.len(), 1, "failed after {phase:?}");
+            assert_eq!(history.undo[0].revision, 0, "failed after {phase:?}");
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
+    fn persistence_transaction_rejects_before_commit_without_mutation() {
+        let (core, _) = core();
+        let created = core
+            .create_project("pre-commit", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_before = std::fs::read(project_path(&dir)).unwrap();
+        let history_before = std::fs::read(history_path(&dir)).unwrap();
+
+        set_persistence_fault(PersistencePhase::BeforeJournal);
+        let error = core
+            .edit(&created.project_id, 0, create_test_track())
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert_eq!(std::fs::read(project_path(&dir)).unwrap(), project_before);
+        assert_eq!(std::fs::read(history_path(&dir)).unwrap(), history_before);
+        assert_no_managed_transaction_files(&dir);
+    }
+
+    #[test]
+    fn persistence_transaction_recovery_is_repeatable_after_interruption() {
+        let (core, _) = core();
+        let created = core
+            .create_project("repeat recovery", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+
+        set_persistence_fault(PersistencePhase::AfterJournal);
+        core.edit(&created.project_id, 0, create_test_track())
+            .unwrap();
+        set_persistence_fault(PersistencePhase::AfterProject);
+        let interrupted = core.get_project(&created.project_id).unwrap_err();
+        assert_eq!(interrupted.code, ErrorCode::ProjectRecoveryFailed);
+        assert!(transaction_path(&dir).is_file());
+
+        let recovered = core.get_project(&created.project_id).unwrap();
+        assert_eq!(recovered.revision, 1);
+        let history: History = read_json(&history_path(&dir)).unwrap();
+        assert_eq!(history.undo.len(), 1);
+        assert_no_managed_transaction_files(&dir);
+    }
+
+    #[test]
+    fn persistence_transaction_reaps_only_recognized_orphan_temps() {
+        let (core, _) = core();
+        let created = core
+            .create_project("orphan cleanup", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let orphan_names = [
+            format!("project.tmp-{}", Uuid::new_v4()),
+            format!("history.tmp-{}", Uuid::new_v4()),
+            format!(".project-transaction.tmp-{}", Uuid::new_v4()),
+        ];
+        for name in &orphan_names {
+            std::fs::write(dir.join(name), b"interrupted write").unwrap();
+        }
+        let unrelated_file = dir.join("project.tmp-not-a-uuid");
+        let unrelated_directory = dir.join(format!("history.tmp-{}", Uuid::new_v4()));
+        std::fs::write(&unrelated_file, b"preserve me").unwrap();
+        std::fs::create_dir(&unrelated_directory).unwrap();
+
+        let reopened = EditorCore::new(core.paths().clone());
+        assert_eq!(
+            reopened.get_project(&created.project_id).unwrap().revision,
+            0
+        );
+        for name in orphan_names {
+            assert!(!dir.join(name).exists());
+        }
+        assert!(unrelated_file.is_file());
+        assert!(unrelated_directory.is_dir());
+    }
+
+    #[test]
+    fn persistence_transaction_rejects_irrecoverable_journals_without_rewrite() {
+        let (core, _) = core();
+        let created = core
+            .create_project("invalid recovery", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_before = std::fs::read(project_path(&dir)).unwrap();
+        let history_before = std::fs::read(history_path(&dir)).unwrap();
+
+        std::fs::write(transaction_path(&dir), b"not-json").unwrap();
+        let malformed = core.get_project(&created.project_id).unwrap_err();
+        assert_eq!(malformed.code, ErrorCode::ProjectRecoveryFailed);
+        assert!(transaction_path(&dir).is_file());
+        assert_eq!(std::fs::read(project_path(&dir)).unwrap(), project_before);
+        assert_eq!(std::fs::read(history_path(&dir)).unwrap(), history_before);
+
+        let project: Project = read_json(&project_path(&dir)).unwrap();
+        let history: History = read_json(&history_path(&dir)).unwrap();
+        let invalid_transactions = [
+            ProjectTransaction {
+                version: TRANSACTION_VERSION + 1,
+                project: project.clone(),
+                history: history.clone(),
+                committed_draft_id: None,
+            },
+            ProjectTransaction {
+                version: TRANSACTION_VERSION,
+                project: Project {
+                    id: "different-project".into(),
+                    ..project.clone()
+                },
+                history,
+                committed_draft_id: None,
+            },
+        ];
+        for transaction in invalid_transactions {
+            write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
+            let error = core.get_project(&created.project_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProjectRecoveryFailed);
+            assert!(transaction_path(&dir).is_file());
+            assert_eq!(std::fs::read(project_path(&dir)).unwrap(), project_before);
+            assert_eq!(std::fs::read(history_path(&dir)).unwrap(), history_before);
+        }
+    }
+
+    #[test]
+    fn draft_commit_recovery_warns_and_never_applies_twice() {
+        let (core, _) = core();
+        let created = core
+            .create_project("draft recovery", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let draft = core
+            .create_draft(&created.project_id, 0, vec![create_test_track()], None)
+            .unwrap();
+
+        set_persistence_fault(PersistencePhase::AfterHistory);
+        let committed = core
+            .commit_draft(&created.project_id, &draft.id, 0)
+            .unwrap();
+        assert_eq!(committed.revision, 1);
+        assert_eq!(
+            committed.warnings,
+            vec![
+                PERSISTENCE_RECOVERY_PENDING.to_owned(),
+                DRAFT_CLEANUP_FAILED.to_owned()
+            ]
+        );
+        assert!(draft_path(&dir, &draft.id).unwrap().is_file());
+        assert!(transaction_path(&dir).is_file());
+
+        let retry = core
+            .commit_draft(&created.project_id, &draft.id, 1)
+            .unwrap_err();
+        assert_eq!(retry.code, ErrorCode::DraftNotFound);
+        let project = core.get_project(&created.project_id).unwrap();
+        assert_eq!(project.revision, 1);
+        assert_eq!(
+            project
+                .tracks
+                .iter()
+                .filter(|track| track.name == "Recovery track")
+                .count(),
+            1
+        );
+        assert_no_managed_transaction_files(&dir);
+    }
+
+    #[test]
+    fn draft_commit_recovery_preserves_draft_before_commit_point() {
+        let (core, _) = core();
+        let created = core
+            .create_project("draft pre-commit", ProjectSettings::default())
+            .unwrap();
+        let draft = core
+            .create_draft(&created.project_id, 0, vec![create_test_track()], None)
+            .unwrap();
+
+        set_persistence_fault(PersistencePhase::BeforeJournal);
+        assert!(
+            core.commit_draft(&created.project_id, &draft.id, 0)
+                .is_err()
+        );
+        assert!(core.get_draft(&created.project_id, &draft.id).is_ok());
+        let committed = core
+            .commit_draft(&created.project_id, &draft.id, 0)
+            .unwrap();
+        assert_eq!(committed.revision, 1);
+
+        let discarded = core
+            .create_draft(&created.project_id, 1, vec![create_test_track()], None)
+            .unwrap();
+        core.discard_draft(&created.project_id, &discarded.id)
+            .unwrap();
+        assert_eq!(core.get_project(&created.project_id).unwrap().revision, 1);
+        assert_eq!(
+            core.get_draft(&created.project_id, &discarded.id)
+                .unwrap_err()
+                .code,
+            ErrorCode::DraftNotFound
+        );
     }
 
     #[test]

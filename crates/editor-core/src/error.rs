@@ -10,6 +10,7 @@ pub enum ErrorCode {
     PathNotAllowed,
     PathTraversal,
     ProjectNotFound,
+    ProjectRecoveryFailed,
     AssetNotFound,
     AssetInUse,
     AssetIntegrityFailed,
@@ -95,6 +96,7 @@ mod tests {
             ErrorCode::PathNotAllowed,
             ErrorCode::PathTraversal,
             ErrorCode::ProjectNotFound,
+            ErrorCode::ProjectRecoveryFailed,
             ErrorCode::AssetNotFound,
             ErrorCode::AssetInUse,
             ErrorCode::AssetIntegrityFailed,
@@ -118,6 +120,12 @@ mod tests {
             let definition = &catalog["codes"][&wire];
             assert!(!definition.is_null(), "missing {wire}");
             assert_eq!(definition["retryable"].as_bool(), Some(code.retryable()));
+        }
+
+        for warning in ["PERSISTENCE_RECOVERY_PENDING", "DRAFT_CLEANUP_FAILED"] {
+            let definition = &catalog["codes"][warning];
+            assert_eq!(definition["layer"].as_str(), Some("warning"));
+            assert_eq!(definition["retryable"].as_bool(), Some(false));
         }
     }
 }
