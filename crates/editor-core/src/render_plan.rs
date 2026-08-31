@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     Asset, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty, KeyframeValue, MediaType,
-    Project, TimelineItem, animation::positive_scalar_ranges,
+    Project, TextItem, TimelineItem, Track, animation::positive_scalar_ranges,
 };
 
 /// The inward handoff consumed by render planning. Issue #12 may replace the
@@ -15,6 +15,103 @@ use crate::{
 pub(crate) struct SceneInput<'a> {
     pub(crate) project: &'a Project,
     pub(crate) intent: RenderIntent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MediaInputRequest {
+    pub(crate) item_id: String,
+    pub(crate) asset_id: String,
+    pub(crate) project_relative_path: PathBuf,
+    pub(crate) media_type: MediaType,
+    pub(crate) source_in_ms: u64,
+    pub(crate) duration_ms: u64,
+    pub(crate) input_index: usize,
+}
+
+#[derive(Debug)]
+pub(crate) struct SceneEvaluation<'a> {
+    asset_by_id: HashMap<&'a str, &'a Asset>,
+    input_indexes: HashMap<String, usize>,
+    active_tracks: Vec<&'a Track>,
+    pub(crate) media_inputs: Vec<MediaInputRequest>,
+    pub(crate) text_resources: Vec<&'a TextItem>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) fps: u32,
+    pub(crate) duration_ms: u64,
+    pub(crate) intent: RenderIntent,
+}
+
+pub(crate) fn evaluate_scene(
+    scene: SceneInput<'_>,
+    width: u32,
+    height: u32,
+    fps: u32,
+) -> Result<SceneEvaluation<'_>, CoreError> {
+    let project = scene.project;
+    let asset_by_id = project
+        .assets
+        .iter()
+        .map(|asset| (asset.id.as_str(), asset))
+        .collect::<HashMap<_, _>>();
+    let mut input_indexes = HashMap::new();
+    let mut media_inputs = Vec::new();
+    let text_resources = project
+        .tracks
+        .iter()
+        .flat_map(|track| &track.items)
+        .filter_map(|item| match item {
+            TimelineItem::Text(text) if !text.hidden => Some(text),
+            _ => None,
+        })
+        .collect();
+    for item in project
+        .tracks
+        .iter()
+        .filter(|track| !track.hidden)
+        .flat_map(|track| &track.items)
+        .filter(|item| !item.hidden())
+    {
+        match item {
+            TimelineItem::Media(media) if !input_indexes.contains_key(&media.id) => {
+                let asset = asset_by_id.get(media.asset_id.as_str()).ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::AssetNotFound,
+                        "timeline references a missing asset",
+                    )
+                })?;
+                let input_index = media_inputs.len() + 2;
+                input_indexes.insert(media.id.clone(), input_index);
+                media_inputs.push(MediaInputRequest {
+                    item_id: media.id.clone(),
+                    asset_id: media.asset_id.clone(),
+                    project_relative_path: PathBuf::from(&asset.project_relative_path),
+                    media_type: asset.media_type,
+                    source_in_ms: media.source_in_ms,
+                    duration_ms: media.duration_ms,
+                    input_index,
+                });
+            }
+            _ => {}
+        }
+    }
+    let active_tracks = project
+        .tracks
+        .iter()
+        .filter(|track| !track.hidden)
+        .collect();
+    Ok(SceneEvaluation {
+        asset_by_id,
+        input_indexes,
+        active_tracks,
+        media_inputs,
+        text_resources,
+        width,
+        height,
+        fps,
+        duration_ms: project.duration_ms().max(1),
+        intent: scene.intent,
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,9 +138,8 @@ pub(crate) struct PreparedText {
     pub(crate) text_y: u32,
 }
 
+#[cfg(test)]
 pub(crate) struct FilterContext<'a> {
-    pub(crate) asset_by_id: &'a HashMap<&'a str, &'a Asset>,
-    pub(crate) input_indexes: &'a HashMap<String, usize>,
     pub(crate) text_layers: &'a HashMap<String, PreparedText>,
     pub(crate) width: u32,
     pub(crate) height: u32,
@@ -58,43 +154,37 @@ pub(crate) struct RenderPlan {
     pub(crate) fps: u32,
     pub(crate) duration_ms: u64,
     pub(crate) intent: RenderIntent,
+    pub(crate) media_inputs: Vec<MediaInputRequest>,
+    pub(crate) media_paths: Vec<PathBuf>,
 }
 
 pub(crate) fn build_render_plan(
-    scene: SceneInput<'_>,
-    context: FilterContext<'_>,
+    scene: &SceneEvaluation<'_>,
+    text_layers: &HashMap<String, PreparedText>,
+    media_paths: Vec<PathBuf>,
     default_font_path: Option<&Path>,
     _warnings: &mut Vec<String>,
 ) -> Result<RenderPlan, CoreError> {
-    let project = scene.project;
-    let FilterContext {
-        asset_by_id,
-        input_indexes,
-        text_layers,
-        width,
-        height,
-        fps,
-    } = context;
+    let asset_by_id = &scene.asset_by_id;
+    let input_indexes = &scene.input_indexes;
+    let (width, height, fps) = (scene.width, scene.height, scene.fps);
     let mut filters = vec!["[0:v]format=yuv420p[base0]".to_owned()];
     let mut current_video = "base0".to_owned();
     let mut visual_count = 0_usize;
     let mut audio_labels = vec!["[1:a]".to_owned()];
-    let transitions = project
-        .tracks
+    let transitions = scene
+        .active_tracks
         .iter()
-        .filter(|track| !track.hidden)
         .flat_map(|track| &track.items)
         .filter_map(|item| match item {
             TimelineItem::Transition(value) if !value.hidden => Some(value),
             _ => None,
         })
         .collect::<Vec<_>>();
-    let voiceover_intervals = audible_voiceover_intervals(project, asset_by_id);
+    let voiceover_intervals =
+        audible_voiceover_intervals_for_tracks(&scene.active_tracks, asset_by_id);
 
-    for track in &project.tracks {
-        if track.hidden {
-            continue;
-        }
+    for track in &scene.active_tracks {
         for item in &track.items {
             if item.hidden() {
                 continue;
@@ -239,7 +329,7 @@ pub(crate) fn build_render_plan(
                             "color=c=black@0.0:s={}x{}:r={fps}:d={},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,pad={}:{}:{pad_x}:{pad_y}:color=black@0:eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]",
                             prepared_text.layer_width,
                             prepared_text.layer_height,
-                            seconds(project.duration_ms().max(1)),
+                            seconds(scene.duration_ms),
                             escape_filter_path(&prepared_text.file_path),
                             text.font_size,
                             text.color,
@@ -364,8 +454,10 @@ pub(crate) fn build_render_plan(
         width,
         height,
         fps,
-        duration_ms: project.duration_ms().max(1),
+        duration_ms: scene.duration_ms,
         intent: scene.intent,
+        media_inputs: scene.media_inputs.clone(),
+        media_paths,
     })
 }
 pub(crate) fn ffmpeg_color(color: &str) -> String {
@@ -436,19 +528,27 @@ pub(crate) fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)])
     expression
 }
 
+#[cfg(test)]
 pub(crate) fn audible_voiceover_intervals(
     project: &Project,
     asset_by_id: &HashMap<&str, &crate::Asset>,
 ) -> Vec<(u64, u64)> {
+    let tracks = project
+        .tracks
+        .iter()
+        .filter(|track| !track.hidden)
+        .collect::<Vec<_>>();
+    audible_voiceover_intervals_for_tracks(&tracks, asset_by_id)
+}
+
+fn audible_voiceover_intervals_for_tracks(
+    tracks: &[&Track],
+    asset_by_id: &HashMap<&str, &crate::Asset>,
+) -> Vec<(u64, u64)> {
     merge_intervals(
-        project
-            .tracks
+        tracks
             .iter()
-            .filter(|track| {
-                !track.hidden
-                    && !track.muted
-                    && track.audio_role == crate::AudioTrackRole::Voiceover
-            })
+            .filter(|track| !track.muted && track.audio_role == crate::AudioTrackRole::Voiceover)
             .flat_map(|track| track.items.iter())
             .flat_map(|item| {
                 let TimelineItem::Media(media) = item else {
@@ -680,7 +780,10 @@ pub(crate) fn format_number(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PROJECT_SCHEMA_VERSION, ProjectSettings};
+    use crate::{
+        Asset, AudioSettings, AudioTrackRole, MediaItem, PROJECT_SCHEMA_VERSION, ProjectSettings,
+        TextItem, TextStyle, Track, TrackType, Transform,
+    };
 
     fn empty_project() -> Project {
         Project {
@@ -699,38 +802,20 @@ mod tests {
     #[test]
     fn a_scene_produces_a_deterministic_declarative_plan_without_process_io() {
         let project = empty_project();
-        let assets = HashMap::new();
-        let inputs = HashMap::new();
         let text = HashMap::new();
-        let context = || FilterContext {
-            asset_by_id: &assets,
-            input_indexes: &inputs,
-            text_layers: &text,
-            width: 1_920,
-            height: 1_080,
-            fps: 30,
-        };
         let mut warnings = vec![];
-        let first = build_render_plan(
+        let scene = evaluate_scene(
             SceneInput {
                 project: &project,
                 intent: RenderIntent::Export,
             },
-            context(),
-            None,
-            &mut warnings,
+            1_920,
+            1_080,
+            30,
         )
         .unwrap();
-        let second = build_render_plan(
-            SceneInput {
-                project: &project,
-                intent: RenderIntent::Export,
-            },
-            context(),
-            None,
-            &mut warnings,
-        )
-        .unwrap();
+        let first = build_render_plan(&scene, &text, vec![], None, &mut warnings).unwrap();
+        let second = build_render_plan(&scene, &text, vec![], None, &mut warnings).unwrap();
         assert_eq!(first, second);
         assert_eq!(
             (first.width, first.height, first.fps, first.duration_ms),
@@ -748,18 +833,132 @@ mod tests {
             },
             RenderIntent::Export,
         ] {
-            let plan = build_render_plan(
+            let scene = evaluate_scene(
                 SceneInput {
                     project: &project,
                     intent,
                 },
-                context(),
-                None,
-                &mut warnings,
+                1_920,
+                1_080,
+                30,
             )
             .unwrap();
+            let plan = build_render_plan(&scene, &text, vec![], None, &mut warnings).unwrap();
             assert_eq!(plan.intent, intent);
         }
+    }
+
+    #[test]
+    fn scene_evaluation_orders_inputs_and_resource_requests_without_io() {
+        let mut project = empty_project();
+        project.assets = vec![
+            Asset {
+                id: "video-asset".into(),
+                media_type: MediaType::Video,
+                file_name: "video.mp4".into(),
+                project_relative_path: "assets/video.mp4".into(),
+                duration_ms: Some(2_000),
+                has_audio: true,
+                origin: None,
+                content_hash: None,
+                size_bytes: None,
+                probe: None,
+            },
+            Asset {
+                id: "audio-asset".into(),
+                media_type: MediaType::Audio,
+                file_name: "audio.wav".into(),
+                project_relative_path: "assets/audio.wav".into(),
+                duration_ms: Some(3_000),
+                has_audio: true,
+                origin: None,
+                content_hash: None,
+                size_bytes: None,
+                probe: None,
+            },
+        ];
+        project.tracks = vec![Track {
+            id: "track".into(),
+            name: "Track".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![
+                TimelineItem::Media(MediaItem {
+                    id: "video".into(),
+                    asset_id: "video-asset".into(),
+                    start_ms: 0,
+                    duration_ms: 2_000,
+                    source_in_ms: 125,
+                    transform: Transform::default(),
+                    audio: AudioSettings::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                }),
+                TimelineItem::Media(MediaItem {
+                    id: "audio".into(),
+                    asset_id: "audio-asset".into(),
+                    start_ms: 500,
+                    duration_ms: 3_000,
+                    source_in_ms: 250,
+                    transform: Transform::default(),
+                    audio: AudioSettings::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                }),
+                TimelineItem::Text(TextItem {
+                    id: "title".into(),
+                    text: "Title".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 40,
+                    color: "#ffffff".into(),
+                    font_family: None,
+                    font_path: None,
+                    style: TextStyle::default(),
+                    transform: Transform::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                }),
+            ],
+        }];
+        let scene = evaluate_scene(
+            SceneInput {
+                project: &project,
+                intent: RenderIntent::Range {
+                    start_ms: 500,
+                    end_ms: 1_500,
+                    include_audio: true,
+                },
+            },
+            640,
+            360,
+            24,
+        )
+        .unwrap();
+        assert_eq!(
+            scene
+                .media_inputs
+                .iter()
+                .map(|input| (input.item_id.as_str(), input.input_index))
+                .collect::<Vec<_>>(),
+            vec![("video", 2), ("audio", 3)]
+        );
+        assert_eq!(scene.media_inputs[0].source_in_ms, 125);
+        assert_eq!(scene.media_inputs[1].duration_ms, 3_000);
+        assert_eq!(
+            scene
+                .text_resources
+                .iter()
+                .map(|text| text.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["title"]
+        );
+        assert_eq!((scene.width, scene.height, scene.fps), (640, 360, 24));
+        assert_eq!(scene.duration_ms, 3_500);
     }
 
     #[test]

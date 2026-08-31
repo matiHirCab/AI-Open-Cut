@@ -1,6 +1,10 @@
 //! Canonical asset ownership and integrity rules.
 
-use std::{collections::HashSet, io::Read, path::Path};
+use std::{
+    collections::HashSet,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -8,9 +12,18 @@ use uuid::Uuid;
 use crate::{
     ContentHash, CoreError, EditOperation, ErrorCode, GeneratedAssetOrigin, History,
     MediaProbeFacts, MediaType, Project, TimelineItem,
-    drafts::EditDraft,
-    persistence::{FileSystemStorage, Storage},
+    persistence::{
+        FileSystemStorage, PersistenceFaults, PersistencePhase, Storage, StorageEntryKind,
+    },
 };
+
+pub(crate) const ASSET_GC_FAILED: &str = "ASSET_GC_FAILED";
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct DraftAssetOperations<'a> {
+    pub(crate) id: &'a str,
+    pub(crate) operations: &'a [EditOperation],
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetReferenceKind {
@@ -60,7 +73,7 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
         .collect()
 }
 
-pub(crate) fn draft_asset_references(draft: &EditDraft) -> Vec<AssetReference> {
+pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<AssetReference> {
     draft
         .operations
         .iter()
@@ -68,7 +81,7 @@ pub(crate) fn draft_asset_references(draft: &EditDraft) -> Vec<AssetReference> {
             EditOperation::AddMedia { asset_id, .. } => Some(AssetReference {
                 asset_id: asset_id.clone(),
                 kind: AssetReferenceKind::DraftOperation,
-                owner_id: draft.id.clone(),
+                owner_id: draft.id.to_owned(),
             }),
             _ => None,
         })
@@ -77,12 +90,12 @@ pub(crate) fn draft_asset_references(draft: &EditDraft) -> Vec<AssetReference> {
 
 pub(crate) fn blocking_asset_reference(
     project: &Project,
-    drafts: &[EditDraft],
+    drafts: &[DraftAssetOperations<'_>],
     asset_id: &str,
 ) -> Option<AssetReference> {
     project_asset_references(project)
         .into_iter()
-        .chain(drafts.iter().flat_map(draft_asset_references))
+        .chain(drafts.iter().copied().flat_map(draft_asset_references))
         .find(|reference| reference.asset_id == asset_id)
 }
 
@@ -128,7 +141,7 @@ pub(crate) fn validate_retained_project_references(
 
 pub(crate) fn validate_draft_asset_references(
     project: &Project,
-    drafts: &[EditDraft],
+    drafts: &[DraftAssetOperations<'_>],
 ) -> Result<(), CoreError> {
     if let Some(reference) = missing_draft_asset_reference(project, drafts) {
         return Err(CoreError::new(
@@ -146,7 +159,7 @@ pub(crate) fn validate_draft_asset_references(
 
 pub(crate) fn missing_draft_asset_reference(
     project: &Project,
-    drafts: &[EditDraft],
+    drafts: &[DraftAssetOperations<'_>],
 ) -> Option<AssetReference> {
     let assets = project
         .assets
@@ -155,6 +168,7 @@ pub(crate) fn missing_draft_asset_reference(
         .collect::<HashSet<_>>();
     drafts
         .iter()
+        .copied()
         .flat_map(draft_asset_references)
         .find(|reference| !assets.contains(reference.asset_id.as_str()))
 }
@@ -374,7 +388,7 @@ pub(crate) fn migrate_project_assets(project: &mut Project, dir: &Path) -> Resul
 pub(crate) fn retained_managed_paths(
     project: &Project,
     history: &History,
-    drafts: &[EditDraft],
+    drafts: &[DraftAssetOperations<'_>],
 ) -> Result<HashSet<String>, CoreError> {
     validate_retained_project_references(project, history)?;
     validate_draft_asset_references(project, drafts)?;
@@ -384,7 +398,7 @@ pub(crate) fn retained_managed_paths(
         .flat_map(|snapshot| snapshot.assets.iter())
         .map(|asset| asset.project_relative_path.replace('\\', "/"))
         .collect::<HashSet<_>>();
-    for reference in drafts.iter().flat_map(draft_asset_references) {
+    for reference in drafts.iter().copied().flat_map(draft_asset_references) {
         let asset = project
             .assets
             .iter()
@@ -395,6 +409,76 @@ pub(crate) fn retained_managed_paths(
     Ok(referenced)
 }
 
+pub(crate) fn garbage_collect(
+    faults: &PersistenceFaults,
+    dir: &Path,
+    project: &Project,
+    history: &History,
+    drafts: &[DraftAssetOperations<'_>],
+) -> Vec<String> {
+    garbage_collect_with(&FileSystemStorage, faults, dir, project, history, drafts)
+}
+
+fn garbage_collect_with(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+    project: &Project,
+    history: &History,
+    drafts: &[DraftAssetOperations<'_>],
+) -> Vec<String> {
+    let referenced = match retained_managed_paths(project, history, drafts) {
+        Ok(referenced) => referenced,
+        Err(_) => return vec![ASSET_GC_FAILED.into()],
+    };
+    let mut files = Vec::new();
+    if collect_files(storage, &dir.join("assets"), &mut files).is_err() {
+        return vec![ASSET_GC_FAILED.into()];
+    }
+    let mut failed = false;
+    for file in files {
+        let relative = file
+            .strip_prefix(dir)
+            .unwrap_or(&file)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if !referenced.contains(&relative)
+            && (faults
+                .checkpoint(PersistencePhase::GarbageCollection)
+                .is_err()
+                || storage.remove_durable(&file).is_err())
+        {
+            failed = true;
+        }
+    }
+    if failed {
+        vec![ASSET_GC_FAILED.into()]
+    } else {
+        Vec::new()
+    }
+}
+
+fn collect_files(
+    storage: &dyn Storage,
+    directory: &Path,
+    output: &mut Vec<PathBuf>,
+) -> std::io::Result<()> {
+    match storage.entry_kind(directory) {
+        Ok(StorageEntryKind::Directory) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Ok(_) => return Ok(()),
+        Err(error) => return Err(error),
+    }
+    for path in storage.list(directory)? {
+        match storage.entry_kind(&path)? {
+            StorageEntryKind::Directory => collect_files(storage, &path, output)?,
+            StorageEntryKind::File => output.push(path),
+            StorageEntryKind::Other => {}
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -402,6 +486,57 @@ mod tests {
         Asset, AudioSettings, AudioTrackRole, MediaItem, PROJECT_SCHEMA_VERSION, ProjectSettings,
         Track, TrackType, Transform,
     };
+    use std::sync::Mutex;
+
+    struct GcStorage {
+        classify_failure: bool,
+        remove_failure: bool,
+        removed: Mutex<Vec<PathBuf>>,
+    }
+
+    impl Storage for GcStorage {
+        fn open_read(&self, _path: &Path) -> std::io::Result<Box<dyn Read>> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn read(&self, _path: &Path) -> std::io::Result<Vec<u8>> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            Ok(vec![path.join("orphan.bin")])
+        }
+        fn create_dir_all(&self, _path: &Path) -> std::io::Result<()> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn copy(&self, _from: &Path, _to: &Path) -> std::io::Result<u64> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn rename(&self, _from: &Path, _to: &Path) -> std::io::Result<()> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn is_file(&self, path: &Path) -> bool {
+            path.extension().is_some()
+        }
+        fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
+            if self.classify_failure && path.extension().is_some() {
+                Err(std::io::Error::other("injected classification failure"))
+            } else if path.extension().is_some() {
+                Ok(StorageEntryKind::File)
+            } else {
+                Ok(StorageEntryKind::Directory)
+            }
+        }
+        fn atomic_replace(&self, _path: &Path, _bytes: &[u8]) -> std::io::Result<()> {
+            Err(std::io::Error::other("unused"))
+        }
+        fn remove_durable(&self, path: &Path) -> std::io::Result<()> {
+            if self.remove_failure {
+                Err(std::io::Error::other("injected remove failure"))
+            } else {
+                self.removed.lock().unwrap().push(path.to_owned());
+                Ok(())
+            }
+        }
+    }
 
     fn project_with_asset() -> Project {
         Project {
@@ -451,28 +586,23 @@ mod tests {
     #[test]
     fn inventory_classifies_current_and_draft_references() {
         let project = project_with_asset();
-        let draft = EditDraft {
-            version: 1,
-            id: "draft".into(),
-            project_id: project.id.clone(),
-            base_revision: 0,
-            label: None,
-            operations: vec![EditOperation::AddMedia {
-                track_id: "video".into(),
-                asset_id: "asset".into(),
-                start_ms: 1_000,
-                duration_ms: 1_000,
-                source_in_ms: 0,
-            }],
-            created_at_ms: 1,
-            updated_at_ms: 1,
+        let operations = vec![EditOperation::AddMedia {
+            track_id: "video".into(),
+            asset_id: "asset".into(),
+            start_ms: 1_000,
+            duration_ms: 1_000,
+            source_in_ms: 0,
+        }];
+        let draft = DraftAssetOperations {
+            id: "draft",
+            operations: &operations,
         };
         assert_eq!(
             project_asset_references(&project)[0].kind,
             AssetReferenceKind::MediaItem
         );
         assert_eq!(
-            draft_asset_references(&draft)[0].kind,
+            draft_asset_references(draft)[0].kind,
             AssetReferenceKind::DraftOperation
         );
         assert_eq!(
@@ -511,5 +641,60 @@ mod tests {
         assert_eq!(first.relative_path, second.relative_path);
         assert_eq!(first.content_hash, second.content_hash);
         assert!(directory.path().join(first.relative_path).is_file());
+    }
+
+    #[test]
+    fn garbage_collection_surfaces_storage_classification_and_deletion_failures() {
+        let project = Project {
+            assets: vec![],
+            tracks: vec![],
+            ..project_with_asset()
+        };
+        let root = Path::new("project");
+        for storage in [
+            GcStorage {
+                classify_failure: true,
+                remove_failure: false,
+                removed: Mutex::new(vec![]),
+            },
+            GcStorage {
+                classify_failure: false,
+                remove_failure: true,
+                removed: Mutex::new(vec![]),
+            },
+        ] {
+            assert_eq!(
+                garbage_collect_with(
+                    &storage,
+                    &PersistenceFaults::default(),
+                    root,
+                    &project,
+                    &History::default(),
+                    &[],
+                ),
+                vec![ASSET_GC_FAILED]
+            );
+        }
+
+        let storage = GcStorage {
+            classify_failure: false,
+            remove_failure: false,
+            removed: Mutex::new(vec![]),
+        };
+        assert!(
+            garbage_collect_with(
+                &storage,
+                &PersistenceFaults::default(),
+                root,
+                &project,
+                &History::default(),
+                &[],
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            storage.removed.lock().unwrap().as_slice(),
+            &[root.join("assets/orphan.bin")]
+        );
     }
 }

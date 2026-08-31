@@ -21,16 +21,37 @@ apps/agent-bridge ─> apps/headless ─> editor-core facades
               │
               └────────────── no domain-rule ownership
 
-store facade ─> drafts ─> timeline ─> validation ─> model/error/animation
-     │             │          │
-     │             └──────────┴─> assets ─> model/error/path_policy
-     ├─> persistence ─> migrations ─> assets/model/error
-     └─> path_policy
+store facade ─> assets ─> persistence
+     ├─────────> drafts ─> persistence
+     ├─────────> migrations
+     ├─────────> persistence
+     ├─────────> timeline ─> animation/validation
+     └─────────> validation
 
-renderer facade ─> render_plan ─> model/error/animation
-        ├────────> render_process ─> error
-        └────────> render_artifact ─> error
+renderer facade ─> render_artifact ─> render_plan ─> animation
+        ├────────> render_plan
+        └────────> render_process ─> render_plan
 ```
+
+Root facade re-exports provide model and error types without adding an outward owner edge. The complete private-owner matrix is:
+
+| Owner | Allowed private-owner imports |
+| --- | --- |
+| `animation` | none |
+| `assets` | `persistence` |
+| `drafts` | `persistence` |
+| `error` | none |
+| `migrations` | none |
+| `model` | `error` |
+| `path_policy` | none |
+| `persistence` | none |
+| `render_artifact` | `render_plan` |
+| `render_plan` | `animation` |
+| `render_process` | `render_plan` |
+| `renderer` | `render_artifact`, `render_plan`, `render_process` |
+| `store` | `assets`, `drafts`, `migrations`, `persistence`, `timeline`, `validation` |
+| `timeline` | `animation`, `validation` |
+| `validation` | none |
 
 ### Canonical owners
 
@@ -46,7 +67,7 @@ renderer facade ─> render_plan ─> model/error/animation
 | Public project orchestration | `store` | Duplicate implementations of the inward owners |
 | Scene evaluation and declarative render planning | `render_plan` | Process spawning, environment lookup, artifact publication |
 | FFmpeg/FFprobe execution and diagnostics | `render_process` | Scene/domain rules and output publication policy |
-| Workspaces, prepared resources, temporary output, and publication | `render_artifact` | Scene evaluation and process semantics |
+| Workspaces, prepared resources, temporary output, and publication | `render_artifact` | Scene evaluation and process semantics; it may consume resource requests from `render_plan` |
 | Stable renderer API orchestration | `renderer` | Duplicate implementations of the three render owners |
 
 ### Persistence port
@@ -69,7 +90,7 @@ The scene-to-plan input is the only handoff seam reserved for `EvaluatedScene`. 
 
 ## Enforcement and review
 
-Rust module privacy is the primary enforcement mechanism. `crates/editor-core/tests/architecture.rs` additionally checks the required module owners, the stable public facade, and high-value forbidden dependency tokens. It is intentionally narrow: semantic correctness remains covered by owner-focused and facade integration tests.
+Rust module privacy is the primary enforcement mechanism. `crates/editor-core/tests/architecture.rs` checks every private owner against the explicit import matrix, the stable public facade, and reviewed responsibility exclusions such as process creation in planning, project traversal or command construction in the renderer facade, and managed-asset collection in the store. Semantic correctness remains covered by owner-focused and facade integration tests.
 
 A change that needs a new dependency edge must update this ADR and the architecture test in the same pull request. Reviewers must verify that the edge still points inward and does not create a second owner. Public or persisted contract changes additionally follow ADR 0002 and the contract-governance workflow.
 

@@ -1,22 +1,20 @@
 use std::{
-    collections::HashMap,
-    fs::File,
-    io::Write,
     path::{Path, PathBuf},
-    process::Command,
+    sync::Arc,
 };
 
 use uuid::Uuid;
 
 use crate::{
-    CoreError, ErrorCode, MediaType, Project, TimelineItem,
+    CoreError, ErrorCode, Project,
     render_artifact::{
-        GRAPH_BUILD_STAGE, RenderArtifact, RenderWorkspace, artifact, prepare_text_layers,
-        publish_output, resolve_project_asset, temporary_output,
+        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, RenderArtifact, RenderWorkspace,
+        artifact_with, prepare_render_resources, publish_output_with, temporary_output,
+        write_filter_script,
     },
-    render_plan::{FilterContext, RenderIntent, SceneInput, build_render_plan, seconds},
+    render_plan::{RenderIntent, RenderPlan, SceneInput, build_render_plan, evaluate_scene},
     render_process::{
-        ProbeResult, RenderProgress, map_renderer_error, probe, readiness, run_to_completion,
+        ProbeResult, ProcessExecutor, RenderProgress, SystemProcessExecutor, map_renderer_error,
     },
 };
 
@@ -24,8 +22,8 @@ use crate::{
 use crate::render_artifact::{PUBLISH_STAGE, wrap_text, wrap_text_with_measure};
 #[cfg(test)]
 use crate::render_plan::{
-    audible_voiceover_intervals, ducking_expression, ducking_gain_at, escape_filter, format_number,
-    merge_intervals, piecewise_expression, position_expression, scalar_expression,
+    FilterContext, audible_voiceover_intervals, ducking_expression, ducking_gain_at, escape_filter,
+    format_number, merge_intervals, piecewise_expression, position_expression, scalar_expression,
 };
 #[cfg(test)]
 use crate::render_process::{
@@ -42,6 +40,8 @@ pub struct Renderer {
     ffprobe_path: PathBuf,
     default_font_path: Option<PathBuf>,
     font_roots: Vec<PathBuf>,
+    process_executor: Arc<dyn ProcessExecutor>,
+    artifact_io: Arc<dyn ArtifactIo>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -62,8 +62,9 @@ pub struct PreviewRangeOptions {
     pub include_audio: bool,
 }
 
-struct BuiltCommand {
-    command: Command,
+struct PreparedRender {
+    plan: RenderPlan,
+    filter_path: PathBuf,
     _workspace: RenderWorkspace,
     warnings: Vec<String>,
 }
@@ -79,7 +80,20 @@ impl Renderer {
             ffprobe_path: ffprobe_path.into(),
             default_font_path,
             font_roots: vec![],
+            process_executor: Arc::new(SystemProcessExecutor),
+            artifact_io: Arc::new(FileSystemArtifactIo),
         }
+    }
+
+    #[cfg(test)]
+    fn with_adapters(
+        mut self,
+        process_executor: Arc<dyn ProcessExecutor>,
+        artifact_io: Arc<dyn ArtifactIo>,
+    ) -> Self {
+        self.process_executor = process_executor;
+        self.artifact_io = artifact_io;
+        self
     }
 
     pub fn with_font_roots(mut self, roots: impl IntoIterator<Item = PathBuf>) -> Self {
@@ -88,11 +102,12 @@ impl Renderer {
     }
 
     pub fn readiness(&self) -> Result<(), CoreError> {
-        readiness(&self.ffmpeg_path, &self.ffprobe_path)
+        self.process_executor
+            .readiness(&self.ffmpeg_path, &self.ffprobe_path)
     }
 
     pub fn probe(&self, path: &Path) -> Result<ProbeResult, CoreError> {
-        probe(&self.ffprobe_path, path)
+        self.process_executor.probe(&self.ffprobe_path, path)
     }
 
     pub fn render_preview(
@@ -110,7 +125,7 @@ impl Renderer {
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(output.parent().unwrap_or(project_dir), "png");
-        let mut built = self.build_command(
+        let built = self.prepare_render(
             project,
             project_dir,
             project.settings.width,
@@ -118,25 +133,19 @@ impl Renderer {
             project.settings.fps,
             RenderIntent::Frame { at_ms: time_ms },
         )?;
-        built
-            .command
-            .args([
-                "-ss",
-                &seconds(time_ms),
-                "-frames:v",
-                "1",
-                "-map",
-                "[video]",
-            ])
-            .arg(&temporary)
-            .args(["-map", "[audio]", "-f", "null"])
-            .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-        if let Err(error) = run_to_completion(&mut built.command, project.duration_ms(), |_| {}) {
-            let _ = std::fs::remove_file(&temporary);
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut |_| {},
+        ) {
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, &output, false)?;
-        artifact(
+        publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
             "image/png",
@@ -151,7 +160,7 @@ impl Renderer {
         options: ExportOptions<'_>,
         mut on_progress: impl FnMut(RenderProgress),
     ) -> Result<RenderArtifact, CoreError> {
-        if options.output.exists() && !options.overwrite {
+        if self.artifact_io.exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
                 "export already exists; pass overwrite=true only with explicit permission",
@@ -161,7 +170,7 @@ impl Renderer {
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let mut built = self.build_command(
+        let built = self.prepare_render(
             project,
             project_dir,
             options.width,
@@ -169,33 +178,24 @@ impl Renderer {
             project.settings.fps,
             RenderIntent::Export,
         )?;
-        built.command.args([
-            "-map",
-            "[video]",
-            "-map",
-            "[audio]",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "aac",
-            "-movflags",
-            "+faststart",
-            "-t",
-            &seconds(project.duration_ms()),
-        ]);
-        built.command.arg("-y").arg(&temporary);
-        if let Err(error) =
-            run_to_completion(&mut built.command, project.duration_ms(), |progress| {
-                on_progress(progress)
-            })
-        {
-            let _ = std::fs::remove_file(&temporary);
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut on_progress,
+        ) {
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, options.output, options.overwrite)?;
-        artifact(
+        publish_output_with(
+            self.artifact_io.as_ref(),
+            &temporary,
+            options.output,
+            options.overwrite,
+        )?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             options.output,
             options
                 .output
@@ -229,7 +229,7 @@ impl Renderer {
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(output.parent().unwrap_or(project_dir), "mp4");
-        let mut built = self.build_command(
+        let built = self.prepare_render(
             project,
             project_dir,
             options.width,
@@ -241,17 +241,20 @@ impl Renderer {
                 include_audio: options.include_audio,
             },
         )?;
-        configure_preview_range_outputs(&mut built.command, options, &temporary);
-        if let Err(error) = run_to_completion(
-            &mut built.command,
-            options.end_ms - options.start_ms,
-            on_progress,
+        let mut on_progress = on_progress;
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut on_progress,
         ) {
-            let _ = std::fs::remove_file(&temporary);
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, &output, false)?;
-        artifact(
+        publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
             "video/mp4",
@@ -259,7 +262,7 @@ impl Renderer {
         )
     }
 
-    fn build_command(
+    fn prepare_render(
         &self,
         project: &Project,
         project_dir: &Path,
@@ -267,79 +270,13 @@ impl Renderer {
         height: u32,
         fps: u32,
         intent: RenderIntent,
-    ) -> Result<BuiltCommand, CoreError> {
-        let duration_ms = project.duration_ms().max(1);
-        let mut command = Command::new(&self.ffmpeg_path);
-        command.args([
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-progress",
-            "pipe:1",
-            "-nostats",
-            "-f",
-            "lavfi",
-            "-i",
-            &format!(
-                "color=c=black:s={}x{}:r={}:d={}",
-                width,
-                height,
-                fps,
-                seconds(duration_ms)
-            ),
-            "-f",
-            "lavfi",
-            "-i",
-            &format!("anullsrc=r=48000:cl=stereo:d={}", seconds(duration_ms)),
-        ]);
-
-        let asset_by_id = project
-            .assets
-            .iter()
-            .map(|asset| (asset.id.as_str(), asset))
-            .collect::<HashMap<_, _>>();
-        let mut input_indexes = HashMap::new();
-        let mut next_input = 2_usize;
-        for item in project
-            .tracks
-            .iter()
-            .filter(|track| !track.hidden)
-            .flat_map(|track| &track.items)
-            .filter(|item| !item.hidden())
-        {
-            let TimelineItem::Media(media) = item else {
-                continue;
-            };
-            if input_indexes.contains_key(&media.id) {
-                continue;
-            }
-            let asset = asset_by_id.get(media.asset_id.as_str()).ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::AssetNotFound,
-                    "timeline references a missing asset",
-                )
-            })?;
-            let path = resolve_project_asset(project_dir, Path::new(&asset.project_relative_path))?;
-            if asset.media_type == MediaType::Image {
-                command.args(["-loop", "1", "-t", &seconds(media.duration_ms), "-i"]);
-            } else {
-                command.args([
-                    "-ss",
-                    &seconds(media.source_in_ms),
-                    "-t",
-                    &seconds(media.duration_ms),
-                    "-i",
-                ]);
-            }
-            command.arg(path);
-            input_indexes.insert(media.id.clone(), next_input);
-            next_input += 1;
-        }
-
+    ) -> Result<PreparedRender, CoreError> {
+        let scene = evaluate_scene(SceneInput { project, intent }, width, height, fps)?;
         let workspace = RenderWorkspace::create(project_dir)?;
         let mut warnings = Vec::new();
-        let text_layers = prepare_text_layers(
-            project,
+        let resources = prepare_render_resources(
+            &scene,
+            project_dir,
             workspace.path(),
             self.default_font_path.as_deref(),
             &self.font_roots,
@@ -347,26 +284,17 @@ impl Renderer {
         )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
-            SceneInput { project, intent },
-            FilterContext {
-                asset_by_id: &asset_by_id,
-                input_indexes: &input_indexes,
-                text_layers: &text_layers,
-                width,
-                height,
-                fps,
-            },
+            &scene,
+            &resources.text_layers,
+            resources.media_paths,
             self.default_font_path.as_deref(),
             &mut warnings,
         )
         .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
-        let mut file = File::create(&filter_path)
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        file.write_all(plan.filter_graph.as_bytes())
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        command.arg("-filter_complex_script").arg(&filter_path);
-        Ok(BuiltCommand {
-            command,
+        write_filter_script(&filter_path, &plan.filter_graph)?;
+        Ok(PreparedRender {
+            plan,
+            filter_path,
             _workspace: workspace,
             warnings,
         })
@@ -379,12 +307,19 @@ impl Renderer {
         context: FilterContext<'_>,
         warnings: &mut Vec<String>,
     ) -> Result<String, CoreError> {
-        build_render_plan(
+        let scene = evaluate_scene(
             SceneInput {
                 project,
                 intent: RenderIntent::Export,
             },
-            context,
+            context.width,
+            context.height,
+            context.fps,
+        )?;
+        build_render_plan(
+            &scene,
+            context.text_layers,
+            Vec::new(),
             self.default_font_path.as_deref(),
             warnings,
         )
@@ -392,49 +327,280 @@ impl Renderer {
     }
 }
 
-fn configure_preview_range_outputs(
-    command: &mut Command,
-    options: PreviewRangeOptions,
-    temporary: &Path,
-) {
-    let duration = seconds(options.end_ms - options.start_ms);
-    command.args(["-ss", &seconds(options.start_ms), "-map", "[video]"]);
-    if options.include_audio {
-        command.args(["-map", "[audio]", "-c:a", "aac"]);
-    }
-    command
-        .args([
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "28",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            "-t",
-            &duration,
-            "-y",
-        ])
-        .arg(temporary);
-    if !options.include_audio {
-        command
-            .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
-            .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, PROJECT_SCHEMA_VERSION,
-        ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType, Transform,
+        CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaType,
+        PROJECT_SCHEMA_VERSION, ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType,
+        Transform,
+        render_artifact::{artifact, prepare_text_layers, publish_output},
+        render_plan::seconds,
+        render_process::{build_render_command, run_to_completion},
     };
-    use std::env;
+    use std::{collections::HashMap, env, fs::File, process::Command, sync::Mutex};
     use tempfile::tempdir;
+
+    #[derive(Clone, Copy, Debug)]
+    enum FakeRunFailure {
+        Spawn,
+        Exit,
+    }
+
+    #[derive(Debug)]
+    struct FakeProcess {
+        readiness_error: bool,
+        probe_error: bool,
+        run_failure: Option<FakeRunFailure>,
+        executions: Mutex<Vec<RenderIntent>>,
+    }
+
+    impl ProcessExecutor for FakeProcess {
+        fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
+            if self.readiness_error {
+                Err(CoreError::new(
+                    ErrorCode::DependencyUnavailable,
+                    "injected readiness",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+
+        fn probe(&self, _ffprobe_path: &Path, _path: &Path) -> Result<ProbeResult, CoreError> {
+            if self.probe_error {
+                Err(CoreError::new(
+                    ErrorCode::UnsupportedMedia,
+                    "injected probe",
+                ))
+            } else {
+                Ok(ProbeResult {
+                    duration_ms: Some(1),
+                    has_video: true,
+                    has_audio: false,
+                    format_name: None,
+                    video_codec: None,
+                    video_width: None,
+                    video_height: None,
+                    audio_codec: None,
+                    audio_channels: None,
+                    audio_sample_rate_hz: None,
+                })
+            }
+        }
+
+        fn execute(
+            &self,
+            _ffmpeg_path: &Path,
+            plan: &RenderPlan,
+            _filter_path: &Path,
+            output: &Path,
+            on_progress: &mut dyn FnMut(RenderProgress),
+        ) -> Result<(), CoreError> {
+            self.executions.lock().unwrap().push(plan.intent);
+            match self.run_failure {
+                Some(FakeRunFailure::Spawn) => {
+                    return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
+                }
+                Some(FakeRunFailure::Exit) => {
+                    return Err(CoreError::render_failure(
+                        RENDER_STAGE,
+                        Some(7),
+                        Some("injected diagnostic".into()),
+                    ));
+                }
+                None => {}
+            }
+            std::fs::write(output, b"rendered").unwrap();
+            on_progress(RenderProgress { progress: 1.0 });
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct FakeArtifactIo {
+        fail_rename: bool,
+        fail_size: bool,
+        removed: Mutex<Vec<PathBuf>>,
+    }
+
+    impl ArtifactIo for FakeArtifactIo {
+        fn exists(&self, path: &Path) -> bool {
+            path.exists()
+        }
+
+        fn remove(&self, path: &Path) -> std::io::Result<()> {
+            self.removed.lock().unwrap().push(path.to_owned());
+            match std::fs::remove_file(path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error),
+            }
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            if self.fail_rename {
+                Err(std::io::Error::other("injected publication failure"))
+            } else {
+                std::fs::rename(from, to)
+            }
+        }
+
+        fn size(&self, path: &Path) -> std::io::Result<u64> {
+            if self.fail_size {
+                Err(std::io::Error::other("injected metadata failure"))
+            } else {
+                Ok(path.metadata()?.len())
+            }
+        }
+    }
+
+    fn empty_project() -> Project {
+        Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "project".into(),
+            revision: 0,
+            name: "Project".into(),
+            created_at_ms: 1,
+            updated_at_ms: 1,
+            settings: ProjectSettings::default(),
+            assets: vec![],
+            tracks: vec![],
+        }
+    }
+
+    #[test]
+    fn facade_delegates_readiness_probe_execution_and_cleanup_to_adapters() {
+        let failing_process = Arc::new(FakeProcess {
+            readiness_error: true,
+            probe_error: true,
+            run_failure: Some(FakeRunFailure::Spawn),
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(FakeArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(failing_process.clone(), artifact_io.clone());
+        assert_eq!(
+            renderer.readiness().unwrap_err().code,
+            ErrorCode::DependencyUnavailable
+        );
+        assert_eq!(
+            renderer.probe(Path::new("media.mp4")).unwrap_err().code,
+            ErrorCode::UnsupportedMedia
+        );
+
+        let root = tempdir().unwrap();
+        let output = root.path().join("output.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert_eq!(failing_process.executions.lock().unwrap().len(), 1);
+        assert_eq!(artifact_io.removed.lock().unwrap().len(), 1);
+
+        let exit_process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: Some(FakeRunFailure::Exit),
+            executions: Mutex::new(vec![]),
+        });
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(exit_process, artifact_io.clone());
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(RENDER_STAGE));
+        assert_eq!(error.ffmpeg_exit_code, Some(7));
+        assert_eq!(
+            error.ffmpeg_stderr_excerpt.as_deref(),
+            Some("injected diagnostic")
+        );
+    }
+
+    #[test]
+    fn facade_delegates_publication_and_metadata_failures_to_artifact_adapter() {
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(FakeArtifactIo {
+            fail_rename: false,
+            fail_size: true,
+            removed: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("ffmpeg", "ffprobe", None).with_adapters(process, artifact_io.clone());
+        let root = tempdir().unwrap();
+        let output = root.path().join("output.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert!(!output.exists());
+        assert!(artifact_io.removed.lock().unwrap().contains(&output));
+
+        let publication_io = Arc::new(FakeArtifactIo {
+            fail_rename: true,
+            fail_size: false,
+            removed: Mutex::new(vec![]),
+        });
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("ffmpeg", "ffprobe", None).with_adapters(process, publication_io.clone());
+        let publication_output = root.path().join("publication.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &publication_output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert_eq!(publication_io.removed.lock().unwrap().len(), 1);
+    }
 
     #[test]
     fn keyframe_expression_contains_no_shell_syntax() {
@@ -450,17 +616,23 @@ mod tests {
 
     #[test]
     fn preview_range_without_audio_consumes_the_labeled_audio_output() {
-        let mut command = Command::new("ffmpeg");
-        configure_preview_range_outputs(
-            &mut command,
-            PreviewRangeOptions {
-                start_ms: 100,
-                end_ms: 1_100,
+        let command = build_render_command(
+            Path::new("ffmpeg"),
+            &RenderPlan {
+                filter_graph: String::new(),
                 width: 320,
                 height: 180,
                 fps: 15,
-                include_audio: false,
+                duration_ms: 1_100,
+                intent: RenderIntent::Range {
+                    start_ms: 100,
+                    end_ms: 1_100,
+                    include_audio: false,
+                },
+                media_inputs: vec![],
+                media_paths: vec![],
             },
+            Path::new("filter.txt"),
             Path::new("preview.mp4"),
         );
         let arguments = command
@@ -774,22 +946,27 @@ mod tests {
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         let mut warnings = Vec::new();
+        let text_resources = project
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .filter_map(|item| match item {
+                TimelineItem::Text(text) if !text.hidden => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let text_layers = prepare_text_layers(
-            &project,
+            &text_resources,
             root.path(),
             renderer.default_font_path.as_deref(),
             &renderer.font_roots,
             &mut warnings,
         )
         .unwrap();
-        let asset_by_id = HashMap::new();
-        let input_indexes = HashMap::new();
         let filter = renderer
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
@@ -965,7 +1142,7 @@ mod tests {
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         assert!(
             renderer
-                .build_command(&project, root.path(), 320, 180, 15, RenderIntent::Export,)
+                .prepare_render(&project, root.path(), 320, 180, 15, RenderIntent::Export,)
                 .is_err()
         );
         assert!(std::fs::read_dir(root.path()).unwrap().all(|entry| {
@@ -1365,15 +1542,11 @@ mod tests {
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         let text_layers = HashMap::new();
-        let asset_by_id = HashMap::new();
-        let input_indexes = HashMap::new();
         let mut warnings = Vec::new();
         let filter = renderer
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
@@ -1389,8 +1562,6 @@ mod tests {
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,

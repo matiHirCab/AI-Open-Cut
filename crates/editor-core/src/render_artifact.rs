@@ -3,6 +3,7 @@
 use std::{
     collections::HashMap,
     env,
+    fmt::Debug,
     path::{Component, Path, PathBuf},
 };
 
@@ -10,18 +11,23 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    CoreError, ErrorCode, KeyframeProperty, KeyframeValue, Project, TimelineItem,
-    render_plan::PreparedText,
+    CoreError, ErrorCode, KeyframeProperty, KeyframeValue,
+    render_plan::{PreparedText, SceneEvaluation},
 };
 
 pub(crate) const PUBLISH_STAGE: &str = "publish";
 pub(crate) const GRAPH_BUILD_STAGE: &str = "graph_build";
 
-pub(crate) trait ArtifactIo {
+pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn exists(&self, path: &Path) -> bool;
     fn remove(&self, path: &Path) -> std::io::Result<()>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn size(&self, path: &Path) -> std::io::Result<u64>;
+}
+
+pub(crate) struct PreparedRenderResources {
+    pub(crate) media_paths: Vec<PathBuf>,
+    pub(crate) text_layers: HashMap<String, PreparedText>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -98,22 +104,14 @@ impl RenderWorkspace {
 }
 
 pub(crate) fn prepare_text_layers(
-    project: &Project,
+    text_resources: &[&crate::TextItem],
     workspace: &Path,
     default_font_path: Option<&Path>,
     font_roots: &[PathBuf],
     warnings: &mut Vec<String>,
 ) -> Result<HashMap<String, PreparedText>, CoreError> {
     let mut result = HashMap::new();
-    for text in project
-        .tracks
-        .iter()
-        .flat_map(|track| &track.items)
-        .filter_map(|item| match item {
-            TimelineItem::Text(text) if !text.hidden => Some(text),
-            _ => None,
-        })
-    {
+    for text in text_resources {
         let path = workspace.join(format!("text-{}.txt", text.id));
         let font_path = resolve_text_font(text, default_font_path, font_roots, warnings);
         let content = wrap_text(
@@ -193,6 +191,43 @@ pub(crate) fn prepare_text_layers(
         );
     }
     Ok(result)
+}
+
+pub(crate) fn prepare_render_resources(
+    scene: &SceneEvaluation<'_>,
+    project_dir: &Path,
+    workspace: &Path,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+) -> Result<PreparedRenderResources, CoreError> {
+    let media_paths = scene
+        .media_inputs
+        .iter()
+        .map(|input| resolve_project_asset(project_dir, &input.project_relative_path))
+        .collect::<Result<Vec<_>, _>>()?;
+    let text_layers = prepare_text_layers(
+        &scene.text_resources,
+        workspace,
+        default_font_path,
+        font_roots,
+        warnings,
+    )?;
+    debug_assert!(
+        scene
+            .text_resources
+            .iter()
+            .all(|text| text_layers.contains_key(&text.id))
+    );
+    Ok(PreparedRenderResources {
+        media_paths,
+        text_layers,
+    })
+}
+
+pub(crate) fn write_filter_script(path: &Path, contents: &str) -> Result<(), CoreError> {
+    std::fs::write(path, contents)
+        .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))
 }
 
 fn resolve_text_font(
@@ -375,6 +410,7 @@ fn find_font_file(root: &Path, normalized_family: &str) -> Option<PathBuf> {
     None
 }
 
+#[cfg(test)]
 pub(crate) fn publish_output(
     temporary: &Path,
     output: &Path,
@@ -438,6 +474,7 @@ pub(crate) fn resolve_project_asset(
     Ok(resolved)
 }
 
+#[cfg(test)]
 pub(crate) fn artifact(
     path: &Path,
     relative_path: String,
@@ -483,6 +520,7 @@ pub(crate) fn artifact_with(
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
     struct FailingIo;
     impl ArtifactIo for FailingIo {
         fn exists(&self, _path: &Path) -> bool {

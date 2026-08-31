@@ -1,6 +1,7 @@
 //! FFmpeg and FFprobe process execution owner.
 
 use std::{
+    fmt::Debug,
     io::{BufRead, BufReader, Read},
     path::Path,
     process::{Command, Stdio},
@@ -9,7 +10,10 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{CoreError, ErrorCode};
+use crate::{
+    CoreError, ErrorCode, MediaType,
+    render_plan::{RenderIntent, RenderPlan, seconds},
+};
 
 pub(crate) const SPAWN_STAGE: &str = "spawn";
 pub(crate) const RENDER_STAGE: &str = "render";
@@ -162,11 +166,15 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
         .or_else(|| value.as_str()?.parse().ok())
 }
 
-pub(crate) trait ProcessExecutor {
-    fn run(
+pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn readiness(&self, ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), CoreError>;
+    fn probe(&self, ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError>;
+    fn execute(
         &self,
-        command: &mut Command,
-        duration_ms: u64,
+        ffmpeg_path: &Path,
+        plan: &RenderPlan,
+        filter_path: &Path,
+        output: &Path,
         on_progress: &mut dyn FnMut(RenderProgress),
     ) -> Result<(), CoreError>;
 }
@@ -175,22 +183,150 @@ pub(crate) trait ProcessExecutor {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
-    fn run(
+    fn readiness(&self, ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), CoreError> {
+        readiness(ffmpeg_path, ffprobe_path)
+    }
+
+    fn probe(&self, ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError> {
+        probe(ffprobe_path, path)
+    }
+
+    fn execute(
         &self,
-        command: &mut Command,
-        duration_ms: u64,
+        ffmpeg_path: &Path,
+        plan: &RenderPlan,
+        filter_path: &Path,
+        output: &Path,
         on_progress: &mut dyn FnMut(RenderProgress),
     ) -> Result<(), CoreError> {
-        run_command(command, duration_ms, on_progress)
+        let mut command = build_render_command(ffmpeg_path, plan, filter_path, output);
+        let progress_duration = match plan.intent {
+            RenderIntent::Range {
+                start_ms, end_ms, ..
+            } => end_ms.saturating_sub(start_ms),
+            RenderIntent::Frame { .. } | RenderIntent::Export => plan.duration_ms,
+        };
+        run_command(&mut command, progress_duration, on_progress)
     }
 }
 
+pub(crate) fn build_render_command(
+    ffmpeg_path: &Path,
+    plan: &RenderPlan,
+    filter_path: &Path,
+    output: &Path,
+) -> Command {
+    let mut command = Command::new(ffmpeg_path);
+    command.args([
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-progress",
+        "pipe:1",
+        "-nostats",
+        "-f",
+        "lavfi",
+        "-i",
+        &format!(
+            "color=c=black:s={}x{}:r={}:d={}",
+            plan.width,
+            plan.height,
+            plan.fps,
+            seconds(plan.duration_ms)
+        ),
+        "-f",
+        "lavfi",
+        "-i",
+        &format!("anullsrc=r=48000:cl=stereo:d={}", seconds(plan.duration_ms)),
+    ]);
+    for (input, path) in plan.media_inputs.iter().zip(&plan.media_paths) {
+        if input.media_type == MediaType::Image {
+            command.args(["-loop", "1", "-t", &seconds(input.duration_ms), "-i"]);
+        } else {
+            command.args([
+                "-ss",
+                &seconds(input.source_in_ms),
+                "-t",
+                &seconds(input.duration_ms),
+                "-i",
+            ]);
+        }
+        command.arg(path);
+    }
+    command.arg("-filter_complex_script").arg(filter_path);
+    match plan.intent {
+        RenderIntent::Frame { at_ms } => {
+            command
+                .args(["-ss", &seconds(at_ms), "-frames:v", "1", "-map", "[video]"])
+                .arg(output)
+                .args(["-map", "[audio]", "-f", "null"])
+                .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
+        }
+        RenderIntent::Range {
+            start_ms,
+            end_ms,
+            include_audio,
+        } => {
+            let duration = seconds(end_ms.saturating_sub(start_ms));
+            command.args(["-ss", &seconds(start_ms), "-map", "[video]"]);
+            if include_audio {
+                command.args(["-map", "[audio]", "-c:a", "aac"]);
+            }
+            command
+                .args([
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "28",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-movflags",
+                    "+faststart",
+                    "-t",
+                    &duration,
+                    "-y",
+                ])
+                .arg(output);
+            if !include_audio {
+                command
+                    .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
+                    .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
+            }
+        }
+        RenderIntent::Export => {
+            command
+                .args([
+                    "-map",
+                    "[video]",
+                    "-map",
+                    "[audio]",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-c:a",
+                    "aac",
+                    "-movflags",
+                    "+faststart",
+                    "-t",
+                    &seconds(plan.duration_ms),
+                    "-y",
+                ])
+                .arg(output);
+        }
+    }
+    command
+}
+
+#[cfg(test)]
 pub(crate) fn run_to_completion(
     command: &mut Command,
     duration_ms: u64,
     mut on_progress: impl FnMut(RenderProgress),
 ) -> Result<(), CoreError> {
-    SystemProcessExecutor.run(command, duration_ms, &mut on_progress)
+    run_command(command, duration_ms, &mut on_progress)
 }
 
 fn run_command(
@@ -349,12 +485,21 @@ pub(crate) fn find_absolute_path_start(value: &str) -> Option<usize> {
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
     struct FailingExecutor;
     impl ProcessExecutor for FailingExecutor {
-        fn run(
+        fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
+            Ok(())
+        }
+        fn probe(&self, _ffprobe_path: &Path, _path: &Path) -> Result<ProbeResult, CoreError> {
+            Err(CoreError::new(ErrorCode::UnsupportedMedia, "injected"))
+        }
+        fn execute(
             &self,
-            _command: &mut Command,
-            _duration_ms: u64,
+            _ffmpeg_path: &Path,
+            _plan: &RenderPlan,
+            _filter_path: &Path,
+            _output: &Path,
             _on_progress: &mut dyn FnMut(RenderProgress),
         ) -> Result<(), CoreError> {
             Err(CoreError::render_failure(SPAWN_STAGE, None, None))
@@ -363,9 +508,24 @@ mod tests {
 
     #[test]
     fn executor_outcomes_are_injectable_and_diagnostics_are_bounded() {
-        let mut command = Command::new("unused");
+        let plan = RenderPlan {
+            filter_graph: String::new(),
+            width: 1,
+            height: 1,
+            fps: 1,
+            duration_ms: 1,
+            intent: RenderIntent::Export,
+            media_inputs: vec![],
+            media_paths: vec![],
+        };
         let error = FailingExecutor
-            .run(&mut command, 1, &mut |_| {})
+            .execute(
+                Path::new("unused"),
+                &plan,
+                Path::new("filter"),
+                Path::new("output"),
+                &mut |_| {},
+            )
             .unwrap_err();
         assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
 

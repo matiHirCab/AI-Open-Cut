@@ -12,18 +12,19 @@ use crate::{
     GeneratedAssetOrigin, History, MediaItem, MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION,
     PathPolicy, Project, ProjectSettings, ProjectState, TimelineItem, Track, TrackType, Transform,
     assets::{
-        blocking_asset_reference, generated_display_name, migrate_project_assets,
-        missing_draft_asset_reference, retained_managed_paths, store_content_addressed,
-        validate_draft_asset_references, validate_retained_project_references,
+        ASSET_GC_FAILED, DraftAssetOperations, blocking_asset_reference, garbage_collect,
+        generated_display_name, migrate_project_assets, missing_draft_asset_reference,
+        store_content_addressed, validate_draft_asset_references,
+        validate_retained_project_references,
     },
     drafts::{
         DRAFT_VERSION, EditDraft, count_drafts, draft_dir, draft_path, read_all_drafts, read_draft,
     },
     migrations::migrate_project_documents,
     persistence::{
-        PERSISTENCE_RECOVERY_PENDING, PersistenceFaults, PersistencePhase, ProjectLock,
-        TRANSACTION_FILE, history_path, persist_transaction, project_path, read_json,
-        recover_transaction, transaction_path, write_json_atomic,
+        PERSISTENCE_RECOVERY_PENDING, PersistenceFaults, ProjectLock, TRANSACTION_FILE,
+        history_path, persist_transaction, project_path, read_json, recover_transaction,
+        transaction_path, write_json_atomic,
     },
     timeline::{
         apply_operation, bump_revision, check_revision, is_single_id_creator, now_ms, push_undo,
@@ -36,7 +37,9 @@ use crate::{
 };
 
 #[cfg(test)]
-use crate::persistence::{DRAFT_CLEANUP_FAILED, ProjectTransaction, TRANSACTION_VERSION};
+use crate::persistence::{
+    DRAFT_CLEANUP_FAILED, PersistencePhase, ProjectTransaction, TRANSACTION_VERSION,
+};
 
 const DRAFT_LIMIT: usize = 100;
 const EDIT_LIMIT: usize = 100;
@@ -266,7 +269,7 @@ impl EditorCore {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = ProjectLock::exclusive(&dir)?;
         let (project, history) = load_project_data(&self.persistence_faults, &dir)?;
-        let _ = garbage_collect(&self.persistence_faults, &dir, &project, &history);
+        let _ = collect_asset_garbage(&self.persistence_faults, &dir, &project, &history);
         Ok(project)
     }
 
@@ -451,8 +454,9 @@ impl EditorCore {
             .position(|asset| asset.id == asset_id)
             .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
         let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
-        if let Some(reference) = blocking_asset_reference(&project, &drafts, asset_id) {
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
+        if let Some(reference) = blocking_asset_reference(&project, &asset_drafts, asset_id) {
             return Err(CoreError::new(
                 ErrorCode::AssetInUse,
                 format!(
@@ -487,7 +491,8 @@ impl EditorCore {
         let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
         let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
         let (track_index, item_index) = project
             .tracks
             .iter()
@@ -544,7 +549,7 @@ impl EditorCore {
         };
         item.asset_id = asset_id.clone();
         item.duration_ms = request.duration_ms;
-        if blocking_asset_reference(&project, &drafts, &replaced_asset_id).is_none() {
+        if blocking_asset_reference(&project, &asset_drafts, &replaced_asset_id).is_none() {
             project.assets.retain(|asset| asset.id != replaced_asset_id);
         }
         push_undo(&mut history, &previous);
@@ -687,7 +692,7 @@ impl EditorCore {
         let _lock = ProjectLock::exclusive(&dir)?;
         let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
         let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        validate_single_draft_assets(&project, &draft)?;
         Ok(draft)
     }
 
@@ -734,7 +739,7 @@ impl EditorCore {
         let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let mut draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        validate_single_draft_assets(&project, &draft)?;
         validate_operations_against(&project, &draft.operations)?;
         draft.base_revision = expected_revision;
         draft.updated_at_ms = now_ms()?;
@@ -751,7 +756,7 @@ impl EditorCore {
         let _lock = ProjectLock::exclusive(&dir)?;
         let (mut project, _) = load_project_data(&self.persistence_faults, &dir)?;
         let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        validate_single_draft_assets(&project, &draft)?;
         check_revision(&project, draft.base_revision)?;
         for operation in draft.operations {
             apply_operation(&mut project, operation)?;
@@ -774,7 +779,7 @@ impl EditorCore {
         let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        validate_single_draft_assets(&project, &draft)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
                 ErrorCode::RevisionConflict,
@@ -1010,8 +1015,9 @@ impl EditorCore {
             .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
         restored.updated_at_ms = now_ms()?;
         let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
-        if let Some(reference) = missing_draft_asset_reference(&restored, &drafts) {
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
+        if let Some(reference) = missing_draft_asset_reference(&restored, &asset_drafts) {
             return Err(CoreError::new(
                 ErrorCode::AssetInUse,
                 format!(
@@ -1172,7 +1178,7 @@ fn load_project_data(
     Ok((project, history))
 }
 
-fn garbage_collect(
+fn collect_asset_garbage(
     faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
@@ -1180,34 +1186,30 @@ fn garbage_collect(
 ) -> Vec<String> {
     let drafts = match read_all_drafts(dir) {
         Ok(drafts) => drafts,
-        Err(_) => return vec!["ASSET_GC_FAILED".into()],
+        Err(_) => return vec![ASSET_GC_FAILED.into()],
     };
-    let referenced = match retained_managed_paths(project, history, &drafts) {
-        Ok(referenced) => referenced,
-        Err(_) => return vec!["ASSET_GC_FAILED".into()],
-    };
-    let root = dir.join("assets");
-    let mut files = vec![];
-    collect_files(&root, &mut files);
-    let mut failed = false;
-    for file in files {
-        let relative = file
-            .strip_prefix(dir)
-            .unwrap_or(&file)
-            .to_string_lossy()
-            .replace('\\', "/");
-        if !referenced.contains(&relative)
-            && (inject_persistence_fault(faults, PersistencePhase::GarbageCollection).is_err()
-                || std::fs::remove_file(&file).is_err())
-        {
-            failed = true;
-        }
-    }
-    if failed {
-        vec!["ASSET_GC_FAILED".into()]
-    } else {
-        vec![]
-    }
+    let asset_drafts = draft_asset_operations(&drafts);
+    garbage_collect(faults, dir, project, history, &asset_drafts)
+}
+
+fn draft_asset_operations(drafts: &[EditDraft]) -> Vec<DraftAssetOperations<'_>> {
+    drafts
+        .iter()
+        .map(|draft| DraftAssetOperations {
+            id: &draft.id,
+            operations: &draft.operations,
+        })
+        .collect()
+}
+
+fn validate_single_draft_assets(project: &Project, draft: &EditDraft) -> Result<(), CoreError> {
+    validate_draft_asset_references(
+        project,
+        &[DraftAssetOperations {
+            id: &draft.id,
+            operations: &draft.operations,
+        }],
+    )
 }
 
 fn finish_persistence(
@@ -1221,30 +1223,9 @@ fn finish_persistence(
         .iter()
         .any(|warning| warning == PERSISTENCE_RECOVERY_PENDING)
     {
-        warnings.extend(garbage_collect(faults, dir, project, history));
+        warnings.extend(collect_asset_garbage(faults, dir, project, history));
     }
     warnings
-}
-
-fn collect_files(directory: &Path, output: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(directory) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_files(&path, output);
-        } else if path.is_file() {
-            output.push(path);
-        }
-    }
-}
-
-fn inject_persistence_fault(
-    faults: &PersistenceFaults,
-    phase: PersistencePhase,
-) -> Result<(), CoreError> {
-    faults.checkpoint(phase)
 }
 
 #[cfg(test)]

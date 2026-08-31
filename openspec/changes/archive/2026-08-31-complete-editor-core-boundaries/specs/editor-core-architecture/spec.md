@@ -1,8 +1,5 @@
-# editor-core-architecture Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change establish-editor-core-boundaries. Update Purpose after archive.
-## Requirements
 ### Requirement: Canonical editor-core ownership
 The editor core MUST maintain one documented canonical owner for the editor model, validation, persistence, migrations, asset lifecycle including garbage collection, timeline operations, drafts, scene evaluation and render planning, renderer process execution, and render artifact I/O, and outer applications and facade modules SHALL delegate domain and infrastructure decisions to those owners.
 
@@ -32,21 +29,6 @@ Editor-core modules MUST follow the complete documented allowed-dependency matri
 #### Scenario: Review a boundary exception
 - **WHEN** a proposed change cannot follow an existing allowed dependency edge
 - **THEN** repository review rules require an ADR update and boundary-test matrix update before the new edge is accepted
-
-### Requirement: Compatibility-preserving facade
-The editor core SHALL preserve the existing public facade, serialized project, history, and draft representations, stable errors and warnings, revision semantics, reopen behavior, and preview/export behavior while responsibilities are extracted.
-
-#### Scenario: Reopen existing state after extraction
-- **WHEN** an existing compatible project with retained history and drafts is opened after the module extraction
-- **THEN** it materializes the same state and revision without a schema migration or serialized-shape change
-
-#### Scenario: Invoke an existing caller
-- **WHEN** an existing headless or bridge caller uses an editor-core store or renderer operation
-- **THEN** it receives the same public result shape, stable failure code, warnings, and committed behavior as before the extraction
-
-#### Scenario: Render through an existing entry point
-- **WHEN** frame preview, range preview, draft preview, or export is invoked with an existing fixture
-- **THEN** the resulting artifact remains compatible with the established visual, audio, path-safety, and overwrite behavior
 
 ### Requirement: Replaceable persistence boundary
 Storage locking, durable file replacement, transaction recovery, managed-file enumeration, and managed-file deletion MUST remain behind a narrow editor-core persistence interface whose fault outcomes can be supplied deterministically in tests without changing domain or garbage-collection rules.

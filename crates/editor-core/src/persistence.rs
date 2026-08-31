@@ -75,8 +75,16 @@ pub(crate) trait Storage {
     fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn is_file(&self, path: &Path) -> bool;
+    fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind>;
     fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()>;
     fn remove_durable(&self, path: &Path) -> std::io::Result<()>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StorageEntryKind {
+    File,
+    Directory,
+    Other,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -111,6 +119,17 @@ impl Storage for FileSystemStorage {
 
     fn is_file(&self, path: &Path) -> bool {
         path.is_file()
+    }
+
+    fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
+        let file_type = std::fs::metadata(path)?.file_type();
+        Ok(if file_type.is_file() {
+            StorageEntryKind::File
+        } else if file_type.is_dir() {
+            StorageEntryKind::Directory
+        } else {
+            StorageEntryKind::Other
+        })
     }
 
     fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -454,6 +473,10 @@ mod tests {
 
         fn is_file(&self, _path: &Path) -> bool {
             false
+        }
+
+        fn entry_kind(&self, _path: &Path) -> std::io::Result<StorageEntryKind> {
+            Err(std::io::Error::other("injected classification failure"))
         }
 
         fn atomic_replace(&self, _path: &Path, _bytes: &[u8]) -> std::io::Result<()> {

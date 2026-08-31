@@ -9,17 +9,33 @@ fn read_source(relative: &str) -> String {
         .unwrap_or_else(|error| panic!("cannot read editor-core source {relative}: {error}"))
 }
 
+fn production_source(source: &str) -> &str {
+    let Some(module_index) = source.find("mod tests {") else {
+        return source;
+    };
+    let test_cfg_index = source[..module_index]
+        .rfind("#[cfg(test)]")
+        .expect("test module must have a cfg(test) guard");
+    &source[..test_cfg_index]
+}
+
 #[test]
 fn required_owners_are_private_modules() {
     let lib = read_source("lib.rs");
     for owner in [
+        "animation",
         "assets",
         "drafts",
+        "error",
         "migrations",
+        "model",
+        "path_policy",
         "persistence",
         "render_artifact",
         "render_plan",
         "render_process",
+        "renderer",
+        "store",
         "timeline",
         "validation",
     ] {
@@ -55,7 +71,55 @@ fn stable_facade_remains_reexported() {
 }
 
 #[test]
-fn inward_modules_do_not_import_outer_or_infrastructure_layers() {
+fn private_owner_dependencies_match_the_approved_matrix() {
+    let matrix: &[(&str, &[&str])] = &[
+        ("animation", &[]),
+        ("assets", &["persistence"]),
+        ("drafts", &["persistence"]),
+        ("error", &[]),
+        ("migrations", &[]),
+        ("model", &["error"]),
+        ("path_policy", &[]),
+        ("persistence", &[]),
+        ("render_artifact", &["render_plan"]),
+        ("render_plan", &["animation"]),
+        ("render_process", &["render_plan"]),
+        (
+            "renderer",
+            &["render_artifact", "render_plan", "render_process"],
+        ),
+        (
+            "store",
+            &[
+                "assets",
+                "drafts",
+                "migrations",
+                "persistence",
+                "timeline",
+                "validation",
+            ],
+        ),
+        ("timeline", &["animation", "validation"]),
+        ("validation", &[]),
+    ];
+    for (owner, allowed) in matrix {
+        let source = read_source(&format!("{owner}.rs"));
+        let production = production_source(&source);
+        for (dependency, _) in matrix {
+            if owner == dependency {
+                continue;
+            }
+            let imported = production.contains(&format!("{dependency}::"));
+            assert!(
+                !imported || allowed.contains(dependency),
+                "owner `{owner}` imports `{dependency}`, but the ADR matrix allows only {allowed:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn owners_exclude_outer_layers_and_reviewed_responsibilities() {
     let forbidden_outer = [
         "opencut_agent_bridge",
         "opencut_headless",
@@ -63,14 +127,24 @@ fn inward_modules_do_not_import_outer_or_infrastructure_layers() {
         "@modelcontextprotocol",
     ];
     for owner in [
-        "model.rs",
-        "validation.rs",
-        "timeline.rs",
+        "animation.rs",
         "assets.rs",
+        "drafts.rs",
+        "error.rs",
         "migrations.rs",
+        "model.rs",
+        "path_policy.rs",
+        "persistence.rs",
+        "render_artifact.rs",
         "render_plan.rs",
+        "render_process.rs",
+        "renderer.rs",
+        "store.rs",
+        "timeline.rs",
+        "validation.rs",
     ] {
         let source = read_source(owner);
+        let source = production_source(&source);
         for token in forbidden_outer {
             assert!(
                 !source.contains(token),
@@ -102,7 +176,7 @@ fn inward_modules_do_not_import_outer_or_infrastructure_layers() {
     }
 
     let assets = read_source("assets.rs");
-    let assets_production = assets.split("#[cfg(test)]").next().unwrap_or(&assets);
+    let assets_production = production_source(&assets);
     for token in ["File::open", "std::fs::copy", "std::fs::rename"] {
         assert!(
             !assets_production.contains(token),
@@ -119,10 +193,27 @@ fn inward_modules_do_not_import_outer_or_infrastructure_layers() {
     }
 
     let renderer = read_source("renderer.rs");
-    for token in ["fn prepare_text_layers(", "fn resolve_text_font("] {
+    let renderer = production_source(&renderer);
+    for token in [
+        "fn prepare_text_layers(",
+        "fn resolve_text_font(",
+        ".tracks",
+        "TimelineItem",
+        "Command::new",
+        "std::process",
+    ] {
         assert!(
             !renderer.contains(token),
             "artifact preparation must not be reimplemented in renderer via `{token}`"
+        );
+    }
+
+    let store = read_source("store.rs");
+    let store = production_source(&store);
+    for token in ["fn garbage_collect(", "fn collect_files("] {
+        assert!(
+            !store.contains(token),
+            "store must delegate managed-asset collection instead of owning `{token}`"
         );
     }
 }
