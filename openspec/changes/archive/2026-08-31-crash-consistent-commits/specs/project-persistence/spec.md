@@ -1,28 +1,4 @@
-# Project Persistence Specification
-
-## Purpose
-
-Define the durable project lifecycle, concurrency, history, and schema compatibility guarantees owned by the editor core.
-
-## Requirements
-
-### Requirement: Durable project lifecycle
-The editor core SHALL create projects with validated settings and stable identifiers, persist them beneath the configured project root, list persisted projects, and reopen their current state.
-
-#### Scenario: Create and reopen a project
-- **WHEN** a caller creates a project with valid settings and later opens its identifier
-- **THEN** the reopened project contains the persisted settings, initial tracks, revision, and timeline state
-
-#### Scenario: Open a missing project
-- **WHEN** a caller opens an identifier that has no persisted project
-- **THEN** the operation fails with the stable `PROJECT_NOT_FOUND` error
-
-### Requirement: Optimistic revision control
-Every mutation of an existing committed project state that accepts an expected revision SHALL compare it with the current persisted revision and SHALL reject stale writers before publishing the requested state change.
-
-#### Scenario: Reject a stale mutation
-- **WHEN** a mutation supplies an expected revision different from the current revision
-- **THEN** the operation fails with retryable `REVISION_CONFLICT` and the persisted project remains unchanged
+## MODIFIED Requirements
 
 ### Requirement: Serialized durable persistence
 Project mutations, project creation, and migrations MUST execute while holding the project lock, and each logical write of project state plus retained history MUST use one recoverable transaction whose durable commit point identifies a single authoritative generation. Each persisted JSON document SHALL be published through a synchronized temporary file and atomic replacement so readers never observe a partially written document.
@@ -38,6 +14,8 @@ Project mutations, project creation, and migrations MUST execute while holding t
 #### Scenario: Interrupt after the commit point
 - **WHEN** persistence is interrupted after the transaction commit point but before every destination is materialized
 - **THEN** the target generation remains recoverable and the mutation is not reported as rejected
+
+## ADDED Requirements
 
 ### Requirement: Deterministic interrupted-transaction recovery
 The editor core MUST recover a valid interrupted transaction deterministically under the project lock before returning or mutating project state, MUST remove all managed transaction artifacts after successful recovery, and MUST fail closed with non-retryable `PROJECT_RECOVERY_FAILED` when recovery metadata is corrupt, unsupported, or inconsistent.
@@ -64,21 +42,3 @@ The editor core SHALL report a mutation as rejected only before its durable tran
 #### Scenario: Access after a recovery warning
 - **WHEN** a caller accesses the project after receiving `PERSISTENCE_RECOVERY_PENDING`
 - **THEN** the core finishes recovery under the lock before evaluating the new request against the committed revision
-
-### Requirement: Retained undo and redo history
-The editor core SHALL retain at most 100 project snapshots in the undo stack, maintain redo snapshots until a new edit clears them, and apply history operations using the same revision conflict protections as other committed writes.
-
-#### Scenario: Undo and redo an edit
-- **WHEN** a caller undoes a committed edit and then redoes it using the returned revisions
-- **THEN** the project state transitions through the retained snapshots and each transition increments the current revision
-
-### Requirement: Deterministic schema compatibility
-The editor core MUST migrate supported older project schemas and retained history deterministically under lock, and MUST reject unknown future schema versions without rewriting them.
-
-#### Scenario: Migrate a supported project
-- **WHEN** a supported older project is opened
-- **THEN** its current state and each retained undo and redo snapshot are deterministically upgraded to the current schema before being returned
-
-#### Scenario: Reject a future schema
-- **WHEN** a project declares a schema version newer than the running editor supports
-- **THEN** opening fails with `INTERNAL_ERROR` and the stored project is not downgraded or rewritten

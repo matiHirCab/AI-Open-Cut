@@ -31,6 +31,11 @@
       "layer": "core",
       "description": "project not found"
     },
+    "PROJECT_RECOVERY_FAILED": {
+      "retryable": false,
+      "layer": "core",
+      "description": "project transaction recovery failed"
+    },
     "ASSET_NOT_FOUND": {
       "retryable": false,
       "layer": "core",
@@ -198,6 +203,16 @@
       "retryable": false,
       "layer": "warning",
       "description": "asset gc failed"
+    },
+    "PERSISTENCE_RECOVERY_PENDING": {
+      "retryable": false,
+      "layer": "warning",
+      "description": "committed transaction requires recovery on next project open"
+    },
+    "DRAFT_CLEANUP_FAILED": {
+      "retryable": false,
+      "layer": "warning",
+      "description": "committed draft cleanup requires recovery"
     }
   }
 }
