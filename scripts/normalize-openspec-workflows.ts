@@ -20,6 +20,7 @@ const aliases = new Map([
 
 const unpinnedCommand =
   /\bopenspec (?=--version|archive|context|doctor|instructions|list|new|schemas|show|status|store|update|validate)/g;
+const versionedCommand = /bunx @fission-ai\/openspec@[^\s`]+/g;
 
 function normalize(content: string): string {
   let normalized = content;
@@ -84,7 +85,9 @@ function normalize(content: string): string {
       "The pinned OpenSpec CLI could not run. Install Bun or resolve the reported package error, then come back to `$openspec-onboard`."
     );
 
-  return normalized.replace(unpinnedCommand, `${PINNED_COMMAND} `);
+  return normalized
+    .replace(versionedCommand, PINNED_COMMAND)
+    .replace(unpinnedCommand, `${PINNED_COMMAND} `);
 }
 
 const skillDirectories = (await readdir(SKILLS_DIRECTORY, { withFileTypes: true }))
@@ -120,9 +123,14 @@ const contributorGuide = await readFile(
   join("docs", "spec-driven-development.md"),
   "utf8"
 );
-if (!contributorGuide.includes(`OpenSpec ${OPEN_SPEC_VERSION}`)) {
+if (
+  !contributorGuide.includes(`OpenSpec ${OPEN_SPEC_VERSION}`) ||
+  !contributorGuide.includes(
+    `${PINNED_COMMAND} validate --all --strict --no-interactive`
+  )
+) {
   failures.push(
-    `docs/spec-driven-development.md: documented version must be ${OPEN_SPEC_VERSION}`
+    `docs/spec-driven-development.md: documented commands must use ${OPEN_SPEC_VERSION}`
   );
 }
 
