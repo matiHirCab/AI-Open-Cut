@@ -1,0 +1,32 @@
+schema: spec-driven
+
+context: |
+  OpenCut is a mixed Rust, TypeScript, and Python monorepo for a local-first video editor.
+  crates/editor-core owns domain models, validation, persistence, revisions, undo/redo,
+  migrations, media integrity, garbage collection, and rendering rules. apps/headless is
+  the typed JSON-lines transport over editor-core. apps/agent-bridge owns MCP workflows,
+  jobs, runtime configuration, diagnostics, and provider orchestration. Provider workers
+  own inference only; apps/desktop owns presentation. Dependencies must point inward.
+  Public request, response, project, error, and provider contracts are compatibility
+  surfaces. Canonical cross-language catalogs live under contracts/. Persisted schema
+  changes require deterministic migration tests for current state and retained history.
+  Unknown future schema versions must fail closed. Preserve unrelated working-tree changes
+  and never commit secrets, local data, caches, generated media, or build output.
+
+rules:
+  proposal:
+    - Name every new or modified capability and map it to an existing openspec/specs directory when one exists.
+    - Include explicit Non-goals, affected compatibility surfaces, and any breaking changes.
+    - Distinguish implemented current behavior from roadmap or exploratory behavior.
+  specs:
+    - Specify externally observable behavior and invariants, not file layout or implementation mechanics.
+    - Use SHALL or MUST in every requirement and at least one WHEN/THEN scenario per requirement.
+    - Cover revision conflicts, typed failure behavior, and compatibility when the capability exposes public or persisted contracts.
+  design:
+    - Preserve the ownership boundaries and inward dependency direction defined in the root AGENTS.md.
+    - Document contract, persistence, migration, security, privacy, failure-mode, and rollback implications when applicable.
+    - Record alternatives considered for each material architectural decision.
+  tasks:
+    - Keep each task scoped to one owning layer or an explicitly named cross-layer contract update.
+    - Include exact validation commands for every affected Rust, TypeScript, Python, contract, integration, or packaged-smoke surface.
+    - Include migration and fixture updates before consumers when a persisted or cross-language contract changes.

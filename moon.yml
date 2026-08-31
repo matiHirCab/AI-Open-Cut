@@ -1,6 +1,13 @@
 $schema: 'https://moonrepo.dev/schemas/project.json'
 
 tasks:
+  openspec-validate:
+    script: bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive
+    inputs:
+      - 'openspec/**/*'
+    options:
+      cache: false
+
   upload-logos:
     script: |
       set -eu
