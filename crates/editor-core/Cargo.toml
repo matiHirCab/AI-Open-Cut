@@ -15,4 +15,5 @@ ttf-parser = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+syn = { version = "2.0.119", features = ["full", "visit"] }
 tempfile = "3.20"
