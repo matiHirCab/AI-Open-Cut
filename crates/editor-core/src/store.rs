@@ -2370,6 +2370,7 @@ fn load_project_data(dir: &Path) -> Result<(Project, History), CoreError> {
 }
 
 fn recover_transaction(dir: &Path) -> Result<(), CoreError> {
+    cleanup_orphaned_transaction_temps(dir)?;
     let path = transaction_path(dir);
     if !path.exists() {
         return Ok(());
@@ -2377,6 +2378,34 @@ fn recover_transaction(dir: &Path) -> Result<(), CoreError> {
     let transaction = read_transaction(&path)?;
     validate_transaction(dir, &transaction)?;
     replay_transaction(dir, &transaction)
+}
+
+fn cleanup_orphaned_transaction_temps(dir: &Path) -> Result<(), CoreError> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|error| recovery_error(format!("cannot inspect transaction files: {error}")))?;
+    for entry in entries {
+        let entry = entry
+            .map_err(|error| recovery_error(format!("cannot inspect transaction file: {error}")))?;
+        let file_type = entry.file_type().map_err(|error| {
+            recovery_error(format!("cannot inspect transaction file type: {error}"))
+        })?;
+        if file_type.is_file() && is_transaction_temp_name(&entry.file_name()) {
+            remove_file_durable(&entry.path()).map_err(as_recovery_error)?;
+        }
+    }
+    Ok(())
+}
+
+fn is_transaction_temp_name(name: &std::ffi::OsStr) -> bool {
+    let Some(name) = name.to_str() else {
+        return false;
+    };
+    [".project-transaction.tmp-", "project.tmp-", "history.tmp-"]
+        .iter()
+        .any(|prefix| {
+            name.strip_prefix(prefix)
+                .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
+        })
 }
 
 fn read_transaction(path: &Path) -> Result<ProjectTransaction, CoreError> {
@@ -4183,6 +4212,38 @@ mod tests {
         let history: History = read_json(&history_path(&dir)).unwrap();
         assert_eq!(history.undo.len(), 1);
         assert_no_managed_transaction_files(&dir);
+    }
+
+    #[test]
+    fn persistence_transaction_reaps_only_recognized_orphan_temps() {
+        let (core, _) = core();
+        let created = core
+            .create_project("orphan cleanup", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let orphan_names = [
+            format!("project.tmp-{}", Uuid::new_v4()),
+            format!("history.tmp-{}", Uuid::new_v4()),
+            format!(".project-transaction.tmp-{}", Uuid::new_v4()),
+        ];
+        for name in &orphan_names {
+            std::fs::write(dir.join(name), b"interrupted write").unwrap();
+        }
+        let unrelated_file = dir.join("project.tmp-not-a-uuid");
+        let unrelated_directory = dir.join(format!("history.tmp-{}", Uuid::new_v4()));
+        std::fs::write(&unrelated_file, b"preserve me").unwrap();
+        std::fs::create_dir(&unrelated_directory).unwrap();
+
+        let reopened = EditorCore::new(core.paths().clone());
+        assert_eq!(
+            reopened.get_project(&created.project_id).unwrap().revision,
+            0
+        );
+        for name in orphan_names {
+            assert!(!dir.join(name).exists());
+        }
+        assert!(unrelated_file.is_file());
+        assert!(unrelated_directory.is_dir());
     }
 
     #[test]

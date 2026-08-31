@@ -63,7 +63,7 @@ Alternatives considered:
 
 All logical writes of project plus history route through the journal protocol. Loading reads the pair together so migrations of current project state and retained snapshots are published as one transaction rather than as independent rewrites. Project creation uses the same protocol after directory setup; a pre-commit failure is rejected and best-effort cleanup removes unpublished managed files.
 
-The existing JSON atomic-write helper will remove its own unique temporary file on failure and synchronize publication metadata as supported by the platform. Transaction cleanup similarly synchronizes deletion before reporting a fully materialized success.
+The existing JSON atomic-write helper will remove its own unique temporary file on returned failure and synchronize publication metadata as supported by the platform. Because process termination cannot execute in-process cleanup, locked recovery also removes only recognized UUID-suffixed temporary files for project, history, and transaction-journal replacements while preserving unrelated files. Transaction cleanup similarly synchronizes deletion before reporting a fully materialized success.
 
 Alternatives considered:
 

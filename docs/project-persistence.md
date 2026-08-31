@@ -16,7 +16,7 @@ For each logical write, the core constructs the complete target `project.json`, 
 
 The durable publication of `.project-transaction.json` is the commit point. Before that point, a failure rejects the mutation and the previous project/history pair remains authoritative. After that point, the journal is authoritative even if one or both destination documents still contain the previous generation.
 
-Each JSON replacement uses a unique same-directory temporary file, synchronizes file contents, renames it atomically, and removes the temporary file after failure. Successful completion or recovery leaves no journal or managed temporary transaction file.
+Each JSON replacement uses a unique same-directory temporary file, synchronizes file contents, renames it atomically, and removes the temporary file after a returned failure. On locked reopen, recovery also removes recognized UUID-suffixed orphan temporary files for project, history, and journal replacements that process termination could leave behind; unrelated files and directories are preserved. Successful completion or recovery leaves no journal or managed temporary transaction file.
 
 ## Recovery
 

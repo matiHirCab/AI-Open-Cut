@@ -18,6 +18,7 @@
 - [x] 3.3 Add targeted draft tests proving cleanup warnings describe a committed revision, retries never duplicate operations, and reopen completes draft consumption.
 - [x] 3.4 Add corrupt/unsupported/inconsistent journal tests proving `PROJECT_RECOVERY_FAILED` preserves diagnostic evidence and does not rewrite live documents.
 - [x] 3.5 Add filesystem assertions proving successful persistence and recovery leave no managed journal or unique temporary transaction files.
+- [x] 3.6 Reap UUID-suffixed orphan temporary files for project, history, and transaction-journal replacements under the project lock, preserve unrelated files, and add reopen regression coverage.
 
 ## 4. Operational Documentation
 
