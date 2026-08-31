@@ -751,7 +751,25 @@ fn emit(event: impl Serialize) -> Result<(), CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::de::DeserializeOwned;
     use strum::VariantNames;
+
+    const UNKNOWN_OPERATION_PROBE: &str = "__opencut_unknown_contract_operation__";
+
+    fn serde_accepts_operation<RequestType: DeserializeOwned>(operation: &str) -> bool {
+        match serde_json::from_value::<RequestType>(serde_json::json!({ "operation": operation })) {
+            Ok(_) => true,
+            Err(error) => !error.to_string().starts_with("unknown variant "),
+        }
+    }
+
+    #[derive(Deserialize, strum::VariantNames)]
+    #[serde(tag = "operation", rename_all = "snake_case")]
+    #[strum(serialize_all = "snake_case")]
+    enum RenamedRequestProbe {
+        #[serde(rename = "serde_wire_name")]
+        DerivedName {},
+    }
 
     #[test]
     fn capability_sets_match_the_canonical_headless_contract() {
@@ -773,6 +791,27 @@ mod tests {
         let mut request_variants = Request::VARIANTS.to_vec();
         request_variants.sort_unstable();
         assert_eq!(serde_json::json!(request_variants), contract["operations"]);
+        assert!(!serde_accepts_operation::<Request>(UNKNOWN_OPERATION_PROBE));
+        for operation in Request::VARIANTS {
+            assert!(
+                serde_accepts_operation::<Request>(operation),
+                "derived operation {operation:?} is not accepted by the Request deserializer"
+            );
+        }
+    }
+
+    #[test]
+    fn serde_operation_probe_detects_renamed_variant_drift() {
+        assert_eq!(RenamedRequestProbe::VARIANTS, ["derived_name"]);
+        assert!(!serde_accepts_operation::<RenamedRequestProbe>(
+            UNKNOWN_OPERATION_PROBE
+        ));
+        assert!(!serde_accepts_operation::<RenamedRequestProbe>(
+            RenamedRequestProbe::VARIANTS[0]
+        ));
+        assert!(serde_accepts_operation::<RenamedRequestProbe>(
+            "serde_wire_name"
+        ));
     }
 
     #[test]

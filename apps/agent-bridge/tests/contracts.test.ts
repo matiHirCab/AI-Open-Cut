@@ -57,22 +57,31 @@ interface ToolDefinition {
   outputSchema: z.ZodType;
 }
 
-const normalizeJson = (value: unknown): unknown => {
+const normalizeJson = (
+  value: unknown,
+  omitSchemaDescriptions = false
+): unknown => {
   if (Array.isArray(value)) {
-    return value.map(normalizeJson);
+    return value.map((child) => normalizeJson(child, omitSchemaDescriptions));
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => !(omitSchemaDescriptions && key === "description"))
         .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, child]) => [key, normalizeJson(child)])
+        .map(([key, child]) => [
+          key,
+          normalizeJson(child, omitSchemaDescriptions),
+        ])
     );
   }
   return value;
 };
 
+const normalizeSchemaJson = (value: unknown) => normalizeJson(value, true);
+
 const schemaJson = (schema: z.ZodType, io: "input" | "output") =>
-  normalizeJson(
+  normalizeSchemaJson(
     z.toJSONSchema(schema, {
       io,
       target: "draft-2020-12",
@@ -288,5 +297,33 @@ describe("canonical public contracts", () => {
     expect(mismatchedToolDefinitions(annotationDrift, catalog)).toEqual([
       toolName,
     ]);
+  });
+
+  it("excludes schema descriptions without hiding structural drift", () => {
+    const structuralSchema = z.object({
+      nested: z.object({ value: z.string().min(1) }),
+    });
+    const describedSchema = z
+      .object({
+        nested: z
+          .object({ value: z.string().min(1).describe("value copy") })
+          .describe("nested copy"),
+      })
+      .describe("root copy");
+    const changedSchema = z.object({
+      nested: z.object({ value: z.string().min(2) }),
+    });
+
+    for (const io of ["input", "output"] as const) {
+      expect(schemaJson(describedSchema, io)).toEqual(
+        schemaJson(structuralSchema, io)
+      );
+      expect(schemaJson(changedSchema, io)).not.toEqual(
+        schemaJson(structuralSchema, io)
+      );
+    }
+    expect(normalizeJson({ description: "annotation data" })).toEqual({
+      description: "annotation data",
+    });
   });
 });
