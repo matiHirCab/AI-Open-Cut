@@ -158,6 +158,27 @@ afterAll(async () => {
   rmSync(root, { force: true, recursive: true });
 });
 
+it("negotiates the public protocol version through MCP", async () => {
+  const current = await call(
+    "editor_get_status",
+    { protocolVersion: 1 },
+    statusSchema
+  );
+  expect(current.protocolVersion).toBe(1);
+
+  let unsupportedRejected = false;
+  try {
+    const response = await client.callTool({
+      arguments: { protocolVersion: 2 },
+      name: "editor_get_status",
+    });
+    unsupportedRejected = response.isError === true;
+  } catch {
+    unsupportedRejected = true;
+  }
+  expect(unsupportedRejected).toBe(true);
+});
+
 it("edits a project and persists fake speech provenance through MCP", async () => {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.ready).toBe(true);

@@ -1,0 +1,12 @@
+# Cross-language public contract owners. Keep this list synchronized with
+# contracts/contract-ownership-v1.json.
+/contracts/ @matiHirCab
+/apps/headless/src/main.rs @matiHirCab
+/apps/headless/tests/protocol.rs @matiHirCab
+/crates/editor-core/src/error.rs @matiHirCab
+/crates/editor-core/src/model.rs @matiHirCab
+/apps/agent-bridge/src/headless-contract.ts @matiHirCab
+/apps/agent-bridge/src/errors.ts @matiHirCab
+/apps/agent-bridge/src/schemas.ts @matiHirCab
+/apps/agent-bridge/src/server/ @matiHirCab
+/apps/agent-bridge/tests/contracts.test.ts @matiHirCab

@@ -37,6 +37,8 @@ Dependencies point inward: presentation, transports, and provider adapters may c
 ## Compatibility and migrations
 
 - Treat public request, response, project, and error contracts as compatibility surfaces. Prefer additive changes, preserve documented aliases, and keep stable error codes and retryability aligned with the canonical catalog.
+- Follow ADR 0002 and `contracts/contract-ownership-v1.json` for every cross-language public contract change. Update the canonical versioned fixture or catalog, every listed consumer, and parity evidence in the same change; run `bun run contracts:check` from `apps/agent-bridge` and obtain review from the designated CODEOWNER.
+- Classify optional request fields, ignorable response fields, and new uniquely named operations, capabilities, or resources as additive only when existing clients remain valid. Removing, renaming, narrowing, changing meaning or retryability, or reusing an identifier is breaking and requires a new major contract plus an explicit migration path.
 - Persisted schema changes require deterministic migration tests for current state and retained undo/redo history. Perform migrations under the project lock, preserve provenance and media integrity, and update related snapshots atomically.
 - Reject unknown future schema versions rather than guessing how to downgrade them.
 

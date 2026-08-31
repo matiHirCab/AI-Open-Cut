@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "tools": [
+    "asset_delete",
+    "asset_import",
+    "draft_commit",
+    "draft_create",
+    "draft_discard",
+    "draft_get",
+    "draft_preview_frame",
+    "draft_rebase",
+    "draft_update",
+    "editor_get_status",
+    "job_cancel",
+    "job_get_status",
+    "preview_render_frame",
+    "preview_render_range",
+    "project_create",
+    "project_export_video",
+    "project_get_state",
+    "project_open",
+    "project_redo",
+    "project_undo",
+    "speech_commit_preview",
+    "speech_discard_preview",
+    "speech_estimate",
+    "speech_generate_and_insert",
+    "speech_list_voices",
+    "speech_preview",
+    "speech_regenerate",
+    "timeline_add_media",
+    "timeline_add_rectangle",
+    "timeline_add_solid_color",
+    "timeline_add_text",
+    "timeline_add_transition",
+    "timeline_batch_edit",
+    "timeline_delete_item",
+    "timeline_duplicate_items",
+    "timeline_get_items",
+    "timeline_move_item",
+    "timeline_set_audio",
+    "timeline_set_item_visibility",
+    "timeline_set_keyframes",
+    "timeline_split_item",
+    "timeline_trim_item",
+    "timeline_update_item",
+    "track_create",
+    "track_delete",
+    "track_update",
+    "transcription_commit_preview",
+    "transcription_discard_preview",
+    "transcription_estimate",
+    "transcription_get_status",
+    "transcription_preview",
+    "tts_commit_generated_artifact",
+    "tts_generate_and_insert",
+    "tts_get_status"
+  ],
+  "resources": [
+    { "name": "job-status", "uriTemplate": "opencut://jobs/{jobId}" },
+    {
+      "name": "project-draft",
+      "uriTemplate": "opencut://projects/{projectId}/drafts/{draftId}"
+    },
+    {
+      "name": "project-state",
+      "uriTemplate": "opencut://projects/{projectId}/state"
+    },
+    {
+      "name": "project-timeline",
+      "uriTemplate": "opencut://projects/{projectId}/timeline"
+    },
+    { "name": "projects", "uriTemplate": "opencut://projects" }
+  ],
+  "prompts": [
+    "add_narration",
+    "assemble_clips",
+    "create_intro_video",
+    "transcribe_and_caption"
+  ]
+}

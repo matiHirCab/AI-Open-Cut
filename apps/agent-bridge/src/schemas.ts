@@ -190,6 +190,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
+    protocolVersion: z.literal(1),
     ready: z.boolean(),
     subsystems: z
       .object({
@@ -1124,7 +1125,9 @@ export const schemas = {
       operations: z.array(headlessEditSchema).min(1).max(100),
     })
     .strict(),
-  editorGetStatus: z.object({}).strict(),
+  editorGetStatus: z
+    .object({ protocolVersion: z.literal(1).optional() })
+    .strict(),
   jobCancel: z.object({ jobId: id }).strict(),
   jobGetStatus: z.object({ jobId: id }).strict(),
   previewRenderFrame: projectRevisionSchema
