@@ -1,6 +1,7 @@
 //! Durable persistence boundary and filesystem adapter.
 
 use std::{
+    fmt::Debug,
     fs::{File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -67,7 +68,8 @@ impl PersistenceFaults {
     }
 }
 
-pub(crate) trait Storage {
+pub(crate) trait Storage: Debug + Send + Sync {
+    fn lock_exclusive(&self, dir: &Path) -> Result<Box<dyn StorageLock>, CoreError>;
     fn open_read(&self, path: &Path) -> std::io::Result<Box<dyn Read>>;
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>>;
     fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>>;
@@ -75,10 +77,14 @@ pub(crate) trait Storage {
     fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn is_file(&self, path: &Path) -> bool;
+    fn exists(&self, path: &Path) -> bool;
     fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind>;
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf>;
     fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()>;
     fn remove_durable(&self, path: &Path) -> std::io::Result<()>;
 }
+
+pub(crate) trait StorageLock: Debug + Send {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StorageEntryKind {
@@ -91,6 +97,10 @@ pub(crate) enum StorageEntryKind {
 pub(crate) struct FileSystemStorage;
 
 impl Storage for FileSystemStorage {
+    fn lock_exclusive(&self, dir: &Path) -> Result<Box<dyn StorageLock>, CoreError> {
+        Ok(Box::new(ProjectLock::exclusive(dir)?))
+    }
+
     fn open_read(&self, path: &Path) -> std::io::Result<Box<dyn Read>> {
         File::open(path).map(|file| Box::new(file) as Box<dyn Read>)
     }
@@ -121,6 +131,10 @@ impl Storage for FileSystemStorage {
         path.is_file()
     }
 
+    fn exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
     fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
         let file_type = std::fs::metadata(path)?.file_type();
         Ok(if file_type.is_file() {
@@ -130,6 +144,10 @@ impl Storage for FileSystemStorage {
         } else {
             StorageEntryKind::Other
         })
+    }
+
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        path.canonicalize()
     }
 
     fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -153,11 +171,7 @@ impl Storage for FileSystemStorage {
     }
 }
 
-pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
-    read_json_with(&FileSystemStorage, path)
-}
-
-pub(crate) fn read_json_with<T: DeserializeOwned>(
+pub(crate) fn read_json<T: DeserializeOwned>(
     storage: &dyn Storage,
     path: &Path,
 ) -> Result<T, CoreError> {
@@ -167,17 +181,30 @@ pub(crate) fn read_json_with<T: DeserializeOwned>(
     serde_json::from_slice(&bytes).map_err(CoreError::from)
 }
 
-pub(crate) fn list_paths(path: &Path) -> Result<Vec<PathBuf>, CoreError> {
-    FileSystemStorage
+pub(crate) fn list_paths(storage: &dyn Storage, path: &Path) -> Result<Vec<PathBuf>, CoreError> {
+    storage
         .list(path)
         .map_err(|error| CoreError::io("cannot list persisted directory", error))
 }
 
-pub(crate) fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError> {
-    write_json_atomic_with(&FileSystemStorage, path, value)
+pub(crate) fn list_project_directories(
+    storage: &dyn Storage,
+    path: &Path,
+) -> Result<Vec<PathBuf>, CoreError> {
+    let entries = storage
+        .list(path)
+        .map_err(|error| CoreError::io("cannot list projects", error))?;
+    entries
+        .into_iter()
+        .filter_map(|entry| match storage.entry_kind(&entry) {
+            Ok(StorageEntryKind::Directory) => Some(Ok(entry)),
+            Ok(_) => None,
+            Err(error) => Some(Err(CoreError::io("cannot inspect project entry", error))),
+        })
+        .collect()
 }
 
-pub(crate) fn write_json_atomic_with<T: Serialize>(
+pub(crate) fn write_json_atomic<T: Serialize>(
     storage: &dyn Storage,
     path: &Path,
     value: &T,
@@ -188,22 +215,23 @@ pub(crate) fn write_json_atomic_with<T: Serialize>(
         .map_err(|error| CoreError::io("cannot publish data", error))
 }
 
-pub(crate) fn remove_file_if_exists(path: &Path) -> Result<(), CoreError> {
-    if !path.exists() {
+pub(crate) fn remove_file_if_exists(storage: &dyn Storage, path: &Path) -> Result<(), CoreError> {
+    if !storage.exists(path) {
         return Ok(());
     }
-    FileSystemStorage
+    storage
         .remove_durable(path)
         .map_err(|error| CoreError::io("cannot remove file", error))
 }
 
-pub(crate) fn remove_file_durable(path: &Path) -> Result<(), CoreError> {
-    FileSystemStorage
+pub(crate) fn remove_file_durable(storage: &dyn Storage, path: &Path) -> Result<(), CoreError> {
+    storage
         .remove_durable(path)
         .map_err(|error| CoreError::io("cannot remove file", error))
 }
 
 pub(crate) fn persist_transaction(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
@@ -217,13 +245,13 @@ pub(crate) fn persist_transaction(
         history: history.clone(),
         committed_draft_id: committed_draft_id.map(str::to_owned),
     };
-    write_json_atomic(&transaction_path(dir), &transaction)?;
+    write_json_atomic(storage, &transaction_path(dir), &transaction)?;
 
     let mut warnings = Vec::new();
     if faults.checkpoint(PersistencePhase::AfterJournal).is_err()
-        || write_json_atomic(&project_path(dir), &transaction.project).is_err()
+        || write_json_atomic(storage, &project_path(dir), &transaction.project).is_err()
         || faults.checkpoint(PersistencePhase::AfterProject).is_err()
-        || write_json_atomic(&history_path(dir), &transaction.history).is_err()
+        || write_json_atomic(storage, &history_path(dir), &transaction.history).is_err()
     {
         warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
         return Ok(warnings);
@@ -238,7 +266,7 @@ pub(crate) fn persist_transaction(
     }
 
     if let Some(draft_id) = transaction.committed_draft_id.as_deref()
-        && remove_file_if_exists(&draft_path(dir, draft_id)?).is_err()
+        && remove_file_if_exists(storage, &draft_path(dir, draft_id)?).is_err()
     {
         warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
         warnings.push(DRAFT_CLEANUP_FAILED.into());
@@ -248,7 +276,7 @@ pub(crate) fn persist_transaction(
     if faults
         .checkpoint(PersistencePhase::AfterDraftCleanup)
         .is_err()
-        || remove_file_durable(&transaction_path(dir)).is_err()
+        || remove_file_durable(storage, &transaction_path(dir)).is_err()
     {
         warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
         return Ok(warnings);
@@ -258,28 +286,33 @@ pub(crate) fn persist_transaction(
     Ok(warnings)
 }
 
-pub(crate) fn recover_transaction(faults: &PersistenceFaults, dir: &Path) -> Result<(), CoreError> {
-    cleanup_orphaned_transaction_temps(dir)?;
+pub(crate) fn recover_transaction(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+) -> Result<(), CoreError> {
+    cleanup_orphaned_transaction_temps(storage, dir)?;
     let path = transaction_path(dir);
-    if !path.exists() {
+    if !storage.exists(&path) {
         return Ok(());
     }
-    let transaction = read_transaction(&path)?;
+    let transaction = read_transaction(storage, &path)?;
     validate_transaction(dir, &transaction)?;
-    replay_transaction(faults, dir, &transaction)
+    replay_transaction(storage, faults, dir, &transaction)
 }
 
-fn cleanup_orphaned_transaction_temps(dir: &Path) -> Result<(), CoreError> {
-    let entries = std::fs::read_dir(dir)
+fn cleanup_orphaned_transaction_temps(storage: &dyn Storage, dir: &Path) -> Result<(), CoreError> {
+    let entries = storage
+        .list(dir)
         .map_err(|error| recovery_error(format!("cannot inspect transaction files: {error}")))?;
-    for entry in entries {
-        let entry = entry
-            .map_err(|error| recovery_error(format!("cannot inspect transaction file: {error}")))?;
-        let file_type = entry.file_type().map_err(|error| {
+    for path in entries {
+        let file_type = storage.entry_kind(&path).map_err(|error| {
             recovery_error(format!("cannot inspect transaction file type: {error}"))
         })?;
-        if file_type.is_file() && is_transaction_temp_name(&entry.file_name()) {
-            remove_file_durable(&entry.path()).map_err(as_recovery_error)?;
+        if file_type == StorageEntryKind::File
+            && path.file_name().is_some_and(is_transaction_temp_name)
+        {
+            remove_file_durable(storage, &path).map_err(as_recovery_error)?;
         }
     }
     Ok(())
@@ -297,8 +330,9 @@ fn is_transaction_temp_name(name: &std::ffi::OsStr) -> bool {
         })
 }
 
-fn read_transaction(path: &Path) -> Result<ProjectTransaction, CoreError> {
-    let data = std::fs::read(path)
+fn read_transaction(storage: &dyn Storage, path: &Path) -> Result<ProjectTransaction, CoreError> {
+    let data = storage
+        .read(path)
         .map_err(|error| recovery_error(format!("cannot read transaction journal: {error}")))?;
     serde_json::from_slice(&data)
         .map_err(|error| recovery_error(format!("invalid transaction journal: {error}")))
@@ -344,6 +378,7 @@ fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<
 }
 
 fn replay_transaction(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
     transaction: &ProjectTransaction,
@@ -351,21 +386,23 @@ fn replay_transaction(
     faults
         .checkpoint(PersistencePhase::AfterJournal)
         .map_err(as_recovery_error)?;
-    write_json_atomic(&project_path(dir), &transaction.project).map_err(as_recovery_error)?;
+    write_json_atomic(storage, &project_path(dir), &transaction.project)
+        .map_err(as_recovery_error)?;
     faults
         .checkpoint(PersistencePhase::AfterProject)
         .map_err(as_recovery_error)?;
-    write_json_atomic(&history_path(dir), &transaction.history).map_err(as_recovery_error)?;
+    write_json_atomic(storage, &history_path(dir), &transaction.history)
+        .map_err(as_recovery_error)?;
     faults
         .checkpoint(PersistencePhase::AfterHistory)
         .map_err(as_recovery_error)?;
     if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
-        remove_file_if_exists(&draft_path(dir, draft_id)?).map_err(as_recovery_error)?;
+        remove_file_if_exists(storage, &draft_path(dir, draft_id)?).map_err(as_recovery_error)?;
     }
     faults
         .checkpoint(PersistencePhase::AfterDraftCleanup)
         .map_err(as_recovery_error)?;
-    remove_file_durable(&transaction_path(dir)).map_err(as_recovery_error)?;
+    remove_file_durable(storage, &transaction_path(dir)).map_err(as_recovery_error)?;
     faults
         .checkpoint(PersistencePhase::AfterJournalCleanup)
         .map_err(as_recovery_error)
@@ -412,6 +449,16 @@ fn sync_parent(_path: &Path) -> std::io::Result<()> {
 
 pub(crate) struct ProjectLock(File);
 
+impl Debug for ProjectLock {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProjectLock")
+            .finish_non_exhaustive()
+    }
+}
+
+impl StorageLock for ProjectLock {}
+
 impl ProjectLock {
     pub(crate) fn exclusive(dir: &Path) -> Result<Self, CoreError> {
         let file = open_lock(dir)?;
@@ -444,9 +491,17 @@ mod tests {
     use super::*;
     use crate::ErrorCode;
 
+    #[derive(Debug)]
     struct FailingStorage;
 
     impl Storage for FailingStorage {
+        fn lock_exclusive(&self, _dir: &Path) -> Result<Box<dyn StorageLock>, CoreError> {
+            Err(CoreError::new(
+                ErrorCode::InternalError,
+                "injected lock failure",
+            ))
+        }
+
         fn open_read(&self, _path: &Path) -> std::io::Result<Box<dyn Read>> {
             Err(std::io::Error::other("injected open failure"))
         }
@@ -475,8 +530,16 @@ mod tests {
             false
         }
 
+        fn exists(&self, _path: &Path) -> bool {
+            false
+        }
+
         fn entry_kind(&self, _path: &Path) -> std::io::Result<StorageEntryKind> {
             Err(std::io::Error::other("injected classification failure"))
+        }
+
+        fn canonicalize(&self, _path: &Path) -> std::io::Result<PathBuf> {
+            Err(std::io::Error::other("injected canonicalize failure"))
         }
 
         fn atomic_replace(&self, _path: &Path, _bytes: &[u8]) -> std::io::Result<()> {
@@ -490,13 +553,12 @@ mod tests {
 
     #[test]
     fn storage_failures_are_injectable_without_domain_changes() {
-        let error = read_json_with::<serde_json::Value>(&FailingStorage, Path::new("project.json"))
-            .unwrap_err();
+        let error =
+            read_json::<serde_json::Value>(&FailingStorage, Path::new("project.json")).unwrap_err();
         assert_eq!(error.code, ErrorCode::InternalError);
         assert!(error.message.contains("cannot read persisted JSON"));
 
-        let error =
-            write_json_atomic_with(&FailingStorage, Path::new("project.json"), &42).unwrap_err();
+        let error = write_json_atomic(&FailingStorage, Path::new("project.json"), &42).unwrap_err();
         assert!(error.message.contains("cannot publish data"));
     }
 }

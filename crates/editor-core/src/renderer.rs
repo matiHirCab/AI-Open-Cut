@@ -124,7 +124,11 @@ impl Renderer {
         }
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
-        let temporary = temporary_output(output.parent().unwrap_or(project_dir), "png");
+        let temporary = temporary_output(
+            self.artifact_io.as_ref(),
+            output.parent().unwrap_or(project_dir),
+            "png",
+        );
         let built = self.prepare_render(
             project,
             project_dir,
@@ -167,6 +171,7 @@ impl Renderer {
             ));
         }
         let temporary = temporary_output(
+            self.artifact_io.as_ref(),
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
@@ -228,7 +233,11 @@ impl Renderer {
         }
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
-        let temporary = temporary_output(output.parent().unwrap_or(project_dir), "mp4");
+        let temporary = temporary_output(
+            self.artifact_io.as_ref(),
+            output.parent().unwrap_or(project_dir),
+            "mp4",
+        );
         let built = self.prepare_render(
             project,
             project_dir,
@@ -272,9 +281,10 @@ impl Renderer {
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
         let scene = evaluate_scene(SceneInput { project, intent }, width, height, fps)?;
-        let workspace = RenderWorkspace::create(project_dir)?;
+        let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut warnings = Vec::new();
         let resources = prepare_render_resources(
+            self.artifact_io.as_ref(),
             &scene,
             project_dir,
             workspace.path(),
@@ -291,7 +301,7 @@ impl Renderer {
             &mut warnings,
         )
         .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
-        write_filter_script(&filter_path, &plan.filter_graph)?;
+        write_filter_script(self.artifact_io.as_ref(), &filter_path, &plan.filter_graph)?;
         Ok(PreparedRender {
             plan,
             filter_path,
@@ -334,11 +344,20 @@ mod tests {
         CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaType,
         PROJECT_SCHEMA_VERSION, ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType,
         Transform,
-        render_artifact::{artifact, prepare_text_layers, publish_output},
+        render_artifact::{ArtifactEntryKind, artifact, prepare_text_layers, publish_output},
         render_plan::seconds,
         render_process::{build_render_command, run_to_completion},
     };
-    use std::{collections::HashMap, env, fs::File, process::Command, sync::Mutex};
+    use std::{
+        collections::HashMap,
+        env,
+        fs::File,
+        process::Command,
+        sync::{
+            Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
     use tempfile::tempdir;
 
     #[derive(Clone, Copy, Debug)]
@@ -425,6 +444,38 @@ mod tests {
     }
 
     impl ArtifactIo for FakeArtifactIo {
+        fn request_id(&self) -> String {
+            Uuid::new_v4().to_string()
+        }
+
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.create_dir(path)
+        }
+
+        fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.remove_dir_all(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            FileSystemArtifactIo.read(path)
+        }
+
+        fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+            FileSystemArtifactIo.write(path, contents)
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            FileSystemArtifactIo.list(path)
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+            FileSystemArtifactIo.entry_kind(path)
+        }
+
+        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize(path)
+        }
+
         fn exists(&self, path: &Path) -> bool {
             path.exists()
         }
@@ -455,6 +506,131 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ArtifactFailure {
+        CreateWorkspace,
+        Write,
+        Canonicalize,
+        Read,
+        List,
+    }
+
+    #[derive(Debug, Default)]
+    struct LifecycleArtifactIo {
+        next_failure: Mutex<Option<ArtifactFailure>>,
+        events: Mutex<Vec<&'static str>>,
+        request_counter: AtomicUsize,
+    }
+
+    impl LifecycleArtifactIo {
+        fn fail_next(&self, failure: ArtifactFailure) {
+            *self.next_failure.lock().unwrap() = Some(failure);
+        }
+
+        fn take(&self, failure: ArtifactFailure) -> bool {
+            let mut next = self.next_failure.lock().unwrap();
+            if *next == Some(failure) {
+                *next = None;
+                true
+            } else {
+                false
+            }
+        }
+
+        fn record(&self, event: &'static str) {
+            self.events.lock().unwrap().push(event);
+        }
+    }
+
+    impl ArtifactIo for LifecycleArtifactIo {
+        fn request_id(&self) -> String {
+            self.record("request_id");
+            format!(
+                "lifecycle-{}",
+                self.request_counter.fetch_add(1, Ordering::SeqCst)
+            )
+        }
+
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            self.record("create_dir");
+            if self.take(ArtifactFailure::CreateWorkspace) {
+                Err(std::io::Error::other("injected workspace failure"))
+            } else {
+                FileSystemArtifactIo.create_dir(path)
+            }
+        }
+
+        fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            self.record("remove_dir_all");
+            FileSystemArtifactIo.remove_dir_all(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            self.record("read");
+            if self.take(ArtifactFailure::Read) {
+                Err(std::io::Error::other("injected read failure"))
+            } else {
+                FileSystemArtifactIo.read(path)
+            }
+        }
+
+        fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+            self.record("write");
+            if self.take(ArtifactFailure::Write) {
+                Err(std::io::Error::other("injected write failure"))
+            } else {
+                FileSystemArtifactIo.write(path, contents)
+            }
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            self.record("list");
+            if self.take(ArtifactFailure::List) {
+                Err(std::io::Error::other("injected list failure"))
+            } else {
+                FileSystemArtifactIo.list(path)
+            }
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+            self.record("entry_kind");
+            FileSystemArtifactIo.entry_kind(path)
+        }
+
+        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+            self.record("canonicalize");
+            if self.take(ArtifactFailure::Canonicalize) {
+                Err(std::io::Error::other("injected canonicalize failure"))
+            } else {
+                FileSystemArtifactIo.canonicalize(path)
+            }
+        }
+
+        fn exists(&self, path: &Path) -> bool {
+            self.record("exists");
+            FileSystemArtifactIo.exists(path)
+        }
+
+        fn remove(&self, path: &Path) -> std::io::Result<()> {
+            self.record("remove");
+            match FileSystemArtifactIo.remove(path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error),
+            }
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            self.record("rename");
+            FileSystemArtifactIo.rename(from, to)
+        }
+
+        fn size(&self, path: &Path) -> std::io::Result<u64> {
+            self.record("size");
+            FileSystemArtifactIo.size(path)
+        }
+    }
+
     fn empty_project() -> Project {
         Project {
             schema_version: PROJECT_SCHEMA_VERSION,
@@ -467,6 +643,33 @@ mod tests {
             assets: vec![],
             tracks: vec![],
         }
+    }
+
+    fn visual_project() -> Project {
+        let mut project = empty_project();
+        project.settings.width = 320;
+        project.settings.height = 180;
+        project.settings.fps = 15;
+        project.tracks.push(Track {
+            id: "overlay".into(),
+            name: "Overlay".into(),
+            track_type: TrackType::Overlay,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::SolidColor(SolidColorItem {
+                id: "background".into(),
+                color: "#112233".into(),
+                start_ms: 0,
+                duration_ms: 1_000,
+                transform: Transform::default(),
+                keyframes: vec![],
+                hidden: false,
+            })],
+        });
+        project
     }
 
     #[test]
@@ -600,6 +803,199 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
         assert_eq!(publication_io.removed.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn facade_delegates_workspace_filter_paths_and_cleanup_for_every_render_intent() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        let project = visual_project();
+
+        renderer.render_preview(&project, root.path(), 0).unwrap();
+        renderer
+            .render_preview_range(
+                &project,
+                root.path(),
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 500,
+                    width: 320,
+                    height: 180,
+                    fps: 15,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        renderer
+            .export_video(
+                &project,
+                root.path(),
+                ExportOptions {
+                    output: &root.path().join("export.mp4"),
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+
+        assert_eq!(
+            process.executions.lock().unwrap().as_slice(),
+            &[
+                RenderIntent::Frame { at_ms: 0 },
+                RenderIntent::Range {
+                    start_ms: 0,
+                    end_ms: 500,
+                    include_audio: false,
+                },
+                RenderIntent::Export,
+            ]
+        );
+        let events = artifact_io.events.lock().unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| **event == "create_dir")
+                .count(),
+            3
+        );
+        assert_eq!(events.iter().filter(|event| **event == "write").count(), 3);
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| **event == "remove_dir_all")
+                .count(),
+            3
+        );
+        assert!(events.contains(&"rename"));
+        assert!(events.contains(&"size"));
+    }
+
+    #[test]
+    fn facade_maps_injected_workspace_and_filter_failures_and_still_cleans_up() {
+        for failure in [ArtifactFailure::CreateWorkspace, ArtifactFailure::Write] {
+            let root = tempdir().unwrap();
+            let process = Arc::new(FakeProcess {
+                readiness_error: false,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let artifact_io = Arc::new(LifecycleArtifactIo::default());
+            artifact_io.fail_next(failure);
+            let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+                .with_adapters(process, artifact_io.clone());
+            let error = renderer
+                .export_video(
+                    &visual_project(),
+                    root.path(),
+                    ExportOptions {
+                        output: &root.path().join("export.mp4"),
+                        width: 320,
+                        height: 180,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.failed_stage.as_deref(), Some(GRAPH_BUILD_STAGE));
+            let events = artifact_io.events.lock().unwrap();
+            if failure == ArtifactFailure::Write {
+                assert!(events.contains(&"remove_dir_all"));
+            }
+        }
+    }
+
+    #[test]
+    fn facade_routes_font_path_listing_and_reads_through_artifact_io() {
+        for failure in [
+            ArtifactFailure::Canonicalize,
+            ArtifactFailure::Read,
+            ArtifactFailure::List,
+        ] {
+            let root = tempdir().unwrap();
+            let fonts = root.path().join("fonts");
+            std::fs::create_dir(&fonts).unwrap();
+            std::fs::write(fonts.join("fixture.ttf"), b"not a real font").unwrap();
+            let mut project = visual_project();
+            project.tracks[0]
+                .items
+                .push(TimelineItem::Text(crate::TextItem {
+                    id: "text".into(),
+                    text: "artifact adapter".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 20,
+                    color: "#ffffff".into(),
+                    font_family: (failure == ArtifactFailure::List).then(|| "Missing".into()),
+                    font_path: (failure != ArtifactFailure::List).then(|| "fixture.ttf".into()),
+                    style: crate::TextStyle {
+                        wrap_width_px: Some(120),
+                        ..crate::TextStyle::default()
+                    },
+                    transform: Transform::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                }));
+            let process = Arc::new(FakeProcess {
+                readiness_error: false,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let artifact_io = Arc::new(LifecycleArtifactIo::default());
+            artifact_io.fail_next(failure);
+            let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+                .with_font_roots([fonts])
+                .with_adapters(process, artifact_io.clone());
+            let artifact = renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &root.path().join("export.mp4"),
+                        width: 320,
+                        height: 180,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let events = artifact_io.events.lock().unwrap();
+            match failure {
+                ArtifactFailure::Canonicalize => {
+                    assert!(events.contains(&"canonicalize"));
+                    assert!(
+                        artifact
+                            .warnings
+                            .iter()
+                            .any(|warning| warning.contains("font path"))
+                    );
+                }
+                ArtifactFailure::Read => assert!(events.contains(&"read")),
+                ArtifactFailure::List => {
+                    assert!(events.contains(&"list"));
+                    assert!(
+                        artifact
+                            .warnings
+                            .iter()
+                            .any(|warning| warning.contains("font family"))
+                    );
+                }
+                ArtifactFailure::CreateWorkspace | ArtifactFailure::Write => unreachable!(),
+            }
+        }
     }
 
     #[test]
@@ -956,6 +1352,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let text_layers = prepare_text_layers(
+            &FileSystemArtifactIo,
             &text_resources,
             root.path(),
             renderer.default_font_path.as_deref(),
@@ -1031,7 +1428,10 @@ mod tests {
         let root = tempdir().unwrap();
         let invalid_project_dir = root.path().join("project-file");
         std::fs::write(&invalid_project_dir, b"not a directory").unwrap();
-        let graph_error = RenderWorkspace::create(&invalid_project_dir).err().unwrap();
+        let graph_error =
+            RenderWorkspace::create(Arc::new(FileSystemArtifactIo), &invalid_project_dir)
+                .err()
+                .unwrap();
         assert_eq!(graph_error.code, ErrorCode::FfmpegFailed);
         assert_eq!(graph_error.failed_stage.as_deref(), Some(GRAPH_BUILD_STAGE));
         assert_eq!(graph_error.ffmpeg_exit_code, None);
@@ -1159,7 +1559,8 @@ mod tests {
         let root = tempdir().unwrap();
         let workspace_path;
         {
-            let workspace = RenderWorkspace::create(root.path()).unwrap();
+            let workspace =
+                RenderWorkspace::create(Arc::new(FileSystemArtifactIo), root.path()).unwrap();
             workspace_path = workspace.path().to_owned();
             std::fs::write(workspace.path().join("filter.txt"), b"fixture").unwrap();
             assert!(workspace_path.exists());

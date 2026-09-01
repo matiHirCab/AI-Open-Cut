@@ -12,9 +12,7 @@ use uuid::Uuid;
 use crate::{
     ContentHash, CoreError, EditOperation, ErrorCode, GeneratedAssetOrigin, History,
     MediaProbeFacts, MediaType, Project, TimelineItem,
-    persistence::{
-        FileSystemStorage, PersistenceFaults, PersistencePhase, Storage, StorageEntryKind,
-    },
+    persistence::{PersistenceFaults, PersistencePhase, Storage, StorageEntryKind},
 };
 
 pub(crate) const ASSET_GC_FAILED: &str = "ASSET_GC_FAILED";
@@ -263,11 +261,7 @@ pub(crate) fn sanitize_file_name(value: &str) -> String {
     }
 }
 
-pub(crate) fn hash_file(path: &Path) -> Result<(String, u64), CoreError> {
-    hash_file_with(&FileSystemStorage, path)
-}
-
-fn hash_file_with(storage: &dyn Storage, path: &Path) -> Result<(String, u64), CoreError> {
+pub(crate) fn hash_file(storage: &dyn Storage, path: &Path) -> Result<(String, u64), CoreError> {
     let mut file = storage
         .open_read(path)
         .map_err(|_| CoreError::new(ErrorCode::AssetIntegrityFailed, "asset file is missing"))?;
@@ -291,16 +285,12 @@ pub(crate) fn hash_relative_path(digest: &str) -> String {
     format!("assets/sha256/{}/{}", &digest[..2], digest)
 }
 
-pub(crate) fn store_content_addressed(dir: &Path, source: &Path) -> Result<StoredAsset, CoreError> {
-    store_content_addressed_with(&FileSystemStorage, dir, source)
-}
-
-fn store_content_addressed_with(
+pub(crate) fn store_content_addressed(
     storage: &dyn Storage,
     dir: &Path,
     source: &Path,
 ) -> Result<StoredAsset, CoreError> {
-    let (digest, size_bytes) = hash_file_with(storage, source)?;
+    let (digest, size_bytes) = hash_file(storage, source)?;
     let relative_path = hash_relative_path(&digest);
     let destination = dir.join(&relative_path);
     if !storage.is_file(&destination) {
@@ -332,7 +322,11 @@ fn store_content_addressed_with(
     })
 }
 
-pub(crate) fn migrate_project_assets(project: &mut Project, dir: &Path) -> Result<bool, CoreError> {
+pub(crate) fn migrate_project_assets(
+    storage: &dyn Storage,
+    project: &mut Project,
+    dir: &Path,
+) -> Result<bool, CoreError> {
     let mut changed = false;
     for asset in &mut project.assets {
         if let Some(probe) = &asset.probe
@@ -344,7 +338,7 @@ pub(crate) fn migrate_project_assets(project: &mut Project, dir: &Path) -> Resul
             ));
         }
         let source = dir.join(&asset.project_relative_path);
-        let (digest, size_bytes) = hash_file(&source)?;
+        let (digest, size_bytes) = hash_file(storage, &source)?;
         if let Some(content_hash) = &asset.content_hash
             && (content_hash.algorithm != "sha256" || content_hash.digest != digest)
         {
@@ -359,7 +353,7 @@ pub(crate) fn migrate_project_assets(project: &mut Project, dir: &Path) -> Resul
                 "asset size does not match project metadata",
             ));
         }
-        let stored = store_content_addressed(dir, &source)?;
+        let stored = store_content_addressed(storage, dir, &source)?;
         if asset.project_relative_path != stored.relative_path {
             asset.project_relative_path = stored.relative_path;
             changed = true;
@@ -410,16 +404,6 @@ pub(crate) fn retained_managed_paths(
 }
 
 pub(crate) fn garbage_collect(
-    faults: &PersistenceFaults,
-    dir: &Path,
-    project: &Project,
-    history: &History,
-    drafts: &[DraftAssetOperations<'_>],
-) -> Vec<String> {
-    garbage_collect_with(&FileSystemStorage, faults, dir, project, history, drafts)
-}
-
-fn garbage_collect_with(
     storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
@@ -485,9 +469,11 @@ mod tests {
     use crate::{
         Asset, AudioSettings, AudioTrackRole, MediaItem, PROJECT_SCHEMA_VERSION, ProjectSettings,
         Track, TrackType, Transform,
+        persistence::{FileSystemStorage, StorageLock},
     };
     use std::sync::Mutex;
 
+    #[derive(Debug)]
     struct GcStorage {
         classify_failure: bool,
         remove_failure: bool,
@@ -495,6 +481,9 @@ mod tests {
     }
 
     impl Storage for GcStorage {
+        fn lock_exclusive(&self, _dir: &Path) -> Result<Box<dyn StorageLock>, CoreError> {
+            Err(CoreError::new(ErrorCode::InternalError, "unused"))
+        }
         fn open_read(&self, _path: &Path) -> std::io::Result<Box<dyn Read>> {
             Err(std::io::Error::other("unused"))
         }
@@ -516,6 +505,9 @@ mod tests {
         fn is_file(&self, path: &Path) -> bool {
             path.extension().is_some()
         }
+        fn exists(&self, _path: &Path) -> bool {
+            true
+        }
         fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
             if self.classify_failure && path.extension().is_some() {
                 Err(std::io::Error::other("injected classification failure"))
@@ -524,6 +516,9 @@ mod tests {
             } else {
                 Ok(StorageEntryKind::Directory)
             }
+        }
+        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+            Ok(path.to_owned())
         }
         fn atomic_replace(&self, _path: &Path, _bytes: &[u8]) -> std::io::Result<()> {
             Err(std::io::Error::other("unused"))
@@ -536,6 +531,21 @@ mod tests {
                 Ok(())
             }
         }
+    }
+
+    fn store_content_addressed(dir: &Path, source: &Path) -> Result<StoredAsset, CoreError> {
+        super::store_content_addressed(&FileSystemStorage, dir, source)
+    }
+
+    fn garbage_collect_with(
+        storage: &dyn Storage,
+        faults: &PersistenceFaults,
+        dir: &Path,
+        project: &Project,
+        history: &History,
+        drafts: &[DraftAssetOperations<'_>],
+    ) -> Vec<String> {
+        super::garbage_collect(storage, faults, dir, project, history, drafts)
     }
 
     fn project_with_asset() -> Project {

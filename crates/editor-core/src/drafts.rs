@@ -4,7 +4,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{CoreError, EditOperation, ErrorCode, persistence::read_json};
+use crate::{
+    CoreError, EditOperation, ErrorCode,
+    persistence::{Storage, StorageEntryKind, list_paths, read_json},
+};
 
 pub(crate) const DRAFT_VERSION: u32 = 1;
 
@@ -39,15 +42,19 @@ pub(crate) fn draft_path(project_dir: &Path, draft_id: &str) -> Result<PathBuf, 
     Ok(draft_dir(project_dir).join(format!("{draft_id}.json")))
 }
 
-pub(crate) fn read_draft(project_dir: &Path, draft_id: &str) -> Result<EditDraft, CoreError> {
+pub(crate) fn read_draft(
+    storage: &dyn Storage,
+    project_dir: &Path,
+    draft_id: &str,
+) -> Result<EditDraft, CoreError> {
     let path = draft_path(project_dir, draft_id)?;
-    if !path.is_file() {
+    if storage.entry_kind(&path).ok() != Some(StorageEntryKind::File) {
         return Err(CoreError::new(
             ErrorCode::DraftNotFound,
             "draft was not found",
         ));
     }
-    let draft: EditDraft = read_json(&path)?;
+    let draft: EditDraft = read_json(storage, &path)?;
     if draft.version != DRAFT_VERSION {
         return Err(CoreError::new(
             ErrorCode::InternalError,
@@ -57,14 +64,29 @@ pub(crate) fn read_draft(project_dir: &Path, draft_id: &str) -> Result<EditDraft
     Ok(draft)
 }
 
-pub(crate) fn read_all_drafts(project_dir: &Path) -> Result<Vec<EditDraft>, CoreError> {
+pub(crate) fn remove_draft(
+    storage: &dyn Storage,
+    project_dir: &Path,
+    draft_id: &str,
+) -> Result<(), CoreError> {
+    storage
+        .remove_durable(&draft_path(project_dir, draft_id)?)
+        .map_err(|error| CoreError::io("cannot discard draft", error))
+}
+
+pub(crate) fn read_all_drafts(
+    storage: &dyn Storage,
+    project_dir: &Path,
+) -> Result<Vec<EditDraft>, CoreError> {
     let directory = draft_dir(project_dir);
-    if !directory.exists() {
+    if !storage.exists(&directory) {
         return Ok(vec![]);
     }
     let mut draft_ids = Vec::new();
-    for path in crate::persistence::list_paths(&directory)? {
-        if !path.is_file() || path.extension().and_then(|value| value.to_str()) != Some("json") {
+    for path in list_paths(storage, &directory)? {
+        if storage.entry_kind(&path).ok() != Some(StorageEntryKind::File)
+            || path.extension().and_then(|value| value.to_str()) != Some("json")
+        {
             continue;
         }
         let id = path
@@ -82,12 +104,12 @@ pub(crate) fn read_all_drafts(project_dir: &Path) -> Result<Vec<EditDraft>, Core
     draft_ids.sort();
     draft_ids
         .into_iter()
-        .map(|draft_id| read_draft(project_dir, &draft_id))
+        .map(|draft_id| read_draft(storage, project_dir, &draft_id))
         .collect()
 }
 
-pub(crate) fn count_drafts(directory: &Path) -> Result<usize, CoreError> {
-    Ok(crate::persistence::list_paths(directory)?
+pub(crate) fn count_drafts(storage: &dyn Storage, directory: &Path) -> Result<usize, CoreError> {
+    Ok(list_paths(storage, directory)?
         .into_iter()
         .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
         .count())

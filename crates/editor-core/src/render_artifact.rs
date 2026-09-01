@@ -5,6 +5,7 @@ use std::{
     env,
     fmt::Debug,
     path::{Component, Path, PathBuf},
+    sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
@@ -19,10 +20,25 @@ pub(crate) const PUBLISH_STAGE: &str = "publish";
 pub(crate) const GRAPH_BUILD_STAGE: &str = "graph_build";
 
 pub(crate) trait ArtifactIo: Debug + Send + Sync {
+    fn request_id(&self) -> String;
+    fn create_dir(&self, path: &Path) -> std::io::Result<()>;
+    fn remove_dir_all(&self, path: &Path) -> std::io::Result<()>;
+    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>>;
+    fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
+    fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>>;
+    fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind>;
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf>;
     fn exists(&self, path: &Path) -> bool;
     fn remove(&self, path: &Path) -> std::io::Result<()>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn size(&self, path: &Path) -> std::io::Result<u64>;
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ArtifactEntryKind {
+    File,
+    Directory,
+    Other,
 }
 
 pub(crate) struct PreparedRenderResources {
@@ -34,6 +50,42 @@ pub(crate) struct PreparedRenderResources {
 pub(crate) struct FileSystemArtifactIo;
 
 impl ArtifactIo for FileSystemArtifactIo {
+    fn request_id(&self) -> String {
+        env::var("OPENCUT_REQUEST_ID")
+            .ok()
+            .filter(|value| valid_request_id(value))
+            .unwrap_or_else(|| Uuid::new_v4().to_string())
+    }
+    fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+        std::fs::create_dir(path)
+    }
+    fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+        std::fs::remove_dir_all(path)
+    }
+    fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+    fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+        std::fs::write(path, contents)
+    }
+    fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+        std::fs::read_dir(path)?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect()
+    }
+    fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+        let file_type = std::fs::metadata(path)?.file_type();
+        Ok(if file_type.is_file() {
+            ArtifactEntryKind::File
+        } else if file_type.is_dir() {
+            ArtifactEntryKind::Directory
+        } else {
+            ArtifactEntryKind::Other
+        })
+    }
+    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        path.canonicalize()
+    }
     fn exists(&self, path: &Path) -> bool {
         path.exists()
     }
@@ -60,42 +112,34 @@ pub struct RenderArtifact {
 
 pub(crate) struct RenderWorkspace {
     path: PathBuf,
+    io: Arc<dyn ArtifactIo>,
 }
 
 impl Drop for RenderWorkspace {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
+        let _ = self.io.remove_dir_all(&self.path);
     }
 }
 
-pub(crate) fn temporary_output(parent: &Path, extension: &str) -> PathBuf {
-    let request_id = env::var("OPENCUT_REQUEST_ID")
-        .ok()
-        .filter(|value| {
-            !value.is_empty()
-                && value
-                    .chars()
-                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
-        })
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
+fn valid_request_id(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-')
+}
+
+pub(crate) fn temporary_output(io: &dyn ArtifactIo, parent: &Path, extension: &str) -> PathBuf {
+    let request_id = io.request_id();
     parent.join(format!(".opencut-{request_id}.{extension}"))
 }
 
 impl RenderWorkspace {
-    pub(crate) fn create(project_dir: &Path) -> Result<Self, CoreError> {
-        let request_id = env::var("OPENCUT_REQUEST_ID")
-            .ok()
-            .filter(|value| {
-                !value.is_empty()
-                    && value
-                        .chars()
-                        .all(|character| character.is_ascii_alphanumeric() || character == '-')
-            })
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
+    pub(crate) fn create(io: Arc<dyn ArtifactIo>, project_dir: &Path) -> Result<Self, CoreError> {
+        let request_id = io.request_id();
         let path = project_dir.join(format!(".opencut-work-{request_id}"));
-        std::fs::create_dir(&path)
+        io.create_dir(&path)
             .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        Ok(Self { path })
+        Ok(Self { path, io })
     }
 
     pub(crate) fn path(&self) -> &Path {
@@ -104,6 +148,7 @@ impl RenderWorkspace {
 }
 
 pub(crate) fn prepare_text_layers(
+    io: &dyn ArtifactIo,
     text_resources: &[&crate::TextItem],
     workspace: &Path,
     default_font_path: Option<&Path>,
@@ -113,16 +158,17 @@ pub(crate) fn prepare_text_layers(
     let mut result = HashMap::new();
     for text in text_resources {
         let path = workspace.join(format!("text-{}.txt", text.id));
-        let font_path = resolve_text_font(text, default_font_path, font_roots, warnings);
-        let content = wrap_text(
+        let font_path = resolve_text_font(io, text, default_font_path, font_roots, warnings);
+        let content = wrap_text_with_io(
+            io,
             &text.text,
             text.style.wrap_width_px,
             text.font_size,
             font_path.as_deref(),
         );
-        std::fs::write(&path, content.as_bytes())
+        io.write(&path, content.as_bytes())
             .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        let metrics = measure_text_block(&content, text.font_size, font_path.as_deref());
+        let metrics = measure_text_block(io, &content, text.font_size, font_path.as_deref());
         let outline = text.style.outline_width_px;
         let shadow_left =
             text.style.shadow.offset_x.unsigned_abs() * u32::from(text.style.shadow.offset_x < 0);
@@ -194,6 +240,7 @@ pub(crate) fn prepare_text_layers(
 }
 
 pub(crate) fn prepare_render_resources(
+    io: &dyn ArtifactIo,
     scene: &SceneEvaluation<'_>,
     project_dir: &Path,
     workspace: &Path,
@@ -204,9 +251,10 @@ pub(crate) fn prepare_render_resources(
     let media_paths = scene
         .media_inputs
         .iter()
-        .map(|input| resolve_project_asset(project_dir, &input.project_relative_path))
+        .map(|input| resolve_project_asset(io, project_dir, &input.project_relative_path))
         .collect::<Result<Vec<_>, _>>()?;
     let text_layers = prepare_text_layers(
+        io,
         &scene.text_resources,
         workspace,
         default_font_path,
@@ -225,12 +273,17 @@ pub(crate) fn prepare_render_resources(
     })
 }
 
-pub(crate) fn write_filter_script(path: &Path, contents: &str) -> Result<(), CoreError> {
-    std::fs::write(path, contents)
+pub(crate) fn write_filter_script(
+    io: &dyn ArtifactIo,
+    path: &Path,
+    contents: &str,
+) -> Result<(), CoreError> {
+    io.write(path, contents.as_bytes())
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))
 }
 
 fn resolve_text_font(
+    io: &dyn ArtifactIo,
     text: &crate::TextItem,
     default_font_path: Option<&Path>,
     font_roots: &[PathBuf],
@@ -247,11 +300,11 @@ fn resolve_text_font(
                 .collect()
         };
         for candidate in candidates {
-            if let Ok(resolved) = candidate.canonicalize()
-                && resolved.is_file()
+            if let Ok(resolved) = io.canonicalize(&candidate)
+                && io.entry_kind(&resolved).ok() == Some(ArtifactEntryKind::File)
                 && font_roots
                     .iter()
-                    .filter_map(|root| root.canonicalize().ok())
+                    .filter_map(|root| io.canonicalize(root).ok())
                     .any(|root| resolved.starts_with(root))
             {
                 return Some(resolved);
@@ -265,7 +318,7 @@ fn resolve_text_font(
     if let Some(family) = text.font_family.as_deref() {
         let needle = family.to_lowercase().replace([' ', '-', '_'], "");
         for root in font_roots {
-            if let Some(path) = find_font_file(root, &needle) {
+            if let Some(path) = find_font_file(io, root, &needle) {
                 return Some(path);
             }
         }
@@ -280,7 +333,18 @@ struct TextMetrics {
     line_count: usize,
 }
 
+#[cfg(test)]
 pub(crate) fn wrap_text(
+    text: &str,
+    width_px: Option<u32>,
+    font_size: u32,
+    font_path: Option<&Path>,
+) -> String {
+    wrap_text_with_io(&FileSystemArtifactIo, text, width_px, font_size, font_path)
+}
+
+fn wrap_text_with_io(
+    io: &dyn ArtifactIo,
     text: &str,
     width_px: Option<u32>,
     font_size: u32,
@@ -289,7 +353,7 @@ pub(crate) fn wrap_text(
     let Some(width_px) = width_px else {
         return text.to_owned();
     };
-    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
+    let font_data = font_path.and_then(|path| io.read(path).ok());
     let face = font_data
         .as_deref()
         .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
@@ -340,8 +404,13 @@ pub(crate) fn wrap_text_with_measure(
         .join("\n")
 }
 
-fn measure_text_block(text: &str, font_size: u32, font_path: Option<&Path>) -> TextMetrics {
-    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
+fn measure_text_block(
+    io: &dyn ArtifactIo,
+    text: &str,
+    font_size: u32,
+    font_path: Option<&Path>,
+) -> TextMetrics {
+    let font_data = font_path.and_then(|path| io.read(path).ok());
     let face = font_data
         .as_deref()
         .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
@@ -382,28 +451,29 @@ fn measure_text_run(text: &str, font_size: u32, face: Option<&ttf_parser::Face<'
     advance / units * f64::from(font_size)
 }
 
-fn find_font_file(root: &Path, normalized_family: &str) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(root).ok()?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if let Some(found) = find_font_file(&path, normalized_family) {
+fn find_font_file(io: &dyn ArtifactIo, root: &Path, normalized_family: &str) -> Option<PathBuf> {
+    let entries = io.list(root).ok()?;
+    for path in entries {
+        if io.entry_kind(&path).ok() == Some(ArtifactEntryKind::Directory) {
+            if let Some(found) = find_font_file(io, &path, normalized_family) {
                 return Some(found);
             }
-        } else if matches!(
-            path.extension()
-                .and_then(|value| value.to_str())
-                .map(str::to_ascii_lowercase)
-                .as_deref(),
-            Some("ttf" | "otf" | "ttc")
-        ) {
+        } else if io.entry_kind(&path).ok() == Some(ArtifactEntryKind::File)
+            && matches!(
+                path.extension()
+                    .and_then(|value| value.to_str())
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("ttf" | "otf" | "ttc")
+            )
+        {
             let stem = path
                 .file_stem()?
                 .to_string_lossy()
                 .to_lowercase()
                 .replace([' ', '-', '_'], "");
             if stem.contains(normalized_family) {
-                return path.canonicalize().ok();
+                return io.canonicalize(&path).ok();
             }
         }
     }
@@ -445,6 +515,7 @@ pub(crate) fn publish_output_with(
 }
 
 pub(crate) fn resolve_project_asset(
+    io: &dyn ArtifactIo,
     project_dir: &Path,
     relative: &Path,
 ) -> Result<PathBuf, CoreError> {
@@ -458,12 +529,11 @@ pub(crate) fn resolve_project_asset(
             "project asset path is not allowed",
         ));
     }
-    let root = project_dir
-        .canonicalize()
+    let root = io
+        .canonicalize(project_dir)
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-    let resolved = project_dir
-        .join(relative)
-        .canonicalize()
+    let resolved = io
+        .canonicalize(&project_dir.join(relative))
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
     if !resolved.starts_with(root) {
         return Err(CoreError::new(
@@ -523,6 +593,30 @@ mod tests {
     #[derive(Debug)]
     struct FailingIo;
     impl ArtifactIo for FailingIo {
+        fn request_id(&self) -> String {
+            "injected".into()
+        }
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.create_dir(path)
+        }
+        fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.remove_dir_all(path)
+        }
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            FileSystemArtifactIo.read(path)
+        }
+        fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+            FileSystemArtifactIo.write(path, contents)
+        }
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            FileSystemArtifactIo.list(path)
+        }
+        fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+            FileSystemArtifactIo.entry_kind(path)
+        }
+        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize(path)
+        }
         fn exists(&self, _path: &Path) -> bool {
             false
         }

@@ -1,6 +1,7 @@
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
@@ -19,12 +20,13 @@ use crate::{
     },
     drafts::{
         DRAFT_VERSION, EditDraft, count_drafts, draft_dir, draft_path, read_all_drafts, read_draft,
+        remove_draft,
     },
     migrations::migrate_project_documents,
     persistence::{
-        PERSISTENCE_RECOVERY_PENDING, PersistenceFaults, ProjectLock, TRANSACTION_FILE,
-        history_path, persist_transaction, project_path, read_json, recover_transaction,
-        transaction_path, write_json_atomic,
+        FileSystemStorage, PERSISTENCE_RECOVERY_PENDING, PersistenceFaults, Storage,
+        TRANSACTION_FILE, history_path, list_project_directories, persist_transaction,
+        project_path, read_json, recover_transaction, transaction_path, write_json_atomic,
     },
     timeline::{
         apply_operation, bump_revision, check_revision, is_single_id_creator, now_ms, push_undo,
@@ -38,7 +40,8 @@ use crate::{
 
 #[cfg(test)]
 use crate::persistence::{
-    DRAFT_CLEANUP_FAILED, PersistencePhase, ProjectTransaction, TRANSACTION_VERSION,
+    DRAFT_CLEANUP_FAILED, PersistencePhase, ProjectTransaction, StorageEntryKind,
+    TRANSACTION_VERSION,
 };
 
 const DRAFT_LIMIT: usize = 100;
@@ -158,6 +161,7 @@ pub struct ReplaceGeneratedAssetResult {
 #[derive(Clone, Debug)]
 pub struct EditorCore {
     paths: PathPolicy,
+    storage: Arc<dyn Storage>,
     persistence_faults: PersistenceFaults,
 }
 
@@ -165,6 +169,16 @@ impl EditorCore {
     pub fn new(paths: PathPolicy) -> Self {
         Self {
             paths,
+            storage: Arc::new(FileSystemStorage),
+            persistence_faults: PersistenceFaults::default(),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_storage(paths: PathPolicy, storage: Arc<dyn Storage>) -> Self {
+        Self {
+            paths,
+            storage,
             persistence_faults: PersistenceFaults::default(),
         }
     }
@@ -187,9 +201,11 @@ impl EditorCore {
         }
         let id = Uuid::new_v4().to_string();
         let project_dir = self.paths.project_dir(&id)?;
-        std::fs::create_dir_all(project_dir.join("assets"))
+        self.storage
+            .create_dir_all(&project_dir.join("assets"))
             .map_err(|error| CoreError::io("cannot create project assets", error))?;
-        std::fs::create_dir_all(project_dir.join("previews"))
+        self.storage
+            .create_dir_all(&project_dir.join("previews"))
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
@@ -248,8 +264,9 @@ impl EditorCore {
                 },
             ],
         };
-        let _lock = ProjectLock::exclusive(&project_dir)?;
+        let _lock = self.storage.lock_exclusive(&project_dir)?;
         let warnings = persist(
+            self.storage.as_ref(),
             &self.persistence_faults,
             &project_dir,
             &project,
@@ -267,30 +284,32 @@ impl EditorCore {
 
     pub fn get_project(&self, project_id: &str) -> Result<Project, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, history) = load_project_data(&self.persistence_faults, &dir)?;
-        let _ = collect_asset_garbage(&self.persistence_faults, &dir, &project, &history);
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let _ = collect_asset_garbage(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        );
         Ok(project)
     }
 
     pub fn list_projects(&self) -> Result<Vec<ProjectSummary>, CoreError> {
         let mut summaries = Vec::new();
-        let entries = std::fs::read_dir(self.paths.projects_root())
-            .map_err(|error| CoreError::io("cannot list projects", error))?;
-        for entry in entries {
-            let entry = entry.map_err(|error| CoreError::io("cannot read project entry", error))?;
-            if !entry
-                .file_type()
-                .map_err(|error| CoreError::io("cannot inspect project entry", error))?
-                .is_dir()
-            {
-                continue;
-            }
-            let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
+        let entries = list_project_directories(self.storage.as_ref(), self.paths.projects_root())?;
+        for path in entries {
+            let Some(id) = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_owned)
+            else {
                 continue;
             };
-            if !entry.path().join("project.json").is_file()
-                && !entry.path().join(TRANSACTION_FILE).is_file()
+            if !self.storage.is_file(&path.join("project.json"))
+                && !self.storage.is_file(&path.join(TRANSACTION_FILE))
             {
                 continue;
             }
@@ -342,11 +361,12 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let source = self.paths.import_path(requested_path)?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let asset_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         push_undo(&mut history, &project);
         project.assets.push(Asset {
             id: asset_id.clone(),
@@ -365,10 +385,22 @@ impl EditorCore {
             probe: Some(probe),
         });
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, vec![asset_id], "Imported asset");
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -382,8 +414,9 @@ impl EditorCore {
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
         let track_index = project
             .tracks
@@ -395,7 +428,7 @@ impl EditorCore {
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
         let item_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         let display_name = generated_display_name(&request.origin);
 
         project.assets.push(Asset {
@@ -425,9 +458,21 @@ impl EditorCore {
             }));
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
-        let warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
+        let warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(CommitGeneratedAssetResult {
             project_id: project.id.clone(),
             revision: project.revision,
@@ -445,15 +490,16 @@ impl EditorCore {
         asset_id: &str,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let index = project
             .assets
             .iter()
             .position(|asset| asset.id == asset_id)
             .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
-        let drafts = read_all_drafts(&dir)?;
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
         let asset_drafts = draft_asset_operations(&drafts);
         validate_draft_asset_references(&project, &asset_drafts)?;
         if let Some(reference) = blocking_asset_reference(&project, &asset_drafts, asset_id) {
@@ -470,10 +516,22 @@ impl EditorCore {
         project.assets.remove(index);
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, vec![asset_id.to_owned()], "Deleted asset");
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -487,10 +545,11 @@ impl EditorCore {
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
-        let drafts = read_all_drafts(&dir)?;
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
         let asset_drafts = draft_asset_operations(&drafts);
         validate_draft_asset_references(&project, &asset_drafts)?;
         let (track_index, item_index) = project
@@ -531,7 +590,7 @@ impl EditorCore {
 
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         project.assets.push(Asset {
             id: asset_id.clone(),
             media_type: MediaType::Audio,
@@ -554,9 +613,21 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
-        let warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
+        let warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(ReplaceGeneratedAssetResult {
             project_id: project.id,
             revision: project.revision,
@@ -575,17 +646,30 @@ impl EditorCore {
         operation: EditOperation,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let previous = project.clone();
         let (changed_ids, summary) = apply_operation(&mut project, operation)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, summary);
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -602,8 +686,9 @@ impl EditorCore {
             ));
         }
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
@@ -641,11 +726,23 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, "Applied timeline edit batch");
         result.aliases = aliases;
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -659,14 +756,16 @@ impl EditorCore {
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         validate_operations_against(&project, &operations)?;
         let drafts = draft_dir(&dir);
-        std::fs::create_dir_all(&drafts)
+        self.storage
+            .create_dir_all(&drafts)
             .map_err(|error| CoreError::io("cannot create draft directory", error))?;
-        if count_drafts(&drafts)? >= DRAFT_LIMIT {
+        if count_drafts(self.storage.as_ref(), &drafts)? >= DRAFT_LIMIT {
             return Err(CoreError::new(
                 ErrorCode::DraftLimitReached,
                 "project has reached the retained draft limit",
@@ -683,15 +782,16 @@ impl EditorCore {
             created_at_ms: now,
             updated_at_ms: now,
         };
-        write_json_atomic(&draft_path(&dir, &draft.id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, &draft.id)?, &draft)?;
         Ok(draft)
     }
 
     pub fn get_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
-        let draft = read_draft(&dir, draft_id)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         Ok(draft)
     }
@@ -707,10 +807,11 @@ impl EditorCore {
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let mut draft = read_draft(&dir, draft_id)?;
+        let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
                 ErrorCode::RevisionConflict,
@@ -724,7 +825,7 @@ impl EditorCore {
         draft.operations = operations;
         draft.label = label;
         draft.updated_at_ms = now_ms()?;
-        write_json_atomic(&draft_path(&dir, draft_id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
         Ok(draft)
     }
 
@@ -735,15 +836,16 @@ impl EditorCore {
         expected_revision: u64,
     ) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let mut draft = read_draft(&dir, draft_id)?;
+        let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         validate_operations_against(&project, &draft.operations)?;
         draft.base_revision = expected_revision;
         draft.updated_at_ms = now_ms()?;
-        write_json_atomic(&draft_path(&dir, draft_id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
         Ok(draft)
     }
 
@@ -753,9 +855,10 @@ impl EditorCore {
         draft_id: &str,
     ) -> Result<ProjectState, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, _) = load_project_data(&self.persistence_faults, &dir)?;
-        let draft = read_draft(&dir, draft_id)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         check_revision(&project, draft.base_revision)?;
         for operation in draft.operations {
@@ -775,10 +878,11 @@ impl EditorCore {
         expected_revision: u64,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let draft = read_draft(&dir, draft_id)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
@@ -798,6 +902,7 @@ impl EditorCore {
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist_transaction(
+            self.storage.as_ref(),
             &self.persistence_faults,
             &dir,
             &project,
@@ -805,18 +910,23 @@ impl EditorCore {
             Some(draft_id),
         )?;
         let mut result = write_result(&project, changed_ids, "Committed edit draft");
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
     pub fn discard_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let _ = load_project_data(&self.persistence_faults, &dir)?;
-        let draft = read_draft(&dir, draft_id)?;
-        std::fs::remove_file(draft_path(&dir, draft_id)?)
-            .map_err(|error| CoreError::io("cannot discard draft", error))?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let _ = load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        remove_draft(self.storage.as_ref(), &dir, draft_id)?;
         Ok(draft)
     }
 
@@ -857,8 +967,9 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         validate_transcription_request(&request)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
         let asset = project
             .assets
@@ -939,10 +1050,22 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&self.persistence_faults, &dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, "Committed transcription captions");
-        result.warnings =
-            finish_persistence(&self.persistence_faults, &dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -990,8 +1113,9 @@ impl EditorCore {
         undo: bool,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, mut history) = load_project_data(&self.persistence_faults, &dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let target = if undo {
             history.undo.pop()
@@ -1014,7 +1138,7 @@ impl EditorCore {
             .checked_add(1)
             .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
         restored.updated_at_ms = now_ms()?;
-        let drafts = read_all_drafts(&dir)?;
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
         let asset_drafts = draft_asset_operations(&drafts);
         validate_draft_asset_references(&project, &asset_drafts)?;
         if let Some(reference) = missing_draft_asset_reference(&restored, &asset_drafts) {
@@ -1033,7 +1157,13 @@ impl EditorCore {
         } else {
             history.undo.push(project);
         }
-        let warnings = persist(&self.persistence_faults, &dir, &restored, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &restored,
+            &history,
+        )?;
         let mut result = write_result(
             &restored,
             vec![],
@@ -1044,6 +1174,7 @@ impl EditorCore {
             },
         );
         result.warnings = finish_persistence(
+            self.storage.as_ref(),
             &self.persistence_faults,
             &dir,
             &restored,
@@ -1055,13 +1186,16 @@ impl EditorCore {
 
     fn existing_project_dir(&self, project_id: &str) -> Result<PathBuf, CoreError> {
         let dir = self.paths.project_dir(project_id)?;
-        if !project_path(&dir).is_file() && !transaction_path(&dir).is_file() {
+        if !self.storage.is_file(&project_path(&dir))
+            && !self.storage.is_file(&transaction_path(&dir))
+        {
             return Err(CoreError::new(
                 ErrorCode::ProjectNotFound,
                 "project was not found",
             ));
         }
-        dir.canonicalize()
+        self.storage
+            .canonicalize(&dir)
             .map_err(|error| CoreError::io("cannot resolve project directory", error))
     }
 }
@@ -1144,52 +1278,55 @@ fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> W
 }
 
 fn persist(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
     history: &History,
 ) -> Result<Vec<String>, CoreError> {
-    persist_transaction(faults, dir, project, history, None)
+    persist_transaction(storage, faults, dir, project, history, None)
 }
 
 fn load_project_data(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
 ) -> Result<(Project, History), CoreError> {
-    recover_transaction(faults, dir)?;
+    recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
-    let mut project: Project = read_json(&project_file)?;
-    let mut history: History = if history_file.exists() {
-        read_json(&history_file)?
+    let mut project: Project = read_json(storage, &project_file)?;
+    let mut history: History = if storage.exists(&history_file) {
+        read_json(storage, &history_file)?
     } else {
         History::default()
     };
 
     let mut changed = migrate_project_documents(&mut project, &mut history)?
-        | migrate_project_assets(&mut project, dir)?;
+        | migrate_project_assets(storage, &mut project, dir)?;
     for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
-        changed |= migrate_project_assets(snapshot, dir)?;
+        changed |= migrate_project_assets(storage, snapshot, dir)?;
     }
     validate_retained_project_references(&project, &history)?;
     if changed {
-        let _ = persist(faults, dir, &project, &history)?;
+        let _ = persist(storage, faults, dir, &project, &history)?;
     }
     Ok((project, history))
 }
 
 fn collect_asset_garbage(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
     history: &History,
 ) -> Vec<String> {
-    let drafts = match read_all_drafts(dir) {
+    let drafts = match read_all_drafts(storage, dir) {
         Ok(drafts) => drafts,
         Err(_) => return vec![ASSET_GC_FAILED.into()],
     };
     let asset_drafts = draft_asset_operations(&drafts);
-    garbage_collect(faults, dir, project, history, &asset_drafts)
+    garbage_collect(storage, faults, dir, project, history, &asset_drafts)
 }
 
 fn draft_asset_operations(drafts: &[EditDraft]) -> Vec<DraftAssetOperations<'_>> {
@@ -1213,6 +1350,7 @@ fn validate_single_draft_assets(project: &Project, draft: &EditDraft) -> Result<
 }
 
 fn finish_persistence(
+    storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
@@ -1223,7 +1361,9 @@ fn finish_persistence(
         .iter()
         .any(|warning| warning == PERSISTENCE_RECOVERY_PENDING)
     {
-        warnings.extend(collect_asset_garbage(faults, dir, project, history));
+        warnings.extend(collect_asset_garbage(
+            storage, faults, dir, project, history,
+        ));
     }
     warnings
 }
@@ -1237,6 +1377,146 @@ mod tests {
     };
     use tempfile::tempdir;
 
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum StorageFailure {
+        Lock,
+        Create,
+        List,
+        Read,
+        AtomicReplace,
+        DraftRemove,
+        AssetClassification,
+    }
+
+    #[derive(Debug, Default)]
+    struct FailingFacadeStorage {
+        next: std::sync::Mutex<Option<StorageFailure>>,
+    }
+
+    impl FailingFacadeStorage {
+        fn fail_next(&self, failure: StorageFailure) {
+            *self.next.lock().unwrap() = Some(failure);
+        }
+
+        fn take(&self, failure: StorageFailure) -> bool {
+            let mut next = self.next.lock().unwrap();
+            if *next == Some(failure) {
+                *next = None;
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    impl Storage for FailingFacadeStorage {
+        fn lock_exclusive(
+            &self,
+            dir: &Path,
+        ) -> Result<Box<dyn crate::persistence::StorageLock>, CoreError> {
+            if self.take(StorageFailure::Lock) {
+                Err(CoreError::io(
+                    "cannot lock project",
+                    std::io::Error::other("injected lock failure"),
+                ))
+            } else {
+                FileSystemStorage.lock_exclusive(dir)
+            }
+        }
+
+        fn open_read(&self, path: &Path) -> std::io::Result<Box<dyn std::io::Read>> {
+            FileSystemStorage.open_read(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            if self.take(StorageFailure::Read) {
+                Err(std::io::Error::other("injected read failure"))
+            } else {
+                FileSystemStorage.read(path)
+            }
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            if self.take(StorageFailure::List) {
+                Err(std::io::Error::other("injected list failure"))
+            } else {
+                FileSystemStorage.list(path)
+            }
+        }
+
+        fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            if self.take(StorageFailure::Create) {
+                Err(std::io::Error::other("injected create failure"))
+            } else {
+                FileSystemStorage.create_dir_all(path)
+            }
+        }
+
+        fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64> {
+            FileSystemStorage.copy(from, to)
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            FileSystemStorage.rename(from, to)
+        }
+
+        fn is_file(&self, path: &Path) -> bool {
+            FileSystemStorage.is_file(path)
+        }
+
+        fn exists(&self, path: &Path) -> bool {
+            FileSystemStorage.exists(path)
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
+            if path.extension().is_some()
+                && path
+                    .components()
+                    .any(|component| component.as_os_str() == "assets")
+                && self.take(StorageFailure::AssetClassification)
+            {
+                Err(std::io::Error::other(
+                    "injected asset classification failure",
+                ))
+            } else {
+                FileSystemStorage.entry_kind(path)
+            }
+        }
+
+        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemStorage.canonicalize(path)
+        }
+
+        fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+            if self.take(StorageFailure::AtomicReplace) {
+                Err(std::io::Error::other("injected atomic replacement failure"))
+            } else {
+                FileSystemStorage.atomic_replace(path, bytes)
+            }
+        }
+
+        fn remove_durable(&self, path: &Path) -> std::io::Result<()> {
+            if path
+                .parent()
+                .and_then(Path::file_name)
+                .is_some_and(|name| name == "drafts")
+                && self.take(StorageFailure::DraftRemove)
+            {
+                Err(std::io::Error::other("injected draft removal failure"))
+            } else {
+                FileSystemStorage.remove_durable(path)
+            }
+        }
+    }
+
+    fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
+        crate::persistence::read_json(&FileSystemStorage, path)
+    }
+
+    fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError> {
+        crate::persistence::write_json_atomic(&FileSystemStorage, path, value)
+    }
+
     fn core() -> (EditorCore, tempfile::TempDir) {
         let root = tempdir().unwrap();
         let media = root.path().join("media");
@@ -1248,6 +1528,110 @@ mod tests {
         )
         .unwrap();
         (EditorCore::new(policy), root)
+    }
+
+    fn core_with_storage() -> (EditorCore, Arc<FailingFacadeStorage>, tempfile::TempDir) {
+        let root = tempdir().unwrap();
+        let media = root.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let policy = PathPolicy::new(
+            root.path().join("projects"),
+            [&media],
+            root.path().join("exports"),
+        )
+        .unwrap();
+        let storage = Arc::new(FailingFacadeStorage::default());
+        (
+            EditorCore::with_storage(policy, storage.clone()),
+            storage,
+            root,
+        )
+    }
+
+    #[test]
+    fn facade_storage_injects_lock_create_list_read_and_atomic_failures() {
+        for (failure, expected_message) in [
+            (StorageFailure::Create, "cannot create project assets"),
+            (StorageFailure::Lock, "cannot lock project"),
+            (StorageFailure::AtomicReplace, "cannot publish data"),
+        ] {
+            let (core, storage, _) = core_with_storage();
+            storage.fail_next(failure);
+            let error = core
+                .create_project("Injected", ProjectSettings::default())
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::InternalError);
+            assert!(error.message.contains(expected_message));
+        }
+
+        let (core, storage, _) = core_with_storage();
+        let created = core
+            .create_project("Injected", ProjectSettings::default())
+            .unwrap();
+        storage.fail_next(StorageFailure::List);
+        assert!(
+            core.list_projects()
+                .unwrap_err()
+                .message
+                .contains("cannot list projects")
+        );
+        storage.fail_next(StorageFailure::List);
+        assert_eq!(
+            core.get_project(&created.project_id).unwrap_err().code,
+            ErrorCode::ProjectRecoveryFailed
+        );
+        storage.fail_next(StorageFailure::Read);
+        assert!(
+            core.get_project(&created.project_id)
+                .unwrap_err()
+                .message
+                .contains("cannot read persisted JSON")
+        );
+    }
+
+    #[test]
+    fn facade_storage_preserves_draft_cleanup_and_gc_warnings() {
+        let (core, storage, _) = core_with_storage();
+        let created = core
+            .create_project("Injected", ProjectSettings::default())
+            .unwrap();
+        let draft = core
+            .create_draft(
+                &created.project_id,
+                created.revision,
+                vec![create_test_track()],
+                None,
+            )
+            .unwrap();
+        storage.fail_next(StorageFailure::DraftRemove);
+        let committed = core
+            .commit_draft(&created.project_id, &draft.id, created.revision)
+            .unwrap();
+        assert!(committed.warnings.contains(&DRAFT_CLEANUP_FAILED.into()));
+        assert!(
+            committed
+                .warnings
+                .contains(&PERSISTENCE_RECOVERY_PENDING.into())
+        );
+
+        let current = core.get_project(&created.project_id).unwrap();
+        let project_dir = core.project_directory(&created.project_id).unwrap();
+        std::fs::write(project_dir.join("assets/orphan.bin"), b"orphan").unwrap();
+        storage.fail_next(StorageFailure::AssetClassification);
+        let edited = core
+            .edit(
+                &created.project_id,
+                current.revision,
+                EditOperation::CreateTrack {
+                    name: "GC warning".into(),
+                    track_type: TrackType::Overlay,
+                    index: None,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
+                },
+            )
+            .unwrap();
+        assert!(edited.warnings.contains(&ASSET_GC_FAILED.into()));
     }
 
     fn set_persistence_fault(core: &EditorCore, phase: PersistencePhase) {
