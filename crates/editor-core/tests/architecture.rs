@@ -324,7 +324,7 @@ impl OwnerVisitor {
             error: None,
             analysis: SourceAnalysis::default(),
         };
-        let aliases = visitor.discover_item_aliases(items, &BTreeMap::new());
+        let aliases = visitor.discover_item_aliases(items.iter(), &BTreeMap::new());
         alias_scopes.push(AliasScope {
             module_depth,
             aliases,
@@ -451,12 +451,12 @@ impl OwnerVisitor {
         }
     }
 
-    fn discover_item_aliases(
+    fn discover_item_aliases<'a>(
         &self,
-        items: &[Item],
+        items: impl Iterator<Item = &'a Item> + Clone,
         inherited: &BTreeMap<String, Vec<String>>,
     ) -> BTreeMap<String, Vec<String>> {
-        let uses = items.iter().filter_map(|item| match item {
+        let uses = items.clone().filter_map(|item| match item {
             Item::Use(item) if !attributes_are_test_only(&item.attrs) => Some(&item.tree),
             _ => None,
         });
@@ -491,13 +491,11 @@ impl OwnerVisitor {
         block: &Block,
         inherited: &BTreeMap<String, Vec<String>>,
     ) -> BTreeMap<String, Vec<String>> {
-        let uses = block.stmts.iter().filter_map(|statement| match statement {
-            Stmt::Item(Item::Use(item)) if !attributes_are_test_only(&item.attrs) => {
-                Some(&item.tree)
-            }
+        let items = block.stmts.iter().filter_map(|statement| match statement {
+            Stmt::Item(item) => Some(item),
             _ => None,
         });
-        self.discover_aliases(uses, inherited)
+        self.discover_item_aliases(items, inherited)
     }
 
     fn discover_aliases<'a>(
@@ -667,7 +665,7 @@ impl<'ast> Visit<'ast> for OwnerVisitor {
         };
         self.module_depth += 1;
         self.inline_modules.push(item.ident.to_string());
-        let aliases = self.discover_item_aliases(items, &BTreeMap::new());
+        let aliases = self.discover_item_aliases(items.iter(), &BTreeMap::new());
         self.alias_scopes.push(AliasScope {
             module_depth: self.module_depth,
             aliases,
@@ -882,6 +880,7 @@ fn validate_structural_responsibilities(
         "try_exists",
         "is_file",
         "is_dir",
+        "is_symlink",
     ];
     let native_filesystem_method = native_filesystem_methods
         .iter()
@@ -1062,6 +1061,64 @@ fn self_super_and_extern_crate_aliases_are_canonicalized() {
 }
 
 #[test]
+fn block_local_item_aliases_are_canonicalized_and_test_only_aliases_are_excluded() {
+    let source = r#"
+        fn inspect(path: &std::path::Path) {
+            extern crate self as root;
+            extern crate std as platform;
+            use root::persistence as storage;
+            use platform::fs as disk;
+            type FsPath = std::path::Path;
+
+            storage::read();
+            disk::read("fixture");
+            let _ = FsPath::metadata(path);
+        }
+    "#;
+    let analysis = analyze_source("validation", source).unwrap();
+    assert!(analysis.dependencies.contains("persistence"));
+    assert!(analysis.has_path_sequence(&["std", "fs", "read"]));
+    assert!(analysis.has_path_sequence(&["std", "path", "Path", "metadata"]));
+    assert!(validate_owner_analysis("validation", &[], &analysis).is_err());
+
+    let test_only = analyze_source(
+        "fixture",
+        r#"
+            fn inspect() {
+                #[cfg(test)]
+                extern crate self as root;
+                #[cfg(test)]
+                use root::persistence as storage;
+                #[cfg(test)]
+                type FsPath = std::path::Path;
+
+                crate::validation::validate();
+            }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(test_only.dependencies, ["validation"].into_iter().collect());
+
+    let exact_and_cyclic = analyze_source(
+        "fixture",
+        r#"
+            fn inspect() {
+                extern crate self as root;
+                use root::persistence_cache;
+                use b as a;
+                use a as b;
+                crate::validation::validate();
+            }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(
+        exact_and_cyclic.dependencies,
+        ["validation"].into_iter().collect()
+    );
+}
+
+#[test]
 fn structured_patterns_record_named_fields() {
     let analysis = analyze_source(
         "fixture",
@@ -1159,6 +1216,31 @@ fn renamed_gc_and_aliased_asset_filesystem_access_are_rejected_structurally() {
         assert!(validate_structural_responsibilities("assets", &analysis).is_err());
     }
 
+    for owner in ["assets", "store", "renderer", "render_plan"] {
+        let delegation = if owner == "store" {
+            "use crate::assets::garbage_collect;"
+        } else {
+            ""
+        };
+        let collect = if owner == "store" {
+            "garbage_collect();"
+        } else {
+            ""
+        };
+        for operation in [
+            "fn inspect(path: &std::path::Path) { let _ = path.is_symlink(); COLLECT }",
+            "fn inspect(path: &std::path::Path) { let _ = std::path::Path::is_symlink(path); COLLECT }",
+            "use std::path::Path as FsPath; fn inspect(path: &FsPath) { let _ = FsPath::is_symlink(path); COLLECT }",
+        ] {
+            let source = format!("{delegation} {}", operation.replace("COLLECT", collect));
+            let analysis = analyze_source(owner, &source).unwrap();
+            assert!(
+                validate_structural_responsibilities(owner, &analysis).is_err(),
+                "owner `{owner}` accepted native symlink inspection in `{source}`"
+            );
+        }
+    }
+
     let direct_store = analyze_source(
         "store",
         "use crate::assets::garbage_collect; fn load(path: &std::path::Path) { let _ = path.read_dir(); garbage_collect(); }",
@@ -1185,6 +1267,13 @@ fn renamed_gc_and_aliased_asset_filesystem_access_are_rejected_structurally() {
     )
     .unwrap();
     validate_structural_responsibilities("renderer", &delegated_renderer).unwrap();
+
+    let delegated_assets = analyze_source(
+        "assets",
+        "fn inspect(storage: &dyn Storage) { let _ = storage.entry_kind(path); }",
+    )
+    .unwrap();
+    validate_structural_responsibilities("assets", &delegated_assets).unwrap();
 }
 
 #[test]

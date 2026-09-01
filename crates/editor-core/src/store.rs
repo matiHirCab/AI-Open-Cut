@@ -1191,22 +1191,30 @@ impl EditorCore {
 
     fn existing_project_dir(&self, project_id: &str) -> Result<PathBuf, CoreError> {
         let dir = self.paths.project_dir(project_id)?;
-        if !self.storage.storage_path_is_file(&project_path(&dir))
-            && !self.storage.storage_path_is_file(&transaction_path(&dir))
-        {
-            return Err(CoreError::new(
-                ErrorCode::ProjectNotFound,
-                "project was not found",
-            ));
-        }
-        let resolved = self
-            .storage
-            .canonicalize_storage_path(&dir)
-            .map_err(|error| CoreError::io("cannot resolve project directory", error))?;
+        let resolved = match self.storage.canonicalize_storage_path(&dir) {
+            Ok(resolved) => resolved,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(CoreError::new(
+                    ErrorCode::ProjectNotFound,
+                    "project was not found",
+                ));
+            }
+            Err(error) => return Err(CoreError::io("cannot resolve project directory", error)),
+        };
         if !resolved.starts_with(self.paths.projects_root()) {
             return Err(CoreError::new(
                 ErrorCode::PathNotAllowed,
                 "project directory escapes the configured project root",
+            ));
+        }
+        if !self.storage.storage_path_is_file(&project_path(&resolved))
+            && !self
+                .storage
+                .storage_path_is_file(&transaction_path(&resolved))
+        {
+            return Err(CoreError::new(
+                ErrorCode::ProjectNotFound,
+                "project was not found",
             ));
         }
         Ok(resolved)
@@ -1409,6 +1417,7 @@ mod tests {
         lock_calls: std::sync::atomic::AtomicUsize,
         read_calls: std::sync::atomic::AtomicUsize,
         list_calls: std::sync::atomic::AtomicUsize,
+        file_probe_calls: std::sync::atomic::AtomicUsize,
     }
 
     impl FailingFacadeStorage {
@@ -1485,6 +1494,8 @@ mod tests {
         }
 
         fn storage_path_is_file(&self, path: &Path) -> bool {
+            self.file_probe_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             FileSystemStorage.storage_path_is_file(path)
         }
 
@@ -1622,9 +1633,9 @@ mod tests {
     #[test]
     fn facade_rejects_canonical_project_escape_before_lock_read_or_gc() {
         let (core, storage, _) = core_with_storage();
-        let created = core
-            .create_project("Confined", ProjectSettings::default())
-            .unwrap();
+        let file_probes = storage
+            .file_probe_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
         let locks = storage
             .lock_calls
             .load(std::sync::atomic::Ordering::Relaxed);
@@ -1636,9 +1647,15 @@ mod tests {
             .load(std::sync::atomic::Ordering::Relaxed);
 
         storage.fail_next(StorageFailure::CanonicalEscape);
-        let error = core.get_project(&created.project_id).unwrap_err();
+        let error = core.get_project("external-empty").unwrap_err();
 
         assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_eq!(
+            storage
+                .file_probe_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            file_probes
+        );
         assert_eq!(
             storage
                 .lock_calls
@@ -1656,6 +1673,16 @@ mod tests {
                 .list_calls
                 .load(std::sync::atomic::Ordering::Relaxed),
             lists
+        );
+    }
+
+    #[test]
+    fn facade_preserves_project_not_found_for_an_ordinary_missing_directory() {
+        let (core, _, _) = core_with_storage();
+
+        assert_eq!(
+            core.get_project("ordinary-missing").unwrap_err().code,
+            ErrorCode::ProjectNotFound
         );
     }
 
@@ -1681,7 +1708,8 @@ mod tests {
             .unwrap();
         let project_dir = root.path().join("projects").join(&created.project_id);
         let external_dir = root.path().join("external-project");
-        std::fs::rename(&project_dir, &external_dir).unwrap();
+        std::fs::remove_dir_all(&project_dir).unwrap();
+        std::fs::create_dir_all(&external_dir).unwrap();
         symlink(&external_dir, &project_dir).unwrap();
 
         assert!(core.list_projects().unwrap().is_empty());
