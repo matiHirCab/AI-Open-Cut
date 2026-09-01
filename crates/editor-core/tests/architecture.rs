@@ -7,7 +7,7 @@ use std::{
 use syn::{
     Attribute, Block, ExprField, ExprMethodCall, Field, FieldPat, ForeignItem, ImplItem, Item,
     ItemFn, ItemMod, ItemStruct, LitStr, Member, Meta, Path as SynPath, Stmt, Token, TraitItem,
-    UseTree, Variant, punctuated::Punctuated, visit, visit::Visit,
+    Type, UseTree, Variant, punctuated::Punctuated, visit, visit::Visit,
 };
 
 const OWNER_MATRIX: &[(&str, &[&str])] = &[
@@ -127,10 +127,11 @@ fn item_attributes(item: &Item) -> &[Attribute] {
 
 fn attributes_are_test_only(attributes: &[Attribute]) -> bool {
     attributes.iter().any(|attribute| {
-        attribute.path().is_ident("cfg")
-            && attribute
-                .parse_args::<Meta>()
-                .is_ok_and(|meta| evaluate_cfg(&meta) == CfgValue::False)
+        attribute.path().is_ident("test")
+            || attribute.path().is_ident("cfg")
+                && attribute
+                    .parse_args::<Meta>()
+                    .is_ok_and(|meta| evaluate_cfg(&meta) == CfgValue::False)
     })
 }
 
@@ -149,7 +150,28 @@ fn selects_custom_module_path_in_production(attribute: &Attribute) -> bool {
     let Some(predicate) = arguments.next() else {
         return true;
     };
-    evaluate_cfg(predicate) != CfgValue::False && arguments.any(|meta| meta.path().is_ident("path"))
+    evaluate_cfg(predicate) != CfgValue::False && arguments.any(meta_selects_custom_module_path)
+}
+
+fn meta_selects_custom_module_path(meta: &Meta) -> bool {
+    if meta.path().is_ident("path") {
+        return true;
+    }
+    let Meta::List(list) = meta else {
+        return false;
+    };
+    if !list.path.is_ident("cfg_attr") {
+        return false;
+    }
+    let Ok(arguments) = list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+    else {
+        return true;
+    };
+    let mut arguments = arguments.iter();
+    let Some(predicate) = arguments.next() else {
+        return true;
+    };
+    evaluate_cfg(predicate) != CfgValue::False && arguments.any(meta_selects_custom_module_path)
 }
 
 fn is_test_only(item: &Item) -> bool {
@@ -329,7 +351,20 @@ impl OwnerVisitor {
 
     fn canonical_path(&self, components: &[String]) -> Vec<String> {
         let mut resolved = without_trailing_self(components).to_vec();
+        if resolved
+            .first()
+            .is_some_and(|component| component == "self")
+            && resolved
+                .get(1)
+                .is_some_and(|component| component == "super")
+        {
+            resolved.remove(0);
+        }
+        let mut visited = BTreeSet::new();
         for _ in 0..16 {
+            if !visited.insert(resolved.clone()) {
+                break;
+            }
             let super_count = resolved
                 .iter()
                 .take_while(|component| component.as_str() == "super")
@@ -425,7 +460,30 @@ impl OwnerVisitor {
             Item::Use(item) if !attributes_are_test_only(&item.attrs) => Some(&item.tree),
             _ => None,
         });
-        self.discover_aliases(uses, inherited)
+        let mut seeded = inherited.clone();
+        for item in items {
+            match item {
+                Item::ExternCrate(item) if !attributes_are_test_only(&item.attrs) => {
+                    let alias = item
+                        .rename
+                        .as_ref()
+                        .map_or_else(|| item.ident.to_string(), |(_, alias)| alias.to_string());
+                    let target = if item.ident == "self" {
+                        vec!["crate".to_owned()]
+                    } else {
+                        vec![item.ident.to_string()]
+                    };
+                    seeded.insert(alias, target);
+                }
+                Item::Type(item) if !attributes_are_test_only(&item.attrs) => {
+                    if let Type::Path(target) = item.ty.as_ref() {
+                        seeded.insert(item.ident.to_string(), path_components(&target.path));
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.discover_aliases(uses, &seeded)
     }
 
     fn discover_block_aliases(
@@ -448,7 +506,7 @@ impl OwnerVisitor {
         inherited: &BTreeMap<String, Vec<String>>,
     ) -> BTreeMap<String, Vec<String>> {
         let mut aliases = inherited.clone();
-        loop {
+        for _ in 0..16 {
             let previous = aliases.clone();
             for tree in uses.clone() {
                 collect_alias_renames(tree, &mut Vec::new(), self, &mut aliases);
@@ -458,9 +516,6 @@ impl OwnerVisitor {
             }
         }
         aliases
-            .into_iter()
-            .filter(|(name, target)| inherited.get(name) != Some(target))
-            .collect()
     }
 }
 
@@ -478,30 +533,56 @@ fn collect_alias_renames(
         }
         UseTree::Rename(rename) => {
             prefix.push(rename.ident.to_string());
-            let mut canonical = visitor.canonical_path(prefix);
-            for _ in 0..16 {
-                let Some(first) = canonical.first() else {
-                    break;
-                };
-                let Some(mut target) = aliases.get(first).cloned() else {
-                    break;
-                };
-                target.extend_from_slice(&canonical[1..]);
-                if target == canonical {
-                    break;
-                }
-                canonical = target;
-            }
+            let canonical = expand_discovered_aliases(visitor.canonical_path(prefix), aliases);
             aliases.insert(rename.rename.to_string(), canonical);
             prefix.pop();
+        }
+        UseTree::Name(name) => {
+            let (alias, path) = if name.ident == "self" {
+                let Some(alias) = prefix.last().cloned() else {
+                    return;
+                };
+                (alias, prefix.clone())
+            } else {
+                prefix.push(name.ident.to_string());
+                let path = prefix.clone();
+                prefix.pop();
+                (name.ident.to_string(), path)
+            };
+            let canonical = expand_discovered_aliases(visitor.canonical_path(&path), aliases);
+            aliases.insert(alias, canonical);
         }
         UseTree::Group(group) => {
             for tree in &group.items {
                 collect_alias_renames(tree, prefix, visitor, aliases);
             }
         }
-        UseTree::Name(_) | UseTree::Glob(_) => {}
+        UseTree::Glob(_) => {}
     }
+}
+
+fn expand_discovered_aliases(
+    mut canonical: Vec<String>,
+    aliases: &BTreeMap<String, Vec<String>>,
+) -> Vec<String> {
+    let mut visited = BTreeSet::new();
+    for _ in 0..16 {
+        if !visited.insert(canonical.clone()) {
+            break;
+        }
+        let Some(first) = canonical.first() else {
+            break;
+        };
+        let Some(mut target) = aliases.get(first).cloned() else {
+            break;
+        };
+        target.extend_from_slice(&canonical[1..]);
+        if target == canonical {
+            break;
+        }
+        canonical = target;
+    }
+    canonical
 }
 
 impl<'ast> Visit<'ast> for OwnerVisitor {
@@ -791,6 +872,34 @@ fn validate_structural_responsibilities(
     owner: &str,
     analysis: &SourceAnalysis,
 ) -> Result<(), String> {
+    let native_filesystem_methods = [
+        "read_dir",
+        "read_link",
+        "metadata",
+        "symlink_metadata",
+        "canonicalize",
+        "exists",
+        "try_exists",
+        "is_file",
+        "is_dir",
+    ];
+    let native_filesystem_method = native_filesystem_methods
+        .iter()
+        .find(|method| analysis.method_names.contains(**method));
+    let native_filesystem_qualified_path = analysis.paths.iter().any(|path| {
+        path.windows(3).any(|window| {
+            window[0] == "std"
+                && window[1] == "path"
+                && matches!(window[2].as_str(), "Path" | "PathBuf")
+        }) && path.last().is_some_and(|method| {
+            native_filesystem_methods
+                .iter()
+                .any(|candidate| method == candidate)
+        })
+    });
+    let uses_native_filesystem = analysis.has_path_sequence(&["std", "fs"])
+        || native_filesystem_method.is_some()
+        || native_filesystem_qualified_path;
     let uses_storage_primitive = ["list", "entry_kind", "remove_durable"]
         .iter()
         .any(|method| {
@@ -801,15 +910,16 @@ fn validate_structural_responsibilities(
                     .any(|path| path.last().is_some_and(|segment| segment == method))
         });
     let violation = match owner {
-        "assets" if analysis.has_path_sequence(&["std", "fs"]) => {
-            Some("managed asset filesystem access")
-        }
-        "store" if analysis.has_path_sequence(&["std", "fs"]) => Some("direct filesystem access"),
+        "assets" if uses_native_filesystem => Some("managed asset filesystem access"),
+        "store" if uses_native_filesystem => Some("direct filesystem access"),
         "store" if uses_storage_primitive => Some("primitive listing/type/removal operation"),
         "store" if !analysis.has_path_sequence(&["crate", "assets", "garbage_collect"]) => {
             Some("canonical asset garbage-collection delegation")
         }
         "renderer" if analysis.field_names.contains("tracks") => Some("timeline track planning"),
+        "renderer" | "render_plan" if uses_native_filesystem => {
+            Some("direct render filesystem access")
+        }
         _ => None,
     };
     violation.map_or(Ok(()), |responsibility| {
@@ -923,6 +1033,35 @@ fn parent_root_and_chained_external_aliases_are_canonicalized() {
 }
 
 #[test]
+fn self_super_and_extern_crate_aliases_are_canonicalized() {
+    let source = r#"
+        extern crate self as root;
+        extern crate std as platform;
+        use platform::fs as disk;
+
+        mod nested {
+            use self::super::root::persistence as storage;
+            fn inspect() { super::disk::read("fixture"); }
+        }
+    "#;
+
+    let analysis = analyze_source("fixture", source).unwrap();
+    assert!(analysis.dependencies.contains("persistence"));
+    assert!(analysis.has_path_sequence(&["std", "fs", "read"]));
+
+    let prefixed = analyze_source(
+        "fixture",
+        "extern crate self as root; use root::persistence_cache;",
+    )
+    .unwrap();
+    assert!(!prefixed.dependencies.contains("persistence"));
+
+    let cyclic =
+        analyze_source("fixture", "use b as a; use a as b; use crate::validation;").unwrap();
+    assert!(cyclic.dependencies.contains("validation"));
+}
+
+#[test]
 fn structured_patterns_record_named_fields() {
     let analysis = analyze_source(
         "fixture",
@@ -940,6 +1079,7 @@ fn custom_module_paths_are_rejected_with_owner_and_file() {
         "#[path = \"hidden.rs\"] mod hidden;",
         "#[cfg_attr(not(test), path = \"hidden.rs\")] mod hidden;",
         "#[cfg_attr(feature = \"custom\", path = \"hidden.rs\")] mod hidden;",
+        "#[cfg_attr(not(test), cfg_attr(unix, path = \"hidden.rs\"))] mod hidden;",
     ] {
         let message = analyze_source("validation", source)
             .expect_err("custom module paths must not bypass analysis");
@@ -1006,6 +1146,45 @@ fn renamed_gc_and_aliased_asset_filesystem_access_are_rejected_structurally() {
     )
     .unwrap();
     assert!(validate_structural_responsibilities("assets", &assets).is_err());
+
+    for source in [
+        "fn load(path: &std::path::Path) { let _ = path.read_dir(); }",
+        "fn load(path: &std::path::Path) { let _ = path.metadata(); }",
+        "fn load(path: &std::path::Path) { let _ = path.canonicalize(); }",
+        "use std::path::Path; fn load(path: &Path) { let _ = Path::read_dir(path); }",
+        "use std::path::Path as FsPath; fn load(path: &FsPath) { let _ = FsPath::metadata(path); }",
+        "type FsPath = std::path::Path; fn load(path: &FsPath) { let _ = FsPath::canonicalize(path); }",
+    ] {
+        let analysis = analyze_source("assets", source).unwrap();
+        assert!(validate_structural_responsibilities("assets", &analysis).is_err());
+    }
+
+    let direct_store = analyze_source(
+        "store",
+        "use crate::assets::garbage_collect; fn load(path: &std::path::Path) { let _ = path.read_dir(); garbage_collect(); }",
+    )
+    .unwrap();
+    assert!(validate_structural_responsibilities("store", &direct_store).is_err());
+
+    let delegated_store = analyze_source(
+        "store",
+        "use crate::assets::garbage_collect; fn load(storage: &dyn Storage) { let _ = storage.canonicalize_storage_path(path); garbage_collect(); }",
+    )
+    .unwrap();
+    validate_structural_responsibilities("store", &delegated_store).unwrap();
+
+    let direct_renderer = analyze_source(
+        "renderer",
+        "fn prepare(path: &std::path::Path) { let _ = path.exists(); }",
+    )
+    .unwrap();
+    assert!(validate_structural_responsibilities("renderer", &direct_renderer).is_err());
+    let delegated_renderer = analyze_source(
+        "renderer",
+        "fn prepare(io: &dyn ArtifactIo) { let _ = io.artifact_path_exists(path); }",
+    )
+    .unwrap();
+    validate_structural_responsibilities("renderer", &delegated_renderer).unwrap();
 }
 
 #[test]
@@ -1021,6 +1200,11 @@ fn test_only_items_are_excluded_without_hiding_later_production() {
         #[cfg(all(test, unix))]
         fn test_helper() {
             crate::render_process::execute();
+        }
+
+        #[test]
+        fn standalone_test() {
+            crate::persistence::read();
         }
 
         #[cfg(not(test))]
@@ -1067,6 +1251,7 @@ fn test_only_items_are_excluded_without_hiding_later_production() {
             .collect()
     );
     assert!(!analysis.function_names.contains("test_helper"));
+    assert!(!analysis.function_names.contains("standalone_test"));
     assert!(analysis.function_names.contains("production_helper"));
 }
 

@@ -76,10 +76,10 @@ pub(crate) trait Storage: Debug + Send + Sync {
     fn create_dir_all(&self, path: &Path) -> std::io::Result<()>;
     fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
-    fn is_file(&self, path: &Path) -> bool;
-    fn exists(&self, path: &Path) -> bool;
+    fn storage_path_is_file(&self, path: &Path) -> bool;
+    fn storage_path_exists(&self, path: &Path) -> bool;
     fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind>;
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf>;
+    fn canonicalize_storage_path(&self, path: &Path) -> std::io::Result<PathBuf>;
     fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()>;
     fn remove_durable(&self, path: &Path) -> std::io::Result<()>;
 }
@@ -90,6 +90,7 @@ pub(crate) trait StorageLock: Debug + Send {}
 pub(crate) enum StorageEntryKind {
     File,
     Directory,
+    Symlink,
     Other,
 }
 
@@ -127,17 +128,29 @@ impl Storage for FileSystemStorage {
         std::fs::rename(from, to)
     }
 
-    fn is_file(&self, path: &Path) -> bool {
+    fn storage_path_is_file(&self, path: &Path) -> bool {
         path.is_file()
     }
 
-    fn exists(&self, path: &Path) -> bool {
+    fn storage_path_exists(&self, path: &Path) -> bool {
         path.exists()
     }
 
     fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
-        let file_type = std::fs::metadata(path)?.file_type();
-        Ok(if file_type.is_file() {
+        let metadata = std::fs::symlink_metadata(path)?;
+        let file_type = metadata.file_type();
+        #[cfg(windows)]
+        let is_link = {
+            use std::os::windows::fs::MetadataExt;
+
+            const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+            file_type.is_symlink() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+        };
+        #[cfg(not(windows))]
+        let is_link = file_type.is_symlink();
+        Ok(if is_link {
+            StorageEntryKind::Symlink
+        } else if file_type.is_file() {
             StorageEntryKind::File
         } else if file_type.is_dir() {
             StorageEntryKind::Directory
@@ -146,7 +159,7 @@ impl Storage for FileSystemStorage {
         })
     }
 
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+    fn canonicalize_storage_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         path.canonicalize()
     }
 
@@ -216,7 +229,7 @@ pub(crate) fn write_json_atomic<T: Serialize>(
 }
 
 pub(crate) fn remove_file_if_exists(storage: &dyn Storage, path: &Path) -> Result<(), CoreError> {
-    if !storage.exists(path) {
+    if !storage.storage_path_exists(path) {
         return Ok(());
     }
     storage
@@ -293,7 +306,7 @@ pub(crate) fn recover_transaction(
 ) -> Result<(), CoreError> {
     cleanup_orphaned_transaction_temps(storage, dir)?;
     let path = transaction_path(dir);
-    if !storage.exists(&path) {
+    if !storage.storage_path_exists(&path) {
         return Ok(());
     }
     let transaction = read_transaction(storage, &path)?;
@@ -526,11 +539,11 @@ mod tests {
             Err(std::io::Error::other("injected rename failure"))
         }
 
-        fn is_file(&self, _path: &Path) -> bool {
+        fn storage_path_is_file(&self, _path: &Path) -> bool {
             false
         }
 
-        fn exists(&self, _path: &Path) -> bool {
+        fn storage_path_exists(&self, _path: &Path) -> bool {
             false
         }
 
@@ -538,7 +551,7 @@ mod tests {
             Err(std::io::Error::other("injected classification failure"))
         }
 
-        fn canonicalize(&self, _path: &Path) -> std::io::Result<PathBuf> {
+        fn canonicalize_storage_path(&self, _path: &Path) -> std::io::Result<PathBuf> {
             Err(std::io::Error::other("injected canonicalize failure"))
         }
 

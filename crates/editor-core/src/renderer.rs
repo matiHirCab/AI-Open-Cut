@@ -164,7 +164,7 @@ impl Renderer {
         options: ExportOptions<'_>,
         mut on_progress: impl FnMut(RenderProgress),
     ) -> Result<RenderArtifact, CoreError> {
-        if self.artifact_io.exists(options.output) && !options.overwrite {
+        if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
                 "export already exists; pass overwrite=true only with explicit permission",
@@ -472,11 +472,11 @@ mod tests {
             FileSystemArtifactIo.entry_kind(path)
         }
 
-        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
-            FileSystemArtifactIo.canonicalize(path)
+        fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize_artifact_path(path)
         }
 
-        fn exists(&self, path: &Path) -> bool {
+        fn artifact_path_exists(&self, path: &Path) -> bool {
             path.exists()
         }
 
@@ -597,18 +597,18 @@ mod tests {
             FileSystemArtifactIo.entry_kind(path)
         }
 
-        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
             self.record("canonicalize");
             if self.take(ArtifactFailure::Canonicalize) {
                 Err(std::io::Error::other("injected canonicalize failure"))
             } else {
-                FileSystemArtifactIo.canonicalize(path)
+                FileSystemArtifactIo.canonicalize_artifact_path(path)
             }
         }
 
-        fn exists(&self, path: &Path) -> bool {
+        fn artifact_path_exists(&self, path: &Path) -> bool {
             self.record("exists");
-            FileSystemArtifactIo.exists(path)
+            FileSystemArtifactIo.artifact_path_exists(path)
         }
 
         fn remove(&self, path: &Path) -> std::io::Result<()> {

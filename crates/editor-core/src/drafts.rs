@@ -79,7 +79,7 @@ pub(crate) fn read_all_drafts(
     project_dir: &Path,
 ) -> Result<Vec<EditDraft>, CoreError> {
     let directory = draft_dir(project_dir);
-    if !storage.exists(&directory) {
+    if !storage.storage_path_exists(&directory) {
         return Ok(vec![]);
     }
     let mut draft_ids = Vec::new();

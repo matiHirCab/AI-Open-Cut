@@ -308,8 +308,12 @@ impl EditorCore {
             else {
                 continue;
             };
-            if !self.storage.is_file(&path.join("project.json"))
-                && !self.storage.is_file(&path.join(TRANSACTION_FILE))
+            if !self
+                .storage
+                .storage_path_is_file(&path.join("project.json"))
+                && !self
+                    .storage
+                    .storage_path_is_file(&path.join(TRANSACTION_FILE))
             {
                 continue;
             }
@@ -1094,8 +1098,9 @@ impl EditorCore {
     ) -> Result<PathBuf, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let candidate = dir.join(relative);
-        let resolved = candidate
-            .canonicalize()
+        let resolved = self
+            .storage
+            .canonicalize_storage_path(&candidate)
             .map_err(|error| CoreError::io("cannot resolve project asset", error))?;
         if !resolved.starts_with(&dir) {
             return Err(CoreError::new(
@@ -1186,17 +1191,25 @@ impl EditorCore {
 
     fn existing_project_dir(&self, project_id: &str) -> Result<PathBuf, CoreError> {
         let dir = self.paths.project_dir(project_id)?;
-        if !self.storage.is_file(&project_path(&dir))
-            && !self.storage.is_file(&transaction_path(&dir))
+        if !self.storage.storage_path_is_file(&project_path(&dir))
+            && !self.storage.storage_path_is_file(&transaction_path(&dir))
         {
             return Err(CoreError::new(
                 ErrorCode::ProjectNotFound,
                 "project was not found",
             ));
         }
-        self.storage
-            .canonicalize(&dir)
-            .map_err(|error| CoreError::io("cannot resolve project directory", error))
+        let resolved = self
+            .storage
+            .canonicalize_storage_path(&dir)
+            .map_err(|error| CoreError::io("cannot resolve project directory", error))?;
+        if !resolved.starts_with(self.paths.projects_root()) {
+            return Err(CoreError::new(
+                ErrorCode::PathNotAllowed,
+                "project directory escapes the configured project root",
+            ));
+        }
+        Ok(resolved)
     }
 }
 
@@ -1296,7 +1309,7 @@ fn load_project_data(
     let project_file = project_path(dir);
     let history_file = history_path(dir);
     let mut project: Project = read_json(storage, &project_file)?;
-    let mut history: History = if storage.exists(&history_file) {
+    let mut history: History = if storage.storage_path_exists(&history_file) {
         read_json(storage, &history_file)?
     } else {
         History::default()
@@ -1386,11 +1399,16 @@ mod tests {
         AtomicReplace,
         DraftRemove,
         AssetClassification,
+        CanonicalEscape,
+        LinkedProjectEntry,
     }
 
     #[derive(Debug, Default)]
     struct FailingFacadeStorage {
         next: std::sync::Mutex<Option<StorageFailure>>,
+        lock_calls: std::sync::atomic::AtomicUsize,
+        read_calls: std::sync::atomic::AtomicUsize,
+        list_calls: std::sync::atomic::AtomicUsize,
     }
 
     impl FailingFacadeStorage {
@@ -1414,6 +1432,8 @@ mod tests {
             &self,
             dir: &Path,
         ) -> Result<Box<dyn crate::persistence::StorageLock>, CoreError> {
+            self.lock_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             if self.take(StorageFailure::Lock) {
                 Err(CoreError::io(
                     "cannot lock project",
@@ -1429,6 +1449,8 @@ mod tests {
         }
 
         fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            self.read_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             if self.take(StorageFailure::Read) {
                 Err(std::io::Error::other("injected read failure"))
             } else {
@@ -1437,6 +1459,8 @@ mod tests {
         }
 
         fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            self.list_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             if self.take(StorageFailure::List) {
                 Err(std::io::Error::other("injected list failure"))
             } else {
@@ -1460,16 +1484,18 @@ mod tests {
             FileSystemStorage.rename(from, to)
         }
 
-        fn is_file(&self, path: &Path) -> bool {
-            FileSystemStorage.is_file(path)
+        fn storage_path_is_file(&self, path: &Path) -> bool {
+            FileSystemStorage.storage_path_is_file(path)
         }
 
-        fn exists(&self, path: &Path) -> bool {
-            FileSystemStorage.exists(path)
+        fn storage_path_exists(&self, path: &Path) -> bool {
+            FileSystemStorage.storage_path_exists(path)
         }
 
         fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
-            if path.extension().is_some()
+            if self.take(StorageFailure::LinkedProjectEntry) {
+                Ok(StorageEntryKind::Symlink)
+            } else if path.extension().is_some()
                 && path
                     .components()
                     .any(|component| component.as_os_str() == "assets")
@@ -1483,8 +1509,12 @@ mod tests {
             }
         }
 
-        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
-            FileSystemStorage.canonicalize(path)
+        fn canonicalize_storage_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            if self.take(StorageFailure::CanonicalEscape) {
+                Ok(PathBuf::from("outside-project-root"))
+            } else {
+                FileSystemStorage.canonicalize_storage_path(path)
+            }
         }
 
         fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -1586,6 +1616,78 @@ mod tests {
                 .unwrap_err()
                 .message
                 .contains("cannot read persisted JSON")
+        );
+    }
+
+    #[test]
+    fn facade_rejects_canonical_project_escape_before_lock_read_or_gc() {
+        let (core, storage, _) = core_with_storage();
+        let created = core
+            .create_project("Confined", ProjectSettings::default())
+            .unwrap();
+        let locks = storage
+            .lock_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let reads = storage
+            .read_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let lists = storage
+            .list_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+
+        storage.fail_next(StorageFailure::CanonicalEscape);
+        let error = core.get_project(&created.project_id).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_eq!(
+            storage
+                .lock_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            locks
+        );
+        assert_eq!(
+            storage
+                .read_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            reads
+        );
+        assert_eq!(
+            storage
+                .list_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            lists
+        );
+    }
+
+    #[test]
+    fn facade_skips_entries_classified_as_project_links() {
+        let (core, storage, _) = core_with_storage();
+        core.create_project("Linked", ProjectSettings::default())
+            .unwrap();
+
+        storage.fail_next(StorageFailure::LinkedProjectEntry);
+
+        assert!(core.list_projects().unwrap().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_project_directories_are_not_listed_or_opened() {
+        use std::os::unix::fs::symlink;
+
+        let (core, root) = core();
+        let created = core
+            .create_project("Linked", ProjectSettings::default())
+            .unwrap();
+        let project_dir = root.path().join("projects").join(&created.project_id);
+        let external_dir = root.path().join("external-project");
+        std::fs::rename(&project_dir, &external_dir).unwrap();
+        symlink(&external_dir, &project_dir).unwrap();
+
+        assert!(core.list_projects().unwrap().is_empty());
+        assert_eq!(
+            core.get_project(&created.project_id).unwrap_err().code,
+            ErrorCode::PathNotAllowed
         );
     }
 

@@ -27,8 +27,8 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
     fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>>;
     fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind>;
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf>;
-    fn exists(&self, path: &Path) -> bool;
+    fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf>;
+    fn artifact_path_exists(&self, path: &Path) -> bool;
     fn remove(&self, path: &Path) -> std::io::Result<()>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn size(&self, path: &Path) -> std::io::Result<u64>;
@@ -83,10 +83,10 @@ impl ArtifactIo for FileSystemArtifactIo {
             ArtifactEntryKind::Other
         })
     }
-    fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+    fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         path.canonicalize()
     }
-    fn exists(&self, path: &Path) -> bool {
+    fn artifact_path_exists(&self, path: &Path) -> bool {
         path.exists()
     }
     fn remove(&self, path: &Path) -> std::io::Result<()> {
@@ -300,11 +300,11 @@ fn resolve_text_font(
                 .collect()
         };
         for candidate in candidates {
-            if let Ok(resolved) = io.canonicalize(&candidate)
+            if let Ok(resolved) = io.canonicalize_artifact_path(&candidate)
                 && io.entry_kind(&resolved).ok() == Some(ArtifactEntryKind::File)
                 && font_roots
                     .iter()
-                    .filter_map(|root| io.canonicalize(root).ok())
+                    .filter_map(|root| io.canonicalize_artifact_path(root).ok())
                     .any(|root| resolved.starts_with(root))
             {
                 return Some(resolved);
@@ -473,7 +473,7 @@ fn find_font_file(io: &dyn ArtifactIo, root: &Path, normalized_family: &str) -> 
                 .to_lowercase()
                 .replace([' ', '-', '_'], "");
             if stem.contains(normalized_family) {
-                return io.canonicalize(&path).ok();
+                return io.canonicalize_artifact_path(&path).ok();
             }
         }
     }
@@ -495,7 +495,7 @@ pub(crate) fn publish_output_with(
     output: &Path,
     overwrite: bool,
 ) -> Result<(), CoreError> {
-    if io.exists(output) {
+    if io.artifact_path_exists(output) {
         if !overwrite {
             let _ = io.remove(temporary);
             return Err(CoreError::new(
@@ -530,10 +530,10 @@ pub(crate) fn resolve_project_asset(
         ));
     }
     let root = io
-        .canonicalize(project_dir)
+        .canonicalize_artifact_path(project_dir)
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
     let resolved = io
-        .canonicalize(&project_dir.join(relative))
+        .canonicalize_artifact_path(&project_dir.join(relative))
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
     if !resolved.starts_with(root) {
         return Err(CoreError::new(
@@ -614,10 +614,10 @@ mod tests {
         fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
             FileSystemArtifactIo.entry_kind(path)
         }
-        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
-            FileSystemArtifactIo.canonicalize(path)
+        fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize_artifact_path(path)
         }
-        fn exists(&self, _path: &Path) -> bool {
+        fn artifact_path_exists(&self, _path: &Path) -> bool {
             false
         }
         fn remove(&self, _path: &Path) -> std::io::Result<()> {

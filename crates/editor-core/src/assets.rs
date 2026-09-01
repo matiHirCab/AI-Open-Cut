@@ -293,7 +293,7 @@ pub(crate) fn store_content_addressed(
     let (digest, size_bytes) = hash_file(storage, source)?;
     let relative_path = hash_relative_path(&digest);
     let destination = dir.join(&relative_path);
-    if !storage.is_file(&destination) {
+    if !storage.storage_path_is_file(&destination) {
         let parent = destination
             .parent()
             .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "asset path has no parent"))?;
@@ -305,7 +305,7 @@ pub(crate) fn store_content_addressed(
             .copy(source, &temporary)
             .map_err(|error| CoreError::io("cannot copy asset", error))?;
         if let Err(error) = storage.rename(&temporary, &destination) {
-            if !storage.is_file(&destination) {
+            if !storage.storage_path_is_file(&destination) {
                 let _ = storage.remove_durable(&temporary);
                 return Err(CoreError::io("cannot publish asset", error));
             }
@@ -457,7 +457,7 @@ fn collect_files(
         match storage.entry_kind(&path)? {
             StorageEntryKind::Directory => collect_files(storage, &path, output)?,
             StorageEntryKind::File => output.push(path),
-            StorageEntryKind::Other => {}
+            StorageEntryKind::Symlink | StorageEntryKind::Other => {}
         }
     }
     Ok(())
@@ -502,10 +502,10 @@ mod tests {
         fn rename(&self, _from: &Path, _to: &Path) -> std::io::Result<()> {
             Err(std::io::Error::other("unused"))
         }
-        fn is_file(&self, path: &Path) -> bool {
+        fn storage_path_is_file(&self, path: &Path) -> bool {
             path.extension().is_some()
         }
-        fn exists(&self, _path: &Path) -> bool {
+        fn storage_path_exists(&self, _path: &Path) -> bool {
             true
         }
         fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
@@ -517,7 +517,7 @@ mod tests {
                 Ok(StorageEntryKind::Directory)
             }
         }
-        fn canonicalize(&self, path: &Path) -> std::io::Result<PathBuf> {
+        fn canonicalize_storage_path(&self, path: &Path) -> std::io::Result<PathBuf> {
             Ok(path.to_owned())
         }
         fn atomic_replace(&self, _path: &Path, _bytes: &[u8]) -> std::io::Result<()> {
