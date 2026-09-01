@@ -1,61 +1,51 @@
 use std::{
-    collections::{BTreeMap, HashSet},
-    fs::{File, OpenOptions},
-    io::{Read, Write},
+    collections::BTreeMap,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    sync::Arc,
 };
 
-use fs2::FileExt;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use sha2::{Digest, Sha256};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
     Asset, AudioSettings, AudioTrackRole, BatchEditOperation, CaptionItem, CaptionSource,
-    CaptionStyle, CaptionWord, ContentHash, CoreError, DuckingSettings, EditOperation, ErrorCode,
-    GeneratedAssetOrigin, History, Keyframe, KeyframeProperty, KeyframeValue, MediaItem,
-    MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION, PathPolicy, Project, ProjectSettings,
-    ProjectState, RectangleItem, SolidColorItem, TextItem, TextStyle, TimelineItem, Track,
-    TrackType, Transform, TransitionItem, animation::split_keyframes,
+    CaptionStyle, CaptionWord, ContentHash, CoreError, EditOperation, ErrorCode,
+    GeneratedAssetOrigin, History, MediaItem, MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION,
+    PathPolicy, Project, ProjectSettings, ProjectState, TimelineItem, Track, TrackType, Transform,
+    assets::{
+        ASSET_GC_FAILED, DraftAssetOperations, blocking_asset_reference, garbage_collect,
+        generated_display_name, migrate_project_assets, missing_draft_asset_reference,
+        store_content_addressed, validate_draft_asset_references,
+        validate_retained_project_references,
+    },
+    drafts::{
+        DRAFT_VERSION, EditDraft, count_drafts, draft_dir, draft_path, read_all_drafts, read_draft,
+        remove_draft,
+    },
+    migrations::migrate_project_documents,
+    persistence::{
+        FileSystemStorage, PERSISTENCE_RECOVERY_PENDING, PersistenceFaults, Storage,
+        TRANSACTION_FILE, history_path, list_project_directories, persist_transaction,
+        project_path, read_json, recover_transaction, transaction_path, write_json_atomic,
+    },
+    timeline::{
+        apply_operation, bump_revision, check_revision, is_single_id_creator, now_ms, push_undo,
+        resolve_operation_aliases, validate_alias, validate_operations_against,
+    },
+    validation::{
+        validate_color, validate_draft_label, validate_duration, validate_project_settings,
+        validate_text, validate_track_media,
+    },
 };
 
-const HISTORY_LIMIT: usize = 100;
-const DRAFT_VERSION: u32 = 1;
+#[cfg(test)]
+use crate::persistence::{
+    DRAFT_CLEANUP_FAILED, PersistencePhase, ProjectTransaction, StorageEntryKind,
+    TRANSACTION_VERSION,
+};
+
 const DRAFT_LIMIT: usize = 100;
 const EDIT_LIMIT: usize = 100;
-const TRANSACTION_VERSION: u32 = 1;
-const TRANSACTION_FILE: &str = ".project-transaction.json";
-const PERSISTENCE_RECOVERY_PENDING: &str = "PERSISTENCE_RECOVERY_PENDING";
-const DRAFT_CLEANUP_FAILED: &str = "DRAFT_CLEANUP_FAILED";
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ProjectTransaction {
-    version: u32,
-    project: Project,
-    history: History,
-    committed_draft_id: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PersistencePhase {
-    BeforeJournal,
-    AfterJournal,
-    AfterProject,
-    AfterHistory,
-    AfterDraftCleanup,
-    AfterJournalCleanup,
-    GarbageCollection,
-}
-
-#[cfg(test)]
-thread_local! {
-    static PERSISTENCE_FAULT: std::cell::Cell<Option<PersistencePhase>> = const {
-        std::cell::Cell::new(None)
-    };
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteResult {
@@ -77,43 +67,6 @@ pub struct ProjectSummary {
     pub settings: ProjectSettings,
     pub duration_ms: u64,
     pub updated_at_ms: u64,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct EditDraft {
-    pub version: u32,
-    pub id: String,
-    pub project_id: String,
-    pub base_revision: u64,
-    pub label: Option<String>,
-    pub operations: Vec<EditOperation>,
-    pub created_at_ms: u64,
-    pub updated_at_ms: u64,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AssetReferenceKind {
-    MediaItem,
-    CaptionSource,
-    DraftOperation,
-}
-
-impl AssetReferenceKind {
-    const fn label(self) -> &'static str {
-        match self {
-            Self::MediaItem => "media item",
-            Self::CaptionSource => "caption source",
-            Self::DraftOperation => "draft operation",
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct AssetReference {
-    asset_id: String,
-    kind: AssetReferenceKind,
-    owner_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -208,11 +161,26 @@ pub struct ReplaceGeneratedAssetResult {
 #[derive(Clone, Debug)]
 pub struct EditorCore {
     paths: PathPolicy,
+    storage: Arc<dyn Storage>,
+    persistence_faults: PersistenceFaults,
 }
 
 impl EditorCore {
     pub fn new(paths: PathPolicy) -> Self {
-        Self { paths }
+        Self {
+            paths,
+            storage: Arc::new(FileSystemStorage),
+            persistence_faults: PersistenceFaults::default(),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_storage(paths: PathPolicy, storage: Arc<dyn Storage>) -> Self {
+        Self {
+            paths,
+            storage,
+            persistence_faults: PersistenceFaults::default(),
+        }
     }
 
     pub fn paths(&self) -> &PathPolicy {
@@ -233,9 +201,11 @@ impl EditorCore {
         }
         let id = Uuid::new_v4().to_string();
         let project_dir = self.paths.project_dir(&id)?;
-        std::fs::create_dir_all(project_dir.join("assets"))
+        self.storage
+            .create_dir_all(&project_dir.join("assets"))
             .map_err(|error| CoreError::io("cannot create project assets", error))?;
-        std::fs::create_dir_all(project_dir.join("previews"))
+        self.storage
+            .create_dir_all(&project_dir.join("previews"))
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
@@ -294,8 +264,14 @@ impl EditorCore {
                 },
             ],
         };
-        let _lock = ProjectLock::exclusive(&project_dir)?;
-        let warnings = persist(&project_dir, &project, &History::default())?;
+        let _lock = self.storage.lock_exclusive(&project_dir)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &project_dir,
+            &project,
+            &History::default(),
+        )?;
         Ok(WriteResult {
             project_id: id.clone(),
             revision: 0,
@@ -308,30 +284,36 @@ impl EditorCore {
 
     pub fn get_project(&self, project_id: &str) -> Result<Project, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, history) = load_project_data(&dir)?;
-        let _ = garbage_collect(&dir, &project, &history);
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let _ = collect_asset_garbage(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        );
         Ok(project)
     }
 
     pub fn list_projects(&self) -> Result<Vec<ProjectSummary>, CoreError> {
         let mut summaries = Vec::new();
-        let entries = std::fs::read_dir(self.paths.projects_root())
-            .map_err(|error| CoreError::io("cannot list projects", error))?;
-        for entry in entries {
-            let entry = entry.map_err(|error| CoreError::io("cannot read project entry", error))?;
-            if !entry
-                .file_type()
-                .map_err(|error| CoreError::io("cannot inspect project entry", error))?
-                .is_dir()
-            {
-                continue;
-            }
-            let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
+        let entries = list_project_directories(self.storage.as_ref(), self.paths.projects_root())?;
+        for path in entries {
+            let Some(id) = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_owned)
+            else {
                 continue;
             };
-            if !entry.path().join("project.json").is_file()
-                && !entry.path().join(TRANSACTION_FILE).is_file()
+            if !self
+                .storage
+                .storage_path_is_file(&path.join("project.json"))
+                && !self
+                    .storage
+                    .storage_path_is_file(&path.join(TRANSACTION_FILE))
             {
                 continue;
             }
@@ -383,11 +365,12 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let source = self.paths.import_path(requested_path)?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let asset_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         push_undo(&mut history, &project);
         project.assets.push(Asset {
             id: asset_id.clone(),
@@ -406,9 +389,22 @@ impl EditorCore {
             probe: Some(probe),
         });
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, vec![asset_id], "Imported asset");
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -422,8 +418,9 @@ impl EditorCore {
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
         let track_index = project
             .tracks
@@ -435,7 +432,7 @@ impl EditorCore {
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
         let item_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         let display_name = generated_display_name(&request.origin);
 
         project.assets.push(Asset {
@@ -465,8 +462,21 @@ impl EditorCore {
             }));
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
-        let warnings = finish_persistence(&dir, &project, &history, warnings);
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
+        let warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(CommitGeneratedAssetResult {
             project_id: project.id.clone(),
             revision: project.revision,
@@ -484,17 +494,19 @@ impl EditorCore {
         asset_id: &str,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let index = project
             .assets
             .iter()
             .position(|asset| asset.id == asset_id)
             .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
-        let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
-        if let Some(reference) = blocking_asset_reference(&project, &drafts, asset_id) {
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
+        if let Some(reference) = blocking_asset_reference(&project, &asset_drafts, asset_id) {
             return Err(CoreError::new(
                 ErrorCode::AssetInUse,
                 format!(
@@ -508,9 +520,22 @@ impl EditorCore {
         project.assets.remove(index);
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, vec![asset_id.to_owned()], "Deleted asset");
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -524,11 +549,13 @@ impl EditorCore {
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
-        let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
         let (track_index, item_index) = project
             .tracks
             .iter()
@@ -567,7 +594,7 @@ impl EditorCore {
 
         let previous = project.clone();
         let asset_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(&dir, &source)?;
+        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         project.assets.push(Asset {
             id: asset_id.clone(),
             media_type: MediaType::Audio,
@@ -585,13 +612,26 @@ impl EditorCore {
         };
         item.asset_id = asset_id.clone();
         item.duration_ms = request.duration_ms;
-        if blocking_asset_reference(&project, &drafts, &replaced_asset_id).is_none() {
+        if blocking_asset_reference(&project, &asset_drafts, &replaced_asset_id).is_none() {
             project.assets.retain(|asset| asset.id != replaced_asset_id);
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
-        let warnings = finish_persistence(&dir, &project, &history, warnings);
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
+        let warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(ReplaceGeneratedAssetResult {
             project_id: project.id,
             revision: project.revision,
@@ -610,16 +650,30 @@ impl EditorCore {
         operation: EditOperation,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let previous = project.clone();
         let (changed_ids, summary) = apply_operation(&mut project, operation)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, summary);
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -636,8 +690,9 @@ impl EditorCore {
             ));
         }
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
@@ -675,10 +730,23 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, "Applied timeline edit batch");
         result.aliases = aliases;
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -692,14 +760,16 @@ impl EditorCore {
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         validate_operations_against(&project, &operations)?;
         let drafts = draft_dir(&dir);
-        std::fs::create_dir_all(&drafts)
+        self.storage
+            .create_dir_all(&drafts)
             .map_err(|error| CoreError::io("cannot create draft directory", error))?;
-        if count_drafts(&drafts)? >= DRAFT_LIMIT {
+        if count_drafts(self.storage.as_ref(), &drafts)? >= DRAFT_LIMIT {
             return Err(CoreError::new(
                 ErrorCode::DraftLimitReached,
                 "project has reached the retained draft limit",
@@ -716,16 +786,17 @@ impl EditorCore {
             created_at_ms: now,
             updated_at_ms: now,
         };
-        write_json_atomic(&draft_path(&dir, &draft.id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, &draft.id)?, &draft)?;
         Ok(draft)
     }
 
     pub fn get_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&dir)?;
-        let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        validate_single_draft_assets(&project, &draft)?;
         Ok(draft)
     }
 
@@ -740,10 +811,11 @@ impl EditorCore {
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let mut draft = read_draft(&dir, draft_id)?;
+        let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
                 ErrorCode::RevisionConflict,
@@ -757,7 +829,7 @@ impl EditorCore {
         draft.operations = operations;
         draft.label = label;
         draft.updated_at_ms = now_ms()?;
-        write_json_atomic(&draft_path(&dir, draft_id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
         Ok(draft)
     }
 
@@ -768,15 +840,16 @@ impl EditorCore {
         expected_revision: u64,
     ) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, _) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let mut draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        validate_single_draft_assets(&project, &draft)?;
         validate_operations_against(&project, &draft.operations)?;
         draft.base_revision = expected_revision;
         draft.updated_at_ms = now_ms()?;
-        write_json_atomic(&draft_path(&dir, draft_id)?, &draft)?;
+        write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
         Ok(draft)
     }
 
@@ -786,10 +859,11 @@ impl EditorCore {
         draft_id: &str,
     ) -> Result<ProjectState, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, _) = load_project_data(&dir)?;
-        let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, _) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        validate_single_draft_assets(&project, &draft)?;
         check_revision(&project, draft.base_revision)?;
         for operation in draft.operations {
             apply_operation(&mut project, operation)?;
@@ -808,11 +882,12 @@ impl EditorCore {
         expected_revision: u64,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
-        let draft = read_draft(&dir, draft_id)?;
-        validate_draft_asset_references(&project, std::slice::from_ref(&draft))?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        validate_single_draft_assets(&project, &draft)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
                 ErrorCode::RevisionConflict,
@@ -830,19 +905,32 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist_transaction(&dir, &project, &history, Some(draft_id))?;
+        let warnings = persist_transaction(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            Some(draft_id),
+        )?;
         let mut result = write_result(&project, changed_ids, "Committed edit draft");
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
     pub fn discard_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let _ = load_project_data(&dir)?;
-        let draft = read_draft(&dir, draft_id)?;
-        std::fs::remove_file(draft_path(&dir, draft_id)?)
-            .map_err(|error| CoreError::io("cannot discard draft", error))?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let _ = load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
+        remove_draft(self.storage.as_ref(), &dir, draft_id)?;
         Ok(draft)
     }
 
@@ -883,8 +971,9 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         validate_transcription_request(&request)?;
         let dir = self.existing_project_dir(&request.project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (mut project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, request.expected_revision)?;
         let asset = project
             .assets
@@ -965,9 +1054,22 @@ impl EditorCore {
         }
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
-        let warnings = persist(&dir, &project, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+        )?;
         let mut result = write_result(&project, changed_ids, "Committed transcription captions");
-        result.warnings = finish_persistence(&dir, &project, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &project,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
@@ -996,8 +1098,9 @@ impl EditorCore {
     ) -> Result<PathBuf, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let candidate = dir.join(relative);
-        let resolved = candidate
-            .canonicalize()
+        let resolved = self
+            .storage
+            .canonicalize_storage_path(&candidate)
             .map_err(|error| CoreError::io("cannot resolve project asset", error))?;
         if !resolved.starts_with(&dir) {
             return Err(CoreError::new(
@@ -1015,8 +1118,9 @@ impl EditorCore {
         undo: bool,
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
-        let _lock = ProjectLock::exclusive(&dir)?;
-        let (project, mut history) = load_project_data(&dir)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let (project, mut history) =
+            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
         check_revision(&project, expected_revision)?;
         let target = if undo {
             history.undo.pop()
@@ -1039,9 +1143,10 @@ impl EditorCore {
             .checked_add(1)
             .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
         restored.updated_at_ms = now_ms()?;
-        let drafts = read_all_drafts(&dir)?;
-        validate_draft_asset_references(&project, &drafts)?;
-        if let Some(reference) = missing_draft_asset_reference(&restored, &drafts) {
+        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
+        let asset_drafts = draft_asset_operations(&drafts);
+        validate_draft_asset_references(&project, &asset_drafts)?;
+        if let Some(reference) = missing_draft_asset_reference(&restored, &asset_drafts) {
             return Err(CoreError::new(
                 ErrorCode::AssetInUse,
                 format!(
@@ -1057,7 +1162,13 @@ impl EditorCore {
         } else {
             history.undo.push(project);
         }
-        let warnings = persist(&dir, &restored, &history)?;
+        let warnings = persist(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &restored,
+            &history,
+        )?;
         let mut result = write_result(
             &restored,
             vec![],
@@ -1067,741 +1178,46 @@ impl EditorCore {
                 "Redid last edit"
             },
         );
-        result.warnings = finish_persistence(&dir, &restored, &history, warnings);
+        result.warnings = finish_persistence(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &restored,
+            &history,
+            warnings,
+        );
         Ok(result)
     }
 
     fn existing_project_dir(&self, project_id: &str) -> Result<PathBuf, CoreError> {
         let dir = self.paths.project_dir(project_id)?;
-        if !project_path(&dir).is_file() && !transaction_path(&dir).is_file() {
+        let resolved = match self.storage.canonicalize_storage_path(&dir) {
+            Ok(resolved) => resolved,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(CoreError::new(
+                    ErrorCode::ProjectNotFound,
+                    "project was not found",
+                ));
+            }
+            Err(error) => return Err(CoreError::io("cannot resolve project directory", error)),
+        };
+        if !resolved.starts_with(self.paths.projects_root()) {
+            return Err(CoreError::new(
+                ErrorCode::PathNotAllowed,
+                "project directory escapes the configured project root",
+            ));
+        }
+        if !self.storage.storage_path_is_file(&project_path(&resolved))
+            && !self
+                .storage
+                .storage_path_is_file(&transaction_path(&resolved))
+        {
             return Err(CoreError::new(
                 ErrorCode::ProjectNotFound,
                 "project was not found",
             ));
         }
-        dir.canonicalize()
-            .map_err(|error| CoreError::io("cannot resolve project directory", error))
-    }
-}
-
-fn validate_alias(alias: &str) -> Result<(), CoreError> {
-    if alias.is_empty()
-        || alias.len() > 64
-        || !alias
-            .bytes()
-            .next()
-            .is_some_and(|byte| byte.is_ascii_alphabetic())
-        || !alias
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "resultAlias has an invalid format",
-        ));
-    }
-    Ok(())
-}
-
-fn is_single_id_creator(edit: &EditOperation) -> bool {
-    matches!(
-        edit,
-        EditOperation::AddMedia { .. }
-            | EditOperation::AddText { .. }
-            | EditOperation::AddSolidColor { .. }
-            | EditOperation::AddRectangle { .. }
-            | EditOperation::AddTransition { .. }
-            | EditOperation::CreateTrack { .. }
-    )
-}
-
-fn resolve_alias(value: &mut String, aliases: &BTreeMap<String, String>) -> Result<(), CoreError> {
-    let Some(alias) = value.strip_prefix('@') else {
-        return Ok(());
-    };
-    *value = aliases.get(alias).cloned().ok_or_else(|| {
-        CoreError::new(
-            ErrorCode::ValidationFailed,
-            format!("batch alias @{alias} is missing or referenced before creation"),
-        )
-    })?;
-    Ok(())
-}
-
-fn resolve_operation_aliases(
-    edit: &mut EditOperation,
-    aliases: &BTreeMap<String, String>,
-) -> Result<(), CoreError> {
-    match edit {
-        EditOperation::AddMedia { track_id, .. }
-        | EditOperation::AddText { track_id, .. }
-        | EditOperation::AddSolidColor { track_id, .. }
-        | EditOperation::AddRectangle { track_id, .. } => resolve_alias(track_id, aliases)?,
-        EditOperation::UpdateItem { item_id, .. }
-        | EditOperation::TrimItem { item_id, .. }
-        | EditOperation::DeleteItem { item_id }
-        | EditOperation::SetKeyframes { item_id, .. }
-        | EditOperation::SetAudio { item_id, .. }
-        | EditOperation::SplitItem { item_id, .. }
-        | EditOperation::SetItemVisibility { item_id, .. } => resolve_alias(item_id, aliases)?,
-        EditOperation::MoveItem {
-            item_id, track_id, ..
-        } => {
-            resolve_alias(item_id, aliases)?;
-            resolve_alias(track_id, aliases)?;
-        }
-        EditOperation::AddTransition {
-            track_id,
-            from_item_id,
-            to_item_id,
-            ..
-        } => {
-            resolve_alias(track_id, aliases)?;
-            resolve_alias(from_item_id, aliases)?;
-            if let Some(value) = to_item_id {
-                resolve_alias(value, aliases)?;
-            }
-        }
-        EditOperation::DuplicateItems { item_ids, .. } => {
-            for value in item_ids {
-                resolve_alias(value, aliases)?;
-            }
-        }
-        EditOperation::UpdateTrack { track_id, .. } | EditOperation::DeleteTrack { track_id } => {
-            resolve_alias(track_id, aliases)?
-        }
-        EditOperation::CreateTrack { .. } => {}
-    }
-    Ok(())
-}
-
-fn apply_operation(
-    project: &mut Project,
-    operation: EditOperation,
-) -> Result<(Vec<String>, &'static str), CoreError> {
-    match operation {
-        EditOperation::AddMedia {
-            track_id,
-            asset_id,
-            start_ms,
-            duration_ms,
-            source_in_ms,
-        } => {
-            validate_duration(duration_ms)?;
-            let asset = project
-                .assets
-                .iter()
-                .find(|asset| asset.id == asset_id)
-                .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
-            let asset_media_type = asset.media_type;
-            if let Some(asset_duration) = asset.duration_ms
-                && asset_media_type != MediaType::Image
-                && source_in_ms.saturating_add(duration_ms) > asset_duration
-            {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "source range exceeds the asset duration",
-                ));
-            }
-            let track = editable_track_mut(project, &track_id)?;
-            validate_track_media(track.track_type, asset_media_type)?;
-            let id = Uuid::new_v4().to_string();
-            track.items.push(TimelineItem::Media(MediaItem {
-                id: id.clone(),
-                asset_id,
-                start_ms,
-                duration_ms,
-                source_in_ms,
-                transform: Transform::default(),
-                audio: AudioSettings::default(),
-                keyframes: vec![],
-                hidden: false,
-            }));
-            Ok((vec![id], "Added media item"))
-        }
-        EditOperation::AddText {
-            track_id,
-            text,
-            start_ms,
-            duration_ms,
-            font_size,
-            color,
-            font_family,
-            font_path,
-            style,
-            transform,
-        } => {
-            validate_duration(duration_ms)?;
-            validate_transform(&transform)?;
-            validate_text(&text, font_size, &color)?;
-            validate_text_style(&style)?;
-            let track = editable_track_mut(project, &track_id)?;
-            if track.track_type != TrackType::Overlay {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "text items require an overlay track",
-                ));
-            }
-            let id = Uuid::new_v4().to_string();
-            track.items.push(TimelineItem::Text(TextItem {
-                id: id.clone(),
-                text,
-                start_ms,
-                duration_ms,
-                font_size,
-                color,
-                font_family,
-                font_path,
-                style,
-                transform,
-                keyframes: vec![],
-                hidden: false,
-            }));
-            Ok((vec![id], "Added text item"))
-        }
-        EditOperation::AddSolidColor {
-            track_id,
-            color,
-            start_ms,
-            duration_ms,
-            transform,
-        } => {
-            validate_duration(duration_ms)?;
-            validate_color(&color)?;
-            validate_transform(&transform)?;
-            let track = editable_track_mut(project, &track_id)?;
-            validate_visual_track(track.track_type)?;
-            let id = Uuid::new_v4().to_string();
-            track.items.push(TimelineItem::SolidColor(SolidColorItem {
-                id: id.clone(),
-                color,
-                start_ms,
-                duration_ms,
-                transform,
-                keyframes: vec![],
-                hidden: false,
-            }));
-            Ok((vec![id], "Added solid color item"))
-        }
-        EditOperation::AddRectangle {
-            track_id,
-            color,
-            width,
-            height,
-            start_ms,
-            duration_ms,
-            transform,
-        } => {
-            validate_duration(duration_ms)?;
-            validate_color(&color)?;
-            validate_dimensions(width, height)?;
-            validate_transform(&transform)?;
-            let track = editable_track_mut(project, &track_id)?;
-            validate_visual_track(track.track_type)?;
-            let id = Uuid::new_v4().to_string();
-            track.items.push(TimelineItem::Rectangle(RectangleItem {
-                id: id.clone(),
-                color,
-                width,
-                height,
-                start_ms,
-                duration_ms,
-                transform,
-                keyframes: vec![],
-                hidden: false,
-            }));
-            Ok((vec![id], "Added rectangle item"))
-        }
-        EditOperation::UpdateItem {
-            item_id,
-            transform,
-            text,
-            color,
-            width,
-            height,
-            font_family,
-            font_path,
-            style,
-        } => {
-            let item = find_editable_item_mut(project, &item_id)?;
-            if let Some(transform) = transform {
-                validate_transform(&transform)?;
-                match item {
-                    TimelineItem::Media(media) => media.transform = transform,
-                    TimelineItem::Text(text_item) => text_item.transform = transform,
-                    TimelineItem::SolidColor(item) => item.transform = transform,
-                    TimelineItem::Rectangle(item) => item.transform = transform,
-                    TimelineItem::Caption(_) => {
-                        return Err(CoreError::new(
-                            ErrorCode::ValidationFailed,
-                            "captions do not have transforms",
-                        ));
-                    }
-                    TimelineItem::Transition(_) => {
-                        return Err(CoreError::new(
-                            ErrorCode::ValidationFailed,
-                            "transitions do not have transforms",
-                        ));
-                    }
-                }
-            }
-            if let Some(text) = text {
-                match item {
-                    TimelineItem::Text(text_item) => {
-                        validate_text(&text, text_item.font_size, &text_item.color)?;
-                        text_item.text = text;
-                    }
-                    TimelineItem::Caption(caption) => {
-                        validate_text(&text, caption.style.font_size, &caption.style.color)?;
-                        caption.text = text;
-                    }
-                    _ => {
-                        return Err(CoreError::new(
-                            ErrorCode::ValidationFailed,
-                            "only text items accept text updates",
-                        ));
-                    }
-                }
-            }
-            if let Some(color) = color {
-                validate_color(&color)?;
-                match item {
-                    TimelineItem::Text(text) => text.color = color,
-                    TimelineItem::SolidColor(shape) => shape.color = color,
-                    TimelineItem::Rectangle(shape) => shape.color = color,
-                    _ => {
-                        return Err(CoreError::new(
-                            ErrorCode::ValidationFailed,
-                            "item does not accept color updates",
-                        ));
-                    }
-                }
-            }
-            if width.is_some() || height.is_some() {
-                let TimelineItem::Rectangle(rectangle) = item else {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "dimensions require a rectangle item",
-                    ));
-                };
-                let width = width.unwrap_or(rectangle.width);
-                let height = height.unwrap_or(rectangle.height);
-                validate_dimensions(width, height)?;
-                rectangle.width = width;
-                rectangle.height = height;
-            }
-            if font_family.is_some() || font_path.is_some() || style.is_some() {
-                let TimelineItem::Text(text) = item else {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "font and style updates require a text item",
-                    ));
-                };
-                if let Some(value) = font_family {
-                    text.font_family = value;
-                }
-                if let Some(value) = font_path {
-                    text.font_path = value;
-                }
-                if let Some(value) = style {
-                    validate_text_style(&value)?;
-                    text.style = value;
-                }
-            }
-            Ok((vec![item_id], "Updated timeline item"))
-        }
-        EditOperation::MoveItem {
-            item_id,
-            track_id,
-            start_ms,
-        } => {
-            ensure_item_track_unlocked(project, &item_id)?;
-            let mut item = remove_item(project, &item_id)?;
-            set_item_start(&mut item, start_ms);
-            let track = editable_track_mut(project, &track_id)?;
-            validate_item_track(&item, track.track_type)?;
-            track.items.push(item);
-            Ok((vec![item_id], "Moved timeline item"))
-        }
-        EditOperation::TrimItem {
-            item_id,
-            start_ms,
-            duration_ms,
-            source_in_ms,
-        } => {
-            validate_duration(duration_ms)?;
-            let item = find_editable_item_mut(project, &item_id)?;
-            match item {
-                TimelineItem::Media(media) => {
-                    media.start_ms = start_ms;
-                    media.duration_ms = duration_ms;
-                    if let Some(source_in_ms) = source_in_ms {
-                        media.source_in_ms = source_in_ms;
-                    }
-                }
-                TimelineItem::Text(text) => {
-                    text.start_ms = start_ms;
-                    text.duration_ms = duration_ms;
-                }
-                TimelineItem::SolidColor(item) => {
-                    item.start_ms = start_ms;
-                    item.duration_ms = duration_ms;
-                }
-                TimelineItem::Rectangle(item) => {
-                    item.start_ms = start_ms;
-                    item.duration_ms = duration_ms;
-                }
-                TimelineItem::Caption(caption) => {
-                    caption.start_ms = start_ms;
-                    caption.duration_ms = duration_ms;
-                }
-                TimelineItem::Transition(transition) => {
-                    transition.start_ms = start_ms;
-                    transition.duration_ms = duration_ms;
-                }
-            }
-            Ok((vec![item_id], "Trimmed timeline item"))
-        }
-        EditOperation::DeleteItem { item_id } => {
-            ensure_item_track_unlocked(project, &item_id)?;
-            remove_item(project, &item_id)?;
-            for track in &mut project.tracks {
-                track.items.retain(|item| match item {
-                    TimelineItem::Transition(transition) => {
-                        transition.from_item_id != item_id
-                            && transition.to_item_id.as_deref() != Some(&item_id)
-                    }
-                    _ => true,
-                });
-            }
-            Ok((vec![item_id], "Deleted timeline item"))
-        }
-        EditOperation::SetKeyframes { item_id, keyframes } => {
-            validate_keyframes(&keyframes)?;
-            let item = find_editable_item_mut(project, &item_id)?;
-            if keyframes
-                .iter()
-                .any(|keyframe| keyframe.property == KeyframeProperty::Volume)
-                && !matches!(item, TimelineItem::Media(_))
-            {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "volume keyframes require a media item",
-                ));
-            }
-            let destination = item.keyframes_mut().ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "transitions do not accept transform keyframes",
-                )
-            })?;
-            *destination = keyframes;
-            Ok((vec![item_id], "Set item keyframes"))
-        }
-        EditOperation::AddTransition {
-            track_id,
-            transition_type,
-            from_item_id,
-            to_item_id,
-            start_ms,
-            duration_ms,
-        } => {
-            validate_duration(duration_ms)?;
-            if project.find_item(&from_item_id).is_none()
-                || to_item_id
-                    .as_ref()
-                    .is_some_and(|id| project.find_item(id).is_none())
-            {
-                return Err(CoreError::new(
-                    ErrorCode::ItemNotFound,
-                    "transition endpoint was not found",
-                ));
-            }
-            let track = editable_track_mut(project, &track_id)?;
-            if matches!(track.track_type, TrackType::Audio | TrackType::Caption) {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "visual transitions cannot be added to audio tracks",
-                ));
-            }
-            let id = Uuid::new_v4().to_string();
-            track.items.push(TimelineItem::Transition(TransitionItem {
-                id: id.clone(),
-                transition_type,
-                from_item_id,
-                to_item_id,
-                start_ms,
-                duration_ms,
-                hidden: false,
-            }));
-            Ok((vec![id], "Added transition"))
-        }
-        EditOperation::SetAudio { item_id, audio } => {
-            validate_audio(&audio)?;
-            let item = find_editable_item_mut(project, &item_id)?;
-            match item {
-                TimelineItem::Media(media) => media.audio = audio,
-                _ => {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "audio settings require a media item",
-                    ));
-                }
-            }
-            Ok((vec![item_id], "Updated item audio"))
-        }
-        EditOperation::SplitItem { item_id, split_ms } => {
-            let (track_index, item_index) = find_item_location(project, &item_id)?;
-            if project.tracks[track_index].locked {
-                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-            }
-            let item = &mut project.tracks[track_index].items[item_index];
-            if split_ms <= item.start_ms() || split_ms >= item.end_ms() {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "split time must be strictly inside the item",
-                ));
-            }
-            let right_id = Uuid::new_v4().to_string();
-            let right_duration = item.end_ms() - split_ms;
-            let left_duration = split_ms - item.start_ms();
-            let right = match item {
-                TimelineItem::Media(media) => {
-                    let mut right = media.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&media.keyframes, left_duration, media.duration_ms);
-                    right.id = right_id.clone();
-                    right.start_ms = split_ms;
-                    right.duration_ms = right_duration;
-                    right.source_in_ms = right.source_in_ms.saturating_add(left_duration);
-                    right.keyframes = right_keyframes;
-                    media.duration_ms = left_duration;
-                    media.keyframes = left_keyframes;
-                    TimelineItem::Media(right)
-                }
-                TimelineItem::Text(text) => {
-                    let mut right = text.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&text.keyframes, left_duration, text.duration_ms);
-                    right.id = right_id.clone();
-                    right.start_ms = split_ms;
-                    right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
-                    text.duration_ms = left_duration;
-                    text.keyframes = left_keyframes;
-                    TimelineItem::Text(right)
-                }
-                TimelineItem::SolidColor(shape) => {
-                    let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
-                    right.id = right_id.clone();
-                    right.start_ms = split_ms;
-                    right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
-                    shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
-                    TimelineItem::SolidColor(right)
-                }
-                TimelineItem::Rectangle(shape) => {
-                    let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
-                    right.id = right_id.clone();
-                    right.start_ms = split_ms;
-                    right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
-                    shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
-                    TimelineItem::Rectangle(right)
-                }
-                TimelineItem::Caption(caption) => {
-                    let mut right = caption.clone();
-                    right.id = right_id.clone();
-                    right.start_ms = split_ms;
-                    right.duration_ms = right_duration;
-                    caption.duration_ms = left_duration;
-                    TimelineItem::Caption(right)
-                }
-                TimelineItem::Transition(_) => {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "transitions cannot be split",
-                    ));
-                }
-            };
-            project.tracks[track_index]
-                .items
-                .insert(item_index + 1, right);
-            Ok((vec![item_id, right_id], "Split timeline item"))
-        }
-        EditOperation::DuplicateItems {
-            item_ids,
-            offset_ms,
-        } => {
-            if item_ids.is_empty() || item_ids.len() > 100 {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "duplicate requires between 1 and 100 items",
-                ));
-            }
-            let mut copies = Vec::with_capacity(item_ids.len());
-            for item_id in item_ids {
-                let (track_index, item_index) = find_item_location(project, &item_id)?;
-                if project.tracks[track_index].locked {
-                    return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-                }
-                let mut copy = project.tracks[track_index].items[item_index].clone();
-                if matches!(copy, TimelineItem::Transition(_)) {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "transitions cannot be duplicated",
-                    ));
-                }
-                let new_start = copy.start_ms().checked_add(offset_ms).ok_or_else(|| {
-                    CoreError::new(ErrorCode::ValidationFailed, "duplicate time overflow")
-                })?;
-                let new_id = Uuid::new_v4().to_string();
-                set_item_id(&mut copy, new_id.clone());
-                set_item_start(&mut copy, new_start);
-                copies.push((track_index, copy, new_id));
-            }
-            let mut changed_ids = Vec::with_capacity(copies.len());
-            for (track_index, copy, id) in copies {
-                project.tracks[track_index].items.push(copy);
-                changed_ids.push(id);
-            }
-            Ok((changed_ids, "Duplicated timeline items"))
-        }
-        EditOperation::CreateTrack {
-            name,
-            track_type,
-            index,
-            audio_role,
-            ducking,
-        } => {
-            let name = name.trim();
-            if name.is_empty() || name.chars().count() > 128 {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "track name must be non-empty and at most 128 characters",
-                ));
-            }
-            let id = Uuid::new_v4().to_string();
-            validate_track_audio_settings(track_type, audio_role, ducking.as_ref())?;
-            let track = Track {
-                id: id.clone(),
-                name: name.into(),
-                track_type,
-                locked: false,
-                hidden: false,
-                muted: false,
-                audio_role,
-                ducking,
-                items: vec![],
-            };
-            let index = index.unwrap_or(project.tracks.len());
-            if index > project.tracks.len() {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "track index is outside the timeline",
-                ));
-            }
-            project.tracks.insert(index, track);
-            Ok((vec![id], "Created track"))
-        }
-        EditOperation::UpdateTrack {
-            track_id,
-            name,
-            index,
-            locked,
-            hidden,
-            muted,
-            audio_role,
-            ducking,
-        } => {
-            let current_index = project
-                .tracks
-                .iter()
-                .position(|track| track.id == track_id)
-                .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))?;
-            if project.tracks[current_index].locked
-                && !(locked == Some(false)
-                    && name.is_none()
-                    && index.is_none()
-                    && hidden.is_none()
-                    && muted.is_none()
-                    && audio_role.is_none()
-                    && ducking.is_none())
-            {
-                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-            }
-            if let Some(name) = name {
-                let name = name.trim();
-                if name.is_empty() || name.chars().count() > 128 {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "track name must be non-empty and at most 128 characters",
-                    ));
-                }
-                project.tracks[current_index].name = name.into();
-            }
-            if let Some(locked) = locked {
-                project.tracks[current_index].locked = locked;
-            }
-            if let Some(hidden) = hidden {
-                project.tracks[current_index].hidden = hidden;
-            }
-            if let Some(muted) = muted {
-                project.tracks[current_index].muted = muted;
-            }
-            if audio_role.is_some() || ducking.is_some() {
-                let role = audio_role.unwrap_or(project.tracks[current_index].audio_role);
-                let settings =
-                    ducking.unwrap_or_else(|| project.tracks[current_index].ducking.clone());
-                validate_track_audio_settings(
-                    project.tracks[current_index].track_type,
-                    role,
-                    settings.as_ref(),
-                )?;
-                project.tracks[current_index].audio_role = role;
-                project.tracks[current_index].ducking = settings;
-            }
-            if let Some(index) = index {
-                if index >= project.tracks.len() {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "track index is outside the timeline",
-                    ));
-                }
-                let track = project.tracks.remove(current_index);
-                project.tracks.insert(index, track);
-            }
-            Ok((vec![track_id], "Updated track"))
-        }
-        EditOperation::DeleteTrack { track_id } => {
-            let index = project
-                .tracks
-                .iter()
-                .position(|track| track.id == track_id)
-                .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))?;
-            if project.tracks[index].locked {
-                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-            }
-            if !project.tracks[index].items.is_empty() {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "only empty tracks can be deleted",
-                ));
-            }
-            project.tracks.remove(index);
-            Ok((vec![track_id], "Deleted track"))
-        }
-        EditOperation::SetItemVisibility { item_id, hidden } => {
-            let item = find_editable_item_mut(project, &item_id)?;
-            item.set_hidden(hidden);
-            Ok((vec![item_id], "Updated item visibility"))
-        }
+        Ok(resolved)
     }
 }
 
@@ -1871,594 +1287,6 @@ fn validate_transcription_request(request: &CommitTranscriptionRequest) -> Resul
     Ok(())
 }
 
-fn validate_operations_against(
-    project: &Project,
-    operations: &[EditOperation],
-) -> Result<(), CoreError> {
-    let mut candidate = project.clone();
-    for operation in operations.iter().cloned() {
-        apply_operation(&mut candidate, operation)?;
-    }
-    Ok(())
-}
-
-fn validate_draft_label(label: Option<&str>) -> Result<(), CoreError> {
-    if label.is_some_and(|value| value.trim().is_empty() || value.chars().count() > 200) {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "draft label must be non-empty and at most 200 characters",
-        ));
-    }
-    Ok(())
-}
-
-fn draft_dir(project_dir: &Path) -> PathBuf {
-    project_dir.join("drafts")
-}
-
-fn draft_path(project_dir: &Path, draft_id: &str) -> Result<PathBuf, CoreError> {
-    if draft_id.is_empty()
-        || !draft_id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-    {
-        return Err(CoreError::new(
-            ErrorCode::InvalidArgument,
-            "draft ID contains unsupported characters",
-        ));
-    }
-    Ok(draft_dir(project_dir).join(format!("{draft_id}.json")))
-}
-
-fn read_draft(project_dir: &Path, draft_id: &str) -> Result<EditDraft, CoreError> {
-    let path = draft_path(project_dir, draft_id)?;
-    if !path.is_file() {
-        return Err(CoreError::new(
-            ErrorCode::DraftNotFound,
-            "draft was not found",
-        ));
-    }
-    let draft: EditDraft = read_json(&path)?;
-    if draft.version != DRAFT_VERSION {
-        return Err(CoreError::new(
-            ErrorCode::InternalError,
-            "draft has an unsupported version",
-        ));
-    }
-    Ok(draft)
-}
-
-fn read_all_drafts(project_dir: &Path) -> Result<Vec<EditDraft>, CoreError> {
-    let directory = draft_dir(project_dir);
-    if !directory.exists() {
-        return Ok(vec![]);
-    }
-    let entries = std::fs::read_dir(&directory)
-        .map_err(|error| CoreError::io("cannot list drafts", error))?;
-    let mut draft_ids = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|error| CoreError::io("cannot read draft entry", error))?;
-        if !entry
-            .file_type()
-            .map_err(|error| CoreError::io("cannot inspect draft entry", error))?
-            .is_file()
-            || entry.path().extension().and_then(|value| value.to_str()) != Some("json")
-        {
-            continue;
-        }
-        let id = entry
-            .path()
-            .file_stem()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::AssetIntegrityFailed,
-                    "draft has an invalid identifier",
-                )
-            })?
-            .to_owned();
-        draft_ids.push(id);
-    }
-    draft_ids.sort();
-    draft_ids
-        .into_iter()
-        .map(|draft_id| read_draft(project_dir, &draft_id))
-        .collect()
-}
-
-fn project_asset_references(project: &Project) -> Vec<AssetReference> {
-    project
-        .tracks
-        .iter()
-        .flat_map(|track| &track.items)
-        .filter_map(|item| match item {
-            TimelineItem::Media(media) => Some(AssetReference {
-                asset_id: media.asset_id.clone(),
-                kind: AssetReferenceKind::MediaItem,
-                owner_id: media.id.clone(),
-            }),
-            TimelineItem::Caption(caption) => Some(AssetReference {
-                asset_id: caption.source.asset_id.clone(),
-                kind: AssetReferenceKind::CaptionSource,
-                owner_id: caption.id.clone(),
-            }),
-            TimelineItem::Text(_)
-            | TimelineItem::SolidColor(_)
-            | TimelineItem::Rectangle(_)
-            | TimelineItem::Transition(_) => None,
-        })
-        .collect()
-}
-
-fn draft_asset_references(draft: &EditDraft) -> Vec<AssetReference> {
-    draft
-        .operations
-        .iter()
-        .filter_map(|operation| match operation {
-            EditOperation::AddMedia { asset_id, .. } => Some(AssetReference {
-                asset_id: asset_id.clone(),
-                kind: AssetReferenceKind::DraftOperation,
-                owner_id: draft.id.clone(),
-            }),
-            _ => None,
-        })
-        .collect()
-}
-
-fn blocking_asset_reference(
-    project: &Project,
-    drafts: &[EditDraft],
-    asset_id: &str,
-) -> Option<AssetReference> {
-    project_asset_references(project)
-        .into_iter()
-        .chain(drafts.iter().flat_map(draft_asset_references))
-        .find(|reference| reference.asset_id == asset_id)
-}
-
-fn validate_project_asset_references(project: &Project, context: &str) -> Result<(), CoreError> {
-    let assets = project
-        .assets
-        .iter()
-        .map(|asset| asset.id.as_str())
-        .collect::<HashSet<_>>();
-    if let Some(reference) = project_asset_references(project)
-        .into_iter()
-        .find(|reference| !assets.contains(reference.asset_id.as_str()))
-    {
-        return Err(CoreError::new(
-            ErrorCode::AssetIntegrityFailed,
-            format!(
-                "{context} contains dangling {} {} reference to asset {}",
-                reference.kind.label(),
-                reference.owner_id,
-                reference.asset_id
-            ),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_retained_project_references(
-    project: &Project,
-    history: &History,
-) -> Result<(), CoreError> {
-    validate_project_asset_references(project, "current project")?;
-    for (index, snapshot) in history.undo.iter().enumerate() {
-        validate_project_asset_references(snapshot, &format!("undo history snapshot {index}"))?;
-    }
-    for (index, snapshot) in history.redo.iter().enumerate() {
-        validate_project_asset_references(snapshot, &format!("redo history snapshot {index}"))?;
-    }
-    Ok(())
-}
-
-fn validate_draft_asset_references(
-    project: &Project,
-    drafts: &[EditDraft],
-) -> Result<(), CoreError> {
-    if let Some(reference) = missing_draft_asset_reference(project, drafts) {
-        return Err(CoreError::new(
-            ErrorCode::AssetIntegrityFailed,
-            format!(
-                "draft {} contains dangling {} reference to asset {}",
-                reference.owner_id,
-                reference.kind.label(),
-                reference.asset_id
-            ),
-        ));
-    }
-    Ok(())
-}
-
-fn missing_draft_asset_reference(
-    project: &Project,
-    drafts: &[EditDraft],
-) -> Option<AssetReference> {
-    let assets = project
-        .assets
-        .iter()
-        .map(|asset| asset.id.as_str())
-        .collect::<HashSet<_>>();
-    drafts
-        .iter()
-        .flat_map(draft_asset_references)
-        .find(|reference| !assets.contains(reference.asset_id.as_str()))
-}
-
-fn count_drafts(directory: &Path) -> Result<usize, CoreError> {
-    let entries =
-        std::fs::read_dir(directory).map_err(|error| CoreError::io("cannot list drafts", error))?;
-    let mut count = 0;
-    for entry in entries {
-        let entry = entry.map_err(|error| CoreError::io("cannot read draft entry", error))?;
-        if entry.path().extension().and_then(|value| value.to_str()) == Some("json") {
-            count += 1;
-        }
-    }
-    Ok(count)
-}
-
-fn validate_project_settings(settings: &ProjectSettings) -> Result<(), CoreError> {
-    if settings.width == 0
-        || settings.height == 0
-        || settings.width > 7_680
-        || settings.height > 4_320
-        || !(1..=120).contains(&settings.fps)
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "resolution or frame rate is outside supported bounds",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_duration(duration_ms: u64) -> Result<(), CoreError> {
-    if duration_ms == 0 {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "duration must be greater than zero",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_transform(transform: &Transform) -> Result<(), CoreError> {
-    if !transform.position_x.is_finite()
-        || !transform.position_y.is_finite()
-        || !transform.scale.is_finite()
-        || !transform.opacity.is_finite()
-        || transform.scale <= 0.0
-        || transform.scale > 100.0
-        || !(0.0..=1.0).contains(&transform.opacity)
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "transform contains an invalid position, scale, or opacity",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_text(text: &str, font_size: u32, color: &str) -> Result<(), CoreError> {
-    if text.is_empty() || text.len() > 4_096 || !(1..=1_000).contains(&font_size) {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "text, font size, or color is invalid",
-        ));
-    }
-    validate_color(color)?;
-    Ok(())
-}
-
-fn validate_text_style(style: &TextStyle) -> Result<(), CoreError> {
-    validate_color(&style.outline_color)?;
-    validate_color(&style.shadow.color)?;
-    validate_color(&style.background_color)?;
-    if style
-        .wrap_width_px
-        .is_some_and(|value| value == 0 || value > 7_680)
-        || style.outline_width_px > 100
-        || !style.shadow.opacity.is_finite()
-        || !(0.0..=1.0).contains(&style.shadow.opacity)
-        || !style.background_opacity.is_finite()
-        || !(0.0..=1.0).contains(&style.background_opacity)
-        || style.line_spacing_px.unsigned_abs() > 4_320
-        || [
-            style.padding.top,
-            style.padding.right,
-            style.padding.bottom,
-            style.padding.left,
-        ]
-        .into_iter()
-        .any(|value| value > 4_320)
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "text style is outside supported bounds",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_dimensions(width: u32, height: u32) -> Result<(), CoreError> {
-    if width == 0 || height == 0 || width > 7_680 || height > 4_320 {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "shape dimensions are outside supported bounds",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_color(color: &str) -> Result<(), CoreError> {
-    if color.len() != 7
-        || !color.starts_with('#')
-        || !color.bytes().skip(1).all(|byte| byte.is_ascii_hexdigit())
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "color must use #RRGGBB format",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_audio(audio: &AudioSettings) -> Result<(), CoreError> {
-    if !audio.volume.is_finite() || !(0.0..=4.0).contains(&audio.volume) {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "audio volume must be between 0 and 4",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
-    let mut previous_by_property = BTreeMap::new();
-    for keyframe in keyframes {
-        match (keyframe.property, &keyframe.value) {
-            (KeyframeProperty::Position, KeyframeValue::Position { x, y })
-                if x.is_finite() && y.is_finite() => {}
-            (KeyframeProperty::Scale, KeyframeValue::Scalar { value })
-                if value.is_finite() && *value > 0.0 && *value <= 100.0 => {}
-            (KeyframeProperty::Opacity, KeyframeValue::Scalar { value })
-                if value.is_finite() && (0.0..=1.0).contains(value) => {}
-            (KeyframeProperty::Volume, KeyframeValue::Scalar { value })
-                if value.is_finite() && (0.0..=4.0).contains(value) => {}
-            _ => {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "keyframe value does not match its property",
-                ));
-            }
-        }
-        if let Some(time_ms) = previous_by_property.get(&keyframe.property)
-            && keyframe.time_ms <= *time_ms
-        {
-            return Err(CoreError::new(
-                ErrorCode::ValidationFailed,
-                "keyframes for a property must be strictly increasing",
-            ));
-        }
-        previous_by_property.insert(keyframe.property, keyframe.time_ms);
-    }
-    Ok(())
-}
-
-fn validate_ducking(settings: &DuckingSettings) -> Result<(), CoreError> {
-    if !settings.gain.is_finite()
-        || !(0.0..=1.0).contains(&settings.gain)
-        || settings.attack_ms > 60_000
-        || settings.release_ms > 60_000
-    {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "ducking settings are invalid",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_track_audio_settings(
-    track_type: TrackType,
-    role: AudioTrackRole,
-    ducking: Option<&DuckingSettings>,
-) -> Result<(), CoreError> {
-    if track_type != TrackType::Audio && (role != AudioTrackRole::Unassigned || ducking.is_some()) {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "audio roles require an audio track",
-        ));
-    }
-    if ducking.is_some() && role != AudioTrackRole::Music {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "ducking settings require a music track",
-        ));
-    }
-    if let Some(settings) = ducking {
-        validate_ducking(settings)?;
-    }
-    Ok(())
-}
-
-fn validate_visual_track(track: TrackType) -> Result<(), CoreError> {
-    if matches!(track, TrackType::Video | TrackType::Overlay) {
-        Ok(())
-    } else {
-        Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "visual items require a video or overlay track",
-        ))
-    }
-}
-
-fn validate_track_media(track: TrackType, media: MediaType) -> Result<(), CoreError> {
-    let allowed = matches!(
-        (track, media),
-        (TrackType::Video, MediaType::Image | MediaType::Video)
-            | (TrackType::Overlay, MediaType::Image | MediaType::Video)
-            | (TrackType::Audio, MediaType::Audio)
-    );
-    if !allowed {
-        return Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "media type is incompatible with the destination track",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_item_track(item: &TimelineItem, track: TrackType) -> Result<(), CoreError> {
-    match item {
-        TimelineItem::Text(_) if track != TrackType::Overlay => Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "text items require an overlay track",
-        )),
-        TimelineItem::SolidColor(_) | TimelineItem::Rectangle(_)
-            if !matches!(track, TrackType::Video | TrackType::Overlay) =>
-        {
-            Err(CoreError::new(
-                ErrorCode::ValidationFailed,
-                "shape items require a video or overlay track",
-            ))
-        }
-        TimelineItem::Caption(_) if track != TrackType::Caption => Err(CoreError::new(
-            ErrorCode::ValidationFailed,
-            "caption items require a caption track",
-        )),
-        TimelineItem::Transition(_) if matches!(track, TrackType::Audio | TrackType::Caption) => {
-            Err(CoreError::new(
-                ErrorCode::ValidationFailed,
-                "visual transitions require a video or overlay track",
-            ))
-        }
-        _ => Ok(()),
-    }
-}
-
-fn find_track_mut<'a>(
-    project: &'a mut Project,
-    track_id: &str,
-) -> Result<&'a mut Track, CoreError> {
-    project
-        .tracks
-        .iter_mut()
-        .find(|track| track.id == track_id)
-        .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))
-}
-
-fn editable_track_mut<'a>(
-    project: &'a mut Project,
-    track_id: &str,
-) -> Result<&'a mut Track, CoreError> {
-    let track = find_track_mut(project, track_id)?;
-    if track.locked {
-        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-    }
-    Ok(track)
-}
-
-fn find_editable_item_mut<'a>(
-    project: &'a mut Project,
-    item_id: &str,
-) -> Result<&'a mut TimelineItem, CoreError> {
-    let (track_index, item_index) = find_item_location(project, item_id)?;
-    if project.tracks[track_index].locked {
-        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-    }
-    Ok(&mut project.tracks[track_index].items[item_index])
-}
-
-fn find_item_location(project: &Project, item_id: &str) -> Result<(usize, usize), CoreError> {
-    project
-        .tracks
-        .iter()
-        .enumerate()
-        .find_map(|(track_index, track)| {
-            track
-                .items
-                .iter()
-                .position(|item| item.id() == item_id)
-                .map(|item_index| (track_index, item_index))
-        })
-        .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "timeline item was not found"))
-}
-
-fn ensure_item_track_unlocked(project: &Project, item_id: &str) -> Result<(), CoreError> {
-    let (track_index, _) = find_item_location(project, item_id)?;
-    if project.tracks[track_index].locked {
-        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
-    }
-    Ok(())
-}
-
-fn remove_item(project: &mut Project, item_id: &str) -> Result<TimelineItem, CoreError> {
-    for track in &mut project.tracks {
-        if let Some(index) = track.items.iter().position(|item| item.id() == item_id) {
-            return Ok(track.items.remove(index));
-        }
-    }
-    Err(CoreError::new(
-        ErrorCode::ItemNotFound,
-        "timeline item was not found",
-    ))
-}
-
-fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
-    match item {
-        TimelineItem::Media(media) => media.start_ms = start_ms,
-        TimelineItem::Text(text) => text.start_ms = start_ms,
-        TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
-        TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
-        TimelineItem::Caption(caption) => caption.start_ms = start_ms,
-        TimelineItem::Transition(transition) => transition.start_ms = start_ms,
-    }
-}
-
-fn set_item_id(item: &mut TimelineItem, id: String) {
-    match item {
-        TimelineItem::Media(media) => media.id = id,
-        TimelineItem::Text(text) => text.id = id,
-        TimelineItem::SolidColor(shape) => shape.id = id,
-        TimelineItem::Rectangle(shape) => shape.id = id,
-        TimelineItem::Caption(caption) => caption.id = id,
-        TimelineItem::Transition(transition) => transition.id = id,
-    }
-}
-
-fn check_revision(project: &Project, expected_revision: u64) -> Result<(), CoreError> {
-    if project.revision != expected_revision {
-        return Err(CoreError::new(
-            ErrorCode::RevisionConflict,
-            format!(
-                "expected revision {expected_revision}, current revision is {}",
-                project.revision
-            ),
-        ));
-    }
-    Ok(())
-}
-
-fn bump_revision(project: &mut Project) -> Result<(), CoreError> {
-    project.revision = project
-        .revision
-        .checked_add(1)
-        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
-    project.updated_at_ms = now_ms()?;
-    Ok(())
-}
-
-fn push_undo(history: &mut History, project: &Project) {
-    history.undo.push(project.clone());
-    if history.undo.len() > HISTORY_LIMIT {
-        history.undo.remove(0);
-    }
-    history.redo.clear();
-}
-
 fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> WriteResult {
     WriteResult {
         project_id: project.id.clone(),
@@ -2470,483 +1298,81 @@ fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> W
     }
 }
 
-fn persist(dir: &Path, project: &Project, history: &History) -> Result<Vec<String>, CoreError> {
-    persist_transaction(dir, project, history, None)
-}
-
-fn persist_transaction(
+fn persist(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
     history: &History,
-    committed_draft_id: Option<&str>,
 ) -> Result<Vec<String>, CoreError> {
-    inject_persistence_fault(PersistencePhase::BeforeJournal)?;
-    let transaction = ProjectTransaction {
-        version: TRANSACTION_VERSION,
-        project: project.clone(),
-        history: history.clone(),
-        committed_draft_id: committed_draft_id.map(str::to_owned),
-    };
-    write_json_atomic(&transaction_path(dir), &transaction)?;
-
-    let mut warnings = Vec::new();
-    if inject_persistence_fault(PersistencePhase::AfterJournal).is_err()
-        || write_json_atomic(&project_path(dir), &transaction.project).is_err()
-        || inject_persistence_fault(PersistencePhase::AfterProject).is_err()
-        || write_json_atomic(&history_path(dir), &transaction.history).is_err()
-    {
-        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
-        return Ok(warnings);
-    }
-
-    if inject_persistence_fault(PersistencePhase::AfterHistory).is_err() {
-        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
-        if transaction.committed_draft_id.is_some() {
-            warnings.push(DRAFT_CLEANUP_FAILED.into());
-        }
-        return Ok(warnings);
-    }
-
-    if let Some(draft_id) = transaction.committed_draft_id.as_deref()
-        && remove_file_if_exists(&draft_path(dir, draft_id)?).is_err()
-    {
-        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
-        warnings.push(DRAFT_CLEANUP_FAILED.into());
-        return Ok(warnings);
-    }
-
-    if inject_persistence_fault(PersistencePhase::AfterDraftCleanup).is_err()
-        || remove_file_durable(&transaction_path(dir)).is_err()
-    {
-        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
-        return Ok(warnings);
-    }
-
-    let _ = inject_persistence_fault(PersistencePhase::AfterJournalCleanup);
-    Ok(warnings)
+    persist_transaction(storage, faults, dir, project, history, None)
 }
 
-fn project_path(dir: &Path) -> PathBuf {
-    dir.join("project.json")
-}
-
-fn history_path(dir: &Path) -> PathBuf {
-    dir.join("history.json")
-}
-
-fn transaction_path(dir: &Path) -> PathBuf {
-    dir.join(TRANSACTION_FILE)
-}
-
-fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
-    let mut file = File::open(path).map_err(|error| CoreError::io("cannot open data", error))?;
-    let mut data = String::new();
-    file.read_to_string(&mut data)
-        .map_err(|error| CoreError::io("cannot read data", error))?;
-    Ok(serde_json::from_str(&data)?)
-}
-
-fn load_project_data(dir: &Path) -> Result<(Project, History), CoreError> {
-    recover_transaction(dir)?;
+fn load_project_data(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+) -> Result<(Project, History), CoreError> {
+    recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
-    let mut project: Project = read_json(&project_file)?;
-    let mut history: History = if history_file.exists() {
-        read_json(&history_file)?
+    let mut project: Project = read_json(storage, &project_file)?;
+    let mut history: History = if storage.storage_path_exists(&history_file) {
+        read_json(storage, &history_file)?
     } else {
         History::default()
     };
 
-    let mut changed = migrate_project(&mut project)? | migrate_project_assets(&mut project, dir)?;
+    let mut changed = migrate_project_documents(&mut project, &mut history)?
+        | migrate_project_assets(storage, &mut project, dir)?;
     for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
-        changed |= migrate_project(snapshot)?;
-        changed |= migrate_project_assets(snapshot, dir)?;
+        changed |= migrate_project_assets(storage, snapshot, dir)?;
     }
     validate_retained_project_references(&project, &history)?;
     if changed {
-        let _ = persist(dir, &project, &history)?;
+        let _ = persist(storage, faults, dir, &project, &history)?;
     }
     Ok((project, history))
 }
 
-fn recover_transaction(dir: &Path) -> Result<(), CoreError> {
-    cleanup_orphaned_transaction_temps(dir)?;
-    let path = transaction_path(dir);
-    if !path.exists() {
-        return Ok(());
-    }
-    let transaction = read_transaction(&path)?;
-    validate_transaction(dir, &transaction)?;
-    replay_transaction(dir, &transaction)
-}
-
-fn cleanup_orphaned_transaction_temps(dir: &Path) -> Result<(), CoreError> {
-    let entries = std::fs::read_dir(dir)
-        .map_err(|error| recovery_error(format!("cannot inspect transaction files: {error}")))?;
-    for entry in entries {
-        let entry = entry
-            .map_err(|error| recovery_error(format!("cannot inspect transaction file: {error}")))?;
-        let file_type = entry.file_type().map_err(|error| {
-            recovery_error(format!("cannot inspect transaction file type: {error}"))
-        })?;
-        if file_type.is_file() && is_transaction_temp_name(&entry.file_name()) {
-            remove_file_durable(&entry.path()).map_err(as_recovery_error)?;
-        }
-    }
-    Ok(())
-}
-
-fn is_transaction_temp_name(name: &std::ffi::OsStr) -> bool {
-    let Some(name) = name.to_str() else {
-        return false;
-    };
-    [".project-transaction.tmp-", "project.tmp-", "history.tmp-"]
-        .iter()
-        .any(|prefix| {
-            name.strip_prefix(prefix)
-                .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
-        })
-}
-
-fn read_transaction(path: &Path) -> Result<ProjectTransaction, CoreError> {
-    let data = std::fs::read(path)
-        .map_err(|error| recovery_error(format!("cannot read transaction journal: {error}")))?;
-    serde_json::from_slice(&data)
-        .map_err(|error| recovery_error(format!("invalid transaction journal: {error}")))
-}
-
-fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<(), CoreError> {
-    if transaction.version != TRANSACTION_VERSION {
-        return Err(recovery_error(format!(
-            "unsupported transaction journal version {}",
-            transaction.version
-        )));
-    }
-    let directory_id = dir
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| recovery_error("project directory has no valid identifier"))?;
-    if transaction.project.id != directory_id {
-        return Err(recovery_error(
-            "transaction project identity is inconsistent",
-        ));
-    }
-    for snapshot in std::iter::once(&transaction.project)
-        .chain(transaction.history.undo.iter())
-        .chain(transaction.history.redo.iter())
-    {
-        if snapshot.id != transaction.project.id {
-            return Err(recovery_error(
-                "transaction history contains a different project identity",
-            ));
-        }
-        if snapshot.schema_version != PROJECT_SCHEMA_VERSION {
-            return Err(recovery_error(format!(
-                "transaction contains unsupported project schema version {}",
-                snapshot.schema_version
-            )));
-        }
-    }
-    if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
-        draft_path(dir, draft_id)
-            .map_err(|_| recovery_error("transaction contains an invalid draft identifier"))?;
-    }
-    Ok(())
-}
-
-fn replay_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<(), CoreError> {
-    inject_persistence_fault(PersistencePhase::AfterJournal).map_err(as_recovery_error)?;
-    write_json_atomic(&project_path(dir), &transaction.project).map_err(as_recovery_error)?;
-    inject_persistence_fault(PersistencePhase::AfterProject).map_err(as_recovery_error)?;
-    write_json_atomic(&history_path(dir), &transaction.history).map_err(as_recovery_error)?;
-    inject_persistence_fault(PersistencePhase::AfterHistory).map_err(as_recovery_error)?;
-    if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
-        remove_file_if_exists(&draft_path(dir, draft_id)?).map_err(as_recovery_error)?;
-    }
-    inject_persistence_fault(PersistencePhase::AfterDraftCleanup).map_err(as_recovery_error)?;
-    remove_file_durable(&transaction_path(dir)).map_err(as_recovery_error)?;
-    inject_persistence_fault(PersistencePhase::AfterJournalCleanup).map_err(as_recovery_error)
-}
-
-fn recovery_error(message: impl Into<String>) -> CoreError {
-    CoreError::new(ErrorCode::ProjectRecoveryFailed, message)
-}
-
-fn as_recovery_error(error: CoreError) -> CoreError {
-    recovery_error(error.message)
-}
-
-fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
-    match project.schema_version {
-        1..=5 => {
-            project.schema_version = PROJECT_SCHEMA_VERSION;
-            Ok(true)
-        }
-        PROJECT_SCHEMA_VERSION => Ok(false),
-        version => Err(CoreError::new(
-            ErrorCode::InternalError,
-            format!(
-                "unsupported project schema version {version}; this build supports up to {PROJECT_SCHEMA_VERSION}"
-            ),
-        )),
-    }
-}
-
-struct StoredAsset {
-    content_hash: ContentHash,
-    relative_path: String,
-    size_bytes: u64,
-}
-
-fn generated_display_name(origin: &GeneratedAssetOrigin) -> String {
-    let GeneratedAssetOrigin::SpeechSynthesis(generation) = origin;
-    let raw_voice = generation.request.voice_id.0.as_str();
-    let mut parts = raw_voice
-        .split(['_', '-'])
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>();
-    if parts.len() > 1
-        && parts[0].len() == 2
-        && parts[0]
-            .chars()
-            .all(|character| character.is_ascii_lowercase())
-    {
-        parts.remove(0);
-    }
-    let voice = parts
-        .into_iter()
-        .map(title_case)
-        .collect::<Vec<_>>()
-        .join(" ");
-    let excerpt = generation
-        .request
-        .text
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let excerpt = excerpt.chars().take(48).collect::<String>();
-    let stem = sanitize_file_name(&format!(
-        "{} - {}",
-        if voice.is_empty() { "Voice" } else { &voice },
-        if excerpt.is_empty() {
-            "Speech"
-        } else {
-            &excerpt
-        }
-    ));
-    format!("{stem}.wav")
-}
-
-fn title_case(value: &str) -> String {
-    let mut characters = value.chars();
-    characters.next().map_or_else(String::new, |first| {
-        first.to_uppercase().collect::<String>() + characters.as_str()
-    })
-}
-
-fn sanitize_file_name(value: &str) -> String {
-    let mut sanitized = value
-        .chars()
-        .map(|character| {
-            if character.is_control()
-                || matches!(
-                    character,
-                    '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
-                )
-            {
-                ' '
-            } else {
-                character
-            }
-        })
-        .collect::<String>();
-    sanitized = sanitized.split_whitespace().collect::<Vec<_>>().join(" ");
-    sanitized = sanitized
-        .trim_matches([' ', '.'])
-        .chars()
-        .take(96)
-        .collect();
-    let reserved = [
-        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-    ];
-    if sanitized.is_empty() {
-        "Generated speech".into()
-    } else if reserved
-        .iter()
-        .any(|name| sanitized.eq_ignore_ascii_case(name))
-    {
-        format!("_{sanitized}")
-    } else {
-        sanitized
-    }
-}
-
-fn hash_file(path: &Path) -> Result<(String, u64), CoreError> {
-    let mut file = File::open(path)
-        .map_err(|_| CoreError::new(ErrorCode::AssetIntegrityFailed, "asset file is missing"))?;
-    let mut hasher = Sha256::new();
-    let mut size = 0_u64;
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let read = file.read(&mut buffer).map_err(|_| {
-            CoreError::new(ErrorCode::AssetIntegrityFailed, "cannot verify asset file")
-        })?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-        size = size.saturating_add(read as u64);
-    }
-    Ok((format!("{:x}", hasher.finalize()), size))
-}
-
-fn hash_relative_path(digest: &str) -> String {
-    format!("assets/sha256/{}/{}", &digest[..2], digest)
-}
-
-fn store_content_addressed(dir: &Path, source: &Path) -> Result<StoredAsset, CoreError> {
-    let (digest, size_bytes) = hash_file(source)?;
-    let relative_path = hash_relative_path(&digest);
-    let destination = dir.join(&relative_path);
-    if !destination.is_file() {
-        let parent = destination
-            .parent()
-            .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "asset path has no parent"))?;
-        std::fs::create_dir_all(parent)
-            .map_err(|error| CoreError::io("cannot create asset store", error))?;
-        let temporary = parent.join(format!(".{}.{}.tmp", digest, Uuid::new_v4()));
-        std::fs::copy(source, &temporary)
-            .map_err(|error| CoreError::io("cannot copy asset", error))?;
-        if let Err(error) = std::fs::rename(&temporary, &destination) {
-            if !destination.is_file() {
-                let _ = std::fs::remove_file(&temporary);
-                return Err(CoreError::io("cannot publish asset", error));
-            }
-            let _ = std::fs::remove_file(&temporary);
-        }
-    }
-    Ok(StoredAsset {
-        content_hash: ContentHash {
-            algorithm: "sha256".into(),
-            digest,
-        },
-        relative_path,
-        size_bytes,
-    })
-}
-
-fn migrate_project_assets(project: &mut Project, dir: &Path) -> Result<bool, CoreError> {
-    let mut changed = false;
-    for asset in &mut project.assets {
-        if let Some(probe) = &asset.probe
-            && (probe.duration_ms != asset.duration_ms || probe.has_audio != asset.has_audio)
-        {
-            return Err(CoreError::new(
-                ErrorCode::AssetIntegrityFailed,
-                "asset probe facts do not match compatibility fields",
-            ));
-        }
-        let source = dir.join(&asset.project_relative_path);
-        let (digest, size_bytes) = hash_file(&source)?;
-        if let Some(content_hash) = &asset.content_hash
-            && (content_hash.algorithm != "sha256" || content_hash.digest != digest)
-        {
-            return Err(CoreError::new(
-                ErrorCode::AssetIntegrityFailed,
-                "asset content hash does not match project metadata",
-            ));
-        }
-        if asset.size_bytes.is_some_and(|stored| stored != size_bytes) {
-            return Err(CoreError::new(
-                ErrorCode::AssetIntegrityFailed,
-                "asset size does not match project metadata",
-            ));
-        }
-        let stored = store_content_addressed(dir, &source)?;
-        if asset.project_relative_path != stored.relative_path {
-            asset.project_relative_path = stored.relative_path;
-            changed = true;
-        }
-        if asset.content_hash.is_none() {
-            asset.content_hash = Some(stored.content_hash);
-            changed = true;
-        }
-        if asset.size_bytes.is_none() {
-            asset.size_bytes = Some(stored.size_bytes);
-            changed = true;
-        }
-        if asset.probe.is_none() {
-            asset.probe = Some(MediaProbeFacts {
-                duration_ms: asset.duration_ms,
-                has_audio: asset.has_audio,
-                has_video: asset.media_type != MediaType::Audio,
-                ..MediaProbeFacts::default()
-            });
-            changed = true;
-        }
-    }
-    Ok(changed)
-}
-
-fn retained_managed_paths(
+fn collect_asset_garbage(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
     project: &Project,
     history: &History,
-    drafts: &[EditDraft],
-) -> Result<HashSet<String>, CoreError> {
-    validate_retained_project_references(project, history)?;
-    validate_draft_asset_references(project, drafts)?;
-    let mut referenced = std::iter::once(project)
-        .chain(history.undo.iter())
-        .chain(history.redo.iter())
-        .flat_map(|snapshot| snapshot.assets.iter())
-        .map(|asset| asset.project_relative_path.replace('\\', "/"))
-        .collect::<HashSet<_>>();
-    for reference in drafts.iter().flat_map(draft_asset_references) {
-        let asset = project
-            .assets
-            .iter()
-            .find(|asset| asset.id == reference.asset_id)
-            .expect("draft references were validated against current assets");
-        referenced.insert(asset.project_relative_path.replace('\\', "/"));
-    }
-    Ok(referenced)
+) -> Vec<String> {
+    let drafts = match read_all_drafts(storage, dir) {
+        Ok(drafts) => drafts,
+        Err(_) => return vec![ASSET_GC_FAILED.into()],
+    };
+    let asset_drafts = draft_asset_operations(&drafts);
+    garbage_collect(storage, faults, dir, project, history, &asset_drafts)
 }
 
-fn garbage_collect(dir: &Path, project: &Project, history: &History) -> Vec<String> {
-    let drafts = match read_all_drafts(dir) {
-        Ok(drafts) => drafts,
-        Err(_) => return vec!["ASSET_GC_FAILED".into()],
-    };
-    let referenced = match retained_managed_paths(project, history, &drafts) {
-        Ok(referenced) => referenced,
-        Err(_) => return vec!["ASSET_GC_FAILED".into()],
-    };
-    let root = dir.join("assets");
-    let mut files = vec![];
-    collect_files(&root, &mut files);
-    let mut failed = false;
-    for file in files {
-        let relative = file
-            .strip_prefix(dir)
-            .unwrap_or(&file)
-            .to_string_lossy()
-            .replace('\\', "/");
-        if !referenced.contains(&relative)
-            && (inject_persistence_fault(PersistencePhase::GarbageCollection).is_err()
-                || std::fs::remove_file(&file).is_err())
-        {
-            failed = true;
-        }
-    }
-    if failed {
-        vec!["ASSET_GC_FAILED".into()]
-    } else {
-        vec![]
-    }
+fn draft_asset_operations(drafts: &[EditDraft]) -> Vec<DraftAssetOperations<'_>> {
+    drafts
+        .iter()
+        .map(|draft| DraftAssetOperations {
+            id: &draft.id,
+            operations: &draft.operations,
+        })
+        .collect()
+}
+
+fn validate_single_draft_assets(project: &Project, draft: &EditDraft) -> Result<(), CoreError> {
+    validate_draft_asset_references(
+        project,
+        &[DraftAssetOperations {
+            id: &draft.id,
+            operations: &draft.operations,
+        }],
+    )
 }
 
 fn finish_persistence(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
     dir: &Path,
     project: &Project,
     history: &History,
@@ -2956,134 +1382,181 @@ fn finish_persistence(
         .iter()
         .any(|warning| warning == PERSISTENCE_RECOVERY_PENDING)
     {
-        warnings.extend(garbage_collect(dir, project, history));
-    }
-    warnings
-}
-
-fn collect_files(directory: &Path, output: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(directory) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_files(&path, output);
-        } else if path.is_file() {
-            output.push(path);
-        }
-    }
-}
-
-fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError> {
-    let temp = path.with_extension(format!("tmp-{}", Uuid::new_v4()));
-    let result = (|| {
-        let data = serde_json::to_vec_pretty(value)?;
-        let mut file =
-            File::create(&temp).map_err(|error| CoreError::io("cannot create data", error))?;
-        file.write_all(&data)
-            .map_err(|error| CoreError::io("cannot write data", error))?;
-        file.sync_all()
-            .map_err(|error| CoreError::io("cannot sync data", error))?;
-        drop(file);
-        std::fs::rename(&temp, path)
-            .map_err(|error| CoreError::io("cannot replace data", error))?;
-        sync_parent(path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&temp);
-    }
-    result
-}
-
-fn remove_file_if_exists(path: &Path) -> Result<(), CoreError> {
-    match std::fs::remove_file(path) {
-        Ok(()) => sync_parent(path),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(CoreError::io("cannot remove data", error)),
-    }
-}
-
-fn remove_file_durable(path: &Path) -> Result<(), CoreError> {
-    std::fs::remove_file(path).map_err(|error| CoreError::io("cannot remove data", error))?;
-    sync_parent(path)
-}
-
-#[cfg(unix)]
-fn sync_parent(path: &Path) -> Result<(), CoreError> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "data path has no parent"))?;
-    File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|error| CoreError::io("cannot sync data directory", error))
-}
-
-#[cfg(not(unix))]
-fn sync_parent(_path: &Path) -> Result<(), CoreError> {
-    Ok(())
-}
-
-fn inject_persistence_fault(phase: PersistencePhase) -> Result<(), CoreError> {
-    #[cfg(test)]
-    if PERSISTENCE_FAULT.with(|fault| {
-        if fault.get() == Some(phase) {
-            fault.set(None);
-            true
-        } else {
-            false
-        }
-    }) {
-        return Err(CoreError::new(
-            ErrorCode::InternalError,
-            format!("injected persistence fault after {phase:?}"),
+        warnings.extend(collect_asset_garbage(
+            storage, faults, dir, project, history,
         ));
     }
-    #[cfg(not(test))]
-    let _ = phase;
-    Ok(())
-}
-
-fn now_ms() -> Result<u64, CoreError> {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| CoreError::new(ErrorCode::InternalError, error.to_string()))?
-        .as_millis();
-    u64::try_from(millis)
-        .map_err(|_| CoreError::new(ErrorCode::InternalError, "system time overflow"))
-}
-
-struct ProjectLock(File);
-
-impl ProjectLock {
-    fn exclusive(dir: &Path) -> Result<Self, CoreError> {
-        let file = open_lock(dir)?;
-        file.lock_exclusive()
-            .map_err(|error| CoreError::io("cannot lock project", error))?;
-        Ok(Self(file))
-    }
-}
-
-impl Drop for ProjectLock {
-    fn drop(&mut self) {
-        let _ = self.0.unlock();
-    }
-}
-
-fn open_lock(dir: &Path) -> Result<File, CoreError> {
-    OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(dir.join("project.lock"))
-        .map_err(|error| CoreError::io("cannot open project lock", error))
+    warnings
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        DuckingSettings, Keyframe, KeyframeProperty, KeyframeValue, TextStyle,
+        timeline::HISTORY_LIMIT, validation::validate_keyframes,
+    };
     use tempfile::tempdir;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum StorageFailure {
+        Lock,
+        Create,
+        List,
+        Read,
+        AtomicReplace,
+        DraftRemove,
+        AssetClassification,
+        CanonicalEscape,
+        LinkedProjectEntry,
+    }
+
+    #[derive(Debug, Default)]
+    struct FailingFacadeStorage {
+        next: std::sync::Mutex<Option<StorageFailure>>,
+        lock_calls: std::sync::atomic::AtomicUsize,
+        read_calls: std::sync::atomic::AtomicUsize,
+        list_calls: std::sync::atomic::AtomicUsize,
+        file_probe_calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl FailingFacadeStorage {
+        fn fail_next(&self, failure: StorageFailure) {
+            *self.next.lock().unwrap() = Some(failure);
+        }
+
+        fn take(&self, failure: StorageFailure) -> bool {
+            let mut next = self.next.lock().unwrap();
+            if *next == Some(failure) {
+                *next = None;
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    impl Storage for FailingFacadeStorage {
+        fn lock_exclusive(
+            &self,
+            dir: &Path,
+        ) -> Result<Box<dyn crate::persistence::StorageLock>, CoreError> {
+            self.lock_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if self.take(StorageFailure::Lock) {
+                Err(CoreError::io(
+                    "cannot lock project",
+                    std::io::Error::other("injected lock failure"),
+                ))
+            } else {
+                FileSystemStorage.lock_exclusive(dir)
+            }
+        }
+
+        fn open_read(&self, path: &Path) -> std::io::Result<Box<dyn std::io::Read>> {
+            FileSystemStorage.open_read(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            self.read_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if self.take(StorageFailure::Read) {
+                Err(std::io::Error::other("injected read failure"))
+            } else {
+                FileSystemStorage.read(path)
+            }
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            self.list_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if self.take(StorageFailure::List) {
+                Err(std::io::Error::other("injected list failure"))
+            } else {
+                FileSystemStorage.list(path)
+            }
+        }
+
+        fn create_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            if self.take(StorageFailure::Create) {
+                Err(std::io::Error::other("injected create failure"))
+            } else {
+                FileSystemStorage.create_dir_all(path)
+            }
+        }
+
+        fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64> {
+            FileSystemStorage.copy(from, to)
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            FileSystemStorage.rename(from, to)
+        }
+
+        fn storage_path_is_file(&self, path: &Path) -> bool {
+            self.file_probe_calls
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            FileSystemStorage.storage_path_is_file(path)
+        }
+
+        fn storage_path_exists(&self, path: &Path) -> bool {
+            FileSystemStorage.storage_path_exists(path)
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<StorageEntryKind> {
+            if self.take(StorageFailure::LinkedProjectEntry) {
+                Ok(StorageEntryKind::Symlink)
+            } else if path.extension().is_some()
+                && path
+                    .components()
+                    .any(|component| component.as_os_str() == "assets")
+                && self.take(StorageFailure::AssetClassification)
+            {
+                Err(std::io::Error::other(
+                    "injected asset classification failure",
+                ))
+            } else {
+                FileSystemStorage.entry_kind(path)
+            }
+        }
+
+        fn canonicalize_storage_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            if self.take(StorageFailure::CanonicalEscape) {
+                Ok(PathBuf::from("outside-project-root"))
+            } else {
+                FileSystemStorage.canonicalize_storage_path(path)
+            }
+        }
+
+        fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+            if self.take(StorageFailure::AtomicReplace) {
+                Err(std::io::Error::other("injected atomic replacement failure"))
+            } else {
+                FileSystemStorage.atomic_replace(path, bytes)
+            }
+        }
+
+        fn remove_durable(&self, path: &Path) -> std::io::Result<()> {
+            if path
+                .parent()
+                .and_then(Path::file_name)
+                .is_some_and(|name| name == "drafts")
+                && self.take(StorageFailure::DraftRemove)
+            {
+                Err(std::io::Error::other("injected draft removal failure"))
+            } else {
+                FileSystemStorage.remove_durable(path)
+            }
+        }
+    }
+
+    fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, CoreError> {
+        crate::persistence::read_json(&FileSystemStorage, path)
+    }
+
+    fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError> {
+        crate::persistence::write_json_atomic(&FileSystemStorage, path, value)
+    }
 
     fn core() -> (EditorCore, tempfile::TempDir) {
         let root = tempdir().unwrap();
@@ -3098,8 +1571,201 @@ mod tests {
         (EditorCore::new(policy), root)
     }
 
-    fn set_persistence_fault(phase: PersistencePhase) {
-        PERSISTENCE_FAULT.with(|fault| fault.set(Some(phase)));
+    fn core_with_storage() -> (EditorCore, Arc<FailingFacadeStorage>, tempfile::TempDir) {
+        let root = tempdir().unwrap();
+        let media = root.path().join("media");
+        std::fs::create_dir_all(&media).unwrap();
+        let policy = PathPolicy::new(
+            root.path().join("projects"),
+            [&media],
+            root.path().join("exports"),
+        )
+        .unwrap();
+        let storage = Arc::new(FailingFacadeStorage::default());
+        (
+            EditorCore::with_storage(policy, storage.clone()),
+            storage,
+            root,
+        )
+    }
+
+    #[test]
+    fn facade_storage_injects_lock_create_list_read_and_atomic_failures() {
+        for (failure, expected_message) in [
+            (StorageFailure::Create, "cannot create project assets"),
+            (StorageFailure::Lock, "cannot lock project"),
+            (StorageFailure::AtomicReplace, "cannot publish data"),
+        ] {
+            let (core, storage, _) = core_with_storage();
+            storage.fail_next(failure);
+            let error = core
+                .create_project("Injected", ProjectSettings::default())
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::InternalError);
+            assert!(error.message.contains(expected_message));
+        }
+
+        let (core, storage, _) = core_with_storage();
+        let created = core
+            .create_project("Injected", ProjectSettings::default())
+            .unwrap();
+        storage.fail_next(StorageFailure::List);
+        assert!(
+            core.list_projects()
+                .unwrap_err()
+                .message
+                .contains("cannot list projects")
+        );
+        storage.fail_next(StorageFailure::List);
+        assert_eq!(
+            core.get_project(&created.project_id).unwrap_err().code,
+            ErrorCode::ProjectRecoveryFailed
+        );
+        storage.fail_next(StorageFailure::Read);
+        assert!(
+            core.get_project(&created.project_id)
+                .unwrap_err()
+                .message
+                .contains("cannot read persisted JSON")
+        );
+    }
+
+    #[test]
+    fn facade_rejects_canonical_project_escape_before_lock_read_or_gc() {
+        let (core, storage, _) = core_with_storage();
+        let file_probes = storage
+            .file_probe_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let locks = storage
+            .lock_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let reads = storage
+            .read_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let lists = storage
+            .list_calls
+            .load(std::sync::atomic::Ordering::Relaxed);
+
+        storage.fail_next(StorageFailure::CanonicalEscape);
+        let error = core.get_project("external-empty").unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_eq!(
+            storage
+                .file_probe_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            file_probes
+        );
+        assert_eq!(
+            storage
+                .lock_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            locks
+        );
+        assert_eq!(
+            storage
+                .read_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            reads
+        );
+        assert_eq!(
+            storage
+                .list_calls
+                .load(std::sync::atomic::Ordering::Relaxed),
+            lists
+        );
+    }
+
+    #[test]
+    fn facade_preserves_project_not_found_for_an_ordinary_missing_directory() {
+        let (core, _, _) = core_with_storage();
+
+        assert_eq!(
+            core.get_project("ordinary-missing").unwrap_err().code,
+            ErrorCode::ProjectNotFound
+        );
+    }
+
+    #[test]
+    fn facade_skips_entries_classified_as_project_links() {
+        let (core, storage, _) = core_with_storage();
+        core.create_project("Linked", ProjectSettings::default())
+            .unwrap();
+
+        storage.fail_next(StorageFailure::LinkedProjectEntry);
+
+        assert!(core.list_projects().unwrap().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_project_directories_are_not_listed_or_opened() {
+        use std::os::unix::fs::symlink;
+
+        let (core, root) = core();
+        let created = core
+            .create_project("Linked", ProjectSettings::default())
+            .unwrap();
+        let project_dir = root.path().join("projects").join(&created.project_id);
+        let external_dir = root.path().join("external-project");
+        std::fs::remove_dir_all(&project_dir).unwrap();
+        std::fs::create_dir_all(&external_dir).unwrap();
+        symlink(&external_dir, &project_dir).unwrap();
+
+        assert!(core.list_projects().unwrap().is_empty());
+        assert_eq!(
+            core.get_project(&created.project_id).unwrap_err().code,
+            ErrorCode::PathNotAllowed
+        );
+    }
+
+    #[test]
+    fn facade_storage_preserves_draft_cleanup_and_gc_warnings() {
+        let (core, storage, _) = core_with_storage();
+        let created = core
+            .create_project("Injected", ProjectSettings::default())
+            .unwrap();
+        let draft = core
+            .create_draft(
+                &created.project_id,
+                created.revision,
+                vec![create_test_track()],
+                None,
+            )
+            .unwrap();
+        storage.fail_next(StorageFailure::DraftRemove);
+        let committed = core
+            .commit_draft(&created.project_id, &draft.id, created.revision)
+            .unwrap();
+        assert!(committed.warnings.contains(&DRAFT_CLEANUP_FAILED.into()));
+        assert!(
+            committed
+                .warnings
+                .contains(&PERSISTENCE_RECOVERY_PENDING.into())
+        );
+
+        let current = core.get_project(&created.project_id).unwrap();
+        let project_dir = core.project_directory(&created.project_id).unwrap();
+        std::fs::write(project_dir.join("assets/orphan.bin"), b"orphan").unwrap();
+        storage.fail_next(StorageFailure::AssetClassification);
+        let edited = core
+            .edit(
+                &created.project_id,
+                current.revision,
+                EditOperation::CreateTrack {
+                    name: "GC warning".into(),
+                    track_type: TrackType::Overlay,
+                    index: None,
+                    audio_role: AudioTrackRole::Unassigned,
+                    ducking: None,
+                },
+            )
+            .unwrap();
+        assert!(edited.warnings.contains(&ASSET_GC_FAILED.into()));
+    }
+
+    fn set_persistence_fault(core: &EditorCore, phase: PersistencePhase) {
+        core.persistence_faults.inject(phase);
     }
 
     fn create_test_track() -> EditOperation {
@@ -4109,7 +2775,7 @@ mod tests {
         let orphan = dir.join("assets/orphan.bin");
         std::fs::write(&orphan, b"unreachable").unwrap();
 
-        set_persistence_fault(PersistencePhase::GarbageCollection);
+        set_persistence_fault(&core, PersistencePhase::GarbageCollection);
         let result = core
             .edit(
                 &created.project_id,
@@ -4821,7 +3487,7 @@ mod tests {
                 .create_project(&format!("phase {phase:?}"), ProjectSettings::default())
                 .unwrap();
             let dir = core.paths().project_dir(&created.project_id).unwrap();
-            set_persistence_fault(phase);
+            set_persistence_fault(&core, phase);
             let committed = core
                 .edit(&created.project_id, 0, create_test_track())
                 .unwrap();
@@ -4856,7 +3522,7 @@ mod tests {
         let project_before = std::fs::read(project_path(&dir)).unwrap();
         let history_before = std::fs::read(history_path(&dir)).unwrap();
 
-        set_persistence_fault(PersistencePhase::BeforeJournal);
+        set_persistence_fault(&core, PersistencePhase::BeforeJournal);
         let error = core
             .edit(&created.project_id, 0, create_test_track())
             .unwrap_err();
@@ -4874,10 +3540,10 @@ mod tests {
             .unwrap();
         let dir = core.paths().project_dir(&created.project_id).unwrap();
 
-        set_persistence_fault(PersistencePhase::AfterJournal);
+        set_persistence_fault(&core, PersistencePhase::AfterJournal);
         core.edit(&created.project_id, 0, create_test_track())
             .unwrap();
-        set_persistence_fault(PersistencePhase::AfterProject);
+        set_persistence_fault(&core, PersistencePhase::AfterProject);
         let interrupted = core.get_project(&created.project_id).unwrap_err();
         assert_eq!(interrupted.code, ErrorCode::ProjectRecoveryFailed);
         assert!(transaction_path(&dir).is_file());
@@ -4978,7 +3644,7 @@ mod tests {
             .create_draft(&created.project_id, 0, vec![create_test_track()], None)
             .unwrap();
 
-        set_persistence_fault(PersistencePhase::AfterHistory);
+        set_persistence_fault(&core, PersistencePhase::AfterHistory);
         let committed = core
             .commit_draft(&created.project_id, &draft.id, 0)
             .unwrap();
@@ -5020,7 +3686,7 @@ mod tests {
             .create_draft(&created.project_id, 0, vec![create_test_track()], None)
             .unwrap();
 
-        set_persistence_fault(PersistencePhase::BeforeJournal);
+        set_persistence_fault(&core, PersistencePhase::BeforeJournal);
         assert!(
             core.commit_draft(&created.project_id, &draft.id, 0)
                 .is_err()

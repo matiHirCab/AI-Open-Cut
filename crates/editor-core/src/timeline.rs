@@ -1,0 +1,975 @@
+//! Canonical timeline mutation, alias, revision, and history rules.
+
+use std::{
+    collections::BTreeMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use uuid::Uuid;
+
+use crate::{
+    AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, MediaItem,
+    MediaType, Project, RectangleItem, SolidColorItem, TextItem, TimelineItem, Track, TrackType,
+    Transform, TransitionItem,
+    animation::split_keyframes,
+    validation::{
+        validate_audio, validate_color, validate_dimensions, validate_duration,
+        validate_item_track, validate_keyframes, validate_text, validate_text_style,
+        validate_track_audio_settings, validate_track_media, validate_transform,
+        validate_visual_track,
+    },
+};
+
+pub(crate) const HISTORY_LIMIT: usize = 100;
+pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
+    if alias.is_empty()
+        || alias.len() > 64
+        || !alias
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphabetic())
+        || !alias
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "resultAlias has an invalid format",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
+    matches!(
+        edit,
+        EditOperation::AddMedia { .. }
+            | EditOperation::AddText { .. }
+            | EditOperation::AddSolidColor { .. }
+            | EditOperation::AddRectangle { .. }
+            | EditOperation::AddTransition { .. }
+            | EditOperation::CreateTrack { .. }
+    )
+}
+
+pub(crate) fn resolve_alias(
+    value: &mut String,
+    aliases: &BTreeMap<String, String>,
+) -> Result<(), CoreError> {
+    let Some(alias) = value.strip_prefix('@') else {
+        return Ok(());
+    };
+    *value = aliases.get(alias).cloned().ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::ValidationFailed,
+            format!("batch alias @{alias} is missing or referenced before creation"),
+        )
+    })?;
+    Ok(())
+}
+
+pub(crate) fn resolve_operation_aliases(
+    edit: &mut EditOperation,
+    aliases: &BTreeMap<String, String>,
+) -> Result<(), CoreError> {
+    match edit {
+        EditOperation::AddMedia { track_id, .. }
+        | EditOperation::AddText { track_id, .. }
+        | EditOperation::AddSolidColor { track_id, .. }
+        | EditOperation::AddRectangle { track_id, .. } => resolve_alias(track_id, aliases)?,
+        EditOperation::UpdateItem { item_id, .. }
+        | EditOperation::TrimItem { item_id, .. }
+        | EditOperation::DeleteItem { item_id }
+        | EditOperation::SetKeyframes { item_id, .. }
+        | EditOperation::SetAudio { item_id, .. }
+        | EditOperation::SplitItem { item_id, .. }
+        | EditOperation::SetItemVisibility { item_id, .. } => resolve_alias(item_id, aliases)?,
+        EditOperation::MoveItem {
+            item_id, track_id, ..
+        } => {
+            resolve_alias(item_id, aliases)?;
+            resolve_alias(track_id, aliases)?;
+        }
+        EditOperation::AddTransition {
+            track_id,
+            from_item_id,
+            to_item_id,
+            ..
+        } => {
+            resolve_alias(track_id, aliases)?;
+            resolve_alias(from_item_id, aliases)?;
+            if let Some(value) = to_item_id {
+                resolve_alias(value, aliases)?;
+            }
+        }
+        EditOperation::DuplicateItems { item_ids, .. } => {
+            for value in item_ids {
+                resolve_alias(value, aliases)?;
+            }
+        }
+        EditOperation::UpdateTrack { track_id, .. } | EditOperation::DeleteTrack { track_id } => {
+            resolve_alias(track_id, aliases)?
+        }
+        EditOperation::CreateTrack { .. } => {}
+    }
+    Ok(())
+}
+
+pub(crate) fn apply_operation(
+    project: &mut Project,
+    operation: EditOperation,
+) -> Result<(Vec<String>, &'static str), CoreError> {
+    match operation {
+        EditOperation::AddMedia {
+            track_id,
+            asset_id,
+            start_ms,
+            duration_ms,
+            source_in_ms,
+        } => {
+            validate_duration(duration_ms)?;
+            let asset = project
+                .assets
+                .iter()
+                .find(|asset| asset.id == asset_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
+            let asset_media_type = asset.media_type;
+            if let Some(asset_duration) = asset.duration_ms
+                && asset_media_type != MediaType::Image
+                && source_in_ms.saturating_add(duration_ms) > asset_duration
+            {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "source range exceeds the asset duration",
+                ));
+            }
+            let track = editable_track_mut(project, &track_id)?;
+            validate_track_media(track.track_type, asset_media_type)?;
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Media(MediaItem {
+                id: id.clone(),
+                asset_id,
+                start_ms,
+                duration_ms,
+                source_in_ms,
+                transform: Transform::default(),
+                audio: AudioSettings::default(),
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added media item"))
+        }
+        EditOperation::AddText {
+            track_id,
+            text,
+            start_ms,
+            duration_ms,
+            font_size,
+            color,
+            font_family,
+            font_path,
+            style,
+            transform,
+        } => {
+            validate_duration(duration_ms)?;
+            validate_transform(&transform)?;
+            validate_text(&text, font_size, &color)?;
+            validate_text_style(&style)?;
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "text items require an overlay track",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Text(TextItem {
+                id: id.clone(),
+                text,
+                start_ms,
+                duration_ms,
+                font_size,
+                color,
+                font_family,
+                font_path,
+                style,
+                transform,
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added text item"))
+        }
+        EditOperation::AddSolidColor {
+            track_id,
+            color,
+            start_ms,
+            duration_ms,
+            transform,
+        } => {
+            validate_duration(duration_ms)?;
+            validate_color(&color)?;
+            validate_transform(&transform)?;
+            let track = editable_track_mut(project, &track_id)?;
+            validate_visual_track(track.track_type)?;
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::SolidColor(SolidColorItem {
+                id: id.clone(),
+                color,
+                start_ms,
+                duration_ms,
+                transform,
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added solid color item"))
+        }
+        EditOperation::AddRectangle {
+            track_id,
+            color,
+            width,
+            height,
+            start_ms,
+            duration_ms,
+            transform,
+        } => {
+            validate_duration(duration_ms)?;
+            validate_color(&color)?;
+            validate_dimensions(width, height)?;
+            validate_transform(&transform)?;
+            let track = editable_track_mut(project, &track_id)?;
+            validate_visual_track(track.track_type)?;
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Rectangle(RectangleItem {
+                id: id.clone(),
+                color,
+                width,
+                height,
+                start_ms,
+                duration_ms,
+                transform,
+                keyframes: vec![],
+                hidden: false,
+            }));
+            Ok((vec![id], "Added rectangle item"))
+        }
+        EditOperation::UpdateItem {
+            item_id,
+            transform,
+            text,
+            color,
+            width,
+            height,
+            font_family,
+            font_path,
+            style,
+        } => {
+            let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(transform) = transform {
+                validate_transform(&transform)?;
+                match item {
+                    TimelineItem::Media(media) => media.transform = transform,
+                    TimelineItem::Text(text_item) => text_item.transform = transform,
+                    TimelineItem::SolidColor(item) => item.transform = transform,
+                    TimelineItem::Rectangle(item) => item.transform = transform,
+                    TimelineItem::Caption(_) => {
+                        return Err(CoreError::new(
+                            ErrorCode::ValidationFailed,
+                            "captions do not have transforms",
+                        ));
+                    }
+                    TimelineItem::Transition(_) => {
+                        return Err(CoreError::new(
+                            ErrorCode::ValidationFailed,
+                            "transitions do not have transforms",
+                        ));
+                    }
+                }
+            }
+            if let Some(text) = text {
+                match item {
+                    TimelineItem::Text(text_item) => {
+                        validate_text(&text, text_item.font_size, &text_item.color)?;
+                        text_item.text = text;
+                    }
+                    TimelineItem::Caption(caption) => {
+                        validate_text(&text, caption.style.font_size, &caption.style.color)?;
+                        caption.text = text;
+                    }
+                    _ => {
+                        return Err(CoreError::new(
+                            ErrorCode::ValidationFailed,
+                            "only text items accept text updates",
+                        ));
+                    }
+                }
+            }
+            if let Some(color) = color {
+                validate_color(&color)?;
+                match item {
+                    TimelineItem::Text(text) => text.color = color,
+                    TimelineItem::SolidColor(shape) => shape.color = color,
+                    TimelineItem::Rectangle(shape) => shape.color = color,
+                    _ => {
+                        return Err(CoreError::new(
+                            ErrorCode::ValidationFailed,
+                            "item does not accept color updates",
+                        ));
+                    }
+                }
+            }
+            if width.is_some() || height.is_some() {
+                let TimelineItem::Rectangle(rectangle) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "dimensions require a rectangle item",
+                    ));
+                };
+                let width = width.unwrap_or(rectangle.width);
+                let height = height.unwrap_or(rectangle.height);
+                validate_dimensions(width, height)?;
+                rectangle.width = width;
+                rectangle.height = height;
+            }
+            if font_family.is_some() || font_path.is_some() || style.is_some() {
+                let TimelineItem::Text(text) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "font and style updates require a text item",
+                    ));
+                };
+                if let Some(value) = font_family {
+                    text.font_family = value;
+                }
+                if let Some(value) = font_path {
+                    text.font_path = value;
+                }
+                if let Some(value) = style {
+                    validate_text_style(&value)?;
+                    text.style = value;
+                }
+            }
+            Ok((vec![item_id], "Updated timeline item"))
+        }
+        EditOperation::MoveItem {
+            item_id,
+            track_id,
+            start_ms,
+        } => {
+            ensure_item_track_unlocked(project, &item_id)?;
+            let mut item = remove_item(project, &item_id)?;
+            set_item_start(&mut item, start_ms);
+            let track = editable_track_mut(project, &track_id)?;
+            validate_item_track(&item, track.track_type)?;
+            track.items.push(item);
+            Ok((vec![item_id], "Moved timeline item"))
+        }
+        EditOperation::TrimItem {
+            item_id,
+            start_ms,
+            duration_ms,
+            source_in_ms,
+        } => {
+            validate_duration(duration_ms)?;
+            let item = find_editable_item_mut(project, &item_id)?;
+            match item {
+                TimelineItem::Media(media) => {
+                    media.start_ms = start_ms;
+                    media.duration_ms = duration_ms;
+                    if let Some(source_in_ms) = source_in_ms {
+                        media.source_in_ms = source_in_ms;
+                    }
+                }
+                TimelineItem::Text(text) => {
+                    text.start_ms = start_ms;
+                    text.duration_ms = duration_ms;
+                }
+                TimelineItem::SolidColor(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
+                TimelineItem::Rectangle(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
+                TimelineItem::Caption(caption) => {
+                    caption.start_ms = start_ms;
+                    caption.duration_ms = duration_ms;
+                }
+                TimelineItem::Transition(transition) => {
+                    transition.start_ms = start_ms;
+                    transition.duration_ms = duration_ms;
+                }
+            }
+            Ok((vec![item_id], "Trimmed timeline item"))
+        }
+        EditOperation::DeleteItem { item_id } => {
+            ensure_item_track_unlocked(project, &item_id)?;
+            remove_item(project, &item_id)?;
+            for track in &mut project.tracks {
+                track.items.retain(|item| match item {
+                    TimelineItem::Transition(transition) => {
+                        transition.from_item_id != item_id
+                            && transition.to_item_id.as_deref() != Some(&item_id)
+                    }
+                    _ => true,
+                });
+            }
+            Ok((vec![item_id], "Deleted timeline item"))
+        }
+        EditOperation::SetKeyframes { item_id, keyframes } => {
+            validate_keyframes(&keyframes)?;
+            let item = find_editable_item_mut(project, &item_id)?;
+            if keyframes
+                .iter()
+                .any(|keyframe| keyframe.property == KeyframeProperty::Volume)
+                && !matches!(item, TimelineItem::Media(_))
+            {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "volume keyframes require a media item",
+                ));
+            }
+            let destination = item.keyframes_mut().ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "transitions do not accept transform keyframes",
+                )
+            })?;
+            *destination = keyframes;
+            Ok((vec![item_id], "Set item keyframes"))
+        }
+        EditOperation::AddTransition {
+            track_id,
+            transition_type,
+            from_item_id,
+            to_item_id,
+            start_ms,
+            duration_ms,
+        } => {
+            validate_duration(duration_ms)?;
+            if project.find_item(&from_item_id).is_none()
+                || to_item_id
+                    .as_ref()
+                    .is_some_and(|id| project.find_item(id).is_none())
+            {
+                return Err(CoreError::new(
+                    ErrorCode::ItemNotFound,
+                    "transition endpoint was not found",
+                ));
+            }
+            let track = editable_track_mut(project, &track_id)?;
+            if matches!(track.track_type, TrackType::Audio | TrackType::Caption) {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "visual transitions cannot be added to audio tracks",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Transition(TransitionItem {
+                id: id.clone(),
+                transition_type,
+                from_item_id,
+                to_item_id,
+                start_ms,
+                duration_ms,
+                hidden: false,
+            }));
+            Ok((vec![id], "Added transition"))
+        }
+        EditOperation::SetAudio { item_id, audio } => {
+            validate_audio(&audio)?;
+            let item = find_editable_item_mut(project, &item_id)?;
+            match item {
+                TimelineItem::Media(media) => media.audio = audio,
+                _ => {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "audio settings require a media item",
+                    ));
+                }
+            }
+            Ok((vec![item_id], "Updated item audio"))
+        }
+        EditOperation::SplitItem { item_id, split_ms } => {
+            let (track_index, item_index) = find_item_location(project, &item_id)?;
+            if project.tracks[track_index].locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            let item = &mut project.tracks[track_index].items[item_index];
+            if split_ms <= item.start_ms() || split_ms >= item.end_ms() {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "split time must be strictly inside the item",
+                ));
+            }
+            let right_id = Uuid::new_v4().to_string();
+            let right_duration = item.end_ms() - split_ms;
+            let left_duration = split_ms - item.start_ms();
+            let right = match item {
+                TimelineItem::Media(media) => {
+                    let mut right = media.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&media.keyframes, left_duration, media.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.source_in_ms = right.source_in_ms.saturating_add(left_duration);
+                    right.keyframes = right_keyframes;
+                    media.duration_ms = left_duration;
+                    media.keyframes = left_keyframes;
+                    TimelineItem::Media(right)
+                }
+                TimelineItem::Text(text) => {
+                    let mut right = text.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&text.keyframes, left_duration, text.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
+                    text.duration_ms = left_duration;
+                    text.keyframes = left_keyframes;
+                    TimelineItem::Text(right)
+                }
+                TimelineItem::SolidColor(shape) => {
+                    let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
+                    shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
+                    TimelineItem::SolidColor(right)
+                }
+                TimelineItem::Rectangle(shape) => {
+                    let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
+                    shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
+                    TimelineItem::Rectangle(right)
+                }
+                TimelineItem::Caption(caption) => {
+                    let mut right = caption.clone();
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    caption.duration_ms = left_duration;
+                    TimelineItem::Caption(right)
+                }
+                TimelineItem::Transition(_) => {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "transitions cannot be split",
+                    ));
+                }
+            };
+            project.tracks[track_index]
+                .items
+                .insert(item_index + 1, right);
+            Ok((vec![item_id, right_id], "Split timeline item"))
+        }
+        EditOperation::DuplicateItems {
+            item_ids,
+            offset_ms,
+        } => {
+            if item_ids.is_empty() || item_ids.len() > 100 {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "duplicate requires between 1 and 100 items",
+                ));
+            }
+            let mut copies = Vec::with_capacity(item_ids.len());
+            for item_id in item_ids {
+                let (track_index, item_index) = find_item_location(project, &item_id)?;
+                if project.tracks[track_index].locked {
+                    return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+                }
+                let mut copy = project.tracks[track_index].items[item_index].clone();
+                if matches!(copy, TimelineItem::Transition(_)) {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "transitions cannot be duplicated",
+                    ));
+                }
+                let new_start = copy.start_ms().checked_add(offset_ms).ok_or_else(|| {
+                    CoreError::new(ErrorCode::ValidationFailed, "duplicate time overflow")
+                })?;
+                let new_id = Uuid::new_v4().to_string();
+                set_item_id(&mut copy, new_id.clone());
+                set_item_start(&mut copy, new_start);
+                copies.push((track_index, copy, new_id));
+            }
+            let mut changed_ids = Vec::with_capacity(copies.len());
+            for (track_index, copy, id) in copies {
+                project.tracks[track_index].items.push(copy);
+                changed_ids.push(id);
+            }
+            Ok((changed_ids, "Duplicated timeline items"))
+        }
+        EditOperation::CreateTrack {
+            name,
+            track_type,
+            index,
+            audio_role,
+            ducking,
+        } => {
+            let name = name.trim();
+            if name.is_empty() || name.chars().count() > 128 {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "track name must be non-empty and at most 128 characters",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            validate_track_audio_settings(track_type, audio_role, ducking.as_ref())?;
+            let track = Track {
+                id: id.clone(),
+                name: name.into(),
+                track_type,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role,
+                ducking,
+                items: vec![],
+            };
+            let index = index.unwrap_or(project.tracks.len());
+            if index > project.tracks.len() {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "track index is outside the timeline",
+                ));
+            }
+            project.tracks.insert(index, track);
+            Ok((vec![id], "Created track"))
+        }
+        EditOperation::UpdateTrack {
+            track_id,
+            name,
+            index,
+            locked,
+            hidden,
+            muted,
+            audio_role,
+            ducking,
+        } => {
+            let current_index = project
+                .tracks
+                .iter()
+                .position(|track| track.id == track_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))?;
+            if project.tracks[current_index].locked
+                && !(locked == Some(false)
+                    && name.is_none()
+                    && index.is_none()
+                    && hidden.is_none()
+                    && muted.is_none()
+                    && audio_role.is_none()
+                    && ducking.is_none())
+            {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            if let Some(name) = name {
+                let name = name.trim();
+                if name.is_empty() || name.chars().count() > 128 {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "track name must be non-empty and at most 128 characters",
+                    ));
+                }
+                project.tracks[current_index].name = name.into();
+            }
+            if let Some(locked) = locked {
+                project.tracks[current_index].locked = locked;
+            }
+            if let Some(hidden) = hidden {
+                project.tracks[current_index].hidden = hidden;
+            }
+            if let Some(muted) = muted {
+                project.tracks[current_index].muted = muted;
+            }
+            if audio_role.is_some() || ducking.is_some() {
+                let role = audio_role.unwrap_or(project.tracks[current_index].audio_role);
+                let settings =
+                    ducking.unwrap_or_else(|| project.tracks[current_index].ducking.clone());
+                validate_track_audio_settings(
+                    project.tracks[current_index].track_type,
+                    role,
+                    settings.as_ref(),
+                )?;
+                project.tracks[current_index].audio_role = role;
+                project.tracks[current_index].ducking = settings;
+            }
+            if let Some(index) = index {
+                if index >= project.tracks.len() {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "track index is outside the timeline",
+                    ));
+                }
+                let track = project.tracks.remove(current_index);
+                project.tracks.insert(index, track);
+            }
+            Ok((vec![track_id], "Updated track"))
+        }
+        EditOperation::DeleteTrack { track_id } => {
+            let index = project
+                .tracks
+                .iter()
+                .position(|track| track.id == track_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))?;
+            if project.tracks[index].locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            if !project.tracks[index].items.is_empty() {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "only empty tracks can be deleted",
+                ));
+            }
+            project.tracks.remove(index);
+            Ok((vec![track_id], "Deleted track"))
+        }
+        EditOperation::SetItemVisibility { item_id, hidden } => {
+            let item = find_editable_item_mut(project, &item_id)?;
+            item.set_hidden(hidden);
+            Ok((vec![item_id], "Updated item visibility"))
+        }
+    }
+}
+
+pub(crate) fn validate_operations_against(
+    project: &Project,
+    operations: &[EditOperation],
+) -> Result<(), CoreError> {
+    let mut candidate = project.clone();
+    for operation in operations.iter().cloned() {
+        apply_operation(&mut candidate, operation)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn find_track_mut<'a>(
+    project: &'a mut Project,
+    track_id: &str,
+) -> Result<&'a mut Track, CoreError> {
+    project
+        .tracks
+        .iter_mut()
+        .find(|track| track.id == track_id)
+        .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))
+}
+
+pub(crate) fn editable_track_mut<'a>(
+    project: &'a mut Project,
+    track_id: &str,
+) -> Result<&'a mut Track, CoreError> {
+    let track = find_track_mut(project, track_id)?;
+    if track.locked {
+        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+    }
+    Ok(track)
+}
+
+pub(crate) fn find_editable_item_mut<'a>(
+    project: &'a mut Project,
+    item_id: &str,
+) -> Result<&'a mut TimelineItem, CoreError> {
+    let (track_index, item_index) = find_item_location(project, item_id)?;
+    if project.tracks[track_index].locked {
+        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+    }
+    Ok(&mut project.tracks[track_index].items[item_index])
+}
+
+pub(crate) fn find_item_location(
+    project: &Project,
+    item_id: &str,
+) -> Result<(usize, usize), CoreError> {
+    project
+        .tracks
+        .iter()
+        .enumerate()
+        .find_map(|(track_index, track)| {
+            track
+                .items
+                .iter()
+                .position(|item| item.id() == item_id)
+                .map(|item_index| (track_index, item_index))
+        })
+        .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "timeline item was not found"))
+}
+
+pub(crate) fn ensure_item_track_unlocked(
+    project: &Project,
+    item_id: &str,
+) -> Result<(), CoreError> {
+    let (track_index, _) = find_item_location(project, item_id)?;
+    if project.tracks[track_index].locked {
+        return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+    }
+    Ok(())
+}
+
+pub(crate) fn remove_item(project: &mut Project, item_id: &str) -> Result<TimelineItem, CoreError> {
+    for track in &mut project.tracks {
+        if let Some(index) = track.items.iter().position(|item| item.id() == item_id) {
+            return Ok(track.items.remove(index));
+        }
+    }
+    Err(CoreError::new(
+        ErrorCode::ItemNotFound,
+        "timeline item was not found",
+    ))
+}
+
+pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
+    match item {
+        TimelineItem::Media(media) => media.start_ms = start_ms,
+        TimelineItem::Text(text) => text.start_ms = start_ms,
+        TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
+        TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
+        TimelineItem::Caption(caption) => caption.start_ms = start_ms,
+        TimelineItem::Transition(transition) => transition.start_ms = start_ms,
+    }
+}
+
+pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
+    match item {
+        TimelineItem::Media(media) => media.id = id,
+        TimelineItem::Text(text) => text.id = id,
+        TimelineItem::SolidColor(shape) => shape.id = id,
+        TimelineItem::Rectangle(shape) => shape.id = id,
+        TimelineItem::Caption(caption) => caption.id = id,
+        TimelineItem::Transition(transition) => transition.id = id,
+    }
+}
+
+pub(crate) fn check_revision(project: &Project, expected_revision: u64) -> Result<(), CoreError> {
+    if project.revision != expected_revision {
+        return Err(CoreError::new(
+            ErrorCode::RevisionConflict,
+            format!(
+                "expected revision {expected_revision}, current revision is {}",
+                project.revision
+            ),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn bump_revision(project: &mut Project) -> Result<(), CoreError> {
+    project.revision = project
+        .revision
+        .checked_add(1)
+        .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "project revision overflow"))?;
+    project.updated_at_ms = now_ms()?;
+    Ok(())
+}
+
+pub(crate) fn push_undo(history: &mut History, project: &Project) {
+    history.undo.push(project.clone());
+    if history.undo.len() > HISTORY_LIMIT {
+        history.undo.remove(0);
+    }
+    history.redo.clear();
+}
+
+pub(crate) fn now_ms() -> Result<u64, CoreError> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| CoreError::new(ErrorCode::InternalError, error.to_string()))?
+        .as_millis();
+    u64::try_from(millis)
+        .map_err(|_| CoreError::new(ErrorCode::InternalError, "system time overflow"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{PROJECT_SCHEMA_VERSION, ProjectSettings};
+
+    fn project() -> Project {
+        Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "project".into(),
+            revision: 4,
+            name: "Project".into(),
+            created_at_ms: 1,
+            updated_at_ms: 1,
+            settings: ProjectSettings::default(),
+            assets: vec![],
+            tracks: vec![Track {
+                id: "overlay".into(),
+                name: "Overlay".into(),
+                track_type: TrackType::Overlay,
+                locked: false,
+                hidden: false,
+                muted: false,
+                audio_role: crate::AudioTrackRole::Unassigned,
+                ducking: None,
+                items: vec![],
+            }],
+        }
+    }
+
+    #[test]
+    fn aliases_are_validated_and_resolved_before_application() {
+        assert!(validate_alias("overlay-track").is_ok());
+        assert!(validate_alias("@bad").is_err());
+        let mut operation = EditOperation::AddText {
+            track_id: "@track".into(),
+            text: "Hello".into(),
+            start_ms: 0,
+            duration_ms: 1_000,
+            font_size: 48,
+            color: "#ffffff".into(),
+            font_family: None,
+            font_path: None,
+            style: crate::TextStyle::default(),
+            transform: Transform::default(),
+        };
+        resolve_operation_aliases(
+            &mut operation,
+            &BTreeMap::from([("track".into(), "overlay".into())]),
+        )
+        .unwrap();
+        let (changed, _) = apply_operation(&mut project(), operation).unwrap();
+        assert_eq!(changed.len(), 1);
+    }
+
+    #[test]
+    fn candidate_validation_rolls_back_and_history_is_revisioned() {
+        let mut project = project();
+        let invalid = EditOperation::AddText {
+            track_id: "missing".into(),
+            text: "Hello".into(),
+            start_ms: 0,
+            duration_ms: 1_000,
+            font_size: 48,
+            color: "#ffffff".into(),
+            font_family: None,
+            font_path: None,
+            style: crate::TextStyle::default(),
+            transform: Transform::default(),
+        };
+        assert!(validate_operations_against(&project, &[invalid]).is_err());
+        assert!(project.tracks[0].items.is_empty());
+
+        let previous = project.clone();
+        let mut history = History::default();
+        push_undo(&mut history, &previous);
+        bump_revision(&mut project).unwrap();
+        assert_eq!(project.revision, 5);
+        assert_eq!(history.undo.len(), 1);
+        assert!(check_revision(&project, 4).is_err());
+        assert!(check_revision(&project, 5).is_ok());
+    }
+}

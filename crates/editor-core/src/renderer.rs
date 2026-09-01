@@ -1,27 +1,38 @@
 use std::{
-    collections::HashMap,
-    env,
-    fs::File,
-    io::{BufRead, BufReader, Read, Write},
-    path::{Component, Path, PathBuf},
-    process::{Command, Stdio},
-    thread,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty, KeyframeValue, MediaType, Project,
-    TimelineItem, animation::positive_scalar_ranges,
+    CoreError, ErrorCode, Project,
+    render_artifact::{
+        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, RenderArtifact, RenderWorkspace,
+        artifact_with, prepare_render_resources, publish_output_with, temporary_output,
+        write_filter_script,
+    },
+    render_plan::{RenderIntent, RenderPlan, SceneInput, build_render_plan, evaluate_scene},
+    render_process::{
+        ProbeResult, ProcessExecutor, RenderProgress, SystemProcessExecutor, map_renderer_error,
+    },
 };
 
-const GRAPH_BUILD_STAGE: &str = "graph_build";
-const SPAWN_STAGE: &str = "spawn";
-const RENDER_STAGE: &str = "render";
-const PUBLISH_STAGE: &str = "publish";
-const STDERR_TAIL_BYTES: usize = 16_384;
-const STDERR_EXCERPT_BYTES: usize = 4_096;
+#[cfg(test)]
+use crate::render_artifact::{PUBLISH_STAGE, wrap_text, wrap_text_with_measure};
+#[cfg(test)]
+use crate::render_plan::{
+    FilterContext, audible_voiceover_intervals, ducking_expression, ducking_gain_at, escape_filter,
+    format_number, merge_intervals, piecewise_expression, position_expression, scalar_expression,
+};
+#[cfg(test)]
+use crate::render_process::{
+    RENDER_STAGE, SPAWN_STAGE, STDERR_EXCERPT_BYTES, STDERR_TAIL_BYTES, read_bounded_tail,
+    sanitize_stderr, stderr_excerpt,
+};
+
+#[cfg(test)]
+use crate::{KeyframeProperty, KeyframeValue};
 
 #[derive(Clone, Debug)]
 pub struct Renderer {
@@ -29,22 +40,8 @@ pub struct Renderer {
     ffprobe_path: PathBuf,
     default_font_path: Option<PathBuf>,
     font_roots: Vec<PathBuf>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RenderArtifact {
-    pub relative_path: String,
-    pub mime_type: String,
-    pub size_bytes: u64,
-    #[serde(default)]
-    pub warnings: Vec<String>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RenderProgress {
-    pub progress: f64,
+    process_executor: Arc<dyn ProcessExecutor>,
+    artifact_io: Arc<dyn ArtifactIo>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -65,55 +62,11 @@ pub struct PreviewRangeOptions {
     pub include_audio: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProbeResult {
-    pub duration_ms: Option<u64>,
-    pub has_video: bool,
-    pub has_audio: bool,
-    pub format_name: Option<String>,
-    pub video_codec: Option<String>,
-    pub video_width: Option<u32>,
-    pub video_height: Option<u32>,
-    pub audio_codec: Option<String>,
-    pub audio_channels: Option<u32>,
-    pub audio_sample_rate_hz: Option<u32>,
-}
-
-struct BuiltCommand {
-    command: Command,
+struct PreparedRender {
+    plan: RenderPlan,
+    filter_path: PathBuf,
     _workspace: RenderWorkspace,
     warnings: Vec<String>,
-}
-
-struct RenderWorkspace {
-    path: PathBuf,
-}
-
-struct PreparedText {
-    file_path: PathBuf,
-    font_path: Option<PathBuf>,
-    layer_width: u32,
-    layer_height: u32,
-    canvas_width: u32,
-    canvas_height: u32,
-    text_x: u32,
-    text_y: u32,
-}
-
-struct FilterContext<'a> {
-    asset_by_id: &'a HashMap<&'a str, &'a crate::Asset>,
-    input_indexes: &'a HashMap<String, usize>,
-    text_layers: &'a HashMap<String, PreparedText>,
-    width: u32,
-    height: u32,
-    fps: u32,
-}
-
-impl Drop for RenderWorkspace {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
 }
 
 impl Renderer {
@@ -127,7 +80,20 @@ impl Renderer {
             ffprobe_path: ffprobe_path.into(),
             default_font_path,
             font_roots: vec![],
+            process_executor: Arc::new(SystemProcessExecutor),
+            artifact_io: Arc::new(FileSystemArtifactIo),
         }
+    }
+
+    #[cfg(test)]
+    fn with_adapters(
+        mut self,
+        process_executor: Arc<dyn ProcessExecutor>,
+        artifact_io: Arc<dyn ArtifactIo>,
+    ) -> Self {
+        self.process_executor = process_executor;
+        self.artifact_io = artifact_io;
+        self
     }
 
     pub fn with_font_roots(mut self, roots: impl IntoIterator<Item = PathBuf>) -> Self {
@@ -136,107 +102,12 @@ impl Renderer {
     }
 
     pub fn readiness(&self) -> Result<(), CoreError> {
-        let output = Command::new(&self.ffmpeg_path)
-            .args(["-hide_banner", "-filters"])
-            .output()
-            .map_err(|error| {
-                CoreError::new(
-                    ErrorCode::DependencyUnavailable,
-                    format!("cannot start FFmpeg: {error}"),
-                )
-            })?;
-        if !output.status.success() {
-            return Err(CoreError::new(
-                ErrorCode::DependencyUnavailable,
-                "FFmpeg readiness check failed",
-            ));
-        }
-        let filters = String::from_utf8_lossy(&output.stdout);
-        for required in [" overlay ", " drawtext ", " amix "] {
-            if !filters.contains(required) {
-                return Err(CoreError::new(
-                    ErrorCode::DependencyUnavailable,
-                    format!("FFmpeg is missing the {} filter", required.trim()),
-                ));
-            }
-        }
-        let status = Command::new(&self.ffprobe_path)
-            .arg("-version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map_err(|error| {
-                CoreError::new(
-                    ErrorCode::DependencyUnavailable,
-                    format!("cannot start FFprobe: {error}"),
-                )
-            })?;
-        if !status.success() {
-            return Err(CoreError::new(
-                ErrorCode::DependencyUnavailable,
-                "FFprobe readiness check failed",
-            ));
-        }
-        Ok(())
+        self.process_executor
+            .readiness(&self.ffmpeg_path, &self.ffprobe_path)
     }
 
     pub fn probe(&self, path: &Path) -> Result<ProbeResult, CoreError> {
-        let output = Command::new(&self.ffprobe_path)
-            .args([
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration,format_name:stream=codec_type,codec_name,width,height,channels,sample_rate",
-                "-of",
-                "json",
-            ])
-            .arg(path)
-            .output()
-            .map_err(|error| {
-                CoreError::new(
-                    ErrorCode::DependencyUnavailable,
-                    format!("cannot start FFprobe: {error}"),
-                )
-            })?;
-        if !output.status.success() {
-            return Err(CoreError::new(
-                ErrorCode::UnsupportedMedia,
-                "FFprobe could not read the selected media",
-            ));
-        }
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-        let duration_ms = value
-            .get("format")
-            .and_then(|format| format.get("duration"))
-            .and_then(serde_json::Value::as_str)
-            .and_then(|duration| duration.parse::<f64>().ok())
-            .filter(|duration| duration.is_finite() && *duration >= 0.0)
-            .map(|duration| (duration * 1_000.0).round() as u64);
-        let streams = value
-            .get("streams")
-            .and_then(serde_json::Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        Ok(ProbeResult {
-            duration_ms,
-            has_video: streams.iter().any(|stream| {
-                stream.get("codec_type").and_then(serde_json::Value::as_str) == Some("video")
-            }),
-            has_audio: streams.iter().any(|stream| {
-                stream.get("codec_type").and_then(serde_json::Value::as_str) == Some("audio")
-            }),
-            format_name: value
-                .get("format")
-                .and_then(|format| format.get("format_name"))
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned),
-            video_codec: stream_string(&streams, "video", "codec_name"),
-            video_width: stream_u32(&streams, "video", "width"),
-            video_height: stream_u32(&streams, "video", "height"),
-            audio_codec: stream_string(&streams, "audio", "codec_name"),
-            audio_channels: stream_u32(&streams, "audio", "channels"),
-            audio_sample_rate_hz: stream_u32(&streams, "audio", "sample_rate"),
-        })
+        self.process_executor.probe(&self.ffprobe_path, path)
     }
 
     pub fn render_preview(
@@ -253,33 +124,32 @@ impl Renderer {
         }
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
-        let temporary = temporary_output(output.parent().unwrap_or(project_dir), "png");
-        let mut built = self.build_command(
+        let temporary = temporary_output(
+            self.artifact_io.as_ref(),
+            output.parent().unwrap_or(project_dir),
+            "png",
+        );
+        let built = self.prepare_render(
             project,
             project_dir,
             project.settings.width,
             project.settings.height,
             project.settings.fps,
+            RenderIntent::Frame { at_ms: time_ms },
         )?;
-        built
-            .command
-            .args([
-                "-ss",
-                &seconds(time_ms),
-                "-frames:v",
-                "1",
-                "-map",
-                "[video]",
-            ])
-            .arg(&temporary)
-            .args(["-map", "[audio]", "-f", "null"])
-            .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-        if let Err(error) = run_to_completion(&mut built.command, project.duration_ms(), |_| {}) {
-            let _ = std::fs::remove_file(&temporary);
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut |_| {},
+        ) {
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, &output, false)?;
-        artifact(
+        publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
             "image/png",
@@ -294,50 +164,43 @@ impl Renderer {
         options: ExportOptions<'_>,
         mut on_progress: impl FnMut(RenderProgress),
     ) -> Result<RenderArtifact, CoreError> {
-        if options.output.exists() && !options.overwrite {
+        if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
                 "export already exists; pass overwrite=true only with explicit permission",
             ));
         }
         let temporary = temporary_output(
+            self.artifact_io.as_ref(),
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let mut built = self.build_command(
+        let built = self.prepare_render(
             project,
             project_dir,
             options.width,
             options.height,
             project.settings.fps,
+            RenderIntent::Export,
         )?;
-        built.command.args([
-            "-map",
-            "[video]",
-            "-map",
-            "[audio]",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "aac",
-            "-movflags",
-            "+faststart",
-            "-t",
-            &seconds(project.duration_ms()),
-        ]);
-        built.command.arg("-y").arg(&temporary);
-        if let Err(error) =
-            run_to_completion(&mut built.command, project.duration_ms(), |progress| {
-                on_progress(progress)
-            })
-        {
-            let _ = std::fs::remove_file(&temporary);
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut on_progress,
+        ) {
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, options.output, options.overwrite)?;
-        artifact(
+        publish_output_with(
+            self.artifact_io.as_ref(),
+            &temporary,
+            options.output,
+            options.overwrite,
+        )?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             options.output,
             options
                 .output
@@ -370,25 +233,37 @@ impl Renderer {
         }
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
-        let temporary = temporary_output(output.parent().unwrap_or(project_dir), "mp4");
-        let mut built = self.build_command(
+        let temporary = temporary_output(
+            self.artifact_io.as_ref(),
+            output.parent().unwrap_or(project_dir),
+            "mp4",
+        );
+        let built = self.prepare_render(
             project,
             project_dir,
             options.width,
             options.height,
             options.fps,
+            RenderIntent::Range {
+                start_ms: options.start_ms,
+                end_ms: options.end_ms,
+                include_audio: options.include_audio,
+            },
         )?;
-        configure_preview_range_outputs(&mut built.command, options, &temporary);
-        if let Err(error) = run_to_completion(
-            &mut built.command,
-            options.end_ms - options.start_ms,
-            on_progress,
+        let mut on_progress = on_progress;
+        if let Err(error) = self.process_executor.execute(
+            &self.ffmpeg_path,
+            &built.plan,
+            &built.filter_path,
+            &temporary,
+            &mut on_progress,
         ) {
-            let _ = std::fs::remove_file(&temporary);
+            let _ = self.artifact_io.remove(&temporary);
             return Err(error);
         }
-        publish_output(&temporary, &output, false)?;
-        artifact(
+        publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
+        artifact_with(
+            self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
             "video/mp4",
@@ -396,1321 +271,732 @@ impl Renderer {
         )
     }
 
-    fn build_command(
+    fn prepare_render(
         &self,
         project: &Project,
         project_dir: &Path,
         width: u32,
         height: u32,
         fps: u32,
-    ) -> Result<BuiltCommand, CoreError> {
-        let duration_ms = project.duration_ms().max(1);
-        let mut command = Command::new(&self.ffmpeg_path);
-        command.args([
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-progress",
-            "pipe:1",
-            "-nostats",
-            "-f",
-            "lavfi",
-            "-i",
-            &format!(
-                "color=c=black:s={}x{}:r={}:d={}",
-                width,
-                height,
-                fps,
-                seconds(duration_ms)
-            ),
-            "-f",
-            "lavfi",
-            "-i",
-            &format!("anullsrc=r=48000:cl=stereo:d={}", seconds(duration_ms)),
-        ]);
-
-        let asset_by_id = project
-            .assets
-            .iter()
-            .map(|asset| (asset.id.as_str(), asset))
-            .collect::<HashMap<_, _>>();
-        let mut input_indexes = HashMap::new();
-        let mut next_input = 2_usize;
-        for item in project
-            .tracks
-            .iter()
-            .filter(|track| !track.hidden)
-            .flat_map(|track| &track.items)
-            .filter(|item| !item.hidden())
-        {
-            let TimelineItem::Media(media) = item else {
-                continue;
-            };
-            if input_indexes.contains_key(&media.id) {
-                continue;
-            }
-            let asset = asset_by_id.get(media.asset_id.as_str()).ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::AssetNotFound,
-                    "timeline references a missing asset",
-                )
-            })?;
-            let path = resolve_project_asset(project_dir, Path::new(&asset.project_relative_path))?;
-            if asset.media_type == MediaType::Image {
-                command.args(["-loop", "1", "-t", &seconds(media.duration_ms), "-i"]);
-            } else {
-                command.args([
-                    "-ss",
-                    &seconds(media.source_in_ms),
-                    "-t",
-                    &seconds(media.duration_ms),
-                    "-i",
-                ]);
-            }
-            command.arg(path);
-            input_indexes.insert(media.id.clone(), next_input);
-            next_input += 1;
-        }
-
-        let workspace = RenderWorkspace::create(project_dir)?;
+        intent: RenderIntent,
+    ) -> Result<PreparedRender, CoreError> {
+        let scene = evaluate_scene(SceneInput { project, intent }, width, height, fps)?;
+        let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut warnings = Vec::new();
-        let text_layers = self.prepare_text_layers(project, workspace.path(), &mut warnings)?;
+        let resources = prepare_render_resources(
+            self.artifact_io.as_ref(),
+            &scene,
+            project_dir,
+            workspace.path(),
+            self.default_font_path.as_deref(),
+            &self.font_roots,
+            &mut warnings,
+        )?;
         let filter_path = workspace.path().join("filter.txt");
-        let filter = self
-            .build_filter(
-                project,
-                FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
-                    text_layers: &text_layers,
-                    width,
-                    height,
-                    fps,
-                },
-                &mut warnings,
-            )
-            .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
-        let mut file = File::create(&filter_path)
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        file.write_all(filter.as_bytes())
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        command.arg("-filter_complex_script").arg(&filter_path);
-        Ok(BuiltCommand {
-            command,
+        let plan = build_render_plan(
+            &scene,
+            &resources.text_layers,
+            resources.media_paths,
+            self.default_font_path.as_deref(),
+            &mut warnings,
+        )
+        .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
+        write_filter_script(self.artifact_io.as_ref(), &filter_path, &plan.filter_graph)?;
+        Ok(PreparedRender {
+            plan,
+            filter_path,
             _workspace: workspace,
             warnings,
         })
     }
 
-    fn prepare_text_layers(
-        &self,
-        project: &Project,
-        workspace: &Path,
-        warnings: &mut Vec<String>,
-    ) -> Result<HashMap<String, PreparedText>, CoreError> {
-        let mut result = HashMap::new();
-        for text in project
-            .tracks
-            .iter()
-            .flat_map(|track| &track.items)
-            .filter_map(|item| match item {
-                TimelineItem::Text(text) if !text.hidden => Some(text),
-                _ => None,
-            })
-        {
-            let path = workspace.join(format!("text-{}.txt", text.id));
-            let font_path = self.resolve_text_font(text, warnings);
-            let content = wrap_text(
-                &text.text,
-                text.style.wrap_width_px,
-                text.font_size,
-                font_path.as_deref(),
-            );
-            std::fs::write(&path, content.as_bytes())
-                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-            let metrics = measure_text_block(&content, text.font_size, font_path.as_deref());
-            let outline = text.style.outline_width_px;
-            let shadow_left = text.style.shadow.offset_x.unsigned_abs()
-                * u32::from(text.style.shadow.offset_x < 0);
-            let shadow_right = text.style.shadow.offset_x.max(0) as u32;
-            let shadow_top = text.style.shadow.offset_y.unsigned_abs()
-                * u32::from(text.style.shadow.offset_y < 0);
-            let shadow_bottom = text.style.shadow.offset_y.max(0) as u32;
-            let text_x = text
-                .style
-                .padding
-                .left
-                .saturating_add(outline)
-                .saturating_add(shadow_left);
-            let text_y = text
-                .style
-                .padding
-                .top
-                .saturating_add(outline)
-                .saturating_add(shadow_top);
-            let layer_width = text_x
-                .saturating_add(metrics.width.ceil() as u32)
-                .saturating_add(text.style.padding.right)
-                .saturating_add(outline)
-                .saturating_add(shadow_right)
-                .saturating_add(2)
-                .max(1);
-            let line_spacing = text
-                .style
-                .line_spacing_px
-                .saturating_mul(metrics.line_count.saturating_sub(1) as i32);
-            let text_height = (metrics.height + f64::from(line_spacing)).max(1.0);
-            let layer_height = text_y
-                .saturating_add(text_height.ceil() as u32)
-                .saturating_add(text.style.padding.bottom)
-                .saturating_add(outline)
-                .saturating_add(shadow_bottom)
-                .saturating_add(2)
-                .max(1);
-            let maximum_scale = text
-                .keyframes
-                .iter()
-                .filter_map(|keyframe| match (keyframe.property, &keyframe.value) {
-                    (KeyframeProperty::Scale, KeyframeValue::Scalar { value }) => Some(*value),
-                    _ => None,
-                })
-                .fold(text.transform.scale, f64::max)
-                .max(0.01);
-            let canvas_width = ((f64::from(layer_width) * maximum_scale).ceil() as u32)
-                .saturating_add(2)
-                .max(1);
-            let canvas_height = ((f64::from(layer_height) * maximum_scale).ceil() as u32)
-                .saturating_add(2)
-                .max(1);
-            result.insert(
-                text.id.clone(),
-                PreparedText {
-                    file_path: path,
-                    font_path,
-                    layer_width,
-                    layer_height,
-                    canvas_width,
-                    canvas_height,
-                    text_x,
-                    text_y,
-                },
-            );
-        }
-        Ok(result)
-    }
-
-    fn resolve_text_font(
-        &self,
-        text: &crate::TextItem,
-        warnings: &mut Vec<String>,
-    ) -> Option<PathBuf> {
-        if let Some(requested) = text.font_path.as_deref() {
-            let requested = PathBuf::from(requested);
-            let candidates = if requested.is_absolute() {
-                vec![requested]
-            } else {
-                self.font_roots
-                    .iter()
-                    .map(|root| root.join(&requested))
-                    .collect()
-            };
-            for candidate in candidates {
-                if let Ok(resolved) = candidate.canonicalize()
-                    && resolved.is_file()
-                    && self
-                        .font_roots
-                        .iter()
-                        .filter_map(|root| root.canonicalize().ok())
-                        .any(|root| resolved.starts_with(root))
-                {
-                    return Some(resolved);
-                }
-            }
-            warnings.push(format!(
-                "Text item {} requested a font path that could not be resolved; using fallback",
-                text.id
-            ));
-        }
-        if let Some(family) = text.font_family.as_deref() {
-            let needle = family.to_lowercase().replace([' ', '-', '_'], "");
-            for root in &self.font_roots {
-                if let Some(path) = find_font_file(root, &needle) {
-                    return Some(path);
-                }
-            }
-            warnings.push(format!("Text item {} requested font family {family:?} that could not be resolved; using fallback", text.id));
-        }
-        self.default_font_path.clone()
-    }
-
+    #[cfg(test)]
     fn build_filter(
         &self,
         project: &Project,
         context: FilterContext<'_>,
-        _warnings: &mut Vec<String>,
+        warnings: &mut Vec<String>,
     ) -> Result<String, CoreError> {
-        let FilterContext {
-            asset_by_id,
-            input_indexes,
-            text_layers,
-            width,
-            height,
-            fps,
-        } = context;
-        let mut filters = vec!["[0:v]format=yuv420p[base0]".to_owned()];
-        let mut current_video = "base0".to_owned();
-        let mut visual_count = 0_usize;
-        let mut audio_labels = vec!["[1:a]".to_owned()];
-        let transitions = project
-            .tracks
-            .iter()
-            .filter(|track| !track.hidden)
-            .flat_map(|track| &track.items)
-            .filter_map(|item| match item {
-                TimelineItem::Transition(value) if !value.hidden => Some(value),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let voiceover_intervals = audible_voiceover_intervals(project, asset_by_id);
-
-        for track in &project.tracks {
-            if track.hidden {
-                continue;
-            }
-            for item in &track.items {
-                if item.hidden() {
-                    continue;
-                }
-                match item {
-                    TimelineItem::Media(media) => {
-                        let asset = asset_by_id.get(media.asset_id.as_str()).ok_or_else(|| {
-                            CoreError::new(
-                                ErrorCode::AssetNotFound,
-                                "timeline references a missing asset",
-                            )
-                        })?;
-                        let input = input_indexes.get(&media.id).ok_or_else(|| {
-                            CoreError::new(
-                                ErrorCode::InternalError,
-                                "renderer input mapping is missing",
-                            )
-                        })?;
-                        if asset.media_type != MediaType::Audio {
-                            visual_count += 1;
-                            let prepared = format!("visual{visual_count}");
-                            let composited = format!("base{visual_count}");
-                            let scale = scalar_expression(
-                                &media.keyframes,
-                                KeyframeProperty::Scale,
-                                media.transform.scale,
-                                media.start_ms,
-                            );
-                            let x = position_expression(
-                                &media.keyframes,
-                                true,
-                                media.transform.position_x,
-                                media.start_ms,
-                            );
-                            let y = position_expression(
-                                &media.keyframes,
-                                false,
-                                media.transform.position_y,
-                                media.start_ms,
-                            );
-                            let opacity = scalar_expression_for(
-                                &media.keyframes,
-                                KeyframeProperty::Opacity,
-                                media.transform.opacity,
-                                media.start_ms,
-                                "T",
-                            );
-                            let fade = transition_filters(&media.id, &transitions, media.start_ms);
-                            filters.push(format!(
-                            "[{input}:v]setpts=PTS-STARTPTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{fade}[{prepared}]",
-                            seconds(media.start_ms)
-                        ));
-                            filters.push(format!(
-                            "[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]",
-                            seconds(media.start_ms),
-                            seconds(media.start_ms.saturating_add(media.duration_ms))
-                        ));
-                            current_video = composited;
-                        }
-                        if asset.has_audio && !track.muted && !media.audio.muted {
-                            let label = format!("audio{}", audio_labels.len());
-                            let automation = scalar_expression(
-                                &media.keyframes,
-                                KeyframeProperty::Volume,
-                                1.0,
-                                0,
-                            );
-                            let volume =
-                                format!("({})*({automation})", format_number(media.audio.volume));
-                            let ducking = ducking_expression(track, &voiceover_intervals);
-                            let mut chain = format!(
-                                "[{input}:a]atrim=duration={},asetpts=PTS-STARTPTS,volume='{volume}':eval=frame",
-                                seconds(media.duration_ms),
-                            );
-                            if media.audio.fade_in_ms > 0 {
-                                chain.push_str(&format!(
-                                    ",afade=t=in:st=0:d={}",
-                                    seconds(media.audio.fade_in_ms)
-                                ));
-                            }
-                            if media.audio.fade_out_ms > 0
-                                && media.audio.fade_out_ms < media.duration_ms
-                            {
-                                chain.push_str(&format!(
-                                    ",afade=t=out:st={}:d={}",
-                                    seconds(media.duration_ms - media.audio.fade_out_ms),
-                                    seconds(media.audio.fade_out_ms)
-                                ));
-                            }
-                            chain.push_str(&format!(
-                                ",asetpts=PTS+{}/TB,volume='{ducking}':eval=frame",
-                                seconds(media.start_ms)
-                            ));
-                            chain.push_str(&format!("[{label}]"));
-                            filters.push(chain);
-                            audio_labels.push(format!("[{label}]"));
-                        }
-                    }
-                    TimelineItem::Text(text) => {
-                        visual_count += 1;
-                        let prepared = format!("visual{visual_count}");
-                        let composited = format!("base{visual_count}");
-                        let x = position_expression(
-                            &text.keyframes,
-                            true,
-                            text.transform.position_x,
-                            text.start_ms,
-                        );
-                        let y = position_expression(
-                            &text.keyframes,
-                            false,
-                            text.transform.position_y,
-                            text.start_ms,
-                        );
-                        let scale = scalar_expression(
-                            &text.keyframes,
-                            KeyframeProperty::Scale,
-                            text.transform.scale,
-                            text.start_ms,
-                        );
-                        let opacity = scalar_expression_for(
-                            &text.keyframes,
-                            KeyframeProperty::Opacity,
-                            text.transform.opacity,
-                            text.start_ms,
-                            "T",
-                        );
-                        let prepared_text = text_layers.get(&text.id).ok_or_else(|| {
-                            CoreError::new(
-                                ErrorCode::InternalError,
-                                "renderer text file is missing",
-                            )
-                        })?;
-                        let font = prepared_text
-                            .font_path
-                            .as_ref()
-                            .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
-                            .unwrap_or_default();
-                        let (x, y) = anchored_layer_position(&x, &y, text.style.anchor);
-                        let alignment = match text.style.alignment {
-                            crate::TextAlignment::Left => "L",
-                            crate::TextAlignment::Center => "C",
-                            crate::TextAlignment::Right => "R",
-                        };
-                        let padding = &text.style.padding;
-                        let (pad_x, pad_y) = text_layer_padding(text.style.anchor);
-                        let transition = transition_filters(&text.id, &transitions, text.start_ms);
-                        filters.push(format!(
-                            "color=c=black@0.0:s={}x{}:r={fps}:d={},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,pad={}:{}:{pad_x}:{pad_y}:color=black@0:eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]",
-                            prepared_text.layer_width,
-                            prepared_text.layer_height,
-                            seconds(project.duration_ms().max(1)),
-                            escape_filter_path(&prepared_text.file_path),
-                            text.font_size,
-                            text.color,
-                            text.style.outline_width_px,
-                            text.style.outline_color,
-                            text.style.shadow.offset_x,
-                            text.style.shadow.offset_y,
-                            text.style.shadow.color,
-                            text.style.shadow.opacity,
-                            text.style.background_color,
-                            text.style.background_opacity,
-                            padding.top, padding.right, padding.bottom, padding.left,
-                            text.style.line_spacing_px,
-                            prepared_text.text_x,
-                            prepared_text.text_y,
-                            prepared_text.canvas_width,
-                            prepared_text.canvas_height,
-                        ));
-                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(text.start_ms), seconds(text.start_ms.saturating_add(text.duration_ms))));
-                        current_video = composited;
-                    }
-                    TimelineItem::SolidColor(shape) => {
-                        visual_count += 1;
-                        let prepared = format!("visual{visual_count}");
-                        let composited = format!("base{visual_count}");
-                        let scale = scalar_expression(
-                            &shape.keyframes,
-                            KeyframeProperty::Scale,
-                            shape.transform.scale,
-                            shape.start_ms,
-                        );
-                        let opacity = scalar_expression_for(
-                            &shape.keyframes,
-                            KeyframeProperty::Opacity,
-                            shape.transform.opacity,
-                            shape.start_ms,
-                            "T",
-                        );
-                        let x = position_expression(
-                            &shape.keyframes,
-                            true,
-                            shape.transform.position_x,
-                            shape.start_ms,
-                        );
-                        let y = position_expression(
-                            &shape.keyframes,
-                            false,
-                            shape.transform.position_y,
-                            shape.start_ms,
-                        );
-                        let transition =
-                            transition_filters(&shape.id, &transitions, shape.start_ms);
-                        filters.push(format!("color=c={}:s={width}x{height}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(&shape.color), seconds(shape.duration_ms), seconds(shape.start_ms)));
-                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(shape.start_ms), seconds(shape.start_ms.saturating_add(shape.duration_ms))));
-                        current_video = composited;
-                    }
-                    TimelineItem::Rectangle(shape) => {
-                        visual_count += 1;
-                        let prepared = format!("visual{visual_count}");
-                        let composited = format!("base{visual_count}");
-                        let scale = scalar_expression(
-                            &shape.keyframes,
-                            KeyframeProperty::Scale,
-                            shape.transform.scale,
-                            shape.start_ms,
-                        );
-                        let opacity = scalar_expression_for(
-                            &shape.keyframes,
-                            KeyframeProperty::Opacity,
-                            shape.transform.opacity,
-                            shape.start_ms,
-                            "T",
-                        );
-                        let x = position_expression(
-                            &shape.keyframes,
-                            true,
-                            shape.transform.position_x,
-                            shape.start_ms,
-                        );
-                        let y = position_expression(
-                            &shape.keyframes,
-                            false,
-                            shape.transform.position_y,
-                            shape.start_ms,
-                        );
-                        let transition =
-                            transition_filters(&shape.id, &transitions, shape.start_ms);
-                        filters.push(format!("color=c={}:s={}x{}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(&shape.color), shape.width, shape.height, seconds(shape.duration_ms), seconds(shape.start_ms)));
-                        filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(shape.start_ms), seconds(shape.start_ms.saturating_add(shape.duration_ms))));
-                        current_video = composited;
-                    }
-                    TimelineItem::Caption(caption) => {
-                        visual_count += 1;
-                        let composited = format!("base{visual_count}");
-                        let font = self
-                            .default_font_path
-                            .as_ref()
-                            .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
-                            .unwrap_or_default();
-                        filters.push(format!(
-                        "[{current_video}]drawtext={font}text='{}':fontsize={}:fontcolor={}:box=1:boxcolor={}@0.75:boxborderw=12:x='(w-text_w)/2':y='h-text_h-{}':enable='between(t,{},{})'[{composited}]",
-                        escape_filter(&caption.text),
-                        caption.style.font_size,
-                        caption.style.color,
-                        caption.style.background_color,
-                        caption.style.bottom_margin_px,
-                        seconds(caption.start_ms),
-                        seconds(caption.start_ms.saturating_add(caption.duration_ms))
-                    ));
-                        current_video = composited;
-                    }
-                    TimelineItem::Transition(_) => {}
-                }
-            }
-        }
-        filters.push(format!(
-            "[{current_video}]scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[video]"
-        ));
-        filters.push(format!(
-            "{}amix=inputs={}:duration=longest:normalize=0[audio]",
-            audio_labels.join(""),
-            audio_labels.len()
-        ));
-        Ok(filters.join(";\n"))
+        let scene = evaluate_scene(
+            SceneInput {
+                project,
+                intent: RenderIntent::Export,
+            },
+            context.width,
+            context.height,
+            context.fps,
+        )?;
+        build_render_plan(
+            &scene,
+            context.text_layers,
+            Vec::new(),
+            self.default_font_path.as_deref(),
+            warnings,
+        )
+        .map(|plan| plan.filter_graph)
     }
-}
-
-fn stream<'a>(streams: &'a [serde_json::Value], kind: &str) -> Option<&'a serde_json::Value> {
-    streams
-        .iter()
-        .find(|stream| stream.get("codec_type").and_then(serde_json::Value::as_str) == Some(kind))
-}
-
-struct TextMetrics {
-    width: f64,
-    height: f64,
-    line_count: usize,
-}
-
-fn wrap_text(
-    text: &str,
-    width_px: Option<u32>,
-    font_size: u32,
-    font_path: Option<&Path>,
-) -> String {
-    let Some(width_px) = width_px else {
-        return text.to_owned();
-    };
-    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
-    let face = font_data
-        .as_deref()
-        .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
-    wrap_text_with_measure(text, f64::from(width_px), |value| {
-        measure_text_run(value, font_size, face.as_ref())
-    })
-}
-
-fn wrap_text_with_measure(text: &str, maximum_width: f64, measure: impl Fn(&str) -> f64) -> String {
-    text.split('\n')
-        .map(|line| {
-            let mut lines = Vec::new();
-            let mut current = String::new();
-            for word in line.split_whitespace() {
-                let proposed = if current.is_empty() {
-                    word.to_owned()
-                } else {
-                    format!("{current} {word}")
-                };
-                if measure(&proposed) <= maximum_width {
-                    current = proposed;
-                    continue;
-                }
-                if !current.is_empty() {
-                    lines.push(std::mem::take(&mut current));
-                }
-                if measure(word) <= maximum_width {
-                    current.push_str(word);
-                    continue;
-                }
-                for character in word.chars() {
-                    let mut candidate = current.clone();
-                    candidate.push(character);
-                    if !current.is_empty() && measure(&candidate) > maximum_width {
-                        lines.push(std::mem::take(&mut current));
-                    }
-                    current.push(character);
-                }
-            }
-            lines.push(current);
-            lines.join("\n")
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn measure_text_block(text: &str, font_size: u32, font_path: Option<&Path>) -> TextMetrics {
-    let font_data = font_path.and_then(|path| std::fs::read(path).ok());
-    let face = font_data
-        .as_deref()
-        .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
-    let line_count = text.split('\n').count().max(1);
-    let width = text
-        .split('\n')
-        .map(|line| measure_text_run(line, font_size, face.as_ref()))
-        .fold(0.0_f64, f64::max);
-    let line_height = face.as_ref().map_or(f64::from(font_size) * 1.2, |face| {
-        let units = f64::from(face.units_per_em());
-        let height = f64::from(face.ascender() - face.descender() + face.line_gap());
-        (height / units * f64::from(font_size)).max(1.0)
-    });
-    TextMetrics {
-        width,
-        height: line_height * line_count as f64,
-        line_count,
-    }
-}
-
-fn measure_text_run(text: &str, font_size: u32, face: Option<&ttf_parser::Face<'_>>) -> f64 {
-    let Some(face) = face else {
-        return text.chars().count() as f64 * f64::from(font_size) * 0.6;
-    };
-    let units = f64::from(face.units_per_em());
-    let fallback = face
-        .glyph_index('\u{fffd}')
-        .or_else(|| face.glyph_index('?'));
-    let advance = text
-        .chars()
-        .map(|character| {
-            face.glyph_index(character)
-                .or(fallback)
-                .and_then(|glyph| face.glyph_hor_advance(glyph))
-                .map_or(units * 0.6, f64::from)
-        })
-        .sum::<f64>();
-    advance / units * f64::from(font_size)
-}
-
-fn ffmpeg_color(color: &str) -> String {
-    format!("0x{}", color.trim_start_matches('#'))
-}
-
-fn find_font_file(root: &Path, normalized_family: &str) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(root).ok()?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if let Some(found) = find_font_file(&path, normalized_family) {
-                return Some(found);
-            }
-        } else if matches!(
-            path.extension()
-                .and_then(|value| value.to_str())
-                .map(str::to_ascii_lowercase)
-                .as_deref(),
-            Some("ttf" | "otf" | "ttc")
-        ) {
-            let stem = path
-                .file_stem()?
-                .to_string_lossy()
-                .to_lowercase()
-                .replace([' ', '-', '_'], "");
-            if stem.contains(normalized_family) {
-                return path.canonicalize().ok();
-            }
-        }
-    }
-    None
-}
-
-fn anchored_layer_position(x: &str, y: &str, anchor: crate::AnchorPoint) -> (String, String) {
-    use crate::AnchorPoint::*;
-    let anchored_x = match anchor {
-        TopCenter | Center | BottomCenter => format!("({x})-(overlay_w/2)"),
-        TopRight | CenterRight | BottomRight => format!("({x})-overlay_w"),
-        _ => x.into(),
-    };
-    let anchored_y = match anchor {
-        CenterLeft | Center | CenterRight => format!("({y})-(overlay_h/2)"),
-        BottomLeft | BottomCenter | BottomRight => format!("({y})-overlay_h"),
-        _ => y.into(),
-    };
-    (anchored_x, anchored_y)
-}
-
-fn text_layer_padding(anchor: crate::AnchorPoint) -> (&'static str, &'static str) {
-    use crate::AnchorPoint::*;
-    let x = match anchor {
-        TopCenter | Center | BottomCenter => "(ow-iw)/2",
-        TopRight | CenterRight | BottomRight => "ow-iw",
-        _ => "0",
-    };
-    let y = match anchor {
-        CenterLeft | Center | CenterRight => "(oh-ih)/2",
-        BottomLeft | BottomCenter | BottomRight => "oh-ih",
-        _ => "0",
-    };
-    (x, y)
-}
-
-fn ducking_expression(track: &crate::Track, intervals: &[(u64, u64)]) -> String {
-    let Some(settings) = track.ducking.as_ref().filter(|settings| settings.enabled) else {
-        return "1".into();
-    };
-    if track.audio_role != crate::AudioTrackRole::Music || intervals.is_empty() {
-        return "1".into();
-    }
-    let mut expression = "1".to_owned();
-    for (start, end) in intervals {
-        let attack_start = start.saturating_sub(settings.attack_ms);
-        let release_end = end.saturating_add(settings.release_ms);
-        let attack = seconds(settings.attack_ms.max(1));
-        let release = seconds(settings.release_ms.max(1));
-        let gain = format_number(settings.gain);
-        let envelope = format!(
-            "if(between(t,{},{}),1-(1-({gain}))*((t-{})/{attack}),if(between(t,{},{}),({gain}),if(between(t,{},{}),({gain})+(1-({gain}))*((t-{})/{release}),1)))",
-            seconds(attack_start),
-            seconds(*start),
-            seconds(attack_start),
-            seconds(*start),
-            seconds(*end),
-            seconds(*end),
-            seconds(release_end),
-            seconds(*end),
-        );
-        expression = format!("min({expression},{envelope})");
-    }
-    expression
-}
-
-fn audible_voiceover_intervals(
-    project: &Project,
-    asset_by_id: &HashMap<&str, &crate::Asset>,
-) -> Vec<(u64, u64)> {
-    merge_intervals(
-        project
-            .tracks
-            .iter()
-            .filter(|track| {
-                !track.hidden
-                    && !track.muted
-                    && track.audio_role == crate::AudioTrackRole::Voiceover
-            })
-            .flat_map(|track| track.items.iter())
-            .flat_map(|item| {
-                let TimelineItem::Media(media) = item else {
-                    return vec![];
-                };
-                if media.hidden
-                    || media.audio.muted
-                    || media.audio.volume == 0.0
-                    || !asset_by_id
-                        .get(media.asset_id.as_str())
-                        .is_some_and(|asset| asset.has_audio)
-                {
-                    return vec![];
-                }
-                positive_scalar_ranges(
-                    &media.keyframes,
-                    KeyframeProperty::Volume,
-                    media.duration_ms,
-                )
-                .into_iter()
-                .map(|(start, end)| {
-                    (
-                        media.start_ms.saturating_add(start),
-                        media.start_ms.saturating_add(end),
-                    )
-                })
-                .collect()
-            })
-            .collect(),
-    )
-}
-
-fn merge_intervals(mut intervals: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
-    intervals.retain(|(start, end)| start < end);
-    intervals.sort_unstable_by_key(|(start, end)| (*start, *end));
-    let mut merged: Vec<(u64, u64)> = Vec::with_capacity(intervals.len());
-    for (start, end) in intervals {
-        if let Some((_, previous_end)) = merged.last_mut()
-            && start <= *previous_end
-        {
-            *previous_end = (*previous_end).max(end);
-        } else {
-            merged.push((start, end));
-        }
-    }
-    merged
-}
-
-#[cfg(test)]
-fn ducking_gain_at(
-    settings: &crate::DuckingSettings,
-    intervals: &[(u64, u64)],
-    time_ms: u64,
-) -> f64 {
-    intervals.iter().fold(1.0, |gain, (start, end)| {
-        let attack_start = start.saturating_sub(settings.attack_ms);
-        let release_end = end.saturating_add(settings.release_ms);
-        let envelope = if (attack_start..*start).contains(&time_ms) {
-            let progress = (time_ms - attack_start) as f64 / settings.attack_ms.max(1) as f64;
-            1.0 - (1.0 - settings.gain) * progress
-        } else if (*start..=*end).contains(&time_ms) {
-            settings.gain
-        } else if (*end < time_ms) && time_ms <= release_end {
-            let progress = (time_ms - end) as f64 / settings.release_ms.max(1) as f64;
-            settings.gain + (1.0 - settings.gain) * progress
-        } else {
-            1.0
-        };
-        gain.min(envelope)
-    })
-}
-
-fn stream_string(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<String> {
-    stream(streams, kind)?
-        .get(field)?
-        .as_str()
-        .map(str::to_owned)
-}
-
-fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<u32> {
-    let value = stream(streams, kind)?.get(field)?;
-    value
-        .as_u64()
-        .and_then(|value| u32::try_from(value).ok())
-        .or_else(|| value.as_str()?.parse().ok())
-}
-
-fn temporary_output(parent: &Path, extension: &str) -> PathBuf {
-    let request_id = env::var("OPENCUT_REQUEST_ID")
-        .ok()
-        .filter(|value| {
-            !value.is_empty()
-                && value
-                    .chars()
-                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
-        })
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-    parent.join(format!(".opencut-{request_id}.{extension}"))
-}
-
-fn configure_preview_range_outputs(
-    command: &mut Command,
-    options: PreviewRangeOptions,
-    temporary: &Path,
-) {
-    let duration = seconds(options.end_ms - options.start_ms);
-    command.args(["-ss", &seconds(options.start_ms), "-map", "[video]"]);
-    if options.include_audio {
-        command.args(["-map", "[audio]", "-c:a", "aac"]);
-    }
-    command
-        .args([
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "28",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            "-t",
-            &duration,
-            "-y",
-        ])
-        .arg(temporary);
-    if !options.include_audio {
-        command
-            .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
-            .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-    }
-}
-
-impl RenderWorkspace {
-    fn create(project_dir: &Path) -> Result<Self, CoreError> {
-        let request_id = env::var("OPENCUT_REQUEST_ID")
-            .ok()
-            .filter(|value| {
-                !value.is_empty()
-                    && value
-                        .chars()
-                        .all(|character| character.is_ascii_alphanumeric() || character == '-')
-            })
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
-        let path = project_dir.join(format!(".opencut-work-{request_id}"));
-        std::fs::create_dir(&path)
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        Ok(Self { path })
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-fn publish_output(temporary: &Path, output: &Path, overwrite: bool) -> Result<(), CoreError> {
-    if output.exists() {
-        if !overwrite {
-            let _ = std::fs::remove_file(temporary);
-            return Err(CoreError::new(
-                ErrorCode::ExportExists,
-                "export already exists; pass overwrite=true only with explicit permission",
-            ));
-        }
-        if std::fs::remove_file(output).is_err() {
-            let _ = std::fs::remove_file(temporary);
-            return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
-        }
-    }
-    std::fs::rename(temporary, output).map_err(|_| {
-        let _ = std::fs::remove_file(temporary);
-        CoreError::render_failure(PUBLISH_STAGE, None, None)
-    })
-}
-
-fn resolve_project_asset(project_dir: &Path, relative: &Path) -> Result<PathBuf, CoreError> {
-    if relative.is_absolute()
-        || relative
-            .components()
-            .any(|component| matches!(component, Component::ParentDir))
-    {
-        return Err(CoreError::new(
-            ErrorCode::PathNotAllowed,
-            "project asset path is not allowed",
-        ));
-    }
-    let root = project_dir
-        .canonicalize()
-        .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-    let resolved = project_dir
-        .join(relative)
-        .canonicalize()
-        .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-    if !resolved.starts_with(root) {
-        return Err(CoreError::new(
-            ErrorCode::PathNotAllowed,
-            "project asset escapes the project directory",
-        ));
-    }
-    Ok(resolved)
-}
-
-fn transition_filters(
-    item_id: &str,
-    transitions: &[&crate::TransitionItem],
-    _item_start_ms: u64,
-) -> String {
-    let mut result = String::new();
-    for transition in transitions {
-        if transition.from_item_id == item_id {
-            result.push_str(&format!(
-                ",fade=t=out:st={}:d={}:alpha=1",
-                seconds(transition.start_ms),
-                seconds(transition.duration_ms)
-            ));
-        }
-        if transition.to_item_id.as_deref() == Some(item_id) {
-            result.push_str(&format!(
-                ",fade=t=in:st={}:d={}:alpha=1",
-                seconds(transition.start_ms),
-                seconds(transition.duration_ms)
-            ));
-        }
-    }
-    result
-}
-
-fn scalar_expression(
-    keyframes: &[Keyframe],
-    property: KeyframeProperty,
-    default: f64,
-    item_start_ms: u64,
-) -> String {
-    scalar_expression_for(keyframes, property, default, item_start_ms, "t")
-}
-
-fn scalar_expression_for(
-    keyframes: &[Keyframe],
-    property: KeyframeProperty,
-    default: f64,
-    item_start_ms: u64,
-    time_variable: &str,
-) -> String {
-    let values = keyframes
-        .iter()
-        .filter_map(|keyframe| {
-            if keyframe.property != property {
-                return None;
-            }
-            let KeyframeValue::Scalar { value } = keyframe.value else {
-                return None;
-            };
-            Some((keyframe.time_ms, value, keyframe.easing))
-        })
-        .collect::<Vec<_>>();
-    piecewise_expression_for(&values, default, item_start_ms, time_variable)
-}
-
-fn position_expression(
-    keyframes: &[Keyframe],
-    x_axis: bool,
-    default: f64,
-    item_start_ms: u64,
-) -> String {
-    let values = keyframes
-        .iter()
-        .filter_map(|keyframe| {
-            if keyframe.property != KeyframeProperty::Position {
-                return None;
-            }
-            let KeyframeValue::Position { x, y } = keyframe.value else {
-                return None;
-            };
-            Some((
-                keyframe.time_ms,
-                if x_axis { x } else { y },
-                keyframe.easing,
-            ))
-        })
-        .collect::<Vec<_>>();
-    piecewise_expression(&values, default, item_start_ms)
-}
-
-fn piecewise_expression(values: &[(u64, f64, Easing)], default: f64, item_start_ms: u64) -> String {
-    piecewise_expression_for(values, default, item_start_ms, "t")
-}
-
-fn piecewise_expression_for(
-    values: &[(u64, f64, Easing)],
-    default: f64,
-    item_start_ms: u64,
-    time_variable: &str,
-) -> String {
-    if values.is_empty() {
-        return format_number(default);
-    }
-    let mut expression = format_number(values.last().map_or(default, |value| value.1));
-    for pair in values.windows(2).rev() {
-        let (start_time, start_value, easing) = pair[0];
-        let (end_time, end_value, _) = pair[1];
-        let global_start = seconds(item_start_ms.saturating_add(start_time));
-        let global_end = seconds(item_start_ms.saturating_add(end_time));
-        let span = seconds(end_time.saturating_sub(start_time).max(1));
-        let progress = format!("(({time_variable})-({global_start}))/({span})");
-        let eased = easing_expression(&progress, easing);
-        let interpolated = format!(
-            "({})+(({})-({}))*({eased})",
-            format_number(start_value),
-            format_number(end_value),
-            format_number(start_value)
-        );
-        expression =
-            format!("if(lt(({time_variable}),({global_end})),{interpolated},{expression})");
-    }
-    let first_time = seconds(item_start_ms.saturating_add(values[0].0));
-    format!(
-        "if(lt(({time_variable}),({first_time})),({}),{expression})",
-        format_number(values[0].1)
-    )
-}
-
-fn easing_expression(progress: &str, easing: Easing) -> String {
-    match easing {
-        Easing::Hold => "0".into(),
-        Easing::Linear => progress.into(),
-        Easing::EaseIn => format!("({progress})*({progress})"),
-        Easing::EaseOut => format!("1-(1-({progress}))*(1-({progress}))"),
-        Easing::EaseInOut => format!(
-            "if(lt(({progress}),0.5),2*({progress})*({progress}),1-pow(-2*({progress})+2,2)/2)"
-        ),
-    }
-}
-
-fn escape_filter(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace(':', "\\:")
-        .replace('\'', "\\'")
-        .replace('%', "\\%")
-        .replace('\n', "\\n")
-}
-
-fn escape_filter_path(path: &Path) -> String {
-    escape_filter(&path.to_string_lossy().replace('\\', "/"))
-}
-
-fn seconds(milliseconds: u64) -> String {
-    format!("{:.3}", milliseconds as f64 / 1_000.0)
-}
-
-fn format_number(value: f64) -> String {
-    format!("{value:.6}")
-}
-
-fn artifact(
-    path: &Path,
-    relative_path: String,
-    mime_type: &str,
-    warnings: Vec<String>,
-) -> Result<RenderArtifact, CoreError> {
-    let size_bytes = match path.metadata() {
-        Ok(metadata) => metadata.len(),
-        Err(_) => {
-            let _ = std::fs::remove_file(path);
-            return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
-        }
-    };
-    if size_bytes == 0 {
-        let _ = std::fs::remove_file(path);
-        return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
-    }
-    Ok(RenderArtifact {
-        relative_path,
-        mime_type: mime_type.into(),
-        size_bytes,
-        warnings,
-    })
-}
-
-fn run_to_completion(
-    command: &mut Command,
-    duration_ms: u64,
-    mut on_progress: impl FnMut(RenderProgress),
-) -> Result<(), CoreError> {
-    command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|_| CoreError::render_failure(SPAWN_STAGE, None, None))?;
-    let Some(stdout) = child.stdout.take() else {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
-    };
-    let Some(stderr) = child.stderr.take() else {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
-    };
-    let stderr_reader = thread::spawn(move || read_bounded_tail(stderr, STDERR_TAIL_BYTES));
-    let mut progress_error = false;
-    for line in BufReader::new(stdout).lines() {
-        let Ok(line) = line else {
-            progress_error = true;
-            let _ = child.kill();
-            break;
-        };
-        if let Some(value) = line.strip_prefix("out_time_ms=")
-            && let Ok(microseconds) = value.parse::<u64>()
-        {
-            let denominator = duration_ms.max(1) as f64;
-            on_progress(RenderProgress {
-                progress: (microseconds as f64 / 1_000.0 / denominator).clamp(0.0, 1.0),
-            });
-        }
-    }
-    let status = child.wait();
-    let stderr = stderr_reader.join();
-    let stderr = match stderr {
-        Ok(Ok(bytes)) => bytes,
-        Ok(Err(_)) | Err(_) => {
-            return Err(CoreError::render_failure(RENDER_STAGE, None, None));
-        }
-    };
-    let status = status
-        .map_err(|_| CoreError::render_failure(RENDER_STAGE, None, stderr_excerpt(&stderr)))?;
-    if progress_error || !status.success() {
-        return Err(CoreError::render_failure(
-            RENDER_STAGE,
-            status.code(),
-            stderr_excerpt(&stderr),
-        ));
-    }
-    on_progress(RenderProgress { progress: 1.0 });
-    Ok(())
-}
-
-fn read_bounded_tail(mut reader: impl Read, limit: usize) -> std::io::Result<Vec<u8>> {
-    let mut tail = Vec::with_capacity(limit);
-    let mut buffer = [0_u8; 4_096];
-    loop {
-        let count = reader.read(&mut buffer)?;
-        if count == 0 {
-            break;
-        }
-        if count >= limit {
-            tail.clear();
-            tail.extend_from_slice(&buffer[count - limit..count]);
-            continue;
-        }
-        let excess = tail.len().saturating_add(count).saturating_sub(limit);
-        if excess > 0 {
-            tail.drain(..excess);
-        }
-        tail.extend_from_slice(&buffer[..count]);
-    }
-    Ok(tail)
-}
-
-fn stderr_excerpt(stderr: &[u8]) -> Option<String> {
-    let excerpt = sanitize_stderr(&String::from_utf8_lossy(stderr));
-    (!excerpt.trim().is_empty()).then_some(excerpt)
-}
-
-fn map_renderer_error(error: CoreError, stage: &str) -> CoreError {
-    match error.code {
-        ErrorCode::InternalError | ErrorCode::ProjectRecoveryFailed | ErrorCode::JobFailed => {
-            CoreError::render_failure(stage, None, None)
-        }
-        _ => error,
-    }
-}
-
-fn sanitize_stderr(stderr: &str) -> String {
-    let sanitized = stderr
-        .lines()
-        .map(sanitize_stderr_line)
-        .collect::<Vec<_>>()
-        .join("\n");
-    if sanitized.len() <= STDERR_EXCERPT_BYTES {
-        return sanitized;
-    }
-    let mut start = sanitized.len() - STDERR_EXCERPT_BYTES;
-    while !sanitized.is_char_boundary(start) {
-        start += 1;
-    }
-    sanitized[start..].to_owned()
-}
-
-fn sanitize_stderr_line(line: &str) -> String {
-    let mut sanitized = String::with_capacity(line.len());
-    let mut cursor = 0;
-    while let Some(relative_start) = find_absolute_path_start(&line[cursor..]) {
-        let start = cursor + relative_start;
-        sanitized.push_str(&line[cursor..start]);
-        let quote = line[..start]
-            .chars()
-            .next_back()
-            .filter(|character| matches!(character, '\'' | '"'));
-        let path_tail = &line[start..];
-        let end = quote
-            .and_then(|quote| path_tail[1..].find(quote).map(|index| start + index + 1))
-            .or_else(|| {
-                path_tail[3.min(path_tail.len())..]
-                    .find(": ")
-                    .map(|index| start + 3.min(path_tail.len()) + index)
-            })
-            .unwrap_or(line.len());
-        sanitized.push_str("[path]");
-        cursor = end;
-    }
-    sanitized.push_str(&line[cursor..]);
-    sanitized
-}
-
-fn find_absolute_path_start(value: &str) -> Option<usize> {
-    let bytes = value.as_bytes();
-    let windows = bytes.windows(3).position(|window| {
-        window[0].is_ascii_alphabetic() && window[1] == b':' && matches!(window[2], b'\\' | b'/')
-    });
-    let posix = bytes.iter().enumerate().find_map(|(index, byte)| {
-        if *byte != b'/' {
-            return None;
-        }
-        let boundary = index == 0
-            || bytes[index - 1].is_ascii_whitespace()
-            || matches!(bytes[index - 1], b'=' | b'\'' | b'"' | b'(' | b'[');
-        boundary.then_some(index)
-    });
-    windows.into_iter().chain(posix).min()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        CaptionItem, CaptionSource, CaptionStyle, PROJECT_SCHEMA_VERSION, ProjectSettings,
-        SolidColorItem, TimelineItem, Track, TrackType, Transform,
+        CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaType,
+        PROJECT_SCHEMA_VERSION, ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType,
+        Transform,
+        render_artifact::{ArtifactEntryKind, artifact, prepare_text_layers, publish_output},
+        render_plan::seconds,
+        render_process::{build_render_command, run_to_completion},
+    };
+    use std::{
+        collections::HashMap,
+        env,
+        fs::File,
+        process::Command,
+        sync::{
+            Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
     };
     use tempfile::tempdir;
+
+    #[derive(Clone, Copy, Debug)]
+    enum FakeRunFailure {
+        Spawn,
+        Exit,
+    }
+
+    #[derive(Debug)]
+    struct FakeProcess {
+        readiness_error: bool,
+        probe_error: bool,
+        run_failure: Option<FakeRunFailure>,
+        executions: Mutex<Vec<RenderIntent>>,
+    }
+
+    impl ProcessExecutor for FakeProcess {
+        fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
+            if self.readiness_error {
+                Err(CoreError::new(
+                    ErrorCode::DependencyUnavailable,
+                    "injected readiness",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+
+        fn probe(&self, _ffprobe_path: &Path, _path: &Path) -> Result<ProbeResult, CoreError> {
+            if self.probe_error {
+                Err(CoreError::new(
+                    ErrorCode::UnsupportedMedia,
+                    "injected probe",
+                ))
+            } else {
+                Ok(ProbeResult {
+                    duration_ms: Some(1),
+                    has_video: true,
+                    has_audio: false,
+                    format_name: None,
+                    video_codec: None,
+                    video_width: None,
+                    video_height: None,
+                    audio_codec: None,
+                    audio_channels: None,
+                    audio_sample_rate_hz: None,
+                })
+            }
+        }
+
+        fn execute(
+            &self,
+            _ffmpeg_path: &Path,
+            plan: &RenderPlan,
+            _filter_path: &Path,
+            output: &Path,
+            on_progress: &mut dyn FnMut(RenderProgress),
+        ) -> Result<(), CoreError> {
+            self.executions.lock().unwrap().push(plan.intent);
+            match self.run_failure {
+                Some(FakeRunFailure::Spawn) => {
+                    return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
+                }
+                Some(FakeRunFailure::Exit) => {
+                    return Err(CoreError::render_failure(
+                        RENDER_STAGE,
+                        Some(7),
+                        Some("injected diagnostic".into()),
+                    ));
+                }
+                None => {}
+            }
+            std::fs::write(output, b"rendered").unwrap();
+            on_progress(RenderProgress { progress: 1.0 });
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct FakeArtifactIo {
+        fail_rename: bool,
+        fail_size: bool,
+        removed: Mutex<Vec<PathBuf>>,
+    }
+
+    impl ArtifactIo for FakeArtifactIo {
+        fn request_id(&self) -> String {
+            Uuid::new_v4().to_string()
+        }
+
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.create_dir(path)
+        }
+
+        fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.remove_dir_all(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            FileSystemArtifactIo.read(path)
+        }
+
+        fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+            FileSystemArtifactIo.write(path, contents)
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            FileSystemArtifactIo.list(path)
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+            FileSystemArtifactIo.entry_kind(path)
+        }
+
+        fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize_artifact_path(path)
+        }
+
+        fn artifact_path_exists(&self, path: &Path) -> bool {
+            path.exists()
+        }
+
+        fn remove(&self, path: &Path) -> std::io::Result<()> {
+            self.removed.lock().unwrap().push(path.to_owned());
+            match std::fs::remove_file(path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error),
+            }
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            if self.fail_rename {
+                Err(std::io::Error::other("injected publication failure"))
+            } else {
+                std::fs::rename(from, to)
+            }
+        }
+
+        fn size(&self, path: &Path) -> std::io::Result<u64> {
+            if self.fail_size {
+                Err(std::io::Error::other("injected metadata failure"))
+            } else {
+                Ok(path.metadata()?.len())
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ArtifactFailure {
+        CreateWorkspace,
+        Write,
+        Canonicalize,
+        Read,
+        List,
+    }
+
+    #[derive(Debug, Default)]
+    struct LifecycleArtifactIo {
+        next_failure: Mutex<Option<ArtifactFailure>>,
+        events: Mutex<Vec<&'static str>>,
+        request_counter: AtomicUsize,
+    }
+
+    impl LifecycleArtifactIo {
+        fn fail_next(&self, failure: ArtifactFailure) {
+            *self.next_failure.lock().unwrap() = Some(failure);
+        }
+
+        fn take(&self, failure: ArtifactFailure) -> bool {
+            let mut next = self.next_failure.lock().unwrap();
+            if *next == Some(failure) {
+                *next = None;
+                true
+            } else {
+                false
+            }
+        }
+
+        fn record(&self, event: &'static str) {
+            self.events.lock().unwrap().push(event);
+        }
+    }
+
+    impl ArtifactIo for LifecycleArtifactIo {
+        fn request_id(&self) -> String {
+            self.record("request_id");
+            format!(
+                "lifecycle-{}",
+                self.request_counter.fetch_add(1, Ordering::SeqCst)
+            )
+        }
+
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            self.record("create_dir");
+            if self.take(ArtifactFailure::CreateWorkspace) {
+                Err(std::io::Error::other("injected workspace failure"))
+            } else {
+                FileSystemArtifactIo.create_dir(path)
+            }
+        }
+
+        fn remove_dir_all(&self, path: &Path) -> std::io::Result<()> {
+            self.record("remove_dir_all");
+            FileSystemArtifactIo.remove_dir_all(path)
+        }
+
+        fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            self.record("read");
+            if self.take(ArtifactFailure::Read) {
+                Err(std::io::Error::other("injected read failure"))
+            } else {
+                FileSystemArtifactIo.read(path)
+            }
+        }
+
+        fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+            self.record("write");
+            if self.take(ArtifactFailure::Write) {
+                Err(std::io::Error::other("injected write failure"))
+            } else {
+                FileSystemArtifactIo.write(path, contents)
+            }
+        }
+
+        fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+            self.record("list");
+            if self.take(ArtifactFailure::List) {
+                Err(std::io::Error::other("injected list failure"))
+            } else {
+                FileSystemArtifactIo.list(path)
+            }
+        }
+
+        fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+            self.record("entry_kind");
+            FileSystemArtifactIo.entry_kind(path)
+        }
+
+        fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
+            self.record("canonicalize");
+            if self.take(ArtifactFailure::Canonicalize) {
+                Err(std::io::Error::other("injected canonicalize failure"))
+            } else {
+                FileSystemArtifactIo.canonicalize_artifact_path(path)
+            }
+        }
+
+        fn artifact_path_exists(&self, path: &Path) -> bool {
+            self.record("exists");
+            FileSystemArtifactIo.artifact_path_exists(path)
+        }
+
+        fn remove(&self, path: &Path) -> std::io::Result<()> {
+            self.record("remove");
+            match FileSystemArtifactIo.remove(path) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error),
+            }
+        }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            self.record("rename");
+            FileSystemArtifactIo.rename(from, to)
+        }
+
+        fn size(&self, path: &Path) -> std::io::Result<u64> {
+            self.record("size");
+            FileSystemArtifactIo.size(path)
+        }
+    }
+
+    fn empty_project() -> Project {
+        Project {
+            schema_version: PROJECT_SCHEMA_VERSION,
+            id: "project".into(),
+            revision: 0,
+            name: "Project".into(),
+            created_at_ms: 1,
+            updated_at_ms: 1,
+            settings: ProjectSettings::default(),
+            assets: vec![],
+            tracks: vec![],
+        }
+    }
+
+    fn visual_project() -> Project {
+        let mut project = empty_project();
+        project.settings.width = 320;
+        project.settings.height = 180;
+        project.settings.fps = 15;
+        project.tracks.push(Track {
+            id: "overlay".into(),
+            name: "Overlay".into(),
+            track_type: TrackType::Overlay,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::SolidColor(SolidColorItem {
+                id: "background".into(),
+                color: "#112233".into(),
+                start_ms: 0,
+                duration_ms: 1_000,
+                transform: Transform::default(),
+                keyframes: vec![],
+                hidden: false,
+            })],
+        });
+        project
+    }
+
+    #[test]
+    fn facade_delegates_readiness_probe_execution_and_cleanup_to_adapters() {
+        let failing_process = Arc::new(FakeProcess {
+            readiness_error: true,
+            probe_error: true,
+            run_failure: Some(FakeRunFailure::Spawn),
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(FakeArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(failing_process.clone(), artifact_io.clone());
+        assert_eq!(
+            renderer.readiness().unwrap_err().code,
+            ErrorCode::DependencyUnavailable
+        );
+        assert_eq!(
+            renderer.probe(Path::new("media.mp4")).unwrap_err().code,
+            ErrorCode::UnsupportedMedia
+        );
+
+        let root = tempdir().unwrap();
+        let output = root.path().join("output.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert_eq!(failing_process.executions.lock().unwrap().len(), 1);
+        assert_eq!(artifact_io.removed.lock().unwrap().len(), 1);
+
+        let exit_process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: Some(FakeRunFailure::Exit),
+            executions: Mutex::new(vec![]),
+        });
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(exit_process, artifact_io.clone());
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(RENDER_STAGE));
+        assert_eq!(error.ffmpeg_exit_code, Some(7));
+        assert_eq!(
+            error.ffmpeg_stderr_excerpt.as_deref(),
+            Some("injected diagnostic")
+        );
+    }
+
+    #[test]
+    fn facade_delegates_publication_and_metadata_failures_to_artifact_adapter() {
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(FakeArtifactIo {
+            fail_rename: false,
+            fail_size: true,
+            removed: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("ffmpeg", "ffprobe", None).with_adapters(process, artifact_io.clone());
+        let root = tempdir().unwrap();
+        let output = root.path().join("output.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert!(!output.exists());
+        assert!(artifact_io.removed.lock().unwrap().contains(&output));
+
+        let publication_io = Arc::new(FakeArtifactIo {
+            fail_rename: true,
+            fail_size: false,
+            removed: Mutex::new(vec![]),
+        });
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("ffmpeg", "ffprobe", None).with_adapters(process, publication_io.clone());
+        let publication_output = root.path().join("publication.mp4");
+        let error = renderer
+            .export_video(
+                &empty_project(),
+                root.path(),
+                ExportOptions {
+                    output: &publication_output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.failed_stage.as_deref(), Some(PUBLISH_STAGE));
+        assert_eq!(publication_io.removed.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn facade_delegates_workspace_filter_paths_and_cleanup_for_every_render_intent() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        let project = visual_project();
+
+        renderer.render_preview(&project, root.path(), 0).unwrap();
+        renderer
+            .render_preview_range(
+                &project,
+                root.path(),
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 500,
+                    width: 320,
+                    height: 180,
+                    fps: 15,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        renderer
+            .export_video(
+                &project,
+                root.path(),
+                ExportOptions {
+                    output: &root.path().join("export.mp4"),
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+
+        assert_eq!(
+            process.executions.lock().unwrap().as_slice(),
+            &[
+                RenderIntent::Frame { at_ms: 0 },
+                RenderIntent::Range {
+                    start_ms: 0,
+                    end_ms: 500,
+                    include_audio: false,
+                },
+                RenderIntent::Export,
+            ]
+        );
+        let events = artifact_io.events.lock().unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| **event == "create_dir")
+                .count(),
+            3
+        );
+        assert_eq!(events.iter().filter(|event| **event == "write").count(), 3);
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| **event == "remove_dir_all")
+                .count(),
+            3
+        );
+        assert!(events.contains(&"rename"));
+        assert!(events.contains(&"size"));
+    }
+
+    #[test]
+    fn facade_maps_injected_workspace_and_filter_failures_and_still_cleans_up() {
+        for failure in [ArtifactFailure::CreateWorkspace, ArtifactFailure::Write] {
+            let root = tempdir().unwrap();
+            let process = Arc::new(FakeProcess {
+                readiness_error: false,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let artifact_io = Arc::new(LifecycleArtifactIo::default());
+            artifact_io.fail_next(failure);
+            let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+                .with_adapters(process, artifact_io.clone());
+            let error = renderer
+                .export_video(
+                    &visual_project(),
+                    root.path(),
+                    ExportOptions {
+                        output: &root.path().join("export.mp4"),
+                        width: 320,
+                        height: 180,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.failed_stage.as_deref(), Some(GRAPH_BUILD_STAGE));
+            let events = artifact_io.events.lock().unwrap();
+            if failure == ArtifactFailure::Write {
+                assert!(events.contains(&"remove_dir_all"));
+            }
+        }
+    }
+
+    #[test]
+    fn facade_routes_font_path_listing_and_reads_through_artifact_io() {
+        for failure in [
+            ArtifactFailure::Canonicalize,
+            ArtifactFailure::Read,
+            ArtifactFailure::List,
+        ] {
+            let root = tempdir().unwrap();
+            let fonts = root.path().join("fonts");
+            std::fs::create_dir(&fonts).unwrap();
+            std::fs::write(fonts.join("fixture.ttf"), b"not a real font").unwrap();
+            let mut project = visual_project();
+            project.tracks[0]
+                .items
+                .push(TimelineItem::Text(crate::TextItem {
+                    id: "text".into(),
+                    text: "artifact adapter".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    font_size: 20,
+                    color: "#ffffff".into(),
+                    font_family: (failure == ArtifactFailure::List).then(|| "Missing".into()),
+                    font_path: (failure != ArtifactFailure::List).then(|| "fixture.ttf".into()),
+                    style: crate::TextStyle {
+                        wrap_width_px: Some(120),
+                        ..crate::TextStyle::default()
+                    },
+                    transform: Transform::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                }));
+            let process = Arc::new(FakeProcess {
+                readiness_error: false,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let artifact_io = Arc::new(LifecycleArtifactIo::default());
+            artifact_io.fail_next(failure);
+            let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+                .with_font_roots([fonts])
+                .with_adapters(process, artifact_io.clone());
+            let artifact = renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &root.path().join("export.mp4"),
+                        width: 320,
+                        height: 180,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let events = artifact_io.events.lock().unwrap();
+            match failure {
+                ArtifactFailure::Canonicalize => {
+                    assert!(events.contains(&"canonicalize"));
+                    assert!(
+                        artifact
+                            .warnings
+                            .iter()
+                            .any(|warning| warning.contains("font path"))
+                    );
+                }
+                ArtifactFailure::Read => assert!(events.contains(&"read")),
+                ArtifactFailure::List => {
+                    assert!(events.contains(&"list"));
+                    assert!(
+                        artifact
+                            .warnings
+                            .iter()
+                            .any(|warning| warning.contains("font family"))
+                    );
+                }
+                ArtifactFailure::CreateWorkspace | ArtifactFailure::Write => unreachable!(),
+            }
+        }
+    }
 
     #[test]
     fn keyframe_expression_contains_no_shell_syntax() {
@@ -1726,17 +1012,23 @@ mod tests {
 
     #[test]
     fn preview_range_without_audio_consumes_the_labeled_audio_output() {
-        let mut command = Command::new("ffmpeg");
-        configure_preview_range_outputs(
-            &mut command,
-            PreviewRangeOptions {
-                start_ms: 100,
-                end_ms: 1_100,
+        let command = build_render_command(
+            Path::new("ffmpeg"),
+            &RenderPlan {
+                filter_graph: String::new(),
                 width: 320,
                 height: 180,
                 fps: 15,
-                include_audio: false,
+                duration_ms: 1_100,
+                intent: RenderIntent::Range {
+                    start_ms: 100,
+                    end_ms: 1_100,
+                    include_audio: false,
+                },
+                media_inputs: vec![],
+                media_paths: vec![],
             },
+            Path::new("filter.txt"),
             Path::new("preview.mp4"),
         );
         let arguments = command
@@ -2050,17 +1342,28 @@ mod tests {
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         let mut warnings = Vec::new();
-        let text_layers = renderer
-            .prepare_text_layers(&project, root.path(), &mut warnings)
-            .unwrap();
-        let asset_by_id = HashMap::new();
-        let input_indexes = HashMap::new();
+        let text_resources = project
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .filter_map(|item| match item {
+                TimelineItem::Text(text) if !text.hidden => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let text_layers = prepare_text_layers(
+            &FileSystemArtifactIo,
+            &text_resources,
+            root.path(),
+            renderer.default_font_path.as_deref(),
+            &renderer.font_roots,
+            &mut warnings,
+        )
+        .unwrap();
         let filter = renderer
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
@@ -2125,7 +1428,10 @@ mod tests {
         let root = tempdir().unwrap();
         let invalid_project_dir = root.path().join("project-file");
         std::fs::write(&invalid_project_dir, b"not a directory").unwrap();
-        let graph_error = RenderWorkspace::create(&invalid_project_dir).err().unwrap();
+        let graph_error =
+            RenderWorkspace::create(Arc::new(FileSystemArtifactIo), &invalid_project_dir)
+                .err()
+                .unwrap();
         assert_eq!(graph_error.code, ErrorCode::FfmpegFailed);
         assert_eq!(graph_error.failed_stage.as_deref(), Some(GRAPH_BUILD_STAGE));
         assert_eq!(graph_error.ffmpeg_exit_code, None);
@@ -2236,7 +1542,7 @@ mod tests {
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         assert!(
             renderer
-                .build_command(&project, root.path(), 320, 180, 15)
+                .prepare_render(&project, root.path(), 320, 180, 15, RenderIntent::Export,)
                 .is_err()
         );
         assert!(std::fs::read_dir(root.path()).unwrap().all(|entry| {
@@ -2253,7 +1559,8 @@ mod tests {
         let root = tempdir().unwrap();
         let workspace_path;
         {
-            let workspace = RenderWorkspace::create(root.path()).unwrap();
+            let workspace =
+                RenderWorkspace::create(Arc::new(FileSystemArtifactIo), root.path()).unwrap();
             workspace_path = workspace.path().to_owned();
             std::fs::write(workspace.path().join("filter.txt"), b"fixture").unwrap();
             assert!(workspace_path.exists());
@@ -2636,15 +1943,11 @@ mod tests {
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
         let text_layers = HashMap::new();
-        let asset_by_id = HashMap::new();
-        let input_indexes = HashMap::new();
         let mut warnings = Vec::new();
         let filter = renderer
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
@@ -2660,8 +1963,6 @@ mod tests {
             .build_filter(
                 &project,
                 FilterContext {
-                    asset_by_id: &asset_by_id,
-                    input_indexes: &input_indexes,
                     text_layers: &text_layers,
                     width: 1920,
                     height: 1080,
