@@ -78,7 +78,7 @@ Persistence logic depends on a crate-private, I/O-shaped port. It exposes only t
 
 Render planning emits declarative, comparable planning data and never starts a process or publishes output. A process executor accepts structured program arguments and reports bounded outcomes. Artifact I/O owns workspace lifetime, temporary paths, overwrite/collision policy, publication, cleanup, and metadata. The public renderer coordinates these owners and maps failures to the existing `CoreError` behavior.
 
-The scene-to-plan input is the only handoff seam reserved for `EvaluatedScene`. Issue #12 owns that future representation; issue #13 will route all render entry points through it. This ADR deliberately does not define a placeholder public scene model.
+The scene-to-plan input is the only handoff seam reserved for `EvaluatedScene`. [ADR 0004](0004-motion-graphics-architecture.md) makes editor-core the canonical evaluator, locks the renderer-neutral scene semantics, and requires every render entry point to consume that seam. Issues #12 and #13 own the future representation and routing implementation; this ADR deliberately does not define a placeholder public scene model.
 
 ## Compatibility constraints
 
