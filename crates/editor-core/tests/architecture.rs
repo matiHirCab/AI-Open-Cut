@@ -50,6 +50,95 @@ fn read_source(relative: &str) -> String {
         .unwrap_or_else(|error| panic!("cannot read editor-core source {relative}: {error}"))
 }
 
+fn validate_motion_graphics_adr(source: &str) -> Result<(), String> {
+    const REQUIRED_SEMANTICS: &[&str] = &[
+        "### 1. Additive root-track model",
+        "### 2. Canonical EvaluatedScene seam",
+        "### 3. Hybrid renderer boundary",
+        "#### Fallback policy",
+        "### 4. Normative ordering and compositing",
+        "### 5. Presets compile to persisted primitives",
+        "### 6. Additive schema-version policy",
+        "top-left origin",
+        "half-open intervals `[start_ms, end_ms)`",
+        "ascending explicit `z_index`",
+        "premultiplied alpha in linear light",
+        "raw FFmpeg expressions",
+        "executable SVG content",
+        "arbitrary paths",
+        "network resources",
+        "deterministic local priority",
+        "complete `EvaluatedScene`",
+        "must not omit, approximate, downgrade, reorder, or remotely acquire resources",
+        "`DEPENDENCY_UNAVAILABLE`",
+        "No partial or degraded artifact is published",
+        "current state and every retained undo and redo snapshot",
+        "contracts/contract-ownership-v1.json",
+        "all versioned public fixtures remain unchanged",
+    ];
+
+    let missing = REQUIRED_SEMANTICS
+        .iter()
+        .copied()
+        .filter(|required| !source.contains(required))
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "ADR 0004 is missing required motion-graphics semantics: {}",
+            missing.join(", ")
+        ))
+    }
+}
+
+#[test]
+fn motion_graphics_adr_locks_required_architecture_semantics() {
+    let adr = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/adr/0004-motion-graphics-architecture.md"),
+    )
+    .expect("ADR 0004 must be readable");
+
+    validate_motion_graphics_adr(&adr).unwrap_or_else(|message| panic!("{message}"));
+}
+
+#[test]
+fn motion_graphics_adr_validation_rejects_an_omitted_decision() {
+    let incomplete = "### 1. Additive root-track model";
+    let message = validate_motion_graphics_adr(incomplete)
+        .expect_err("an ADR fixture missing five decisions and semantics must fail");
+
+    assert!(message.contains("### 2. Canonical EvaluatedScene seam"));
+    assert!(message.contains("premultiplied alpha in linear light"));
+    assert!(message.contains("all versioned public fixtures remain unchanged"));
+}
+
+#[test]
+fn motion_graphics_adr_validation_rejects_an_omitted_fallback_policy() {
+    let adr = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/adr/0004-motion-graphics-architecture.md"),
+    )
+    .expect("ADR 0004 must be readable");
+    let (before_fallback, after_heading) = adr
+        .split_once("#### Fallback policy")
+        .expect("ADR fixture must contain the fallback heading");
+    let (_, after_fallback) = after_heading
+        .split_once("We rejected an FFmpeg-only implementation")
+        .expect("ADR fixture must contain the paragraph after the fallback policy");
+    let without_fallback =
+        format!("{before_fallback}We rejected an FFmpeg-only implementation{after_fallback}");
+
+    let message = validate_motion_graphics_adr(&without_fallback)
+        .expect_err("an ADR fixture missing only the fallback policy must fail");
+
+    assert!(message.contains("#### Fallback policy"));
+    assert!(message.contains("deterministic local priority"));
+    assert!(message.contains("`DEPENDENCY_UNAVAILABLE`"));
+    assert!(message.contains("No partial or degraded artifact is published"));
+}
+
 fn known_owner(candidate: &str) -> Option<&'static str> {
     OWNER_MATRIX
         .iter()
