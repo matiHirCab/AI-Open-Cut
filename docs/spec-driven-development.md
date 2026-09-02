@@ -57,6 +57,7 @@ bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive
 ```
 
 CI runs the same Moon task. A malformed requirement, scenario, or change blocks the pull request.
+Moon uses the workspace's configured `main` VCS default branch for revision comparison in both local and CI checkouts.
 
 ## Upgrading OpenSpec
 
