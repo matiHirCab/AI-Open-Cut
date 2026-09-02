@@ -2,6 +2,7 @@ mod animation;
 mod assets;
 mod drafts;
 mod error;
+mod evaluated_scene;
 mod migrations;
 mod model;
 mod path_policy;

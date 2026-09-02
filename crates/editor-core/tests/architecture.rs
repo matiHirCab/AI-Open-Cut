@@ -14,13 +14,14 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("animation", &[]),
     ("assets", &["persistence"]),
     ("drafts", &["persistence"]),
+    ("evaluated_scene", &["animation"]),
     ("error", &[]),
     ("migrations", &[]),
     ("model", &["error"]),
     ("path_policy", &[]),
     ("persistence", &[]),
     ("render_artifact", &["render_plan"]),
-    ("render_plan", &["animation"]),
+    ("render_plan", &["animation", "evaluated_scene"]),
     ("render_process", &["render_plan"]),
     (
         "renderer",
@@ -75,6 +76,12 @@ fn validate_motion_graphics_adr(source: &str) -> Result<(), String> {
         "current state and every retained undo and redo snapshot",
         "contracts/contract-ownership-v1.json",
         "all versioned public fixtures remain unchanged",
+        "4,096 visual layers",
+        "4,096 emitted transition endpoint facts",
+        "logical font-resource ID",
+        "`SceneResourceBindings`",
+        "checks referenced assets first",
+        "Issue #13",
     ];
 
     let missing = REQUIRED_SEMANTICS
@@ -1450,6 +1457,7 @@ fn required_owners_are_private_modules() {
         "animation",
         "assets",
         "drafts",
+        "evaluated_scene",
         "error",
         "migrations",
         "model",
@@ -1470,6 +1478,161 @@ fn required_owners_are_private_modules() {
         assert!(
             !lib.contains(&format!("pub mod {owner};")),
             "ADR 0003 owner `{owner}` must remain behind the stable facade"
+        );
+    }
+}
+
+#[test]
+fn evaluated_scene_excludes_persistence_and_renderer_details() {
+    let analysis = analyze_owner("evaluated_scene").unwrap();
+    validate_owner_analysis("evaluated_scene", &["animation"], &analysis).unwrap();
+
+    #[derive(Default)]
+    struct FieldTypeVisitor {
+        identifiers: BTreeSet<String>,
+    }
+
+    impl<'ast> Visit<'ast> for FieldTypeVisitor {
+        fn visit_path(&mut self, path: &'ast SynPath) {
+            self.identifiers.extend(
+                path.segments
+                    .iter()
+                    .map(|segment| segment.ident.to_string()),
+            );
+            visit::visit_path(self, path);
+        }
+    }
+
+    let source = read_source("evaluated_scene.rs");
+    let syntax = syn::parse_file(&source).expect("evaluated_scene.rs must parse");
+    let mut scene_fields = BTreeSet::new();
+    let mut field_types = FieldTypeVisitor::default();
+    let mut binding_fields = BTreeSet::new();
+    let mut binding_field_types = FieldTypeVisitor::default();
+    let mut evaluated_scene_fields = BTreeSet::new();
+    let mut evaluated_scene_voiceover_type = FieldTypeVisitor::default();
+    let mut evaluated_ducking_fields = BTreeSet::new();
+    let mut evaluated_ducking_field_types = FieldTypeVisitor::default();
+    for item in syntax.items {
+        if let Item::Struct(item) = item {
+            let name = item.ident.to_string();
+            if name.starts_with("Evaluated") {
+                for field in &item.fields {
+                    if let Some(identifier) = &field.ident {
+                        scene_fields.insert(identifier.to_string());
+                    }
+                    field_types.visit_type(&field.ty);
+                }
+            }
+            if name == "EvaluatedScene" {
+                for field in &item.fields {
+                    let Some(identifier) = &field.ident else {
+                        continue;
+                    };
+                    evaluated_scene_fields.insert(identifier.to_string());
+                    if identifier == "voiceover_intervals" {
+                        evaluated_scene_voiceover_type.visit_type(&field.ty);
+                    }
+                }
+            }
+            if name == "EvaluatedDucking" {
+                for field in &item.fields {
+                    if let Some(identifier) = &field.ident {
+                        evaluated_ducking_fields.insert(identifier.to_string());
+                    }
+                    evaluated_ducking_field_types.visit_type(&field.ty);
+                }
+            }
+            if matches!(
+                name.as_str(),
+                "SceneResourceBindings" | "MediaResourceBinding" | "FontResourceBinding"
+            ) {
+                for field in &item.fields {
+                    if let Some(identifier) = &field.ident {
+                        binding_fields.insert(identifier.to_string());
+                    }
+                    binding_field_types.visit_type(&field.ty);
+                }
+            }
+        }
+    }
+
+    assert!(
+        evaluated_scene_fields.contains("voiceover_intervals"),
+        "EvaluatedScene must own the shared voiceover interval table"
+    );
+    assert_eq!(
+        evaluated_scene_voiceover_type.identifiers,
+        BTreeSet::from(["EvaluatedTimeSpan".to_owned(), "Vec".to_owned()]),
+        "EvaluatedScene voiceover intervals must be one owned span vector"
+    );
+    assert_eq!(
+        evaluated_ducking_fields,
+        BTreeSet::from([
+            "attack_ms".to_owned(),
+            "gain".to_owned(),
+            "release_ms".to_owned(),
+        ]),
+        "EvaluatedDucking must retain only gain, attack, and release settings"
+    );
+    assert!(
+        !evaluated_ducking_field_types
+            .identifiers
+            .contains("EvaluatedTimeSpan"),
+        "EvaluatedDucking must not own an interval table under another field name"
+    );
+
+    for forbidden_field in [
+        "project",
+        "tracks",
+        "project_relative_path",
+        "path",
+        "url",
+        "uri",
+        "expression",
+        "filter_graph",
+        "command",
+        "artifact",
+        "destination",
+    ] {
+        assert!(
+            !scene_fields.contains(forbidden_field),
+            "EvaluatedScene must not expose forbidden field `{forbidden_field}`"
+        );
+    }
+
+    for forbidden_type in [
+        "Path",
+        "PathBuf",
+        "RenderPlan",
+        "PreparedText",
+        "Command",
+        "RenderArtifact",
+    ] {
+        assert!(
+            !field_types.identifiers.contains(forbidden_type),
+            "EvaluatedScene must not depend on forbidden type `{forbidden_type}`"
+        );
+    }
+
+    assert!(binding_fields.contains("project_relative_path"));
+    assert!(binding_fields.contains("requested_path"));
+    assert!(binding_fields.contains("requested_family"));
+    for forbidden_type in [
+        "Path",
+        "PathBuf",
+        "SceneEvaluation",
+        "MediaInputRequest",
+        "RenderPlan",
+        "PreparedText",
+        "PreparedRenderResources",
+        "ProcessExecutor",
+        "Command",
+        "RenderArtifact",
+    ] {
+        assert!(
+            !binding_field_types.identifiers.contains(forbidden_type),
+            "scene resource bindings must not depend on renderer/backend type `{forbidden_type}`"
         );
     }
 }
