@@ -66,6 +66,11 @@
       "audio_ducking",
       "undo_redo"
     ],
-    "renderingCapabilities": ["preview", "preview_range", "mp4_export"]
+    "renderingCapabilities": [
+      "preview",
+      "preview_range",
+      "mp4_export",
+      "evaluated_scene_rendering"
+    ]
   }
 }

@@ -20,12 +20,17 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("model", &["error"]),
     ("path_policy", &[]),
     ("persistence", &[]),
-    ("render_artifact", &["render_plan"]),
+    ("render_artifact", &["evaluated_scene", "render_plan"]),
     ("render_plan", &["animation", "evaluated_scene"]),
     ("render_process", &["render_plan"]),
     (
         "renderer",
-        &["render_artifact", "render_plan", "render_process"],
+        &[
+            "evaluated_scene",
+            "render_artifact",
+            "render_plan",
+            "render_process",
+        ],
     ),
     (
         "store",
@@ -75,7 +80,8 @@ fn validate_motion_graphics_adr(source: &str) -> Result<(), String> {
         "No partial or degraded artifact is published",
         "current state and every retained undo and redo snapshot",
         "contracts/contract-ownership-v1.json",
-        "all versioned public fixtures remain unchanged",
+        "`evaluated_scene_rendering`",
+        "SSIM",
         "4,096 visual layers",
         "4,096 emitted transition endpoint facts",
         "logical font-resource ID",
@@ -118,7 +124,7 @@ fn motion_graphics_adr_validation_rejects_an_omitted_decision() {
 
     assert!(message.contains("### 2. Canonical EvaluatedScene seam"));
     assert!(message.contains("premultiplied alpha in linear light"));
-    assert!(message.contains("all versioned public fixtures remain unchanged"));
+    assert!(message.contains("`evaluated_scene_rendering`"));
 }
 
 #[test]
@@ -1714,6 +1720,13 @@ fn owners_exclude_outer_layers_and_reviewed_responsibilities() {
 
     let render_plan = analyze_owner("render_plan").unwrap();
     for (token, forbidden) in [
+        ("Project", render_plan.has_identifier("Project")),
+        ("Track", render_plan.has_identifier("Track")),
+        ("TimelineItem", render_plan.has_identifier("TimelineItem")),
+        ("Asset", render_plan.has_identifier("Asset")),
+        ("TextItem", render_plan.has_identifier("TextItem")),
+        (".tracks", render_plan.field_names.contains("tracks")),
+        (".assets", render_plan.field_names.contains("assets")),
         (
             "std::process",
             render_plan.has_path_sequence(&["std", "process"]),
@@ -1734,7 +1747,7 @@ fn owners_exclude_outer_layers_and_reviewed_responsibilities() {
     ] {
         assert!(
             !forbidden,
-            "render planning must not depend on execution/publication token `{token}`"
+            "render planning must consume EvaluatedScene without persisted or execution/publication token `{token}`"
         );
     }
 

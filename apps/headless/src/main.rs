@@ -672,7 +672,12 @@ fn editor_capabilities() -> Vec<&'static str> {
 }
 
 fn render_capabilities() -> Vec<&'static str> {
-    vec!["preview", "preview_range", "mp4_export"]
+    vec![
+        "preview",
+        "preview_range",
+        "mp4_export",
+        "evaluated_scene_rendering",
+    ]
 }
 
 fn negotiate_protocol_version(requested: Option<u32>) -> Result<u32, CoreError> {

@@ -7,19 +7,22 @@ use uuid::Uuid;
 
 use crate::{
     CoreError, ErrorCode, Project,
+    evaluated_scene::{EvaluatedSceneResult, evaluate_project},
     render_artifact::{
-        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, RenderArtifact, RenderWorkspace,
-        artifact_with, prepare_render_resources, publish_output_with, temporary_output,
-        write_filter_script,
+        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, PreparedMediaResources,
+        RenderArtifact, RenderWorkspace, artifact_with, prepare_media_resources,
+        prepare_render_resources, publish_output_with, temporary_output, write_filter_script,
     },
-    render_plan::{RenderIntent, RenderPlan, SceneInput, build_render_plan, evaluate_scene},
+    render_plan::{RenderIntent, RenderPlan, build_render_plan},
     render_process::{
         ProbeResult, ProcessExecutor, RenderProgress, SystemProcessExecutor, map_renderer_error,
     },
 };
 
 #[cfg(test)]
-use crate::render_artifact::{PUBLISH_STAGE, wrap_text, wrap_text_with_measure};
+use crate::render_artifact::{
+    PUBLISH_STAGE, media_input_requests, wrap_text, wrap_text_with_measure,
+};
 #[cfg(test)]
 use crate::render_plan::{
     FilterContext, audible_voiceover_intervals, ducking_expression, ducking_gain_at, escape_filter,
@@ -122,6 +125,13 @@ impl Renderer {
                 "preview time exceeds project duration",
             ));
         }
+        let evaluated = evaluate_project(
+            project,
+            project.settings.width,
+            project.settings.height,
+            project.settings.fps,
+        )?;
+        let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -130,11 +140,9 @@ impl Renderer {
             "png",
         );
         let built = self.prepare_render(
-            project,
+            &evaluated,
+            media,
             project_dir,
-            project.settings.width,
-            project.settings.height,
-            project.settings.fps,
             RenderIntent::Frame { at_ms: time_ms },
         )?;
         if let Err(error) = self.process_executor.execute(
@@ -164,6 +172,9 @@ impl Renderer {
         options: ExportOptions<'_>,
         mut on_progress: impl FnMut(RenderProgress),
     ) -> Result<RenderArtifact, CoreError> {
+        let evaluated =
+            evaluate_project(project, options.width, options.height, project.settings.fps)?;
+        let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
@@ -175,14 +186,7 @@ impl Renderer {
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let built = self.prepare_render(
-            project,
-            project_dir,
-            options.width,
-            options.height,
-            project.settings.fps,
-            RenderIntent::Export,
-        )?;
+        let built = self.prepare_render(&evaluated, media, project_dir, RenderIntent::Export)?;
         if let Err(error) = self.process_executor.execute(
             &self.ffmpeg_path,
             &built.plan,
@@ -231,6 +235,8 @@ impl Renderer {
                 "preview range options are invalid",
             ));
         }
+        let evaluated = evaluate_project(project, options.width, options.height, options.fps)?;
+        let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -239,11 +245,9 @@ impl Renderer {
             "mp4",
         );
         let built = self.prepare_render(
-            project,
+            &evaluated,
+            media,
             project_dir,
-            options.width,
-            options.height,
-            options.fps,
             RenderIntent::Range {
                 start_ms: options.start_ms,
                 end_ms: options.end_ms,
@@ -273,20 +277,17 @@ impl Renderer {
 
     fn prepare_render(
         &self,
-        project: &Project,
+        evaluated: &EvaluatedSceneResult,
+        media: PreparedMediaResources,
         project_dir: &Path,
-        width: u32,
-        height: u32,
-        fps: u32,
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
-        let scene = evaluate_scene(SceneInput { project, intent }, width, height, fps)?;
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut warnings = Vec::new();
         let resources = prepare_render_resources(
             self.artifact_io.as_ref(),
-            &scene,
-            project_dir,
+            evaluated,
+            media,
             workspace.path(),
             self.default_font_path.as_deref(),
             &self.font_roots,
@@ -294,10 +295,12 @@ impl Renderer {
         )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
-            &scene,
+            &evaluated.scene,
             &resources.text_layers,
+            resources.media_inputs,
             resources.media_paths,
             self.default_font_path.as_deref(),
+            intent,
             &mut warnings,
         )
         .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
@@ -317,20 +320,15 @@ impl Renderer {
         context: FilterContext<'_>,
         warnings: &mut Vec<String>,
     ) -> Result<String, CoreError> {
-        let scene = evaluate_scene(
-            SceneInput {
-                project,
-                intent: RenderIntent::Export,
-            },
-            context.width,
-            context.height,
-            context.fps,
-        )?;
+        let evaluated = evaluate_project(project, context.width, context.height, context.fps)?;
+        let media_inputs = media_input_requests(&evaluated)?;
         build_render_plan(
-            &scene,
+            &evaluated.scene,
             context.text_layers,
+            media_inputs,
             Vec::new(),
             self.default_font_path.as_deref(),
+            RenderIntent::Export,
             warnings,
         )
         .map(|plan| plan.filter_graph)
@@ -341,7 +339,7 @@ impl Renderer {
 mod tests {
     use super::*;
     use crate::{
-        CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaType,
+        CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaItem, MediaType,
         PROJECT_SCHEMA_VERSION, ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType,
         Transform,
         render_artifact::{ArtifactEntryKind, artifact, prepare_text_layers, publish_output},
@@ -518,6 +516,7 @@ mod tests {
     #[derive(Debug, Default)]
     struct LifecycleArtifactIo {
         next_failure: Mutex<Option<ArtifactFailure>>,
+        canonical_escape: Mutex<Option<(PathBuf, PathBuf)>>,
         events: Mutex<Vec<&'static str>>,
         request_counter: AtomicUsize,
     }
@@ -539,6 +538,14 @@ mod tests {
 
         fn record(&self, event: &'static str) {
             self.events.lock().unwrap().push(event);
+        }
+
+        fn map_canonical_path(&self, input: PathBuf, output: PathBuf) {
+            *self.canonical_escape.lock().unwrap() = Some((input, output));
+        }
+
+        fn clear_events(&self) {
+            self.events.lock().unwrap().clear();
         }
     }
 
@@ -601,6 +608,10 @@ mod tests {
             self.record("canonicalize");
             if self.take(ArtifactFailure::Canonicalize) {
                 Err(std::io::Error::other("injected canonicalize failure"))
+            } else if let Some((input, output)) = self.canonical_escape.lock().unwrap().as_ref()
+                && path == input
+            {
+                Ok(output.clone())
             } else {
                 FileSystemArtifactIo.canonicalize_artifact_path(path)
             }
@@ -670,6 +681,357 @@ mod tests {
             })],
         });
         project
+    }
+
+    fn assert_no_render_side_effects(artifact_io: &LifecycleArtifactIo, process: &FakeProcess) {
+        let events = artifact_io.events.lock().unwrap();
+        assert!(
+            events.iter().all(|event| *event == "canonicalize"),
+            "unexpected mutating artifact event(s): {events:?}"
+        );
+        assert!(process.executions.lock().unwrap().is_empty());
+    }
+
+    fn assert_all_facades_reject_without_side_effects(
+        renderer: &Renderer,
+        artifact_io: &LifecycleArtifactIo,
+        process: &FakeProcess,
+        project: &Project,
+        root: &Path,
+        expected: ErrorCode,
+    ) {
+        let preview_error = renderer.render_preview(project, root, 0).unwrap_err();
+        assert_eq!(preview_error.code, expected);
+        assert_no_render_side_effects(artifact_io, process);
+
+        artifact_io.clear_events();
+        let range_error = renderer
+            .render_preview_range(
+                project,
+                root,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: project.duration_ms().max(1),
+                    width: 320,
+                    height: 180,
+                    fps: 15,
+                    include_audio: true,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(range_error.code, expected);
+        assert_no_render_side_effects(artifact_io, process);
+
+        artifact_io.clear_events();
+        let output = root.join("rejected.mp4");
+        let export_error = renderer
+            .export_video(
+                project,
+                root,
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(export_error.code, expected);
+        assert_no_render_side_effects(artifact_io, process);
+        assert!(!output.exists());
+        artifact_io.clear_events();
+    }
+
+    #[test]
+    fn canonical_evaluation_failure_precedes_workspace_and_process_side_effects() {
+        let mut project = empty_project();
+        project.tracks.push(Track {
+            id: "video".into(),
+            name: "Video".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::Media(MediaItem {
+                id: "missing".into(),
+                asset_id: "missing-asset".into(),
+                start_ms: 0,
+                duration_ms: 1_000,
+                source_in_ms: 0,
+                transform: Transform::default(),
+                audio: crate::AudioSettings::default(),
+                keyframes: vec![],
+                hidden: false,
+            })],
+        });
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        let root = tempdir().unwrap();
+
+        let error = renderer
+            .render_preview(&project, root.path(), 0)
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::AssetNotFound);
+        assert!(artifact_io.events.lock().unwrap().is_empty());
+        assert!(process.executions.lock().unwrap().is_empty());
+
+        project.assets.push(crate::Asset {
+            id: "missing-asset".into(),
+            media_type: MediaType::Video,
+            file_name: "video.mp4".into(),
+            project_relative_path: "assets/video.mp4".into(),
+            duration_ms: Some(1_000),
+            has_audio: true,
+            origin: None,
+            content_hash: None,
+            size_bytes: None,
+            probe: None,
+        });
+        let mut evaluated = evaluate_project(
+            &project,
+            project.settings.width,
+            project.settings.height,
+            project.settings.fps,
+        )
+        .unwrap();
+        evaluated.resource_bindings.media.clear();
+        let error = prepare_media_resources(artifact_io.as_ref(), &evaluated, root.path())
+            .err()
+            .expect("inconsistent bindings must fail");
+
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert!(artifact_io.events.lock().unwrap().is_empty());
+        assert!(process.executions.lock().unwrap().is_empty());
+
+        project.assets[0].project_relative_path = "../outside.mp4".into();
+        let error = renderer
+            .render_preview(&project, root.path(), 0)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert!(artifact_io.events.lock().unwrap().is_empty());
+        assert!(process.executions.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn canonical_media_escape_precedes_collision_workspace_process_and_publication() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        let media_path = root.path().join("assets/video.mp4");
+        std::fs::write(&media_path, b"fixture").unwrap();
+        let output = root.path().join("existing.mp4");
+        std::fs::write(&output, b"existing").unwrap();
+        let mut project = empty_project();
+        project.assets.push(crate::Asset {
+            id: "video".into(),
+            media_type: MediaType::Video,
+            file_name: "video.mp4".into(),
+            project_relative_path: "assets/video.mp4".into(),
+            duration_ms: Some(1_000),
+            has_audio: true,
+            origin: None,
+            content_hash: None,
+            size_bytes: None,
+            probe: None,
+        });
+        project.tracks.push(Track {
+            id: "video-track".into(),
+            name: "Video".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::Media(MediaItem {
+                id: "video-item".into(),
+                asset_id: "video".into(),
+                start_ms: 0,
+                duration_ms: 1_000,
+                source_in_ms: 0,
+                transform: Transform::default(),
+                audio: crate::AudioSettings::default(),
+                keyframes: vec![],
+                hidden: false,
+            })],
+        });
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        artifact_io.map_canonical_path(
+            media_path,
+            root.path()
+                .parent()
+                .unwrap()
+                .join("resolved-outside-project.mp4"),
+        );
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+
+        let error = renderer
+            .render_preview(&project, root.path(), 500)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_no_render_side_effects(&artifact_io, &process);
+
+        artifact_io.clear_events();
+        let error = renderer
+            .render_preview_range(
+                &project,
+                root.path(),
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1_000,
+                    width: 320,
+                    height: 180,
+                    fps: 15,
+                    include_audio: true,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_no_render_side_effects(&artifact_io, &process);
+
+        artifact_io.clear_events();
+        let error = renderer
+            .export_video(
+                &project,
+                root.path(),
+                ExportOptions {
+                    output: &output,
+                    width: 320,
+                    height: 180,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert_no_render_side_effects(&artifact_io, &process);
+        assert_eq!(std::fs::read(output).unwrap(), b"existing");
+    }
+
+    #[test]
+    fn invalid_missing_non_finite_and_complex_scenes_are_side_effect_free_for_all_facades() {
+        let root = tempdir().unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+
+        let mut missing = empty_project();
+        missing.tracks.push(Track {
+            id: "missing-track".into(),
+            name: "Missing".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: crate::AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::Media(MediaItem {
+                id: "missing-item".into(),
+                asset_id: "missing-asset".into(),
+                start_ms: 0,
+                duration_ms: 1_000,
+                source_in_ms: 0,
+                transform: Transform::default(),
+                audio: crate::AudioSettings::default(),
+                keyframes: vec![],
+                hidden: false,
+            })],
+        });
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &missing,
+            root.path(),
+            ErrorCode::AssetNotFound,
+        );
+
+        let mut invalid_timing = visual_project();
+        let TimelineItem::SolidColor(item) = &mut invalid_timing.tracks[0].items[0] else {
+            unreachable!()
+        };
+        item.duration_ms = 0;
+        invalid_timing.tracks[0]
+            .items
+            .push(TimelineItem::SolidColor(SolidColorItem {
+                id: "valid-duration-anchor".into(),
+                color: "#000000".into(),
+                start_ms: 0,
+                duration_ms: 1,
+                transform: Transform::default(),
+                keyframes: vec![],
+                hidden: false,
+            }));
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &invalid_timing,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+
+        let mut non_finite = visual_project();
+        let TimelineItem::SolidColor(item) = &mut non_finite.tracks[0].items[0] else {
+            unreachable!()
+        };
+        item.transform.opacity = f64::NAN;
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &non_finite,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+
+        let mut too_complex = visual_project();
+        too_complex.tracks[0].items = (0..=crate::evaluated_scene::MAX_EVALUATED_VISUAL_LAYERS)
+            .map(|index| {
+                TimelineItem::SolidColor(SolidColorItem {
+                    id: format!("layer-{index}"),
+                    color: "#112233".into(),
+                    start_ms: 0,
+                    duration_ms: 1_000,
+                    transform: Transform::default(),
+                    keyframes: vec![],
+                    hidden: false,
+                })
+            })
+            .collect();
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &too_complex,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
     }
 
     #[test]
@@ -1540,9 +1902,12 @@ mod tests {
             }],
         };
         let renderer = Renderer::new("ffmpeg", "ffprobe", None);
+        let evaluated = evaluate_project(&project, 320, 180, 15).unwrap();
+        let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+            .unwrap();
         assert!(
             renderer
-                .prepare_render(&project, root.path(), 320, 180, 15, RenderIntent::Export,)
+                .prepare_render(&evaluated, media, root.path(), RenderIntent::Export)
                 .is_err()
         );
         assert!(std::fs::read_dir(root.path()).unwrap().all(|entry| {
@@ -1610,16 +1975,46 @@ mod tests {
         ) else {
             return;
         };
-        if !Command::new(&ffmpeg)
+        let ffmpeg_version = Command::new(&ffmpeg)
             .arg("-version")
             .output()
-            .is_ok_and(|output| output.status.success())
-        {
-            return;
-        }
+            .expect("configured OPENCUT_FFMPEG_PATH must be executable");
+        assert!(
+            ffmpeg_version.status.success(),
+            "configured OPENCUT_FFMPEG_PATH must run successfully"
+        );
+        let ffprobe_version = Command::new(&ffprobe)
+            .arg("-version")
+            .output()
+            .expect("configured OPENCUT_FFPROBE_PATH must be executable");
+        assert!(
+            ffprobe_version.status.success(),
+            "configured OPENCUT_FFPROBE_PATH must run successfully"
+        );
+        let font_path = env::var_os("OPENCUT_TEST_FONT_PATH")
+            .map(PathBuf::from)
+            .expect("configured native parity requires OPENCUT_TEST_FONT_PATH");
+        assert!(font_path.is_file(), "configured parity font must exist");
 
         let root = tempdir().unwrap();
         std::fs::create_dir(root.path().join("previews")).unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        let tone_path = root.path().join("assets/tone.wav");
+        let tone = Command::new(&ffmpeg)
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:sample_rate=48000:duration=1",
+                "-y",
+            ])
+            .arg(&tone_path)
+            .output()
+            .unwrap();
+        assert!(tone.status.success());
         let project = Project {
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "renderer-consistency".into(),
@@ -1632,94 +2027,124 @@ mod tests {
                 height: 90,
                 fps: 10,
             },
-            assets: vec![],
-            tracks: vec![Track {
-                id: "overlay".into(),
-                name: "Overlay".into(),
-                track_type: TrackType::Overlay,
-                locked: false,
-                hidden: false,
-                muted: false,
-                audio_role: crate::AudioTrackRole::Unassigned,
-                ducking: None,
-                items: vec![
-                    TimelineItem::SolidColor(SolidColorItem {
-                        id: "background".into(),
-                        color: "#cc3311".into(),
+            assets: vec![crate::Asset {
+                id: "tone".into(),
+                media_type: MediaType::Audio,
+                file_name: "tone.wav".into(),
+                project_relative_path: "assets/tone.wav".into(),
+                duration_ms: Some(1_000),
+                has_audio: true,
+                origin: None,
+                content_hash: None,
+                size_bytes: None,
+                probe: None,
+            }],
+            tracks: vec![
+                Track {
+                    id: "overlay".into(),
+                    name: "Overlay".into(),
+                    track_type: TrackType::Overlay,
+                    locked: false,
+                    hidden: false,
+                    muted: false,
+                    audio_role: crate::AudioTrackRole::Unassigned,
+                    ducking: None,
+                    items: vec![
+                        TimelineItem::SolidColor(SolidColorItem {
+                            id: "background".into(),
+                            color: "#cc3311".into(),
+                            start_ms: 0,
+                            duration_ms: 1_000,
+                            transform: Transform {
+                                opacity: 0.7,
+                                ..Transform::default()
+                            },
+                            keyframes: vec![],
+                            hidden: false,
+                        }),
+                        TimelineItem::Text(crate::TextItem {
+                            id: "animated-text".into(),
+                            text: "café →\nWWWW iiii".into(),
+                            start_ms: 0,
+                            duration_ms: 1_000,
+                            font_size: 20,
+                            color: "#ffffff".into(),
+                            font_family: None,
+                            font_path: None,
+                            style: crate::TextStyle {
+                                wrap_width_px: Some(100),
+                                line_spacing_px: 3,
+                                outline_width_px: 1,
+                                background_opacity: 0.4,
+                                padding: crate::TextPadding {
+                                    top: 2,
+                                    right: 4,
+                                    bottom: 3,
+                                    left: 5,
+                                },
+                                anchor: crate::AnchorPoint::Center,
+                                ..crate::TextStyle::default()
+                            },
+                            transform: Transform {
+                                position_x: 80.0,
+                                position_y: 45.0,
+                                scale: 1.0,
+                                opacity: 0.8,
+                            },
+                            keyframes: vec![
+                                Keyframe {
+                                    property: KeyframeProperty::Scale,
+                                    time_ms: 0,
+                                    value: KeyframeValue::Scalar { value: 0.8 },
+                                    easing: Easing::EaseInOut,
+                                },
+                                Keyframe {
+                                    property: KeyframeProperty::Scale,
+                                    time_ms: 1_000,
+                                    value: KeyframeValue::Scalar { value: 1.2 },
+                                    easing: Easing::Linear,
+                                },
+                                Keyframe {
+                                    property: KeyframeProperty::Opacity,
+                                    time_ms: 0,
+                                    value: KeyframeValue::Scalar { value: 0.4 },
+                                    easing: Easing::Linear,
+                                },
+                                Keyframe {
+                                    property: KeyframeProperty::Opacity,
+                                    time_ms: 1_000,
+                                    value: KeyframeValue::Scalar { value: 1.0 },
+                                    easing: Easing::Linear,
+                                },
+                            ],
+                            hidden: false,
+                        }),
+                    ],
+                },
+                Track {
+                    id: "audio".into(),
+                    name: "Audio".into(),
+                    track_type: TrackType::Audio,
+                    locked: false,
+                    hidden: false,
+                    muted: false,
+                    audio_role: crate::AudioTrackRole::Unassigned,
+                    ducking: None,
+                    items: vec![TimelineItem::Media(MediaItem {
+                        id: "tone-item".into(),
+                        asset_id: "tone".into(),
                         start_ms: 0,
                         duration_ms: 1_000,
-                        transform: Transform {
-                            opacity: 0.7,
-                            ..Transform::default()
-                        },
+                        source_in_ms: 0,
+                        transform: Transform::default(),
+                        audio: crate::AudioSettings::default(),
                         keyframes: vec![],
                         hidden: false,
-                    }),
-                    TimelineItem::Text(crate::TextItem {
-                        id: "animated-text".into(),
-                        text: "café →\nWWWW iiii".into(),
-                        start_ms: 0,
-                        duration_ms: 1_000,
-                        font_size: 20,
-                        color: "#ffffff".into(),
-                        font_family: None,
-                        font_path: None,
-                        style: crate::TextStyle {
-                            wrap_width_px: Some(100),
-                            line_spacing_px: 3,
-                            outline_width_px: 1,
-                            background_opacity: 0.4,
-                            padding: crate::TextPadding {
-                                top: 2,
-                                right: 4,
-                                bottom: 3,
-                                left: 5,
-                            },
-                            anchor: crate::AnchorPoint::Center,
-                            ..crate::TextStyle::default()
-                        },
-                        transform: Transform {
-                            position_x: 80.0,
-                            position_y: 45.0,
-                            scale: 1.0,
-                            opacity: 0.8,
-                        },
-                        keyframes: vec![
-                            Keyframe {
-                                property: KeyframeProperty::Scale,
-                                time_ms: 0,
-                                value: KeyframeValue::Scalar { value: 0.8 },
-                                easing: Easing::EaseInOut,
-                            },
-                            Keyframe {
-                                property: KeyframeProperty::Scale,
-                                time_ms: 1_000,
-                                value: KeyframeValue::Scalar { value: 1.2 },
-                                easing: Easing::Linear,
-                            },
-                            Keyframe {
-                                property: KeyframeProperty::Opacity,
-                                time_ms: 0,
-                                value: KeyframeValue::Scalar { value: 0.4 },
-                                easing: Easing::Linear,
-                            },
-                            Keyframe {
-                                property: KeyframeProperty::Opacity,
-                                time_ms: 1_000,
-                                value: KeyframeValue::Scalar { value: 1.0 },
-                                easing: Easing::Linear,
-                            },
-                        ],
-                        hidden: false,
-                    }),
-                ],
-            }],
+                    })],
+                },
+            ],
         };
-        let renderer = Renderer::new(
-            &ffmpeg,
-            ffprobe,
-            env::var_os("OPENCUT_TEST_FONT_PATH").map(PathBuf::from),
-        );
+        let renderer = Renderer::new(&ffmpeg, ffprobe, Some(font_path));
         let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
         let range = renderer
             .render_preview_range(
@@ -1731,7 +2156,7 @@ mod tests {
                     width: 160,
                     height: 90,
                     fps: 10,
-                    include_audio: false,
+                    include_audio: true,
                 },
                 |_| {},
             )
@@ -1752,10 +2177,30 @@ mod tests {
             .unwrap();
 
         let preview_frame = decode_rgb_frame(&ffmpeg, &root.path().join(preview.relative_path), 0);
-        let range_frame = decode_rgb_frame(&ffmpeg, &root.path().join(range.relative_path), 500);
+        let range_path = root.path().join(&range.relative_path);
+        let range_frame = decode_rgb_frame(&ffmpeg, &range_path, 500);
         let export_frame = decode_rgb_frame(&ffmpeg, &export_path, 500);
         assert_frames_close(&preview_frame, &range_frame, 8.0);
         assert_frames_close(&preview_frame, &export_frame, 8.0);
+        assert!(structural_similarity(&preview_frame, &range_frame) >= 0.99);
+        assert!(structural_similarity(&preview_frame, &export_frame) >= 0.99);
+        assert!(structural_similarity(&range_frame, &export_frame) >= 0.99);
+        let range_audio = decode_mono_f32(&ffmpeg, &range_path);
+        let export_audio = decode_mono_f32(&ffmpeg, &export_path);
+        assert_eq!(range_audio.len(), export_audio.len());
+        let rms_error = range_audio
+            .iter()
+            .zip(&export_audio)
+            .map(|(left, right)| f64::from(left - right).powi(2))
+            .sum::<f64>()
+            / range_audio.len().max(1) as f64;
+        let rms_error = rms_error.sqrt();
+        assert!(rms_error <= 0.0001, "audio RMS error was {rms_error}");
+        let range_duration = renderer.probe(&range_path).unwrap().duration_ms.unwrap();
+        let export_duration = renderer.probe(&export_path).unwrap().duration_ms.unwrap();
+        assert!(range_duration.abs_diff(export_duration) <= 100);
+        assert!(range_duration.abs_diff(1_000) <= 100);
+        assert!(export_duration.abs_diff(1_000) <= 100);
     }
 
     #[test]
@@ -1887,6 +2332,59 @@ mod tests {
         assert!(output.status.success());
         assert!(!output.stdout.is_empty());
         output.stdout
+    }
+
+    fn decode_mono_f32(ffmpeg: &str, path: &Path) -> Vec<f32> {
+        let output = Command::new(ffmpeg)
+            .args(["-hide_banner", "-loglevel", "error", "-i"])
+            .arg(path)
+            .args([
+                "-map",
+                "0:a:0",
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ar",
+                "48000",
+                "-ac",
+                "1",
+                "pipe:1",
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        output
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| f32::from_le_bytes(*bytes))
+            .collect()
+    }
+
+    fn structural_similarity(left: &[u8], right: &[u8]) -> f64 {
+        assert_eq!(left.len(), right.len());
+        let count = left.len().max(1) as f64;
+        let left_mean = left.iter().map(|value| f64::from(*value)).sum::<f64>() / count;
+        let right_mean = right.iter().map(|value| f64::from(*value)).sum::<f64>() / count;
+        let (left_variance, right_variance, covariance) =
+            left.iter()
+                .zip(right)
+                .fold((0.0, 0.0, 0.0), |totals, (left, right)| {
+                    let left_delta = f64::from(*left) - left_mean;
+                    let right_delta = f64::from(*right) - right_mean;
+                    (
+                        totals.0 + left_delta * left_delta,
+                        totals.1 + right_delta * right_delta,
+                        totals.2 + left_delta * right_delta,
+                    )
+                });
+        let c1 = (0.01_f64 * 255.0).powi(2);
+        let c2 = (0.03_f64 * 255.0).powi(2);
+        ((2.0 * left_mean * right_mean + c1) * (2.0 * covariance / count + c2))
+            / ((left_mean.powi(2) + right_mean.powi(2) + c1)
+                * ((left_variance + right_variance) / count + c2))
     }
 
     fn assert_frames_close(left: &[u8], right: &[u8], tolerance: f64) {
