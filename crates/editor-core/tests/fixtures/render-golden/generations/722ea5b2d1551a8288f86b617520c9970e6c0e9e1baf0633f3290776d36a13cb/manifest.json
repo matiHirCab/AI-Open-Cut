@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "flat-scene-av-v1",
+  "fixtureRevision": 2,
+  "canvas": {
+    "width": 160,
+    "height": 90,
+    "fps": 10
+  },
+  "durationMs": 1000,
+  "sampleTimestampsMs": [
+    0,
+    500,
+    900
+  ],
+  "audio": {
+    "sampleRateHz": 48000,
+    "channels": 1,
+    "sampleFormat": "f32le"
+  },
+  "tolerances": {
+    "minimumSsim": 0.99,
+    "maximumPcmRmsError": 0.0001,
+    "maximumTimingFrames": 1
+  },
+  "environment": {
+    "referenceOs": "linux",
+    "referenceArch": "x86_64",
+    "ffmpegVersion": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+    "ffprobeVersion": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+    "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+  },
+  "references": [
+    {
+      "kind": "frame",
+      "atMs": 0,
+      "path": "frames/0000.rgb",
+      "sha256": "e9ba0dc46fd6b9c9679f9a9fe9e7438b64dc9006010f51d7294bebca9b89f661"
+    },
+    {
+      "kind": "frame",
+      "atMs": 500,
+      "path": "frames/0500.rgb",
+      "sha256": "4fbcbe5e648de23412d5de2bcdbb8f9ad22ebe43f4458a129f10320f7d34503b"
+    },
+    {
+      "kind": "frame",
+      "atMs": 900,
+      "path": "frames/0900.rgb",
+      "sha256": "cd00f9d6fa7134e88088b6c0bb2b7f5e41161a84064fd5ea82f3f23a3ba316a5"
+    },
+    {
+      "kind": "audio",
+      "path": "audio/reference.f32le",
+      "sha256": "9f95be502ef521affdcb6590cb959fb7a8405f364c8c0ffe559a3658b46a2ed5"
+    },
+    {
+      "kind": "semanticPlan",
+      "path": "semantic-plan.txt",
+      "sha256": "c859d63d5cfe2a4ddeac68eabc550a051418d79176d1ce0501810c6cc6f83465"
+    },
+    {
+      "kind": "filterGraph",
+      "path": "filter-graph.txt",
+      "sha256": "5e9e4b9cd23b093b3f72cbd560ad2a4b4d6b154879dd8c4aff853ea91fdd7f0c"
+    },
+    {
+      "kind": "performanceBaseline",
+      "path": "performance-baseline.json",
+      "sha256": "12e192ea4bcd50e3b5931737391ad91fc49a535ce289c3a8798626da3ffc3c8a"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "fixtureId": "flat-scene-av-v1",
+  "fixtureRevision": 2,
+  "gitRevision": "b1404bfcad2e31c25bf3e7f5b2db0c4f738256b1",
+  "os": "linux",
+  "architecture": "x86_64",
+  "ffmpegVersion": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+  "ffprobeVersion": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+  "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+  "units": {
+    "timing": "milliseconds",
+    "memory": "bytes"
+  },
+  "warmupSamples": 1,
+  "measuredSamples": 3,
+  "memoryScope": "process_tree",
+  "timingAggregation": "median",
+  "memoryAggregation": "maximum",
+  "timingsMs": {
+    "sceneEvaluation": 0.044965,
+    "filterGraphConstruction": 2.1350230000000003,
+    "frameRendering": 792.315725,
+    "audiovisualRangeRendering": 187.297371,
+    "exportRendering": 182.683199,
+    "total": 1814.5999470000002
+  },
+  "peakResidentWorkingSetBytes": 85114880,
+  "comparisonPolicy": "report_only_compare_matching_environment_identity"
+}

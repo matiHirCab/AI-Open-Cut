@@ -235,6 +235,34 @@ fn native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts() 
     })));
     assert_eq!(edited["revision"], 1);
     let solid_id = edited["changedIds"][0].as_str().unwrap();
+    let stale_project_dir = harness.root.path().join("projects").join(project_id);
+    let stale_project_before = std::fs::read(stale_project_dir.join("project.json")).unwrap();
+    let stale_history_before = std::fs::read(stale_project_dir.join("history.json")).unwrap();
+    let stale_previews_before = std::fs::read_dir(stale_project_dir.join("previews"))
+        .unwrap()
+        .count();
+    let stale = harness.request(json!({
+        "operation": "render_preview",
+        "projectId": project_id,
+        "expectedRevision": 0,
+        "timeMs": 500
+    }));
+    assert!(!stale.status.success());
+    assert_eq!(event(&stale)["error"]["code"], "REVISION_CONFLICT");
+    assert_eq!(
+        std::fs::read(stale_project_dir.join("project.json")).unwrap(),
+        stale_project_before
+    );
+    assert_eq!(
+        std::fs::read(stale_project_dir.join("history.json")).unwrap(),
+        stale_history_before
+    );
+    assert_eq!(
+        std::fs::read_dir(stale_project_dir.join("previews"))
+            .unwrap()
+            .count(),
+        stale_previews_before
+    );
     result(&harness.request(json!({
         "operation": "render_preview",
         "projectId": project_id,
