@@ -2,6 +2,9 @@ $schema: 'https://moonrepo.dev/schemas/workspace.json'
 
 defaultProject: 'root'
 
+vcs:
+  defaultBranch: 'main'
+
 projects:
   globs:
     - 'apps/*'
