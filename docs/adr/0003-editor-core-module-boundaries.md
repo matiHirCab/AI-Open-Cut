@@ -28,7 +28,8 @@ store facade ─> assets ─> persistence
      ├─────────> timeline ─> animation/validation
      └─────────> validation
 
-renderer facade ─> render_artifact ─> render_plan ─> animation
+renderer facade ─> render_artifact ─> render_plan ─> evaluated_scene ─> animation
+        │                            └──────────────> animation
         ├────────> render_plan
         └────────> render_process ─> render_plan
 ```
@@ -40,13 +41,14 @@ Root facade re-exports provide model and error types without adding an outward o
 | `animation` | none |
 | `assets` | `persistence` |
 | `drafts` | `persistence` |
+| `evaluated_scene` | `animation` |
 | `error` | none |
 | `migrations` | none |
 | `model` | `error` |
 | `path_policy` | none |
 | `persistence` | none |
 | `render_artifact` | `render_plan` |
-| `render_plan` | `animation` |
+| `render_plan` | `animation`, `evaluated_scene` |
 | `render_process` | `render_plan` |
 | `renderer` | `render_artifact`, `render_plan`, `render_process` |
 | `store` | `assets`, `drafts`, `migrations`, `persistence`, `timeline`, `validation` |
@@ -65,7 +67,8 @@ Root facade re-exports provide model and error types without adding an outward o
 | Locking, durable transactions, recovery, and document I/O | `persistence` | Timeline/domain decisions |
 | Durable draft lifecycle | `drafts` | Independent validation rules |
 | Public project orchestration | `store` | Duplicate implementations of the inward owners |
-| Scene evaluation and declarative render planning | `render_plan` | Process spawning, environment lookup, artifact publication |
+| Renderer-neutral scene evaluation | `evaluated_scene` | Persisted/public serialization, filesystem paths, backend expressions, process execution, artifact publication |
+| Declarative backend render planning | `render_plan` | Canonical scene evaluation, process spawning, environment lookup, artifact publication |
 | FFmpeg/FFprobe execution and diagnostics | `render_process` | Scene/domain rules and output publication policy |
 | Workspaces, prepared resources, temporary output, and publication | `render_artifact` | Scene evaluation and process semantics; it may consume resource requests from `render_plan` |
 | Stable renderer API orchestration | `renderer` | Duplicate implementations of the three render owners |

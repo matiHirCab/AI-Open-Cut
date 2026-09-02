@@ -49,6 +49,10 @@ pub(crate) fn evaluate_scene(
     fps: u32,
 ) -> Result<SceneEvaluation<'_>, CoreError> {
     let project = scene.project;
+    // Issue #12 establishes the canonical, bounded, renderer-neutral evaluation
+    // boundary. Issue #13 will replace this borrowed compatibility representation
+    // with the returned scene-and-binding envelope after render-plan parity is proven.
+    let _evaluated = crate::evaluated_scene::evaluate_project(project, width, height, fps)?;
     let asset_by_id = project
         .assets
         .iter()
@@ -857,7 +861,7 @@ mod tests {
                 media_type: MediaType::Video,
                 file_name: "video.mp4".into(),
                 project_relative_path: "assets/video.mp4".into(),
-                duration_ms: Some(2_000),
+                duration_ms: Some(2_125),
                 has_audio: true,
                 origin: None,
                 content_hash: None,
@@ -869,7 +873,7 @@ mod tests {
                 media_type: MediaType::Audio,
                 file_name: "audio.wav".into(),
                 project_relative_path: "assets/audio.wav".into(),
-                duration_ms: Some(3_000),
+                duration_ms: Some(3_250),
                 has_audio: true,
                 origin: None,
                 content_hash: None,
