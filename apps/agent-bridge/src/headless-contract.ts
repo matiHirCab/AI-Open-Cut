@@ -2,6 +2,14 @@ import type { z } from "zod/v4";
 
 import type { generatedAssetOriginSchema } from "./schemas";
 
+export const EVALUATED_SCENE_RENDERING_CAPABILITY =
+  "evaluated_scene_rendering" as const;
+export type RenderingCapability =
+  | "preview"
+  | "preview_range"
+  | "mp4_export"
+  | typeof EVALUATED_SCENE_RENDERING_CAPABILITY;
+
 interface Revisioned {
   expectedRevision: number;
   projectId: string;

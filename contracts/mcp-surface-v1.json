@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "capabilityIdentifiers": ["evaluated_scene_rendering"],
   "tools": [
     "asset_delete",
     "asset_import",

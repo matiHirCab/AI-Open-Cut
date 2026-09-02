@@ -28,8 +28,9 @@ store facade ─> assets ─> persistence
      ├─────────> timeline ─> animation/validation
      └─────────> validation
 
-renderer facade ─> render_artifact ─> render_plan ─> evaluated_scene ─> animation
-        │                            └──────────────> animation
+renderer facade ─> evaluated_scene ─> animation
+        ├────────> render_artifact ─> evaluated_scene
+        │                  └───────> render_plan ─> evaluated_scene/animation
         ├────────> render_plan
         └────────> render_process ─> render_plan
 ```
@@ -47,10 +48,10 @@ Root facade re-exports provide model and error types without adding an outward o
 | `model` | `error` |
 | `path_policy` | none |
 | `persistence` | none |
-| `render_artifact` | `render_plan` |
+| `render_artifact` | `evaluated_scene`, `render_plan` |
 | `render_plan` | `animation`, `evaluated_scene` |
 | `render_process` | `render_plan` |
-| `renderer` | `render_artifact`, `render_plan`, `render_process` |
+| `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process` |
 | `store` | `assets`, `drafts`, `migrations`, `persistence`, `timeline`, `validation` |
 | `timeline` | `animation`, `validation` |
 | `validation` | none |
@@ -70,7 +71,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | Renderer-neutral scene evaluation | `evaluated_scene` | Persisted/public serialization, filesystem paths, backend expressions, process execution, artifact publication |
 | Declarative backend render planning | `render_plan` | Canonical scene evaluation, process spawning, environment lookup, artifact publication |
 | FFmpeg/FFprobe execution and diagnostics | `render_process` | Scene/domain rules and output publication policy |
-| Workspaces, prepared resources, temporary output, and publication | `render_artifact` | Scene evaluation and process semantics; it may consume resource requests from `render_plan` |
+| Workspaces, evaluated-binding preparation, temporary output, and publication | `render_artifact` | Scene evaluation and process semantics; it may consume the evaluated binding envelope and resource requests without inspecting persisted records |
 | Stable renderer API orchestration | `renderer` | Duplicate implementations of the three render owners |
 
 ### Persistence port
@@ -81,7 +82,7 @@ Persistence logic depends on a crate-private, I/O-shaped port. It exposes only t
 
 Render planning emits declarative, comparable planning data and never starts a process or publishes output. A process executor accepts structured program arguments and reports bounded outcomes. Artifact I/O owns workspace lifetime, temporary paths, overwrite/collision policy, publication, cleanup, and metadata. The public renderer coordinates these owners and maps failures to the existing `CoreError` behavior.
 
-The scene-to-plan input is the only handoff seam reserved for `EvaluatedScene`. [ADR 0004](0004-motion-graphics-architecture.md) makes editor-core the canonical evaluator, locks the renderer-neutral scene semantics, and requires every render entry point to consume that seam. Issues #12 and #13 own the future representation and routing implementation; this ADR deliberately does not define a placeholder public scene model.
+The scene-to-plan input is the only semantic handoff seam for `EvaluatedScene`. [ADR 0004](0004-motion-graphics-architecture.md) makes editor-core the canonical evaluator and locks the renderer-neutral scene semantics. Issue #12 established the representation; issue #13 routes every render entry point through it. `renderer` invokes evaluation once, `render_artifact` resolves only the separate logical resource bindings, and `render_plan` translates only closed evaluated instructions into backend syntax.
 
 ## Compatibility constraints
 

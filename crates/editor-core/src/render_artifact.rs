@@ -12,9 +12,16 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    CoreError, ErrorCode, KeyframeProperty, KeyframeValue,
-    render_plan::{PreparedText, SceneEvaluation},
+    CoreError, ErrorCode,
+    evaluated_scene::{
+        EvaluatedKeyframeValue, EvaluatedMediaKind, EvaluatedProperty, EvaluatedSceneResult,
+        EvaluatedVisualSource, FontResourceBinding,
+    },
+    render_plan::{MediaInputRequest, PreparedText},
 };
+
+#[cfg(test)]
+use crate::{KeyframeProperty, KeyframeValue};
 
 pub(crate) const PUBLISH_STAGE: &str = "publish";
 pub(crate) const GRAPH_BUILD_STAGE: &str = "graph_build";
@@ -42,8 +49,14 @@ pub(crate) enum ArtifactEntryKind {
 }
 
 pub(crate) struct PreparedRenderResources {
+    pub(crate) media_inputs: Vec<MediaInputRequest>,
     pub(crate) media_paths: Vec<PathBuf>,
     pub(crate) text_layers: HashMap<String, PreparedText>,
+}
+
+pub(crate) struct PreparedMediaResources {
+    pub(crate) media_inputs: Vec<MediaInputRequest>,
+    pub(crate) media_paths: Vec<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -147,6 +160,7 @@ impl RenderWorkspace {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn prepare_text_layers(
     io: &dyn ArtifactIo,
     text_resources: &[&crate::TextItem],
@@ -241,36 +255,335 @@ pub(crate) fn prepare_text_layers(
 
 pub(crate) fn prepare_render_resources(
     io: &dyn ArtifactIo,
-    scene: &SceneEvaluation<'_>,
-    project_dir: &Path,
+    evaluated: &EvaluatedSceneResult,
+    media: PreparedMediaResources,
     workspace: &Path,
     default_font_path: Option<&Path>,
     font_roots: &[PathBuf],
     warnings: &mut Vec<String>,
 ) -> Result<PreparedRenderResources, CoreError> {
-    let media_paths = scene
-        .media_inputs
-        .iter()
-        .map(|input| resolve_project_asset(io, project_dir, &input.project_relative_path))
-        .collect::<Result<Vec<_>, _>>()?;
-    let text_layers = prepare_text_layers(
+    let text_layers = prepare_evaluated_text_layers(
         io,
-        &scene.text_resources,
+        evaluated,
         workspace,
         default_font_path,
         font_roots,
         warnings,
     )?;
-    debug_assert!(
-        scene
-            .text_resources
-            .iter()
-            .all(|text| text_layers.contains_key(&text.id))
-    );
     Ok(PreparedRenderResources {
-        media_paths,
+        media_inputs: media.media_inputs,
+        media_paths: media.media_paths,
         text_layers,
     })
+}
+
+pub(crate) fn prepare_media_resources(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    project_dir: &Path,
+) -> Result<PreparedMediaResources, CoreError> {
+    let media_inputs = media_input_requests(evaluated)?;
+    validate_font_resource_bindings(evaluated)?;
+    let binding_by_asset = evaluated
+        .resource_bindings
+        .media
+        .iter()
+        .map(|binding| {
+            (
+                binding.asset_id.as_str(),
+                binding.project_relative_path.as_str(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut media_paths = Vec::with_capacity(media_inputs.len());
+    for input in &media_inputs {
+        let relative = binding_by_asset
+            .get(input.asset_id.as_str())
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InternalError,
+                    "evaluated media resource binding is missing",
+                )
+            })?;
+        media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
+    }
+    Ok(PreparedMediaResources {
+        media_inputs,
+        media_paths,
+    })
+}
+
+fn validate_font_resource_bindings(evaluated: &EvaluatedSceneResult) -> Result<(), CoreError> {
+    let font_bindings = evaluated
+        .resource_bindings
+        .fonts
+        .iter()
+        .map(|binding| binding.font_resource_id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    for layer in &evaluated.scene.visual_layers {
+        let EvaluatedVisualSource::Text(text) = &layer.source else {
+            continue;
+        };
+        if text
+            .font_resource_id
+            .as_deref()
+            .is_some_and(|id| !font_bindings.contains(id))
+        {
+            return Err(CoreError::new(
+                ErrorCode::InternalError,
+                "evaluated font resource binding is missing",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn media_input_requests(
+    evaluated: &EvaluatedSceneResult,
+) -> Result<Vec<MediaInputRequest>, CoreError> {
+    let kind_by_asset = evaluated
+        .scene
+        .resources
+        .iter()
+        .map(|resource| (resource.asset_id.as_str(), resource.kind))
+        .collect::<HashMap<_, _>>();
+    let mut instances = evaluated
+        .scene
+        .visual_layers
+        .iter()
+        .filter_map(|layer| match &layer.source {
+            EvaluatedVisualSource::Media {
+                asset_id,
+                source_in_ms,
+            } => Some((
+                layer.order,
+                layer.item_id.as_str(),
+                asset_id.as_str(),
+                *source_in_ms,
+                layer.span.end_ms - layer.span.start_ms,
+            )),
+            _ => None,
+        })
+        .chain(evaluated.scene.audio_layers.iter().map(|layer| {
+            (
+                layer.order,
+                layer.item_id.as_str(),
+                layer.asset_id.as_str(),
+                layer.source_in_ms,
+                layer.span.end_ms - layer.span.start_ms,
+            )
+        }))
+        .collect::<Vec<_>>();
+    instances.sort_by_key(|instance| instance.0);
+    instances.dedup_by(|left, right| left.1 == right.1);
+
+    let binding_by_asset = evaluated
+        .resource_bindings
+        .media
+        .iter()
+        .map(|binding| {
+            (
+                binding.asset_id.as_str(),
+                binding.project_relative_path.as_str(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut media_inputs = Vec::with_capacity(instances.len());
+    for (_, item_id, asset_id, source_in_ms, duration_ms) in instances {
+        let relative = binding_by_asset.get(asset_id).ok_or_else(|| {
+            CoreError::new(
+                ErrorCode::InternalError,
+                "evaluated media resource binding is missing",
+            )
+        })?;
+        let kind = kind_by_asset.get(asset_id).ok_or_else(|| {
+            CoreError::new(
+                ErrorCode::InternalError,
+                "evaluated media resource metadata is missing",
+            )
+        })?;
+        let project_relative_path = PathBuf::from(relative);
+        validate_project_relative_path(&project_relative_path)?;
+        media_inputs.push(MediaInputRequest {
+            item_id: item_id.to_owned(),
+            asset_id: asset_id.to_owned(),
+            project_relative_path,
+            media_type: match kind {
+                EvaluatedMediaKind::Image => crate::MediaType::Image,
+                EvaluatedMediaKind::Video => crate::MediaType::Video,
+                EvaluatedMediaKind::Audio => crate::MediaType::Audio,
+            },
+            source_in_ms,
+            duration_ms,
+            input_index: media_inputs.len() + 2,
+        });
+    }
+    Ok(media_inputs)
+}
+
+fn prepare_evaluated_text_layers(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    workspace: &Path,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+) -> Result<HashMap<String, PreparedText>, CoreError> {
+    let font_bindings = evaluated
+        .resource_bindings
+        .fonts
+        .iter()
+        .map(|binding| (binding.font_resource_id.as_str(), binding))
+        .collect::<HashMap<_, _>>();
+    let mut result = HashMap::new();
+    for layer in &evaluated.scene.visual_layers {
+        let EvaluatedVisualSource::Text(text) = &layer.source else {
+            continue;
+        };
+        let binding = text
+            .font_resource_id
+            .as_deref()
+            .map(|id| {
+                font_bindings.get(id).copied().ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InternalError,
+                        "evaluated font resource binding is missing",
+                    )
+                })
+            })
+            .transpose()?;
+        let path = workspace.join(format!("text-{}.txt", layer.item_id));
+        let font_path = resolve_evaluated_font(
+            io,
+            &layer.item_id,
+            binding,
+            default_font_path,
+            font_roots,
+            warnings,
+        );
+        let content = wrap_text_with_io(
+            io,
+            &text.text,
+            text.style.wrap_width_px,
+            text.font_size,
+            font_path.as_deref(),
+        );
+        io.write(&path, content.as_bytes())
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+        let metrics = measure_text_block(io, &content, text.font_size, font_path.as_deref());
+        let outline = text.style.outline_width_px;
+        let shadow_left =
+            text.style.shadow.offset_x.unsigned_abs() * u32::from(text.style.shadow.offset_x < 0);
+        let shadow_right = text.style.shadow.offset_x.max(0) as u32;
+        let shadow_top =
+            text.style.shadow.offset_y.unsigned_abs() * u32::from(text.style.shadow.offset_y < 0);
+        let shadow_bottom = text.style.shadow.offset_y.max(0) as u32;
+        let text_x = text
+            .style
+            .padding
+            .left
+            .saturating_add(outline)
+            .saturating_add(shadow_left);
+        let text_y = text
+            .style
+            .padding
+            .top
+            .saturating_add(outline)
+            .saturating_add(shadow_top);
+        let layer_width = text_x
+            .saturating_add(metrics.width.ceil() as u32)
+            .saturating_add(text.style.padding.right)
+            .saturating_add(outline)
+            .saturating_add(shadow_right)
+            .saturating_add(2)
+            .max(1);
+        let line_spacing = text
+            .style
+            .line_spacing_px
+            .saturating_mul(metrics.line_count.saturating_sub(1) as i32);
+        let text_height = (metrics.height + f64::from(line_spacing)).max(1.0);
+        let layer_height = text_y
+            .saturating_add(text_height.ceil() as u32)
+            .saturating_add(text.style.padding.bottom)
+            .saturating_add(outline)
+            .saturating_add(shadow_bottom)
+            .saturating_add(2)
+            .max(1);
+        let maximum_scale = layer
+            .keyframes
+            .iter()
+            .filter_map(|keyframe| match (keyframe.property, keyframe.value) {
+                (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) => Some(value),
+                _ => None,
+            })
+            .fold(layer.transform.scale, f64::max)
+            .max(0.01);
+        result.insert(
+            layer.item_id.clone(),
+            PreparedText {
+                file_path: path,
+                font_path,
+                layer_width,
+                layer_height,
+                canvas_width: ((f64::from(layer_width) * maximum_scale).ceil() as u32)
+                    .saturating_add(2)
+                    .max(1),
+                canvas_height: ((f64::from(layer_height) * maximum_scale).ceil() as u32)
+                    .saturating_add(2)
+                    .max(1),
+                text_x,
+                text_y,
+            },
+        );
+    }
+    Ok(result)
+}
+
+fn resolve_evaluated_font(
+    io: &dyn ArtifactIo,
+    item_id: &str,
+    binding: Option<&FontResourceBinding>,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+) -> Option<PathBuf> {
+    if let Some(requested) = binding.and_then(|value| value.requested_path.as_deref()) {
+        let requested = PathBuf::from(requested);
+        let candidates = if requested.is_absolute() {
+            vec![requested]
+        } else {
+            font_roots
+                .iter()
+                .map(|root| root.join(&requested))
+                .collect()
+        };
+        for candidate in candidates {
+            if let Ok(resolved) = io.canonicalize_artifact_path(&candidate)
+                && io.entry_kind(&resolved).ok() == Some(ArtifactEntryKind::File)
+                && font_roots
+                    .iter()
+                    .filter_map(|root| io.canonicalize_artifact_path(root).ok())
+                    .any(|root| resolved.starts_with(root))
+            {
+                return Some(resolved);
+            }
+        }
+        warnings.push(format!(
+            "Text item {item_id} requested a font path that could not be resolved; using fallback"
+        ));
+    }
+    if let Some(family) = binding.and_then(|value| value.requested_family.as_deref()) {
+        let needle = family.to_lowercase().replace([' ', '-', '_'], "");
+        for root in font_roots {
+            if let Some(path) = find_font_file(io, root, &needle) {
+                return Some(path);
+            }
+        }
+        warnings.push(format!(
+            "Text item {item_id} requested font family {family:?} that could not be resolved; using fallback"
+        ));
+    }
+    default_font_path.map(Path::to_path_buf)
 }
 
 pub(crate) fn write_filter_script(
@@ -282,6 +595,7 @@ pub(crate) fn write_filter_script(
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))
 }
 
+#[cfg(test)]
 fn resolve_text_font(
     io: &dyn ArtifactIo,
     text: &crate::TextItem,
@@ -519,16 +833,7 @@ pub(crate) fn resolve_project_asset(
     project_dir: &Path,
     relative: &Path,
 ) -> Result<PathBuf, CoreError> {
-    if relative.is_absolute()
-        || relative
-            .components()
-            .any(|component| matches!(component, Component::ParentDir))
-    {
-        return Err(CoreError::new(
-            ErrorCode::PathNotAllowed,
-            "project asset path is not allowed",
-        ));
-    }
+    validate_project_relative_path(relative)?;
     let root = io
         .canonicalize_artifact_path(project_dir)
         .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
@@ -542,6 +847,21 @@ pub(crate) fn resolve_project_asset(
         ));
     }
     Ok(resolved)
+}
+
+fn validate_project_relative_path(relative: &Path) -> Result<(), CoreError> {
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::ParentDir))
+    {
+        Err(CoreError::new(
+            ErrorCode::PathNotAllowed,
+            "project asset path is not allowed",
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

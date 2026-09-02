@@ -29,15 +29,23 @@ impl Harness {
         std::fs::create_dir_all(&projects).unwrap();
         std::fs::create_dir_all(&media).unwrap();
         std::fs::create_dir_all(&exports).unwrap();
-        let mut child = Command::new(env!("CARGO_BIN_EXE_opencut-headless"))
+        let mut command = Command::new(env!("CARGO_BIN_EXE_opencut-headless"));
+        command
             .env("OPENCUT_PROJECTS_DIR", projects)
             .env("OPENCUT_ALLOWED_MEDIA_DIRS", media)
             .env("OPENCUT_EXPORTS_DIR", exports)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::piped());
+        for name in ["OPENCUT_FFMPEG_PATH", "OPENCUT_FFPROBE_PATH"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        if let Some(value) = std::env::var_os("OPENCUT_TEST_FONT_PATH") {
+            command.env("OPENCUT_DEFAULT_FONT_PATH", value);
+        }
+        let mut child = command.spawn().unwrap();
         serde_json::to_writer(child.stdin.take().unwrap(), &request).unwrap();
         child.wait_with_output().unwrap()
     }
@@ -65,6 +73,22 @@ impl Harness {
             .output()
             .unwrap()
     }
+}
+
+fn native_parity_is_configured() -> bool {
+    let configured = [
+        std::env::var_os("OPENCUT_FFMPEG_PATH"),
+        std::env::var_os("OPENCUT_FFPROBE_PATH"),
+        std::env::var_os("OPENCUT_TEST_FONT_PATH"),
+    ];
+    if configured.iter().all(Option::is_none) {
+        return false;
+    }
+    assert!(
+        configured.iter().all(Option::is_some),
+        "native lifecycle parity requires FFmpeg, FFprobe, and font paths together"
+    );
+    true
 }
 
 fn event(output: &Output) -> Value {
@@ -150,6 +174,177 @@ fn revision_conflicts_are_typed_error_envelopes_with_nonzero_exit() {
             }
         })
     );
+
+    let render = harness.request(json!({
+        "operation": "render_preview",
+        "projectId": project_id,
+        "expectedRevision": 99,
+        "timeMs": 0
+    }));
+    assert!(!render.status.success());
+    assert_eq!(event(&render)["error"]["code"], "REVISION_CONFLICT");
+    assert_eq!(
+        event(&render)["error"]["message"],
+        "expected revision 99, current revision is 0"
+    );
+}
+
+#[test]
+fn native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts() {
+    if !native_parity_is_configured() {
+        return;
+    }
+    let harness = Harness::new();
+    let created = result(&harness.request(json!({
+        "operation": "create_project",
+        "name": "Native lifecycle",
+        "settings": { "width": 160, "height": 90, "fps": 10 }
+    })));
+    let project_id = created["projectId"].as_str().unwrap();
+    let state = result(&harness.request(json!({
+        "operation": "get_state",
+        "projectId": project_id
+    })));
+    let overlay_id = state["project"]["tracks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|track| track["trackType"] == "overlay")
+        .unwrap()["id"]
+        .as_str()
+        .unwrap();
+    let transform = json!({
+        "positionX": 0.0,
+        "positionY": 0.0,
+        "scale": 1.0,
+        "opacity": 1.0
+    });
+
+    let edited = result(&harness.request(json!({
+        "operation": "edit",
+        "projectId": project_id,
+        "expectedRevision": 0,
+        "edit": {
+            "operation": "add_solid_color",
+            "trackId": overlay_id,
+            "color": "#224466",
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform": transform
+        }
+    })));
+    assert_eq!(edited["revision"], 1);
+    let solid_id = edited["changedIds"][0].as_str().unwrap();
+    result(&harness.request(json!({
+        "operation": "render_preview",
+        "projectId": project_id,
+        "expectedRevision": 1,
+        "timeMs": 500
+    })));
+
+    let undone = result(&harness.request(json!({
+        "operation": "undo",
+        "projectId": project_id,
+        "expectedRevision": 1
+    })));
+    assert_eq!(undone["revision"], 2);
+    result(&harness.request(json!({
+        "operation": "render_preview",
+        "projectId": project_id,
+        "expectedRevision": 2,
+        "timeMs": 0
+    })));
+
+    let redone = result(&harness.request(json!({
+        "operation": "redo",
+        "projectId": project_id,
+        "expectedRevision": 2
+    })));
+    assert_eq!(redone["revision"], 3);
+    result(&harness.request(json!({
+        "operation": "render_preview",
+        "projectId": project_id,
+        "expectedRevision": 3,
+        "timeMs": 500
+    })));
+
+    let reopened = result(&harness.request(json!({
+        "operation": "get_state",
+        "projectId": project_id
+    })));
+    let reopened_again = result(&harness.request(json!({
+        "operation": "get_state",
+        "projectId": project_id
+    })));
+    assert_eq!(reopened, reopened_again);
+    assert_eq!(reopened["project"]["revision"], 3);
+
+    let draft = result(&harness.request(json!({
+        "operation": "create_draft",
+        "projectId": project_id,
+        "expectedRevision": 3,
+        "label": "isolated render",
+        "operations": [{
+            "operation": "update_item",
+            "itemId": solid_id,
+            "color": "#ee8844"
+        }]
+    })));
+    let draft_id = draft["id"].as_str().unwrap();
+    let project_dir = harness.root.path().join("projects").join(project_id);
+    let project_before = std::fs::read(project_dir.join("project.json")).unwrap();
+    let history_before = std::fs::read(project_dir.join("history.json")).unwrap();
+    let draft_path = project_dir.join("drafts").join(format!("{draft_id}.json"));
+    let draft_before = std::fs::read(&draft_path).unwrap();
+    let committed_before = result(&harness.request(json!({
+        "operation": "get_state",
+        "projectId": project_id
+    })));
+    let draft_record_before = result(&harness.request(json!({
+        "operation": "get_draft",
+        "projectId": project_id,
+        "draftId": draft_id
+    })));
+    let materialized_before = result(&harness.request(json!({
+        "operation": "get_draft_state",
+        "projectId": project_id,
+        "draftId": draft_id
+    })));
+
+    result(&harness.request(json!({
+        "operation": "render_draft_preview",
+        "projectId": project_id,
+        "draftId": draft_id,
+        "timeMs": 500
+    })));
+
+    let committed_after = result(&harness.request(json!({
+        "operation": "get_state",
+        "projectId": project_id
+    })));
+    let draft_record_after = result(&harness.request(json!({
+        "operation": "get_draft",
+        "projectId": project_id,
+        "draftId": draft_id
+    })));
+    let materialized_after = result(&harness.request(json!({
+        "operation": "get_draft_state",
+        "projectId": project_id,
+        "draftId": draft_id
+    })));
+    assert_eq!(committed_after, committed_before);
+    assert_eq!(committed_after["project"]["revision"], 3);
+    assert_eq!(draft_record_after, draft_record_before);
+    assert_eq!(materialized_after, materialized_before);
+    assert_eq!(
+        std::fs::read(project_dir.join("project.json")).unwrap(),
+        project_before
+    );
+    assert_eq!(
+        std::fs::read(project_dir.join("history.json")).unwrap(),
+        history_before
+    );
+    assert_eq!(std::fs::read(draft_path).unwrap(), draft_before);
 }
 
 #[test]
@@ -243,4 +438,5 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(capabilities.contains(&json!("timeline")));
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
+    assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
 }

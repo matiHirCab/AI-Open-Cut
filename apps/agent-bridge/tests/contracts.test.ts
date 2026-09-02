@@ -14,6 +14,7 @@ import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
+import { EVALUATED_SCENE_RENDERING_CAPABILITY } from "../src/headless-contract";
 import { headlessStatusSchema, schemas, ttsStatusSchema } from "../src/schemas";
 import {
   MCP_RESOURCE_URIS,
@@ -224,6 +225,12 @@ describe("canonical public contracts", () => {
       version: "0.1.0",
     });
     expect(status.protocolVersion).toBe(HEADLESS_CONTRACT.version);
+    expect(status.subsystems.rendering.capabilities).toContain(
+      EVALUATED_SCENE_RENDERING_CAPABILITY
+    );
+    expect(MCP_SURFACE.capabilityIdentifiers).toEqual([
+      EVALUATED_SCENE_RENDERING_CAPABILITY,
+    ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
     );

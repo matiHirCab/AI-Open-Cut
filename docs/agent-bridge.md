@@ -94,6 +94,12 @@ Current ChatGPT desktop and Codex share MCP configuration on the same Codex host
 
 These steps follow the [official OpenAI MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). ChatGPT connectivity must be tested from the desktop app; the automated smoke test verifies the same MCP STDIO protocol but not the ChatGPT UI.
 
+### Canonical preview and export semantics
+
+A ready rendering subsystem reports `evaluated_scene_rendering`. Frame preview, audiovisual range preview, draft preview, and final export then consume one editor-core evaluated scene: top-left pixel coordinates, integer-millisecond half-open intervals, bottom-to-top track/item array order, transforms, transitions, text, media, and resolved audio behavior are shared across every entry point. Output intent only selects seeking, duration, audio inclusion, and encoding.
+
+Scene evaluation enforces finite values and explicit limits before workspace or process I/O. Media and fonts resolve only through project/font-root-constrained bindings; raw FFmpeg expressions, executable SVG, arbitrary paths, and network resources are not accepted. Renderer fallback is deterministic and local, and succeeds only for a backend that supports the complete scene; otherwise rendering returns the existing stable `DEPENDENCY_UNAVAILABLE` behavior and publishes no partial artifact. Equivalent semantic plans match exactly; fixed synthetic preview/export fixtures use SSIM `>= 0.99`, decoded float-PCM RMS error `<= 0.0001`, and timing within one output frame.
+
 ## Connect Codex
 
 CLI example with placeholders:

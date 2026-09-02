@@ -1,8 +1,8 @@
 //! Owned, renderer-neutral evaluation of the current flat timeline model.
 //!
 //! This module deliberately contains no filesystem, process, renderer, or artifact
-//! concerns. Issue #13 will make render planning consume this representation after
-//! output parity is established.
+//! concerns. Production render planning consumes this representation through a
+//! separate path-bearing resource-binding sidecar.
 
 use std::collections::{HashMap, HashSet};
 
@@ -171,6 +171,16 @@ pub(crate) enum EvaluatedVisualSource {
         width: u32,
         height: u32,
     },
+    Caption(EvaluatedCaption),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EvaluatedCaption {
+    pub(crate) text: String,
+    pub(crate) font_size: u32,
+    pub(crate) color: String,
+    pub(crate) background_color: String,
+    pub(crate) bottom_margin_px: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -422,7 +432,29 @@ pub(crate) fn evaluate_project(
                         },
                     });
                 }
-                TimelineItem::Caption(_) | TimelineItem::Transition(_) => {}
+                TimelineItem::Caption(caption) => {
+                    visual_layers.push(EvaluatedVisualLayer {
+                        item_id: caption.id.clone(),
+                        order,
+                        span: checked_span(caption.start_ms, caption.duration_ms)?,
+                        transform: EvaluatedTransform {
+                            position_x: 0.0,
+                            position_y: 0.0,
+                            scale: 1.0,
+                            opacity: 1.0,
+                        },
+                        keyframes: vec![],
+                        transitions: vec![],
+                        source: EvaluatedVisualSource::Caption(EvaluatedCaption {
+                            text: caption.text.clone(),
+                            font_size: caption.style.font_size,
+                            color: caption.style.color.clone(),
+                            background_color: caption.style.background_color.clone(),
+                            bottom_margin_px: caption.style.bottom_margin_px,
+                        }),
+                    });
+                }
+                TimelineItem::Transition(_) => {}
             }
         }
     }
@@ -580,7 +612,15 @@ fn preflight_project<'a>(
                     )?;
                     visual_item_ids.insert(rectangle.id.as_str());
                 }
-                TimelineItem::Caption(_) | TimelineItem::Transition(_) => {}
+                TimelineItem::Caption(caption) => {
+                    increment_bounded(
+                        &mut visual_layer_count,
+                        MAX_EVALUATED_VISUAL_LAYERS,
+                        "evaluated visual layer limit exceeded",
+                    )?;
+                    visual_item_ids.insert(caption.id.as_str());
+                }
+                TimelineItem::Transition(_) => {}
             }
         }
     }
