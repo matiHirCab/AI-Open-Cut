@@ -5,8 +5,12 @@
 /apps/headless/tests/protocol.rs @matiHirCab
 /crates/editor-core/src/error.rs @matiHirCab
 /crates/editor-core/src/model.rs @matiHirCab
+/crates/editor-core/tests/motion_graphics_contracts.rs @matiHirCab
+/crates/editor-core/tests/fixtures/motion_graphics_contract.rs @matiHirCab
 /apps/agent-bridge/src/headless-contract.ts @matiHirCab
 /apps/agent-bridge/src/errors.ts @matiHirCab
 /apps/agent-bridge/src/schemas.ts @matiHirCab
 /apps/agent-bridge/src/server/ @matiHirCab
 /apps/agent-bridge/tests/contracts.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts @matiHirCab
+/docs/motion-graphics-contract-fixtures.md @matiHirCab
