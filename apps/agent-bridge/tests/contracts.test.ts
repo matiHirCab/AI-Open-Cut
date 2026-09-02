@@ -8,6 +8,7 @@ import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
+import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
 import AGENT_BRIDGE_PACKAGE from "../package.json";
@@ -28,6 +29,10 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import {
+  assertMalformedPayloadRegressions,
+  validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
+} from "./fixtures/motion-graphics-contract";
 
 const TYPECHECK_GATE_PREFIX = /^bun run typecheck && /;
 
@@ -139,6 +144,18 @@ describe("canonical public contracts", () => {
         ).toBe(true);
       }
     }
+  });
+
+  it("accepts the complete and safe canonical motion-graphics fixture catalog", () => {
+    expect(() =>
+      validateStrictMotionGraphicsCatalog(MOTION_GRAPHICS_CONTRACT)
+    ).not.toThrow();
+  });
+
+  it("rejects malformed payloads, unsafe resource fields, and scope drift", () => {
+    expect(() =>
+      assertMalformedPayloadRegressions(MOTION_GRAPHICS_CONTRACT)
+    ).not.toThrow();
   });
 
   it("validates canonical status negotiation in TypeScript and Zod", () => {

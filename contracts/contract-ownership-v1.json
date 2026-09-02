@@ -55,6 +55,16 @@
         "apps/headless/src/main.rs",
         "apps/agent-bridge/src/schemas.ts"
       ]
+    },
+    "motionGraphicsVocabulary": {
+      "canonical": "contracts/motion-graphics-v1.json",
+      "consumers": [
+        "crates/editor-core/tests/motion_graphics_contracts.rs",
+        "crates/editor-core/tests/fixtures/motion_graphics_contract.rs",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts",
+        "docs/motion-graphics-contract-fixtures.md"
+      ]
     }
   }
 }

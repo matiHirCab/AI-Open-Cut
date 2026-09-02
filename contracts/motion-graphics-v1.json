@@ -1,0 +1,1971 @@
+{
+  "version": 1,
+  "contract": "motion-graphics-v1",
+  "status": "fixture_only",
+  "semantics": {
+    "wireFieldCase": "lower_camel_case",
+    "variantCase": "lower_snake_case",
+    "coordinateSystem": {
+      "origin": "top_left",
+      "positiveX": "right",
+      "positiveY": "down",
+      "positionUnits": [
+        "pixels",
+        "normalized"
+      ]
+    },
+    "time": {
+      "unit": "integer_milliseconds",
+      "interval": "half_open"
+    },
+    "layerOrdering": [
+      "track_array_index_ascending",
+      "z_index_ascending",
+      "item_array_index_ascending",
+      "item_id_ascending_final_tie_break"
+    ],
+    "visualPipeline": [
+      "source",
+      "crop_and_local_clip",
+      "masks_in_declared_order",
+      "effects_in_declared_order",
+      "local_anchor_scale_skew_rotation_position",
+      "ancestor_transforms_nearest_first",
+      "track_matte",
+      "inherited_opacity",
+      "destination_blend"
+    ],
+    "alphaMode": "premultiplied",
+    "compositingLight": "linear",
+    "resourcePolicy": "managed_or_content_addressed_only"
+  },
+  "limits": {
+    "maxParentDepth": 32,
+    "maxComponentDepth": 16,
+    "maxLayersPerComposition": 4096,
+    "maxComponentDefinitions": 512,
+    "maxSlotsPerComponent": 128,
+    "maxMarkersPerComposition": 4096,
+    "maxKeyframesPerChannel": 10000,
+    "maxMasksPerLayer": 16,
+    "maxEffectsPerLayer": 32,
+    "maxAudioEventsPerComposition": 10000
+  },
+  "identifiers": {
+    "concepts": [
+      "transform",
+      "layer",
+      "component",
+      "slot",
+      "marker",
+      "curve",
+      "mask",
+      "effect",
+      "audio_event"
+    ],
+    "positionUnits": [
+      "pixels",
+      "normalized"
+    ],
+    "blendModes": [
+      "normal",
+      "multiply",
+      "screen",
+      "overlay",
+      "add",
+      "darken",
+      "lighten"
+    ],
+    "slotKinds": [
+      "text",
+      "color",
+      "number",
+      "boolean",
+      "asset",
+      "rich_text",
+      "enum",
+      "duration"
+    ],
+    "timeExpressionTypes": [
+      "milliseconds",
+      "marker"
+    ],
+    "curveTypes": [
+      "hold",
+      "linear",
+      "cubic_bezier",
+      "spring"
+    ],
+    "maskSourceTypes": [
+      "path",
+      "layer"
+    ],
+    "maskChannels": [
+      "alpha",
+      "luma"
+    ],
+    "maskOperations": [
+      "add",
+      "subtract",
+      "intersect",
+      "exclude"
+    ],
+    "effectTypes": [
+      "gaussian_blur",
+      "directional_blur",
+      "glow",
+      "color_tint",
+      "vignette",
+      "color_adjustment",
+      "screen_flash",
+      "particle_overlay"
+    ],
+    "referenceKinds": [
+      "asset",
+      "audio_bus",
+      "audio_event",
+      "component",
+      "curve",
+      "effect",
+      "layer",
+      "marker",
+      "mask",
+      "slot",
+      "sound_definition",
+      "transform"
+    ],
+    "failureClassifications": [
+      "invalid_input",
+      "missing_reference",
+      "reference_cycle",
+      "ambiguous_reference"
+    ]
+  },
+  "managedResources": [
+    {
+      "kind": "asset",
+      "scope": "project",
+      "id": "sfx_impact_a"
+    }
+  ],
+  "validFixtures": [
+    {
+      "id": "transform.complete",
+      "concept": "transform",
+      "defines": [
+        {
+          "kind": "transform",
+          "scope": "root",
+          "id": "hero"
+        }
+      ],
+      "references": [],
+      "value": {
+        "id": "hero",
+        "scope": "root",
+        "position": {
+          "x": 320.5,
+          "y": 180.25,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "scaleX": 1.25,
+        "scaleY": 0.75,
+        "rotationDeg": 12.5,
+        "skewXDeg": 3,
+        "skewYDeg": -2,
+        "opacity": 0.9
+      }
+    },
+    {
+      "id": "layer.ordered_visual",
+      "concept": "layer",
+      "defines": [
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "root_group"
+        },
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "hero"
+        },
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "matte_source"
+        }
+      ],
+      "references": [
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "root_group"
+        },
+        {
+          "kind": "transform",
+          "scope": "root",
+          "id": "hero"
+        },
+        {
+          "kind": "mask",
+          "scope": "root",
+          "id": "hero_alpha"
+        },
+        {
+          "kind": "mask",
+          "scope": "root",
+          "id": "hero_cutout"
+        },
+        {
+          "kind": "effect",
+          "scope": "root",
+          "id": "hero_blur"
+        },
+        {
+          "kind": "effect",
+          "scope": "root",
+          "id": "hero_glow"
+        }
+      ],
+      "value": {
+        "scope": "root",
+        "layers": [
+          {
+            "id": "root_group",
+            "parentId": null,
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          },
+          {
+            "id": "hero",
+            "parentId": "root_group",
+            "zIndex": 20,
+            "stableItemIndex": 4,
+            "blendMode": "screen",
+            "clip": {
+              "type": "composition_bounds"
+            },
+            "masks": [
+              "hero_alpha",
+              "hero_cutout"
+            ],
+            "effects": [
+              "hero_blur",
+              "hero_glow"
+            ],
+            "animationChannels": [
+              "transform.position_x",
+              "transform.opacity"
+            ],
+            "hidden": false,
+            "transformId": "hero"
+          },
+          {
+            "id": "matte_source",
+            "parentId": null,
+            "zIndex": 10,
+            "stableItemIndex": 3,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "component.rule_card",
+      "concept": "component",
+      "defines": [
+        {
+          "kind": "component",
+          "scope": "project",
+          "id": "rule_card"
+        },
+        {
+          "kind": "layer",
+          "scope": "component:rule_card",
+          "id": "card_group"
+        },
+        {
+          "kind": "layer",
+          "scope": "component:rule_card",
+          "id": "card_title"
+        }
+      ],
+      "references": [
+        {
+          "kind": "component",
+          "scope": "project",
+          "id": "rule_card"
+        },
+        {
+          "kind": "slot",
+          "scope": "component:rule_card",
+          "id": "title"
+        },
+        {
+          "kind": "marker",
+          "scope": "component:rule_card",
+          "id": "impact"
+        }
+      ],
+      "value": {
+        "definition": {
+          "id": "rule_card",
+          "name": "Rule card",
+          "width": 1080,
+          "height": 1080,
+          "durationMs": 2400,
+          "trackIds": [
+            "card_visuals"
+          ],
+          "layers": [
+            "card_group",
+            "card_title"
+          ],
+          "markerIds": [
+            "impact"
+          ],
+          "slotIds": [
+            "title"
+          ]
+        },
+        "instance": {
+          "id": "rule_card_01",
+          "componentId": "rule_card",
+          "startMs": 1200,
+          "trimStartMs": 0,
+          "durationMs": 2400,
+          "timeScale": 1,
+          "slotValues": {
+            "title": "Keep it deterministic"
+          }
+        }
+      }
+    },
+    {
+      "id": "slot.typed_title",
+      "concept": "slot",
+      "defines": [
+        {
+          "kind": "slot",
+          "scope": "component:rule_card",
+          "id": "title"
+        }
+      ],
+      "references": [
+        {
+          "kind": "layer",
+          "scope": "component:rule_card",
+          "id": "card_title"
+        }
+      ],
+      "value": {
+        "scope": "component:rule_card",
+        "id": "title",
+        "name": "Title",
+        "kind": "text",
+        "required": true,
+        "defaultValue": "Rule",
+        "binding": {
+          "targetLayerId": "card_title",
+          "property": "text.document"
+        },
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    {
+      "id": "marker.scoped_impact",
+      "concept": "marker",
+      "defines": [
+        {
+          "kind": "marker",
+          "scope": "component:rule_card",
+          "id": "impact"
+        }
+      ],
+      "references": [
+        {
+          "kind": "marker",
+          "scope": "component:rule_card",
+          "id": "impact"
+        }
+      ],
+      "value": {
+        "marker": {
+          "id": "impact",
+          "name": "impact",
+          "scope": "component:rule_card",
+          "timeMs": 1500,
+          "kind": "cue"
+        },
+        "absoluteTime": {
+          "type": "milliseconds",
+          "valueMs": 1500
+        },
+        "relativeTime": {
+          "type": "marker",
+          "markerName": "impact",
+          "offsetMs": -80
+        }
+      }
+    },
+    {
+      "id": "curve.complete_set",
+      "concept": "curve",
+      "defines": [
+        {
+          "kind": "curve",
+          "scope": "component:rule_card",
+          "id": "complete_set"
+        }
+      ],
+      "references": [
+        {
+          "kind": "marker",
+          "scope": "component:rule_card",
+          "id": "impact"
+        }
+      ],
+      "value": {
+        "id": "complete_set",
+        "scope": "component:rule_card",
+        "curves": [
+          {
+            "type": "hold"
+          },
+          {
+            "type": "linear"
+          },
+          {
+            "type": "cubic_bezier",
+            "x1": 0.25,
+            "y1": 0.1,
+            "x2": 0.25,
+            "y2": 1
+          },
+          {
+            "type": "spring",
+            "mass": 1,
+            "stiffness": 170,
+            "damping": 26,
+            "initialVelocity": 0
+          }
+        ],
+        "keyframes": [
+          {
+            "time": {
+              "type": "milliseconds",
+              "valueMs": 0
+            },
+            "value": 0,
+            "curve": {
+              "type": "linear"
+            }
+          },
+          {
+            "time": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "value": 1,
+            "curve": {
+              "type": "spring",
+              "mass": 1,
+              "stiffness": 170,
+              "damping": 26,
+              "initialVelocity": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mask.ordered_pair",
+      "concept": "mask",
+      "defines": [
+        {
+          "kind": "mask",
+          "scope": "root",
+          "id": "hero_alpha"
+        },
+        {
+          "kind": "mask",
+          "scope": "root",
+          "id": "hero_cutout"
+        }
+      ],
+      "references": [
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "hero"
+        },
+        {
+          "kind": "transform",
+          "scope": "root",
+          "id": "hero"
+        },
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "matte_source"
+        }
+      ],
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "masks": [
+          {
+            "id": "hero_alpha",
+            "source": {
+              "type": "path",
+              "commands": [
+                {
+                  "type": "move_to",
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "type": "line_to",
+                  "x": 1,
+                  "y": 0
+                },
+                {
+                  "type": "line_to",
+                  "x": 1,
+                  "y": 1
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "channel": "alpha",
+            "operation": "add",
+            "inverted": false,
+            "featherPx": 12,
+            "expansionPx": 0,
+            "transformId": "hero"
+          },
+          {
+            "id": "hero_cutout",
+            "source": {
+              "type": "layer",
+              "layerId": "matte_source"
+            },
+            "channel": "luma",
+            "operation": "subtract",
+            "inverted": false,
+            "featherPx": 2,
+            "expansionPx": -1,
+            "transformId": "hero"
+          }
+        ]
+      }
+    },
+    {
+      "id": "effect.ordered_stack",
+      "concept": "effect",
+      "defines": [
+        {
+          "kind": "effect",
+          "scope": "root",
+          "id": "hero_blur"
+        },
+        {
+          "kind": "effect",
+          "scope": "root",
+          "id": "hero_glow"
+        }
+      ],
+      "references": [
+        {
+          "kind": "layer",
+          "scope": "root",
+          "id": "hero"
+        }
+      ],
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "effects": [
+          {
+            "id": "hero_blur",
+            "type": "gaussian_blur",
+            "radiusPx": 6
+          },
+          {
+            "id": "hero_glow",
+            "type": "glow",
+            "radiusPx": 18,
+            "intensity": 0.8,
+            "color": "#66CCFFFF"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.marker_impact",
+      "concept": "audio_event",
+      "defines": [
+        {
+          "kind": "audio_bus",
+          "scope": "project",
+          "id": "sfx"
+        },
+        {
+          "kind": "sound_definition",
+          "scope": "project",
+          "id": "impact"
+        },
+        {
+          "kind": "audio_event",
+          "scope": "component:rule_card",
+          "id": "impact_01"
+        }
+      ],
+      "references": [
+        {
+          "kind": "marker",
+          "scope": "component:rule_card",
+          "id": "impact"
+        },
+        {
+          "kind": "asset",
+          "scope": "project",
+          "id": "sfx_impact_a"
+        },
+        {
+          "kind": "sound_definition",
+          "scope": "project",
+          "id": "impact"
+        },
+        {
+          "kind": "audio_bus",
+          "scope": "project",
+          "id": "sfx"
+        }
+      ],
+      "value": {
+        "bus": {
+          "id": "sfx"
+        },
+        "soundDefinition": {
+          "event": "impact",
+          "variantAssetIds": [
+            "sfx_impact_a"
+          ],
+          "defaultGainDb": -3,
+          "busId": "sfx"
+        },
+        "event": {
+          "id": "impact_01",
+          "scope": "component:rule_card",
+          "event": "impact",
+          "at": {
+            "type": "marker",
+            "markerName": "impact",
+            "offsetMs": 0
+          },
+          "gainDb": -1.5,
+          "variantSeed": 42,
+          "busId": "sfx"
+        }
+      }
+    }
+  ],
+  "invalidFixtures": [
+    {
+      "id": "transform.non_finite",
+      "concept": "transform",
+      "classification": "invalid_input",
+      "reason": "non_finite_value",
+      "value": {
+        "id": "hero",
+        "scope": "root",
+        "position": {
+          "x": 320.5,
+          "y": 180.25,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "scaleX": "NaN",
+        "scaleY": 0.75,
+        "rotationDeg": 12.5,
+        "skewXDeg": 3,
+        "skewYDeg": -2,
+        "opacity": 0.9
+      }
+    },
+    {
+      "id": "layer.missing_parent",
+      "concept": "layer",
+      "classification": "missing_reference",
+      "reason": "parent_not_found",
+      "value": {
+        "scope": "root",
+        "layers": [
+          {
+            "id": "orphan",
+            "parentId": "absent",
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "layer.parent_cycle",
+      "concept": "layer",
+      "classification": "reference_cycle",
+      "reason": "parent_cycle",
+      "value": {
+        "scope": "root",
+        "layers": [
+          {
+            "id": "a",
+            "parentId": "b",
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          },
+          {
+            "id": "b",
+            "parentId": "a",
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "layer.direct_parent_cycle",
+      "concept": "layer",
+      "classification": "reference_cycle",
+      "reason": "direct_parent_cycle",
+      "value": {
+        "scope": "root",
+        "layers": [
+          {
+            "id": "self",
+            "parentId": "self",
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "layer.cross_scope_parent",
+      "concept": "layer",
+      "classification": "invalid_input",
+      "reason": "parent_scope_mismatch",
+      "value": {
+        "scope": "root",
+        "layers": [
+          {
+            "id": "child",
+            "parentId": "component_local_parent",
+            "zIndex": 0,
+            "stableItemIndex": 0,
+            "blendMode": "normal",
+            "clip": null,
+            "masks": [],
+            "effects": [],
+            "animationChannels": [],
+            "hidden": false,
+            "transformId": null,
+            "parentScope": "component:rule_card"
+          }
+        ]
+      }
+    },
+    {
+      "id": "component.recursive",
+      "concept": "component",
+      "classification": "reference_cycle",
+      "reason": "component_cycle",
+      "value": {
+        "componentIds": [
+          "a",
+          "b"
+        ],
+        "dependencies": [
+          {
+            "from": "a",
+            "to": "b"
+          },
+          {
+            "from": "b",
+            "to": "a"
+          }
+        ],
+        "entryId": "a"
+      }
+    },
+    {
+      "id": "component.depth_limit",
+      "concept": "component",
+      "classification": "invalid_input",
+      "reason": "max_component_depth_exceeded",
+      "value": {
+        "componentIds": [
+          "c0",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6",
+          "c7",
+          "c8",
+          "c9",
+          "c10",
+          "c11",
+          "c12",
+          "c13",
+          "c14",
+          "c15",
+          "c16",
+          "c17"
+        ],
+        "dependencies": [
+          {
+            "from": "c0",
+            "to": "c1"
+          },
+          {
+            "from": "c1",
+            "to": "c2"
+          },
+          {
+            "from": "c2",
+            "to": "c3"
+          },
+          {
+            "from": "c3",
+            "to": "c4"
+          },
+          {
+            "from": "c4",
+            "to": "c5"
+          },
+          {
+            "from": "c5",
+            "to": "c6"
+          },
+          {
+            "from": "c6",
+            "to": "c7"
+          },
+          {
+            "from": "c7",
+            "to": "c8"
+          },
+          {
+            "from": "c8",
+            "to": "c9"
+          },
+          {
+            "from": "c9",
+            "to": "c10"
+          },
+          {
+            "from": "c10",
+            "to": "c11"
+          },
+          {
+            "from": "c11",
+            "to": "c12"
+          },
+          {
+            "from": "c12",
+            "to": "c13"
+          },
+          {
+            "from": "c13",
+            "to": "c14"
+          },
+          {
+            "from": "c14",
+            "to": "c15"
+          },
+          {
+            "from": "c15",
+            "to": "c16"
+          },
+          {
+            "from": "c16",
+            "to": "c17"
+          }
+        ],
+        "entryId": "c0"
+      }
+    },
+    {
+      "id": "component.missing_definition",
+      "concept": "component",
+      "classification": "missing_reference",
+      "reason": "component_not_found",
+      "value": {
+        "componentIds": [
+          "root"
+        ],
+        "dependencies": [
+          {
+            "from": "root",
+            "to": "absent"
+          }
+        ],
+        "entryId": "root"
+      }
+    },
+    {
+      "id": "slot.arbitrary_path",
+      "concept": "slot",
+      "classification": "invalid_input",
+      "reason": "unstable_binding_target",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "card_title",
+            "property": "$.tracks[0].items[0]"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ],
+        "suppliedValue": {
+          "type": "text",
+          "value": "Title"
+        }
+      }
+    },
+    {
+      "id": "slot.missing_target",
+      "concept": "slot",
+      "classification": "missing_reference",
+      "reason": "slot_target_not_found",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "absent",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ],
+        "suppliedValue": {
+          "type": "text",
+          "value": "Title"
+        }
+      }
+    },
+    {
+      "id": "slot.type_mismatch",
+      "concept": "slot",
+      "classification": "invalid_input",
+      "reason": "slot_value_type_mismatch",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "card_title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ],
+        "suppliedValue": {
+          "type": "number",
+          "value": 42
+        }
+      }
+    },
+    {
+      "id": "slot.required_value_missing",
+      "concept": "slot",
+      "classification": "invalid_input",
+      "reason": "required_slot_value_missing",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "card_title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ]
+      }
+    },
+    {
+      "id": "slot.invalid_default",
+      "concept": "slot",
+      "classification": "invalid_input",
+      "reason": "slot_default_type_mismatch",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "number",
+            "value": 42
+          },
+          "binding": {
+            "targetLayerId": "card_title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ],
+        "suppliedValue": {
+          "type": "text",
+          "value": "Title"
+        }
+      }
+    },
+    {
+      "id": "slot.constraint_violation",
+      "concept": "slot",
+      "classification": "invalid_input",
+      "reason": "slot_constraint_violation",
+      "value": {
+        "definition": {
+          "scope": "component:rule_card",
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "card_title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "targetLayerIds": [
+          "card_title"
+        ],
+        "suppliedValue": {
+          "type": "text",
+          "value": ""
+        }
+      }
+    },
+    {
+      "id": "marker.ambiguous_name",
+      "concept": "marker",
+      "classification": "ambiguous_reference",
+      "reason": "duplicate_marker_name",
+      "value": {
+        "scope": "component:rule_card",
+        "markers": [
+          {
+            "id": "one",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 100,
+            "kind": "cue"
+          },
+          {
+            "id": "two",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 200,
+            "kind": "cue"
+          }
+        ],
+        "lookupName": "impact"
+      }
+    },
+    {
+      "id": "curve.invalid_spring",
+      "concept": "curve",
+      "classification": "invalid_input",
+      "reason": "spring_parameter_out_of_range",
+      "value": {
+        "id": "invalid_spring",
+        "scope": "root",
+        "curves": [
+          {
+            "type": "spring",
+            "mass": 0,
+            "stiffness": 170,
+            "damping": 26,
+            "initialVelocity": 0
+          }
+        ],
+        "keyframes": []
+      }
+    },
+    {
+      "id": "mask.missing_source",
+      "concept": "mask",
+      "classification": "missing_reference",
+      "reason": "mask_source_not_found",
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "masks": [
+          {
+            "id": "candidate_mask",
+            "source": {
+              "type": "layer",
+              "layerId": "absent"
+            },
+            "channel": "alpha",
+            "operation": "add",
+            "inverted": false,
+            "featherPx": 0,
+            "expansionPx": 0,
+            "transformId": "hero"
+          }
+        ],
+        "availableLayerIds": [
+          "hero",
+          "matte_source"
+        ]
+      }
+    },
+    {
+      "id": "mask.unsafe_svg",
+      "concept": "mask",
+      "classification": "invalid_input",
+      "reason": "executable_svg",
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "masks": [
+          {
+            "id": "candidate_mask",
+            "source": {
+              "type": "inline_svg",
+              "svg": "<svg onload=\"run()\"><script>run()</script></svg>"
+            },
+            "channel": "alpha",
+            "operation": "add",
+            "inverted": false,
+            "featherPx": 0,
+            "expansionPx": 0,
+            "transformId": "hero"
+          }
+        ],
+        "availableLayerIds": [
+          "hero",
+          "matte_source"
+        ]
+      }
+    },
+    {
+      "id": "mask.arbitrary_path",
+      "concept": "mask",
+      "classification": "invalid_input",
+      "reason": "arbitrary_path_forbidden",
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "masks": [
+          {
+            "id": "candidate_mask",
+            "source": {
+              "type": "file",
+              "path": "C:\\outside\\mask.svg"
+            },
+            "channel": "alpha",
+            "operation": "add",
+            "inverted": false,
+            "featherPx": 0,
+            "expansionPx": 0,
+            "transformId": "hero"
+          }
+        ],
+        "availableLayerIds": [
+          "hero",
+          "matte_source"
+        ]
+      }
+    },
+    {
+      "id": "effect.renderer_expression",
+      "concept": "effect",
+      "classification": "invalid_input",
+      "reason": "renderer_expression_forbidden",
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "effects": [
+          {
+            "id": "raw_filter",
+            "type": "renderer_expression",
+            "expression": "movie=https://example.invalid/overlay"
+          }
+        ]
+      }
+    },
+    {
+      "id": "effect.limit_exceeded",
+      "concept": "effect",
+      "classification": "invalid_input",
+      "reason": "max_effects_per_layer_exceeded",
+      "value": {
+        "scope": "root",
+        "layerId": "hero",
+        "effects": [
+          {
+            "id": "effect_0",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_1",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_2",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_3",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_4",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_5",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_6",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_7",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_8",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_9",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_10",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_11",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_12",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_13",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_14",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_15",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_16",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_17",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_18",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_19",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_20",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_21",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_22",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_23",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_24",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_25",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_26",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_27",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_28",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_29",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_30",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_31",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "effect_32",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.missing_bus",
+      "concept": "audio_event",
+      "classification": "missing_reference",
+      "reason": "audio_bus_not_found",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "absent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.ambiguous_bus",
+      "concept": "audio_event",
+      "classification": "ambiguous_reference",
+      "reason": "audio_bus_ambiguous",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          },
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.missing_marker",
+      "concept": "audio_event",
+      "classification": "missing_reference",
+      "reason": "marker_not_found",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "absent",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.ambiguous_marker",
+      "concept": "audio_event",
+      "classification": "ambiguous_reference",
+      "reason": "marker_ambiguous",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          },
+          {
+            "id": "impact_duplicate",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.missing_sound_definition",
+      "concept": "audio_event",
+      "classification": "missing_reference",
+      "reason": "sound_definition_not_found",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "absent",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.ambiguous_sound_definition",
+      "concept": "audio_event",
+      "classification": "ambiguous_reference",
+      "reason": "sound_definition_ambiguous",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          },
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.missing_variant",
+      "concept": "audio_event",
+      "classification": "missing_reference",
+      "reason": "sound_variant_not_found",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "absent"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.ambiguous_variant",
+      "concept": "audio_event",
+      "classification": "ambiguous_reference",
+      "reason": "sound_variant_ambiguous",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "sfx_impact_a",
+              "sfx_impact_a"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    },
+    {
+      "id": "audio_event.network_variant",
+      "concept": "audio_event",
+      "classification": "invalid_input",
+      "reason": "network_resource_forbidden",
+      "value": {
+        "assets": [
+          "sfx_impact_a"
+        ],
+        "buses": [
+          {
+            "id": "sfx"
+          }
+        ],
+        "markers": [
+          {
+            "id": "impact",
+            "name": "impact",
+            "scope": "component:rule_card",
+            "timeMs": 1500,
+            "kind": "cue"
+          }
+        ],
+        "soundDefinitions": [
+          {
+            "event": "impact",
+            "variantAssetIds": [
+              "https://example.invalid/impact.wav"
+            ],
+            "defaultGainDb": -3,
+            "busId": "sfx"
+          }
+        ],
+        "events": [
+          {
+            "id": "impact_01",
+            "scope": "component:rule_card",
+            "event": "impact",
+            "at": {
+              "type": "marker",
+              "markerName": "impact",
+              "offsetMs": 0
+            },
+            "gainDb": -1.5,
+            "variantSeed": 42,
+            "busId": "sfx"
+          }
+        ]
+      }
+    }
+  ]
+}
