@@ -101,15 +101,13 @@ jobs:
           cargo test -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact
           cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact
       - name: Validate Linux render baseline schema
-        run: >-
-          bun -e "const value = await Bun.file('target/render-baseline-linux.json').json();
-          if (value.schemaVersion !== 2 || value.warmupSamples !== 1 || value.measuredSamples !== 3 ||
-          value.memoryScope !== 'process_tree' || value.timingAggregation !== 'median' ||
-          value.memoryAggregation !== 'maximum') throw new Error('invalid render baseline schema');"
+        env:
+          OPENCUT_GOLDEN_REPORT_PATH: ${{ github.workspace }}/target/render-baseline-linux.json
+        run: cargo test -p opencut-editor-core renderer::golden::validate_external_performance_report -- --ignored --exact
       - name: Upload report-only Linux render baseline
         uses: actions/upload-artifact@v4
         with:
-          name: render-baseline-linux-v2
+          name: render-baseline-linux-v3
           path: target/render-baseline-linux.json
       - name: Fake-provider MCP integration
         working-directory: apps/agent-bridge

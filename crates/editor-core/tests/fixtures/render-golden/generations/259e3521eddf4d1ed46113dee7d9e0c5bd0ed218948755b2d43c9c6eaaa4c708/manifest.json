@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "fixtureId": "flat-scene-av-v1",
-  "fixtureRevision": 2,
+  "fixtureRevision": 3,
   "canvas": {
     "width": 160,
     "height": 90,
@@ -67,7 +67,7 @@
     {
       "kind": "performanceBaseline",
       "path": "performance-baseline.json",
-      "sha256": "12e192ea4bcd50e3b5931737391ad91fc49a535ce289c3a8798626da3ffc3c8a"
+      "sha256": "d13c438cdc9b8a77fa4a26b9e5931aa8f113a5dd6c1f4b4451397d4e5c464270"
     }
   ]
 }

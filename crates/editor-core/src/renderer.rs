@@ -30,8 +30,9 @@ use crate::render_plan::{
 };
 #[cfg(test)]
 use crate::render_process::{
-    RENDER_STAGE, SPAWN_STAGE, STDERR_EXCERPT_BYTES, STDERR_TAIL_BYTES, read_bounded_tail,
-    sanitize_stderr, stderr_excerpt,
+    RENDER_STAGE, SPAWN_STAGE, STDERR_EXCERPT_BYTES, STDERR_TAIL_BYTES,
+    build_composite_benchmark_command, build_decode_benchmark_command, read_bounded_tail,
+    run_to_completion, sanitize_stderr, stderr_excerpt,
 };
 
 #[cfg(test)]

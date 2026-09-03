@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 3,
+  "fixtureId": "flat-scene-av-v1",
+  "fixtureRevision": 3,
+  "gitRevision": "7ed09d30ceaf2ad9fcdb9596fa4b4425f4e7cc5a",
+  "os": "linux",
+  "architecture": "x86_64",
+  "ffmpegVersion": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+  "ffprobeVersion": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+  "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+  "units": {
+    "timing": "milliseconds",
+    "memory": "bytes"
+  },
+  "warmupSamples": 1,
+  "measuredSamples": 3,
+  "memoryScope": "process_tree",
+  "timingAggregation": "median",
+  "memoryAggregation": "maximum",
+  "stageDefinitionVersion": 1,
+  "nonAdditiveStageTimings": true,
+  "intentObservations": [
+    {
+      "intent": "framePreview",
+      "timingsMs": {
+        "sceneEvaluation": 0.046198,
+        "rasterization": 0.0,
+        "filterGraphConstruction": 0.947095,
+        "decoding": 48.339636,
+        "compositing": 113.68186,
+        "encoding": 132.036201,
+        "endToEnd": 133.035397
+      },
+      "work": {
+        "decodedInputs": 1,
+        "rasterizedLayers": 0,
+        "compositedLayers": 2,
+        "encodedVideoStreams": 1,
+        "encodedAudioStreams": 0
+      }
+    },
+    {
+      "intent": "audiovisualRangePreview",
+      "timingsMs": {
+        "sceneEvaluation": 0.049458,
+        "rasterization": 0.0,
+        "filterGraphConstruction": 0.755432,
+        "decoding": 48.595111,
+        "compositing": 126.50777599999999,
+        "encoding": 168.656449,
+        "endToEnd": 169.42173799999998
+      },
+      "work": {
+        "decodedInputs": 1,
+        "rasterizedLayers": 0,
+        "compositedLayers": 2,
+        "encodedVideoStreams": 1,
+        "encodedAudioStreams": 1
+      }
+    },
+    {
+      "intent": "finalExport",
+      "timingsMs": {
+        "sceneEvaluation": 0.044026,
+        "rasterization": 0.0,
+        "filterGraphConstruction": 0.775389,
+        "decoding": 48.505222,
+        "compositing": 128.65664199999998,
+        "encoding": 167.156574,
+        "endToEnd": 167.983002
+      },
+      "work": {
+        "decodedInputs": 1,
+        "rasterizedLayers": 0,
+        "compositedLayers": 2,
+        "encodedVideoStreams": 1,
+        "encodedAudioStreams": 1
+      }
+    }
+  ],
+  "peakResidentWorkingSetBytes": 86515712,
+  "comparisonPolicy": "report_only_compare_matching_environment_identity"
+}
