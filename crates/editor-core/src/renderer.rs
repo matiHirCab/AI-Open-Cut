@@ -336,6 +336,9 @@ impl Renderer {
 }
 
 #[cfg(test)]
+mod golden;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::{

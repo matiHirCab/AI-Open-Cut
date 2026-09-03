@@ -319,6 +319,8 @@ Effort ranges are engineering estimates, not calendar commitments. They assume o
 - Capture baseline golden frames, a short A/V fixture, filter-graph snapshots, render duration, and peak memory.
 - Add feature/capability version reporting so clients can detect `sceneGraph`, `richText`, `vectorShapes`, and related levels.
 
+Milestone-zero baseline status: issue #14 establishes `flat-scene-av-v1`, a checked-in 160x90 one-second decoded visual/audio and normalized semantic/filter-graph reference set. Required Linux CI verifies native conformance with explicit FFmpeg, FFprobe, and DejaVu Sans dependencies and publishes a platform-tagged timing and peak-resident-memory observation. The checked-in capture records its own environment identity; measurements from unlike environments are not regression comparisons, and release performance budgets remain deferred until repeated comparable observations exist. See `docs/render-regression-fixtures.md`.
+
 Exit gate: existing projects render pixel-equivalently, existing MCP tests pass unchanged, and the evaluator can describe the current flat scene.
 
 ### Milestone 1 — scene graph, explicit stacking, groups, and components (3–5 engineer-weeks)

@@ -9,6 +9,7 @@ __pycache__/
 !.env.example
 # Generated documentation output only; authored guides and ADRs are tracked.
 docs/generated/
+crates/editor-core/tests/fixtures/render-golden/.golden.lock
 
 # moon runtime cache
 .moon/cache/

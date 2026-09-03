@@ -16,4 +16,8 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 syn = { version = "2.0.119", features = ["full", "visit"] }
+sysinfo = "0.37.2"
 tempfile = "3.20"
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Storage_FileSystem"] }

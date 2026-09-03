@@ -11,5 +11,5 @@
 
 ## 3. Integration and Completion
 
-- [ ] 3.1 Apply `$openspec-verify-change`, resolve any mismatch among the requirement, design, tasks, configuration, documentation, and validation evidence, then archive the verified change with `$openspec-archive-change`.
-- [ ] 3.2 Merge through the normal pull-request workflow and verify the resulting GitHub Actions push run on `main` passes OpenSpec validation; no Rust, TypeScript, Python, contract, render, or packaged-smoke commands are added because their code and job definitions are unchanged.
+- [x] 3.1 Apply `$openspec-verify-change`, resolve any mismatch among the requirement, design, tasks, configuration, documentation, and validation evidence, then archive the verified change with `$openspec-archive-change`.
+- [x] 3.2 Merge through the normal pull-request workflow and verify the resulting GitHub Actions push run on `main` passes OpenSpec validation; no Rust, TypeScript, Python, contract, render, or packaged-smoke commands are added because their code and job definitions are unchanged.
