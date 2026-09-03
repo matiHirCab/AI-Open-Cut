@@ -6,7 +6,7 @@ use crate::{
     render_artifact::prepare_media_resources,
 };
 use fs2::FileExt;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -29,8 +29,11 @@ use uuid::Uuid;
 const POINTER_VERSION: u32 = 1;
 const MANIFEST_VERSION: u32 = 1;
 const FIXTURE_ID: &str = "flat-scene-av-v1";
-const FIXTURE_REVISION: u32 = 2;
-const PERFORMANCE_SCHEMA_VERSION: u32 = 2;
+const FIXTURE_REVISION: u32 = 3;
+const PERFORMANCE_SCHEMA_VERSION: u32 = 3;
+const MIGRATION_FIXTURE_REVISION: u32 = 2;
+const MIGRATION_PERFORMANCE_SCHEMA_VERSION: u32 = 2;
+const STAGE_DEFINITION_VERSION: u32 = 1;
 const WARMUP_SAMPLES: u32 = 1;
 const MEASURED_SAMPLES: u32 = 3;
 const MEMORY_SAMPLE_INTERVAL: Duration = Duration::from_millis(5);
@@ -158,6 +161,7 @@ struct PerformanceBaseline {
     schema_version: u32,
     fixture_id: String,
     fixture_revision: u32,
+    #[serde(deserialize_with = "deserialize_present_git_revision")]
     git_revision: Option<String>,
     os: String,
     architecture: String,
@@ -170,9 +174,52 @@ struct PerformanceBaseline {
     memory_scope: String,
     timing_aggregation: String,
     memory_aggregation: String,
-    timings_ms: PhaseTimings,
+    stage_definition_version: u32,
+    non_additive_stage_timings: bool,
+    intent_observations: Vec<IntentObservation>,
     peak_resident_working_set_bytes: u64,
     comparison_policy: String,
+}
+
+fn deserialize_present_git_revision<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct LegacyPerformanceBaseline {
+    schema_version: u32,
+    fixture_id: String,
+    fixture_revision: u32,
+    git_revision: serde_json::Value,
+    os: String,
+    architecture: String,
+    ffmpeg_version: String,
+    ffprobe_version: String,
+    font_sha256: String,
+    units: BaselineUnits,
+    warmup_samples: u32,
+    measured_samples: u32,
+    memory_scope: String,
+    timing_aggregation: String,
+    memory_aggregation: String,
+    timings_ms: LegacyPhaseTimings,
+    peak_resident_working_set_bytes: u64,
+    comparison_policy: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct LegacyPhaseTimings {
+    scene_evaluation: f64,
+    filter_graph_construction: f64,
+    frame_rendering: f64,
+    audiovisual_range_rendering: f64,
+    export_rendering: f64,
+    total: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -184,13 +231,32 @@ struct BaselineUnits {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct PhaseTimings {
+struct StageTimings {
     scene_evaluation: f64,
+    rasterization: f64,
     filter_graph_construction: f64,
-    frame_rendering: f64,
-    audiovisual_range_rendering: f64,
-    export_rendering: f64,
-    total: f64,
+    decoding: f64,
+    compositing: f64,
+    encoding: f64,
+    end_to_end: f64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StageWork {
+    decoded_inputs: u64,
+    rasterized_layers: u64,
+    composited_layers: u64,
+    encoded_video_streams: u64,
+    encoded_audio_streams: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct IntentObservation {
+    intent: String,
+    timings_ms: StageTimings,
+    work: StageWork,
 }
 
 #[derive(Debug)]
@@ -214,8 +280,43 @@ struct Capture {
     export_duration_ms: u64,
     semantic_plan: String,
     filter_graph: String,
-    timings: PhaseTimings,
+    intent_observations: Vec<IntentObservation>,
     peak_process_tree_bytes: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CaptureMode {
+    Conformance,
+    Benchmark { sample_memory: bool },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BenchmarkProbeStage {
+    Decode,
+    Composite,
+}
+
+trait BenchmarkProbeExecutor: std::fmt::Debug {
+    fn execute(
+        &self,
+        stage: BenchmarkProbeStage,
+        command: &mut Command,
+        duration_ms: u64,
+    ) -> Result<(), CoreError>;
+}
+
+#[derive(Debug)]
+struct NativeBenchmarkProbeExecutor;
+
+impl BenchmarkProbeExecutor for NativeBenchmarkProbeExecutor {
+    fn execute(
+        &self,
+        _stage: BenchmarkProbeStage,
+        command: &mut Command,
+        duration_ms: u64,
+    ) -> Result<(), CoreError> {
+        run_to_completion(command, duration_ms, |_| {})
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -544,9 +645,146 @@ fn write_tone_wav(path: &Path) {
     fs::write(path, bytes).expect("write deterministic tone fixture");
 }
 
-fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
-    let memory_sampler = sample_memory.then(ProcessTreeSampler::start);
-    let total_started = Instant::now();
+fn benchmark_intent(
+    renderer: &Renderer,
+    project: &Project,
+    project_root: &Path,
+    intent: RenderIntent,
+    probe_executor: &dyn BenchmarkProbeExecutor,
+) -> Result<IntentObservation, CoreError> {
+    let end_to_end_started = Instant::now();
+    let evaluation_started = Instant::now();
+    let evaluated = evaluate_project(project, WIDTH, HEIGHT, FPS)?;
+    let scene_evaluation = evaluation_started.elapsed();
+
+    let filter_started = Instant::now();
+    let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, project_root)?;
+    let built = renderer.prepare_render(&evaluated, media, project_root, intent)?;
+    let filter_graph_construction = filter_started.elapsed();
+
+    let extension = if matches!(intent, RenderIntent::Frame { .. }) {
+        "png"
+    } else {
+        "mp4"
+    };
+    let encoded_output = temporary_output(renderer.artifact_io.as_ref(), project_root, extension);
+    let encoding_started = Instant::now();
+    if let Err(error) = renderer.process_executor.execute(
+        &renderer.ffmpeg_path,
+        &built.plan,
+        &built.filter_path,
+        &encoded_output,
+        &mut |_| {},
+    ) {
+        let _ = renderer.artifact_io.remove(&encoded_output);
+        return Err(error);
+    }
+    let encoding = encoding_started.elapsed();
+    let end_to_end = end_to_end_started.elapsed();
+    renderer
+        .artifact_io
+        .remove(&encoded_output)
+        .map_err(|error| CoreError::io("remove encoded benchmark output", error))?;
+
+    let decoding = if let Some(mut command) =
+        build_decode_benchmark_command(&renderer.ffmpeg_path, &built.plan)
+    {
+        let started = Instant::now();
+        probe_executor.execute(
+            BenchmarkProbeStage::Decode,
+            &mut command,
+            built.plan.duration_ms,
+        )?;
+        started.elapsed()
+    } else {
+        Duration::ZERO
+    };
+    let mut composite =
+        build_composite_benchmark_command(&renderer.ffmpeg_path, &built.plan, &built.filter_path);
+    let composite_started = Instant::now();
+    probe_executor.execute(
+        BenchmarkProbeStage::Composite,
+        &mut composite,
+        built.plan.duration_ms,
+    )?;
+    let compositing = composite_started.elapsed();
+
+    let encoded_audio_streams = match intent {
+        RenderIntent::Frame { .. } => 0,
+        RenderIntent::Range { include_audio, .. } => u64::from(include_audio),
+        RenderIntent::Export => 1,
+    };
+    let intent_name = match intent {
+        RenderIntent::Frame { .. } => "framePreview",
+        RenderIntent::Range { .. } => "audiovisualRangePreview",
+        RenderIntent::Export => "finalExport",
+    };
+    Ok(IntentObservation {
+        intent: intent_name.into(),
+        timings_ms: StageTimings {
+            scene_evaluation: duration_ms(scene_evaluation),
+            rasterization: 0.0,
+            filter_graph_construction: duration_ms(filter_graph_construction),
+            decoding: duration_ms(decoding),
+            compositing: duration_ms(compositing),
+            encoding: duration_ms(encoding),
+            end_to_end: duration_ms(end_to_end),
+        },
+        work: StageWork {
+            decoded_inputs: built.plan.media_inputs.len() as u64,
+            rasterized_layers: 0,
+            composited_layers: evaluated.scene.visual_layers.len() as u64,
+            encoded_video_streams: 1,
+            encoded_audio_streams,
+        },
+    })
+}
+
+fn benchmark_intent_observations(
+    renderer: &Renderer,
+    project: &Project,
+    project_root: &Path,
+    probe_executor: &dyn BenchmarkProbeExecutor,
+) -> Result<Vec<IntentObservation>, CoreError> {
+    [
+        RenderIntent::Frame { at_ms: 500 },
+        RenderIntent::Range {
+            start_ms: 0,
+            end_ms: DURATION_MS,
+            include_audio: true,
+        },
+        RenderIntent::Export,
+    ]
+    .into_iter()
+    .map(|intent| benchmark_intent(renderer, project, project_root, intent, probe_executor))
+    .collect()
+}
+
+fn capture_intent_observations(
+    mode: CaptureMode,
+    renderer: &Renderer,
+    project: &Project,
+    project_root: &Path,
+    probe_executor: &dyn BenchmarkProbeExecutor,
+) -> Result<Vec<IntentObservation>, CoreError> {
+    match mode {
+        CaptureMode::Conformance => Ok(Vec::new()),
+        CaptureMode::Benchmark { .. } => {
+            benchmark_intent_observations(renderer, project, project_root, probe_executor)
+        }
+    }
+}
+
+fn capture(tools: &NativeTools, mode: CaptureMode) -> Capture {
+    let memory_sampler = match mode {
+        CaptureMode::Benchmark {
+            sample_memory: true,
+        } => Some(ProcessTreeSampler::start()),
+        CaptureMode::Conformance
+        | CaptureMode::Benchmark {
+            sample_memory: false,
+        } => None,
+    };
     let root = tempdir().expect("create golden render root");
     fs::create_dir(root.path().join("previews")).unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();
@@ -556,12 +794,18 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     renderer.readiness().expect("golden renderer readiness");
 
-    let evaluation_started = Instant::now();
+    let intent_observations = capture_intent_observations(
+        mode,
+        &renderer,
+        &project,
+        root.path(),
+        &NativeBenchmarkProbeExecutor,
+    )
+    .expect("capture benchmark intent observations");
+
     let evaluated = evaluate_project(&project, WIDTH, HEIGHT, FPS).expect("evaluate golden scene");
-    let scene_evaluation = evaluation_started.elapsed();
     let semantic_plan = format!("{:#?}\n", evaluated.scene);
 
-    let graph_started = Instant::now();
     let mut intent_graphs = Vec::new();
     for intent in [
         RenderIntent::Frame { at_ms: 500 },
@@ -590,9 +834,7 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
         "frame, range, and export filter graphs must share exact semantics"
     );
     let filter_graph = intent_graphs.pop().unwrap();
-    let filter_graph_construction = graph_started.elapsed();
 
-    let frames_started = Instant::now();
     let mut frames = BTreeMap::new();
     for at_ms in SAMPLE_TIMESTAMPS_MS {
         let artifact = renderer
@@ -621,9 +863,6 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
         structural_similarity(frames.get(&500).unwrap(), &repeated_frame).unwrap() >= SSIM_MINIMUM,
         "repeated golden rendering drifted"
     );
-    let frame_rendering = frames_started.elapsed();
-
-    let range_started = Instant::now();
     let range = renderer
         .render_preview_range(
             &project,
@@ -640,9 +879,7 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
         )
         .expect("render golden range");
     let range_path = root.path().join(range.relative_path);
-    let range_rendering = range_started.elapsed();
 
-    let export_started = Instant::now();
     let export_path = root.path().join("export.mp4");
     renderer
         .export_video(
@@ -657,7 +894,6 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
             |_| {},
         )
         .expect("render golden export");
-    let export_rendering = export_started.elapsed();
 
     let range_frames = SAMPLE_TIMESTAMPS_MS
         .into_iter()
@@ -685,14 +921,6 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
         "successful rendering mutated the fixture project"
     );
 
-    let timings = PhaseTimings {
-        scene_evaluation: duration_ms(scene_evaluation),
-        filter_graph_construction: duration_ms(filter_graph_construction),
-        frame_rendering: duration_ms(frame_rendering),
-        audiovisual_range_rendering: duration_ms(range_rendering),
-        export_rendering: duration_ms(export_rendering),
-        total: duration_ms(total_started.elapsed()),
-    };
     let peak_process_tree_bytes = memory_sampler.map_or(0, ProcessTreeSampler::finish);
     Capture {
         frames,
@@ -704,7 +932,7 @@ fn capture(tools: &NativeTools, sample_memory: bool) -> Capture {
         export_duration_ms,
         semantic_plan,
         filter_graph,
-        timings,
+        intent_observations,
         peak_process_tree_bytes,
     }
 }
@@ -727,11 +955,15 @@ fn git_revision() -> Option<String> {
 struct ProcessTreeSampler {
     stop: Arc<AtomicBool>,
     peak: Arc<AtomicU64>,
-    handle: thread::JoinHandle<()>,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
 impl ProcessTreeSampler {
     fn start() -> Self {
+        Self::start_with_exit_signal(None)
+    }
+
+    fn start_with_exit_signal(exit_signal: Option<Arc<AtomicBool>>) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
         let peak = Arc::new(AtomicU64::new(0));
         let sampler_stop = Arc::clone(&stop);
@@ -769,16 +1001,36 @@ impl ProcessTreeSampler {
                 }
                 thread::sleep(MEMORY_SAMPLE_INTERVAL);
             }
+            if let Some(exit_signal) = exit_signal {
+                exit_signal.store(true, Ordering::Release);
+            }
         });
-        Self { stop, peak, handle }
+        Self {
+            stop,
+            peak,
+            handle: Some(handle),
+        }
     }
 
-    fn finish(self) -> u64 {
-        self.stop.store(true, Ordering::Release);
-        self.handle
-            .join()
+    fn stop_and_join(&mut self) -> thread::Result<()> {
+        if let Some(handle) = self.handle.take() {
+            self.stop.store(true, Ordering::Release);
+            handle.join()
+        } else {
+            Ok(())
+        }
+    }
+
+    fn finish(mut self) -> u64 {
+        self.stop_and_join()
             .expect("join process-tree memory sampler");
         self.peak.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for ProcessTreeSampler {
+    fn drop(&mut self) {
+        let _ = self.stop_and_join();
     }
 }
 
@@ -802,14 +1054,48 @@ fn median(mut values: Vec<f64>) -> f64 {
 
 fn aggregate_performance(tools: &NativeTools, captures: &[Capture]) -> PerformanceBaseline {
     assert_eq!(captures.len(), MEASURED_SAMPLES as usize);
-    let phase = |select: fn(&PhaseTimings) -> f64| {
-        median(
-            captures
-                .iter()
-                .map(|capture| select(&capture.timings))
-                .collect(),
-        )
-    };
+    let mut intent_observations = Vec::new();
+    for index in 0..captures[0].intent_observations.len() {
+        let first = &captures[0].intent_observations[index];
+        assert!(captures.iter().all(|capture| {
+            capture.intent_observations[index].intent == first.intent
+                && capture.intent_observations[index].work.decoded_inputs
+                    == first.work.decoded_inputs
+                && capture.intent_observations[index].work.rasterized_layers
+                    == first.work.rasterized_layers
+                && capture.intent_observations[index].work.composited_layers
+                    == first.work.composited_layers
+                && capture.intent_observations[index]
+                    .work
+                    .encoded_video_streams
+                    == first.work.encoded_video_streams
+                && capture.intent_observations[index]
+                    .work
+                    .encoded_audio_streams
+                    == first.work.encoded_audio_streams
+        }));
+        let phase = |select: fn(&StageTimings) -> f64| {
+            median(
+                captures
+                    .iter()
+                    .map(|capture| select(&capture.intent_observations[index].timings_ms))
+                    .collect(),
+            )
+        };
+        intent_observations.push(IntentObservation {
+            intent: first.intent.clone(),
+            timings_ms: StageTimings {
+                scene_evaluation: phase(|timings| timings.scene_evaluation),
+                rasterization: phase(|timings| timings.rasterization),
+                filter_graph_construction: phase(|timings| timings.filter_graph_construction),
+                decoding: phase(|timings| timings.decoding),
+                compositing: phase(|timings| timings.compositing),
+                encoding: phase(|timings| timings.encoding),
+                end_to_end: phase(|timings| timings.end_to_end),
+            },
+            work: first.work.clone(),
+        });
+    }
     PerformanceBaseline {
         schema_version: PERFORMANCE_SCHEMA_VERSION,
         fixture_id: FIXTURE_ID.into(),
@@ -829,14 +1115,9 @@ fn aggregate_performance(tools: &NativeTools, captures: &[Capture]) -> Performan
         memory_scope: "process_tree".into(),
         timing_aggregation: "median".into(),
         memory_aggregation: "maximum".into(),
-        timings_ms: PhaseTimings {
-            scene_evaluation: phase(|timings| timings.scene_evaluation),
-            filter_graph_construction: phase(|timings| timings.filter_graph_construction),
-            frame_rendering: phase(|timings| timings.frame_rendering),
-            audiovisual_range_rendering: phase(|timings| timings.audiovisual_range_rendering),
-            export_rendering: phase(|timings| timings.export_rendering),
-            total: phase(|timings| timings.total),
-        },
+        stage_definition_version: STAGE_DEFINITION_VERSION,
+        non_additive_stage_timings: true,
+        intent_observations,
         peak_resident_working_set_bytes: captures
             .iter()
             .map(|capture| capture.peak_process_tree_bytes)
@@ -848,10 +1129,22 @@ fn aggregate_performance(tools: &NativeTools, captures: &[Capture]) -> Performan
 
 fn sampled_capture(tools: &NativeTools) -> (Capture, PerformanceBaseline) {
     for _ in 0..WARMUP_SAMPLES {
-        let _ = capture(tools, false);
+        let _ = capture(
+            tools,
+            CaptureMode::Benchmark {
+                sample_memory: false,
+            },
+        );
     }
     let mut captures = (0..MEASURED_SAMPLES)
-        .map(|_| capture(tools, true))
+        .map(|_| {
+            capture(
+                tools,
+                CaptureMode::Benchmark {
+                    sample_memory: true,
+                },
+            )
+        })
         .collect::<Vec<_>>();
     let first = captures.first().expect("measured golden capture");
     assert!(
@@ -862,6 +1155,7 @@ fn sampled_capture(tools: &NativeTools) -> (Capture, PerformanceBaseline) {
         "measured golden captures produced different deterministic evidence"
     );
     let performance = aggregate_performance(tools, &captures);
+    validate_performance_baseline(&performance).expect("validate aggregated performance report");
     (captures.remove(0), performance)
 }
 
@@ -968,10 +1262,26 @@ fn validate_manifest(
     manifest: &GoldenManifest,
     verify_hashes: bool,
 ) -> Result<(), String> {
+    validate_manifest_with_performance(
+        root,
+        manifest,
+        FIXTURE_REVISION,
+        verify_hashes,
+        validate_current_performance_bytes,
+    )
+}
+
+fn validate_manifest_with_performance(
+    root: &Path,
+    manifest: &GoldenManifest,
+    expected_fixture_revision: u32,
+    verify_hashes: bool,
+    validate_performance_bytes: fn(&[u8]) -> Result<(), String>,
+) -> Result<(), String> {
     if manifest.schema_version != MANIFEST_VERSION {
         return Err("unknown golden manifest version".into());
     }
-    if manifest.fixture_id != FIXTURE_ID || manifest.fixture_revision != FIXTURE_REVISION {
+    if manifest.fixture_id != FIXTURE_ID || manifest.fixture_revision != expected_fixture_revision {
         return Err("golden fixture identity differs".into());
     }
     if (
@@ -1042,9 +1352,7 @@ fn validate_manifest(
                 return Err("golden reference hash mismatch".into());
             }
             if matches!(reference, GoldenReference::PerformanceBaseline { .. }) {
-                let baseline: PerformanceBaseline = serde_json::from_slice(&bytes)
-                    .map_err(|_| "performance baseline is malformed")?;
-                validate_performance_baseline(&baseline)?;
+                validate_performance_bytes(&bytes)?;
             }
         }
     }
@@ -1056,7 +1364,56 @@ fn validate_manifest(
     Ok(())
 }
 
-fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), String> {
+fn validate_migration_source(root: &Path, manifest: &GoldenManifest) -> Result<(), String> {
+    validate_manifest_with_performance(
+        root,
+        manifest,
+        MIGRATION_FIXTURE_REVISION,
+        true,
+        validate_legacy_performance_bytes,
+    )
+}
+
+fn validate_current_performance_bytes(bytes: &[u8]) -> Result<(), String> {
+    let baseline: PerformanceBaseline =
+        serde_json::from_slice(bytes).map_err(|_| "performance baseline is malformed")?;
+    validate_performance_baseline(&baseline)
+}
+
+fn validate_legacy_performance_bytes(bytes: &[u8]) -> Result<(), String> {
+    let baseline: LegacyPerformanceBaseline = serde_json::from_slice(bytes)
+        .map_err(|_| "golden migration performance report is malformed")?;
+    validate_legacy_performance_baseline(&baseline)
+}
+
+fn validate_legacy_performance_baseline(
+    baseline: &LegacyPerformanceBaseline,
+) -> Result<(), String> {
+    let valid_git_revision = baseline.git_revision.is_null()
+        || baseline
+            .git_revision
+            .as_str()
+            .is_some_and(|revision| !revision.trim().is_empty());
+    if baseline.schema_version != MIGRATION_PERFORMANCE_SCHEMA_VERSION
+        || baseline.fixture_id != FIXTURE_ID
+        || baseline.fixture_revision != MIGRATION_FIXTURE_REVISION
+        || !valid_git_revision
+        || baseline.os.trim().is_empty()
+        || baseline.architecture.trim().is_empty()
+        || baseline.ffmpeg_version.trim().is_empty()
+        || baseline.ffprobe_version.trim().is_empty()
+        || baseline.units.timing != "milliseconds"
+        || baseline.units.memory != "bytes"
+        || baseline.warmup_samples != WARMUP_SAMPLES
+        || baseline.measured_samples != MEASURED_SAMPLES
+        || baseline.memory_scope != "process_tree"
+        || baseline.timing_aggregation != "median"
+        || baseline.memory_aggregation != "maximum"
+        || baseline.comparison_policy != "report_only_compare_matching_environment_identity"
+    {
+        return Err("golden migration performance report is incomplete or unsupported".into());
+    }
+    validate_hash(&baseline.font_sha256)?;
     let timings = &baseline.timings_ms;
     let values = [
         timings.scene_evaluation,
@@ -1066,14 +1423,31 @@ fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), S
         timings.export_rendering,
         timings.total,
     ];
+    if values
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+    {
+        return Err("golden migration timings are non-finite or negative".into());
+    }
+    Ok(())
+}
+
+fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), String> {
+    let valid_git_revision = baseline
+        .git_revision
+        .as_ref()
+        .is_none_or(|revision| !revision.trim().is_empty());
     if baseline.schema_version != PERFORMANCE_SCHEMA_VERSION
         || baseline.fixture_id != FIXTURE_ID
         || baseline.fixture_revision != FIXTURE_REVISION
+        || !valid_git_revision
         || baseline.warmup_samples != WARMUP_SAMPLES
         || baseline.measured_samples != MEASURED_SAMPLES
         || baseline.memory_scope != "process_tree"
         || baseline.timing_aggregation != "median"
         || baseline.memory_aggregation != "maximum"
+        || baseline.stage_definition_version != STAGE_DEFINITION_VERSION
+        || !baseline.non_additive_stage_timings
         || baseline.os.trim().is_empty()
         || baseline.architecture.trim().is_empty()
         || baseline.ffmpeg_version.trim().is_empty()
@@ -1081,13 +1455,73 @@ fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), S
         || baseline.units.timing != "milliseconds"
         || baseline.units.memory != "bytes"
         || baseline.comparison_policy != "report_only_compare_matching_environment_identity"
-        || values
-            .iter()
-            .any(|value| !value.is_finite() || *value < 0.0)
     {
         return Err("performance baseline is incomplete, non-finite, or out of range".into());
     }
-    validate_hash(&baseline.font_sha256)
+    validate_hash(&baseline.font_sha256)?;
+    let mut intents = BTreeSet::new();
+    for observation in &baseline.intent_observations {
+        if !intents.insert(observation.intent.as_str()) {
+            return Err("performance baseline contains a duplicate intent".into());
+        }
+        let expected_work = expected_stage_work(&observation.intent)?;
+        let timings = &observation.timings_ms;
+        let values = [
+            timings.scene_evaluation,
+            timings.rasterization,
+            timings.filter_graph_construction,
+            timings.decoding,
+            timings.compositing,
+            timings.encoding,
+            timings.end_to_end,
+        ];
+        if values
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+            || (observation.work.rasterized_layers == 0 && timings.rasterization != 0.0)
+            || (observation.work.decoded_inputs == 0 && timings.decoding != 0.0)
+        {
+            return Err("performance stage observation is inconsistent".into());
+        }
+        if observation.work != expected_work {
+            return Err("performance stage work differs from the canonical fixture".into());
+        }
+    }
+    let expected = BTreeSet::from(["framePreview", "audiovisualRangePreview", "finalExport"]);
+    if intents != expected {
+        return Err("performance baseline intent set is incomplete".into());
+    }
+    Ok(())
+}
+
+fn expected_stage_work(intent: &str) -> Result<StageWork, String> {
+    let encoded_audio_streams = match intent {
+        "framePreview" => 0,
+        "audiovisualRangePreview" | "finalExport" => 1,
+        _ => return Err("performance baseline contains an unknown intent".into()),
+    };
+    Ok(StageWork {
+        decoded_inputs: 1,
+        rasterized_layers: 0,
+        composited_layers: 2,
+        encoded_video_streams: 1,
+        encoded_audio_streams,
+    })
+}
+
+fn validate_performance_report_file(path: &Path) -> Result<(), String> {
+    let bytes = fs::read(path).map_err(|_| "performance report is missing")?;
+    let baseline: PerformanceBaseline = serde_json::from_slice(&bytes)
+        .map_err(|_| "performance report is not strict schema-3 JSON")?;
+    validate_performance_baseline(&baseline)
+}
+
+fn write_performance_report(path: &Path, baseline: &PerformanceBaseline) -> Result<(), String> {
+    validate_performance_baseline(baseline)?;
+    let bytes =
+        serde_json::to_vec_pretty(baseline).map_err(|_| "cannot serialize performance report")?;
+    fs::write(path, bytes).map_err(|_| "cannot write performance report")?;
+    validate_performance_report_file(path)
 }
 
 fn safe_reference_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
@@ -1776,9 +2210,18 @@ fn recognized_pointer_temporary(name: &str) -> bool {
 fn recognized_generation(root: &Path, name: &str) -> bool {
     validate_hash(name).is_ok()
         && fs::read(root.join("manifest.json")).is_ok_and(|bytes| hash_bytes(&bytes) == name)
-        && load_manifest(root)
-            .and_then(|manifest| validate_manifest(root, &manifest, true))
-            .is_ok()
+        && fs::read(root.join("manifest.json")).is_ok_and(|bytes| {
+            serde_json::from_slice::<GoldenManifest>(&bytes)
+                .is_ok_and(|manifest| validate_recognized_generation(root, &manifest).is_ok())
+        })
+}
+
+fn validate_recognized_generation(root: &Path, manifest: &GoldenManifest) -> Result<(), String> {
+    if manifest.fixture_revision == FIXTURE_REVISION {
+        validate_manifest(root, manifest, true)
+    } else {
+        validate_migration_source(root, manifest)
+    }
 }
 
 fn cleanup_recognized_entries(container: &Path, active: Option<&str>) -> Result<(), String> {
@@ -1820,8 +2263,19 @@ fn reconcile_fixture_container(
     let current = container.join("CURRENT");
     let selected = if current.exists() {
         let pointer = load_pointer(container)?;
-        let root = selected_generation_root(container)?;
-        let manifest = load_manifest(&root)?;
+        let root = generation_root(container, &pointer.generation);
+        let manifest_bytes = fs::read(root.join("manifest.json"))
+            .map_err(|_| "selected golden manifest is missing")?;
+        if hash_bytes(&manifest_bytes) != pointer.generation {
+            return Err("selected golden generation digest does not match its manifest".into());
+        }
+        let manifest: GoldenManifest = serde_json::from_slice(&manifest_bytes)
+            .map_err(|_| "selected golden manifest is malformed")?;
+        if allow_missing_pointer && manifest.fixture_revision == MIGRATION_FIXTURE_REVISION {
+            validate_migration_source(&root, &manifest)?;
+        } else {
+            validate_manifest(&root, &manifest, true)?;
+        }
         Some((pointer.generation, root, manifest))
     } else if allow_missing_pointer {
         None
@@ -1973,7 +2427,7 @@ fn native_golden_render_conformance() {
         let (capture, performance) = sampled_capture(&tools);
         (capture, Some(performance))
     } else {
-        (capture(&tools, false), None)
+        (capture(&tools, CaptureMode::Conformance), None)
     };
     if update_requested {
         update_golden_set(
@@ -2012,13 +2466,21 @@ fn native_golden_render_conformance() {
             .expect("explicit comparison capture is not reproducible");
     }
     if let Some(report_path) = env::var_os("OPENCUT_GOLDEN_REPORT_PATH") {
-        fs::write(
-            report_path,
-            serde_json::to_vec_pretty(performance.as_ref().expect("sampled report performance"))
-                .unwrap(),
+        write_performance_report(
+            Path::new(&report_path),
+            performance.as_ref().expect("sampled report performance"),
         )
-        .expect("write requested report-only golden baseline");
+        .expect("write and validate requested report-only golden baseline");
     }
+}
+
+#[test]
+#[ignore = "CI helper validates an explicitly captured report-only artifact"]
+fn validate_external_performance_report() {
+    let path = env::var_os("OPENCUT_GOLDEN_REPORT_PATH")
+        .expect("OPENCUT_GOLDEN_REPORT_PATH must identify the captured report");
+    validate_performance_report_file(Path::new(&path))
+        .expect("captured report-only golden baseline is invalid");
 }
 
 #[test]
@@ -2030,8 +2492,21 @@ fn manifest_rejects_invalid_metadata_before_rendering() {
     let mut manifest = write_capture_set(root.path(), &tools, &capture, &performance);
     assert!(validate_manifest(root.path(), &manifest, true).is_ok());
     let mut invalid_performance = performance.clone();
-    invalid_performance.timings_ms.total = f64::NAN;
+    invalid_performance.intent_observations[0]
+        .timings_ms
+        .encoding = f64::NAN;
     assert!(validate_performance_baseline(&invalid_performance).is_err());
+    let mut additive = performance.clone();
+    additive.non_additive_stage_timings = false;
+    assert!(validate_performance_baseline(&additive).is_err());
+    let mut duplicate_intent = performance.clone();
+    duplicate_intent.intent_observations[1].intent = "framePreview".into();
+    assert!(validate_performance_baseline(&duplicate_intent).is_err());
+    let mut false_raster_work = performance.clone();
+    false_raster_work.intent_observations[0]
+        .timings_ms
+        .rasterization = 1.0;
+    assert!(validate_performance_baseline(&false_raster_work).is_err());
 
     manifest.schema_version = 2;
     assert!(
@@ -2061,6 +2536,316 @@ fn manifest_rejects_invalid_metadata_before_rendering() {
     assert!(validate_manifest(root.path(), &manifest, false).is_err());
 }
 
+#[test]
+fn fixture_update_accepts_a_complete_schema_two_migration_source() {
+    let root = tempdir().unwrap();
+    let container = root.path().join("golden");
+    let source = container.join("source");
+    fs::create_dir_all(&source).unwrap();
+    let tools = test_tools();
+    let mut manifest = write_capture_set(&source, &tools, &test_capture(), &test_performance());
+    manifest.fixture_revision = MIGRATION_FIXTURE_REVISION;
+    assert!(validate_migration_source(&source, &manifest).is_err());
+    let performance = manifest
+        .references
+        .iter_mut()
+        .find(|reference| matches!(reference, GoldenReference::PerformanceBaseline { .. }))
+        .unwrap();
+    let legacy = serde_json::to_vec_pretty(&test_legacy_performance()).unwrap();
+    fs::write(source.join(performance.path()), &legacy).unwrap();
+    match performance {
+        GoldenReference::PerformanceBaseline { sha256, .. } => *sha256 = hash_bytes(&legacy),
+        _ => unreachable!(),
+    }
+    assert!(validate_migration_source(&source, &manifest).is_ok());
+    assert!(validate_manifest(&source, &manifest, true).is_err());
+    let manifest_bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(source.join("manifest.json"), &manifest_bytes).unwrap();
+    let generation = hash_bytes(&manifest_bytes);
+    let installed = generation_root(&container, &generation);
+    fs::create_dir_all(installed.parent().unwrap()).unwrap();
+    fs::rename(&source, &installed).unwrap();
+    fs::write(container.join("CURRENT"), pointer_bytes(&generation)).unwrap();
+
+    let reconciliation = reconcile_fixture_container(&container, true, CleanupFault::None).unwrap();
+    assert_eq!(
+        reconciliation.selected.unwrap().1.fixture_revision,
+        MIGRATION_FIXTURE_REVISION
+    );
+}
+
+#[test]
+fn legacy_performance_validation_is_strict_and_complete() {
+    let legacy = test_legacy_performance();
+    assert!(validate_legacy_performance_baseline(&legacy).is_ok());
+    assert!(validate_legacy_performance_bytes(&serde_json::to_vec(&legacy).unwrap()).is_ok());
+
+    let mut missing = serde_json::to_value(&legacy).unwrap();
+    missing.as_object_mut().unwrap().remove("memoryScope");
+    assert!(validate_legacy_performance_bytes(&serde_json::to_vec(&missing).unwrap()).is_err());
+
+    let mut unknown = serde_json::to_value(&legacy).unwrap();
+    unknown
+        .as_object_mut()
+        .unwrap()
+        .insert("unexpected".into(), true.into());
+    assert!(validate_legacy_performance_bytes(&serde_json::to_vec(&unknown).unwrap()).is_err());
+
+    for (field, value) in [
+        ("schemaVersion", serde_json::Value::from(3)),
+        ("fixtureRevision", serde_json::Value::from(3)),
+        ("fixtureId", serde_json::Value::from("other")),
+        ("warmupSamples", serde_json::Value::from(2)),
+        ("measuredSamples", serde_json::Value::from(2)),
+        ("memoryScope", serde_json::Value::from("process")),
+        ("timingAggregation", serde_json::Value::from("mean")),
+        ("memoryAggregation", serde_json::Value::from("median")),
+    ] {
+        let mut invalid = serde_json::to_value(&legacy).unwrap();
+        invalid[field] = value;
+        assert!(
+            validate_legacy_performance_bytes(&serde_json::to_vec(&invalid).unwrap()).is_err(),
+            "accepted invalid legacy field {field}"
+        );
+    }
+
+    let mut invalid_units = legacy.clone();
+    invalid_units.units.timing = "seconds".into();
+    assert!(validate_legacy_performance_baseline(&invalid_units).is_err());
+    let mut negative = legacy.clone();
+    negative.timings_ms.total = -1.0;
+    assert!(validate_legacy_performance_baseline(&negative).is_err());
+    let mut non_finite = legacy;
+    non_finite.timings_ms.frame_rendering = f64::INFINITY;
+    assert!(validate_legacy_performance_baseline(&non_finite).is_err());
+}
+
+#[test]
+fn migration_manifest_requires_canonical_media_metadata_and_frame_set() {
+    let root = tempdir().unwrap();
+    let mut manifest = write_capture_set(
+        root.path(),
+        &test_tools(),
+        &test_capture(),
+        &test_performance(),
+    );
+    manifest.fixture_revision = MIGRATION_FIXTURE_REVISION;
+    replace_performance_reference(root.path(), &mut manifest, &test_legacy_performance());
+    assert!(validate_migration_source(root.path(), &manifest).is_ok());
+
+    let mut invalid_media = manifest.clone();
+    invalid_media.canvas.width += 1;
+    assert!(validate_migration_source(root.path(), &invalid_media).is_err());
+    let mut invalid_timestamps = manifest.clone();
+    invalid_timestamps.sample_timestamps_ms = vec![0, 500, 901];
+    assert!(validate_migration_source(root.path(), &invalid_timestamps).is_err());
+    let mut invalid_frame = manifest;
+    match invalid_frame
+        .references
+        .iter_mut()
+        .find(|reference| matches!(reference, GoldenReference::Frame { at_ms: 900, .. }))
+        .unwrap()
+    {
+        GoldenReference::Frame { at_ms, .. } => *at_ms = 901,
+        _ => unreachable!(),
+    }
+    assert!(validate_migration_source(root.path(), &invalid_frame).is_err());
+}
+
+#[test]
+fn strict_report_file_validation_rejects_unknown_and_inconsistent_data() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("performance.json");
+    let performance = test_performance();
+    write_performance_report(&path, &performance).unwrap();
+
+    let mut present_git_revision = performance.clone();
+    present_git_revision.git_revision = Some("arbitrary-nonblank-git-identity".into());
+    write_performance_report(&path, &present_git_revision).unwrap();
+
+    let mut missing_git_revision = serde_json::to_value(&performance).unwrap();
+    missing_git_revision
+        .as_object_mut()
+        .unwrap()
+        .remove("gitRevision");
+    fs::write(&path, serde_json::to_vec(&missing_git_revision).unwrap()).unwrap();
+    assert!(validate_performance_report_file(&path).is_err());
+
+    for invalid_git_revision in ["", " \t\r\n"] {
+        let mut invalid = serde_json::to_value(&performance).unwrap();
+        invalid["gitRevision"] = serde_json::Value::from(invalid_git_revision);
+        fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+        assert!(
+            validate_performance_report_file(&path).is_err(),
+            "accepted invalid gitRevision {invalid_git_revision:?}"
+        );
+    }
+
+    let mut non_string_git_revision = serde_json::to_value(&performance).unwrap();
+    non_string_git_revision["gitRevision"] = serde_json::Value::from(7);
+    fs::write(&path, serde_json::to_vec(&non_string_git_revision).unwrap()).unwrap();
+    assert!(validate_performance_report_file(&path).is_err());
+
+    let mut unknown = serde_json::to_value(&performance).unwrap();
+    unknown
+        .as_object_mut()
+        .unwrap()
+        .insert("unexpected".into(), serde_json::Value::Bool(true));
+    fs::write(&path, serde_json::to_vec(&unknown).unwrap()).unwrap();
+    assert!(validate_performance_report_file(&path).is_err());
+
+    let mut inconsistent = serde_json::to_value(&performance).unwrap();
+    inconsistent["warmupSamples"] = serde_json::Value::from(2);
+    fs::write(&path, serde_json::to_vec(&inconsistent).unwrap()).unwrap();
+    assert!(validate_performance_report_file(&path).is_err());
+
+    let work_fields = [
+        "decodedInputs",
+        "rasterizedLayers",
+        "compositedLayers",
+        "encodedVideoStreams",
+        "encodedAudioStreams",
+    ];
+    for (intent_index, observation) in performance.intent_observations.iter().enumerate() {
+        let expected = [
+            observation.work.decoded_inputs,
+            observation.work.rasterized_layers,
+            observation.work.composited_layers,
+            observation.work.encoded_video_streams,
+            observation.work.encoded_audio_streams,
+        ];
+        for (field, expected) in work_fields.into_iter().zip(expected) {
+            let invalid_values = if expected == 0 {
+                vec![1, 2]
+            } else {
+                vec![0, expected + 1]
+            };
+            for invalid_value in invalid_values {
+                let mut invalid = serde_json::to_value(&performance).unwrap();
+                invalid["intentObservations"][intent_index]["work"][field] =
+                    serde_json::Value::from(invalid_value);
+                fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+                assert!(
+                    validate_performance_report_file(&path).is_err(),
+                    "accepted {field}={invalid_value} for {}",
+                    observation.intent
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn update_reconciliation_rejects_a_malformed_current_generation() {
+    let root = tempdir().unwrap();
+    let container = root.path().join("golden");
+    let staged = container.join("staged");
+    fs::create_dir_all(&staged).unwrap();
+    let mut manifest =
+        write_capture_set(&staged, &test_tools(), &test_capture(), &test_performance());
+    let performance = manifest
+        .references
+        .iter_mut()
+        .find(|reference| matches!(reference, GoldenReference::PerformanceBaseline { .. }))
+        .unwrap();
+    let malformed = br#"{"schemaVersion":3}"#;
+    fs::write(staged.join(performance.path()), malformed).unwrap();
+    match performance {
+        GoldenReference::PerformanceBaseline { sha256, .. } => *sha256 = hash_bytes(malformed),
+        _ => unreachable!(),
+    }
+    let manifest_bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(staged.join("manifest.json"), &manifest_bytes).unwrap();
+    let generation = hash_bytes(&manifest_bytes);
+    let installed = generation_root(&container, &generation);
+    fs::create_dir_all(installed.parent().unwrap()).unwrap();
+    fs::rename(&staged, &installed).unwrap();
+    fs::write(container.join("CURRENT"), pointer_bytes(&generation)).unwrap();
+
+    assert!(reconcile_fixture_container(&container, true, CleanupFault::None).is_err());
+    assert!(installed.exists());
+    assert!(container.join("CURRENT").exists());
+}
+
+#[test]
+fn unsupported_inactive_generation_is_not_recognized_for_cleanup() {
+    let root = tempdir().unwrap();
+    let generation_root = root.path().join("generation");
+    fs::create_dir(&generation_root).unwrap();
+    let mut manifest = write_capture_set(
+        &generation_root,
+        &test_tools(),
+        &test_capture(),
+        &test_performance(),
+    );
+    manifest.fixture_revision = 1;
+    let manifest_bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    fs::write(generation_root.join("manifest.json"), &manifest_bytes).unwrap();
+
+    assert!(!recognized_generation(
+        &generation_root,
+        &hash_bytes(&manifest_bytes)
+    ));
+}
+
+#[test]
+fn malformed_legacy_inactive_generation_is_preserved_during_cleanup() {
+    let root = tempdir().unwrap();
+    let container = root.path().join("golden");
+    let generations = container.join("generations");
+    fs::create_dir_all(&generations).unwrap();
+
+    let active_root = generations.join("active");
+    fs::create_dir(&active_root).unwrap();
+    let active_manifest = write_capture_set(
+        &active_root,
+        &test_tools(),
+        &test_capture(),
+        &test_performance(),
+    );
+    let active_bytes = serde_json::to_vec_pretty(&active_manifest).unwrap();
+    fs::write(active_root.join("manifest.json"), &active_bytes).unwrap();
+    let active = hash_bytes(&active_bytes);
+    let canonical_active_root = generations.join(&active);
+    fs::rename(&active_root, &canonical_active_root).unwrap();
+
+    let malformed_root = generations.join("malformed");
+    fs::create_dir(&malformed_root).unwrap();
+    let mut malformed_manifest = write_capture_set(
+        &malformed_root,
+        &test_tools(),
+        &test_capture(),
+        &test_performance(),
+    );
+    malformed_manifest.fixture_revision = MIGRATION_FIXTURE_REVISION;
+    let performance = malformed_manifest
+        .references
+        .iter_mut()
+        .find(|reference| matches!(reference, GoldenReference::PerformanceBaseline { .. }))
+        .unwrap();
+    let malformed_report = br#"{"schemaVersion":2}"#;
+    fs::write(malformed_root.join(performance.path()), malformed_report).unwrap();
+    match performance {
+        GoldenReference::PerformanceBaseline { sha256, .. } => {
+            *sha256 = hash_bytes(malformed_report)
+        }
+        _ => unreachable!(),
+    }
+    let malformed_bytes = serde_json::to_vec_pretty(&malformed_manifest).unwrap();
+    fs::write(malformed_root.join("manifest.json"), &malformed_bytes).unwrap();
+    let malformed = hash_bytes(&malformed_bytes);
+    let canonical_malformed_root = generations.join(&malformed);
+    fs::rename(&malformed_root, &canonical_malformed_root).unwrap();
+
+    assert!(!recognized_generation(
+        &canonical_malformed_root,
+        &malformed
+    ));
+    cleanup_recognized_entries(&container, Some(&active)).unwrap();
+    assert!(canonical_active_root.exists());
+    assert!(canonical_malformed_root.exists());
+}
+
 fn test_tools() -> NativeTools {
     NativeTools {
         ffmpeg: "ffmpeg".into(),
@@ -2086,9 +2871,38 @@ fn test_capture() -> Capture {
         export_duration_ms: DURATION_MS,
         semantic_plan: "scene\n".into(),
         filter_graph: "graph\n".into(),
-        timings: PhaseTimings::default(),
+        intent_observations: test_intent_observations(0.0),
         peak_process_tree_bytes: 0,
     }
+}
+
+fn test_intent_observations(value: f64) -> Vec<IntentObservation> {
+    [
+        ("framePreview", 0),
+        ("audiovisualRangePreview", 1),
+        ("finalExport", 1),
+    ]
+    .into_iter()
+    .map(|(intent, encoded_audio_streams)| IntentObservation {
+        intent: intent.into(),
+        timings_ms: StageTimings {
+            scene_evaluation: value,
+            rasterization: 0.0,
+            filter_graph_construction: value,
+            decoding: value,
+            compositing: value,
+            encoding: value,
+            end_to_end: value,
+        },
+        work: StageWork {
+            decoded_inputs: 1,
+            rasterized_layers: 0,
+            composited_layers: 2,
+            encoded_video_streams: 1,
+            encoded_audio_streams,
+        },
+    })
+    .collect()
 }
 
 fn test_performance() -> PerformanceBaseline {
@@ -2111,9 +2925,62 @@ fn test_performance() -> PerformanceBaseline {
         memory_scope: "process_tree".into(),
         timing_aggregation: "median".into(),
         memory_aggregation: "maximum".into(),
-        timings_ms: PhaseTimings::default(),
+        stage_definition_version: STAGE_DEFINITION_VERSION,
+        non_additive_stage_timings: true,
+        intent_observations: test_intent_observations(0.0),
         peak_resident_working_set_bytes: 0,
         comparison_policy: "report_only_compare_matching_environment_identity".into(),
+    }
+}
+
+fn test_legacy_performance() -> LegacyPerformanceBaseline {
+    LegacyPerformanceBaseline {
+        schema_version: MIGRATION_PERFORMANCE_SCHEMA_VERSION,
+        fixture_id: FIXTURE_ID.into(),
+        fixture_revision: MIGRATION_FIXTURE_REVISION,
+        git_revision: serde_json::Value::Null,
+        os: "test".into(),
+        architecture: "test".into(),
+        ffmpeg_version: "test".into(),
+        ffprobe_version: "test".into(),
+        font_sha256: "a".repeat(64),
+        units: BaselineUnits {
+            timing: "milliseconds".into(),
+            memory: "bytes".into(),
+        },
+        warmup_samples: WARMUP_SAMPLES,
+        measured_samples: MEASURED_SAMPLES,
+        memory_scope: "process_tree".into(),
+        timing_aggregation: "median".into(),
+        memory_aggregation: "maximum".into(),
+        timings_ms: LegacyPhaseTimings {
+            scene_evaluation: 1.0,
+            filter_graph_construction: 2.0,
+            frame_rendering: 3.0,
+            audiovisual_range_rendering: 4.0,
+            export_rendering: 5.0,
+            total: 6.0,
+        },
+        peak_resident_working_set_bytes: 1,
+        comparison_policy: "report_only_compare_matching_environment_identity".into(),
+    }
+}
+
+fn replace_performance_reference(
+    root: &Path,
+    manifest: &mut GoldenManifest,
+    baseline: &LegacyPerformanceBaseline,
+) {
+    let reference = manifest
+        .references
+        .iter_mut()
+        .find(|reference| matches!(reference, GoldenReference::PerformanceBaseline { .. }))
+        .unwrap();
+    let bytes = serde_json::to_vec_pretty(baseline).unwrap();
+    fs::write(root.join(reference.path()), &bytes).unwrap();
+    match reference {
+        GoldenReference::PerformanceBaseline { sha256, .. } => *sha256 = hash_bytes(&bytes),
+        _ => unreachable!(),
     }
 }
 
@@ -2704,10 +3571,10 @@ fn failed_startup_cleanup_is_non_fatal_and_keeps_selected_generation() {
 }
 
 #[test]
-fn checked_in_linux_generation_digest_is_unchanged() {
+fn checked_in_stage_observability_generation_digest_is_unchanged() {
     assert_eq!(
         load_pointer(&fixture_container_root()).unwrap().generation,
-        "722ea5b2d1551a8288f86b617520c9970e6c0e9e1baf0633f3290776d36a13cb"
+        "259e3521eddf4d1ed46113dee7d9e0c5bd0ed218948755b2d43c9c6eaaa4c708"
     );
 }
 
@@ -2817,20 +3684,15 @@ fn pcm_alignment_searches_both_directions_and_enforces_bounds() {
 fn performance_aggregation_uses_medians_and_process_tree_maximum() {
     let mut captures = vec![test_capture(), test_capture(), test_capture()];
     for (capture, value) in captures.iter_mut().zip([3.0, 1.0, 2.0]) {
-        capture.timings = PhaseTimings {
-            scene_evaluation: value,
-            filter_graph_construction: value,
-            frame_rendering: value,
-            audiovisual_range_rendering: value,
-            export_rendering: value,
-            total: value,
-        };
+        capture.intent_observations = test_intent_observations(value);
         capture.peak_process_tree_bytes = (value * 100.0) as u64;
     }
     let baseline = aggregate_performance(&test_tools(), &captures);
     assert_eq!(baseline.warmup_samples, 1);
     assert_eq!(baseline.measured_samples, 3);
-    assert_eq!(baseline.timings_ms.total, 2.0);
+    assert_eq!(baseline.intent_observations.len(), 3);
+    assert_eq!(baseline.intent_observations[2].timings_ms.end_to_end, 2.0);
+    assert!(baseline.non_additive_stage_timings);
     assert_eq!(baseline.peak_resident_working_set_bytes, 300);
     assert_eq!(baseline.memory_scope, "process_tree");
     assert_eq!(baseline.timing_aggregation, "median");
@@ -2839,6 +3701,20 @@ fn performance_aggregation_uses_medians_and_process_tree_maximum() {
 
 #[test]
 fn process_tree_sampler_observes_a_child_allocation() {
+    let status = Command::new(env::current_exe().unwrap())
+        .args([
+            "--ignored",
+            "--exact",
+            "renderer::golden::process_tree_sampler_isolated_helper",
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+#[test]
+#[ignore = "isolates sampler baseline from parallel test helper processes"]
+fn process_tree_sampler_isolated_helper() {
     let baseline_sampler = ProcessTreeSampler::start();
     thread::sleep(Duration::from_millis(100));
     let baseline = baseline_sampler.finish();
@@ -2854,6 +3730,48 @@ fn process_tree_sampler_observes_a_child_allocation() {
     assert!(status.success());
     let with_child = sampler.finish();
     assert!(with_child >= baseline.saturating_add(32 * 1024 * 1024));
+}
+
+#[test]
+fn process_tree_sampler_finish_signals_and_joins_worker() {
+    let exited = Arc::new(AtomicBool::new(false));
+    let sampler = ProcessTreeSampler::start_with_exit_signal(Some(Arc::clone(&exited)));
+    sampler.finish();
+    assert!(exited.load(Ordering::Acquire));
+}
+
+#[test]
+fn process_tree_sampler_finish_surfaces_worker_panic_without_drop_double_panic() {
+    let sampler = ProcessTreeSampler {
+        stop: Arc::new(AtomicBool::new(false)),
+        peak: Arc::new(AtomicU64::new(0)),
+        handle: Some(thread::spawn(|| panic!("injected sampler worker panic"))),
+    };
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| sampler.finish())).is_err());
+}
+
+#[test]
+fn process_tree_sampler_drop_signals_and_joins_during_unwind() {
+    let exited = Arc::new(AtomicBool::new(false));
+    let stop = Arc::new(std::sync::Mutex::new(None));
+    let result = std::panic::catch_unwind({
+        let exited = Arc::clone(&exited);
+        let stop = Arc::clone(&stop);
+        move || {
+            let sampler = ProcessTreeSampler::start_with_exit_signal(Some(Arc::clone(&exited)));
+            *stop.lock().unwrap() = Some(Arc::clone(&sampler.stop));
+            panic!("exercise sampler cleanup during unwinding");
+        }
+    });
+    assert!(result.is_err());
+    assert!(exited.load(Ordering::Acquire));
+    assert!(
+        stop.lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .load(Ordering::Acquire)
+    );
 }
 
 #[test]
@@ -2889,7 +3807,7 @@ fn coordinated_output_drift_still_fails_the_reviewed_reference() {
         semantic_plan: String::from_utf8(reference_bytes(&root, &manifest, "semantic", None))
             .unwrap(),
         filter_graph: String::from_utf8(reference_bytes(&root, &manifest, "graph", None)).unwrap(),
-        timings: PhaseTimings::default(),
+        intent_observations: test_intent_observations(0.0),
         peak_process_tree_bytes: 0,
     };
     for frames in [
@@ -2906,6 +3824,200 @@ fn coordinated_output_drift_still_fails_the_reviewed_reference() {
             .unwrap_err()
             .contains("SSIM")
     );
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InjectedBenchmarkFailure {
+    Encoding,
+    Decode,
+    Composite,
+}
+
+#[derive(Debug)]
+struct RecordingBenchmarkProcess {
+    calls: Arc<std::sync::Mutex<Vec<&'static str>>>,
+    failure: InjectedBenchmarkFailure,
+}
+
+impl ProcessExecutor for RecordingBenchmarkProcess {
+    fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
+        Ok(())
+    }
+
+    fn probe(&self, _ffprobe_path: &Path, _path: &Path) -> Result<ProbeResult, CoreError> {
+        unreachable!("benchmark intent does not probe encoded output")
+    }
+
+    fn execute(
+        &self,
+        _ffmpeg_path: &Path,
+        _plan: &RenderPlan,
+        _filter_path: &Path,
+        output: &Path,
+        _on_progress: &mut dyn FnMut(RenderProgress),
+    ) -> Result<(), CoreError> {
+        self.calls.lock().unwrap().push("encoding");
+        fs::write(output, b"partial benchmark output").unwrap();
+        if self.failure == InjectedBenchmarkFailure::Encoding {
+            Err(CoreError::render_failure(RENDER_STAGE, Some(1), None))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RecordingBenchmarkProbes {
+    calls: Arc<std::sync::Mutex<Vec<&'static str>>>,
+    failure: Option<InjectedBenchmarkFailure>,
+}
+
+impl BenchmarkProbeExecutor for RecordingBenchmarkProbes {
+    fn execute(
+        &self,
+        stage: BenchmarkProbeStage,
+        _command: &mut Command,
+        _duration_ms: u64,
+    ) -> Result<(), CoreError> {
+        let (name, failure) = match stage {
+            BenchmarkProbeStage::Decode => ("decode", InjectedBenchmarkFailure::Decode),
+            BenchmarkProbeStage::Composite => ("composite", InjectedBenchmarkFailure::Composite),
+        };
+        self.calls.lock().unwrap().push(name);
+        if self.failure == Some(failure) {
+            Err(CoreError::render_failure(name, Some(1), None))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn ordinary_conformance_collects_no_benchmark_observations() {
+    let renderer = Renderer::new("must-not-run-ffmpeg", "must-not-run-ffprobe", None);
+    let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let probes = RecordingBenchmarkProbes {
+        calls: Arc::clone(&calls),
+        failure: None,
+    };
+    let root = tempdir().unwrap();
+
+    let observations = capture_intent_observations(
+        CaptureMode::Conformance,
+        &renderer,
+        &fixture_project(),
+        root.path(),
+        &probes,
+    )
+    .unwrap();
+
+    assert!(observations.is_empty());
+    assert!(calls.lock().unwrap().is_empty());
+}
+
+#[test]
+fn benchmark_mode_collects_every_intent_and_probe_in_order() {
+    let root = tempdir().unwrap();
+    fs::create_dir(root.path().join("assets")).unwrap();
+    write_tone_wav(&root.path().join("assets/tone.wav"));
+    let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut renderer = Renderer::new("unused-ffmpeg", "unused-ffprobe", None);
+    renderer.process_executor = Arc::new(RecordingBenchmarkProcess {
+        calls: Arc::clone(&calls),
+        failure: InjectedBenchmarkFailure::Decode,
+    });
+    let probes = RecordingBenchmarkProbes {
+        calls: Arc::clone(&calls),
+        failure: None,
+    };
+
+    let observations = capture_intent_observations(
+        CaptureMode::Benchmark {
+            sample_memory: false,
+        },
+        &renderer,
+        &fixture_project(),
+        root.path(),
+        &probes,
+    )
+    .unwrap();
+
+    assert_eq!(
+        observations
+            .iter()
+            .map(|observation| observation.intent.as_str())
+            .collect::<Vec<_>>(),
+        vec!["framePreview", "audiovisualRangePreview", "finalExport"]
+    );
+    assert_eq!(
+        *calls.lock().unwrap(),
+        vec![
+            "encoding",
+            "decode",
+            "composite",
+            "encoding",
+            "decode",
+            "composite",
+            "encoding",
+            "decode",
+            "composite"
+        ]
+    );
+}
+
+#[test]
+fn each_benchmark_process_failure_stops_and_cleans_up() {
+    for (failure, expected_calls) in [
+        (InjectedBenchmarkFailure::Encoding, vec!["encoding"]),
+        (InjectedBenchmarkFailure::Decode, vec!["encoding", "decode"]),
+        (
+            InjectedBenchmarkFailure::Composite,
+            vec!["encoding", "decode", "composite"],
+        ),
+    ] {
+        let root = tempdir().unwrap();
+        fs::create_dir(root.path().join("assets")).unwrap();
+        write_tone_wav(&root.path().join("assets/tone.wav"));
+        fs::write(root.path().join("CURRENT"), b"selected-generation").unwrap();
+        let project = fixture_project();
+        let project_before = serde_json::to_vec(&project).unwrap();
+        let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut renderer = Renderer::new("unused-ffmpeg", "unused-ffprobe", None);
+        renderer.process_executor = Arc::new(RecordingBenchmarkProcess {
+            calls: Arc::clone(&calls),
+            failure,
+        });
+        let probes = RecordingBenchmarkProbes {
+            calls: Arc::clone(&calls),
+            failure: Some(failure),
+        };
+
+        let result = benchmark_intent(
+            &renderer,
+            &project,
+            root.path(),
+            RenderIntent::Export,
+            &probes,
+        );
+
+        assert!(result.is_err(), "{failure:?} unexpectedly succeeded");
+        assert_eq!(*calls.lock().unwrap(), expected_calls);
+        assert_eq!(serde_json::to_vec(&project).unwrap(), project_before);
+        assert_eq!(
+            fs::read(root.path().join("CURRENT")).unwrap(),
+            b"selected-generation"
+        );
+        let residue = fs::read_dir(root.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with(".opencut-"))
+            .collect::<Vec<_>>();
+        assert!(
+            residue.is_empty(),
+            "benchmark residue remained after {failure:?}: {residue:?}"
+        );
+    }
 }
 
 #[test]

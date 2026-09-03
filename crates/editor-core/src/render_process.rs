@@ -217,6 +217,75 @@ pub(crate) fn build_render_command(
     output: &Path,
 ) -> Command {
     let mut command = Command::new(ffmpeg_path);
+    append_render_inputs(&mut command, plan);
+    command.arg("-filter_complex_script").arg(filter_path);
+    match plan.intent {
+        RenderIntent::Frame { at_ms } => {
+            command
+                .args(["-ss", &seconds(at_ms), "-frames:v", "1", "-map", "[video]"])
+                .arg(output)
+                .args(["-map", "[audio]", "-f", "null"])
+                .arg(null_output());
+        }
+        RenderIntent::Range {
+            start_ms,
+            end_ms,
+            include_audio,
+        } => {
+            let duration = seconds(end_ms.saturating_sub(start_ms));
+            command.args(["-ss", &seconds(start_ms), "-map", "[video]"]);
+            if include_audio {
+                command.args(["-map", "[audio]", "-c:a", "aac"]);
+            }
+            command
+                .args([
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "28",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-movflags",
+                    "+faststart",
+                    "-t",
+                    &duration,
+                    "-y",
+                ])
+                .arg(output);
+            if !include_audio {
+                command
+                    .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
+                    .arg(null_output());
+            }
+        }
+        RenderIntent::Export => {
+            command
+                .args([
+                    "-map",
+                    "[video]",
+                    "-map",
+                    "[audio]",
+                    "-c:v",
+                    "libx264",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-c:a",
+                    "aac",
+                    "-movflags",
+                    "+faststart",
+                    "-t",
+                    &seconds(plan.duration_ms),
+                    "-y",
+                ])
+                .arg(output);
+        }
+    }
+    command
+}
+
+fn append_render_inputs(command: &mut Command, plan: &RenderPlan) {
     command.args([
         "-hide_banner",
         "-loglevel",
@@ -253,14 +322,58 @@ pub(crate) fn build_render_command(
         }
         command.arg(path);
     }
+}
+
+fn null_output() -> &'static str {
+    if cfg!(windows) { "NUL" } else { "/dev/null" }
+}
+
+#[cfg(test)]
+pub(crate) fn build_decode_benchmark_command(
+    ffmpeg_path: &Path,
+    plan: &RenderPlan,
+) -> Option<Command> {
+    if plan.media_inputs.is_empty() {
+        return None;
+    }
+    let mut command = Command::new(ffmpeg_path);
+    append_render_inputs(&mut command, plan);
+    for input in &plan.media_inputs {
+        let stream = match input.media_type {
+            MediaType::Image | MediaType::Video => "v",
+            MediaType::Audio => "a",
+        };
+        command.args(["-map", &format!("{}:{stream}:0", input.input_index)]);
+    }
+    command
+        .args(["-t", &seconds(intent_duration_ms(plan)), "-f", "null", "-y"])
+        .arg(null_output());
+    Some(command)
+}
+
+#[cfg(test)]
+pub(crate) fn build_composite_benchmark_command(
+    ffmpeg_path: &Path,
+    plan: &RenderPlan,
+    filter_path: &Path,
+) -> Command {
+    let mut command = Command::new(ffmpeg_path);
+    append_render_inputs(&mut command, plan);
     command.arg("-filter_complex_script").arg(filter_path);
     match plan.intent {
         RenderIntent::Frame { at_ms } => {
-            command
-                .args(["-ss", &seconds(at_ms), "-frames:v", "1", "-map", "[video]"])
-                .arg(output)
-                .args(["-map", "[audio]", "-f", "null"])
-                .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
+            command.args([
+                "-ss",
+                &seconds(at_ms),
+                "-frames:v",
+                "1",
+                "-map",
+                "[video]",
+                "-map",
+                "[audio]",
+                "-t",
+                &seconds(intent_duration_ms(plan)),
+            ]);
         }
         RenderIntent::Range {
             start_ms,
@@ -270,54 +383,34 @@ pub(crate) fn build_render_command(
             let duration = seconds(end_ms.saturating_sub(start_ms));
             command.args(["-ss", &seconds(start_ms), "-map", "[video]"]);
             if include_audio {
-                command.args(["-map", "[audio]", "-c:a", "aac"]);
+                command.args(["-map", "[audio]"]);
             }
-            command
-                .args([
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "veryfast",
-                    "-crf",
-                    "28",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-movflags",
-                    "+faststart",
-                    "-t",
-                    &duration,
-                    "-y",
-                ])
-                .arg(output);
-            if !include_audio {
-                command
-                    .args(["-map", "[audio]", "-t", &duration, "-f", "null"])
-                    .arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
-            }
+            command.args(["-t", &duration]);
         }
         RenderIntent::Export => {
-            command
-                .args([
-                    "-map",
-                    "[video]",
-                    "-map",
-                    "[audio]",
-                    "-c:v",
-                    "libx264",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-c:a",
-                    "aac",
-                    "-movflags",
-                    "+faststart",
-                    "-t",
-                    &seconds(plan.duration_ms),
-                    "-y",
-                ])
-                .arg(output);
+            command.args([
+                "-map",
+                "[video]",
+                "-map",
+                "[audio]",
+                "-t",
+                &seconds(plan.duration_ms),
+            ]);
         }
     }
+    command.args(["-f", "null", "-y"]).arg(null_output());
     command
+}
+
+#[cfg(test)]
+fn intent_duration_ms(plan: &RenderPlan) -> u64 {
+    match plan.intent {
+        RenderIntent::Frame { .. } => 1_000_u64.div_ceil(u64::from(plan.fps)),
+        RenderIntent::Range {
+            start_ms, end_ms, ..
+        } => end_ms.saturating_sub(start_ms),
+        RenderIntent::Export => plan.duration_ms,
+    }
 }
 
 #[cfg(test)]
@@ -484,6 +577,7 @@ pub(crate) fn find_absolute_path_start(value: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render_plan::MediaInputRequest;
 
     #[derive(Debug)]
     struct FailingExecutor;
@@ -533,5 +627,82 @@ mod tests {
         let tail = read_bounded_tail(std::io::Cursor::new(stderr), STDERR_TAIL_BYTES).unwrap();
         assert_eq!(tail.len(), STDERR_TAIL_BYTES);
         assert!(stderr_excerpt(&tail).unwrap().len() <= STDERR_EXCERPT_BYTES);
+    }
+
+    #[test]
+    fn benchmark_commands_preserve_production_plan_inputs_bounds_and_graph() {
+        let plan = RenderPlan {
+            filter_graph: "[0:v]null[video];[1:a]anull[audio]".into(),
+            width: 160,
+            height: 90,
+            fps: 10,
+            duration_ms: 1_000,
+            intent: RenderIntent::Range {
+                start_ms: 100,
+                end_ms: 900,
+                include_audio: true,
+            },
+            media_inputs: vec![
+                MediaInputRequest {
+                    item_id: "image".into(),
+                    asset_id: "asset-image".into(),
+                    project_relative_path: "assets/image.png".into(),
+                    media_type: MediaType::Image,
+                    source_in_ms: 0,
+                    duration_ms: 800,
+                    input_index: 2,
+                },
+                MediaInputRequest {
+                    item_id: "audio".into(),
+                    asset_id: "asset-audio".into(),
+                    project_relative_path: "assets/audio.wav".into(),
+                    media_type: MediaType::Audio,
+                    source_in_ms: 25,
+                    duration_ms: 800,
+                    input_index: 3,
+                },
+            ],
+            media_paths: vec!["root/image.png".into(), "root/audio.wav".into()],
+        };
+        let filter_path = Path::new("work/filter.txt");
+        let production = command_args(&build_render_command(
+            Path::new("ffmpeg"),
+            &plan,
+            filter_path,
+            Path::new("output.mp4"),
+        ));
+        let decode = command_args(
+            &build_decode_benchmark_command(Path::new("ffmpeg"), &plan)
+                .expect("media inputs require a decode workload"),
+        );
+        let composite = command_args(&build_composite_benchmark_command(
+            Path::new("ffmpeg"),
+            &plan,
+            filter_path,
+        ));
+
+        for expected in ["root/image.png", "root/audio.wav", "0.025", "0.800"] {
+            assert!(production.contains(&expected.to_owned()));
+            assert!(decode.contains(&expected.to_owned()));
+            assert!(composite.contains(&expected.to_owned()));
+        }
+        assert!(decode.windows(2).any(|pair| pair == ["-map", "2:v:0"]));
+        assert!(decode.windows(2).any(|pair| pair == ["-map", "3:a:0"]));
+        assert!(!decode.contains(&"-filter_complex_script".into()));
+        assert!(
+            composite
+                .windows(2)
+                .any(|pair| pair == ["-filter_complex_script", "work/filter.txt"])
+        );
+        assert!(composite.windows(2).any(|pair| pair == ["-ss", "0.100"]));
+        assert!(composite.windows(2).any(|pair| pair == ["-t", "0.800"]));
+        assert!(!composite.contains(&"libx264".into()));
+    }
+
+    fn command_args(command: &Command) -> Vec<String> {
+        command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect()
     }
 }
