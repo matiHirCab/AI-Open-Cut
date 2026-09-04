@@ -549,8 +549,10 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
             assert!(result.status.success());
             result
                 .stdout
-                .chunks_exact(4)
-                .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|v| f32::from_le_bytes(*v))
                 .collect::<Vec<_>>()
         };
         let exported_audio = decode_audio(&export);
@@ -927,7 +929,9 @@ fn oriented_media_preserves_extent_and_all_render_intents(image: bool) {
             .unwrap();
         let bounds = |pixels: &[u8]| {
             let points: Vec<_> = pixels
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .enumerate()
                 .filter(|(_, p)| p.iter().any(|v| *v > 100))
                 .map(|(i, _)| (i % 128, i / 128))
@@ -950,7 +954,9 @@ fn oriented_media_preserves_extent_and_all_render_intents(image: bool) {
             // differently. Require identical colored-pixel placement rather than byte equality across those paths.
             let classify = |pixels: &[u8]| {
                 pixels
-                    .chunks_exact(3)
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
                     .map(|p| (p[0] > 100, p[1] > 100, p[2] > 100))
                     .collect::<Vec<_>>()
             };
@@ -1055,8 +1061,10 @@ fn oriented_media_preserves_extent_and_all_render_intents(image: bool) {
         let b = decode(&dir.join(&range.relative_path), true);
         let samples = |bytes: Vec<u8>| {
             bytes
-                .chunks_exact(4)
-                .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|v| f32::from_le_bytes(*v))
                 .collect::<Vec<_>>()
         };
         let (a, b) = (samples(a), samples(b));

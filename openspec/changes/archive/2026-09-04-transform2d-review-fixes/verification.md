@@ -45,3 +45,7 @@ One initial policy run failed because a Windows edit introduced CRLF into the wo
 ## Image-orientation correction
 
 The original video display-matrix evidence did not cover JPEG EXIF orientation carried on decoded frames. Review reproduced a 20x40 image clipped to 20x20 by identity Transform2D. The follow-up [transform2d-image-orientation](../2026-09-04-transform2d-image-orientation/verification.md) corrects this gap with bounded image-frame inspection and EXIF 1-8 regression coverage. This report remains historical evidence of the earlier checks.
+
+## PR CI correction
+
+PR #104 run 33926771556 passed macOS correctness, Linux native rendering, contracts, smoke, and OpenSpec gates, but Linux/Windows strict Clippy rejected four fixed-size chunks_exact calls in the Transform2D tests. The diagnostics came from Rust 1.98 Clippy; local verification used Rust 1.93. The test iterators now use as_chunks with the same chunk lengths, discarded remainder behavior, pixel classifications, and PCM decoding. No assertions, thresholds, native policy, or production behavior changed. This mechanical correction completes the already-approved strict-Clippy/native-test task; no new requirement or dependency is introduced.
