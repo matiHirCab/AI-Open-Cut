@@ -1031,10 +1031,9 @@ mod tests {
             start_ms,
             duration_ms: 1_000,
             source_in_ms: 125,
-            transform: Transform::default(),
+            visual_properties: crate::VisualProperties::default(),
             audio: AudioSettings::default(),
             keyframes: vec![],
-            hidden: false,
         })
     }
 
@@ -1069,9 +1068,8 @@ mod tests {
                         color: "#112233".into(),
                         start_ms: 0,
                         duration_ms: 4_000,
-                        transform: Transform::default(),
+                        visual_properties: crate::VisualProperties::default(),
                         keyframes: vec![],
-                        hidden: false,
                     }),
                     media("photo", "image", 250),
                 ],
@@ -1087,14 +1085,16 @@ mod tests {
                         height: 180,
                         start_ms: 500,
                         duration_ms: 2_000,
-                        transform: Transform {
-                            position_x: 20.0,
-                            position_y: 30.0,
-                            scale: 1.25,
-                            opacity: 0.8,
-                        },
+                        visual_properties: crate::VisualProperties::new(
+                            Transform {
+                                position_x: 20.0,
+                                position_y: 30.0,
+                                scale: 1.25,
+                                opacity: 0.8,
+                            },
+                            false,
+                        ),
                         keyframes: vec![],
-                        hidden: false,
                     }),
                     TimelineItem::Text(TextItem {
                         id: "title".into(),
@@ -1106,14 +1106,13 @@ mod tests {
                         font_family: Some("Inter".into()),
                         font_path: Some("fonts/private.ttf".into()),
                         style: TextStyle::default(),
-                        transform: Transform::default(),
+                        visual_properties: crate::VisualProperties::default(),
                         keyframes: vec![Keyframe {
                             property: KeyframeProperty::Opacity,
                             time_ms: 0,
                             value: KeyframeValue::Scalar { value: 0.5 },
                             easing: Easing::Linear,
                         }],
-                        hidden: false,
                     }),
                     media("clip", "video", 1_000),
                     TimelineItem::Transition(TransitionItem {
@@ -1123,7 +1122,7 @@ mod tests {
                         to_item_id: Some("title".into()),
                         start_ms: 700,
                         duration_ms: 200,
-                        hidden: false,
+                        visual_properties: crate::VisualProperties::default(),
                     }),
                 ],
             ),
@@ -1294,9 +1293,8 @@ mod tests {
                 height: 10,
                 start_ms: 0,
                 duration_ms: 100,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         );
         hidden.hidden = true;
@@ -1407,12 +1405,14 @@ mod tests {
                 height: 10,
                 start_ms: 0,
                 duration_ms: 1,
-                transform: Transform {
-                    position_x: f64::NAN,
-                    ..Transform::default()
-                },
+                visual_properties: crate::VisualProperties::new(
+                    Transform {
+                        position_x: f64::NAN,
+                        ..Transform::default()
+                    },
+                    false,
+                ),
                 keyframes: vec![],
-                hidden: false,
             })],
         )];
         assert_eq!(
@@ -1431,9 +1431,8 @@ mod tests {
                 color: "#000000".into(),
                 start_ms: 0,
                 duration_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         )];
         assert_eq!(
@@ -1450,9 +1449,8 @@ mod tests {
                 color: "#000000".into(),
                 start_ms: u64::MAX,
                 duration_ms: 1,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         )];
         assert_eq!(
@@ -1475,9 +1473,8 @@ mod tests {
                             color: "#000000".into(),
                             start_ms: 0,
                             duration_ms: 1,
-                            transform: Transform::default(),
+                            visual_properties: crate::VisualProperties::default(),
                             keyframes: vec![],
-                            hidden: false,
                         })
                     })
                     .collect(),
@@ -1556,7 +1553,7 @@ mod tests {
                     font_family: None,
                     font_path: None,
                     style: TextStyle::default(),
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     keyframes: (0..count)
                         .map(|index| Keyframe {
                             property: KeyframeProperty::Position,
@@ -1568,7 +1565,6 @@ mod tests {
                             easing: Easing::Linear,
                         })
                         .collect(),
-                    hidden: false,
                 })],
             )];
             input
@@ -1605,9 +1601,8 @@ mod tests {
                 color: "#000000".into(),
                 start_ms: 0,
                 duration_ms: 1,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })
         }));
         input.tracks = vec![track("base", TrackType::Video, items)];
@@ -1772,9 +1767,8 @@ mod tests {
                 height: 1,
                 start_ms: 0,
                 duration_ms: count as u64 + 1,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })];
             items.extend((0..count).map(|index| {
                 TimelineItem::Transition(TransitionItem {
@@ -1788,7 +1782,7 @@ mod tests {
                     to_item_id: None,
                     start_ms: index as u64,
                     duration_ms: 1,
-                    hidden: false,
+                    visual_properties: crate::VisualProperties::default(),
                 })
             }));
             input.tracks = vec![track("base", TrackType::Video, items)];
@@ -1830,7 +1824,7 @@ mod tests {
                 to_item_id: Some("visual".into()),
                 start_ms: 0,
                 duration_ms: 1,
-                hidden: false,
+                visual_properties: crate::VisualProperties::default(),
             }));
         let evaluated = evaluate_project(&self_endpoint, 16, 16, 1).unwrap();
         assert_eq!(
@@ -1856,9 +1850,8 @@ mod tests {
                 font_family: family.map(str::to_owned),
                 font_path: path.map(str::to_owned),
                 style: TextStyle::default(),
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })
         };
         let mut input = project();

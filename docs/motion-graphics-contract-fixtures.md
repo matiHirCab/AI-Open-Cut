@@ -8,6 +8,8 @@ Every valid concept payload is parsed by a closed test-only Rust Serde declarati
 
 Version 1 has status `fixture_only`. Its presence does not mean that editor-core persistence, schema version 6, headless requests, MCP tools, capabilities, provider protocols, preview, export, revisions, batches, undo/redo, or reopen behavior accept any new motion-graphics value. The existing protocol, MCP, error, provider, and persisted-project contracts remain unchanged by issue #11.
 
+Issue #17 advances persisted projects to schema version 7 and establishes common ownership of the existing legacy transform and visibility values. This is a storage/model seam, not activation of the fixture transform or layer concepts: `contracts/motion-graphics-v1.json` remains `fixture_only`, operation and capability identifiers remain unchanged, and existing transforms retain pixel-position, uniform-scale, and opacity semantics. Transform units, anchors, independent scale, rotation, and skew remain assigned to issue #18; explicit z-index and reorder behavior remain assigned to issue #19.
+
 Later OpenSpec changes activate the concepts incrementally:
 
 | Fixture concept | Planned implementation area |

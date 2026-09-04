@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, MediaItem,
     MediaType, Project, RectangleItem, SolidColorItem, TextItem, TimelineItem, Track, TrackType,
-    Transform, TransitionItem,
+    TransitionItem,
     animation::split_keyframes,
     validation::{
         validate_audio, validate_color, validate_dimensions, validate_duration,
@@ -152,10 +152,9 @@ pub(crate) fn apply_operation(
                 start_ms,
                 duration_ms,
                 source_in_ms,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: AudioSettings::default(),
                 keyframes: vec![],
-                hidden: false,
             }));
             Ok((vec![id], "Added media item"))
         }
@@ -193,9 +192,8 @@ pub(crate) fn apply_operation(
                 font_family,
                 font_path,
                 style,
-                transform,
+                visual_properties: crate::VisualProperties::new(transform, false),
                 keyframes: vec![],
-                hidden: false,
             }));
             Ok((vec![id], "Added text item"))
         }
@@ -217,9 +215,8 @@ pub(crate) fn apply_operation(
                 color,
                 start_ms,
                 duration_ms,
-                transform,
+                visual_properties: crate::VisualProperties::new(transform, false),
                 keyframes: vec![],
-                hidden: false,
             }));
             Ok((vec![id], "Added solid color item"))
         }
@@ -246,9 +243,8 @@ pub(crate) fn apply_operation(
                 height,
                 start_ms,
                 duration_ms,
-                transform,
+                visual_properties: crate::VisualProperties::new(transform, false),
                 keyframes: vec![],
-                hidden: false,
             }));
             Ok((vec![id], "Added rectangle item"))
         }
@@ -472,7 +468,7 @@ pub(crate) fn apply_operation(
                 to_item_id,
                 start_ms,
                 duration_ms,
-                hidden: false,
+                visual_properties: crate::VisualProperties::default(),
             }));
             Ok((vec![id], "Added transition"))
         }
@@ -894,7 +890,7 @@ pub(crate) fn now_ms() -> Result<u64, CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PROJECT_SCHEMA_VERSION, ProjectSettings};
+    use crate::{PROJECT_SCHEMA_VERSION, ProjectSettings, Transform};
 
     fn project() -> Project {
         Project {

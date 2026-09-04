@@ -39,6 +39,12 @@ These warnings describe a committed mutation, not a rejection. Clients must adva
 
 The core loads project and history as one pair. Supported migrations update the current project and every retained undo/redo snapshot in memory, then publish the migrated pair through the same transaction protocol. Unknown future project schemas and unsupported journal versions fail closed.
 
+Project schema version 7 introduces editor-core-owned common visual properties. Every timeline item owns a legacy-compatible transform and visibility value; Serde flattens them to the existing `transform` and `hidden` item keys. Media, text, solid-color, and rectangle values migrate without numeric changes. Caption and transition items receive an identity transform when an older document omits one, while any existing visibility value is preserved. These new identity values are deliberately non-operative for caption and transition rendering until a separately versioned transform milestone activates that behavior.
+
+The v7 migration accepts supported schema versions 1 through 6, upgrades current state and every retained history snapshot together, and validates every common transform and retained asset reference before legacy asset normalization can publish content-addressed files. A malformed retained transform or dangling reference therefore aborts the migration without rewriting project/history or changing the managed asset store.
+
+Schema-v7 input may omit `transform` or `hidden` for compatibility. Reads return identity-transform and visible defaults without forcing a rewrite solely to materialize those keys. Project responses and the next committed serialization emit both flattened fields explicitly. Reopening a canonical migrated generation is idempotent and does not republish it. Schema version zero and future versions fail closed without rewriting documents or publishing managed assets.
+
 The journal format is private recovery metadata with its own version. Before downgrading to a build without journal support, open every project with the current build and confirm no `.project-transaction.json` remains. If a journal exists, let the current build recover it; do not downgrade first.
 
 ## Durability limits

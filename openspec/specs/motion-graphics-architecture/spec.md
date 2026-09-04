@@ -177,19 +177,15 @@ Editor-core MUST return evaluated scene semantics with a separate process-local 
 - **THEN** the request is canonicalized and checked against configured font roots before any resolved filesystem path reaches a backend
 
 ### Requirement: EvaluatedScene foundation remains non-public and non-persisted
-The initial `EvaluatedScene` implementation MUST remain an editor-core process-local derivation, MUST NOT change project schema version 6 or any public request, response, operation, capability, MCP, provider, or stable-error catalog, and MUST leave production render-entry routing and preview/export parity migration to the separately approved routing milestone.
+`EvaluatedScene` MUST remain an editor-core process-local derivation and MUST NOT itself persist state or add a public request, response, operation, MCP, provider, or stable-error contract. Separately approved persisted-schema and render-routing milestones MAY migrate a project before evaluation or advertise their own capability without making `EvaluatedScene` a persisted or public model.
 
-#### Scenario: Reopen and history remain compatible
-- **WHEN** a schema-version-6 project with retained undo and redo snapshots is evaluated and later reopened
-- **THEN** no migration or rewrite occurs and current state plus every retained history snapshot reopens byte-for-byte under the existing persistence behavior
+#### Scenario: Evaluation does not mutate persisted state
+- **WHEN** an already opened project revision is evaluated
+- **THEN** evaluation itself does not rewrite the project, change its revision, or modify retained undo/redo history; any supported older-schema migration occurs during project opening under the separately specified persistence workflow
 
-#### Scenario: Keep clients unchanged
-- **WHEN** clients inspect headless operations, MCP tools, capabilities, canonical public fixtures, or error identifiers after this change
-- **THEN** they observe no added or changed public surface for `EvaluatedScene`
-
-#### Scenario: Defer render-entry routing
-- **WHEN** this representation milestone is completed before the routing milestone
-- **THEN** the new evaluator is independently testable while existing frame, range, draft, and export call sites retain their current behavior and output
+#### Scenario: Keep the scene model private
+- **WHEN** clients inspect headless operations, MCP tools, provider contracts, or stable errors
+- **THEN** they observe no serialized or directly addressable `EvaluatedScene` model
 ### Requirement: Production EvaluatedScene consumption
 The production renderer MUST consume the complete owned `EvaluatedScene` and its structurally separate process-local resource bindings, MUST keep raw requested and resolved filesystem paths outside `EvaluatedScene`, and MUST derive backend syntax, input indexes, prepared resources, output clipping, and artifact destinations only after canonical evaluation succeeds.
 
@@ -215,3 +211,14 @@ Frame, range, draft, and export output intents MUST clip and encode one common e
 #### Scenario: Preserve repeated logical assets
 - **WHEN** several evaluated layers reference one logical media asset with different source intervals or audio settings
 - **THEN** backend preparation creates deterministic input instances that preserve each layer's evaluated timing and settings without duplicating or reordering canonical scene semantics
+
+### Requirement: Common visual properties activate as an isolated persisted milestone
+Schema version 7 MUST establish common visual-property ownership for current transform and visibility state without activating the fixture-only Transform2D, layer, component, slot, marker, curve, mask, effect, or audio-event concepts. `contracts/motion-graphics-v1.json` MUST remain fixture-only, and no new public operation, capability identifier, provider surface, renderer expression, resource locator, or stable error SHALL be introduced by this milestone.
+
+#### Scenario: Inspect milestone boundaries
+- **WHEN** a schema-v7 project, public operation catalog, capability report, and motion-graphics fixture catalog are inspected
+- **THEN** common transform and visibility ownership is present, existing operations retain their meanings, the motion-graphics catalog remains fixture-only, and all later concepts remain inactive
+
+#### Scenario: Defer Transform2D behavior
+- **WHEN** a common visual property is evaluated in this milestone
+- **THEN** it uses the schema-v6 position, uniform scale, and opacity semantics with no units, anchor transform, independent scale, rotation, skew, or new transform ordering

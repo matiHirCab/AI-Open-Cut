@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 6;
+pub const PROJECT_SCHEMA_VERSION: u32 = 7;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -384,25 +384,48 @@ impl TimelineItem {
     }
 
     pub fn hidden(&self) -> bool {
-        match self {
-            Self::Media(item) => item.hidden,
-            Self::Text(item) => item.hidden,
-            Self::SolidColor(item) => item.hidden,
-            Self::Rectangle(item) => item.hidden,
-            Self::Caption(item) => item.hidden,
-            Self::Transition(item) => item.hidden,
-        }
+        self.visual_properties().hidden
     }
 
     pub fn set_hidden(&mut self, hidden: bool) {
+        self.visual_properties_mut().hidden = hidden;
+    }
+
+    pub fn visual_properties(&self) -> &VisualProperties {
         match self {
-            Self::Media(item) => item.hidden = hidden,
-            Self::Text(item) => item.hidden = hidden,
-            Self::SolidColor(item) => item.hidden = hidden,
-            Self::Rectangle(item) => item.hidden = hidden,
-            Self::Caption(item) => item.hidden = hidden,
-            Self::Transition(item) => item.hidden = hidden,
+            Self::Media(item) => &item.visual_properties,
+            Self::Text(item) => &item.visual_properties,
+            Self::SolidColor(item) => &item.visual_properties,
+            Self::Rectangle(item) => &item.visual_properties,
+            Self::Caption(item) => &item.visual_properties,
+            Self::Transition(item) => &item.visual_properties,
         }
+    }
+
+    pub fn visual_properties_mut(&mut self) -> &mut VisualProperties {
+        match self {
+            Self::Media(item) => &mut item.visual_properties,
+            Self::Text(item) => &mut item.visual_properties,
+            Self::SolidColor(item) => &mut item.visual_properties,
+            Self::Rectangle(item) => &mut item.visual_properties,
+            Self::Caption(item) => &mut item.visual_properties,
+            Self::Transition(item) => &mut item.visual_properties,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct VisualProperties {
+    #[serde(default)]
+    pub transform: Transform,
+    #[serde(default)]
+    pub hidden: bool,
+}
+
+impl VisualProperties {
+    pub fn new(transform: Transform, hidden: bool) -> Self {
+        Self { transform, hidden }
     }
 }
 
@@ -414,11 +437,10 @@ pub struct MediaItem {
     pub start_ms: u64,
     pub duration_ms: u64,
     pub source_in_ms: u64,
-    pub transform: Transform,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
     pub audio: AudioSettings,
     pub keyframes: Vec<Keyframe>,
-    #[serde(default)]
-    pub hidden: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -435,10 +457,9 @@ pub struct TextItem {
     pub font_path: Option<String>,
     #[serde(default)]
     pub style: TextStyle,
-    pub transform: Transform,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
     pub keyframes: Vec<Keyframe>,
-    #[serde(default)]
-    pub hidden: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -547,10 +568,9 @@ pub struct SolidColorItem {
     pub color: String,
     pub start_ms: u64,
     pub duration_ms: u64,
-    pub transform: Transform,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
     pub keyframes: Vec<Keyframe>,
-    #[serde(default)]
-    pub hidden: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -562,10 +582,9 @@ pub struct RectangleItem {
     pub height: u32,
     pub start_ms: u64,
     pub duration_ms: u64,
-    pub transform: Transform,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
     pub keyframes: Vec<Keyframe>,
-    #[serde(default)]
-    pub hidden: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -620,8 +639,8 @@ pub struct CaptionItem {
     pub duration_ms: u64,
     pub style: CaptionStyle,
     pub source: CaptionSource,
-    #[serde(default)]
-    pub hidden: bool,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -640,11 +659,40 @@ pub struct TransitionItem {
     pub to_item_id: Option<String>,
     pub start_ms: u64,
     pub duration_ms: u64,
-    #[serde(default)]
-    pub hidden: bool,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+macro_rules! impl_visual_properties_access {
+    ($($item:ty),+ $(,)?) => {
+        $(
+            impl std::ops::Deref for $item {
+                type Target = VisualProperties;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.visual_properties
+                }
+            }
+
+            impl std::ops::DerefMut for $item {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.visual_properties
+                }
+            }
+        )+
+    };
+}
+
+impl_visual_properties_access!(
+    MediaItem,
+    TextItem,
+    SolidColorItem,
+    RectangleItem,
+    CaptionItem,
+    TransitionItem,
+);
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Transform {
     pub position_x: f64,
@@ -1148,12 +1196,97 @@ mod tests {
             font_family: None,
             font_path: None,
             style: TextStyle::default(),
-            transform: Transform::default(),
+            visual_properties: crate::VisualProperties::default(),
             keyframes: vec![],
-            hidden: false,
         });
         assert!(item.overlaps(0, 1_001));
         assert!(!item.overlaps(0, 1_000));
         assert!(!item.overlaps(2_000, 3_000));
+    }
+
+    #[test]
+    fn every_timeline_item_serializes_flattened_common_visual_properties() {
+        let common = serde_json::json!({
+            "transform": {
+                "positionX": 12.0,
+                "positionY": 34.0,
+                "scale": 1.5,
+                "opacity": 0.75
+            },
+            "hidden": true
+        });
+        let cases = [
+            serde_json::json!({
+                "type": "media", "id": "media", "assetId": "asset", "startMs": 0,
+                "durationMs": 100, "sourceInMs": 0, "audio": {
+                    "volume": 1.0, "muted": false, "fadeInMs": 0, "fadeOutMs": 0
+                }, "keyframes": [], "transform": common["transform"], "hidden": true
+            }),
+            serde_json::json!({
+                "type": "text", "id": "text", "text": "Text", "startMs": 0,
+                "durationMs": 100, "fontSize": 24, "color": "#ffffff",
+                "fontFamily": null, "fontPath": null, "style": TextStyle::default(),
+                "keyframes": [], "transform": common["transform"], "hidden": true
+            }),
+            serde_json::json!({
+                "type": "solid_color", "id": "solid", "color": "#000000",
+                "startMs": 0, "durationMs": 100, "keyframes": [],
+                "transform": common["transform"], "hidden": true
+            }),
+            serde_json::json!({
+                "type": "rectangle", "id": "rectangle", "color": "#000000",
+                "width": 10, "height": 20, "startMs": 0, "durationMs": 100,
+                "keyframes": [], "transform": common["transform"], "hidden": true
+            }),
+            serde_json::json!({
+                "type": "caption", "id": "caption", "text": "Caption", "startMs": 0,
+                "durationMs": 100, "style": CaptionStyle::default(), "source": {
+                    "assetId": "asset", "providerId": "provider", "modelId": "model",
+                    "modelVersion": null, "language": "en", "generatedAtMs": 1,
+                    "originalText": "Caption", "confidence": null, "words": []
+                }, "transform": common["transform"], "hidden": true
+            }),
+            serde_json::json!({
+                "type": "transition", "id": "transition", "transitionType": "fade",
+                "fromItemId": "media", "toItemId": null, "startMs": 0,
+                "durationMs": 100, "transform": common["transform"], "hidden": true
+            }),
+        ];
+
+        for value in cases {
+            let item: TimelineItem = serde_json::from_value(value).unwrap();
+            assert_eq!(item.visual_properties().transform.position_x, 12.0);
+            assert!(item.hidden());
+            let serialized = serde_json::to_value(item).unwrap();
+            assert_eq!(serialized["transform"], common["transform"]);
+            assert_eq!(serialized["hidden"], common["hidden"]);
+            assert!(serialized.get("visualProperties").is_none());
+        }
+    }
+
+    #[test]
+    fn legacy_caption_and_transition_default_common_visual_properties() {
+        let caption: TimelineItem = serde_json::from_value(serde_json::json!({
+            "type": "caption", "id": "caption", "text": "Caption", "startMs": 0,
+            "durationMs": 100, "style": CaptionStyle::default(), "source": {
+                "assetId": "asset", "providerId": "provider", "modelId": "model",
+                "modelVersion": null, "language": "en", "generatedAtMs": 1,
+                "originalText": "Caption", "confidence": null, "words": []
+            }
+        }))
+        .unwrap();
+        let transition: TimelineItem = serde_json::from_value(serde_json::json!({
+            "type": "transition", "id": "transition", "transitionType": "fade",
+            "fromItemId": "media", "toItemId": null, "startMs": 0, "durationMs": 100
+        }))
+        .unwrap();
+
+        assert_eq!(caption.visual_properties(), &VisualProperties::default());
+        assert_eq!(transition.visual_properties(), &VisualProperties::default());
+        for item in [caption, transition] {
+            let serialized = serde_json::to_value(item).unwrap();
+            assert_eq!(serialized["transform"]["scale"], 1.0);
+            assert_eq!(serialized["hidden"], false);
+        }
     }
 }
