@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 7;
+pub const PROJECT_SCHEMA_VERSION: u32 = 8;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -372,6 +372,16 @@ impl TimelineItem {
         self.start_ms() < end_ms && self.end_ms() > start_ms
     }
 
+    pub fn keyframes(&self) -> &[Keyframe] {
+        match self {
+            Self::Media(v) => &v.keyframes,
+            Self::Text(v) => &v.keyframes,
+            Self::SolidColor(v) => &v.keyframes,
+            Self::Rectangle(v) => &v.keyframes,
+            Self::Caption(_) | Self::Transition(_) => &[],
+        }
+    }
+
     pub fn keyframes_mut(&mut self) -> Option<&mut Vec<Keyframe>> {
         match self {
             Self::Media(item) => Some(&mut item.keyframes),
@@ -419,13 +429,19 @@ impl TimelineItem {
 pub struct VisualProperties {
     #[serde(default)]
     pub transform: Transform,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transform2d: Option<Transform2D>,
     #[serde(default)]
     pub hidden: bool,
 }
 
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
-        Self { transform, hidden }
+        Self {
+            transform,
+            hidden,
+            transform2d: None,
+        }
     }
 }
 
@@ -855,6 +871,12 @@ pub enum EditOperation {
         item_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         transform: Option<Transform>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        transform2d: Option<Option<Transform2D>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         text: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1288,5 +1310,89 @@ mod tests {
             assert_eq!(serialized["transform"]["scale"], 1.0);
             assert_eq!(serialized["hidden"], false);
         }
+    }
+}
+
+/// Static affine transform. Legacy Transform remains a separate compatibility value.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Transform2D {
+    pub position: TransformPosition,
+    pub anchor: TransformAnchor,
+    pub scale_x: f64,
+    pub scale_y: f64,
+    pub rotation_deg: f64,
+    pub skew_x_deg: f64,
+    pub skew_y_deg: f64,
+    pub opacity: f64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TransformPosition {
+    pub x: f64,
+    pub y: f64,
+    pub unit: PositionUnit,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TransformAnchor {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionUnit {
+    Pixels,
+    Normalized,
+}
+
+impl Default for Transform2D {
+    fn default() -> Self {
+        Self {
+            position: TransformPosition {
+                x: 0.0,
+                y: 0.0,
+                unit: PositionUnit::Pixels,
+            },
+            anchor: TransformAnchor { x: 0.0, y: 0.0 },
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation_deg: 0.0,
+            skew_x_deg: 0.0,
+            skew_y_deg: 0.0,
+            opacity: 1.0,
+        }
+    }
+}
+
+impl Transform2D {
+    pub fn validate(&self) -> Result<(), CoreError> {
+        let position_limit = match self.position.unit {
+            PositionUnit::Pixels => 1_000_000.0,
+            PositionUnit::Normalized => 100.0,
+        };
+        let bounded = |v: f64, lo: f64, hi: f64| v.is_finite() && (lo..=hi).contains(&v);
+        if !bounded(self.position.x, -position_limit, position_limit)
+            || !bounded(self.position.y, -position_limit, position_limit)
+            || !bounded(self.anchor.x, 0.0, 1.0)
+            || !bounded(self.anchor.y, 0.0, 1.0)
+            || !bounded(self.scale_x, 0.0, 100.0)
+            || self.scale_x == 0.0
+            || !bounded(self.scale_y, 0.0, 100.0)
+            || self.scale_y == 0.0
+            || !bounded(self.rotation_deg, -36_000.0, 36_000.0)
+            || !bounded(self.skew_x_deg, -80.0, 80.0)
+            || !bounded(self.skew_y_deg, -80.0, 80.0)
+            || !bounded(self.opacity, 0.0, 1.0)
+        {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "Transform2D exceeds its finite numeric bounds",
+            ));
+        }
+        Ok(())
     }
 }

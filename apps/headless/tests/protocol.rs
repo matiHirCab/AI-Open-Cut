@@ -315,7 +315,12 @@ fn native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts() 
         "operations": [{
             "operation": "update_item",
             "itemId": solid_id,
-            "color": "#ee8844"
+            "color": "#ee8844",
+            "transform2d": {
+                "position": {"x": 0.5, "y": 0.5, "unit": "normalized"},
+                "anchor": {"x": 0.5, "y": 0.5}, "scaleX": 0.8, "scaleY": 0.7,
+                "rotationDeg": 15, "skewXDeg": 4, "skewYDeg": -2, "opacity": 0.8
+            }
         }]
     })));
     let draft_id = draft["id"].as_str().unwrap();
@@ -467,4 +472,51 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
+}
+
+#[test]
+fn transform2d_round_trips_and_resets_through_public_protocol() {
+    let harness = Harness::new();
+    let created =
+        result(&harness.request(json!({"operation":"create_project","name":"Transform2D"})));
+    let id = &created["projectId"];
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let add=result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{
+        "operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":30,"height":20,"color":"#ff0000",
+        "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+    }})));
+    let item = &add["changedIds"][0];
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/transform2d-v1.json")).unwrap();
+    let transform = &catalog["valid"][1]["value"];
+    let update = result(&harness.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{
+            "operation":"update_item","itemId":item,"transform2d":transform
+        }}),
+    ));
+    assert_eq!(update["revision"], 2);
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(state["project"]["schemaVersion"], 8);
+    let actual: opencut_editor_core::Transform2D =
+        serde_json::from_value(state["project"]["tracks"][1]["items"][0]["transform2d"].clone())
+            .unwrap();
+    assert_eq!(actual, serde_json::from_value(transform.clone()).unwrap());
+    let malformed = harness.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{
+            "operation":"update_item","itemId":item,"transform2d":{"scaleX":1}
+        }}),
+    );
+    assert_eq!(event(&malformed)["error"]["code"], "INVALID_ARGUMENT");
+    result(&harness.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{
+            "operation":"update_item","itemId":item,"transform2d":null
+        }}),
+    ));
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert!(
+        state["project"]["tracks"][1]["items"][0]
+            .get("transform2d")
+            .is_none()
+    );
 }

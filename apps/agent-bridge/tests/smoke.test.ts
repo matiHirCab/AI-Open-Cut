@@ -741,3 +741,103 @@ it("cancels fake speech through the MCP job contract", async () => {
   });
   expect((await waitForTerminalJob(queued.jobId)).status).toBe("cancelled");
 }, 10_000);
+
+it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () => {
+  const created = await call(
+    "project_create",
+    { name: "Transform2D smoke" },
+    writeResultSchema
+  );
+  const { projectId } = created;
+  const state = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  const trackId = state.project.tracks.find(
+    (track) => track.trackType === "overlay"
+  )?.id;
+  if (!trackId) {
+    throw new Error("overlay missing");
+  }
+  const transform2d = {
+    anchor: { x: 0.5, y: 0.5 },
+    opacity: 0.75,
+    position: { unit: "normalized", x: 0.5, y: 0.5 },
+    rotationDeg: 30,
+    scaleX: 1.2,
+    scaleY: 0.8,
+    skewXDeg: 5,
+    skewYDeg: -3,
+  };
+  const edited = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: 0,
+      operations: [
+        {
+          color: "#ff0000",
+          durationMs: 1000,
+          height: 10,
+          operation: "add_rectangle",
+          resultAlias: "box",
+          startMs: 0,
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          width: 20,
+        },
+        { itemId: "@box", operation: "update_item", transform2d },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const itemId = edited.aliases.box;
+  const read = async () =>
+    await call("project_get_state", { projectId }, projectStateSchema);
+  expect(
+    (await read()).project.tracks
+      .flatMap((track) => track.items)
+      .find((item) => item.id === itemId)
+  ).toMatchObject({ transform2d });
+  await expect(
+    call(
+      "timeline_update_item",
+      {
+        expectedRevision: 1,
+        itemId,
+        projectId,
+        transform2d: { ...transform2d, scaleX: 0 },
+      },
+      writeResultSchema
+    )
+  ).rejects.toThrow();
+  await call(
+    "project_undo",
+    { expectedRevision: 1, projectId },
+    writeResultSchema
+  );
+  expect(
+    (await read()).project.tracks.flatMap((track) => track.items)
+  ).toHaveLength(0);
+  await call(
+    "project_redo",
+    { expectedRevision: 2, projectId },
+    writeResultSchema
+  );
+  expect(
+    (await read()).project.tracks
+      .flatMap((track) => track.items)
+      .find((item) => item.id === itemId)
+  ).toMatchObject({ transform2d });
+  await call(
+    "timeline_update_item",
+    { expectedRevision: 3, itemId, projectId, transform2d: null },
+    writeResultSchema
+  );
+  expect(
+    (await read()).project.tracks
+      .flatMap((track) => track.items)
+      .find((item) => item.id === itemId)?.transform2d
+  ).toBeUndefined();
+});

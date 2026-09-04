@@ -113,3 +113,9 @@ The hybrid CPU path may initially be slower than a GPU compositor. Bounded lazy 
 ## Rollout and rollback
 
 Issue #13 can roll back by reverting the internal evaluated-scene planner/resource adapters and additive capability evidence together; no persisted data rollback is required. Later persisted milestones roll forward with another migration or require a compatible reader; an older binary must never silently downgrade a future schema. Each implementing milestone must cite this ADR and provide its own rollout, failure, fixture, and rollback evidence.
+
+## Transform2D activation (issue #18)
+
+Schema 8 activates static Transform2D through optional common visual properties and additive update/batch fields, with the dedicated transform2d-v1 runtime catalog and transform2d rendering capability. The remaining motion-graphics-v1 vocabulary stays fixture-only. Legacy transform values and rendering retain their prior semantics.
+
+The approved change uses pure reference/value/complexity preflight, read-only path-safe text measurement, and pure affine finalization before raster/output allocation or resource writes. Only typed measured dimensions cross into evaluated scenes; selected font paths stay in the separate sidecar and are reused during preparation. This requires no new owner dependency edge. The affine backend uses output-sized coordinate maps and premultiplied bilinear sampling rather than an oversized source/destination padding rectangle. Unsupported source address ranges fail closed before rasterization. See [the coordinate and compatibility contract](../transform2d.md) for exact order, limits, source boxes, failure rules, and migration behavior.

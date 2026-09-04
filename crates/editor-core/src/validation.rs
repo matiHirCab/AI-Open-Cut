@@ -65,6 +65,21 @@ pub(crate) fn validate_transform(transform: &Transform) -> Result<(), CoreError>
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
     for item in project.tracks.iter().flat_map(|track| &track.items) {
         validate_transform(&item.visual_properties().transform)?;
+        if let Some(value) = &item.visual_properties().transform2d {
+            value.validate()?;
+            if matches!(item, TimelineItem::Transition(_))
+                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+                || item
+                    .keyframes()
+                    .iter()
+                    .any(|key| key.property != KeyframeProperty::Volume)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "Transform2D requires a visual source without legacy transform keyframes",
+                ));
+            }
+        }
     }
     Ok(())
 }

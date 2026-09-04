@@ -1272,6 +1272,24 @@ describe("CI parity gate policy", () => {
     ).toThrow("contract-parity command step must use the exact fail-closed command body");
   });
 
+  for (const replacement of [
+    "",
+    "cargo test -p opencut-editor-core --test transform2d || true",
+    "cargo test -p opencut-editor-core --test compatibility",
+  ]) {
+    it(`rejects missing or altered Transform2D native coverage: ${replacement}`, () => {
+      expect(() =>
+        validateCiGates(
+          replaceRequired(
+            workflow,
+            "cargo test -p opencut-editor-core --test transform2d",
+            replacement
+          )
+        )
+      ).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+
   it("rejects a neutralized native render command", () => {
     expect(() =>
       validateCiGates(

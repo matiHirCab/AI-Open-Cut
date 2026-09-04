@@ -1,0 +1,395 @@
+{
+  "version": 1,
+  "contract": "transform2d-v1",
+  "status": "runtime",
+  "identity": {
+    "position": {
+      "x": 0,
+      "y": 0,
+      "unit": "pixels"
+    },
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "scaleX": 1,
+    "scaleY": 1,
+    "rotationDeg": 0,
+    "skewXDeg": 0,
+    "skewYDeg": 0,
+    "opacity": 1
+  },
+  "semantics": {
+    "units": [
+      "pixels",
+      "normalized"
+    ],
+    "origin": "top_left",
+    "positiveRotation": "clockwise",
+    "order": [
+      "anchor",
+      "scale",
+      "skew_x",
+      "skew_y",
+      "rotation",
+      "position"
+    ],
+    "legacySwitch": "legacy update clears transform2d; null restores retained legacy transform",
+    "textMeasurement": "read_only_before_affine_finalization",
+    "captionInset": 12
+  },
+  "limits": {
+    "maxPixelPosition": 1000000,
+    "maxNormalizedPosition": 100,
+    "maxScale": 100,
+    "maxRotationDeg": 36000,
+    "maxSkewDeg": 80,
+    "maxDimension": 16384,
+    "maxArea": 16777216
+  },
+  "valid": [
+    {
+      "id": "identity",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "complete",
+      "value": {
+        "position": {
+          "x": 0.5,
+          "y": 0.5,
+          "unit": "normalized"
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.25
+        },
+        "scaleX": 1.25,
+        "scaleY": 0.75,
+        "rotationDeg": 35,
+        "skewXDeg": 12,
+        "skewYDeg": -8,
+        "opacity": 0.7
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "scaleX",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 0,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "scaleY",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 101,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "rotationDeg",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 36001,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "skewXDeg",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 81,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "skewYDeg",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": -81,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "opacity",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1.01
+      }
+    },
+    {
+      "id": "extra",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "extra": 1
+      }
+    },
+    {
+      "id": "position",
+      "value": {
+        "position": {
+          "x": 1000001,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "unit",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "expression"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "anchor",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": -1,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "non-number",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": "NaN",
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "expression",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": "sin(t)",
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "path",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": "../../secret",
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "url",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": "https://example.com/asset",
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "id": "markup",
+      "value": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": "<svg onload=\"run()\"/>",
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    }
+  ]
+}

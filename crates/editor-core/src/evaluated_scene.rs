@@ -145,15 +145,44 @@ pub(crate) struct EvaluatedTransition {
     pub(crate) span: EvaluatedTimeSpan,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedVisualLayer {
     pub(crate) item_id: String,
     pub(crate) order: EvaluatedLayerOrder,
     pub(crate) span: EvaluatedTimeSpan,
     pub(crate) transform: EvaluatedTransform,
+    pub(crate) transform2d: Option<crate::Transform2D>,
+    pub(crate) affine: Option<EvaluatedAffine>,
+    pub(crate) source_size: Option<(u32, u32)>,
     pub(crate) keyframes: Vec<EvaluatedKeyframe>,
     pub(crate) transitions: Vec<EvaluatedTransition>,
     pub(crate) source: EvaluatedVisualSource,
+}
+
+// Absent additive facts carry no semantics; keep legacy scene diagnostics stable.
+impl std::fmt::Debug for EvaluatedVisualLayer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut layer = formatter.debug_struct("EvaluatedVisualLayer");
+        layer
+            .field("item_id", &self.item_id)
+            .field("order", &self.order)
+            .field("span", &self.span)
+            .field("transform", &self.transform);
+        if let Some(value) = self.transform2d {
+            layer.field("transform2d", &value);
+        }
+        if let Some(value) = self.affine {
+            layer.field("affine", &value);
+        }
+        if let Some(value) = self.source_size {
+            layer.field("source_size", &value);
+        }
+        layer
+            .field("keyframes", &self.keyframes)
+            .field("transitions", &self.transitions)
+            .field("source", &self.source)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -346,6 +375,9 @@ pub(crate) fn evaluate_project(
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
                         visual_layers.push(EvaluatedVisualLayer {
+                            transform2d: item.visual_properties().transform2d,
+                            affine: None,
+                            source_size: None,
                             item_id: media.id.clone(),
                             order,
                             span,
@@ -389,6 +421,9 @@ pub(crate) fn evaluate_project(
                         });
                     }
                     visual_layers.push(EvaluatedVisualLayer {
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        source_size: None,
                         item_id: text.id.clone(),
                         order,
                         span: checked_span(text.start_ms, text.duration_ms)?,
@@ -406,6 +441,9 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::SolidColor(color) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        source_size: None,
                         item_id: color.id.clone(),
                         order,
                         span: checked_span(color.start_ms, color.duration_ms)?,
@@ -419,6 +457,9 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::Rectangle(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
                         span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
@@ -434,6 +475,9 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        source_size: None,
                         item_id: caption.id.clone(),
                         order,
                         span: checked_span(caption.start_ms, caption.duration_ms)?,
@@ -459,6 +503,26 @@ pub(crate) fn evaluate_project(
         }
     }
 
+    for layer in &mut visual_layers {
+        if let Some(value) = layer.transform2d {
+            value.validate()?;
+            if layer
+                .keyframes
+                .iter()
+                .any(|key| key.property != EvaluatedProperty::Volume)
+            {
+                return Err(invalid("Transform2D cannot use legacy transform keyframes"));
+            }
+            layer.source_size = match &layer.source {
+                EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
+                EvaluatedVisualSource::SolidColor { .. } => Some((width, height)),
+                _ => None,
+            };
+            if let Some(size) = layer.source_size {
+                layer.affine = Some(evaluate_affine(value, size, (width, height))?);
+            }
+        }
+    }
     Ok(EvaluatedSceneResult {
         scene: EvaluatedScene {
             canvas: EvaluatedCanvas { width, height, fps },
@@ -1389,6 +1453,13 @@ mod tests {
             TrackType::Video,
             vec![media("missing", "absent", 0)],
         )];
+        missing.tracks[0].items[0]
+            .visual_properties_mut()
+            .transform2d = Some(crate::Transform2D {
+            scale_x: 100.0,
+            scale_y: 100.0,
+            ..Default::default()
+        });
         assert_eq!(
             evaluate_project(&missing, 640, 360, 30).unwrap_err().code,
             ErrorCode::AssetNotFound
@@ -1908,5 +1979,192 @@ mod tests {
         let scene_debug = format!("{:?}", evaluated.scene);
         assert!(!scene_debug.contains("fonts/path.ttf"));
         assert!(!scene_debug.contains("fonts/both.ttf"));
+    }
+}
+
+/// One canonical source-to-composition affine map and its outward-rounded raster bounds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct EvaluatedAffine {
+    pub(crate) matrix: [f64; 6],
+    pub(crate) inverse: [f64; 6],
+    pub(crate) left: f64,
+    pub(crate) top: f64,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) opacity: f64,
+}
+
+pub(crate) fn evaluate_affine(
+    transform: crate::Transform2D,
+    source: (u32, u32),
+    canvas: (u32, u32),
+) -> Result<EvaluatedAffine, CoreError> {
+    transform.validate()?;
+    if source.0 == 0 || source.1 == 0 {
+        return Err(invalid("Transform2D source dimensions must be positive"));
+    }
+    let (sin, cos) = transform.rotation_deg.to_radians().sin_cos();
+    let kx = transform.skew_x_deg.to_radians().tan();
+    let ky = transform.skew_y_deg.to_radians().tan();
+    let a = (cos - sin * ky) * transform.scale_x;
+    let b = (sin + cos * ky) * transform.scale_x;
+    let c = (cos * kx - sin * (1.0 + ky * kx)) * transform.scale_y;
+    let d = (sin * kx + cos * (1.0 + ky * kx)) * transform.scale_y;
+    let factor = match transform.position.unit {
+        crate::PositionUnit::Pixels => (1.0, 1.0),
+        crate::PositionUnit::Normalized => (f64::from(canvas.0), f64::from(canvas.1)),
+    };
+    let ax = transform.anchor.x * f64::from(source.0);
+    let ay = transform.anchor.y * f64::from(source.1);
+    let tx = transform.position.x * factor.0 - a * ax - c * ay;
+    let ty = transform.position.y * factor.1 - b * ax - d * ay;
+    let matrix = [a, b, c, d, tx, ty];
+    let det = transform.scale_x * transform.scale_y;
+    let inverse = [
+        d / det,
+        -b / det,
+        -c / det,
+        a / det,
+        (c * ty - d * tx) / det,
+        (b * tx - a * ty) / det,
+    ];
+    if matrix.iter().chain(&inverse).any(|v| !v.is_finite()) {
+        return Err(invalid("Transform2D derived matrix must be finite"));
+    }
+    let corners = [
+        (0.0, 0.0),
+        (f64::from(source.0), 0.0),
+        (0.0, f64::from(source.1)),
+        (f64::from(source.0), f64::from(source.1)),
+    ];
+    let mut left = f64::INFINITY;
+    let mut top = f64::INFINITY;
+    let mut right = f64::NEG_INFINITY;
+    let mut bottom = f64::NEG_INFINITY;
+    for (x, y) in corners {
+        let px = a * x + c * y + tx;
+        let py = b * x + d * y + ty;
+        if !px.is_finite() || !py.is_finite() {
+            return Err(invalid("Transform2D derived coordinate must be finite"));
+        }
+        left = left.min(px);
+        right = right.max(px);
+        top = top.min(py);
+        bottom = bottom.max(py);
+    }
+    // Snap trigonometric roundoff at integer edges, preserving exact right-angle bounds.
+    let snap = |v: f64| {
+        if (v - v.round()).abs() < 1e-9 {
+            v.round()
+        } else {
+            v
+        }
+    };
+    left = snap(left).floor();
+    top = snap(top).floor();
+    let w = (snap(right).ceil() - left).max(1.0);
+    let h = (snap(bottom).ceil() - top).max(1.0);
+    if w > 16_384.0 || h > 16_384.0 || w * h > 16_777_216.0 {
+        return Err(invalid(
+            "Transform2D transformed raster bounds exceed complexity limits",
+        ));
+    }
+    Ok(EvaluatedAffine {
+        matrix,
+        inverse,
+        left,
+        top,
+        width: w as u32,
+        height: h as u32,
+        opacity: transform.opacity,
+    })
+}
+
+pub(crate) fn finalize_affine_geometry(
+    scene: &mut EvaluatedScene,
+    measurements: &HashMap<String, (u32, u32)>,
+) -> Result<(), CoreError> {
+    // Collect first so a bad measurement cannot partially finalize the scene.
+    let resolved = scene
+        .visual_layers
+        .iter()
+        .map(|layer| {
+            let Some(value) = layer.transform2d else {
+                return Ok(None);
+            };
+            let size = layer
+                .source_size
+                .or_else(|| measurements.get(&layer.item_id).copied())
+                .ok_or_else(|| invalid("Transform2D source measurement is missing"))?;
+            Ok(Some((
+                size,
+                evaluate_affine(value, size, (scene.canvas.width, scene.canvas.height))?,
+            )))
+        })
+        .collect::<Result<Vec<_>, CoreError>>()?;
+    for (layer, result) in scene.visual_layers.iter_mut().zip(resolved) {
+        if let Some((size, affine)) = result {
+            layer.source_size = Some(size);
+            layer.affine = Some(affine);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod affine_tests {
+    use super::*;
+    #[test]
+    fn independent_sequential_oracle_and_units() {
+        let mut t = crate::Transform2D {
+            anchor: crate::TransformAnchor { x: 0.25, y: 0.75 },
+            scale_x: 1.7,
+            scale_y: 0.6,
+            skew_x_deg: 17.,
+            skew_y_deg: -11.,
+            rotation_deg: 33.,
+            position: crate::TransformPosition {
+                x: 70.,
+                y: 90.,
+                unit: crate::PositionUnit::Pixels,
+            },
+            ..Default::default()
+        };
+        let affine = evaluate_affine(t, (53, 29), (200, 120)).unwrap();
+        for (x, y) in [(0., 0.), (53., 0.), (0., 29.), (53., 29.), (12.3, 17.1)] {
+            let sx = (x - 0.25 * 53.) * 1.7;
+            let sy = (y - 0.75 * 29.) * 0.6;
+            let kx = sx + 17_f64.to_radians().tan() * sy;
+            let ky = sy + (-11_f64).to_radians().tan() * kx;
+            let (sin, cos) = 33_f64.to_radians().sin_cos();
+            let expected = (kx * cos - ky * sin + 70., kx * sin + ky * cos + 90.);
+            let [a, b, c, d, tx, ty] = affine.matrix;
+            assert!((a * x + c * y + tx - expected.0).abs() < 1e-9);
+            assert!((b * x + d * y + ty - expected.1).abs() < 1e-9);
+            let [a, b, c, d, tx, ty] = affine.inverse;
+            assert!((a * expected.0 + c * expected.1 + tx - x).abs() < 1e-9);
+            assert!((b * expected.0 + d * expected.1 + ty - y).abs() < 1e-9);
+        }
+        t.position.unit = crate::PositionUnit::Normalized;
+        t.position.x = 70. / 200.;
+        t.position.y = 90. / 120.;
+        assert_eq!(evaluate_affine(t, (53, 29), (200, 120)).unwrap(), affine);
+    }
+    #[test]
+    fn geometry_boundaries_are_checked_before_clipping() {
+        let t = crate::Transform2D::default();
+        for size in [(16384, 1), (4096, 4096)] {
+            assert!(evaluate_affine(t, size, (1, 1)).is_ok());
+        }
+        for size in [(16385, 1), (4096, 4097), (0, 1)] {
+            assert_eq!(
+                evaluate_affine(t, size, (1, 1)).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+        }
+        let mut t = t;
+        t.rotation_deg = 90.;
+        let a = evaluate_affine(t, (100, 20), (200, 200)).unwrap();
+        assert_eq!((a.width, a.height, a.left, a.top), (20, 100, -20., 0.));
     }
 }

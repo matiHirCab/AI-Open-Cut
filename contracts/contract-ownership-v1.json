@@ -65,6 +65,15 @@
         "apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts",
         "docs/motion-graphics-contract-fixtures.md"
       ]
+    },
+    "transform2d": {
+      "canonical": "contracts/transform2d-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/tests/transform2d.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/transform2d.test.ts"
+      ]
     }
   }
 }

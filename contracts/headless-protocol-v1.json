@@ -70,7 +70,8 @@
       "preview",
       "preview_range",
       "mp4_export",
-      "evaluated_scene_rendering"
+      "evaluated_scene_rendering",
+      "transform2d"
     ]
   }
 }

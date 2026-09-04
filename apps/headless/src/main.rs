@@ -677,6 +677,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "preview_range",
         "mp4_export",
         "evaluated_scene_rendering",
+        "transform2d",
     ]
 }
 

@@ -253,23 +253,24 @@ pub(crate) fn prepare_text_layers(
     Ok(result)
 }
 
+pub(crate) struct MeasuredText {
+    pub(crate) prepared: PreparedText,
+    pub(crate) content: String,
+}
+
 pub(crate) fn prepare_render_resources(
     io: &dyn ArtifactIo,
-    evaluated: &EvaluatedSceneResult,
     media: PreparedMediaResources,
     workspace: &Path,
-    default_font_path: Option<&Path>,
-    font_roots: &[PathBuf],
-    warnings: &mut Vec<String>,
+    measured: HashMap<String, MeasuredText>,
 ) -> Result<PreparedRenderResources, CoreError> {
-    let text_layers = prepare_evaluated_text_layers(
-        io,
-        evaluated,
-        workspace,
-        default_font_path,
-        font_roots,
-        warnings,
-    )?;
+    let mut text_layers = HashMap::new();
+    for (id, mut text) in measured {
+        text.prepared.file_path = workspace.join(&text.prepared.file_path);
+        io.write(&text.prepared.file_path, text.content.as_bytes())
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+        text_layers.insert(id, text.prepared);
+    }
     Ok(PreparedRenderResources {
         media_inputs: media.media_inputs,
         media_paths: media.media_paths,
@@ -421,14 +422,13 @@ pub(crate) fn media_input_requests(
     Ok(media_inputs)
 }
 
-fn prepare_evaluated_text_layers(
+pub(crate) fn measure_evaluated_text_layers(
     io: &dyn ArtifactIo,
     evaluated: &EvaluatedSceneResult,
-    workspace: &Path,
     default_font_path: Option<&Path>,
     font_roots: &[PathBuf],
     warnings: &mut Vec<String>,
-) -> Result<HashMap<String, PreparedText>, CoreError> {
+) -> Result<HashMap<String, MeasuredText>, CoreError> {
     let font_bindings = evaluated
         .resource_bindings
         .fonts
@@ -437,6 +437,31 @@ fn prepare_evaluated_text_layers(
         .collect::<HashMap<_, _>>();
     let mut result = HashMap::new();
     for layer in &evaluated.scene.visual_layers {
+        if let EvaluatedVisualSource::Caption(caption) = &layer.source
+            && layer.transform2d.is_some()
+        {
+            let metrics =
+                measure_text_block(io, &caption.text, caption.font_size, default_font_path);
+            let width = (metrics.width.ceil() as u32).max(1).saturating_add(24);
+            let height = (metrics.height.ceil() as u32).max(1).saturating_add(24);
+            result.insert(
+                layer.item_id.clone(),
+                MeasuredText {
+                    prepared: PreparedText {
+                        file_path: PathBuf::from(format!("text-{}.txt", layer.item_id)),
+                        font_path: default_font_path.map(Path::to_path_buf),
+                        layer_width: width,
+                        layer_height: height,
+                        canvas_width: width,
+                        canvas_height: height,
+                        text_x: 12,
+                        text_y: 12,
+                    },
+                    content: caption.text.clone(),
+                },
+            );
+            continue;
+        }
         let EvaluatedVisualSource::Text(text) = &layer.source else {
             continue;
         };
@@ -452,7 +477,7 @@ fn prepare_evaluated_text_layers(
                 })
             })
             .transpose()?;
-        let path = workspace.join(format!("text-{}.txt", layer.item_id));
+        let path = PathBuf::from(format!("text-{}.txt", layer.item_id));
         let font_path = resolve_evaluated_font(
             io,
             &layer.item_id,
@@ -468,8 +493,6 @@ fn prepare_evaluated_text_layers(
             text.font_size,
             font_path.as_deref(),
         );
-        io.write(&path, content.as_bytes())
-            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
         let metrics = measure_text_block(io, &content, text.font_size, font_path.as_deref());
         let outline = text.style.outline_width_px;
         let shadow_left =
@@ -520,19 +543,22 @@ fn prepare_evaluated_text_layers(
             .max(0.01);
         result.insert(
             layer.item_id.clone(),
-            PreparedText {
-                file_path: path,
-                font_path,
-                layer_width,
-                layer_height,
-                canvas_width: ((f64::from(layer_width) * maximum_scale).ceil() as u32)
-                    .saturating_add(2)
-                    .max(1),
-                canvas_height: ((f64::from(layer_height) * maximum_scale).ceil() as u32)
-                    .saturating_add(2)
-                    .max(1),
-                text_x,
-                text_y,
+            MeasuredText {
+                content,
+                prepared: PreparedText {
+                    file_path: path,
+                    font_path,
+                    layer_width,
+                    layer_height,
+                    canvas_width: ((f64::from(layer_width) * maximum_scale).ceil() as u32)
+                        .saturating_add(2)
+                        .max(1),
+                    canvas_height: ((f64::from(layer_height) * maximum_scale).ceil() as u32)
+                        .saturating_add(2)
+                        .max(1),
+                    text_x,
+                    text_y,
+                },
             },
         );
     }

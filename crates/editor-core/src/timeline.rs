@@ -251,6 +251,7 @@ pub(crate) fn apply_operation(
         EditOperation::UpdateItem {
             item_id,
             transform,
+            transform2d,
             text,
             color,
             width,
@@ -259,8 +260,40 @@ pub(crate) fn apply_operation(
             font_path,
             style,
         } => {
+            if transform.is_some() && transform2d.is_some() {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "transform and transform2d cannot be updated together",
+                ));
+            }
+            let is_audio = project.find_item(&item_id).is_some_and(|item| {
+                matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+            });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(value) = transform2d {
+                if is_audio || matches!(item, TimelineItem::Transition(_)) {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "Transform2D requires a visual source",
+                    ));
+                }
+                if let Some(value) = &value {
+                    value.validate()?;
+                    if item
+                        .keyframes()
+                        .iter()
+                        .any(|key| key.property != KeyframeProperty::Volume)
+                    {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "Transform2D cannot use legacy transform keyframes",
+                        ));
+                    }
+                }
+                item.visual_properties_mut().transform2d = value;
+            }
             if let Some(transform) = transform {
+                item.visual_properties_mut().transform2d = None;
                 validate_transform(&transform)?;
                 match item {
                     TimelineItem::Media(media) => media.transform = transform,
@@ -423,6 +456,17 @@ pub(crate) fn apply_operation(
                 return Err(CoreError::new(
                     ErrorCode::ValidationFailed,
                     "volume keyframes require a media item",
+                ));
+            }
+
+            if item.visual_properties().transform2d.is_some()
+                && keyframes
+                    .iter()
+                    .any(|key| key.property != KeyframeProperty::Volume)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "Transform2D cannot use legacy transform keyframes",
                 ));
             }
             let destination = item.keyframes_mut().ok_or_else(|| {

@@ -37,6 +37,29 @@ export const transformSchema = z
   })
   .strict();
 
+export const transform2dSchema = z
+  .object({
+    anchor: z
+      .object({ x: finite.min(0).max(1), y: finite.min(0).max(1) })
+      .strict(),
+    opacity: finite.min(0).max(1),
+    position: z
+      .object({ unit: z.enum(["pixels", "normalized"]), x: finite, y: finite })
+      .strict(),
+    rotationDeg: finite.min(-36_000).max(36_000),
+    scaleX: finite.positive().max(100),
+    scaleY: finite.positive().max(100),
+    skewXDeg: finite.min(-80).max(80),
+    skewYDeg: finite.min(-80).max(80),
+  })
+  .strict()
+  .refine((value) => {
+    const limit = value.position.unit === "pixels" ? 1_000_000 : 100;
+    return (
+      Math.abs(value.position.x) <= limit && Math.abs(value.position.y) <= limit
+    );
+  }, "Transform2D position exceeds its unit bounds");
+
 export const audioSchema = z
   .object({
     fadeInMs: milliseconds,
@@ -652,6 +675,7 @@ const mediaItemSchema = z
     sourceInMs: milliseconds,
     startMs: milliseconds,
     transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("media"),
   })
   .strict();
@@ -670,6 +694,7 @@ const textItemSchema = z
     style: textStyleSchema,
     text: z.string(),
     transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("text"),
   })
   .strict();
@@ -683,6 +708,7 @@ const solidColorItemSchema = z
     keyframes: z.array(keyframeSchema),
     startMs: milliseconds,
     transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("solid_color"),
   })
   .strict();
@@ -734,6 +760,7 @@ const captionItemSchema = z
       .strict(),
     text: z.string(),
     transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("caption"),
   })
   .strict();
@@ -747,6 +774,7 @@ const transitionItemSchema = z
     startMs: milliseconds,
     toItemId: id.nullable(),
     transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
     transitionType: z.enum(["fade", "crossfade"]),
     type: z.literal("transition"),
   })
@@ -823,7 +851,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(7),
+        schemaVersion: z.literal(8),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -985,6 +1013,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),
+      transform2d: transform2dSchema.nullable().optional(),
       width: z.int().positive().max(7680).optional(),
     })
     .strict(),
@@ -1350,6 +1379,7 @@ export const schemas = {
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),
+      transform2d: transform2dSchema.nullable().optional(),
       width: z.int().positive().max(7680).optional(),
     })
     .strict()

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -7,11 +8,15 @@ use uuid::Uuid;
 
 use crate::{
     CoreError, ErrorCode, Project,
-    evaluated_scene::{EvaluatedSceneResult, evaluate_project},
+    evaluated_scene::{
+        EvaluatedScene, EvaluatedSceneResult, EvaluatedVisualSource, evaluate_affine,
+        evaluate_project, finalize_affine_geometry,
+    },
     render_artifact::{
-        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, PreparedMediaResources,
-        RenderArtifact, RenderWorkspace, artifact_with, prepare_media_resources,
-        prepare_render_resources, publish_output_with, temporary_output, write_filter_script,
+        ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, MeasuredText, PreparedMediaResources,
+        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers,
+        prepare_media_resources, prepare_render_resources, publish_output_with, temporary_output,
+        write_filter_script,
     },
     render_plan::{RenderIntent, RenderPlan, build_render_plan},
     render_process::{
@@ -70,6 +75,13 @@ struct PreparedRender {
     plan: RenderPlan,
     filter_path: PathBuf,
     _workspace: RenderWorkspace,
+    warnings: Vec<String>,
+}
+
+struct RenderPreflight {
+    scene: EvaluatedScene,
+    media: PreparedMediaResources,
+    measured: HashMap<String, MeasuredText>,
     warnings: Vec<String>,
 }
 
@@ -133,6 +145,7 @@ impl Renderer {
             project.settings.fps,
         )?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
+        let preflight = self.preflight_render(&evaluated, media)?;
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -140,9 +153,8 @@ impl Renderer {
             output.parent().unwrap_or(project_dir),
             "png",
         );
-        let built = self.prepare_render(
-            &evaluated,
-            media,
+        let built = self.materialize_render(
+            preflight,
             project_dir,
             RenderIntent::Frame { at_ms: time_ms },
         )?;
@@ -176,6 +188,7 @@ impl Renderer {
         let evaluated =
             evaluate_project(project, options.width, options.height, project.settings.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
+        let preflight = self.preflight_render(&evaluated, media)?;
         if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
@@ -187,7 +200,7 @@ impl Renderer {
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let built = self.prepare_render(&evaluated, media, project_dir, RenderIntent::Export)?;
+        let built = self.materialize_render(preflight, project_dir, RenderIntent::Export)?;
         if let Err(error) = self.process_executor.execute(
             &self.ffmpeg_path,
             &built.plan,
@@ -238,6 +251,7 @@ impl Renderer {
         }
         let evaluated = evaluate_project(project, options.width, options.height, options.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
+        let preflight = self.preflight_render(&evaluated, media)?;
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -245,9 +259,8 @@ impl Renderer {
             output.parent().unwrap_or(project_dir),
             "mp4",
         );
-        let built = self.prepare_render(
-            &evaluated,
-            media,
+        let built = self.materialize_render(
+            preflight,
             project_dir,
             RenderIntent::Range {
                 start_ms: options.start_ms,
@@ -276,6 +289,7 @@ impl Renderer {
         )
     }
 
+    #[cfg(test)]
     fn prepare_render(
         &self,
         evaluated: &EvaluatedSceneResult,
@@ -283,20 +297,123 @@ impl Renderer {
         project_dir: &Path,
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
-        let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
+        self.materialize_render(
+            self.preflight_render(evaluated, media)?,
+            project_dir,
+            intent,
+        )
+    }
+
+    fn preflight_render(
+        &self,
+        evaluated: &EvaluatedSceneResult,
+        media: PreparedMediaResources,
+    ) -> Result<RenderPreflight, CoreError> {
         let mut warnings = Vec::new();
-        let resources = prepare_render_resources(
+        let measured = measure_evaluated_text_layers(
             self.artifact_io.as_ref(),
             evaluated,
-            media,
-            workspace.path(),
             self.default_font_path.as_deref(),
             &self.font_roots,
             &mut warnings,
         )?;
+        let mut finalized = evaluated.scene.clone();
+        let mut measurements: HashMap<String, (u32, u32)> = measured
+            .iter()
+            .map(|(id, text)| {
+                (
+                    id.clone(),
+                    (text.prepared.layer_width, text.prepared.layer_height),
+                )
+            })
+            .collect();
+        // Text geometry failures take precedence over any metadata process call.
+        for layer in &finalized.visual_layers {
+            if let Some(transform) = layer.transform2d
+                && let Some(size) = measurements.get(&layer.item_id)
+            {
+                evaluate_affine(
+                    transform,
+                    *size,
+                    (finalized.canvas.width, finalized.canvas.height),
+                )?;
+            }
+        }
+        let mut asset_sizes = HashMap::new();
+        for layer in &finalized.visual_layers {
+            if layer.transform2d.is_none() {
+                continue;
+            }
+            if let EvaluatedVisualSource::Media { asset_id, .. } = &layer.source {
+                let size = if let Some(size) = asset_sizes.get(asset_id) {
+                    *size
+                } else {
+                    let index = media
+                        .media_inputs
+                        .iter()
+                        .position(|input| input.item_id == layer.item_id)
+                        .ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::InternalError,
+                                "missing media geometry binding",
+                            )
+                        })?;
+                    let size = self.process_executor.probe_render_geometry(
+                        &self.ffprobe_path,
+                        &media.media_paths[index],
+                        media.media_inputs[index].media_type,
+                    )?;
+                    asset_sizes.insert(asset_id.clone(), size);
+                    size
+                };
+                measurements.insert(layer.item_id.clone(), size);
+            }
+        }
+        finalize_affine_geometry(&mut finalized, &measurements)?;
+        if finalized.visual_layers.iter().any(|layer| {
+            layer.transform2d.is_some()
+                && layer
+                    .source_size
+                    .is_some_and(|(w, h)| w >= 65_535 || h >= 65_535)
+        }) {
+            return Err(CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                "affine backend cannot address this source raster",
+            ));
+        }
+        if finalized
+            .visual_layers
+            .iter()
+            .any(|layer| layer.affine.is_some())
+        {
+            self.readiness()?;
+        }
+        Ok(RenderPreflight {
+            scene: finalized,
+            media,
+            measured,
+            warnings,
+        })
+    }
+
+    fn materialize_render(
+        &self,
+        preflight: RenderPreflight,
+        project_dir: &Path,
+        intent: RenderIntent,
+    ) -> Result<PreparedRender, CoreError> {
+        let RenderPreflight {
+            scene: finalized,
+            media,
+            measured,
+            mut warnings,
+        } = preflight;
+        let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
+        let resources =
+            prepare_render_resources(self.artifact_io.as_ref(), media, workspace.path(), measured)?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
-            &evaluated.scene,
+            &finalized,
             &resources.text_layers,
             resources.media_inputs,
             resources.media_paths,
@@ -2469,5 +2586,377 @@ mod tests {
             )
             .unwrap();
         assert!(!hidden.contains("drawtext"));
+    }
+
+    #[test]
+    fn measured_transform_overflow_and_unavailable_backend_publish_nothing() {
+        let root = tempdir().unwrap();
+        for unavailable in [false, true] {
+            let mut project = visual_project();
+            if unavailable {
+                project.tracks[0].items[0]
+                    .visual_properties_mut()
+                    .transform2d = Some(crate::Transform2D::default());
+            } else {
+                project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
+                    id: "text".into(),
+                    text: "W".repeat(100),
+                    font_size: 1000,
+                    color: "#ffffff".into(),
+                    start_ms: 0,
+                    duration_ms: 1000,
+                    font_family: None,
+                    font_path: None,
+                    style: Default::default(),
+                    visual_properties: crate::VisualProperties {
+                        transform2d: Some(crate::Transform2D::default()),
+                        ..Default::default()
+                    },
+                    keyframes: vec![],
+                })];
+            }
+            let process = Arc::new(FakeProcess {
+                readiness_error: unavailable,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let io = Arc::new(LifecycleArtifactIo::default());
+            let renderer =
+                Renderer::new("ffmpeg", "ffprobe", None).with_adapters(process.clone(), io.clone());
+            let expected = if unavailable {
+                ErrorCode::DependencyUnavailable
+            } else {
+                ErrorCode::InvalidArgument
+            };
+            assert_eq!(
+                renderer
+                    .render_preview(&project, root.path(), 0)
+                    .unwrap_err()
+                    .code,
+                expected
+            );
+            let events = io.events.lock().unwrap();
+            assert!(
+                !events
+                    .iter()
+                    .any(|event| matches!(*event, "create_dir" | "write" | "rename"))
+            );
+            assert!(process.executions.lock().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn transformed_caption_measurement_has_explicit_box_and_is_read_only() {
+        let project = visual_project();
+        let mut evaluated = evaluate_project(&project, 320, 180, 15).unwrap();
+        let layer = &mut evaluated.scene.visual_layers[0];
+        layer.transform2d = Some(crate::Transform2D::default());
+        layer.source = crate::evaluated_scene::EvaluatedVisualSource::Caption(
+            crate::evaluated_scene::EvaluatedCaption {
+                text: "abcd".into(),
+                font_size: 20,
+                color: "#ffffff".into(),
+                background_color: "#000000".into(),
+                bottom_margin_px: 64,
+            },
+        );
+        let io = LifecycleArtifactIo::default();
+        let measured =
+            measure_evaluated_text_layers(&io, &evaluated, None, &[], &mut vec![]).unwrap();
+        let text = &measured["background"];
+        assert_eq!(
+            (text.prepared.layer_width, text.prepared.layer_height),
+            (72, 48)
+        );
+        assert_eq!((text.prepared.text_x, text.prepared.text_y), (12, 12));
+        assert!(io.events.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn selected_font_metrics_determine_affine_anchor_before_writes() {
+        let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fonts");
+        let fonts = (
+            fixture_root.join("DejaVuSans.ttf"),
+            fixture_root.join("DejaVuSerif.ttf"),
+        );
+        let mut project = visual_project();
+        project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
+            id: "font-test".into(),
+            text: "WWiii".into(),
+            font_size: 40,
+            color: "#ffffff".into(),
+            start_ms: 0,
+            duration_ms: 1000,
+            font_family: None,
+            font_path: None,
+            style: Default::default(),
+            visual_properties: crate::VisualProperties {
+                transform2d: Some(crate::Transform2D {
+                    anchor: crate::TransformAnchor { x: 0.5, y: 0.5 },
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            keyframes: vec![],
+        })];
+        let io = LifecycleArtifactIo::default();
+        let mut anchors = vec![];
+        for font in [fonts.0, fonts.1] {
+            assert!(
+                font.is_file(),
+                "native font fixture unavailable: {}",
+                font.display()
+            );
+            let mut evaluated = evaluate_project(&project, 320, 180, 15).unwrap();
+            let measurements =
+                measure_evaluated_text_layers(&io, &evaluated, Some(&font), &[], &mut vec![])
+                    .unwrap();
+            let text = &measurements["font-test"];
+            assert_eq!(text.prepared.font_path.as_ref(), Some(&font));
+            finalize_affine_geometry(
+                &mut evaluated.scene,
+                &HashMap::from([(
+                    "font-test".into(),
+                    (text.prepared.layer_width, text.prepared.layer_height),
+                )]),
+            )
+            .unwrap();
+            anchors.push(evaluated.scene.visual_layers[0].affine.unwrap().matrix[4]);
+        }
+        assert_ne!(anchors[0], anchors[1]);
+        assert!(
+            !io.events
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| matches!(*event, "create_dir" | "write" | "rename"))
+        );
+    }
+    #[derive(Debug, Default)]
+    struct GeometryProcess {
+        calls: Mutex<Vec<(PathBuf, crate::MediaType)>>,
+        fail: bool,
+    }
+    impl ProcessExecutor for GeometryProcess {
+        fn readiness(&self, _: &Path, _: &Path) -> Result<(), CoreError> {
+            Ok(())
+        }
+        fn probe(&self, _: &Path, _: &Path) -> Result<ProbeResult, CoreError> {
+            panic!("public probe is not the geometry port")
+        }
+        fn probe_render_geometry(
+            &self,
+            _: &Path,
+            path: &Path,
+            kind: crate::MediaType,
+        ) -> Result<(u32, u32), CoreError> {
+            self.calls.lock().unwrap().push((path.to_owned(), kind));
+            if self.fail {
+                Err(CoreError::new(
+                    ErrorCode::UnsupportedMedia,
+                    "injected geometry failure",
+                ))
+            } else {
+                Ok((20, 40))
+            }
+        }
+        fn execute(
+            &self,
+            _: &Path,
+            _: &RenderPlan,
+            _: &Path,
+            _: &Path,
+            _: &mut dyn FnMut(RenderProgress),
+        ) -> Result<(), CoreError> {
+            panic!("preflight must not render")
+        }
+    }
+
+    #[test]
+    fn oriented_geometry_is_probed_once_and_reused_without_writes() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/source.mp4"), b"metadata fixture").unwrap();
+        let mut project = visual_project();
+        project.assets = vec![serde_json::from_value(serde_json::json!({"id":"asset","mediaType":"video","fileName":"source.mp4","projectRelativePath":"assets/source.mp4","durationMs":1000})).unwrap()];
+        project.tracks[0].items = ["first", "second"].iter().map(|id| serde_json::from_value(serde_json::json!({"type":"media","id":id,"assetId":"asset","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap()).collect();
+        for kind in [crate::MediaType::Image, crate::MediaType::Video] {
+            project.assets[0].media_type = kind;
+            let before = serde_json::to_value(&project).unwrap();
+            for fail in [false, true] {
+                let process = Arc::new(GeometryProcess {
+                    fail,
+                    ..Default::default()
+                });
+                let io = Arc::new(LifecycleArtifactIo::default());
+                let renderer = Renderer::new("unused", "configured-probe", None)
+                    .with_adapters(process.clone(), io.clone());
+                let evaluated = evaluate_project(&project, 320, 180, 15).unwrap();
+                assert!(
+                    evaluated
+                        .scene
+                        .visual_layers
+                        .iter()
+                        .all(|v| v.affine.is_none())
+                );
+                let media = prepare_media_resources(io.as_ref(), &evaluated, root.path()).unwrap();
+                let result = renderer.preflight_render(&evaluated, media);
+                if fail {
+                    assert_eq!(result.err().unwrap().code, ErrorCode::UnsupportedMedia);
+                } else {
+                    let ready = result.unwrap();
+                    assert!(
+                        ready
+                            .scene
+                            .visual_layers
+                            .iter()
+                            .all(|v| v.source_size == Some((20, 40)))
+                    );
+                    let RenderPreflight {
+                        scene,
+                        media,
+                        measured,
+                        warnings,
+                    } = ready;
+                    // Materialization may write, but must not probe again.
+                    renderer
+                        .materialize_render(
+                            RenderPreflight {
+                                scene,
+                                media,
+                                measured,
+                                warnings,
+                            },
+                            root.path(),
+                            RenderIntent::Export,
+                        )
+                        .unwrap();
+                }
+                let calls = process.calls.lock().unwrap();
+                assert_eq!(calls.len(), 1);
+                assert_eq!(calls[0].1, kind);
+                assert_eq!(
+                    calls[0].0,
+                    root.path()
+                        .join("assets/source.mp4")
+                        .canonicalize()
+                        .unwrap()
+                );
+                if fail {
+                    assert!(
+                        !io.events.lock().unwrap().iter().any(|e| matches!(
+                            *e,
+                            "request_id" | "exists" | "create_dir" | "write"
+                        ))
+                    );
+                }
+            }
+            assert_eq!(serde_json::to_value(&project).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn measured_overflow_precedes_collision_and_metadata_probes() {
+        let root = tempdir().unwrap();
+        let mut project = visual_project();
+        project.tracks[0].items = vec![serde_json::from_value(serde_json::json!({"type":"text","id":"text","text":"W".repeat(100),"fontSize":1000,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap()];
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/source.mp4"), b"metadata fixture").unwrap();
+        project.assets = vec![serde_json::from_value(serde_json::json!({"id":"asset","mediaType":"image","fileName":"source.mp4","projectRelativePath":"assets/source.mp4","durationMs":1000})).unwrap()];
+        project.tracks[0].items.push(serde_json::from_value(serde_json::json!({"type":"media","id":"media","assetId":"asset","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap());
+        let output = root.path().join("exists.mp4");
+        let process = Arc::new(GeometryProcess::default());
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        for exists in [false, true] {
+            if exists {
+                std::fs::write(&output, b"original").unwrap();
+            }
+            io.clear_events();
+            assert_eq!(
+                renderer
+                    .export_video(
+                        &project,
+                        root.path(),
+                        ExportOptions {
+                            output: &output,
+                            width: 320,
+                            height: 180,
+                            overwrite: false
+                        },
+                        |_| {}
+                    )
+                    .unwrap_err()
+                    .code,
+                ErrorCode::InvalidArgument
+            );
+            assert!(
+                !io.events
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|e| matches!(*e, "exists" | "request_id" | "create_dir" | "write"))
+            );
+        }
+        assert_eq!(
+            renderer
+                .render_preview(&project, root.path(), 0)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(
+            renderer
+                .render_preview_range(
+                    &project,
+                    root.path(),
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 1000,
+                        width: 320,
+                        height: 180,
+                        fps: 15,
+                        include_audio: true
+                    },
+                    |_| {}
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        let mut missing = project.clone();
+        missing.assets.clear();
+        io.clear_events();
+        assert_eq!(
+            renderer
+                .render_preview(&missing, root.path(), 0)
+                .unwrap_err()
+                .code,
+            ErrorCode::AssetNotFound
+        );
+        assert!(io.events.lock().unwrap().is_empty());
+        assert!(process.calls.lock().unwrap().is_empty());
+        assert_eq!(std::fs::read(&output).unwrap(), b"original");
+        io.clear_events();
+        assert_eq!(
+            renderer
+                .export_video(
+                    &visual_project(),
+                    root.path(),
+                    ExportOptions {
+                        output: &output,
+                        width: 320,
+                        height: 180,
+                        overwrite: false
+                    },
+                    |_| {}
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::ExportExists
+        );
+        assert_eq!(*io.events.lock().unwrap(), vec!["exists"]);
     }
 }
