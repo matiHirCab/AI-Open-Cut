@@ -2073,7 +2073,7 @@ mod tests {
         assert_eq!(rectangle.visual_properties().transform.scale, 1.25);
         assert_eq!(rectangle.visual_properties().transform.opacity, 0.625);
         let persisted: serde_json::Value = read_json(&project_file).unwrap();
-        assert_eq!(persisted["schemaVersion"], 7);
+        assert_eq!(persisted["schemaVersion"], PROJECT_SCHEMA_VERSION);
         assert_eq!(
             persisted["tracks"][3]["items"][0]["transform"]["scale"],
             1.0
@@ -2085,7 +2085,7 @@ mod tests {
             .iter()
             .chain(history["redo"].as_array().unwrap())
         {
-            assert_eq!(snapshot["schemaVersion"], 7);
+            assert_eq!(snapshot["schemaVersion"], PROJECT_SCHEMA_VERSION);
             assert_eq!(snapshot["tracks"][3]["items"][0]["transform"]["scale"], 1.0);
             let rectangle = snapshot["tracks"]
                 .as_array()

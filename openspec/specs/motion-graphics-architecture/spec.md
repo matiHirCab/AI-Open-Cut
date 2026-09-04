@@ -222,3 +222,66 @@ Schema version 7 MUST establish common visual-property ownership for current tra
 #### Scenario: Defer Transform2D behavior
 - **WHEN** a common visual property is evaluated in this milestone
 - **THEN** it uses the schema-v6 position, uniform scale, and opacity semantics with no units, anchor transform, independent scale, rotation, skew, or new transform ordering
+
+### Requirement: Canonical Transform2D affine evaluation
+Core MUST resolve top-left coordinates with positive X right and positive Y down, normalized position against composition dimensions, and normalized anchor against post-crop unscaled source dimensions. It MUST apply anchor translation, independent scale, X shear, Y shear, clockwise rotation, then position. For column vectors the matrix SHALL be T(position) R(rotation) Ky(skewY) Kx(skewX) S(scaleX,scaleY) T(-anchor*sourceSize). Text SHALL use its measured styled raster box and active Transform2D captions SHALL use a measured text box with 12 pixels of inset on each side, media the existing fitted/cropped box, and solids/rectangles their declared box. EvaluatedScene MUST own these typed facts without paths, persisted references, or backend expressions. This milestone activates static Transform2D only; the historical schema-v7 milestone remains isolated.
+
+#### Scenario: Compare independent coordinate oracles
+- **WHEN** asymmetric source corners are transformed with noncentral anchor, independent scale, both skews, rotation, and pixel or normalized position
+- **THEN** evaluation agrees with the normative matrix and equivalent pixel/normalized positions agree exactly within floating-point numerical tolerance of 1e-9 pixels
+
+#### Scenario: Preserve immutable deterministic evaluation
+- **WHEN** the same project revision is evaluated repeatedly across output intents
+- **THEN** affine facts are equal and project state, revision, and history are unchanged
+
+### Requirement: Bounded affine evaluation
+Core MUST reject non-finite derived matrices or coordinates and pre-clipping transformed bounds wider or taller than 16384 pixels or larger than 16777216 pixels in area with INVALID_ARGUMENT after bounded read-only font measurement but before raster/output allocation, resource writes, or backend execution. Existing scene limits and missing-asset precedence MUST remain unchanged.
+
+#### Scenario: Enforce geometry bounds before allocation
+- **WHEN** transformed output is exactly a dimension or area limit, exceeds it, or produces non-finite derived values
+- **THEN** valid boundary geometry succeeds and invalid geometry fails before render work or artifacts
+
+#### Scenario: Resolve missing assets first
+- **WHEN** a transformed media item references a missing asset even with excessive geometry
+- **THEN** evaluation returns ASSET_NOT_FOUND before geometry processing or filesystem work
+
+### Requirement: Read-only text measurement precedes affine finalization
+Core MUST preflight references, values, timing, and collection limits before read-only path-safe font selection and measurement. Only typed dimensions and layout facts SHALL enter pure affine finalization; paths and font bytes MUST remain outside the scene. Rendering MUST reuse the selected font and measured layout. Affine validation MUST complete before workspace creation, text writes, raster allocation, or execution.
+
+#### Scenario: Resolve font-dependent geometry
+- **WHEN** identical text is measured using two configured fonts with different metrics
+- **THEN** each finalized affine anchor uses its selected font's measured source box, shared across preview and export
+
+#### Scenario: Reject measured geometry overflow
+- **WHEN** a measured text box exceeds the approved transformed bounds
+- **THEN** core returns INVALID_ARGUMENT with no workspace, text write, raster buffer, process call, or artifact publication
+
+### Requirement: Oriented media source geometry
+Transform2D media source bounds MUST match the local backend's automatically oriented raster. Core SHALL finalize affine facts from typed dimensions obtained through a private bounded read-only metadata probe on canonical managed paths, at most once per transformed asset per preparation. FFmpeg SHALL retain responsibility for applying display rotation and flips exactly once. No public or persisted shape SHALL change.
+
+#### Scenario: Resolve display orientation
+- **WHEN** media has absent, quarter-turn, mirrored, or non-quarter-turn display metadata
+- **THEN** typed source dimensions match the backend's source extent, including swapped axes for quarter turns, and identity Transform2D preserves displayed content
+
+#### Scenario: Fail an unusable probe
+- **WHEN** metadata probing fails or returns invalid dimensions or orientation
+- **THEN** rendering fails with an existing typed error before workspace creation or raster execution, without an unrotated fallback
+
+#### Scenario: Reuse source measurements
+- **WHEN** multiple transformed items share an asset
+- **THEN** preparation probes it once and reuses the typed dimensions without mutating project or history
+
+### Requirement: Frame-derived static image geometry
+For transformed static images, core MUST derive oriented source dimensions from one usable decoded image frame inspected by the configured FFprobe through the private process adapter. Inspection MUST select the first video stream and bound packet inspection to one packet and metadata output to 64 KiB. Frame dimensions and the frame display matrix MUST determine source extent using the existing backend-compatible rotation logic; absent frame orientation means identity. Core MUST NOT substitute encoded stream geometry for unusable frame metadata. Video probing and all public and persisted shapes SHALL remain unchanged.
+
+#### Scenario: Preserve EXIF image extent
+- **WHEN** an asymmetric static JPEG with absent orientation or EXIF orientation 1 through 8 uses identity Transform2D
+- **THEN** its displayed extent and content match legacy rendering, including all 800 colored pixels of the 20x40 displayed orientation-6 fixture
+
+#### Scenario: Reject unusable image inspection
+- **WHEN** image inspection fails, exceeds the metadata cap, returns no unique usable frame, or supplies invalid dimensions or display-matrix metadata
+- **THEN** rendering returns UNSUPPORTED_MEDIA before destination inspection or writes without an encoded-geometry fallback; inability to start FFprobe returns DEPENDENCY_UNAVAILABLE
+
+#### Scenario: Reuse inspected images
+- **WHEN** multiple transformed items share a static image
+- **THEN** preparation probes that asset once on its canonical managed path, materialization reuses its typed dimensions without another probe, and project, revision, and history remain unchanged

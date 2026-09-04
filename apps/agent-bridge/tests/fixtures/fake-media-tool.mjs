@@ -22,7 +22,9 @@ if (mode === "ffprobe") {
     );
   }
 } else if (args.includes("-filters")) {
-  console.log(" ... overlay ... drawtext ... amix ... ");
+  console.log(
+    " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... "
+  );
 } else {
   const output = args.at(-1);
   if (!output) {

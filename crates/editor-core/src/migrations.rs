@@ -25,7 +25,7 @@ pub(crate) fn migrate_project_documents(
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     match project.schema_version {
-        1..=6 => {
+        1..=7 => {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }

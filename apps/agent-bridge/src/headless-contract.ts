@@ -1,10 +1,11 @@
 import type { z } from "zod/v4";
 
-import type { generatedAssetOriginSchema } from "./schemas";
+import type { generatedAssetOriginSchema, transform2dSchema } from "./schemas";
 
 export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
 export type RenderingCapability =
+  | "transform2d"
   | "preview"
   | "preview_range"
   | "mp4_export"
@@ -76,6 +77,7 @@ export type HeadlessEdit =
     }
   | {
       operation: "update_item";
+      transform2d?: z.infer<typeof transform2dSchema> | null | undefined;
       itemId: string;
       color?: string | undefined;
       fontFamily?: string | null | undefined;

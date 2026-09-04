@@ -58,7 +58,19 @@ pub(crate) fn readiness(ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), C
         ));
     }
     let filters = String::from_utf8_lossy(&output.stdout);
-    for required in [" overlay ", " drawtext ", " amix "] {
+    for required in [
+        " overlay ",
+        " drawtext ",
+        " amix ",
+        " geq ",
+        " remap ",
+        " blend ",
+        " nullsrc ",
+        " split ",
+        " pad ",
+        " crop ",
+        " format ",
+    ] {
         if !filters.contains(required) {
             return Err(CoreError::new(
                 ErrorCode::DependencyUnavailable,
@@ -145,6 +157,309 @@ pub(crate) fn probe(ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, Cor
     })
 }
 
+// Render-only metadata never changes the persisted/public probe contract.
+fn probe_render_geometry(
+    ffprobe_path: &Path,
+    path: &Path,
+    kind: MediaType,
+) -> Result<(u32, u32), CoreError> {
+    let invalid = || {
+        CoreError::new(
+            ErrorCode::UnsupportedMedia,
+            "unusable render source metadata",
+        )
+    };
+    let mut command = Command::new(ffprobe_path);
+    command.args(["-v", "error", "-select_streams", "v:0"]);
+    if kind == MediaType::Image {
+        command.args([
+            "-read_intervals",
+            "%+#1",
+            "-show_entries",
+            "frame=width,height:frame_side_data=side_data_type,displaymatrix",
+        ]);
+    } else {
+        command.args([
+            "-show_entries",
+            "stream=width,height:stream_side_data=side_data_type,displaymatrix",
+        ]);
+    }
+    let mut child = command
+        .args(["-of", "json"])
+        .arg(path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| {
+            CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                "cannot start render metadata probe",
+            )
+        })?;
+    let read = read_geometry_metadata(child.stdout.take().expect("piped probe stdout"));
+    let bytes = match read {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+    };
+    if !child.wait().map_err(|_| invalid())?.success() {
+        return Err(invalid());
+    }
+    let metadata = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
+    oriented_geometry(&metadata, kind)
+}
+
+fn read_geometry_metadata(reader: impl Read) -> Result<Vec<u8>, CoreError> {
+    const MAX_METADATA_BYTES: u64 = 65_536;
+    let mut bytes = Vec::new();
+    let read = reader.take(MAX_METADATA_BYTES + 1).read_to_end(&mut bytes);
+    if read.is_err() || bytes.len() as u64 > MAX_METADATA_BYTES {
+        return Err(CoreError::new(
+            ErrorCode::UnsupportedMedia,
+            "unusable render source metadata",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn oriented_geometry(
+    metadata: &serde_json::Value,
+    kind: MediaType,
+) -> Result<(u32, u32), CoreError> {
+    let invalid = || {
+        CoreError::new(
+            ErrorCode::UnsupportedMedia,
+            "unusable render source metadata",
+        )
+    };
+    let streams = metadata
+        .get(if kind == MediaType::Image {
+            "frames"
+        } else {
+            "streams"
+        })
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(invalid)?;
+    if streams.len() != 1 {
+        return Err(invalid());
+    }
+    let stream = &streams[0];
+    let dimension = |key| {
+        stream
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .filter(|v| *v > 0)
+            .ok_or_else(invalid)
+    };
+    let (width, height) = (dimension("width")?, dimension("height")?);
+    let mut rotation = None;
+    if let Some(side_data) = stream.get("side_data_list") {
+        for entry in side_data.as_array().ok_or_else(invalid)? {
+            if entry
+                .get("side_data_type")
+                .and_then(serde_json::Value::as_str)
+                == Some(if kind == MediaType::Image {
+                    "3x3 displaymatrix"
+                } else {
+                    "Display Matrix"
+                })
+            {
+                if rotation.is_some() {
+                    return Err(invalid());
+                }
+                let matrix = entry
+                    .get("displaymatrix")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(invalid)?;
+                let mut values = Vec::with_capacity(9);
+                for line in matrix.lines().filter(|line| !line.trim().is_empty()) {
+                    let (_, row) = line.split_once(':').ok_or_else(invalid)?;
+                    let row = row
+                        .split_whitespace()
+                        .map(str::parse::<i32>)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|_| invalid())?;
+                    if row.len() != 3 || values.len() >= 9 {
+                        return Err(invalid());
+                    }
+                    values.extend(row);
+                }
+                let m: [i32; 9] = values.try_into().map_err(|_| invalid())?;
+                let sx = f64::from(m[0]).hypot(f64::from(m[3]));
+                let sy = f64::from(m[1]).hypot(f64::from(m[4]));
+                if sx == 0.0 || sy == 0.0 {
+                    return Err(invalid());
+                }
+                // FFprobe's printed rotation truncates fractional degrees. Derive
+                // the angle from the fixed-point matrix, then match FFmpeg's
+                // get_rotation rounding before applying its transpose tolerance.
+                rotation = Some(
+                    (f64::from(m[1]) / sy)
+                        .atan2(f64::from(m[0]) / sx)
+                        .to_degrees()
+                        .round(),
+                );
+            }
+        }
+    }
+    // FFmpeg transposes only within a strict one-degree quarter-turn tolerance.
+    // Its other autorotation/flip filters retain the input raster dimensions.
+    let angle = rotation.unwrap_or(0.0).rem_euclid(360.0);
+    if (angle - 90.0).abs() < 1.0 || (angle - 270.0).abs() < 1.0 {
+        Ok((height, width))
+    } else {
+        Ok((width, height))
+    }
+}
+
+#[cfg(test)]
+mod geometry_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn display_orientation_extents_match_backend() {
+        for (angle, swapped) in [
+            (0.0_f64, false),
+            (90.0, true),
+            (-90.0, true),
+            (180.0, false),
+            (270.0, true),
+            (450.0, true),
+            (45.0, false),
+            (89.0, false),
+            (89.5, true),
+            (91.0, false),
+        ] {
+            let (sin, cos) = angle.to_radians().sin_cos();
+            let (sin, cos) = ((sin * 65536.0) as i32, (cos * 65536.0) as i32);
+            let matrix = format!(
+                "00000000: {cos} {} 0\n00000001: {sin} {cos} 0\n00000002: 0 0 1073741824\n",
+                -sin
+            );
+            let value = json!({"streams":[{"width":40,"height":20,"side_data_list":[{"side_data_type":"Display Matrix","displaymatrix":matrix}]}]});
+            assert_eq!(
+                oriented_geometry(&value, MediaType::Video).unwrap(),
+                if swapped { (20, 40) } else { (40, 20) }
+            );
+        }
+        assert_eq!(
+            oriented_geometry(
+                &json!({"streams":[{"width":40,"height":20}]}),
+                MediaType::Video
+            )
+            .unwrap(),
+            (40, 20)
+        );
+        // A flip does not change extent; only the display rotation is relevant here.
+        assert_eq!(oriented_geometry(&json!({"streams":[{"width":40,"height":20,"side_data_list":[{"side_data_type":"Display Matrix","displaymatrix":"0: -65536 0 0\n1: 0 65536 0\n2: 0 0 1073741824"}]}]}), MediaType::Video).unwrap(), (40,20));
+    }
+    #[test]
+    fn metadata_output_is_bounded_and_read_errors_fail_closed() {
+        assert_eq!(
+            read_geometry_metadata(&vec![b' '; 65_536][..])
+                .unwrap()
+                .len(),
+            65_536
+        );
+        let mut excessive = std::io::Cursor::new(vec![b' '; 100_000]);
+        assert_eq!(
+            read_geometry_metadata(&mut excessive).unwrap_err().code,
+            ErrorCode::UnsupportedMedia
+        );
+        assert_eq!(excessive.position(), 65_537);
+        struct BrokenReader;
+        impl Read for BrokenReader {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::other("injected read failure"))
+            }
+        }
+        assert_eq!(
+            read_geometry_metadata(BrokenReader).unwrap_err().code,
+            ErrorCode::UnsupportedMedia
+        );
+    }
+
+    #[test]
+    fn image_frame_metadata_is_authoritative_and_fails_closed() {
+        let base = json!({"width":40,"height":20});
+        for matrix in [
+            None,
+            Some("0: -65536 0 0\n1: 0 65536 0\n2: 0 0 1073741824"),
+            Some("0: 0 65536 0\n1: 65536 0 0\n2: 0 0 1073741824"),
+        ] {
+            let mut frame = base.clone();
+            if let Some(matrix) = matrix {
+                frame["side_data_list"] =
+                    json!([{"side_data_type":"3x3 displaymatrix","displaymatrix":matrix}]);
+            }
+            let value = json!({"frames":[frame],"streams":[{"width":999,"height":999}]});
+            assert_eq!(
+                oriented_geometry(&value, MediaType::Image).unwrap(),
+                if matrix.is_some_and(|m| m.starts_with("0: 0")) {
+                    (20, 40)
+                } else {
+                    (40, 20)
+                }
+            );
+        }
+        for frames in [
+            json!([]),
+            json!([base.clone(), base.clone()]),
+            json!([{"width":0,"height":20}]),
+            json!([{"width":40,"height":-1}]),
+            json!([{"width":40,"height":20,"side_data_list":[{"side_data_type":"3x3 displaymatrix","displaymatrix":"bad"}]}]),
+            json!([{"width":40,"height":20,"side_data_list":[{"side_data_type":"3x3 displaymatrix"}]}]),
+        ] {
+            assert_eq!(
+                oriented_geometry(&json!({"frames":frames,"streams":[base]}), MediaType::Image)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::UnsupportedMedia
+            );
+        }
+        assert_eq!(
+            oriented_geometry(&json!({"streams":[base]}), MediaType::Image)
+                .unwrap_err()
+                .code,
+            ErrorCode::UnsupportedMedia
+        );
+        let root = tempfile::tempdir().unwrap();
+        assert_eq!(
+            probe_render_geometry(
+                &root.path().join("missing-probe"),
+                root.path(),
+                MediaType::Image
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::DependencyUnavailable
+        );
+    }
+
+    #[test]
+    fn invalid_metadata_fails_closed() {
+        for value in [
+            json!({}),
+            json!({"streams":[]}),
+            json!({"streams":[{"width":0,"height":20}]}),
+            json!({"streams":[{"width":40,"height":20,"side_data_list":[{"side_data_type":"Display Matrix","displaymatrix":"0: 0 0 0\n1: 0 0 0\n2: 0 0 0"}]}]}),
+            json!({"streams":[{"width":40,"height":20,"side_data_list":[{"side_data_type":"Display Matrix"}]}]}),
+            json!({"streams":[{"width":40,"height":20,"side_data_list":[{"side_data_type":"Display Matrix","rotation":"NaN"}]}]}),
+        ] {
+            assert_eq!(
+                oriented_geometry(&value, MediaType::Video)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::UnsupportedMedia
+            );
+        }
+    }
+}
+
 fn stream<'a>(streams: &'a [serde_json::Value], kind: &str) -> Option<&'a serde_json::Value> {
     streams
         .iter()
@@ -169,6 +484,18 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
     fn readiness(&self, ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), CoreError>;
     fn probe(&self, ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError>;
+    fn probe_render_geometry(
+        &self,
+        _ffprobe_path: &Path,
+        _path: &Path,
+        _kind: MediaType,
+    ) -> Result<(u32, u32), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "render geometry probing is unavailable",
+        ))
+    }
+
     fn execute(
         &self,
         ffmpeg_path: &Path,
@@ -183,6 +510,15 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn probe_render_geometry(
+        &self,
+        ffprobe_path: &Path,
+        path: &Path,
+        kind: MediaType,
+    ) -> Result<(u32, u32), CoreError> {
+        probe_render_geometry(ffprobe_path, path, kind)
+    }
+
     fn readiness(&self, ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), CoreError> {
         readiness(ffmpeg_path, ffprobe_path)
     }

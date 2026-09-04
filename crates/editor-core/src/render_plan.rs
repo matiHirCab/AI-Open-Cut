@@ -95,6 +95,27 @@ pub(crate) fn build_render_plan(
     let mut visual_count = 0_usize;
     let mut audio_labels = vec!["[1:a]".to_owned()];
     for layer in &scene.visual_layers {
+        if let Some(affine) = &layer.affine {
+            visual_count += 1;
+            let composited = format!("base{visual_count}");
+            append_affine_layer(
+                &mut filters,
+                layer,
+                affine,
+                scene,
+                text_layers,
+                &input_indexes,
+                (&current_video, &composited, visual_count),
+            )?;
+            current_video = composited;
+            continue;
+        }
+        if layer.transform2d.is_some() {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "Transform2D geometry was not finalized",
+            ));
+        }
         match &layer.source {
             EvaluatedVisualSource::Media { .. } => {
                 let input = input_indexes.get(layer.item_id.as_str()).ok_or_else(|| {
@@ -817,6 +838,131 @@ pub(crate) fn seconds(milliseconds: u64) -> String {
 
 pub(crate) fn format_number(value: f64) -> String {
     format!("{value:.6}")
+}
+
+fn append_affine_layer(
+    filters: &mut Vec<String>,
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    affine: &crate::evaluated_scene::EvaluatedAffine,
+    scene: &EvaluatedScene,
+    text_layers: &HashMap<String, PreparedText>,
+    input_indexes: &HashMap<&str, usize>,
+    destination: (&str, &str, usize),
+) -> Result<(), CoreError> {
+    let (base, output, index) = destination;
+    let (sw, sh) = layer
+        .source_size
+        .ok_or_else(|| CoreError::new(ErrorCode::InvalidArgument, "missing affine source size"))?;
+    let fps = scene.canvas.fps;
+    let duration = seconds(scene.duration_ms);
+    let label = format!("affine{index}");
+    let source = match &layer.source {
+        EvaluatedVisualSource::Media { .. } => {
+            let input = input_indexes.get(layer.item_id.as_str()).ok_or_else(|| {
+                CoreError::new(ErrorCode::InternalError, "missing affine media input")
+            })?;
+            format!(
+                "[{input}:v]setpts=PTS-STARTPTS+{}/TB,format=rgba",
+                seconds(layer.span.start_ms)
+            )
+        }
+        EvaluatedVisualSource::SolidColor { color }
+        | EvaluatedVisualSource::Rectangle { color, .. } => format!(
+            "color=c={}:s={sw}x{sh}:r={fps}:d={duration},format=rgba",
+            ffmpeg_color(color)
+        ),
+        EvaluatedVisualSource::Text(text) => {
+            let prepared = text_layers
+                .get(&layer.item_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing affine text"))?;
+            let font = prepared
+                .font_path
+                .as_ref()
+                .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+                .unwrap_or_default();
+            let padding = &text.style.padding;
+            let alignment = match text.style.alignment {
+                EvaluatedTextAlignment::Left => "L",
+                EvaluatedTextAlignment::Center => "C",
+                EvaluatedTextAlignment::Right => "R",
+            };
+            format!(
+                "color=c=black@0:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={}",
+                escape_filter_path(&prepared.file_path),
+                text.font_size,
+                text.color,
+                text.style.outline_width_px,
+                text.style.outline_color,
+                text.style.shadow.offset_x,
+                text.style.shadow.offset_y,
+                text.style.shadow.color,
+                text.style.shadow.opacity,
+                text.style.background_color,
+                text.style.background_opacity,
+                padding.top,
+                padding.right,
+                padding.bottom,
+                padding.left,
+                text.style.line_spacing_px,
+                prepared.text_x,
+                prepared.text_y
+            )
+        }
+        EvaluatedVisualSource::Caption(caption) => {
+            let prepared = text_layers.get(&layer.item_id).ok_or_else(|| {
+                CoreError::new(ErrorCode::InternalError, "missing affine caption")
+            })?;
+            let font = prepared
+                .font_path
+                .as_ref()
+                .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+                .unwrap_or_default();
+            format!(
+                "color=c={}@0.75:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:x=12:y=12",
+                caption.background_color,
+                escape_filter_path(&prepared.file_path),
+                caption.font_size,
+                caption.color
+            )
+        }
+    };
+    // Four nearest-neighbor gathers followed by separable bilinear interpolation.
+    // Each map has exactly the validated output dimensions, so a rotated thin
+    // source never requires a square pad enclosing both source and destination.
+    let [a, b, c, d, tx, ty] = affine.inverse;
+    let x = format!(
+        "({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-0.5)",
+        affine.left, affine.top
+    );
+    let y = format!(
+        "({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-0.5)",
+        affine.left, affine.top
+    );
+    let fx = format!("({x}-floor({x}))");
+    let fy = format!("({y}-floor({y}))");
+    filters.push(format!("{source},format=gbrap,geq=r='r(X,Y)*alpha(X,Y)/255':g='g(X,Y)*alpha(X,Y)/255':b='b(X,Y)*alpha(X,Y)/255':a='alpha(X,Y)',format=rgba,split=4[{label}s0][{label}s1][{label}s2][{label}s3]"));
+    for (n, (dx, dy)) in [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().enumerate() {
+        let sx = format!("floor({x})+{dx}");
+        let sy = format!("floor({y})+{dy}");
+        let valid = format!("between({sx},0,{})*between({sy},0,{})", sw - 1, sh - 1);
+        for (axis, coordinate) in [("x", sx), ("y", sy)] {
+            filters.push(format!("nullsrc=s={}x{}:r={fps}:d={duration},format=gray16le,geq=lum='if({valid},{coordinate},65535)'[{label}{axis}{n}]",affine.width,affine.height));
+        }
+        filters.push(format!(
+            "[{label}s{n}][{label}x{n}][{label}y{n}]remap=fill=black@0,format=gbrap[{label}p{n}]"
+        ));
+    }
+    filters.push(format!(
+        "[{label}p0][{label}p1]blend=all_expr='A*(1-{fx})+B*{fx}'[{label}row0]"
+    ));
+    filters.push(format!(
+        "[{label}p2][{label}p3]blend=all_expr='A*(1-{fx})+B*{fx}'[{label}row1]"
+    ));
+    let fade = evaluated_transition_filters(&layer.transitions);
+    filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq=r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*{:.17}',format=rgba{fade}[{label}]",affine.opacity));
+    filters.push(format!("[{base}][{label}]overlay=x={:.0}:y={:.0}:format=auto:enable='gte(t,{})*lt(t,{})'[{output}]",
+        affine.left,affine.top,seconds(layer.span.start_ms),seconds(layer.span.end_ms)));
+    Ok(())
 }
 
 #[cfg(test)]

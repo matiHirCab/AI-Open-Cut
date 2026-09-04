@@ -1217,7 +1217,7 @@ fn normalize_filter_graph(graph: &str, project_root: &Path, font: &Path) -> Stri
     for (path, token) in [(project_root, "<PROJECT_ROOT>"), (font, "<FONT>")] {
         let path = path.to_string_lossy().replace('\\', "/");
         normalized = normalized.replace(&path, token);
-        normalized = normalized.replace(&path.replace(':', "\\:"), token);
+        normalized = normalized.replace(&path.replace(':', "/:"), token);
     }
     normalized = normalize_textfile_arguments(&normalized);
     normalize_workspace_segments(&normalized)
@@ -3250,6 +3250,10 @@ fn normalization_only_replaces_declared_paths_and_workspace_identity() {
     let font = Path::new("C:/fonts/golden.ttf");
     let first = "drawtext=textfile='C\\:/fixture/project/.opencut-work-abc/text.txt':fontfile='C\\:/fonts/golden.ttf':x=10";
     let second = "drawtext=textfile='C\\:/fixture/project/.opencut-work-def/text.txt':fontfile='C\\:/fonts/golden.ttf':x=10";
+    assert_eq!(
+        normalize_filter_graph(first, root, font),
+        "drawtext=textfile='<WORKSPACE>/text.txt':fontfile='<FONT>':x=10"
+    );
     assert_eq!(
         normalize_filter_graph(first, root, font),
         normalize_filter_graph(second, root, font)
