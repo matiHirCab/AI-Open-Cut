@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     AudioSettings, AudioTrackRole, CoreError, DuckingSettings, ErrorCode, Keyframe,
-    KeyframeProperty, KeyframeValue, MediaType, ProjectSettings, TextStyle, TimelineItem,
+    KeyframeProperty, KeyframeValue, MediaType, Project, ProjectSettings, TextStyle, TimelineItem,
     TrackType, Transform,
 };
 pub(crate) fn validate_draft_label(label: Option<&str>) -> Result<(), CoreError> {
@@ -58,6 +58,13 @@ pub(crate) fn validate_transform(transform: &Transform) -> Result<(), CoreError>
             ErrorCode::ValidationFailed,
             "transform contains an invalid position, scale, or opacity",
         ));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
+    for item in project.tracks.iter().flat_map(|track| &track.items) {
+        validate_transform(&item.visual_properties().transform)?;
     }
     Ok(())
 }
@@ -343,9 +350,8 @@ mod tests {
             font_family: None,
             font_path: None,
             style: TextStyle::default(),
-            transform: Transform::default(),
+            visual_properties: crate::VisualProperties::default(),
             keyframes: vec![],
-            hidden: false,
         });
         assert!(validate_item_track(&text, TrackType::Overlay).is_ok());
         assert!(validate_item_track(&text, TrackType::Video).is_err());

@@ -733,6 +733,7 @@ const captionItemSchema = z
       })
       .strict(),
     text: z.string(),
+    transform: transformSchema,
     type: z.literal("caption"),
   })
   .strict();
@@ -745,6 +746,7 @@ const transitionItemSchema = z
     id,
     startMs: milliseconds,
     toItemId: id.nullable(),
+    transform: transformSchema,
     transitionType: z.enum(["fade", "crossfade"]),
     type: z.literal("transition"),
   })
@@ -821,7 +823,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.int().positive(),
+        schemaVersion: z.literal(7),
         settings: z
           .object({
             fps: z.int().positive(),

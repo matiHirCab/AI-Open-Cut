@@ -468,7 +468,7 @@ mod tests {
     use super::*;
     use crate::{
         Asset, AudioSettings, AudioTrackRole, MediaItem, PROJECT_SCHEMA_VERSION, ProjectSettings,
-        Track, TrackType, Transform,
+        Track, TrackType,
         persistence::{FileSystemStorage, StorageLock},
     };
     use std::sync::Mutex;
@@ -584,10 +584,9 @@ mod tests {
                     start_ms: 0,
                     duration_ms: 1_000,
                     source_in_ms: 0,
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     audio: AudioSettings::default(),
                     keyframes: vec![],
-                    hidden: false,
                 })],
             }],
         }

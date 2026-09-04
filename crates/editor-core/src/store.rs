@@ -11,7 +11,7 @@ use crate::{
     Asset, AudioSettings, AudioTrackRole, BatchEditOperation, CaptionItem, CaptionSource,
     CaptionStyle, CaptionWord, ContentHash, CoreError, EditOperation, ErrorCode,
     GeneratedAssetOrigin, History, MediaItem, MediaProbeFacts, MediaType, PROJECT_SCHEMA_VERSION,
-    PathPolicy, Project, ProjectSettings, ProjectState, TimelineItem, Track, TrackType, Transform,
+    PathPolicy, Project, ProjectSettings, ProjectState, TimelineItem, Track, TrackType,
     assets::{
         ASSET_GC_FAILED, DraftAssetOperations, blocking_asset_reference, garbage_collect,
         generated_display_name, migrate_project_assets, missing_draft_asset_reference,
@@ -34,7 +34,7 @@ use crate::{
     },
     validation::{
         validate_color, validate_draft_label, validate_duration, validate_project_settings,
-        validate_text, validate_track_media,
+        validate_project_visual_properties, validate_text, validate_track_media,
     },
 };
 
@@ -455,10 +455,9 @@ impl EditorCore {
                 start_ms: request.start_ms,
                 duration_ms: request.duration_ms,
                 source_in_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: AudioSettings::default(),
                 keyframes: vec![],
-                hidden: false,
             }));
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
@@ -1048,7 +1047,7 @@ impl EditorCore {
                     duration_ms: segment.end_ms - segment.start_ms,
                     style: request.style.clone(),
                     source,
-                    hidden: false,
+                    visual_properties: crate::VisualProperties::default(),
                 }));
             changed_ids.push(id);
         }
@@ -1323,12 +1322,16 @@ fn load_project_data(
         History::default()
     };
 
-    let mut changed = migrate_project_documents(&mut project, &mut history)?
-        | migrate_project_assets(storage, &mut project, dir)?;
+    let mut changed = migrate_project_documents(&mut project, &mut history)?;
+    validate_project_visual_properties(&project)?;
+    for snapshot in history.undo.iter().chain(&history.redo) {
+        validate_project_visual_properties(snapshot)?;
+    }
+    validate_retained_project_references(&project, &history)?;
+    changed |= migrate_project_assets(storage, &mut project, dir)?;
     for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
         changed |= migrate_project_assets(storage, snapshot, dir)?;
     }
-    validate_retained_project_references(&project, &history)?;
     if changed {
         let _ = persist(storage, faults, dir, &project, &history)?;
     }
@@ -1393,7 +1396,7 @@ fn finish_persistence(
 mod tests {
     use super::*;
     use crate::{
-        DuckingSettings, Keyframe, KeyframeProperty, KeyframeValue, TextStyle,
+        DuckingSettings, Keyframe, KeyframeProperty, KeyframeValue, TextStyle, Transform,
         timeline::HISTORY_LIMIT, validation::validate_keyframes,
     };
     use tempfile::tempdir;
@@ -1843,6 +1846,25 @@ mod tests {
         );
     }
 
+    fn assert_no_content_addressed_assets(dir: &Path) {
+        assert!(
+            !dir.join("assets/sha256").exists(),
+            "content-addressed assets were published"
+        );
+    }
+
+    fn add_legacy_asset(project: &mut serde_json::Value, dir: &Path) {
+        project["assets"] = serde_json::json!([{
+            "id": "legacy-asset",
+            "mediaType": "audio",
+            "fileName": "legacy.wav",
+            "projectRelativePath": "assets/legacy.wav",
+            "durationMs": 1_000,
+            "hasAudio": true
+        }]);
+        std::fs::write(dir.join("assets/legacy.wav"), b"legacy audio").unwrap();
+    }
+
     fn speech_origin() -> GeneratedAssetOrigin {
         GeneratedAssetOrigin::SpeechSynthesis(crate::SpeechGeneration {
             request: crate::SpeechSynthesisRequest {
@@ -1953,6 +1975,239 @@ mod tests {
     }
 
     #[test]
+    fn schema_six_common_visual_defaults_migrate_current_and_retained_history() {
+        let (core, _) = core();
+        let created = core
+            .create_project("visual migration", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(6);
+        legacy["assets"] = serde_json::json!([{
+            "id": "caption-asset",
+            "mediaType": "audio",
+            "fileName": "caption.wav",
+            "projectRelativePath": "assets/caption.wav",
+            "durationMs": 1_000,
+            "hasAudio": true
+        }]);
+        std::fs::write(dir.join("assets/caption.wav"), b"caption audio").unwrap();
+        let caption_track = legacy["tracks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|track| track["trackType"] == "caption")
+            .unwrap();
+        caption_track["items"] = serde_json::json!([{
+            "type": "caption",
+            "id": "caption",
+            "text": "Migrated caption",
+            "startMs": 0,
+            "durationMs": 1_000,
+            "style": {
+                "fontSize": 48,
+                "color": "#ffffff",
+                "backgroundColor": "#000000",
+                "bottomMarginPx": 64
+            },
+            "source": {
+                "assetId": "caption-asset",
+                "providerId": "provider",
+                "modelId": "model",
+                "modelVersion": null,
+                "language": "en",
+                "generatedAtMs": 1,
+                "originalText": "Migrated caption",
+                "confidence": null,
+                "words": []
+            },
+            "hidden": true
+        }]);
+        let overlay_track = legacy["tracks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|track| track["trackType"] == "overlay")
+            .unwrap();
+        overlay_track["items"] = serde_json::json!([{
+            "type": "rectangle",
+            "id": "transformed-rectangle",
+            "color": "#123456",
+            "width": 320,
+            "height": 180,
+            "startMs": 25,
+            "durationMs": 900,
+            "transform": {
+                "positionX": 17.0,
+                "positionY": -9.0,
+                "scale": 1.25,
+                "opacity": 0.625
+            },
+            "keyframes": [],
+            "hidden": false
+        }]);
+        let mut oldest = legacy.clone();
+        oldest["schemaVersion"] = serde_json::json!(1);
+        oldest["tracks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|track| track["trackType"] == "caption")
+            .unwrap()["items"][0]["hidden"] = serde_json::json!(false);
+        write_json_atomic(&project_file, &legacy).unwrap();
+        write_json_atomic(
+            &history_file,
+            &serde_json::json!({ "undo": [oldest], "redo": [legacy] }),
+        )
+        .unwrap();
+
+        let migrated = core.get_project(&created.project_id).unwrap();
+        let caption = migrated.find_item("caption").unwrap();
+        assert_eq!(caption.visual_properties().transform, Transform::default());
+        assert!(caption.hidden());
+        let rectangle = migrated.find_item("transformed-rectangle").unwrap();
+        assert_eq!(rectangle.visual_properties().transform.position_x, 17.0);
+        assert_eq!(rectangle.visual_properties().transform.position_y, -9.0);
+        assert_eq!(rectangle.visual_properties().transform.scale, 1.25);
+        assert_eq!(rectangle.visual_properties().transform.opacity, 0.625);
+        let persisted: serde_json::Value = read_json(&project_file).unwrap();
+        assert_eq!(persisted["schemaVersion"], 7);
+        assert_eq!(
+            persisted["tracks"][3]["items"][0]["transform"]["scale"],
+            1.0
+        );
+        let history: serde_json::Value = read_json(&history_file).unwrap();
+        for snapshot in history["undo"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(history["redo"].as_array().unwrap())
+        {
+            assert_eq!(snapshot["schemaVersion"], 7);
+            assert_eq!(snapshot["tracks"][3]["items"][0]["transform"]["scale"], 1.0);
+            let rectangle = snapshot["tracks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|track| track["trackType"] == "overlay")
+                .unwrap()["items"][0]
+                .clone();
+            assert_eq!(rectangle["transform"]["positionX"], 17.0);
+            assert_eq!(rectangle["transform"]["positionY"], -9.0);
+            assert_eq!(rectangle["transform"]["scale"], 1.25);
+            assert_eq!(rectangle["transform"]["opacity"], 0.625);
+        }
+
+        let project_bytes = std::fs::read(&project_file).unwrap();
+        let history_bytes = std::fs::read(&history_file).unwrap();
+        core.get_project(&created.project_id).unwrap();
+        assert_eq!(std::fs::read(&project_file).unwrap(), project_bytes);
+        assert_eq!(std::fs::read(&history_file).unwrap(), history_bytes);
+    }
+
+    #[test]
+    fn invalid_retained_visual_properties_abort_migration_without_rewrite() {
+        let (core, _) = core();
+        let created = core
+            .create_project("invalid retained visual", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(6);
+        add_legacy_asset(&mut legacy, &dir);
+        let mut invalid_snapshot = legacy.clone();
+        invalid_snapshot["tracks"][0]["items"] = serde_json::json!([{
+            "type": "transition",
+            "id": "invalid-transition",
+            "transitionType": "fade",
+            "fromItemId": "source",
+            "toItemId": null,
+            "startMs": 0,
+            "durationMs": 100,
+            "transform": {
+                "positionX": 0.0,
+                "positionY": 0.0,
+                "scale": 1.0,
+                "opacity": 2.0
+            },
+            "hidden": false
+        }]);
+        write_json_atomic(&project_file, &legacy).unwrap();
+        write_json_atomic(
+            &history_file,
+            &serde_json::json!({ "undo": [invalid_snapshot], "redo": [] }),
+        )
+        .unwrap();
+        let project_before = std::fs::read(&project_file).unwrap();
+        let history_before = std::fs::read(&history_file).unwrap();
+
+        let error = core.get_project(&created.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+        assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+        assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+        assert_no_managed_transaction_files(&dir);
+        assert_no_content_addressed_assets(&dir);
+    }
+
+    #[test]
+    fn dangling_retained_asset_reference_aborts_before_asset_publication() {
+        let (core, _) = core();
+        let created = core
+            .create_project("dangling retained asset", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(6);
+        add_legacy_asset(&mut legacy, &dir);
+        let mut invalid_snapshot = legacy.clone();
+        let audio_track = invalid_snapshot["tracks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|track| track["trackType"] == "audio")
+            .unwrap();
+        audio_track["items"] = serde_json::json!([{
+            "type": "media",
+            "id": "dangling-media",
+            "assetId": "missing-asset",
+            "startMs": 0,
+            "durationMs": 500,
+            "sourceInMs": 0,
+            "audio": {
+                "volume": 1.0,
+                "muted": false,
+                "fadeInMs": 0,
+                "fadeOutMs": 0
+            },
+            "keyframes": [],
+            "transform": Transform::default(),
+            "hidden": false
+        }]);
+        write_json_atomic(&project_file, &legacy).unwrap();
+        write_json_atomic(
+            &history_file,
+            &serde_json::json!({ "undo": [invalid_snapshot], "redo": [] }),
+        )
+        .unwrap();
+        let project_before = std::fs::read(&project_file).unwrap();
+        let history_before = std::fs::read(&history_file).unwrap();
+
+        let error = core.get_project(&created.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+        assert!(error.message.contains("undo history snapshot"));
+        assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+        assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+        assert_no_managed_transaction_files(&dir);
+        assert_no_content_addressed_assets(&dir);
+    }
+
+    #[test]
     fn unsupported_project_schema_versions_are_rejected_without_rewrite() {
         let (core, _) = core();
         let created = core
@@ -1970,6 +2225,111 @@ mod tests {
 
         let unchanged: serde_json::Value = read_json(&path).unwrap();
         assert_eq!(unchanged["schemaVersion"], PROJECT_SCHEMA_VERSION + 1);
+    }
+
+    #[test]
+    fn schema_zero_current_and_retained_state_are_rejected_without_publication() {
+        for retained in [false, true] {
+            let (core, _) = core();
+            let created = core
+                .create_project(
+                    if retained {
+                        "schema zero retained"
+                    } else {
+                        "schema zero current"
+                    },
+                    ProjectSettings::default(),
+                )
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            let project_file = project_path(&dir);
+            let history_file = history_path(&dir);
+            let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+            legacy["schemaVersion"] = serde_json::json!(6);
+            add_legacy_asset(&mut legacy, &dir);
+            let mut history = serde_json::json!({ "undo": [], "redo": [] });
+            if retained {
+                let mut invalid_snapshot = legacy.clone();
+                invalid_snapshot["schemaVersion"] = serde_json::json!(0);
+                history["undo"] = serde_json::json!([invalid_snapshot]);
+            } else {
+                legacy["schemaVersion"] = serde_json::json!(0);
+            }
+            write_json_atomic(&project_file, &legacy).unwrap();
+            write_json_atomic(&history_file, &history).unwrap();
+            let project_before = std::fs::read(&project_file).unwrap();
+            let history_before = std::fs::read(&history_file).unwrap();
+
+            let error = core.get_project(&created.project_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::InternalError);
+            assert!(
+                error
+                    .message
+                    .contains("unsupported project schema version 0")
+            );
+            assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+            assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+            assert_no_managed_transaction_files(&dir);
+            assert_no_content_addressed_assets(&dir);
+        }
+    }
+
+    #[test]
+    fn schema_seven_missing_visual_fields_default_without_read_rewrite() {
+        let (core, _) = core();
+        let created = core
+            .create_project("schema seven defaults", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let mut project: serde_json::Value = read_json(&project_file).unwrap();
+        let overlay = project["tracks"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|track| track["trackType"] == "overlay")
+            .unwrap();
+        overlay["items"] = serde_json::json!([{
+            "type": "rectangle",
+            "id": "defaulted-rectangle",
+            "color": "#123456",
+            "width": 320,
+            "height": 180,
+            "startMs": 0,
+            "durationMs": 500,
+            "keyframes": []
+        }]);
+        write_json_atomic(&project_file, &project).unwrap();
+        let before = std::fs::read(&project_file).unwrap();
+
+        let state = core.get_state(&created.project_id, None).unwrap();
+        let item = state.project.find_item("defaulted-rectangle").unwrap();
+        assert_eq!(
+            item.visual_properties(),
+            &crate::VisualProperties::default()
+        );
+        let response = serde_json::to_value(&state.project).unwrap();
+        let response_item = &response["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|track| track["trackType"] == "overlay")
+            .unwrap()["items"][0];
+        assert!(response_item.get("transform").is_some());
+        assert_eq!(response_item["hidden"], false);
+        assert_eq!(std::fs::read(&project_file).unwrap(), before);
+
+        core.edit(&created.project_id, 0, create_test_track())
+            .unwrap();
+        let persisted: serde_json::Value = read_json(&project_file).unwrap();
+        let persisted_item = &persisted["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|track| track["trackType"] == "overlay")
+            .unwrap()["items"][0];
+        assert!(persisted_item.get("transform").is_some());
+        assert_eq!(persisted_item["hidden"], false);
     }
 
     #[test]
@@ -3510,6 +3870,86 @@ mod tests {
             assert_eq!(history.undo[0].revision, 0, "failed after {phase:?}");
             assert_no_managed_transaction_files(&dir);
         }
+    }
+
+    #[test]
+    fn schema_six_migration_recovers_every_publication_phase() {
+        let phases = [
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ];
+
+        for phase in phases {
+            let (core, _) = core();
+            let created = core
+                .create_project(
+                    &format!("migration phase {phase:?}"),
+                    ProjectSettings::default(),
+                )
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            let project_file = project_path(&dir);
+            let history_file = history_path(&dir);
+            let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+            legacy["schemaVersion"] = serde_json::json!(6);
+            let mut oldest = legacy.clone();
+            oldest["schemaVersion"] = serde_json::json!(1);
+            write_json_atomic(&project_file, &legacy).unwrap();
+            write_json_atomic(
+                &history_file,
+                &serde_json::json!({ "undo": [oldest], "redo": [legacy] }),
+            )
+            .unwrap();
+
+            set_persistence_fault(&core, phase);
+            let opened = core.get_project(&created.project_id).unwrap();
+            assert_eq!(opened.schema_version, PROJECT_SCHEMA_VERSION);
+
+            let reopened = EditorCore::new(core.paths().clone());
+            let recovered = reopened.get_project(&created.project_id).unwrap();
+            let history: History = read_json(&history_file).unwrap();
+            assert_eq!(recovered.schema_version, PROJECT_SCHEMA_VERSION);
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|snapshot| snapshot.schema_version == PROJECT_SCHEMA_VERSION),
+                "mixed schema versions after recovery from {phase:?}"
+            );
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
+    fn schema_six_migration_before_journal_failure_preserves_generation() {
+        let (core, _) = core();
+        let created = core
+            .create_project("migration pre-commit", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(6);
+        write_json_atomic(&project_file, &legacy).unwrap();
+        write_json_atomic(
+            &history_file,
+            &serde_json::json!({ "undo": [legacy], "redo": [] }),
+        )
+        .unwrap();
+        let project_before = std::fs::read(&project_file).unwrap();
+        let history_before = std::fs::read(&history_file).unwrap();
+
+        set_persistence_fault(&core, PersistencePhase::BeforeJournal);
+        let error = core.get_project(&created.project_id).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+        assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+        assert_no_managed_transaction_files(&dir);
     }
 
     #[test]

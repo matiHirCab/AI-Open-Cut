@@ -15119,9 +15119,8 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
+                "const": 7,
+                "type": "number"
               },
               "settings": {
                 "additionalProperties": false,
@@ -16343,6 +16342,34 @@
                               "text": {
                                 "type": "string"
                               },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
                               "type": {
                                 "const": "caption",
                                 "type": "string"
@@ -16356,6 +16383,7 @@
                               "startMs",
                               "style",
                               "text",
+                              "transform",
                               "type"
                             ],
                             "type": "object"
@@ -16398,6 +16426,34 @@
                                   }
                                 ]
                               },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
                               "transitionType": {
                                 "enum": [
                                   "fade",
@@ -16417,6 +16473,7 @@
                               "id",
                               "startMs",
                               "toItemId",
+                              "transform",
                               "transitionType",
                               "type"
                             ],
@@ -16882,9 +16939,8 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
+                "const": 7,
+                "type": "number"
               },
               "settings": {
                 "additionalProperties": false,
@@ -18106,6 +18162,34 @@
                               "text": {
                                 "type": "string"
                               },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
                               "type": {
                                 "const": "caption",
                                 "type": "string"
@@ -18119,6 +18203,7 @@
                               "startMs",
                               "style",
                               "text",
+                              "transform",
                               "type"
                             ],
                             "type": "object"
@@ -18161,6 +18246,34 @@
                                   }
                                 ]
                               },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
                               "transitionType": {
                                 "enum": [
                                   "fade",
@@ -18180,6 +18293,7 @@
                               "id",
                               "startMs",
                               "toItemId",
+                              "transform",
                               "transitionType",
                               "type"
                             ],
@@ -24874,6 +24988,34 @@
                     "text": {
                       "type": "string"
                     },
+                    "transform": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "opacity": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "positionX": {
+                          "type": "number"
+                        },
+                        "positionY": {
+                          "type": "number"
+                        },
+                        "scale": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 100,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "opacity",
+                        "positionX",
+                        "positionY",
+                        "scale"
+                      ],
+                      "type": "object"
+                    },
                     "type": {
                       "const": "caption",
                       "type": "string"
@@ -24887,6 +25029,7 @@
                     "startMs",
                     "style",
                     "text",
+                    "transform",
                     "type"
                   ],
                   "type": "object"
@@ -24929,6 +25072,34 @@
                         }
                       ]
                     },
+                    "transform": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "opacity": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "positionX": {
+                          "type": "number"
+                        },
+                        "positionY": {
+                          "type": "number"
+                        },
+                        "scale": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 100,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "opacity",
+                        "positionX",
+                        "positionY",
+                        "scale"
+                      ],
+                      "type": "object"
+                    },
                     "transitionType": {
                       "enum": [
                         "fade",
@@ -24948,6 +25119,7 @@
                     "id",
                     "startMs",
                     "toItemId",
+                    "transform",
                     "transitionType",
                     "type"
                   ],

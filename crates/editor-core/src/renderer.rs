@@ -679,9 +679,8 @@ mod tests {
                 color: "#112233".into(),
                 start_ms: 0,
                 duration_ms: 1_000,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         });
         project
@@ -766,10 +765,9 @@ mod tests {
                 start_ms: 0,
                 duration_ms: 1_000,
                 source_in_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: crate::AudioSettings::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         });
         let process = Arc::new(FakeProcess {
@@ -864,10 +862,9 @@ mod tests {
                 start_ms: 0,
                 duration_ms: 1_000,
                 source_in_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: crate::AudioSettings::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         });
         let process = Arc::new(FakeProcess {
@@ -960,10 +957,9 @@ mod tests {
                 start_ms: 0,
                 duration_ms: 1_000,
                 source_in_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: crate::AudioSettings::default(),
                 keyframes: vec![],
-                hidden: false,
             })],
         });
         assert_all_facades_reject_without_side_effects(
@@ -987,9 +983,8 @@ mod tests {
                 color: "#000000".into(),
                 start_ms: 0,
                 duration_ms: 1,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
-                hidden: false,
             }));
         assert_all_facades_reject_without_side_effects(
             &renderer,
@@ -1022,9 +1017,8 @@ mod tests {
                     color: "#112233".into(),
                     start_ms: 0,
                     duration_ms: 1_000,
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     keyframes: vec![],
-                    hidden: false,
                 })
             })
             .collect();
@@ -1310,9 +1304,8 @@ mod tests {
                         wrap_width_px: Some(120),
                         ..crate::TextStyle::default()
                     },
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     keyframes: vec![],
-                    hidden: false,
                 }));
             let process = Arc::new(FakeProcess {
                 readiness_error: false,
@@ -1552,13 +1545,12 @@ mod tests {
                 start_ms,
                 duration_ms: 1_000,
                 source_in_ms: 0,
-                transform: Transform::default(),
+                visual_properties: crate::VisualProperties::default(),
                 audio: crate::AudioSettings {
                     volume,
                     ..crate::AudioSettings::default()
                 },
                 keyframes,
-                hidden: false,
             })
         };
         let volume = |time_ms: u64, value: f64, easing: Easing| Keyframe {
@@ -1695,14 +1687,16 @@ mod tests {
                     font_family: None,
                     font_path: None,
                     style,
-                    transform: Transform {
-                        position_x: 100.0,
-                        position_y: 200.0,
-                        scale: 2.0,
-                        opacity: 0.75,
-                    },
+                    visual_properties: crate::VisualProperties::new(
+                        Transform {
+                            position_x: 100.0,
+                            position_y: 200.0,
+                            scale: 2.0,
+                            opacity: 0.75,
+                        },
+                        false,
+                    ),
                     keyframes: vec![],
-                    hidden: false,
                 })],
             }],
         };
@@ -1899,9 +1893,8 @@ mod tests {
                     font_family: None,
                     font_path: None,
                     style: crate::TextStyle::default(),
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     keyframes: vec![],
-                    hidden: false,
                 })],
             }],
         };
@@ -2059,12 +2052,14 @@ mod tests {
                             color: "#cc3311".into(),
                             start_ms: 0,
                             duration_ms: 1_000,
-                            transform: Transform {
-                                opacity: 0.7,
-                                ..Transform::default()
-                            },
+                            visual_properties: crate::VisualProperties::new(
+                                Transform {
+                                    opacity: 0.7,
+                                    ..Transform::default()
+                                },
+                                false,
+                            ),
                             keyframes: vec![],
-                            hidden: false,
                         }),
                         TimelineItem::Text(crate::TextItem {
                             id: "animated-text".into(),
@@ -2089,12 +2084,15 @@ mod tests {
                                 anchor: crate::AnchorPoint::Center,
                                 ..crate::TextStyle::default()
                             },
-                            transform: Transform {
-                                position_x: 80.0,
-                                position_y: 45.0,
-                                scale: 1.0,
-                                opacity: 0.8,
-                            },
+                            visual_properties: crate::VisualProperties::new(
+                                Transform {
+                                    position_x: 80.0,
+                                    position_y: 45.0,
+                                    scale: 1.0,
+                                    opacity: 0.8,
+                                },
+                                false,
+                            ),
                             keyframes: vec![
                                 Keyframe {
                                     property: KeyframeProperty::Scale,
@@ -2121,7 +2119,6 @@ mod tests {
                                     easing: Easing::Linear,
                                 },
                             ],
-                            hidden: false,
                         }),
                     ],
                 },
@@ -2140,10 +2137,9 @@ mod tests {
                         start_ms: 0,
                         duration_ms: 1_000,
                         source_in_ms: 0,
-                        transform: Transform::default(),
+                        visual_properties: crate::VisualProperties::default(),
                         audio: crate::AudioSettings::default(),
                         keyframes: vec![],
-                        hidden: false,
                     })],
                 },
             ],
@@ -2232,7 +2228,7 @@ mod tests {
             height: 30,
             start_ms: 0,
             duration_ms: 1_000,
-            transform: Transform::default(),
+            visual_properties: crate::VisualProperties::default(),
             keyframes: vec![
                 Keyframe {
                     property: KeyframeProperty::Position,
@@ -2259,7 +2255,6 @@ mod tests {
                     easing: Easing::Linear,
                 },
             ],
-            hidden: false,
         };
         let project = Project {
             schema_version: PROJECT_SCHEMA_VERSION,
@@ -2439,7 +2434,7 @@ mod tests {
                         confidence: None,
                         words: vec![],
                     },
-                    hidden: false,
+                    visual_properties: crate::VisualProperties::default(),
                 })],
             }],
         };

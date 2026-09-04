@@ -430,12 +430,14 @@ pub(super) fn fixture_project() -> Project {
                         color: "#cc3311".into(),
                         start_ms: 0,
                         duration_ms: DURATION_MS,
-                        transform: Transform {
-                            opacity: 0.7,
-                            ..Transform::default()
-                        },
+                        visual_properties: crate::VisualProperties::new(
+                            Transform {
+                                opacity: 0.7,
+                                ..Transform::default()
+                            },
+                            false,
+                        ),
                         keyframes: vec![],
-                        hidden: false,
                     }),
                     TimelineItem::Text(TextItem {
                         id: "animated-text".into(),
@@ -460,12 +462,15 @@ pub(super) fn fixture_project() -> Project {
                             anchor: crate::AnchorPoint::Center,
                             ..TextStyle::default()
                         },
-                        transform: Transform {
-                            position_x: 80.0,
-                            position_y: 45.0,
-                            scale: 1.0,
-                            opacity: 0.8,
-                        },
+                        visual_properties: crate::VisualProperties::new(
+                            Transform {
+                                position_x: 80.0,
+                                position_y: 45.0,
+                                scale: 1.0,
+                                opacity: 0.8,
+                            },
+                            false,
+                        ),
                         keyframes: vec![
                             Keyframe {
                                 property: KeyframeProperty::Scale,
@@ -492,7 +497,6 @@ pub(super) fn fixture_project() -> Project {
                                 easing: Easing::Linear,
                             },
                         ],
-                        hidden: false,
                     }),
                 ],
             },
@@ -511,10 +515,9 @@ pub(super) fn fixture_project() -> Project {
                     start_ms: 0,
                     duration_ms: DURATION_MS,
                     source_in_ms: 0,
-                    transform: Transform::default(),
+                    visual_properties: crate::VisualProperties::default(),
                     audio: AudioSettings::default(),
                     keyframes: vec![],
-                    hidden: false,
                 })],
             },
         ],

@@ -12,6 +12,7 @@ import { SERVER_INSTRUCTIONS } from "../src/instructions";
 import {
   generatedAssetOriginSchema,
   jobSchema,
+  projectStateSchema,
   schemas,
   speechVoiceListSchema,
   synthesizedSpeechMetadataSchema,
@@ -20,6 +21,66 @@ import {
 import { DESTRUCTIVE, READ_ONLY, WRITE } from "../src/server/shared";
 
 describe("MCP contracts", () => {
+  it("requires schema-v7 common visual properties on returned items", () => {
+    const transform = { opacity: 1, positionX: 0, positionY: 0, scale: 1 };
+    const state = {
+      durationMs: 100,
+      project: {
+        assets: [],
+        createdAtMs: 1,
+        id: "project",
+        name: "Visual properties",
+        revision: 0,
+        schemaVersion: 7,
+        settings: { fps: 30, height: 1080, width: 1920 },
+        tracks: [
+          {
+            audioRole: "unassigned",
+            ducking: null,
+            hidden: false,
+            id: "video",
+            items: [
+              {
+                durationMs: 100,
+                fromItemId: "source",
+                hidden: false,
+                id: "transition",
+                startMs: 0,
+                toItemId: null,
+                transform,
+                transitionType: "fade",
+                type: "transition",
+              },
+            ],
+            locked: false,
+            muted: false,
+            name: "Video",
+            trackType: "video",
+          },
+        ],
+        updatedAtMs: 1,
+      },
+    };
+
+    expect(projectStateSchema.safeParse(state).success).toBe(true);
+    expect(
+      projectStateSchema.safeParse({
+        ...state,
+        project: { ...state.project, schemaVersion: 6 },
+      }).success
+    ).toBe(false);
+    const itemWithoutTransform = structuredClone(state);
+    const transition = itemWithoutTransform.project.tracks.at(0)?.items.at(0);
+    expect(transition).toBeDefined();
+    if (!transition) {
+      throw new Error("transition fixture is missing");
+    }
+    (transition as { transform?: unknown }).transform = undefined;
+    expect(projectStateSchema.safeParse(itemWithoutTransform).success).toBe(
+      false
+    );
+  });
+
   it("rejects unknown fields and invalid time ranges", () => {
     expect(
       schemas.projectCreate.safeParse({ name: "Intro", unexpected: true })

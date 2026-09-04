@@ -6,16 +6,26 @@ pub(crate) fn migrate_project_documents(
     project: &mut Project,
     history: &mut History,
 ) -> Result<bool, CoreError> {
-    let mut changed = migrate_project(project)?;
-    for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
+    let mut migrated_project = project.clone();
+    let mut migrated_history = history.clone();
+    let mut changed = migrate_project(&mut migrated_project)?;
+    for snapshot in migrated_history
+        .undo
+        .iter_mut()
+        .chain(&mut migrated_history.redo)
+    {
         changed |= migrate_project(snapshot)?;
+    }
+    if changed {
+        *project = migrated_project;
+        *history = migrated_history;
     }
     Ok(changed)
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     match project.schema_version {
-        1..=5 => {
+        1..=6 => {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
@@ -53,7 +63,7 @@ mod tests {
         let mut current = project(1);
         let mut history = History {
             undo: vec![project(2)],
-            redo: vec![project(5)],
+            redo: vec![project(6)],
         };
         assert!(migrate_project_documents(&mut current, &mut history).unwrap());
         assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
@@ -79,5 +89,23 @@ mod tests {
             ErrorCode::InternalError
         );
         assert_eq!(current.schema_version, future);
+    }
+
+    #[test]
+    fn rejects_future_retained_schema_without_mutating_any_document() {
+        let mut current = project(6);
+        let mut history = History {
+            undo: vec![project(1)],
+            redo: vec![project(PROJECT_SCHEMA_VERSION + 1)],
+        };
+        let before = serde_json::to_value((&current, &history)).unwrap();
+
+        assert_eq!(
+            migrate_project_documents(&mut current, &mut history)
+                .unwrap_err()
+                .code,
+            ErrorCode::InternalError
+        );
+        assert_eq!(serde_json::to_value((&current, &history)).unwrap(), before);
     }
 }

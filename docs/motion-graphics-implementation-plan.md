@@ -5,7 +5,7 @@ Status: proposed
 Architecture: accepted in [ADR 0004](adr/0004-motion-graphics-architecture.md); implementation remains milestone-driven
 
 Scope: canonical Rust editor model, headless protocol, agent bridge/MCP, renderer, and the minimum desktop editing surfaces needed to inspect and edit the new model
-Baseline reviewed: project schema v6 and agent bridge v0.1.0
+Baseline reviewed: project schema v6 and agent bridge v0.1.0. Issue #17 subsequently advances the implemented project schema to v7 for common legacy visual-property ownership; the remaining sections preserve the original roadmap baseline where they describe completed M0 constraints.
 
 ## Outcome
 
