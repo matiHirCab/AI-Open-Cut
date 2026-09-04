@@ -14,3 +14,17 @@
 /apps/agent-bridge/tests/contracts.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts @matiHirCab
 /docs/motion-graphics-contract-fixtures.md @matiHirCab
+
+# Reviewed CI policy boundary. Enable required CODEOWNER review on main.
+/.github/workflows/bun-ci.yml @matiHirCab
+/bunfig.toml @matiHirCab
+/.prototools @matiHirCab
+/moon.yml @matiHirCab
+/.moon/workspace.yml @matiHirCab
+/.moon/toolchains.yml @matiHirCab
+/.moon/tasks/ @matiHirCab
+/scripts/validate-ci-gates.ts @matiHirCab
+/scripts/validate-ci-gates.test.ts @matiHirCab
+/scripts/run-ci-policy.ts @matiHirCab
+/scripts/run-ci-policy.test.ts @matiHirCab
+/scripts/run-ci-policy.integration.test.ts @matiHirCab

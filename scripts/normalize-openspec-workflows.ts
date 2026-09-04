@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 const OPEN_SPEC_VERSION = "1.5.0";
 const PINNED_COMMAND = `bunx @fission-ai/openspec@${OPEN_SPEC_VERSION}`;
+const MOON_PINNED_COMMAND = `bun --config=bunfig.toml --no-env-file x @fission-ai/openspec@${OPEN_SPEC_VERSION}`;
 const SKILLS_DIRECTORY = join(".codex", "skills");
 const CHECK_ONLY = process.argv.includes("--check");
 
@@ -115,8 +116,8 @@ for (const directory of skillDirectories) {
 }
 
 const moonConfig = await readFile("moon.yml", "utf8");
-if (!moonConfig.includes(`${PINNED_COMMAND} validate --all --strict --no-interactive`)) {
-  failures.push(`moon.yml: OpenSpec validation must use ${PINNED_COMMAND}`);
+if (!moonConfig.includes(`${MOON_PINNED_COMMAND} validate --all --strict --no-interactive`)) {
+  failures.push(`moon.yml: OpenSpec validation must use ${MOON_PINNED_COMMAND}`);
 }
 
 const contributorGuide = await readFile(

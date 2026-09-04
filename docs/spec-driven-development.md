@@ -28,6 +28,8 @@ These repository-local Codex workflows are skills, so invoke them with the `$ope
 4. Review `proposal.md`, delta specs, `design.md`, and `tasks.md` before applying the change.
 5. Implement and verify the tasks, then archive the change so accepted deltas become the new living source of truth.
 
+Active changes remain available for local authoring and focused validation, but they are never merge-ready. The protected policy preflight requires `openspec/changes/` to contain only its ordinary `archive/` directory; any other file, directory, or symbolic link blocks Moon execution and prevents the policy attestation. Finish, synchronize, verify, and archive every change before expecting the protected CI gate to pass.
+
 Every requirement uses `SHALL` or `MUST`. Every requirement has at least one `#### Scenario:` expressed with `WHEN` and `THEN`. Public and persisted contract changes also cover compatibility, revision conflicts, migrations, and typed failures.
 
 ## Cross-language public contracts
@@ -47,7 +49,7 @@ An implementation-local test is not equivalent evidence: the parity gate must co
 After installing the pinned toolchain with `proto use`, validate all specs and active changes from the repository root:
 
 ```sh
-moon run openspec-validate
+moon run root:openspec-validate
 ```
 
 The underlying pinned command is:
@@ -56,8 +58,10 @@ The underlying pinned command is:
 bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive
 ```
 
-CI runs the same Moon task. A malformed requirement, scenario, or change blocks the pull request.
+CI starts the bootstrap with repository Bun configuration and dotenv loading disabled, validates the complete Bun/Moon/proto boundary and archive-only OpenSpec change inventory through `run-ci-policy.ts`, and only then runs the same Moon task. A malformed requirement, scenario, configuration, active change, or archive boundary blocks the pull request.
 Moon uses the workspace's configured `main` VCS default branch for revision comparison in both local and CI checkouts.
+The same task also validates the dedicated contract/render parity workflow policy described in
+[`ci-parity-gates.md`](ci-parity-gates.md), so weakening a required foundation gate fails repository validation.
 
 ## Upgrading OpenSpec
 
@@ -67,5 +71,5 @@ This repository uses OpenSpec's custom profile with all eleven Codex skill workf
 2. Run `bunx @fission-ai/openspec@<version> update` from the repository root while preserving the custom profile.
 3. Run `bun run scripts/normalize-openspec-workflows.ts` to replace generated prompt aliases with repository-local `$openspec-*` skill names and route generated CLI calls through the pinned package.
 4. Review every generated `.codex/skills/openspec-*/SKILL.md` change and confirm its `generatedBy` metadata names the new version. Do not hand-edit generated workflow bodies.
-5. Confirm `.github/workflows/bun-ci.yml` still runs `moon run openspec-validate`, so CI inherits the same pin instead of declaring a second one.
+5. Confirm `.github/workflows/bun-ci.yml` still invokes the isolated `run-ci-policy.ts` bootstrap and that the bootstrap launches `moon run root:openspec-validate`, so CI validates the reviewed boundary before addressing the pinned root task.
 6. Run the doctor, spec listing, strict Moon validation, and workflow syntax checks before merging the upgrade.

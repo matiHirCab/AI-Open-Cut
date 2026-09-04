@@ -14,17 +14,43 @@ jobs:
   openspec:
     name: OpenSpec validation
     runs-on: ubuntu-latest
+    outputs:
+      policy_validated: ${{ steps.policy.outputs.validated }}
     steps:
+      - name: Setup bootstrap Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - name: Setup bootstrap Moon
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: false
+          auto-setup: false
+          cache: false
+          moon-version: 2.3.3
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Validate living specs and active changes
+        id: policy
+        run: bun --config=/dev/null --no-env-file run scripts/run-ci-policy.ts --attest-github-output
+
+  contract-parity:
+    name: Contract parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Setup pinned toolchain
         uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
           auto-setup: true
-      - name: Validate living specs and active changes
-        run: moon run openspec-validate
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Cross-language contract parity
+        working-directory: apps/agent-bridge
+        run: bun run contracts:check
 
   correctness:
     name: Correctness (${{ matrix.os }})
@@ -57,9 +83,6 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --workspace
-      - name: Cross-language contract parity
-        working-directory: apps/agent-bridge
-        run: bun run contracts:check
       - name: TypeScript typecheck
         working-directory: apps/agent-bridge
         run: bun run typecheck
@@ -72,8 +95,8 @@ jobs:
       - name: Minimal Python worker tests
         run: bun run apps/agent-bridge/scripts/run-python-tests.ts
 
-  packaged-smoke:
-    name: Packaged fake-provider integration and smoke
+  render-parity:
+    name: Render parity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,11 +107,6 @@ jobs:
         with:
           auto-install: true
           auto-setup: true
-      - name: Install JavaScript dependencies
-        working-directory: apps/agent-bridge
-        run: bun install --frozen-lockfile
-      - name: Build debug headless
-        run: cargo build -p opencut-headless
       - name: Native audiovisual and lifecycle parity
         env:
           OPENCUT_FFMPEG_PATH: ffmpeg
@@ -109,6 +127,44 @@ jobs:
         with:
           name: render-baseline-linux-v3
           path: target/render-baseline-linux.json
+
+  foundation-parity:
+    name: Motion-graphics foundation parity
+    runs-on: ubuntu-latest
+    needs: [openspec, contract-parity, render-parity]
+    if: ${{ always() }}
+    steps:
+      - name: Confirm foundation parity gates
+        env:
+          OPENSPEC_RESULT: ${{ needs.openspec.result }}
+          OPENSPEC_POLICY_VALIDATED: ${{ needs.openspec.outputs.policy_validated }}
+          CONTRACT_PARITY_RESULT: ${{ needs.contract-parity.result }}
+          RENDER_PARITY_RESULT: ${{ needs.render-parity.result }}
+        run: |
+          echo "OpenSpec validation: $OPENSPEC_RESULT"
+          echo "OpenSpec policy attested: $OPENSPEC_POLICY_VALIDATED"
+          echo "Contract parity: $CONTRACT_PARITY_RESULT"
+          echo "Render parity: $RENDER_PARITY_RESULT"
+          if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ]; then
+            echo "Foundation parity requires attested policy validation and both leaf gates to succeed." >&2
+            exit 1
+          fi
+
+  packaged-smoke:
+    name: Packaged fake-provider integration and smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Build debug headless
+        run: cargo build -p opencut-headless
       - name: Fake-provider MCP integration
         working-directory: apps/agent-bridge
         run: bun run test:integration
