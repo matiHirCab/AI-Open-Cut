@@ -23,16 +23,16 @@
 - [x] 4.1 Create verification.md mapping every delta requirement/scenario to named automated tests and outcomes; document any technically impossible automation and resolve mismatches.
 - [x] 4.2 From repository root run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`.
 - [x] 4.3 From apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`.
-- [ ] 4.4 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `moon run root:openspec-validate`; report failed/skipped checks explicitly. Python worker tests are unaffected because no Python/provider behavior or contract changes are proposed; reassess if that scope changes.
-- [ ] 4.5 Use `$openspec-verify-change`, resolve every mismatch, and obtain designated CODEOWNER review for canonical public contracts, consumers and parity evidence.
-- [ ] 4.6 Use `$openspec-archive-change` after verified implementation to synchronize living requirements; rerun `moon run root:openspec-validate` with the required archive-only inventory before reporting completion.
+- [x] 4.4 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `moon run root:openspec-validate`; report failed/skipped checks explicitly. Python worker tests are unaffected because no Python/provider behavior or contract changes are proposed; reassess if that scope changes.
+- [x] 4.5 Use `$openspec-verify-change`, resolve every mismatch, and obtain designated CODEOWNER review for canonical public contracts, consumers and parity evidence.
+- [x] 4.6 Use `$openspec-archive-change` after verified implementation to synchronize living requirements; rerun `moon run root:openspec-validate` with the required archive-only inventory before reporting completion.
 
 ## 5. Approved review correction
 
 - [x] 5.1 Preserve alias field presence during core batch decoding and reject it for ungroup, including null; retain other operation behavior and serialization.
 - [x] 5.2 Add canonical null/wrong-type fixtures, Rust/TypeScript standalone and batch parity, raw JSON duplicate/compatibility tests, headless no-publication regression, and shared MCP/packaged coverage.
-- [ ] 5.3 Repeat required verification, update the report, and complete remaining owner-review/archive gates.
+- [x] 5.3 Repeat required verification, update the report, and complete remaining owner-review/archive gates.
 
 ## Current verification state
 
-The approved null-alias correction and all automated verification are complete. Full native Rust workspace tests, formatting, strict Clippy, bridge typecheck/lint/unit/contract/integration/packaged suites and strict OpenSpec content validation pass. OpenSpec correctness/coherence verification found no remaining implementation mismatch. Task 4.4 awaits archive-only inventory; tasks 4.5, 4.6 and 5.3 await designated owner review and consequent archive/final Moon validation.
+All 20 tasks are complete. The user provided final designated CODEOWNER approval on 2026-09-05. All five requirements and 15 scenarios are synchronized into the three living specs, and this change is archived. Final pinned Moon 2.3.3 validation passed with archive-only inventory: 231 policy tests and all 14 living specs passed. Implementation checks and cross-platform CI results are recorded in verification.md.

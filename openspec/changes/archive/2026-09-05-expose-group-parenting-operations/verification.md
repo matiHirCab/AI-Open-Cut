@@ -6,7 +6,7 @@ Issue #21. Implementation approved by the user on 2026-09-05. This report review
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 16/20 tasks complete. Implementation and correction verification complete; final contract-owner review, archive and post-archive Moon validation remain pending. |
+| Completeness | 20/20 tasks complete. Implementation, correction verification, final CODEOWNER review, specification synchronization, archive and post-archive Moon validation are complete. |
 | Correctness | All 5 added requirements and 15 scenarios have automated evidence below. No implementation mismatch found. |
 | Coherence | Core owns mutation/locks/aliases; headless and MCP delegate typed input; schema 10 and protocol major 1 remain unchanged; no renderer or provider behavior added. |
 
@@ -56,13 +56,9 @@ Test names below refer to crates/editor-core/tests/groups.rs unless another file
 
 Initial native execution encountered sandbox denial, then installed FFmpeg 9's pre-existing lack of `filter_complex_script`. Retrying with the already retained compatible 8.1.2 tools resolved both; no renderer compatibility workaround was added. `moon` is absent from PATH, so the unchanged target was run with `bunx --package @moonrepo/cli@2.3.3 moon run root:openspec-validate`. Tool binaries, build output and logs remain only in ignored target directories.
 
-## Remaining completion gates
+## Completion gates
 
-1. Obtain designated owner @matiHirCab review of the concrete public contract implementation, consumers and parity evidence, as required by AGENTS.md and contracts/contract-ownership-v1.json. The earlier approval authorized the proposal/implementation scope; it did not review the resulting implementation.
-2. Synchronize the five added requirements into the three living specs and archive this verified change using openspec-archive-change.
-3. Rerun the pinned Moon target with archive-only inventory and mark final tasks complete only after it passes.
-
-No code/spec mismatch or uncovered scenario remains. Completion is pending the contract review and consequent archive/Moon gates, not implementation work.
+The previously outstanding designated owner review, specification synchronization, archive and final Moon validation are complete; see the final approval and CI completion evidence below. Earlier failed active-inventory checks are retained as historical evidence.
 
 ## Approved review correction: null resultAlias
 
@@ -80,4 +76,10 @@ Evidence for the added scenario:
 Final post-correction checks: formatting, strict workspace Clippy, bridge typecheck/lint, 76 unit tests, 12 contract parity tests plus headless tests, 9 integration tests, 4 packaged smoke tests, and 15/15 strict OpenSpec items pass. Moon passes content/policy tests but still rejects the active change inventory. Initial native workspace compilation encountered a Windows executable lock from concurrent integration; the serialized rerun passed the complete workspace with native FFmpeg 8.1.2 and required goldens, including all 23 group tests and 13 protocol tests. Python/provider contracts remain unaffected.
 
 
-Final openspec-verify-change assessment after the approved correction: all 5 requirements and 15 scenarios have conformance evidence; no code/spec/design mismatch remains. The original review finding is resolved. Outstanding completion gates are the designated contract review and dependent archive/final Moon validation. No provider tests were added or skipped as affected work because no provider surface changed.
+Final openspec-verify-change assessment after the approved correction: all 5 requirements and 15 scenarios have conformance evidence; no code/spec/design mismatch remains. The original review finding is resolved. The designated contract review and dependent archive/final Moon validation were subsequently completed as recorded below. No provider tests were added or skipped as affected work because no provider surface changed.
+
+## Final owner approval and CI completion
+
+Final CODEOWNER approval: on 2026-09-05, the user replied "I approve" to the explicit request to approve the final implementation and contracts as CODEOWNER and authorize synchronization, archive, validation and push for PR #107. This satisfies the designated owner review gate for the implementation, canonical contracts, consumers and parity evidence.
+
+PR #107 CI run 33968695776 passed correctness on Linux, macOS and Windows, contract parity, render parity and packaged integration/smoke. OpenSpec failed only because this change was still active; foundation parity failed as its dependent aggregate. All five added requirements and 15 scenarios were synchronized into the three living specs, preserving existing requirements. The change was archived to openspec/changes/archive/2026-09-05-expose-group-parenting-operations. Final pinned Moon 2.3.3 root:openspec-validate passed with archive-only inventory: 231 policy tests, 14/14 living specs and CI parity policy validation. Local log: target/issue21-archive-moon.log (ignored). All 20 tasks are complete; no outstanding correctness, coherence or completion issues remain.
