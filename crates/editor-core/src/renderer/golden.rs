@@ -391,6 +391,7 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        components: vec![],
         schema_version: PROJECT_SCHEMA_VERSION,
         id: "golden-render-fixture".into(),
         revision: 7,

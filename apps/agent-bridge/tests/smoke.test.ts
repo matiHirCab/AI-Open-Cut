@@ -26,6 +26,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 
+import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -1030,4 +1031,5 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
+  await verifyComponentWorkflow(client, call, media);
 });

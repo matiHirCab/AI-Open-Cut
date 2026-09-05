@@ -416,11 +416,20 @@ fn migration_preserves_every_supported_history_and_rejects_bad_graphs_atomically
             serde_json::to_vec(&json!({"undo":[oldest],"redo":[state]})).unwrap(),
         )
         .unwrap();
-        assert_eq!(core.get_project(&id).unwrap().schema_version, 10);
+        assert_eq!(
+            core.get_project(&id).unwrap().schema_version,
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let history: Value =
             serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
-        assert_eq!(history["undo"][0]["schemaVersion"], 10);
-        assert_eq!(history["redo"][0]["schemaVersion"], 10);
+        assert_eq!(
+            history["undo"][0]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
+        assert_eq!(
+            history["redo"][0]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let once = std::fs::read(dir.join("project.json")).unwrap();
         core.get_project(&id).unwrap();
         assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), once);

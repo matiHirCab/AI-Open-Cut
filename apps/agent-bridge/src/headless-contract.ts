@@ -1,6 +1,10 @@
 import type { z } from "zod/v4";
 
-import type { generatedAssetOriginSchema, transform2dSchema } from "./schemas";
+import type {
+  componentFieldsSchema,
+  generatedAssetOriginSchema,
+  transform2dSchema,
+} from "./schemas";
 
 export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
@@ -17,6 +21,14 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | ({
+      operation: "component_create";
+      resultAlias?: string | undefined;
+    } & z.infer<typeof componentFieldsSchema>)
+  | ({ operation: "component_update"; componentId: string } & z.infer<
+      typeof componentFieldsSchema
+    >)
+  | { operation: "component_delete"; componentId: string }
   | { operation: "group_ungroup"; groupId: string }
   | {
       operation: "add_group";

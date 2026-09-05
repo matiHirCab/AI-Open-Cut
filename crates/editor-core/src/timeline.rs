@@ -43,7 +43,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::AddGroup { .. }
+        EditOperation::ComponentCreate { .. }
+            | EditOperation::AddGroup { .. }
             | EditOperation::AddMedia { .. }
             | EditOperation::AddText { .. }
             | EditOperation::AddSolidColor { .. }
@@ -74,6 +75,18 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::ComponentCreate { tracks, .. } => {
+            resolve_component_aliases(tracks, aliases)?
+        }
+        EditOperation::ComponentUpdate {
+            component_id,
+            tracks,
+            ..
+        } => {
+            resolve_alias(component_id, aliases)?;
+            resolve_component_aliases(tracks, aliases)?;
+        }
+        EditOperation::ComponentDelete { component_id } => resolve_alias(component_id, aliases)?,
         EditOperation::GroupUngroup { group_id } => resolve_alias(group_id, aliases)?,
         EditOperation::AddGroup {
             track_id, parent, ..
@@ -168,6 +181,77 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::ComponentCreate {
+            name,
+            width,
+            height,
+            duration_ms,
+            tracks,
+        } => {
+            let id = Uuid::new_v4().to_string();
+            project.components.push(crate::ComponentDefinition {
+                id: id.clone(),
+                name,
+                width,
+                height,
+                duration_ms,
+                tracks,
+            });
+            Ok((vec![id], "created component"))
+        }
+        EditOperation::ComponentUpdate {
+            component_id,
+            name,
+            width,
+            height,
+            duration_ms,
+            tracks,
+        } => {
+            let current = project
+                .components
+                .iter_mut()
+                .find(|c| c.id == component_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            let locked: Vec<_> = current.tracks.iter().filter(|t| t.locked).collect();
+            let retained: Vec<_> = tracks
+                .iter()
+                .filter(|t| locked.iter().any(|v| v.id == t.id))
+                .collect();
+            if serde_json::to_value(&locked)? != serde_json::to_value(&retained)? {
+                return Err(CoreError::new(
+                    ErrorCode::TrackLocked,
+                    "component update alters locked tracks",
+                ));
+            }
+            *current = crate::ComponentDefinition {
+                id: component_id.clone(),
+                name,
+                width,
+                height,
+                duration_ms,
+                tracks,
+            };
+            Ok((vec![component_id], "updated component"))
+        }
+        EditOperation::ComponentDelete { component_id } => {
+            let index = project
+                .components
+                .iter()
+                .position(|c| c.id == component_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            if project.components[index].tracks.iter().any(|t| t.locked) {
+                return Err(CoreError::new(
+                    ErrorCode::TrackLocked,
+                    "component has locked tracks",
+                ));
+            }
+            if project.components.iter().flat_map(|c| &c.tracks).flat_map(|t| &t.items)
+                .any(|i| matches!(i, TimelineItem::ComponentInstance(v) if v.component_id == component_id)) {
+                return Err(CoreError::new(ErrorCode::InvalidArgument, "component is referenced"));
+            }
+            project.components.remove(index);
+            Ok((vec![component_id], "deleted component"))
+        }
         EditOperation::GroupUngroup { group_id } => {
             let (group_track, group_index) = find_item_location(project, &group_id)?;
             let TimelineItem::Group(group) = &project.tracks[group_track].items[group_index] else {
@@ -468,7 +552,7 @@ fn apply_operation_inner(
                 validate_transform(&transform)?;
                 match item {
                     TimelineItem::Media(media) => media.transform = transform,
-                    TimelineItem::Group(_) => {
+                    TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                         return Err(CoreError::new(
                             ErrorCode::InvalidArgument,
                             "groups do not accept legacy transforms",
@@ -588,6 +672,12 @@ fn apply_operation_inner(
                 TimelineItem::Text(text) => {
                     text.start_ms = start_ms;
                     text.duration_ms = duration_ms;
+                }
+                TimelineItem::ComponentInstance(_) => {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "root component instances are not supported",
+                    ));
                 }
                 TimelineItem::Group(group) => {
                     group.start_ms = start_ms;
@@ -732,7 +822,7 @@ fn apply_operation_inner(
             validate_audio(&audio)?;
             let item = find_editable_item_mut(project, &item_id)?;
             match item {
-                TimelineItem::Group(_) => {
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "groups do not accept audio",
@@ -770,7 +860,7 @@ fn apply_operation_inner(
             let right_duration = item.end_ms() - split_ms;
             let left_duration = split_ms - item.start_ms();
             let right = match item {
-                TimelineItem::Group(_) => {
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "groups cannot be split",
@@ -1103,6 +1193,7 @@ pub(crate) fn remove_item(project: &mut Project, item_id: &str) -> Result<Timeli
 pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
     match item {
         TimelineItem::Group(group) => group.start_ms = start_ms,
+        TimelineItem::ComponentInstance(item) => item.start_ms = start_ms,
         TimelineItem::Media(media) => media.start_ms = start_ms,
         TimelineItem::Text(text) => text.start_ms = start_ms,
         TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
@@ -1115,6 +1206,7 @@ pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
 pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
     match item {
         TimelineItem::Group(group) => group.id = id,
+        TimelineItem::ComponentInstance(item) => item.id = id,
         TimelineItem::Media(media) => media.id = id,
         TimelineItem::Text(text) => text.id = id,
         TimelineItem::SolidColor(shape) => shape.id = id,
@@ -1163,6 +1255,18 @@ pub(crate) fn now_ms() -> Result<u64, CoreError> {
         .map_err(|_| CoreError::new(ErrorCode::InternalError, "system time overflow"))
 }
 
+fn resolve_component_aliases(
+    tracks: &mut [Track],
+    aliases: &BTreeMap<String, String>,
+) -> Result<(), CoreError> {
+    for item in tracks.iter_mut().flat_map(|t| &mut t.items) {
+        if let TimelineItem::ComponentInstance(instance) = item {
+            resolve_alias(&mut instance.component_id, aliases)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1170,6 +1274,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 4,

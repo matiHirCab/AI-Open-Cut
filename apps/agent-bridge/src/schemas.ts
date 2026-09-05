@@ -822,6 +822,103 @@ export const timelineItemSchema = z.discriminatedUnion("type", [
   transitionItemSchema,
 ]);
 
+export const componentInstanceSchema = z
+  .object({
+    componentId: id,
+    durationMs: positiveMilliseconds,
+    hidden: z.boolean(),
+    id,
+    parent: parentReferenceSchema.nullable().optional(),
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
+    startMs: milliseconds,
+    timeScale: finite.positive(),
+    transform: transformSchema,
+    transform2d: transform2dSchema.nullable().optional(),
+    trimStartMs: milliseconds,
+    type: z.literal("component_instance"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
+  })
+  .strict();
+export const componentTrackSchema = z
+  .object({
+    audioRole: audioRoleSchema.default("unassigned"),
+    ducking: duckingSchema.nullable().default(null),
+    hidden: z.boolean().default(false),
+    id,
+    items: z
+      .array(
+        z.discriminatedUnion("type", [
+          componentInstanceSchema.extend({
+            hidden: z.boolean().default(false),
+            stackOrder: z.int().nonnegative().max(4_294_967_295).default(0),
+            transform: transformSchema.default({
+              opacity: 1,
+              positionX: 0,
+              positionY: 0,
+              scale: 1,
+            }),
+            zIndex: z.int().min(-2_147_483_648).max(2_147_483_647).default(0),
+          }),
+
+          ...[
+            timelineItemSchema.options[0],
+            mediaItemSchema,
+            textItemSchema.extend({
+              fontFamily: z.string().nullable().default(null),
+              fontPath: z.string().nullable().default(null),
+              style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
+            }),
+            solidColorItemSchema,
+            rectangleItemSchema,
+            captionItemSchema.extend({
+              source: captionItemSchema.shape.source.extend({
+                confidence: finite.min(0).max(1).nullable().default(null),
+                modelVersion: z.string().min(1).nullable().default(null),
+                words: z.array(
+                  captionWordSchema.extend({
+                    confidence: finite.min(0).max(1).nullable().default(null),
+                  })
+                ),
+              }),
+            }),
+            transitionItemSchema.extend({
+              toItemId: id.nullable().default(null),
+            }),
+          ].map((item) =>
+            item.extend({
+              hidden: z.boolean().default(false),
+              stackOrder: z.int().nonnegative().max(4_294_967_295).default(0),
+              transform: transformSchema.default({
+                opacity: 1,
+                positionX: 0,
+                positionY: 0,
+                scale: 1,
+              }),
+              zIndex: z.int().min(-2_147_483_648).max(2_147_483_647).default(0),
+            })
+          ),
+        ])
+      )
+      .max(4096),
+    locked: z.boolean().default(false),
+    muted: z.boolean().default(false),
+    name: z.string(),
+    trackType: z.enum(["video", "overlay", "audio", "caption"]),
+  })
+  .strict();
+export const componentFieldsSchema = z
+  .object({
+    durationMs: positiveMilliseconds,
+    height: z.int().min(1).max(4320),
+    name: z.string().min(1).max(4096),
+    tracks: z.array(componentTrackSchema).max(4096),
+    width: z.int().min(1).max(7680),
+  })
+  .strict();
+export const componentDefinitionSchema = componentFieldsSchema
+  .extend({ id })
+  .strict();
+
 export const projectSummarySchema = z
   .object({
     durationMs: milliseconds,
@@ -880,11 +977,12 @@ export const projectStateSchema = z
             })
             .strict()
         ),
+        components: z.array(componentDefinitionSchema).max(512),
         createdAtMs: milliseconds,
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(10),
+        schemaVersion: z.literal(11),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -972,6 +1070,21 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  componentFieldsSchema
+    .extend({
+      operation: z.literal("component_create"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
+    .strict(),
+  componentFieldsSchema
+    .extend({ componentId: id, operation: z.literal("component_update") })
+    .strict(),
+  z
+    .object({ componentId: id, operation: z.literal("component_delete") })
+    .strict(),
   z
     .object({
       durationMs: positiveMilliseconds,
@@ -1225,6 +1338,14 @@ export const schemas = {
       mediaType: z.enum(["image", "video", "audio"]),
       path: z.string().min(1),
     })
+    .strict(),
+  componentCreate: projectRevisionSchema
+    .extend(componentFieldsSchema.shape)
+    .strict(),
+  componentDelete: projectRevisionSchema.extend({ componentId: id }).strict(),
+  componentUpdate: projectRevisionSchema
+    .extend(componentFieldsSchema.shape)
+    .extend({ componentId: id })
     .strict(),
   draftCommit: projectRevisionSchema.extend({ draftId: id }).strict(),
   draftCreate: projectRevisionSchema

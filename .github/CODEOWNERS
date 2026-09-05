@@ -34,3 +34,9 @@
 /scripts/run-ci-policy.ts @matiHirCab
 /scripts/run-ci-policy.test.ts @matiHirCab
 /scripts/run-ci-policy.integration.test.ts @matiHirCab
+
+# Component definition ownership.
+/crates/editor-core/src/validation.rs @matiHirCab
+/crates/editor-core/src/migrations.rs @matiHirCab
+/crates/editor-core/src/assets.rs @matiHirCab
+/crates/editor-core/tests/components.rs @matiHirCab

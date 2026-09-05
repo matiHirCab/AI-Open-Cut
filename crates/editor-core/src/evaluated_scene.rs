@@ -519,7 +519,9 @@ pub(crate) fn evaluate_project(
                         }),
                     });
                 }
-                TimelineItem::Transition(_) | TimelineItem::Group(_) => {}
+                TimelineItem::Transition(_)
+                | TimelineItem::Group(_)
+                | TimelineItem::ComponentInstance(_) => {}
             }
         }
     }
@@ -725,7 +727,9 @@ fn preflight_project<'a>(
                     )?;
                     visual_item_ids.insert(caption.id.as_str());
                 }
-                TimelineItem::Transition(_) | TimelineItem::Group(_) => {}
+                TimelineItem::Transition(_)
+                | TimelineItem::Group(_)
+                | TimelineItem::ComponentInstance(_) => {}
             }
         }
     }
@@ -1362,6 +1366,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            components: vec![],
             schema_version: crate::PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 7,

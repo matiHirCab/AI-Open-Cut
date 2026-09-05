@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
+import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
@@ -17,6 +18,7 @@ import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { EVALUATED_SCENE_RENDERING_CAPABILITY } from "../src/headless-contract";
 import {
+  componentDefinitionSchema,
   headlessEditSchema,
   headlessStatusSchema,
   schemas,
@@ -42,6 +44,41 @@ import {
 } from "./fixtures/motion-graphics-contract";
 
 const TYPECHECK_GATE_PREFIX = /^bun run typecheck && /;
+
+it("matches canonical component item structural acceptance independently of core semantics", () => {
+  for (const fixture of COMPONENTS.itemValidationFixtures) {
+    const { operation: _operation, ...fields } = fixture.operation;
+    expect(
+      headlessEditSchema.safeParse(fixture.operation).success,
+      fixture.id
+    ).toBe(fixture.mcpAccept);
+    expect(
+      schemas.componentCreate.safeParse({
+        ...fields,
+        expectedRevision: 0,
+        projectId: "project",
+      }).success,
+      fixture.id
+    ).toBe(fixture.mcpAccept);
+    expect(
+      schemas.componentUpdate.safeParse({
+        ...fields,
+        componentId: "component",
+        expectedRevision: 0,
+        projectId: "project",
+      }).success,
+      fixture.id
+    ).toBe(fixture.mcpAccept);
+    expect(
+      schemas.timelineBatchEdit.safeParse({
+        expectedRevision: 0,
+        operations: [fixture.operation],
+        projectId: "project",
+      }).success,
+      fixture.id
+    ).toBe(fixture.mcpAccept);
+  }
+});
 
 class ContractHarness {
   readonly prompts = new Set<string>();
@@ -135,6 +172,35 @@ const dependencies = {
 } as unknown as ServerDependencies;
 
 describe("canonical public contracts", () => {
+  it("validates canonical component operations standalone and in batches", () => {
+    for (const fixture of COMPONENTS.semanticFixtures) {
+      for (const definition of fixture.components) {
+        expect(componentDefinitionSchema.safeParse(definition).success).toBe(
+          true
+        );
+      }
+    }
+    for (const value of COMPONENTS.validOperations) {
+      expect(headlessEditSchema.safeParse(value).success).toBe(true);
+      expect(
+        schemas.timelineBatchEdit.safeParse({
+          expectedRevision: 0,
+          operations: [value],
+          projectId: "project",
+        }).success
+      ).toBe(true);
+    }
+    for (const value of COMPONENTS.invalidOperations) {
+      expect(headlessEditSchema.safeParse(value).success).toBe(false);
+      expect(
+        schemas.timelineBatchEdit.safeParse({
+          expectedRevision: 0,
+          operations: [value],
+          projectId: "project",
+        }).success
+      ).toBe(false);
+    }
+  });
   it("keeps every canonical owner and governed consumer checked in", () => {
     const repositoryRoot = resolve(import.meta.dirname, "../../..");
     expect(OWNERSHIP.strategy).toBe("fixture-governed-manual-synchronization");

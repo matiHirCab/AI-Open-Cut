@@ -1082,6 +1082,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,

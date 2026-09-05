@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 10;
+pub const PROJECT_SCHEMA_VERSION: u32 = 11;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -25,6 +25,7 @@ pub struct Project {
     pub settings: ProjectSettings,
     pub assets: Vec<Asset>,
     pub tracks: Vec<Track>,
+    pub components: Vec<ComponentDefinition>,
 }
 
 // Keep older documents readable while requiring explicit stacking in schema 9.
@@ -40,6 +41,8 @@ struct ProjectDocument {
     settings: ProjectSettings,
     assets: Vec<Asset>,
     tracks: serde_json::Value,
+    #[serde(default)]
+    components: Option<Vec<ComponentDefinition>>,
 }
 
 impl TryFrom<ProjectDocument> for Project {
@@ -55,7 +58,14 @@ impl TryFrom<ProjectDocument> for Project {
                 }
             }
         }
+        if value.schema_version == 11 && value.components.is_none() {
+            return Err("schema 11 requires components".into());
+        }
+        if value.schema_version < 11 && value.components.as_ref().is_some_and(|v| !v.is_empty()) {
+            return Err("components require schema 11".into());
+        }
         Ok(Self {
+            components: value.components.unwrap_or_default(),
             schema_version: value.schema_version,
             id: value.id,
             revision: value.revision,
@@ -365,6 +375,7 @@ pub struct Track {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TimelineItem {
+    ComponentInstance(ComponentInstanceItem),
     Group(GroupItem),
     Media(MediaItem),
     Text(TextItem),
@@ -378,6 +389,7 @@ impl TimelineItem {
     pub fn id(&self) -> &str {
         match self {
             Self::Group(item) => &item.id,
+            Self::ComponentInstance(item) => &item.id,
             Self::Media(item) => &item.id,
             Self::Text(item) => &item.id,
             Self::SolidColor(item) => &item.id,
@@ -390,6 +402,7 @@ impl TimelineItem {
     pub fn start_ms(&self) -> u64 {
         match self {
             Self::Group(item) => item.start_ms,
+            Self::ComponentInstance(item) => item.start_ms,
             Self::Media(item) => item.start_ms,
             Self::Text(item) => item.start_ms,
             Self::SolidColor(item) => item.start_ms,
@@ -402,6 +415,7 @@ impl TimelineItem {
     pub fn duration_ms(&self) -> u64 {
         match self {
             Self::Group(item) => item.duration_ms,
+            Self::ComponentInstance(item) => item.duration_ms,
             Self::Media(item) => item.duration_ms,
             Self::Text(item) => item.duration_ms,
             Self::SolidColor(item) => item.duration_ms,
@@ -421,7 +435,7 @@ impl TimelineItem {
 
     pub fn keyframes(&self) -> &[Keyframe] {
         match self {
-            Self::Group(_) => &[],
+            Self::Group(_) | Self::ComponentInstance(_) => &[],
             Self::Media(v) => &v.keyframes,
             Self::Text(v) => &v.keyframes,
             Self::SolidColor(v) => &v.keyframes,
@@ -432,7 +446,7 @@ impl TimelineItem {
 
     pub fn keyframes_mut(&mut self) -> Option<&mut Vec<Keyframe>> {
         match self {
-            Self::Group(_) => None,
+            Self::Group(_) | Self::ComponentInstance(_) => None,
             Self::Media(item) => Some(&mut item.keyframes),
             Self::Text(item) => Some(&mut item.keyframes),
             Self::SolidColor(item) => Some(&mut item.keyframes),
@@ -453,6 +467,7 @@ impl TimelineItem {
     pub fn visual_properties(&self) -> &VisualProperties {
         match self {
             Self::Group(item) => &item.visual_properties,
+            Self::ComponentInstance(item) => &item.visual_properties,
             Self::Media(item) => &item.visual_properties,
             Self::Text(item) => &item.visual_properties,
             Self::SolidColor(item) => &item.visual_properties,
@@ -465,6 +480,7 @@ impl TimelineItem {
     pub fn visual_properties_mut(&mut self) -> &mut VisualProperties {
         match self {
             Self::Group(item) => &mut item.visual_properties,
+            Self::ComponentInstance(item) => &mut item.visual_properties,
             Self::Media(item) => &mut item.visual_properties,
             Self::Text(item) => &mut item.visual_properties,
             Self::SolidColor(item) => &mut item.visual_properties,
@@ -510,6 +526,30 @@ impl VisualProperties {
 pub struct ParentReference {
     pub scope: String,
     pub id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ComponentDefinition {
+    pub id: String,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub duration_ms: u64,
+    pub tracks: Vec<Track>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ComponentInstanceItem {
+    pub id: String,
+    pub component_id: String,
+    pub start_ms: u64,
+    pub trim_start_ms: u64,
+    pub duration_ms: u64,
+    pub time_scale: f64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -906,6 +946,25 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    ComponentCreate {
+        name: String,
+        width: u32,
+        height: u32,
+        duration_ms: u64,
+        tracks: Vec<Track>,
+    },
+    ComponentUpdate {
+        component_id: String,
+        name: String,
+        width: u32,
+        height: u32,
+        duration_ms: u64,
+        tracks: Vec<Track>,
+    },
+    ComponentDelete {
+        component_id: String,
+    },
+
     GroupUngroup {
         group_id: String,
     },
@@ -1091,6 +1150,25 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    ComponentCreate {
+        name: String,
+        width: u32,
+        height: u32,
+        duration_ms: u64,
+        tracks: Vec<Track>,
+    },
+    ComponentUpdate {
+        component_id: String,
+        name: String,
+        width: u32,
+        height: u32,
+        duration_ms: u64,
+        tracks: Vec<Track>,
+    },
+    ComponentDelete {
+        component_id: String,
+    },
+
     GroupUngroup {
         group_id: String,
     },
@@ -1277,6 +1355,24 @@ impl<'de> Deserialize<'de> for EditOperation {
             ));
         }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("component_create") => Some(&[
+                "operation",
+                "name",
+                "width",
+                "height",
+                "durationMs",
+                "tracks",
+            ]),
+            Some("component_update") => Some(&[
+                "operation",
+                "componentId",
+                "name",
+                "width",
+                "height",
+                "durationMs",
+                "tracks",
+            ]),
+            Some("component_delete") => Some(&["operation", "componentId"]),
             Some("group_ungroup") => Some(&["operation", "groupId"]),
             Some("add_group") => Some(&[
                 "operation",
@@ -1324,11 +1420,15 @@ impl<'de> Deserialize<'de> for BatchEditOperation {
         }
 
         let fields = BatchFields::deserialize(deserializer)?;
-        if matches!(fields.edit, EditOperation::GroupUngroup { .. })
-            && fields.result_alias.is_some()
+        if matches!(
+            fields.edit,
+            EditOperation::GroupUngroup { .. }
+                | EditOperation::ComponentUpdate { .. }
+                | EditOperation::ComponentDelete { .. }
+        ) && fields.result_alias.is_some()
         {
             return Err(serde::de::Error::custom(
-                "group_ungroup does not accept resultAlias",
+                "operation does not accept resultAlias",
             ));
         }
         Ok(Self {
@@ -1467,6 +1567,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project-1".into(),
             revision: 0,

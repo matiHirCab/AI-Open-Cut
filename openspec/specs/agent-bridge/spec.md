@@ -83,3 +83,14 @@ Headless and MCP MUST expose add_group, item_set_parent, item_set_z_index and gr
 #### Scenario: Execute real batch workflow and failures
 - **WHEN** the same workflow uses creation aliases in one batch, or encounters malformed input, a missing reference, a locked affected track, a stale revision or a later failed operation
 - **THEN** real headless and MCP calls exhibit the specified single-commit or full-rollback behavior and canonical errors without adapter-owned domain mutation logic
+
+### Requirement: Typed component definition workflows
+Headless and MCP MUST expose component_create, component_update and component_delete standalone and in timeline_batch_edit with existing project/revision envelopes and mutation results. Creation aliases MUST work through real transports. Adapters MUST delegate graph, duration, lock, persistence and media semantics to editor-core. Documentation MUST describe local coordinates/time/order, explicit duration, scopes, bounds, errors, schema-11 migration and deferred instance rendering.
+
+#### Scenario: Exercise complete definition lifecycle
+- **WHEN** a real client creates, updates, references and deletes definitions using valid standalone and aliased batch operations
+- **THEN** reads and undo/redo/reopen reflect exact core state through source integration and packaged smoke
+
+#### Scenario: Propagate atomic failures
+- **WHEN** malformed input, missing references, cycles, locks, stale revisions or later invalid batch operations occur
+- **THEN** real transports preserve canonical errors and no partial project/history state is published

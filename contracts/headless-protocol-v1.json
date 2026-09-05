@@ -2,7 +2,9 @@
   "version": 1,
   "negotiation": {
     "defaultVersion": 1,
-    "supportedVersions": [1],
+    "supportedVersions": [
+      1
+    ],
     "unsupportedError": {
       "code": "INVALID_ARGUMENT",
       "retryable": false
@@ -37,12 +39,27 @@
     "update_draft"
   ],
   "requests": {
-    "statusDefault": { "operation": "status" },
-    "statusCurrent": { "operation": "status", "protocolVersion": 1 },
-    "statusUnsupported": { "operation": "status", "protocolVersion": 2 },
-    "statusUnknownField": { "operation": "status", "unexpected": true }
+    "statusDefault": {
+      "operation": "status"
+    },
+    "statusCurrent": {
+      "operation": "status",
+      "protocolVersion": 1
+    },
+    "statusUnsupported": {
+      "operation": "status",
+      "protocolVersion": 2
+    },
+    "statusUnknownField": {
+      "operation": "status",
+      "unexpected": true
+    }
   },
-  "events": ["progress", "result", "error"],
+  "events": [
+    "progress",
+    "result",
+    "error"
+  ],
   "status": {
     "requiredFields": [
       "ready",
@@ -67,7 +84,8 @@
       "undo_redo",
       "stacking",
       "group_parenting",
-      "group_ungroup"
+      "group_ungroup",
+      "component_definitions"
     ],
     "renderingCapabilities": [
       "preview",
