@@ -38,7 +38,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9 | 10 => {
+        9..=11 => {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }

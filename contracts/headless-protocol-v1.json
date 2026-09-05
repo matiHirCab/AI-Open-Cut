@@ -85,7 +85,8 @@
       "stacking",
       "group_parenting",
       "group_ungroup",
-      "component_definitions"
+      "component_definitions",
+      "typed_template_slots"
     ],
     "renderingCapabilities": [
       "preview",

@@ -94,6 +94,14 @@ fn definitions_and_durable_drafts_retain_media_through_history() {
 
 #[test]
 fn native_unused_definitions_preserve_frame_range_export_and_draft_output() {
+    let create = || {
+        let mut value = create();
+        value["tracks"] = json!([track(vec![
+            json!({"type":"text","id":"title","text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]})
+        ])]);
+        value["slots"] = json!([{"id":"title","name":"Title","kind":"text","required":true,"defaultValue":{"type":"text","value":"Slot text"},"binding":{"targetLayerId":"title","property":"text.document"},"constraints":{}}]);
+        value
+    };
     use opencut_editor_core::{ExportOptions, PreviewRangeOptions, Renderer};
     let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
         assert_ne!(std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref(), Ok("1"));
@@ -202,7 +210,7 @@ fn track(items: Vec<Value>) -> Value {
     json!({"id":"local","name":"Local","trackType":"overlay","locked":false,"hidden":false,"muted":false,"audioRole":"unassigned","ducking":null,"items":items})
 }
 fn instance(id: &str, target: &str, order: u32) -> Value {
-    json!({"id":id,"type":"component_instance","componentId":target,"startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"zIndex":0,"stackOrder":order,"hidden":false,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})
+    json!({"slotValues":{},"id":id,"type":"component_instance","componentId":target,"startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"zIndex":0,"stackOrder":order,"hidden":false,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})
 }
 fn files(core: &EditorCore, id: &str) -> (Vec<u8>, Vec<u8>) {
     let dir = core.paths().project_dir(id).unwrap();
@@ -453,6 +461,7 @@ fn numeric_boundaries_and_missing_references_publish_nothing() {
             width,
             height,
             duration_ms,
+            slots,
         } = op(valid)
         else {
             panic!()
@@ -471,7 +480,8 @@ fn numeric_boundaries_and_missing_references_publish_nothing() {
                     width,
                     height,
                     duration_ms,
-                    tracks
+                    tracks,
+                    slots,
                 }
             )
             .unwrap_err()
@@ -615,7 +625,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
         )
         .unwrap();
         let migrated = core.get_project(&id).unwrap();
-        assert_eq!(migrated.schema_version, 11);
+        assert_eq!(migrated.schema_version, 12);
         assert!(migrated.components.is_empty());
         let before = files(&core, &id);
         core.get_project(&id).unwrap();
@@ -627,7 +637,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
             .iter()
             .chain(history["redo"].as_array().unwrap())
         {
-            assert_eq!(s["schemaVersion"], 11);
+            assert_eq!(s["schemaVersion"], 12);
             assert_eq!(s["components"], json!([]));
         }
     }
@@ -639,10 +649,10 @@ fn invalid_current_and_retained_components_never_rewrite() {
     let dir = core.paths().project_dir(&id).unwrap();
     let original = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     for history_case in [false, true] {
-        for version in [0, 11, 12] {
+        for version in [0, 12, 13] {
             let mut bad = original.clone();
             bad["schemaVersion"] = json!(version);
-            if version == 11 {
+            if version == 12 {
                 let mut def = catalog()["definition"].clone();
                 def["durationMs"] = json!(0);
                 bad["components"] = json!([def]);

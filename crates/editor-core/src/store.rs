@@ -3890,7 +3890,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10]
+        for (version, phase) in [6, 9, 10, 11]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -3906,8 +3906,15 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(version);
+            if version == 11 {
+                legacy["components"] = serde_json::json!([
+                    {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[]},
+                    {"id":"outer","name":"Outer","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"component_instance","id":"instance","componentId":"leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1}]}]}
+                ]);
+            }
             let mut oldest = legacy.clone();
             oldest["schemaVersion"] = serde_json::json!(1);
+            oldest["components"] = serde_json::json!([]);
             write_json_atomic(&project_file, &legacy).unwrap();
             write_json_atomic(
                 &history_file,

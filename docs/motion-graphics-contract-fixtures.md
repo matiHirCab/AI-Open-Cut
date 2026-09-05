@@ -39,3 +39,5 @@ Rust and TypeScript share JavaScript's safe-integer boundary for fixture timing,
 ## Static Transform2D runtime adoption
 
 Issue #18 activates only static transforms in the separate contracts/transform2d-v1.json catalog. Its closed runtime payload omits fixture definition IDs/scopes and is carried by optional common visual transform2d values in schema 8. Rust and Zod consume the same valid/invalid examples; protocol and MCP catalogs retain additive compatibility. The original motion-graphics-v1 catalog remains fixture-only for all remaining concepts. See [Transform2D](transform2d.md) for exact coordinate, mutation, and rendering semantics.
+
+Runtime template slots are documented in [typed template slots](template-slots.md). Protocol 1 exposes `component_define_slots` standalone and in batches and advertises `typed_template_slots`; schema 12 stores typed definitions and overrides. The separate `contracts/template-slots-v1.json` catalog governs all eight kinds; preparatory motion-graphics-v1 records retain their fixture-only status.

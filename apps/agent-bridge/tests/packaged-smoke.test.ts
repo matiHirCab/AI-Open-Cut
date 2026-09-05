@@ -412,5 +412,10 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("completes the packaged group workflow with aliases, rollback and history", async () => {
   await verifyGroupWorkflow(client, call);
-  await verifyComponentWorkflow(client, call, directories.media);
+  await verifyComponentWorkflow(
+    client,
+    call,
+    directories.media,
+    directories.projects
+  );
 });

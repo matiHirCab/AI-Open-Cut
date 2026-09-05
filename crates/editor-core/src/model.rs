@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 11;
+pub const PROJECT_SCHEMA_VERSION: u32 = 12;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -42,13 +42,13 @@ struct ProjectDocument {
     assets: Vec<Asset>,
     tracks: serde_json::Value,
     #[serde(default)]
-    components: Option<Vec<ComponentDefinition>>,
+    components: Option<serde_json::Value>,
 }
 
 impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
-    fn try_from(value: ProjectDocument) -> Result<Self, Self::Error> {
+    fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
         if (9..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version) {
             for track in value.tracks.as_array().into_iter().flatten() {
                 for item in track["items"].as_array().into_iter().flatten() {
@@ -58,14 +58,72 @@ impl TryFrom<ProjectDocument> for Project {
                 }
             }
         }
-        if value.schema_version == 11 && value.components.is_none() {
+        if (11..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version)
+            && value.components.is_none()
+        {
             return Err("schema 11 requires components".into());
         }
-        if value.schema_version < 11 && value.components.as_ref().is_some_and(|v| !v.is_empty()) {
+        if value.schema_version < 11
+            && value
+                .components
+                .as_ref()
+                .is_some_and(|v| v.as_array().is_none_or(|v| !v.is_empty()))
+        {
             return Err("components require schema 11".into());
         }
+        if let Some(components) = value.components.as_mut() {
+            for component in components
+                .as_array_mut()
+                .ok_or("components must be an array")?
+            {
+                let fields = component
+                    .as_object_mut()
+                    .ok_or("component must be an object")?;
+                if value.schema_version < 12 {
+                    if fields
+                        .get("slots")
+                        .is_some_and(|v| v.as_array().is_none_or(|v| !v.is_empty()))
+                    {
+                        return Err("slots require schema 12".into());
+                    }
+                    fields.insert("slots".into(), serde_json::json!([]));
+                } else if !fields.contains_key("slots") {
+                    return Err("schema 12 requires slots".into());
+                }
+                for track in fields
+                    .get_mut("tracks")
+                    .and_then(serde_json::Value::as_array_mut)
+                    .into_iter()
+                    .flatten()
+                {
+                    for item in track
+                        .get_mut("items")
+                        .and_then(serde_json::Value::as_array_mut)
+                        .into_iter()
+                        .flatten()
+                    {
+                        if item["type"] == "component_instance" {
+                            if value.schema_version < 12 {
+                                if item
+                                    .get("slotValues")
+                                    .is_some_and(|v| v.as_object().is_none_or(|v| !v.is_empty()))
+                                {
+                                    return Err("slot values require schema 12".into());
+                                }
+                                item["slotValues"] = serde_json::json!({});
+                            } else if item.get("slotValues").is_none() {
+                                return Err("schema 12 requires slotValues".into());
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Ok(Self {
-            components: value.components.unwrap_or_default(),
+            components: serde_json::from_value(
+                value.components.unwrap_or_else(|| serde_json::json!([])),
+            )
+            .map_err(|e| e.to_string())?,
             schema_version: value.schema_version,
             id: value.id,
             revision: value.revision,
@@ -537,6 +595,175 @@ pub struct ComponentDefinition {
     pub height: u32,
     pub duration_ms: u64,
     pub tracks: Vec<Track>,
+    pub slots: Vec<TemplateSlot>,
+}
+
+fn deserialize_present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> Result<Option<T>, D::Error> {
+    T::deserialize(d).map(Some)
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotKind {
+    Text,
+    RichText,
+    Color,
+    Number,
+    Boolean,
+    Enum,
+    Duration,
+    Asset,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SlotProperty {
+    #[serde(rename = "text.document")]
+    TextDocument,
+    #[serde(rename = "text.color")]
+    TextColor,
+    #[serde(rename = "visual.opacity")]
+    VisualOpacity,
+    #[serde(rename = "visual.hidden")]
+    VisualHidden,
+    #[serde(rename = "text.alignment")]
+    TextAlignment,
+    #[serde(rename = "item.durationMs")]
+    ItemDuration,
+    #[serde(rename = "media.asset")]
+    MediaAsset,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SlotBinding {
+    pub target_layer_id: String,
+    pub property: SlotProperty,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SlotConstraints {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub min_length: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_length: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub min: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub choices: Option<Vec<String>>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub asset_kinds: Option<Vec<MediaType>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TemplateSlot {
+    pub id: String,
+    pub name: String,
+    pub kind: SlotKind,
+    pub required: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub default_value: Option<SlotValue>,
+    pub binding: SlotBinding,
+    pub constraints: SlotConstraints,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum SlotValue {
+    Text(String),
+    RichText(RichTextDocument),
+    Color(String),
+    Number(f64),
+    Boolean(bool),
+    Enum(String),
+    Duration(u64),
+    Asset(SlotAssetReference),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RichTextDocument {
+    pub runs: Vec<RichTextRun>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RichTextRun {
+    pub text: String,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bold: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub italic: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub color: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SlotAssetReference {
+    pub kind: SlotAssetKind,
+    pub scope: SlotAssetScope,
+    pub id: String,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotAssetKind {
+    Asset,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotAssetScope {
+    Project,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -548,6 +775,8 @@ pub struct ComponentInstanceItem {
     pub trim_start_ms: u64,
     pub duration_ms: u64,
     pub time_scale: f64,
+    #[serde(default)]
+    pub slot_values: std::collections::BTreeMap<String, SlotValue>,
     #[serde(flatten)]
     pub visual_properties: VisualProperties,
 }
@@ -952,6 +1181,8 @@ pub enum EditOperation {
         height: u32,
         duration_ms: u64,
         tracks: Vec<Track>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slots: Option<Vec<TemplateSlot>>,
     },
     ComponentUpdate {
         component_id: String,
@@ -960,6 +1191,12 @@ pub enum EditOperation {
         height: u32,
         duration_ms: u64,
         tracks: Vec<Track>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slots: Option<Vec<TemplateSlot>>,
+    },
+    ComponentDefineSlots {
+        component_id: String,
+        slots: Vec<TemplateSlot>,
     },
     ComponentDelete {
         component_id: String,
@@ -1156,6 +1393,8 @@ enum EditOperationDef {
         height: u32,
         duration_ms: u64,
         tracks: Vec<Track>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slots: Option<Vec<TemplateSlot>>,
     },
     ComponentUpdate {
         component_id: String,
@@ -1164,6 +1403,12 @@ enum EditOperationDef {
         height: u32,
         duration_ms: u64,
         tracks: Vec<Track>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slots: Option<Vec<TemplateSlot>>,
+    },
+    ComponentDefineSlots {
+        component_id: String,
+        slots: Vec<TemplateSlot>,
     },
     ComponentDelete {
         component_id: String,
@@ -1354,6 +1599,9 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "parent is required; use null to detach",
             ));
         }
+        if value.get("slots").is_some_and(serde_json::Value::is_null) {
+            return Err(serde::de::Error::custom("slots cannot be null"));
+        }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
             Some("component_create") => Some(&[
                 "operation",
@@ -1362,6 +1610,7 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "height",
                 "durationMs",
                 "tracks",
+                "slots",
             ]),
             Some("component_update") => Some(&[
                 "operation",
@@ -1371,7 +1620,9 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "height",
                 "durationMs",
                 "tracks",
+                "slots",
             ]),
+            Some("component_define_slots") => Some(&["operation", "componentId", "slots"]),
             Some("component_delete") => Some(&["operation", "componentId"]),
             Some("group_ungroup") => Some(&["operation", "groupId"]),
             Some("add_group") => Some(&[
@@ -1424,6 +1675,7 @@ impl<'de> Deserialize<'de> for BatchEditOperation {
             fields.edit,
             EditOperation::GroupUngroup { .. }
                 | EditOperation::ComponentUpdate { .. }
+                | EditOperation::ComponentDefineSlots { .. }
                 | EditOperation::ComponentDelete { .. }
         ) && fields.result_alias.is_some()
         {

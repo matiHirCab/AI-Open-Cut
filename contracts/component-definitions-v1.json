@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "runtime",
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "capability": "component_definitions",
   "limits": {
     "maxComponentDefinitions": 512,
@@ -16,7 +16,8 @@
     "width": 320,
     "height": 240,
     "durationMs": 1000,
-    "tracks": []
+    "tracks": [],
+    "slots": []
   },
   "validOperations": [
     {
@@ -134,7 +135,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 1000,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         }
       ],
       "error": null
@@ -148,7 +150,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 1000,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         },
         {
           "id": "outer",
@@ -183,11 +186,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "error": null
@@ -228,11 +233,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "error": "ITEM_NOT_FOUND"
@@ -273,11 +280,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "error": "INVALID_ARGUMENT"
@@ -318,11 +327,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         },
         {
           "id": "b",
@@ -357,11 +368,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "error": "INVALID_ARGUMENT"
@@ -375,7 +388,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 1000,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         },
         {
           "id": "leaf",
@@ -383,7 +397,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 1000,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         }
       ],
       "error": "INVALID_ARGUMENT"
@@ -397,7 +412,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 999,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         },
         {
           "id": "outer",
@@ -432,11 +448,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "error": "INVALID_ARGUMENT"
@@ -450,7 +468,8 @@
           "width": 320,
           "height": 240,
           "durationMs": 1000,
-          "tracks": []
+          "tracks": [],
+          "slots": []
         },
         {
           "id": "b",
@@ -485,11 +504,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         },
         {
           "id": "c",
@@ -524,11 +545,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         },
         {
           "id": "a",
@@ -563,7 +586,8 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 },
                 {
                   "type": "component_instance",
@@ -581,11 +605,13 @@
                     "positionY": 0,
                     "scale": 1,
                     "opacity": 1
-                  }
+                  },
+                  "slotValues": {}
                 }
               ]
             }
-          ]
+          ],
+          "slots": []
         }
       ],
       "id": "diamond"

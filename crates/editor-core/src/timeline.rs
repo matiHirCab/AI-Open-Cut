@@ -86,7 +86,10 @@ pub(crate) fn resolve_operation_aliases(
             resolve_alias(component_id, aliases)?;
             resolve_component_aliases(tracks, aliases)?;
         }
-        EditOperation::ComponentDelete { component_id } => resolve_alias(component_id, aliases)?,
+        EditOperation::ComponentDelete { component_id }
+        | EditOperation::ComponentDefineSlots { component_id, .. } => {
+            resolve_alias(component_id, aliases)?
+        }
         EditOperation::GroupUngroup { group_id } => resolve_alias(group_id, aliases)?,
         EditOperation::AddGroup {
             track_id, parent, ..
@@ -187,6 +190,7 @@ fn apply_operation_inner(
             height,
             duration_ms,
             tracks,
+            slots,
         } => {
             let id = Uuid::new_v4().to_string();
             project.components.push(crate::ComponentDefinition {
@@ -196,6 +200,7 @@ fn apply_operation_inner(
                 height,
                 duration_ms,
                 tracks,
+                slots: slots.unwrap_or_default(),
             });
             Ok((vec![id], "created component"))
         }
@@ -206,6 +211,7 @@ fn apply_operation_inner(
             height,
             duration_ms,
             tracks,
+            slots,
         } => {
             let current = project
                 .components
@@ -223,6 +229,8 @@ fn apply_operation_inner(
                     "component update alters locked tracks",
                 ));
             }
+            let slots = slots.unwrap_or_else(|| current.slots.clone());
+            validate_slot_locks(current, &slots)?;
             *current = crate::ComponentDefinition {
                 id: component_id.clone(),
                 name,
@@ -230,8 +238,22 @@ fn apply_operation_inner(
                 height,
                 duration_ms,
                 tracks,
+                slots,
             };
             Ok((vec![component_id], "updated component"))
+        }
+        EditOperation::ComponentDefineSlots {
+            component_id,
+            slots,
+        } => {
+            let current = project
+                .components
+                .iter_mut()
+                .find(|c| c.id == component_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            validate_slot_locks(current, &slots)?;
+            current.slots = slots;
+            Ok((vec![component_id], "defined component slots"))
         }
         EditOperation::ComponentDelete { component_id } => {
             let index = project
@@ -1262,6 +1284,30 @@ fn resolve_component_aliases(
     for item in tracks.iter_mut().flat_map(|t| &mut t.items) {
         if let TimelineItem::ComponentInstance(instance) = item {
             resolve_alias(&mut instance.component_id, aliases)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_slot_locks(
+    current: &crate::ComponentDefinition,
+    slots: &[crate::TemplateSlot],
+) -> Result<(), CoreError> {
+    for slot in current.slots.iter().chain(slots) {
+        let changed = !current.slots.contains(slot) || !slots.contains(slot);
+        if changed
+            && current.tracks.iter().any(|track| {
+                track.locked
+                    && track
+                        .items
+                        .iter()
+                        .any(|item| item.id() == slot.binding.target_layer_id)
+            })
+        {
+            return Err(CoreError::new(
+                ErrorCode::TrackLocked,
+                "slot edit alters a locked target",
+            ));
         }
     }
     Ok(())
