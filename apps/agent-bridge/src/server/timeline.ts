@@ -41,6 +41,79 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "item_set_z_index",
+    {
+      annotations: WRITE,
+      description: "Set visual z-index within the owning track.",
+      inputSchema: schemas.itemSetZIndex,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "item_set_z_index",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+
+  server.registerTool(
+    "item_reorder",
+    {
+      annotations: WRITE,
+      description:
+        "Move an item to a final array index without changing timing or z-index.",
+      inputSchema: schemas.itemReorder,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "item_reorder",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+
+  server.registerTool(
+    "track_reorder",
+    {
+      annotations: WRITE,
+      description: "Move a track to a final bottom-to-top array index.",
+      inputSchema: schemas.trackReorder,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "track_reorder",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+
+  server.registerTool(
     "timeline_get_items",
     {
       annotations: READ_ONLY,

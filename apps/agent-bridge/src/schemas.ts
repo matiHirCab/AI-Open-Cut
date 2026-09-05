@@ -673,10 +673,12 @@ const mediaItemSchema = z
     id,
     keyframes: z.array(keyframeSchema),
     sourceInMs: milliseconds,
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("media"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
 
@@ -690,12 +692,14 @@ const textItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     style: textStyleSchema,
     text: z.string(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("text"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
 
@@ -706,10 +710,12 @@ const solidColorItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("solid_color"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
 
@@ -749,6 +755,7 @@ const captionItemSchema = z
         words: z.array(captionWordSchema),
       })
       .strict(),
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     style: z
       .object({
@@ -762,6 +769,7 @@ const captionItemSchema = z
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("caption"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
 
@@ -771,12 +779,14 @@ const transitionItemSchema = z
     fromItemId: id,
     hidden: z.boolean(),
     id,
+    stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     toItemId: id.nullable(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     transitionType: z.enum(["fade", "crossfade"]),
     type: z.literal("transition"),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
 
@@ -851,7 +861,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(8),
+        schemaVersion: z.literal(9),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1105,6 +1115,27 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       trackId: id,
     })
     .strict(),
+  z
+    .object({
+      itemId: id,
+      operation: z.literal("item_set_z_index"),
+      zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
+    })
+    .strict(),
+  z
+    .object({
+      index: z.int().nonnegative(),
+      itemId: id,
+      operation: z.literal("item_reorder"),
+    })
+    .strict(),
+  z
+    .object({
+      index: z.int().nonnegative(),
+      operation: z.literal("track_reorder"),
+      trackId: id,
+    })
+    .strict(),
   z.object({ operation: z.literal("delete_track"), trackId: id }).strict(),
   z
     .object({
@@ -1158,6 +1189,15 @@ export const schemas = {
     .strict(),
   editorGetStatus: z
     .object({ protocolVersion: z.literal(1).optional() })
+    .strict(),
+  itemReorder: projectRevisionSchema
+    .extend({ index: z.int().nonnegative(), itemId: id })
+    .strict(),
+  itemSetZIndex: projectRevisionSchema
+    .extend({
+      itemId: id,
+      zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
+    })
     .strict(),
   jobCancel: z.object({ jobId: id }).strict(),
   jobGetStatus: z.object({ jobId: id }).strict(),
@@ -1402,6 +1442,9 @@ export const schemas = {
     })
     .strict(),
   trackDelete: projectRevisionSchema.extend({ trackId: id }).strict(),
+  trackReorder: projectRevisionSchema
+    .extend({ index: z.int().nonnegative(), trackId: id })
+    .strict(),
   trackUpdate: projectRevisionSchema
     .extend({
       audioRole: audioRoleSchema.optional(),

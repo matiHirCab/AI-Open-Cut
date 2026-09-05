@@ -74,6 +74,18 @@
         "apps/agent-bridge/src/schemas.ts",
         "apps/agent-bridge/tests/transform2d.test.ts"
       ]
+    },
+    "stacking": {
+      "canonical": "contracts/stacking-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/tests/stacking.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
+      ]
     }
   }
 }

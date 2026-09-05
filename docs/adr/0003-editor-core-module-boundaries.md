@@ -28,7 +28,7 @@ store facade ─> assets ─> persistence
      ├─────────> timeline ─> animation/validation
      └─────────> validation
 
-renderer facade ─> evaluated_scene ─> animation
+renderer facade ─> evaluated_scene ─> animation/validation
         ├────────> render_artifact ─> evaluated_scene
         │                  └───────> render_plan ─> evaluated_scene/animation
         ├────────> render_plan
@@ -42,7 +42,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | `animation` | none |
 | `assets` | `persistence` |
 | `drafts` | `persistence` |
-| `evaluated_scene` | `animation` |
+| `evaluated_scene` | `animation`, `validation` |
 | `error` | none |
 | `migrations` | none |
 | `model` | `error` |
@@ -101,3 +101,7 @@ A change that needs a new dependency edge must update this ADR and the architect
 ## Consequences
 
 The editor core gains more private modules and explicit adapter types, but callers keep one stable facade. Pure domain and planning tests no longer require filesystem or FFmpeg setup. Future `EvaluatedScene` work can replace the inward scene input without moving process or artifact concerns into the scene model.
+
+### Stacking validation boundary
+
+Scene evaluation calls the shared read-only ordering validator after complexity preflight and before resource preparation. Persistence uses the same validator. This edge enforces canonical ordinals for direct Renderer inputs, including hidden and nonvisual items, without duplicating rules or normalizing malformed state.

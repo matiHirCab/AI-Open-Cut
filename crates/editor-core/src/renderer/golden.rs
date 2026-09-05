@@ -390,7 +390,7 @@ impl Drop for GoldenFixtureLock {
 }
 
 pub(super) fn fixture_project() -> Project {
-    Project {
+    let mut project = Project {
         schema_version: PROJECT_SCHEMA_VERSION,
         id: "golden-render-fixture".into(),
         revision: 7,
@@ -521,7 +521,11 @@ pub(super) fn fixture_project() -> Project {
                 })],
             },
         ],
-    }
+    };
+    project.tracks[0].items[1]
+        .visual_properties_mut()
+        .stack_order = 1;
+    project
 }
 
 fn fixture_container_root() -> PathBuf {

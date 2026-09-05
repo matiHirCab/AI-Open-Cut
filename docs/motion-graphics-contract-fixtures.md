@@ -24,6 +24,8 @@ An activating change must keep the catalog and every affected editor-core model,
 
 ## Compatibility and versioning
 
+Issue #19 activates flat stacking through the separate runtime catalog `contracts/stacking-v1.json`. See [deterministic stacking](stacking.md) for schema-9 fields, reorder operations, alias semantics, and migration behavior. The remaining `motion-graphics-v1` concepts retain their fixture-only status.
+
 Additive optional fields or uniquely named variants can remain in version 1 only when existing consumers retain their meaning. Removing, renaming, narrowing, reinterpreting, or reusing an identifier requires a new major fixture and an explicit compatibility path. Native declarations remain hand-authored under ADR 0002; the catalog is fixture evidence, not a JSON Schema or code-generation source.
 
 ## Safety and deterministic failure fixtures

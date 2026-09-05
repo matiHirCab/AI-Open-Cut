@@ -62,7 +62,22 @@ pub(crate) fn validate_transform(transform: &Transform) -> Result<(), CoreError>
     Ok(())
 }
 
+pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreError> {
+    for track in &project.tracks {
+        for (index, item) in track.items.iter().enumerate() {
+            if item.visual_properties().stack_order as usize != index {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "stackOrder must match item array position",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
+    validate_project_stacking(project)?;
     for item in project.tracks.iter().flat_map(|track| &track.items) {
         validate_transform(&item.visual_properties().transform)?;
         if let Some(value) = &item.visual_properties().transform2d {

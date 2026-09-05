@@ -10,6 +10,7 @@ use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
     KeyframeValue, MediaType, Project, TextAlignment, TextStyle, TimelineItem, Track, Transform,
     TransitionItem, TransitionType, animation::positive_scalar_ranges,
+    validation::validate_project_stacking,
 };
 
 pub(crate) const MAX_EVALUATED_VISUAL_LAYERS: usize = 4_096;
@@ -329,6 +330,7 @@ pub(crate) fn evaluate_project(
     validate_referenced_assets(project, &asset_by_id)?;
     validate_media_source_ranges(project, &asset_by_id)?;
     let preflight = preflight_project(project, &asset_by_id)?;
+    validate_project_stacking(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
     let transition_index = index_transitions(project, &preflight.visual_item_ids)?;
     let voiceover_intervals = audible_voiceover_intervals(
@@ -523,6 +525,7 @@ pub(crate) fn evaluate_project(
             }
         }
     }
+    sort_visual_layers(project, &mut visual_layers);
     Ok(EvaluatedSceneResult {
         scene: EvaluatedScene {
             canvas: EvaluatedCanvas { width, height, fps },
@@ -537,6 +540,22 @@ pub(crate) fn evaluate_project(
             fonts: font_bindings,
         },
     })
+}
+
+fn sort_visual_layers(project: &Project, visual_layers: &mut [EvaluatedVisualLayer]) {
+    visual_layers.sort_by(|left, right| {
+        let key = |layer: &EvaluatedVisualLayer| {
+            let item = &project.tracks[layer.order.track_index].items[layer.order.item_index];
+            (
+                layer.order.track_index,
+                item.visual_properties().z_index,
+                layer.order.item_index,
+            )
+        };
+        key(left)
+            .cmp(&key(right))
+            .then_with(|| left.item_id.cmp(&right.item_id))
+    });
 }
 
 fn validate_referenced_assets(
@@ -1059,6 +1078,54 @@ mod tests {
         TextItem, TextStyle, TrackType, TransitionItem,
     };
 
+    #[test]
+    fn explicit_stacking_respects_tracks_z_index_array_ties_and_hidden_sources() {
+        let mut p = project();
+        let visual = |id: &str, z: i32, order: u32, hidden: bool| -> TimelineItem {
+            serde_json::from_value(serde_json::json!({"type":"solid_color","id":id,"color":"#ff0000","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":z,"stackOrder":order,"hidden":hidden})).unwrap()
+        };
+        p.tracks = vec![
+            track(
+                "lower",
+                TrackType::Overlay,
+                vec![
+                    visual("z-first", 4, 0, false),
+                    visual("a-second", 4, 1, false),
+                    visual("negative", -1, 2, false),
+                    visual("hidden", -99, 3, true),
+                ],
+            ),
+            track(
+                "upper",
+                TrackType::Overlay,
+                vec![visual("upper-negative", i32::MIN, 0, false)],
+            ),
+        ];
+        let before = serde_json::to_value(&p).unwrap();
+        for _ in 0..3 {
+            let evaluated = evaluate_project(&p, 160, 90, 10).unwrap();
+            assert_eq!(
+                evaluated
+                    .scene
+                    .visual_layers
+                    .iter()
+                    .map(|layer| layer.item_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["negative", "z-first", "a-second", "upper-negative"]
+            );
+            assert!(evaluated.scene.audio_layers.is_empty());
+            let mut synthesized = vec![
+                evaluated.scene.visual_layers[0].clone(),
+                evaluated.scene.visual_layers[0].clone(),
+            ];
+            synthesized[0].item_id = "z-synthesized".into();
+            synthesized[1].item_id = "a-synthesized".into();
+            sort_visual_layers(&p, &mut synthesized);
+            assert_eq!(synthesized[0].item_id, "a-synthesized");
+        }
+        assert_eq!(serde_json::to_value(&p).unwrap(), before);
+    }
+
     fn project() -> Project {
         Project {
             schema_version: crate::PROJECT_SCHEMA_VERSION,
@@ -1101,7 +1168,10 @@ mod tests {
         })
     }
 
-    fn track(id: &str, track_type: TrackType, items: Vec<TimelineItem>) -> Track {
+    fn track(id: &str, track_type: TrackType, mut items: Vec<TimelineItem>) -> Track {
+        for (index, item) in items.iter_mut().enumerate() {
+            item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
+        }
         Track {
             id: id.into(),
             name: id.into(),
@@ -1897,6 +1967,9 @@ mod tests {
                 duration_ms: 1,
                 visual_properties: crate::VisualProperties::default(),
             }));
+        self_endpoint.tracks[0].items[1]
+            .visual_properties_mut()
+            .stack_order = 1;
         let evaluated = evaluate_project(&self_endpoint, 16, 16, 1).unwrap();
         assert_eq!(
             evaluated.scene.visual_layers[0]

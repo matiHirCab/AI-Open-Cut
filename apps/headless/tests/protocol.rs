@@ -497,7 +497,7 @@ fn transform2d_round_trips_and_resets_through_public_protocol() {
     ));
     assert_eq!(update["revision"], 2);
     let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
-    assert_eq!(state["project"]["schemaVersion"], 8);
+    assert_eq!(state["project"]["schemaVersion"], 9);
     let actual: opencut_editor_core::Transform2D =
         serde_json::from_value(state["project"]["tracks"][1]["items"][0]["transform2d"].clone())
             .unwrap();
@@ -519,4 +519,58 @@ fn transform2d_round_trips_and_resets_through_public_protocol() {
             .get("transform2d")
             .is_none()
     );
+}
+
+#[test]
+fn stacking_public_protocol_and_batch_aliases() {
+    let harness = Harness::new();
+    let status = result(&harness.request(json!({"operation":"status"})));
+    assert!(
+        status["capabilities"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("stacking"))
+    );
+    let created = result(&harness.request(json!({"operation":"create_project","name":"Stacking"})));
+    let id = &created["projectId"];
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let added=result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":30,"height":20,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"box"},
+        {"operation":"item_set_z_index","itemId":"@box","zIndex":-5},
+        {"operation":"item_reorder","itemId":"@box","index":0},
+        {"operation":"track_reorder","trackId":track,"index":0}
+    ]})));
+    assert_eq!(added["revision"], 1);
+    let item = &added["aliases"]["box"];
+    for (revision, edit) in [
+        (
+            1,
+            json!({"operation":"item_set_z_index","itemId":item,"zIndex":2147483647}),
+        ),
+        (
+            2,
+            json!({"operation":"item_reorder","itemId":item,"index":0}),
+        ),
+        (
+            3,
+            json!({"operation":"track_reorder","trackId":track,"index":1}),
+        ),
+    ] {
+        assert_eq!(
+            result(&harness.request(
+                json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit})
+            ))["revision"],
+            revision + 1
+        );
+    }
+    let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(state["project"]["schemaVersion"], 9);
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["zIndex"],
+        2147483647
+    );
+    assert_eq!(state["project"]["tracks"][1]["items"][0]["stackOrder"], 0);
+    let malformed=harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":4,"edit":{"operation":"item_set_z_index","itemId":item,"zIndex":0,"url":"https://example.com"}}));
+    assert_eq!(event(&malformed)["error"]["code"], "INVALID_ARGUMENT");
 }

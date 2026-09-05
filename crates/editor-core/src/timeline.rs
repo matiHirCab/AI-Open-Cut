@@ -77,7 +77,9 @@ pub(crate) fn resolve_operation_aliases(
         | EditOperation::AddText { track_id, .. }
         | EditOperation::AddSolidColor { track_id, .. }
         | EditOperation::AddRectangle { track_id, .. } => resolve_alias(track_id, aliases)?,
-        EditOperation::UpdateItem { item_id, .. }
+        EditOperation::ItemSetZIndex { item_id, .. }
+        | EditOperation::ItemReorder { item_id, .. }
+        | EditOperation::UpdateItem { item_id, .. }
         | EditOperation::TrimItem { item_id, .. }
         | EditOperation::DeleteItem { item_id }
         | EditOperation::SetKeyframes { item_id, .. }
@@ -107,9 +109,9 @@ pub(crate) fn resolve_operation_aliases(
                 resolve_alias(value, aliases)?;
             }
         }
-        EditOperation::UpdateTrack { track_id, .. } | EditOperation::DeleteTrack { track_id } => {
-            resolve_alias(track_id, aliases)?
-        }
+        EditOperation::TrackReorder { track_id, .. }
+        | EditOperation::UpdateTrack { track_id, .. }
+        | EditOperation::DeleteTrack { track_id } => resolve_alias(track_id, aliases)?,
         EditOperation::CreateTrack { .. } => {}
     }
     Ok(())
@@ -119,7 +121,84 @@ pub(crate) fn apply_operation(
     project: &mut Project,
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
+    let (mut ids, summary) = apply_operation_inner(project, operation)?;
+    for id in normalize_stack_order(project)? {
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    Ok((ids, summary))
+}
+
+pub(crate) fn normalize_stack_order(project: &mut Project) -> Result<Vec<String>, CoreError> {
+    let mut changed = Vec::new();
+    for track in &mut project.tracks {
+        for (index, item) in track.items.iter_mut().enumerate() {
+            let order = u32::try_from(index).map_err(|_| {
+                CoreError::new(ErrorCode::InvalidArgument, "too many items for stack order")
+            })?;
+            if item.visual_properties().stack_order != order {
+                item.visual_properties_mut().stack_order = order;
+                changed.push(item.id().to_owned());
+            }
+        }
+    }
+    Ok(changed)
+}
+
+fn apply_operation_inner(
+    project: &mut Project,
+    operation: EditOperation,
+) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::ItemSetZIndex { item_id, z_index } => {
+            let (track, index) = find_item_location(project, &item_id)?;
+            if project.tracks[track].locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            let item = &project.tracks[track].items[index];
+            if matches!(item, TimelineItem::Transition(_))
+                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "z-index requires a visual source",
+                ));
+            }
+            project.tracks[track].items[index]
+                .visual_properties_mut()
+                .z_index = z_index;
+            Ok((vec![item_id], "Updated item z-index"))
+        }
+        EditOperation::ItemReorder { item_id, index } => {
+            let (track, current) = find_item_location(project, &item_id)?;
+            let track = &mut project.tracks[track];
+            if track.locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            if index >= track.items.len() {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "item index is outside the track",
+                ));
+            }
+            let item = track.items.remove(current);
+            track.items.insert(index, item);
+            Ok((vec![item_id], "Reordered item"))
+        }
+        EditOperation::TrackReorder { track_id, index } => apply_operation_inner(
+            project,
+            EditOperation::UpdateTrack {
+                track_id,
+                index: Some(index),
+                name: None,
+                locked: None,
+                hidden: None,
+                muted: None,
+                audio_role: None,
+                ducking: None,
+            },
+        ),
         EditOperation::AddMedia {
             track_id,
             asset_id,

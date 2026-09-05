@@ -1653,6 +1653,81 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "operation": {
                       "const": "delete_track",
                       "type": "string"
@@ -3108,6 +3183,81 @@
                     }
                   },
                   "required": [
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
                     "operation",
                     "trackId"
                   ],
@@ -4622,6 +4772,81 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "operation": {
                       "const": "delete_track",
                       "type": "string"
@@ -6120,6 +6345,81 @@
                     }
                   },
                   "required": [
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
                     "operation",
                     "trackId"
                   ],
@@ -8237,6 +8537,81 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "operation": {
                       "const": "delete_track",
                       "type": "string"
@@ -9654,6 +10029,81 @@
                     }
                   },
                   "required": [
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
                     "operation",
                     "trackId"
                   ],
@@ -11126,6 +11576,81 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "operation": {
                       "const": "delete_track",
                       "type": "string"
@@ -12213,6 +12738,196 @@
           "ready",
           "subsystems",
           "version"
+        ],
+        "type": "object"
+      }
+    },
+    "item_reorder": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "index": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "index",
+          "itemId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "item_set_z_index": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "zIndex": {
+            "maximum": 2147483647,
+            "minimum": -2147483648,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "itemId",
+          "zIndex"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
         ],
         "type": "object"
       }
@@ -15743,7 +16458,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 8,
+                "const": 9,
                 "type": "number"
               },
               "settings": {
@@ -16000,6 +16715,11 @@
                                 "minimum": 0,
                                 "type": "integer"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -16133,6 +16853,11 @@
                               "type": {
                                 "const": "media",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -16143,9 +16868,11 @@
                               "id",
                               "keyframes",
                               "sourceInMs",
+                              "stackOrder",
                               "startMs",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -16303,6 +17030,11 @@
                                   ]
                                 },
                                 "type": "array"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -16606,6 +17338,11 @@
                               "type": {
                                 "const": "text",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -16617,11 +17354,13 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "style",
                               "text",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -16756,6 +17495,11 @@
                                 },
                                 "type": "array"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -16889,6 +17633,11 @@
                               "type": {
                                 "const": "solid_color",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -16897,9 +17646,11 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -17039,6 +17790,11 @@
                                 },
                                 "type": "array"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -17177,6 +17933,11 @@
                                 "exclusiveMinimum": 0,
                                 "maximum": 7680,
                                 "type": "integer"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -17185,8 +17946,10 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "transform",
+                              "zIndex",
                               "height",
                               "type",
                               "width"
@@ -17315,6 +18078,11 @@
                                   "words"
                                 ],
                                 "type": "object"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -17482,6 +18250,11 @@
                               "type": {
                                 "const": "caption",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -17489,11 +18262,13 @@
                               "hidden",
                               "id",
                               "source",
+                              "stackOrder",
                               "startMs",
                               "style",
                               "text",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -17517,6 +18292,11 @@
                                 "maxLength": 128,
                                 "minLength": 1,
                                 "type": "string"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -17670,6 +18450,11 @@
                               "type": {
                                 "const": "transition",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -17677,11 +18462,13 @@
                               "fromItemId",
                               "hidden",
                               "id",
+                              "stackOrder",
                               "startMs",
                               "toItemId",
                               "transform",
                               "transitionType",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           }
@@ -18145,7 +18932,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 8,
+                "const": 9,
                 "type": "number"
               },
               "settings": {
@@ -18402,6 +19189,11 @@
                                 "minimum": 0,
                                 "type": "integer"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -18535,6 +19327,11 @@
                               "type": {
                                 "const": "media",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -18545,9 +19342,11 @@
                               "id",
                               "keyframes",
                               "sourceInMs",
+                              "stackOrder",
                               "startMs",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -18705,6 +19504,11 @@
                                   ]
                                 },
                                 "type": "array"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -19008,6 +19812,11 @@
                               "type": {
                                 "const": "text",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -19019,11 +19828,13 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "style",
                               "text",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -19158,6 +19969,11 @@
                                 },
                                 "type": "array"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -19291,6 +20107,11 @@
                               "type": {
                                 "const": "solid_color",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -19299,9 +20120,11 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -19441,6 +20264,11 @@
                                 },
                                 "type": "array"
                               },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
                               "startMs": {
                                 "maximum": 9007199254740991,
                                 "minimum": 0,
@@ -19579,6 +20407,11 @@
                                 "exclusiveMinimum": 0,
                                 "maximum": 7680,
                                 "type": "integer"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -19587,8 +20420,10 @@
                               "hidden",
                               "id",
                               "keyframes",
+                              "stackOrder",
                               "startMs",
                               "transform",
+                              "zIndex",
                               "height",
                               "type",
                               "width"
@@ -19717,6 +20552,11 @@
                                   "words"
                                 ],
                                 "type": "object"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -19884,6 +20724,11 @@
                               "type": {
                                 "const": "caption",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -19891,11 +20736,13 @@
                               "hidden",
                               "id",
                               "source",
+                              "stackOrder",
                               "startMs",
                               "style",
                               "text",
                               "transform",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -19919,6 +20766,11 @@
                                 "maxLength": 128,
                                 "minLength": 1,
                                 "type": "string"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
                               },
                               "startMs": {
                                 "maximum": 9007199254740991,
@@ -20072,6 +20924,11 @@
                               "type": {
                                 "const": "transition",
                                 "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -20079,11 +20936,13 @@
                               "fromItemId",
                               "hidden",
                               "id",
+                              "stackOrder",
                               "startMs",
                               "toItemId",
                               "transform",
                               "transitionType",
-                              "type"
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           }
@@ -25373,6 +26232,81 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_set_z_index",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "operation",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "item_reorder",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "index": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "track_reorder",
+                      "type": "string"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "index",
+                    "operation",
+                    "trackId"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "operation": {
                       "const": "delete_track",
                       "type": "string"
@@ -25907,6 +26841,11 @@
                       "minimum": 0,
                       "type": "integer"
                     },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
                     "startMs": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -26040,6 +26979,11 @@
                     "type": {
                       "const": "media",
                       "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -26050,9 +26994,11 @@
                     "id",
                     "keyframes",
                     "sourceInMs",
+                    "stackOrder",
                     "startMs",
                     "transform",
-                    "type"
+                    "type",
+                    "zIndex"
                   ],
                   "type": "object"
                 },
@@ -26210,6 +27156,11 @@
                         ]
                       },
                       "type": "array"
+                    },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
                     },
                     "startMs": {
                       "maximum": 9007199254740991,
@@ -26513,6 +27464,11 @@
                     "type": {
                       "const": "text",
                       "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -26524,11 +27480,13 @@
                     "hidden",
                     "id",
                     "keyframes",
+                    "stackOrder",
                     "startMs",
                     "style",
                     "text",
                     "transform",
-                    "type"
+                    "type",
+                    "zIndex"
                   ],
                   "type": "object"
                 },
@@ -26663,6 +27621,11 @@
                       },
                       "type": "array"
                     },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
                     "startMs": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -26796,6 +27759,11 @@
                     "type": {
                       "const": "solid_color",
                       "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -26804,9 +27772,11 @@
                     "hidden",
                     "id",
                     "keyframes",
+                    "stackOrder",
                     "startMs",
                     "transform",
-                    "type"
+                    "type",
+                    "zIndex"
                   ],
                   "type": "object"
                 },
@@ -26946,6 +27916,11 @@
                       },
                       "type": "array"
                     },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
                     "startMs": {
                       "maximum": 9007199254740991,
                       "minimum": 0,
@@ -27084,6 +28059,11 @@
                       "exclusiveMinimum": 0,
                       "maximum": 7680,
                       "type": "integer"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -27092,8 +28072,10 @@
                     "hidden",
                     "id",
                     "keyframes",
+                    "stackOrder",
                     "startMs",
                     "transform",
+                    "zIndex",
                     "height",
                     "type",
                     "width"
@@ -27222,6 +28204,11 @@
                         "words"
                       ],
                       "type": "object"
+                    },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
                     },
                     "startMs": {
                       "maximum": 9007199254740991,
@@ -27389,6 +28376,11 @@
                     "type": {
                       "const": "caption",
                       "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -27396,11 +28388,13 @@
                     "hidden",
                     "id",
                     "source",
+                    "stackOrder",
                     "startMs",
                     "style",
                     "text",
                     "transform",
-                    "type"
+                    "type",
+                    "zIndex"
                   ],
                   "type": "object"
                 },
@@ -27424,6 +28418,11 @@
                       "maxLength": 128,
                       "minLength": 1,
                       "type": "string"
+                    },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
                     },
                     "startMs": {
                       "maximum": 9007199254740991,
@@ -27577,6 +28576,11 @@
                     "type": {
                       "const": "transition",
                       "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -27584,11 +28588,13 @@
                     "fromItemId",
                     "hidden",
                     "id",
+                    "stackOrder",
                     "startMs",
                     "toItemId",
                     "transform",
                     "transitionType",
-                    "type"
+                    "type",
+                    "zIndex"
                   ],
                   "type": "object"
                 }
@@ -28903,6 +29909,101 @@
         "required": [
           "expectedRevision",
           "projectId",
+          "trackId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "track_reorder": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "index": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "index",
           "trackId"
         ],
         "type": "object"
@@ -31431,6 +32532,8 @@
     "draft_rebase",
     "draft_update",
     "editor_get_status",
+    "item_reorder",
+    "item_set_z_index",
     "job_cancel",
     "job_get_status",
     "preview_render_frame",
@@ -31466,6 +32569,7 @@
     "timeline_update_item",
     "track_create",
     "track_delete",
+    "track_reorder",
     "track_update",
     "transcription_commit_preview",
     "transcription_discard_preview",

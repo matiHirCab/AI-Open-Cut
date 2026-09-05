@@ -3,19 +3,24 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
+import STACKING from "../../../contracts/stacking-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { EVALUATED_SCENE_RENDERING_CAPABILITY } from "../src/headless-contract";
-import { headlessStatusSchema, schemas, ttsStatusSchema } from "../src/schemas";
+import {
+  headlessEditSchema,
+  headlessStatusSchema,
+  schemas,
+  ttsStatusSchema,
+} from "../src/schemas";
 import {
   MCP_RESOURCE_URIS,
   registerContextResources,
@@ -349,5 +354,32 @@ describe("canonical public contracts", () => {
     expect(normalizeJson({ description: "annotation data" })).toEqual({
       description: "annotation data",
     });
+  });
+});
+
+describe("runtime stacking contract", () => {
+  it("uses canonical strict payloads for standalone and batch schemas", () => {
+    for (const value of STACKING.valid) {
+      expect(headlessEditSchema.parse(value)).toEqual(value);
+      const { operation, ...input } = value;
+      const schema = {
+        item_reorder: schemas.itemReorder,
+        item_set_z_index: schemas.itemSetZIndex,
+        track_reorder: schemas.trackReorder,
+      }[operation as "item_set_z_index" | "item_reorder" | "track_reorder"];
+      expect(
+        schema.safeParse({
+          ...input,
+          expectedRevision: 0,
+          projectId: "project",
+        }).success
+      ).toBe(true);
+    }
+    for (const value of STACKING.invalid) {
+      expect(
+        headlessEditSchema.safeParse(value).success,
+        JSON.stringify(value)
+      ).toBe(false);
+    }
   });
 });

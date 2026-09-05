@@ -29,8 +29,9 @@ use crate::{
         project_path, read_json, recover_transaction, transaction_path, write_json_atomic,
     },
     timeline::{
-        apply_operation, bump_revision, check_revision, is_single_id_creator, now_ms, push_undo,
-        resolve_operation_aliases, validate_alias, validate_operations_against,
+        apply_operation, bump_revision, check_revision, is_single_id_creator,
+        normalize_stack_order, now_ms, push_undo, resolve_operation_aliases, validate_alias,
+        validate_operations_against,
     },
     validation::{
         validate_color, validate_draft_label, validate_duration, validate_project_settings,
@@ -459,6 +460,7 @@ impl EditorCore {
                 audio: AudioSettings::default(),
                 keyframes: vec![],
             }));
+        normalize_stack_order(&mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -1051,6 +1053,7 @@ impl EditorCore {
                 }));
             changed_ids.push(id);
         }
+        normalize_stack_order(&mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -1286,7 +1289,9 @@ fn validate_transcription_request(request: &CommitTranscriptionRequest) -> Resul
     Ok(())
 }
 
-fn write_result(project: &Project, changed_ids: Vec<String>, summary: &str) -> WriteResult {
+fn write_result(project: &Project, mut changed_ids: Vec<String>, summary: &str) -> WriteResult {
+    let mut seen = std::collections::HashSet::new();
+    changed_ids.retain(|id| seen.insert(id.clone()));
     WriteResult {
         project_id: project.id.clone(),
         revision: project.revision,
@@ -2292,6 +2297,8 @@ mod tests {
         overlay["items"] = serde_json::json!([{
             "type": "rectangle",
             "id": "defaulted-rectangle",
+            "zIndex": 0,
+            "stackOrder": 0,
             "color": "#123456",
             "width": 320,
             "height": 180,
