@@ -32,7 +32,7 @@
 - [x] 6.1 From repository root run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`; record actual outcomes in verification evidence.
 - [x] 6.2 From apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`; record actual outcomes. Python provider behavior/contracts are unchanged, so worker-specific tests are not affected; reassess if implementation changes that scope.
 - [x] 6.3 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`; use `$openspec-verify-change` and resolve every requirement/design/task/test mismatch before reporting completion.
-- [ ] 6.4 Use `$openspec-archive-change` to synchronize accepted deltas and archive the verified change, then run `moon run root:openspec-validate` with archive-only changes inventory. Report any failed or skipped required check as blocking completion.
+- [x] 6.4 Use `$openspec-archive-change` to synchronize accepted deltas and archive the verified change, then run `moon run root:openspec-validate` with archive-only changes inventory. Report any failed or skipped required check as blocking completion.
 
 ## 7. Approved review correction
 

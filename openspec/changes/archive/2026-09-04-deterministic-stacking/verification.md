@@ -6,7 +6,7 @@ Verified with openspec-verify-change against the approved proposal, amended desi
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 19/21 tasks complete; 8 requirements and 22 scenarios mapped in evidence.md |
+| Completeness | 20/21 tasks complete; 8 requirements and 22 scenarios mapped in evidence.md |
 | Correctness | All 8 requirements have implementation evidence; the confirmed rendering rejection gap is fixed and regression-tested |
 | Coherence | Shared validation owner, documented inward edge and architecture enforcement agree with the approved amendment |
 
@@ -25,7 +25,7 @@ Rust formatting, strict workspace Clippy, the full serial workspace suite (232 p
 ## CRITICAL: completion gates
 
 1. Task 4.3: canonical and consumer contract parity passes, but designated CODEOWNER @matiHirCab review of the resulting diff has not been recorded. Obtain that review; proposal and corrective-plan approval do not substitute for it.
-2. Task 6.4: after contract review, use openspec-archive-change to synchronize and archive the verified change, then rerun the pinned Moon gate. The gate currently fails specifically because deterministic-stacking remains unarchived. Do not bypass it.
+2. Task 6.4: the user explicitly requested archival after being informed that contract-owner review remains pending. Requirements are synchronized and archival is being completed under that instruction; the Moon result is recorded below. Task 4.3 remains open and this is not a contract approval.
 
 ## Warnings and suggestions
 
@@ -33,4 +33,8 @@ No unresolved implementation/spec divergence or uncovered correction scenario wa
 
 ## Assessment
 
-The rendering fix is implemented and technically verified. Two critical completion gates remain before archival/merge readiness: final contract-owner review and archive/Moon validation.
+The rendering fix is implemented and technically verified. Final contract-owner review remains required for merge readiness. The user explicitly authorized archival with that review still pending.
+
+## Archive result
+
+Archived to openspec/changes/archive/2026-09-04-deterministic-stacking under the explicit user instruction. Eight requirements were synchronized into five living specs. Pinned Moon 2.3.3 root:openspec-validate passed: 231 policy tests, all 14 living specs and CI parity policy. Task 6.4 is complete. The sole incomplete task is 4.3 (designated contract-owner review); PR #105 remains draft.

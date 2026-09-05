@@ -64,3 +64,9 @@ Final correction checks:
 - Python provider code/contracts are unchanged; hermetic provider tests are unaffected and were not rerun.
 
 No remaining rendering-boundary mismatch was found. This corrects the earlier false conformance claim rather than relying on its passing tests.
+
+## Explicit archival instruction
+
+After PR #105 was created, the user instructed "archive the spec". Archival and synchronization proceed under that explicit instruction with contract-owner review still pending; task 4.3 stays open and the PR remains draft. This instruction is not recorded as contract approval.
+
+Archive validation: pinned Moon 2.3.3 root:openspec-validate passed with 231 policy tests, 14 living specs and valid CI parity policy. Log: local-data/stacking-archive-moon.log. Eight requirements are synchronized across the five affected living specs.
