@@ -51,6 +51,7 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
     project
         .tracks
         .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|track| &track.items)
         .filter_map(|item| match item {
             TimelineItem::Media(media) => Some(AssetReference {
@@ -67,24 +68,37 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             | TimelineItem::SolidColor(_)
             | TimelineItem::Rectangle(_)
             | TimelineItem::Transition(_)
-            | TimelineItem::Group(_) => None,
+            | TimelineItem::Group(_)
+            | TimelineItem::ComponentInstance(_) => None,
         })
         .collect()
 }
 
 pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<AssetReference> {
-    draft
-        .operations
-        .iter()
-        .filter_map(|operation| match operation {
-            EditOperation::AddMedia { asset_id, .. } => Some(AssetReference {
-                asset_id: asset_id.clone(),
-                kind: AssetReferenceKind::DraftOperation,
-                owner_id: draft.id.to_owned(),
-            }),
-            _ => None,
-        })
-        .collect()
+    let mut references = Vec::new();
+    for operation in draft.operations {
+        let mut ids = Vec::new();
+        match operation {
+            EditOperation::AddMedia { asset_id, .. } => ids.push(asset_id.clone()),
+            EditOperation::ComponentCreate { tracks, .. }
+            | EditOperation::ComponentUpdate { tracks, .. } => {
+                for item in tracks.iter().flat_map(|t| &t.items) {
+                    match item {
+                        TimelineItem::Media(v) => ids.push(v.asset_id.clone()),
+                        TimelineItem::Caption(v) => ids.push(v.source.asset_id.clone()),
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+        references.extend(ids.into_iter().map(|asset_id| AssetReference {
+            asset_id,
+            kind: AssetReferenceKind::DraftOperation,
+            owner_id: draft.id.to_owned(),
+        }));
+    }
+    references
 }
 
 pub(crate) fn blocking_asset_reference(
@@ -551,6 +565,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,

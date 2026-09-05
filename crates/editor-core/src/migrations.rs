@@ -38,7 +38,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9 => {
+        9 | 10 => {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
@@ -59,6 +59,7 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            components: vec![],
             schema_version,
             id: "project".into(),
             revision: 0,

@@ -771,6 +771,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,
@@ -1783,6 +1784,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "voiceover-activity".into(),
             revision: 0,
@@ -1883,6 +1885,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,
@@ -2089,6 +2092,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,
@@ -2159,6 +2163,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,
@@ -2236,6 +2241,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "renderer-consistency".into(),
             revision: 7,
@@ -2485,6 +2491,7 @@ mod tests {
             ],
         };
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "unsplit".into(),
             revision: 0,
@@ -2791,6 +2798,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
             revision: 0,

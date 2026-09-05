@@ -107,6 +107,66 @@ fn result(output: &Output) -> Value {
 }
 
 #[test]
+fn component_protocol_aliases_failures_and_exact_history() {
+    let harness = Harness::new();
+    let created =
+        result(&harness.request(json!({"operation":"create_project","name":"Components"})));
+    let id = created["projectId"].as_str().unwrap();
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/component-definitions-v1.json"
+    ))
+    .unwrap();
+    let mut create = catalog["validOperations"][0].clone();
+    create["resultAlias"] = json!("leaf");
+    let batch = result(&harness.request(
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[create]}),
+    ));
+    let component = batch["aliases"]["leaf"].clone();
+    let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(state["project"]["schemaVersion"], 11);
+    assert_eq!(state["project"]["components"][0]["id"], component);
+    let dir = harness.root.path().join("projects").join(id);
+    let before = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    for (revision, edit, code) in [
+        (
+            0,
+            json!({"operation":"component_delete","componentId":component}),
+            "REVISION_CONFLICT",
+        ),
+        (
+            1,
+            json!({"operation":"component_delete","componentId":"missing"}),
+            "ITEM_NOT_FOUND",
+        ),
+        (
+            1,
+            json!({"operation":"component_delete","componentId":component,"resultAlias":null}),
+            "INVALID_ARGUMENT",
+        ),
+    ] {
+        let output = harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[catalog["validOperations"][0],edit]}));
+        let failed = event(&output);
+        assert_eq!(failed["error"]["code"], code);
+        assert_eq!(failed["error"]["retryable"], code == "REVISION_CONFLICT");
+        assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before.0);
+        assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), before.1);
+    }
+    result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"component_delete","componentId":component}})));
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    let restored = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        restored["project"]["components"],
+        state["project"]["components"]
+    );
+    result(&harness.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})));
+    let removed = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(removed["project"]["components"], json!([]));
+}
+
+#[test]
 fn create_read_and_edit_use_result_envelopes_and_typed_ids() {
     let harness = Harness::new();
     let created = result(&harness.request(json!({
@@ -763,6 +823,46 @@ fn ungroup_null_alias_batch_is_rejected_before_any_publication() {
                     ["revision"],
                 1
             );
+        }
+    }
+}
+
+#[test]
+fn component_nested_input_failures_preserve_headless_generation() {
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/component-definitions-v1.json"
+    ))
+    .unwrap();
+    let harness = Harness::new();
+    let created =
+        result(&harness.request(json!({"operation":"create_project","name":"Nested validation"})));
+    let id = created["projectId"].as_str().unwrap();
+    let dir = harness.root.path().join("projects").join(id);
+    let before = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    for fixture in catalog["itemValidationFixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| {
+            f["valid"] == false && f["operation"]["tracks"][0]["items"][0]["type"] == "text"
+        })
+    {
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":fixture["operation"]}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[catalog["validOperations"][0],fixture["operation"]]}),
+        ] {
+            let failed = event(&harness.request(request));
+            assert_eq!(
+                failed["error"]["code"], "INVALID_ARGUMENT",
+                "{}",
+                fixture["id"]
+            );
+            assert_eq!(failed["error"]["retryable"], false);
+            assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before.0);
+            assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), before.1);
         }
     }
 }

@@ -671,6 +671,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "stacking",
         "group_parenting",
         "group_ungroup",
+        "component_definitions",
     ]
 }
 

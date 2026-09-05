@@ -41,6 +41,78 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "component_create",
+    {
+      annotations: WRITE,
+      description:
+        "Create a stored component definition; instances are not yet rendered.",
+      inputSchema: schemas.componentCreate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_create",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "component_update",
+    {
+      annotations: DESTRUCTIVE,
+      description:
+        "Update a stored component definition; instances are not yet rendered.",
+      inputSchema: schemas.componentUpdate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_update",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "component_delete",
+    {
+      annotations: DESTRUCTIVE,
+      description:
+        "Delete a stored component definition; instances are not yet rendered.",
+      inputSchema: schemas.componentDelete,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_delete",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "group_ungroup",
     {
       annotations: DESTRUCTIVE,

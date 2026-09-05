@@ -101,13 +101,32 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
 }
 
 pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> {
-    let invalid = |message| CoreError::new(ErrorCode::InvalidArgument, message);
+    if project
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .any(|i| matches!(i, TimelineItem::ComponentInstance(_)))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "root component instances are not supported",
+        ));
+    }
+    validate_scope(project, &project.tracks, "root")?;
+    validate_components(project)
+}
+
+fn validate_scope(
+    project: &Project,
+    tracks: &[crate::Track],
+    scope: &str,
+) -> Result<(), CoreError> {
+    let invalid = |message: &str| CoreError::new(ErrorCode::InvalidArgument, message);
     let is_visual = |item: &TimelineItem| {
         !matches!(item, TimelineItem::Transition(_))
             && !matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
     };
-    if project
-        .tracks
+    if tracks
         .iter()
         .flat_map(|track| &track.items)
         .filter(|item| is_visual(item))
@@ -117,7 +136,7 @@ pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> 
         return Err(invalid("maxLayersPerComposition exceeded"));
     }
     let mut index = BTreeMap::new();
-    for track in &project.tracks {
+    for track in tracks {
         for item in &track.items {
             if index.insert(item.id(), item).is_some() {
                 return Err(invalid("duplicate timeline item ID"));
@@ -144,18 +163,23 @@ pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> 
             }
         }
     }
-    for item in project.tracks.iter().flat_map(|track| &track.items) {
+    for item in tracks.iter().flat_map(|track| &track.items) {
         if let TimelineItem::Transition(transition) = item
             && std::iter::once(&transition.from_item_id)
                 .chain(transition.to_item_id.iter())
-                .any(|id| matches!(index.get(id.as_str()), Some(TimelineItem::Group(_))))
+                .any(|id| {
+                    matches!(
+                        index.get(id.as_str()),
+                        Some(TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
+                    )
+                })
         {
             return Err(invalid("groups cannot be transition endpoints"));
         }
         let mut current = item;
         let mut visited = vec![item.id()];
         while let Some(parent) = &current.visual_properties().parent {
-            if parent.scope != "root"
+            if parent.scope != scope
                 || parent.id.is_empty()
                 || parent.id.len() > 128
                 || !parent
@@ -380,6 +404,294 @@ pub(crate) fn validate_item_track(item: &TimelineItem, track: TrackType) -> Resu
         }
         _ => Ok(()),
     }
+}
+
+pub(crate) fn validate_components(project: &Project) -> Result<(), CoreError> {
+    let invalid = |message: &str| CoreError::new(ErrorCode::InvalidArgument, message);
+    let safe_time = 9_007_199_254_740_991u64;
+    if project.components.len() > 512
+        || project
+            .components
+            .iter()
+            .map(|c| c.tracks.len())
+            .sum::<usize>()
+            > 4096
+        || project
+            .components
+            .iter()
+            .flat_map(|c| &c.tracks)
+            .map(|t| t.items.len())
+            .sum::<usize>()
+            > 4096
+    {
+        return Err(invalid("component collection limit exceeded"));
+    }
+    let identifier = |id: &str| {
+        !id.is_empty()
+            && id.len() <= 128
+            && id
+                .bytes()
+                .all(|v| v.is_ascii_alphanumeric() || matches!(v, b'_' | b'-'))
+    };
+    let mut definitions = BTreeMap::new();
+    for (i, component) in project.components.iter().enumerate() {
+        if !identifier(&component.id) || definitions.insert(component.id.as_str(), i).is_some() {
+            return Err(invalid("invalid or duplicate component ID"));
+        }
+    }
+    let mut edges = vec![Vec::new(); project.components.len()];
+    for (i, component) in project.components.iter().enumerate() {
+        if component.name.trim().is_empty()
+            || component.name.len() > 4096
+            || component.width == 0
+            || component.width > 7680
+            || component.height == 0
+            || component.height > 4320
+            || component.duration_ms == 0
+            || component.duration_ms > safe_time
+        {
+            return Err(invalid("invalid component metadata"));
+        }
+        validate_scope(
+            project,
+            &component.tracks,
+            &format!("component:{}", component.id),
+        )
+        .map_err(|error| {
+            if error.code == ErrorCode::ItemNotFound {
+                error
+            } else {
+                invalid(&error.message)
+            }
+        })?;
+        let mut track_ids = std::collections::BTreeSet::new();
+        for track in &component.tracks {
+            if !identifier(&track.id)
+                || !track_ids.insert(&track.id)
+                || track.name.trim().is_empty()
+                || track.name.len() > 128
+            {
+                return Err(invalid("invalid or duplicate local track ID"));
+            }
+            validate_track_audio_settings(
+                track.track_type,
+                track.audio_role,
+                track.ducking.as_ref(),
+            )
+            .map_err(|e| invalid(&e.message))?;
+            for (position, item) in track.items.iter().enumerate() {
+                if !identifier(item.id())
+                    || item.duration_ms() == 0
+                    || item.duration_ms() > safe_time
+                    || item.start_ms() > safe_time
+                    || item
+                        .start_ms()
+                        .checked_add(item.duration_ms())
+                        .is_none_or(|end| end > component.duration_ms)
+                    || item.visual_properties().stack_order as usize != position
+                {
+                    return Err(invalid(
+                        "invalid component item identity, interval or ordering",
+                    ));
+                }
+                validate_item_track(item, track.track_type).map_err(|e| invalid(&e.message))?;
+                validate_transform(&item.visual_properties().transform)
+                    .map_err(|e| invalid(&e.message))?;
+                if let Some(transform) = item.visual_properties().transform2d {
+                    transform.validate()?;
+                }
+                if item.keyframes().len() > 10_000 {
+                    return Err(invalid("component keyframe limit exceeded"));
+                }
+                validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
+                if item.keyframes().iter().any(|key| {
+                    key.time_ms > safe_time
+                        || (key.property == KeyframeProperty::Volume
+                            && !matches!(item, TimelineItem::Media(_)))
+                }) {
+                    return Err(invalid("invalid component keyframe time or item property"));
+                }
+                if item.visual_properties().transform2d.is_some()
+                    && item
+                        .keyframes()
+                        .iter()
+                        .any(|k| k.property != KeyframeProperty::Volume)
+                {
+                    return Err(invalid("Transform2D conflicts with legacy keyframes"));
+                }
+                match item {
+                    TimelineItem::ComponentInstance(instance) => {
+                        if track.track_type != TrackType::Overlay
+                            || instance.visual_properties.transform != Transform::default()
+                            || !instance.time_scale.is_finite()
+                            || instance.time_scale <= 0.0
+                            || instance.trim_start_ms > safe_time
+                        {
+                            return Err(invalid("invalid nested component instance"));
+                        }
+                        let target =
+                            *definitions
+                                .get(instance.component_id.as_str())
+                                .ok_or_else(|| {
+                                    CoreError::new(
+                                        ErrorCode::ItemNotFound,
+                                        "component definition not found",
+                                    )
+                                })?;
+                        let source_end = instance.trim_start_ms as f64
+                            + instance.duration_ms as f64 * instance.time_scale;
+                        if !source_end.is_finite()
+                            || source_end > project.components[target].duration_ms as f64
+                        {
+                            return Err(invalid(
+                                "component instance source interval exceeds definition duration",
+                            ));
+                        }
+                        edges[i].push(target);
+                    }
+                    TimelineItem::Media(media) => {
+                        let asset = project
+                            .assets
+                            .iter()
+                            .find(|a| a.id == media.asset_id)
+                            .ok_or_else(|| {
+                                CoreError::new(
+                                    ErrorCode::ItemNotFound,
+                                    "component media asset not found",
+                                )
+                            })?;
+                        validate_track_media(track.track_type, asset.media_type)
+                            .map_err(|e| invalid(&e.message))?;
+                        validate_audio(&media.audio).map_err(|e| invalid(&e.message))?;
+                        if media.audio.fade_in_ms > safe_time || media.audio.fade_out_ms > safe_time
+                        {
+                            return Err(invalid("component media fade exceeds safe integer time"));
+                        }
+                        let end = media
+                            .source_in_ms
+                            .checked_add(media.duration_ms)
+                            .ok_or_else(|| invalid("media source interval overflows"))?;
+                        if media.source_in_ms > safe_time
+                            || (asset.media_type != MediaType::Image
+                                && asset.duration_ms.is_some_and(|d| end > d))
+                        {
+                            return Err(invalid("component media interval exceeds asset"));
+                        }
+                        if asset.media_type == MediaType::Audio
+                            && media.visual_properties.transform2d.is_some()
+                        {
+                            return Err(invalid("audio cannot use Transform2D"));
+                        }
+                    }
+                    TimelineItem::Text(text) => {
+                        validate_text(&text.text, text.font_size, &text.color)
+                            .map_err(|e| invalid(&e.message))?;
+                        validate_text_style(&text.style).map_err(|e| invalid(&e.message))?;
+                    }
+                    TimelineItem::SolidColor(shape) => {
+                        validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
+                    }
+                    TimelineItem::Rectangle(shape) => {
+                        validate_dimensions(shape.width, shape.height)
+                            .map_err(|e| invalid(&e.message))?;
+                        validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
+                    }
+                    TimelineItem::Caption(caption) => {
+                        if !project
+                            .assets
+                            .iter()
+                            .any(|a| a.id == caption.source.asset_id)
+                        {
+                            return Err(CoreError::new(
+                                ErrorCode::ItemNotFound,
+                                "component caption asset not found",
+                            ));
+                        }
+                        validate_text(&caption.text, caption.style.font_size, &caption.style.color)
+                            .map_err(|e| invalid(&e.message))?;
+                        validate_color(&caption.style.background_color)
+                            .map_err(|e| invalid(&e.message))?;
+                        let source = &caption.source;
+                        let confidence_valid = |value: Option<f64>| {
+                            value.is_none_or(|v| v.is_finite() && (0.0..=1.0).contains(&v))
+                        };
+                        if source.provider_id.trim().is_empty()
+                            || source.provider_id.len() > 128
+                            || source.model_id.trim().is_empty()
+                            || source.model_id.len() > 128
+                            || source.language.trim().is_empty()
+                            || source.model_version.as_ref().is_some_and(|v| v.is_empty())
+                            || source.original_text.trim().is_empty()
+                            || source.original_text.len() > 4096
+                            || source.generated_at_ms == 0
+                            || source.generated_at_ms > safe_time
+                            || !confidence_valid(source.confidence)
+                            || caption.style.bottom_margin_px > 4320
+                            || source.words.iter().any(|word| {
+                                word.word.trim().is_empty()
+                                    || word.start_ms > safe_time
+                                    || word.end_ms > safe_time
+                                    || word.start_ms >= word.end_ms
+                                    || !confidence_valid(word.confidence)
+                            })
+                        {
+                            return Err(invalid("invalid component caption provenance or style"));
+                        }
+                    }
+                    TimelineItem::Transition(transition) => {
+                        for id in std::iter::once(&transition.from_item_id)
+                            .chain(transition.to_item_id.iter())
+                        {
+                            if !component
+                                .tracks
+                                .iter()
+                                .flat_map(|t| &t.items)
+                                .any(|v| v.id() == id)
+                            {
+                                return Err(CoreError::new(
+                                    ErrorCode::ItemNotFound,
+                                    "component transition endpoint not found",
+                                ));
+                            }
+                        }
+                        if transition.visual_properties.transform2d.is_some() {
+                            return Err(invalid("transition cannot use Transform2D"));
+                        }
+                    }
+                    TimelineItem::Group(_) => {}
+                }
+            }
+        }
+    }
+    // A bounded iterative leaf removal computes the longest path without recursive expansion.
+    let mut depths = vec![None; edges.len()];
+    for _ in 0..=edges.len() {
+        let mut progress = false;
+        for (i, children) in edges.iter().enumerate() {
+            if depths[i].is_some() {
+                continue;
+            }
+            if children.iter().all(|child| depths[*child].is_some()) {
+                let depth = children
+                    .iter()
+                    .map(|child| depths[*child].unwrap() + 1usize)
+                    .max()
+                    .unwrap_or(0);
+                if depth > 16 {
+                    return Err(invalid("maxComponentDepth exceeded"));
+                }
+                depths[i] = Some(depth);
+                progress = true;
+            }
+        }
+        if depths.iter().all(Option::is_some) {
+            return Ok(());
+        }
+        if !progress {
+            return Err(invalid("component dependency cycle"));
+        }
+    }
+    Err(invalid("component dependency cycle"))
 }
 
 #[cfg(test)]

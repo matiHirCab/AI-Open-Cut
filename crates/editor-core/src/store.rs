@@ -210,6 +210,7 @@ impl EditorCore {
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
+            components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: id.clone(),
             revision: 0,
@@ -3889,7 +3890,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9]
+        for (version, phase) in [6, 9, 10]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -4066,6 +4067,7 @@ mod tests {
             ProjectTransaction {
                 version: TRANSACTION_VERSION,
                 project: Project {
+                    components: vec![],
                     id: "different-project".into(),
                     ..project.clone()
                 },

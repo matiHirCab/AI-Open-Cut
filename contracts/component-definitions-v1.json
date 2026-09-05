@@ -1,0 +1,2780 @@
+{
+  "version": 1,
+  "status": "runtime",
+  "schemaVersion": 11,
+  "capability": "component_definitions",
+  "limits": {
+    "maxComponentDefinitions": 512,
+    "maxComponentDepth": 16,
+    "maxComponentTracks": 4096,
+    "maxComponentItems": 4096,
+    "maxSafeTimeMs": 9007199254740991
+  },
+  "definition": {
+    "id": "leaf",
+    "name": "Leaf",
+    "width": 320,
+    "height": 240,
+    "durationMs": 1000,
+    "tracks": []
+  },
+  "validOperations": [
+    {
+      "name": "Leaf",
+      "width": 320,
+      "height": 240,
+      "durationMs": 1000,
+      "tracks": [],
+      "operation": "component_create"
+    },
+    {
+      "name": "Leaf",
+      "width": 320,
+      "height": 240,
+      "durationMs": 1000,
+      "tracks": [],
+      "operation": "component_update",
+      "componentId": "leaf"
+    },
+    {
+      "operation": "component_delete",
+      "componentId": "leaf"
+    },
+    {
+      "operation": "component_create",
+      "name": "Defaults",
+      "width": 320,
+      "height": 240,
+      "durationMs": 1000,
+      "tracks": [
+        {
+          "id": "local",
+          "name": "Local",
+          "trackType": "overlay",
+          "items": [
+            {
+              "type": "group",
+              "id": "group",
+              "startMs": 0,
+              "durationMs": 1000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "invalidOperations": [
+    {
+      "name": "Leaf",
+      "width": 320,
+      "height": 240,
+      "durationMs": null,
+      "tracks": [],
+      "operation": "component_create"
+    },
+    {
+      "name": "Leaf",
+      "width": 320,
+      "height": 240,
+      "durationMs": 1000,
+      "tracks": [],
+      "operation": "component_create",
+      "unknown": true
+    },
+    {
+      "operation": "component_delete"
+    },
+    {
+      "operation": "component_delete",
+      "componentId": "leaf",
+      "resultAlias": null
+    }
+  ],
+  "migration": {
+    "sourceVersions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "targetVersion": 11,
+    "defaultComponents": [],
+    "undoVersions": [
+      1,
+      8,
+      10
+    ],
+    "redoVersions": [
+      7,
+      9,
+      10
+    ]
+  },
+  "semantics": {
+    "identity": "project-unique definition IDs; composition-local track/item IDs",
+    "time": "explicit positive integer milliseconds; local and mapped source ends must fit; no clamping",
+    "graph": "derive references from nested instances; validate all definitions; longest-path edge depth; shared dependencies allowed",
+    "rootPlacement": "rejected until instance evaluation is activated",
+    "mutation": "ordered atomic standalone/batch edits with existing revisions and undo/redo; only creation produces aliases",
+    "reader": "schema 11 required; migrate all retained history; no downgrade"
+  },
+  "semanticFixtures": [
+    {
+      "id": "empty",
+      "components": [
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": []
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "nested",
+      "components": [
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": []
+        },
+        {
+          "id": "outer",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "leaf",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "missing",
+      "components": [
+        {
+          "id": "outer",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "missing",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": "ITEM_NOT_FOUND"
+    },
+    {
+      "id": "self_cycle",
+      "components": [
+        {
+          "id": "self",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "self",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "indirect_cycle",
+      "components": [
+        {
+          "id": "a",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "b",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "a",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "duplicate_definition",
+      "components": [
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": []
+        },
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": []
+        }
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "source_duration",
+      "components": [
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 999,
+          "tracks": []
+        },
+        {
+          "id": "outer",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "leaf",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "error": null,
+      "components": [
+        {
+          "id": "leaf",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": []
+        },
+        {
+          "id": "b",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "leaf",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "leaf",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "a",
+          "name": "Leaf",
+          "width": 320,
+          "height": 240,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "local",
+              "name": "Local",
+              "trackType": "overlay",
+              "hidden": false,
+              "locked": false,
+              "muted": false,
+              "audioRole": "unassigned",
+              "ducking": null,
+              "items": [
+                {
+                  "type": "component_instance",
+                  "id": "nested",
+                  "componentId": "b",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 0,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                },
+                {
+                  "type": "component_instance",
+                  "id": "other",
+                  "componentId": "c",
+                  "startMs": 0,
+                  "trimStartMs": 0,
+                  "durationMs": 1000,
+                  "timeScale": 1,
+                  "hidden": false,
+                  "zIndex": 0,
+                  "stackOrder": 1,
+                  "transform": {
+                    "positionX": 0,
+                    "positionY": 0,
+                    "scale": 1,
+                    "opacity": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "id": "diamond"
+    }
+  ],
+  "itemValidationFixtures": [
+    {
+      "id": "keyframe-zero",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "opacity",
+                    "timeMs": 0,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "keyframe-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "opacity",
+                    "timeMs": 9007199254740991,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "keyframe-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "opacity",
+                    "timeMs": 9007199254740992,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "keyframe-negative",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "opacity",
+                    "timeMs": -1,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": false,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "keyframe-fractional",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "opacity",
+                    "timeMs": 0.5,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": false,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "volume-text",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "text",
+                "id": "text",
+                "text": "Hello",
+                "fontSize": 24,
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "volume",
+                    "timeMs": 0,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "volume-solid_color",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "solid_color",
+                "id": "text",
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "volume",
+                    "timeMs": 0,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "volume-rectangle",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "rectangle",
+                "id": "text",
+                "color": "#ffffff",
+                "startMs": 0,
+                "durationMs": 1000,
+                "keyframes": [
+                  {
+                    "property": "volume",
+                    "timeMs": 0,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ],
+                "width": 20,
+                "height": 20
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "volume-media",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "media",
+                "id": "media",
+                "assetId": "component-fixture-asset",
+                "startMs": 0,
+                "durationMs": 1000,
+                "sourceInMs": 0,
+                "audio": {
+                  "volume": 1,
+                  "muted": false,
+                  "fadeInMs": 0,
+                  "fadeOutMs": 0
+                },
+                "keyframes": [
+                  {
+                    "property": "volume",
+                    "timeMs": 0,
+                    "value": {
+                      "type": "scalar",
+                      "value": 1
+                    },
+                    "easing": "linear"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "fadeInMs-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "media",
+                "id": "media",
+                "assetId": "component-fixture-asset",
+                "startMs": 0,
+                "durationMs": 1000,
+                "sourceInMs": 0,
+                "audio": {
+                  "volume": 1,
+                  "muted": false,
+                  "fadeInMs": 9007199254740991,
+                  "fadeOutMs": 0
+                },
+                "keyframes": []
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "fadeInMs-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "media",
+                "id": "media",
+                "assetId": "component-fixture-asset",
+                "startMs": 0,
+                "durationMs": 1000,
+                "sourceInMs": 0,
+                "audio": {
+                  "volume": 1,
+                  "muted": false,
+                  "fadeInMs": 9007199254740992,
+                  "fadeOutMs": 0
+                },
+                "keyframes": []
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "fadeOutMs-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "media",
+                "id": "media",
+                "assetId": "component-fixture-asset",
+                "startMs": 0,
+                "durationMs": 1000,
+                "sourceInMs": 0,
+                "audio": {
+                  "volume": 1,
+                  "muted": false,
+                  "fadeInMs": 0,
+                  "fadeOutMs": 9007199254740991
+                },
+                "keyframes": []
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "fadeOutMs-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "overlay",
+            "items": [
+              {
+                "type": "media",
+                "id": "media",
+                "assetId": "component-fixture-asset",
+                "startMs": 0,
+                "durationMs": 1000,
+                "sourceInMs": 0,
+                "audio": {
+                  "volume": 1,
+                  "muted": false,
+                  "fadeInMs": 0,
+                  "fadeOutMs": 9007199254740992
+                },
+                "keyframes": []
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "caption-moved-words",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "caption-empty-words",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": []
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "caption-confidence-zero",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "confidence": 0
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "word-confidence-zero",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000,
+                      "confidence": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "caption-confidence-one",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "confidence": 1
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "word-confidence-one",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000,
+                      "confidence": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "caption-confidence-null",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "confidence": null
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "word-confidence-null",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000,
+                      "confidence": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "caption-confidence-negative",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "confidence": -0.1
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "word-confidence-negative",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000,
+                      "confidence": -0.1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "caption-confidence-high",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "confidence": 1.1
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "word-confidence-high",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000,
+                      "confidence": 1.1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "providerId-blank",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": " ",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "providerId-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "providerId-long",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "modelId-blank",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": " ",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "modelId-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "modelId-long",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "language-blank",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": " ",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "version-empty",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ],
+                  "modelVersion": ""
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "original-blank",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": " ",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "original-long",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "word-blank",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": " ",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "word-zero-interval",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 2000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "word-negative-interval",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 1999
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "margin-overflow",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4321
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": false
+    },
+    {
+      "id": "generation-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 9007199254740991,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "generation-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 9007199254740992,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "word-end-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 9007199254740991
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "word-end-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 9007199254740992
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "word-start-max",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 9007199254740990,
+                      "endMs": 9007199254740991
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": true,
+      "valid": true
+    },
+    {
+      "id": "word-start-unsafe",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 1,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 9007199254740991,
+                      "endMs": 9007199254740992
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    },
+    {
+      "id": "generation-zero",
+      "operation": {
+        "name": "Leaf",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "local",
+            "name": "Local",
+            "trackType": "caption",
+            "items": [
+              {
+                "type": "caption",
+                "id": "caption",
+                "text": "Moved",
+                "startMs": 0,
+                "durationMs": 1000,
+                "style": {
+                  "fontSize": 24,
+                  "color": "#ffffff",
+                  "backgroundColor": "#000000",
+                  "bottomMarginPx": 4320
+                },
+                "source": {
+                  "assetId": "component-fixture-asset",
+                  "providerId": "provider",
+                  "modelId": "model",
+                  "language": "en",
+                  "generatedAtMs": 0,
+                  "originalText": "Original",
+                  "words": [
+                    {
+                      "word": "Original",
+                      "startMs": 2000,
+                      "endMs": 3000
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "operation": "component_create"
+      },
+      "rustDecode": true,
+      "mcpAccept": false,
+      "valid": false
+    }
+  ]
+}
