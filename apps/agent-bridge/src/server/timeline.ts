@@ -41,6 +41,54 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "add_group",
+    {
+      annotations: WRITE,
+      description:
+        "Create a non-drawing static transform group on an overlay track.",
+      inputSchema: schemas.addGroup,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_group",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "item_set_parent",
+    {
+      annotations: WRITE,
+      description:
+        "Set a root group parent, or detach with null, preserving local transforms.",
+      inputSchema: schemas.itemSetParent,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "item_set_parent",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "item_set_z_index",
     {
       annotations: WRITE,

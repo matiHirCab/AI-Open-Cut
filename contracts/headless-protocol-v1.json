@@ -65,7 +65,8 @@
       "audio_roles",
       "audio_ducking",
       "undo_redo",
-      "stacking"
+      "stacking",
+      "group_parenting"
     ],
     "renderingCapabilities": [
       "preview",

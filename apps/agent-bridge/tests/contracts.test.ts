@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
+import GROUPS from "../../../contracts/group-parent-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
@@ -379,6 +380,50 @@ describe("runtime stacking contract", () => {
       expect(
         headlessEditSchema.safeParse(value).success,
         JSON.stringify(value)
+      ).toBe(false);
+    }
+  });
+});
+
+describe("runtime group contract", () => {
+  it("leaves canonical graph failures to core semantic validation", () => {
+    for (const fixture of GROUPS.graphFailures) {
+      const edges =
+        "parents" in fixture ? fixture.parents : [["child", "group"]];
+      for (const [itemId, id] of edges) {
+        expect(
+          headlessEditSchema.safeParse({
+            itemId,
+            operation: "item_set_parent",
+            parent: { id, scope: "scope" in fixture ? fixture.scope : "root" },
+          }).success,
+          fixture.id
+        ).toBe(true);
+      }
+    }
+  });
+  it("accepts canonical typed standalone and batch inputs and rejects malformed fields", () => {
+    for (const fixture of GROUPS.valid) {
+      expect(
+        headlessEditSchema.safeParse(fixture.value).success,
+        fixture.id
+      ).toBe(true);
+      const { operation, ...input } = fixture.value;
+      const schema =
+        operation === "add_group" ? schemas.addGroup : schemas.itemSetParent;
+      expect(
+        schema.safeParse({
+          expectedRevision: 0,
+          projectId: "project",
+          ...input,
+        }).success,
+        fixture.id
+      ).toBe(true);
+    }
+    for (const fixture of GROUPS.invalid) {
+      expect(
+        headlessEditSchema.safeParse(fixture.value).success,
+        fixture.id
       ).toBe(false);
     }
   });

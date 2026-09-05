@@ -3,6 +3,19 @@
   "strategy": "fixture-governed-manual-synchronization",
   "reviewer": "@matiHirCab",
   "categories": {
+    "groupParent": {
+      "canonical": "contracts/group-parent-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/validation.rs",
+        "crates/editor-core/tests/groups.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
+      ]
+    },
     "headlessProtocol": {
       "canonical": "contracts/headless-protocol-v1.json",
       "consumers": [

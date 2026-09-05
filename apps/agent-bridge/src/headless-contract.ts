@@ -17,6 +17,20 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | {
+      operation: "add_group";
+      trackId: string;
+      startMs: number;
+      durationMs: number;
+      transform2d?: z.infer<typeof transform2dSchema> | null | undefined;
+      parent?: { scope: string; id: string } | null | undefined;
+      resultAlias?: string | undefined;
+    }
+  | {
+      operation: "item_set_parent";
+      itemId: string;
+      parent: { scope: string; id: string } | null;
+    }
   | { operation: "item_set_z_index"; itemId: string; zIndex: number }
   | { operation: "item_reorder"; itemId: string; index: number }
   | { operation: "track_reorder"; trackId: string; index: number }

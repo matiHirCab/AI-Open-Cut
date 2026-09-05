@@ -149,6 +149,51 @@ fn create_read_and_edit_use_result_envelopes_and_typed_ids() {
 }
 
 #[test]
+fn group_protocol_aliases_detachment_history_and_atomic_errors() {
+    let harness = Harness::new();
+    let created = result(&harness.request(json!({"operation":"create_project","name":"Groups"})));
+    let id = &created["projectId"];
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let created=result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"resultAlias":"parent"},
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"parent":{"scope":"root","id":"@parent"},"resultAlias":"child"}
+    ]})));
+    let child = &created["aliases"]["child"];
+    let parent = &created["aliases"]["parent"];
+    let before = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][1]["parent"]["id"],
+        *parent
+    );
+    let bad = harness.request(
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+            {"operation":"item_set_parent","itemId":child,"parent":null},
+            {"operation":"item_set_parent","itemId":parent,"parent":{"scope":"root","id":"missing"}}
+        ]}),
+    );
+    assert_eq!(event(&bad)["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id}))),
+        before
+    );
+    result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"item_set_parent","itemId":child,"parent":null}})));
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    let restored = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        restored["project"]["tracks"][1]["items"],
+        before["project"]["tracks"][1]["items"]
+    );
+    result(&harness.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})));
+    let detached = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert!(
+        detached["project"]["tracks"][1]["items"][1]
+            .get("parent")
+            .is_none()
+    );
+}
+
+#[test]
 fn revision_conflicts_are_typed_error_envelopes_with_nonzero_exit() {
     let harness = Harness::new();
     let created =
@@ -497,7 +542,10 @@ fn transform2d_round_trips_and_resets_through_public_protocol() {
     ));
     assert_eq!(update["revision"], 2);
     let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
-    assert_eq!(state["project"]["schemaVersion"], 9);
+    assert_eq!(
+        state["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let actual: opencut_editor_core::Transform2D =
         serde_json::from_value(state["project"]["tracks"][1]["items"][0]["transform2d"].clone())
             .unwrap();
@@ -565,7 +613,10 @@ fn stacking_public_protocol_and_batch_aliases() {
         );
     }
     let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(state["project"]["schemaVersion"], 9);
+    assert_eq!(
+        state["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         state["project"]["tracks"][1]["items"][0]["zIndex"],
         2147483647

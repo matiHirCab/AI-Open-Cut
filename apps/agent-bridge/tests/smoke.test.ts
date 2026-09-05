@@ -149,6 +149,115 @@ const waitForTerminalJob = async (
 const revisionOf = (result: ReturnType<typeof writeResultSchema.parse>) =>
   result.revision;
 
+it("parents groups through standalone and atomic MCP tools with history", async () => {
+  const created = await call(
+    "project_create",
+    { name: "Groups smoke" },
+    writeResultSchema
+  );
+  const { projectId } = created;
+  const state = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  const trackId = state.project.tracks[1]?.id;
+  if (!trackId) {
+    throw new Error("overlay missing");
+  }
+  const group = await call(
+    "add_group",
+    { durationMs: 1000, expectedRevision: 0, projectId, startMs: 0, trackId },
+    writeResultSchema
+  );
+  const [parentId] = group.changedIds;
+  const added = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: 1,
+      operations: [
+        {
+          durationMs: 1000,
+          operation: "add_group",
+          resultAlias: "child",
+          startMs: 0,
+          trackId,
+        },
+        {
+          itemId: "@child",
+          operation: "item_set_parent",
+          parent: { id: parentId, scope: "root" },
+        },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const itemId = added.aliases.child;
+  const reopened = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(reopened.project.tracks[1]?.items[1]).toMatchObject({
+    id: itemId,
+    parent: { id: parentId, scope: "root" },
+    type: "group",
+  });
+  const invalidResults = await Promise.all(
+    [
+      { expectedRevision: 0, itemId, parent: null },
+      {
+        expectedRevision: 2,
+        itemId: parentId,
+        parent: { id: itemId, scope: "root" },
+      },
+      { expectedRevision: 2, itemId, parent: { id: "absent", scope: "root" } },
+    ].map((args) =>
+      client.callTool({
+        arguments: { projectId, ...args },
+        name: "item_set_parent",
+      })
+    )
+  );
+  expect(invalidResults.every((result) => result.isError)).toBe(true);
+  const unchanged = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  expect(unchanged).toEqual(reopened);
+  await call(
+    "item_set_parent",
+    { expectedRevision: 2, itemId, parent: null, projectId },
+    writeResultSchema
+  );
+  await call(
+    "project_undo",
+    { expectedRevision: 3, projectId },
+    writeResultSchema
+  );
+  const restored = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  expect(restored.project.tracks[1]?.items[1]).toMatchObject({
+    parent: { id: parentId, scope: "root" },
+  });
+  await call(
+    "project_redo",
+    { expectedRevision: 4, projectId },
+    writeResultSchema
+  );
+  const detached = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(detached.project.tracks[1]?.items[1]?.parent).toBeUndefined();
+});
+
 beforeAll(async () => {
   await client.connect(transport);
 });

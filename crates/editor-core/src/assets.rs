@@ -66,7 +66,8 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             TimelineItem::Text(_)
             | TimelineItem::SolidColor(_)
             | TimelineItem::Rectangle(_)
-            | TimelineItem::Transition(_) => None,
+            | TimelineItem::Transition(_)
+            | TimelineItem::Group(_) => None,
         })
         .collect()
 }

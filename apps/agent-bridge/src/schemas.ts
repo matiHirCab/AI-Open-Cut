@@ -5,6 +5,10 @@ const milliseconds = z.int().nonnegative();
 const positiveMilliseconds = z.int().positive();
 const finite = z.number().finite();
 
+export const parentReferenceSchema = z
+  .object({ id, scope: z.string() })
+  .strict();
+
 export const publicErrorSchema = z
   .object({
     code: z.string(),
@@ -672,6 +676,7 @@ const mediaItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    parent: parentReferenceSchema.nullable().optional(),
     sourceInMs: milliseconds,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
@@ -692,6 +697,7 @@ const textItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     style: textStyleSchema,
@@ -710,6 +716,7 @@ const solidColorItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     transform: transformSchema,
@@ -742,6 +749,7 @@ const captionItemSchema = z
     durationMs: positiveMilliseconds,
     hidden: z.boolean(),
     id,
+    parent: parentReferenceSchema.nullable().optional(),
     source: z
       .object({
         assetId: id,
@@ -779,6 +787,7 @@ const transitionItemSchema = z
     fromItemId: id,
     hidden: z.boolean(),
     id,
+    parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     toItemId: id.nullable(),
@@ -791,6 +800,20 @@ const transitionItemSchema = z
   .strict();
 
 export const timelineItemSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      durationMs: positiveMilliseconds,
+      hidden: z.boolean(),
+      id,
+      parent: parentReferenceSchema.nullable().optional(),
+      stackOrder: z.int().nonnegative().max(4_294_967_295),
+      startMs: milliseconds,
+      transform: transformSchema,
+      transform2d: transform2dSchema.nullable().optional(),
+      type: z.literal("group"),
+      zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
+    })
+    .strict(),
   mediaItemSchema,
   textItemSchema,
   solidColorItemSchema,
@@ -861,7 +884,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(9),
+        schemaVersion: z.literal(10),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -949,6 +972,27 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      durationMs: positiveMilliseconds,
+      operation: z.literal("add_group"),
+      parent: parentReferenceSchema.nullable().optional(),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+      startMs: milliseconds,
+      trackId: id,
+      transform2d: transform2dSchema.nullable().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      itemId: id,
+      operation: z.literal("item_set_parent"),
+      parent: parentReferenceSchema.nullable(),
+    })
+    .strict(),
   z
     .object({
       assetId: id,
@@ -1160,6 +1204,15 @@ export const editDraftSchema = z
   .strict();
 
 export const schemas = {
+  addGroup: projectRevisionSchema
+    .extend({
+      durationMs: positiveMilliseconds,
+      parent: parentReferenceSchema.nullable().optional(),
+      startMs: milliseconds,
+      trackId: id,
+      transform2d: transform2dSchema.nullable().optional(),
+    })
+    .strict(),
   assetDelete: projectRevisionSchema.extend({ assetId: id }).strict(),
   assetImport: projectRevisionSchema
     .extend({
@@ -1192,6 +1245,9 @@ export const schemas = {
     .strict(),
   itemReorder: projectRevisionSchema
     .extend({ index: z.int().nonnegative(), itemId: id })
+    .strict(),
+  itemSetParent: projectRevisionSchema
+    .extend({ itemId: id, parent: parentReferenceSchema.nullable() })
     .strict(),
   itemSetZIndex: projectRevisionSchema
     .extend({

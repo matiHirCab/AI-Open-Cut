@@ -506,7 +506,10 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
         json!({"type":"caption","text":"Caption","style":{"fontSize":14,"color":"#ffffff","backgroundColor":"#445566","bottomMarginPx":10},
             "source":{"assetId":"source","providerId":"fixture","modelId":"fixture","modelVersion":null,"language":"en","generatedAtMs":1,"originalText":"Caption","confidence":null,"words":[]}}),
     ];
-    for (index, mut item) in cases.into_iter().enumerate() {
+    for (index, (mode, mut item)) in (0..3)
+        .flat_map(|mode| cases.iter().cloned().map(move |item| (mode, item)))
+        .enumerate()
+    {
         item["id"] = json!("visual");
         item["startMs"] = json!(0);
         item["durationMs"] = json!(1000);
@@ -514,7 +517,25 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
         transform["scaleX"] = json!(0.8);
         transform["scaleY"] = json!(0.65);
         item["transform2d"] = transform;
+        if mode > 0 {
+            item["parent"] = json!({"scope":"root","id":"inner"});
+            if mode == 2 {
+                item.as_object_mut().unwrap().remove("transform2d");
+            }
+        }
         project.tracks[1].items = vec![serde_json::from_value(item).unwrap()];
+        if mode > 0 {
+            let mut ancestor = Transform2D::default();
+            ancestor.position.x = 5.0;
+            ancestor.position.y = 3.0;
+            ancestor.scale_x = 0.8;
+            ancestor.scale_y = 0.9;
+            ancestor.opacity = 0.8;
+            project.tracks[1].items.extend([
+                serde_json::from_value(json!({"type":"group","id":"outer","startMs":100,"durationMs":800,"stackOrder":1,"transform2d":ancestor})).unwrap(),
+                serde_json::from_value(json!({"type":"group","id":"inner","startMs":200,"durationMs":600,"stackOrder":2,"parent":{"scope":"root","id":"outer"},"transform2d":Transform2D::default()})).unwrap()
+            ]);
+        }
         let preview = renderer.render_preview(&project, &dir, 500).unwrap();
         let export = dir.join(format!("source-{index}.mp4"));
         renderer

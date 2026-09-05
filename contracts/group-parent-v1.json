@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "contract": "group-parent-v1",
+  "status": "runtime",
+  "capability": "group_parenting",
+  "schemaVersion": 10,
+  "limits": {
+    "maxParentDepth": 32,
+    "maxLayersPerComposition": 4096
+  },
+  "semantics": {
+    "scope": "root",
+    "parentKind": "group",
+    "depth": "ancestor_edges_root_zero",
+    "coordinates": "top_left_x_right_y_down",
+    "groupAnchorBox": "composition",
+    "transformOrder": "local_then_nearest_ancestor_outward",
+    "opacity": "multiply_per_descendant",
+    "timing": "absolute_root_ms_intersect_ancestor_half_open_intervals",
+    "visibility": "all_ancestor_items_and_tracks",
+    "audio": "unchanged",
+    "stacking": "flat_track_zIndex_stackOrder_id",
+    "reparent": "preserve_local",
+    "duplicate": "node_only",
+    "delete": "reject_surviving_references",
+    "compatibility": "additive_operations_existing_simple_requests_unchanged_schema10_requires_group_aware_reader"
+  },
+  "valid": [
+    {
+      "id": "default_group",
+      "value": {
+        "operation": "add_group",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000
+      }
+    },
+    {
+      "id": "parent",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "child",
+        "parent": {
+          "scope": "root",
+          "id": "group"
+        }
+      }
+    },
+    {
+      "id": "detach",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "child",
+        "parent": null
+      }
+    },
+    {
+      "id": "alias",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "@child",
+        "parent": {
+          "scope": "root",
+          "id": "@group"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "missing_parent_field",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "child"
+      }
+    },
+    {
+      "id": "unknown_field",
+      "value": {
+        "operation": "add_group",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "children": []
+      }
+    },
+    {
+      "id": "fractional_time",
+      "value": {
+        "operation": "add_group",
+        "trackId": "overlay",
+        "startMs": 0.5,
+        "durationMs": 1000
+      }
+    },
+    {
+      "id": "unknown_parent_field",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "child",
+        "parent": {
+          "scope": "root",
+          "id": "group",
+          "path": "/tmp/group"
+        }
+      }
+    },
+    {
+      "id": "negative_time",
+      "value": {
+        "operation": "add_group",
+        "trackId": "overlay",
+        "startMs": -1,
+        "durationMs": 1000
+      }
+    },
+    {
+      "id": "expression_transform",
+      "value": {
+        "operation": "add_group",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "transform2d": "scale(X)"
+      }
+    },
+    {
+      "id": "object_reference",
+      "value": {
+        "operation": "item_set_parent",
+        "itemId": "child",
+        "parent": {
+          "scope": "root",
+          "id": {
+            "path": "/tmp/group"
+          }
+        }
+      }
+    }
+  ],
+  "graphFailures": [
+    {
+      "id": "missing",
+      "parents": [
+        [
+          "child",
+          "absent"
+        ]
+      ],
+      "error": "ITEM_NOT_FOUND"
+    },
+    {
+      "id": "self",
+      "parents": [
+        [
+          "group",
+          "group"
+        ]
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "cycle",
+      "parents": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "b",
+          "a"
+        ]
+      ],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "cross_scope",
+      "scope": "component:other",
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "depth_overflow",
+      "depth": 33,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "count_overflow",
+      "count": 4097,
+      "error": "INVALID_ARGUMENT"
+    }
+  ],
+  "defaults": {
+    "hidden": false,
+    "zIndex": 0,
+    "parent": null,
+    "transform2d": {
+      "position": {
+        "x": 0,
+        "y": 0,
+        "unit": "pixels"
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1
+    }
+  },
+  "groupShape": {
+    "tag": "group",
+    "closed": true,
+    "fields": [
+      "type",
+      "id",
+      "startMs",
+      "durationMs",
+      "transform",
+      "transform2d",
+      "hidden",
+      "zIndex",
+      "stackOrder",
+      "parent"
+    ],
+    "required": [
+      "type",
+      "id",
+      "startMs",
+      "durationMs"
+    ],
+    "trackType": "overlay",
+    "transformContract": "transform2d-v1",
+    "time": "unsigned_integer_milliseconds_positive_duration_checked_end",
+    "reader": "schema10_group_aware"
+  }
+}

@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 9;
+pub const PROJECT_SCHEMA_VERSION: u32 = 10;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -46,7 +46,7 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(value: ProjectDocument) -> Result<Self, Self::Error> {
-        if value.schema_version == 9 {
+        if (9..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version) {
             for track in value.tracks.as_array().into_iter().flatten() {
                 for item in track["items"].as_array().into_iter().flatten() {
                     if item.get("zIndex").is_none() || item.get("stackOrder").is_none() {
@@ -365,6 +365,7 @@ pub struct Track {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TimelineItem {
+    Group(GroupItem),
     Media(MediaItem),
     Text(TextItem),
     SolidColor(SolidColorItem),
@@ -376,6 +377,7 @@ pub enum TimelineItem {
 impl TimelineItem {
     pub fn id(&self) -> &str {
         match self {
+            Self::Group(item) => &item.id,
             Self::Media(item) => &item.id,
             Self::Text(item) => &item.id,
             Self::SolidColor(item) => &item.id,
@@ -387,6 +389,7 @@ impl TimelineItem {
 
     pub fn start_ms(&self) -> u64 {
         match self {
+            Self::Group(item) => item.start_ms,
             Self::Media(item) => item.start_ms,
             Self::Text(item) => item.start_ms,
             Self::SolidColor(item) => item.start_ms,
@@ -398,6 +401,7 @@ impl TimelineItem {
 
     pub fn duration_ms(&self) -> u64 {
         match self {
+            Self::Group(item) => item.duration_ms,
             Self::Media(item) => item.duration_ms,
             Self::Text(item) => item.duration_ms,
             Self::SolidColor(item) => item.duration_ms,
@@ -417,6 +421,7 @@ impl TimelineItem {
 
     pub fn keyframes(&self) -> &[Keyframe] {
         match self {
+            Self::Group(_) => &[],
             Self::Media(v) => &v.keyframes,
             Self::Text(v) => &v.keyframes,
             Self::SolidColor(v) => &v.keyframes,
@@ -427,6 +432,7 @@ impl TimelineItem {
 
     pub fn keyframes_mut(&mut self) -> Option<&mut Vec<Keyframe>> {
         match self {
+            Self::Group(_) => None,
             Self::Media(item) => Some(&mut item.keyframes),
             Self::Text(item) => Some(&mut item.keyframes),
             Self::SolidColor(item) => Some(&mut item.keyframes),
@@ -446,6 +452,7 @@ impl TimelineItem {
 
     pub fn visual_properties(&self) -> &VisualProperties {
         match self {
+            Self::Group(item) => &item.visual_properties,
             Self::Media(item) => &item.visual_properties,
             Self::Text(item) => &item.visual_properties,
             Self::SolidColor(item) => &item.visual_properties,
@@ -457,6 +464,7 @@ impl TimelineItem {
 
     pub fn visual_properties_mut(&mut self) -> &mut VisualProperties {
         match self {
+            Self::Group(item) => &mut item.visual_properties,
             Self::Media(item) => &mut item.visual_properties,
             Self::Text(item) => &mut item.visual_properties,
             Self::SolidColor(item) => &mut item.visual_properties,
@@ -470,6 +478,8 @@ impl TimelineItem {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<ParentReference>,
     #[serde(default)]
     pub z_index: i32,
     #[serde(default)]
@@ -485,6 +495,7 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            parent: None,
             transform,
             hidden,
             transform2d: None,
@@ -492,6 +503,23 @@ impl VisualProperties {
             stack_order: 0,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ParentReference {
+    pub scope: String,
+    pub id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GroupItem {
+    pub id: String,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -878,6 +906,17 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    AddGroup {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        transform2d: Option<Transform2D>,
+        parent: Option<ParentReference>,
+    },
+    ItemSetParent {
+        item_id: String,
+        parent: Option<ParentReference>,
+    },
     ItemSetZIndex {
         item_id: String,
         z_index: i32,
@@ -1049,6 +1088,17 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    AddGroup {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        transform2d: Option<Transform2D>,
+        parent: Option<ParentReference>,
+    },
+    ItemSetParent {
+        item_id: String,
+        parent: Option<ParentReference>,
+    },
     ItemSetZIndex {
         item_id: String,
         z_index: i32,
@@ -1215,7 +1265,21 @@ enum EditOperationDef {
 impl<'de> Deserialize<'de> for EditOperation {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
+        if value["operation"] == "item_set_parent" && value.get("parent").is_none() {
+            return Err(serde::de::Error::custom(
+                "parent is required; use null to detach",
+            ));
+        }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("add_group") => Some(&[
+                "operation",
+                "trackId",
+                "startMs",
+                "durationMs",
+                "transform2d",
+                "parent",
+            ]),
+            Some("item_set_parent") => Some(&["operation", "itemId", "parent"]),
             Some("item_set_z_index") => Some(&["operation", "itemId", "zIndex"]),
             Some("item_reorder") => Some(&["operation", "itemId", "index"]),
             Some("track_reorder") => Some(&["operation", "trackId", "index"]),

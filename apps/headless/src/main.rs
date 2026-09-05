@@ -669,6 +669,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "audio_ducking",
         "undo_redo",
         "stacking",
+        "group_parenting",
     ]
 }
 

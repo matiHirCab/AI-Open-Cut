@@ -438,7 +438,7 @@ pub(crate) fn measure_evaluated_text_layers(
     let mut result = HashMap::new();
     for layer in &evaluated.scene.visual_layers {
         if let EvaluatedVisualSource::Caption(caption) = &layer.source
-            && layer.transform2d.is_some()
+            && layer.requires_affine()
         {
             let metrics =
                 measure_text_block(io, &caption.text, caption.font_size, default_font_path);
