@@ -758,6 +758,25 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "assetId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -2442,6 +2461,25 @@
                     "itemId",
                     "operation",
                     "parent"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
                   ],
                   "type": "object"
                 },
@@ -4231,6 +4269,25 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "assetId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -6008,6 +6065,25 @@
                     "itemId",
                     "operation",
                     "parent"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
                   ],
                   "type": "object"
                 },
@@ -8400,6 +8476,25 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "assetId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -10152,6 +10247,25 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "assetId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -11837,6 +11951,25 @@
                     "itemId",
                     "operation",
                     "parent"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
                   ],
                   "type": "object"
                 },
@@ -14375,6 +14508,95 @@
           "ready",
           "subsystems",
           "version"
+        ],
+        "type": "object"
+      }
+    },
+    "group_ungroup": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "groupId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "groupId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
         ],
         "type": "object"
       }
@@ -27562,6 +27784,25 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "groupId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "operation": {
+                      "const": "group_ungroup",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "groupId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "assetId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -35531,6 +35772,7 @@
     "draft_rebase",
     "draft_update",
     "editor_get_status",
+    "group_ungroup",
     "item_reorder",
     "item_set_parent",
     "item_set_z_index",

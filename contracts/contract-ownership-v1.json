@@ -13,7 +13,12 @@
         "apps/headless/tests/protocol.rs",
         "apps/agent-bridge/src/headless-contract.ts",
         "apps/agent-bridge/src/schemas.ts",
-        "apps/agent-bridge/tests/contracts.test.ts"
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "crates/editor-core/src/timeline.rs",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/group-workflow.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts"
       ]
     },
     "headlessProtocol": {

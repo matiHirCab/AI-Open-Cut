@@ -409,8 +409,14 @@ describe("runtime group contract", () => {
         fixture.id
       ).toBe(true);
       const { operation, ...input } = fixture.value;
-      const schema =
-        operation === "add_group" ? schemas.addGroup : schemas.itemSetParent;
+      const schema = {
+        add_group: schemas.addGroup,
+        group_ungroup: schemas.groupUngroup,
+        item_set_parent: schemas.itemSetParent,
+      }[operation];
+      if (!schema) {
+        throw new Error(`Unknown group operation: ${operation}`);
+      }
       expect(
         schema.safeParse({
           expectedRevision: 0,
@@ -421,6 +427,25 @@ describe("runtime group contract", () => {
       ).toBe(true);
     }
     for (const fixture of GROUPS.invalid) {
+      if (fixture.value.operation === "group_ungroup") {
+        expect(
+          schemas.timelineBatchEdit.safeParse({
+            expectedRevision: 0,
+            operations: [fixture.value],
+            projectId: "project",
+          }).success,
+          fixture.id
+        ).toBe(false);
+        const { operation: _operation, ...input } = fixture.value;
+        expect(
+          schemas.groupUngroup.safeParse({
+            expectedRevision: 0,
+            projectId: "project",
+            ...input,
+          }).success,
+          fixture.id
+        ).toBe(false);
+      }
       expect(
         headlessEditSchema.safeParse(fixture.value).success,
         fixture.id

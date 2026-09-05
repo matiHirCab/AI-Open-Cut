@@ -24,6 +24,8 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 
+import { verifyGroupWorkflow } from "./group-workflow";
+
 const root = mkdtempSync(join(tmpdir(), "opencut-packaged-test-"));
 const directories = {
   exports: join(root, "exports"),
@@ -405,4 +407,8 @@ it("persists explicit stacking through standalone and alias batch tools", async 
     name: "item_reorder",
   });
   expect(stale.isError).toBe(true);
+});
+
+it("completes the packaged group workflow with aliases, rollback and history", async () => {
+  await verifyGroupWorkflow(client, call);
 });

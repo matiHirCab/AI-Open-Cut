@@ -23,6 +23,27 @@ Groups accept static transforms, visibility, timing, moves, reordering, and node
 
 Deleting a referenced group returns `INVALID_ARGUMENT`: detach or reparent children first. Track deletion requires an empty track (`VALIDATION_FAILED` otherwise). Revision conflicts, locked targets, and failed batches preserve state and history.
 
+## Ungroup
+
+The additive `group_ungroup` capability identifies runtimes with atomic ungroup support. The MCP `group_ungroup` tool accepts `projectId`, `expectedRevision`, and `groupId`; headless accepts the same operation inside its existing `edit` or `edit_batch` envelope. Existing `add_group`, `item_set_parent`, and `item_set_z_index` remain compatible.
+
+Ungroup removes only the named group and promotes its immediate children to that group's parent, or root if it has none. Nested child groups and their descendants survive. It preserves child local transforms, visibility, timing, z-index, track and relative array order, normalizing stack ordinals after deletion. It does not preserve world appearance: removing inherited transforms, opacity, visibility or interval clipping can move or reveal children. Preview and export use the same existing evaluated behavior. An empty group is simply removed.
+
+The group and every immediate child's track must be unlocked, including hidden or inactive children on other tracks. Ancestors and deeper descendants that are only read may remain on locked tracks. Missing group IDs return `ITEM_NOT_FOUND`, non-group targets `INVALID_ARGUMENT`, affected locks `TRACK_LOCKED`, and stale revisions retryable `REVISION_CONFLICT`. The whole edit or batch commits once or rolls back completely. Undo/redo and reopen preserve the exact graph and local values; schema remains 10 with no new migration.
+
+`groupId` can reference an earlier creation alias in `timeline_batch_edit`:
+
+```json
+[
+  {"operation":"add_group","trackId":"overlay-id","startMs":0,"durationMs":1000,"resultAlias":"group"},
+  {"operation":"item_set_parent","itemId":"existing-visual-id","parent":{"scope":"root","id":"@group"}},
+  {"operation":"item_set_z_index","itemId":"existing-visual-id","zIndex":2},
+  {"operation":"group_ungroup","groupId":"@group"}
+]
+```
+
+Ungroup creates no ID and cannot have `resultAlias`. Creation mappings remain in the successful batch response even when their group has been removed; referencing that removed group later fails and rolls back the complete batch. Missing/forward aliases retain `VALIDATION_FAILED`. Standalone changed IDs list the removed group first, then its immediate children in pre-edit track/item order, then any additional ordinal-changed items, without duplicates. Batch results retain first-occurrence ordering across operations. Existing graph and 100-operation batch limits apply.
+
 Schemas 1–9 and retained undo/redo snapshots migrate atomically under the project lock. Existing items remain unparented and preserve IDs, timing, transforms, media, and provenance. Schema-10 grouped content requires a group-aware reader; older binaries must reject it. Unknown future schemas fail closed. Rollback requires a compatible reader or pre-upgrade backup. Simple requests retain their meaning; protocol major and stable errors remain unchanged. The runtime catalog is `contracts/group-parent-v1.json`; other motion-graphics roadmap vocabulary stays fixture-only.
 
 Both transition endpoints are checked during current-state, history, draft, mutation, and renderer validation. An endpoint resolving to a group returns `INVALID_ARGUMENT`, including hidden records, without rewriting invalid files.

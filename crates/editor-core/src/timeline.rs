@@ -74,6 +74,7 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::GroupUngroup { group_id } => resolve_alias(group_id, aliases)?,
         EditOperation::AddGroup {
             track_id, parent, ..
         } => {
@@ -167,6 +168,45 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::GroupUngroup { group_id } => {
+            let (group_track, group_index) = find_item_location(project, &group_id)?;
+            let TimelineItem::Group(group) = &project.tracks[group_track].items[group_index] else {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "ungroup requires a group",
+                ));
+            };
+            let parent = group.visual_properties.parent.clone();
+            // Check every affected track before changing even the candidate graph.
+            for (index, track) in project.tracks.iter().enumerate() {
+                let affected = index == group_track
+                    || track.items.iter().any(|item| {
+                        item.visual_properties()
+                            .parent
+                            .as_ref()
+                            .is_some_and(|p| p.id == group_id)
+                    });
+                if affected && track.locked {
+                    return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+                }
+            }
+            let mut changed = vec![group_id.clone()];
+            for track in &mut project.tracks {
+                for item in &mut track.items {
+                    if item
+                        .visual_properties()
+                        .parent
+                        .as_ref()
+                        .is_some_and(|p| p.id == group_id)
+                    {
+                        item.visual_properties_mut().parent = parent.clone();
+                        changed.push(item.id().to_owned());
+                    }
+                }
+            }
+            project.tracks[group_track].items.remove(group_index);
+            Ok((changed, "Ungrouped items"))
+        }
         EditOperation::AddGroup {
             track_id,
             start_ms,
