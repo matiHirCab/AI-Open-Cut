@@ -76,3 +76,13 @@ All eleven added requirements were synchronized into the five owning living spec
 The final pinned Moon 2.3.3 `root:openspec-validate` run exited 0: 231 policy tests passed, strict validation passed all 14 living specs, and the archive-only inventory passed. This supersedes the earlier pre-archive failure recorded above. Tasks 5.6 and 6.4 are complete.
 
 All 22 tasks are complete. No remaining correctness findings, specification mismatches, or completion blockers were identified.
+
+## CI conformance follow-up
+
+Run 33963881074 on PR #106 supersedes the previous completion assessment: Rust 1.98 flags fixed-size chunks_exact in groups.rs; Ubuntu FFmpeg 6.1.1 reports SSIM 0.982182 for nested-parent rectangle case 5. The approved conformance tasks are reopened to reproduce and resolve these failures without changing the SSIM, PCM, or timing thresholds. No new public behavior or contract is authorized by this follow-up.
+
+Diagnosis: the identical Ubuntu FFmpeg 6.1.1 reproduction returned 0.982182 with the old SSIM graph and 0.998797 when both inputs were trimmed to one frame and timestamp-aligned. The decoded shape bounds agreed (44,38)-(65,59). The failure was extra-frame scoring across visibility changes, not a renderer mismatch. The comparison threshold remains 0.99. The fixed-size RGB iteration was updated to as_chunks without warning suppression.
+
+CI correction verification: all 14 group and 13 Transform2D tests pass with native rendering on both Ubuntu FFmpeg 6.1.1 / Rust 1.98 and Windows FFmpeg 8.1.2 / Rust 1.93. Windows workspace tests, formatting, and strict workspace Clippy pass; Linux strict editor-core/headless Clippy passes. Strict OpenSpec validation passes all 15 items. Reapplied OpenSpec verification: no changed runtime semantics, no changed public contracts, no lowered tolerances, all equivalent-selection scenarios retain their oracle assertions. Prior bridge/contract/integration/smoke evidence remains applicable to this test-only correction; the pushed CI run will repeat those gates.
+
+Rearchival gate: Moon exited 0 with 231 policy tests and all 14 living specs passing. All 22 tasks are complete again; remote CI confirmation will be reported separately.

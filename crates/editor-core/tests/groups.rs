@@ -855,7 +855,7 @@ fn native_identity_parent_preserves_every_styled_text_anchor() {
             .unwrap();
         assert!(output.status.success());
         let mut b = (320i32, 180i32, 0i32, 0i32);
-        for (i, pixel) in output.stdout.chunks_exact(3).enumerate() {
+        for (i, pixel) in output.stdout.as_chunks::<3>().0.iter().enumerate() {
             if pixel.iter().all(|v| *v > 128) {
                 let x = (i % 320) as i32;
                 let y = (i / 320) as i32;

@@ -597,6 +597,8 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
             / count as f64)
             .sqrt();
         assert!(rms <= 0.0001, "source {index}: audio RMS {rms}");
+        // Bound frames at the filter inputs: the output frame limit alone lets
+        // FFmpeg 6 framesync score later frames outside the group visibility window.
         for video in [&export, &dir.join(&range.relative_path)] {
             let result = std::process::Command::new(&tools.ffmpeg)
                 .args(["-v", "info", "-i"])
@@ -613,7 +615,7 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
                 .arg(video)
                 .args([
                     "-lavfi",
-                    "[0:v]scale=in_range=auto:out_range=tv,format=yuv420p[a];[1:v]scale=in_range=auto:out_range=tv,format=yuv420p[b];[a][b]ssim",
+                    "[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale=in_range=auto:out_range=tv,format=yuv420p[a];[1:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale=in_range=auto:out_range=tv,format=yuv420p[b];[a][b]ssim",
                     "-frames:v",
                     "1",
                     "-f",
@@ -637,7 +639,11 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
                 .unwrap()
                 .parse()
                 .unwrap();
-            assert!(score >= 0.99, "source {index}: SSIM {score}");
+            assert!(
+                score >= 0.99,
+                "source {index}, {}: SSIM {score}",
+                video.display()
+            );
         }
     }
 }
@@ -864,7 +870,7 @@ fn oriented_media_preserves_extent_and_all_render_intents(image: bool) {
             .arg(video)
             .args([
                 "-lavfi",
-                "[0:v]scale=in_range=auto:out_range=tv,format=yuv420p[a];[1:v]scale=in_range=auto:out_range=tv,format=yuv420p[b];[a][b]ssim",
+                "[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale=in_range=auto:out_range=tv,format=yuv420p[a];[1:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale=in_range=auto:out_range=tv,format=yuv420p[b];[a][b]ssim",
                 "-frames:v",
                 "1",
                 "-f",
