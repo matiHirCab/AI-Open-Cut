@@ -38,6 +38,10 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
+        9 => {
+            project.schema_version = PROJECT_SCHEMA_VERSION;
+            Ok(true)
+        }
         PROJECT_SCHEMA_VERSION => Ok(false),
         version => Err(CoreError::new(
             ErrorCode::InternalError,

@@ -114,6 +114,10 @@ The hybrid CPU path may initially be slower than a GPU compositor. Bounded lazy 
 
 Issue #13 can roll back by reverting the internal evaluated-scene planner/resource adapters and additive capability evidence together; no persisted data rollback is required. Later persisted milestones roll forward with another migration or require a compatible reader; an older binary must never silently downgrade a future schema. Each implementing milestone must cite this ADR and provide its own rollout, failure, fixture, and rollback evidence.
 
+## Group parenting activation (issue #20)
+
+Schema 10 activates root-scoped GroupItem and parent DAGs through `add_group`, `item_set_parent`, and the `group_parenting` capability. The dedicated group-parent-v1 runtime catalog governs these shapes; other roadmap vocabulary remains fixture-only. Core owns graph validation, mutation, history migration, and ancestor evaluation, with no new dependency edge. Group transforms use composition-sized anchors, multiply descendant opacity, intersect visual intervals, and preserve flat order and audio behavior. See [group parenting](../group-parenting.md) for bounds, failures, and reader compatibility.
+
 ## Transform2D activation (issue #18)
 
 Schema 8 activates static Transform2D through optional common visual properties and additive update/batch fields, with the dedicated transform2d-v1 runtime catalog and transform2d rendering capability. The remaining motion-graphics-v1 vocabulary stays fixture-only. Legacy transform values and rendering retain their prior semantics.

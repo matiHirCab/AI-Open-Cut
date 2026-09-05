@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::{
     CoreError, ErrorCode, Project,
     evaluated_scene::{
-        EvaluatedScene, EvaluatedSceneResult, EvaluatedVisualSource, evaluate_affine,
+        EvaluatedScene, EvaluatedSceneResult, EvaluatedVisualSource, evaluate_layer_affine,
         evaluate_project, finalize_affine_geometry,
     },
     render_artifact::{
@@ -310,7 +310,7 @@ impl Renderer {
         media: PreparedMediaResources,
     ) -> Result<RenderPreflight, CoreError> {
         let mut warnings = Vec::new();
-        let measured = measure_evaluated_text_layers(
+        let mut measured = measure_evaluated_text_layers(
             self.artifact_io.as_ref(),
             evaluated,
             self.default_font_path.as_deref(),
@@ -329,11 +329,11 @@ impl Renderer {
             .collect();
         // Text geometry failures take precedence over any metadata process call.
         for layer in &finalized.visual_layers {
-            if let Some(transform) = layer.transform2d
+            if layer.requires_affine()
                 && let Some(size) = measurements.get(&layer.item_id)
             {
-                evaluate_affine(
-                    transform,
+                evaluate_layer_affine(
+                    layer,
                     *size,
                     (finalized.canvas.width, finalized.canvas.height),
                 )?;
@@ -341,7 +341,7 @@ impl Renderer {
         }
         let mut asset_sizes = HashMap::new();
         for layer in &finalized.visual_layers {
-            if layer.transform2d.is_none() {
+            if !layer.requires_affine() {
                 continue;
             }
             if let EvaluatedVisualSource::Media { asset_id, .. } = &layer.source {
@@ -370,8 +370,14 @@ impl Renderer {
             }
         }
         finalize_affine_geometry(&mut finalized, &measurements)?;
+        measured.retain(|id, _| {
+            finalized
+                .visual_layers
+                .iter()
+                .any(|layer| &layer.item_id == id)
+        });
         if finalized.visual_layers.iter().any(|layer| {
-            layer.transform2d.is_some()
+            layer.requires_affine()
                 && layer
                     .source_size
                     .is_some_and(|(w, h)| w >= 65_535 || h >= 65_535)
@@ -2912,6 +2918,86 @@ mod tests {
             );
             assert!(process.executions.lock().unwrap().is_empty());
         }
+    }
+
+    #[test]
+    fn invalid_group_graph_and_composed_geometry_have_no_render_side_effects() {
+        let root = tempdir().unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        for missing in [false, true] {
+            let mut project = visual_project();
+            project.tracks[0].track_type = TrackType::Overlay;
+            project.tracks[0].items[0].visual_properties_mut().parent =
+                Some(crate::ParentReference {
+                    scope: "root".into(),
+                    id: if missing { "absent" } else { "group" }.into(),
+                });
+            let transform = crate::Transform2D {
+                scale_x: 100.0,
+                scale_y: 100.0,
+                ..Default::default()
+            };
+            project.tracks[0].items.push(serde_json::from_value(serde_json::json!({"type":"group","id":"group","startMs":0,"durationMs":1000,"stackOrder":1,"transform2d":transform})).unwrap());
+            assert_all_facades_reject_without_side_effects(
+                &renderer,
+                &io,
+                &process,
+                &project,
+                root.path(),
+                if missing {
+                    ErrorCode::ItemNotFound
+                } else {
+                    ErrorCode::InvalidArgument
+                },
+            );
+        }
+        let mut project = visual_project();
+        project.tracks[0].track_type = TrackType::Overlay;
+        project.tracks[0].items[0].visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "root".into(),
+            id: "group".into(),
+        });
+        project.tracks[0].items.push(serde_json::from_value(serde_json::json!({"type":"group","id":"group","startMs":0,"durationMs":1000,"stackOrder":1})).unwrap());
+        for endpoint in ["fromItemId", "toItemId"] {
+            let mut invalid = project.clone();
+            let mut transition = serde_json::json!({"type":"transition","id":"invalid","startMs":0,"durationMs":100,"transitionType":"fade","fromItemId":"missing","toItemId":null,"hidden":true,"stackOrder":2});
+            transition[endpoint] = serde_json::json!("group");
+            invalid.tracks[0]
+                .items
+                .push(serde_json::from_value(transition).unwrap());
+            assert_all_facades_reject_without_side_effects(
+                &renderer,
+                &io,
+                &process,
+                &invalid,
+                root.path(),
+                ErrorCode::InvalidArgument,
+            );
+        }
+        let unavailable = Arc::new(FakeProcess {
+            readiness_error: true,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(unavailable.clone(), io.clone());
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &io,
+            &unavailable,
+            &project,
+            root.path(),
+            ErrorCode::DependencyUnavailable,
+        );
     }
 
     #[test]

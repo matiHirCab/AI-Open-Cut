@@ -78,6 +78,7 @@ pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreErr
 
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
     validate_project_stacking(project)?;
+    validate_parent_graph(project)?;
     for item in project.tracks.iter().flat_map(|track| &track.items) {
         validate_transform(&item.visual_properties().transform)?;
         if let Some(value) = &item.visual_properties().transform2d {
@@ -94,6 +95,90 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
                     "Transform2D requires a visual source without legacy transform keyframes",
                 ));
             }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> {
+    let invalid = |message| CoreError::new(ErrorCode::InvalidArgument, message);
+    let is_visual = |item: &TimelineItem| {
+        !matches!(item, TimelineItem::Transition(_))
+            && !matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+    };
+    if project
+        .tracks
+        .iter()
+        .flat_map(|track| &track.items)
+        .filter(|item| is_visual(item))
+        .count()
+        > 4096
+    {
+        return Err(invalid("maxLayersPerComposition exceeded"));
+    }
+    let mut index = BTreeMap::new();
+    for track in &project.tracks {
+        for item in &track.items {
+            if index.insert(item.id(), item).is_some() {
+                return Err(invalid("duplicate timeline item ID"));
+            }
+            if let TimelineItem::Group(group) = item {
+                if track.track_type != TrackType::Overlay {
+                    return Err(invalid("groups require overlay tracks"));
+                }
+                validate_duration(group.duration_ms)?;
+                if group.start_ms.checked_add(group.duration_ms).is_none() {
+                    return Err(invalid("group interval overflows"));
+                }
+                group
+                    .visual_properties
+                    .transform2d
+                    .unwrap_or_default()
+                    .validate()?;
+                if group.visual_properties.transform != Transform::default() {
+                    return Err(invalid("groups do not accept legacy transforms"));
+                }
+            }
+            if item.visual_properties().parent.is_some() && !is_visual(item) {
+                return Err(invalid("parenting requires a visual item"));
+            }
+        }
+    }
+    for item in project.tracks.iter().flat_map(|track| &track.items) {
+        if let TimelineItem::Transition(transition) = item
+            && std::iter::once(&transition.from_item_id)
+                .chain(transition.to_item_id.iter())
+                .any(|id| matches!(index.get(id.as_str()), Some(TimelineItem::Group(_))))
+        {
+            return Err(invalid("groups cannot be transition endpoints"));
+        }
+        let mut current = item;
+        let mut visited = vec![item.id()];
+        while let Some(parent) = &current.visual_properties().parent {
+            if parent.scope != "root"
+                || parent.id.is_empty()
+                || parent.id.len() > 128
+                || !parent
+                    .id
+                    .bytes()
+                    .all(|v| v.is_ascii_alphanumeric() || matches!(v, b'_' | b'-'))
+            {
+                return Err(invalid("parent reference must name a root group"));
+            }
+            let target = index
+                .get(parent.id.as_str())
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "parent group not found"))?;
+            if !matches!(target, TimelineItem::Group(_)) {
+                return Err(invalid("parent must be a group"));
+            }
+            if visited.contains(&parent.id.as_str()) {
+                return Err(invalid("parent cycle"));
+            }
+            if visited.len() > 32 {
+                return Err(invalid("maxParentDepth exceeded"));
+            }
+            visited.push(parent.id.as_str());
+            current = target;
         }
     }
     Ok(())

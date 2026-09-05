@@ -3880,7 +3880,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_six_migration_recovers_every_publication_phase() {
+    fn supported_migrations_recover_every_publication_phase() {
         let phases = [
             PersistencePhase::AfterJournal,
             PersistencePhase::AfterProject,
@@ -3889,7 +3889,10 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for phase in phases {
+        for (version, phase) in [6, 9]
+            .into_iter()
+            .flat_map(|version| phases.map(|phase| (version, phase)))
+        {
             let (core, _) = core();
             let created = core
                 .create_project(
@@ -3901,7 +3904,7 @@ mod tests {
             let project_file = project_path(&dir);
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
-            legacy["schemaVersion"] = serde_json::json!(6);
+            legacy["schemaVersion"] = serde_json::json!(version);
             let mut oldest = legacy.clone();
             oldest["schemaVersion"] = serde_json::json!(1);
             write_json_atomic(&project_file, &legacy).unwrap();
@@ -3932,7 +3935,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_six_migration_before_journal_failure_preserves_generation() {
+    fn schema_nine_migration_before_journal_failure_preserves_generation() {
         let (core, _) = core();
         let created = core
             .create_project("migration pre-commit", ProjectSettings::default())
@@ -3941,7 +3944,7 @@ mod tests {
         let project_file = project_path(&dir);
         let history_file = history_path(&dir);
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
-        legacy["schemaVersion"] = serde_json::json!(6);
+        legacy["schemaVersion"] = serde_json::json!(9);
         write_json_atomic(&project_file, &legacy).unwrap();
         write_json_atomic(
             &history_file,

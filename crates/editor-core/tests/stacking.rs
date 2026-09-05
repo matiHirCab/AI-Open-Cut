@@ -341,7 +341,10 @@ fn schema_nine_requires_explicit_valid_order_and_migrates_mixed_history() {
     )
     .unwrap();
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 9);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_ordinals(&migrated);
     assert_eq!(
         serde_json::to_value(&migrated.tracks).unwrap(),

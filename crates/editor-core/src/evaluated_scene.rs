@@ -154,6 +154,8 @@ pub(crate) struct EvaluatedVisualLayer {
     pub(crate) transform: EvaluatedTransform,
     pub(crate) transform2d: Option<crate::Transform2D>,
     pub(crate) affine: Option<EvaluatedAffine>,
+    pub(crate) sampling_tiles: Option<Vec<EvaluatedAffine>>,
+    pub(crate) ancestors: Option<EvaluatedAncestors>,
     pub(crate) source_size: Option<(u32, u32)>,
     pub(crate) keyframes: Vec<EvaluatedKeyframe>,
     pub(crate) transitions: Vec<EvaluatedTransition>,
@@ -171,6 +173,12 @@ impl std::fmt::Debug for EvaluatedVisualLayer {
             .field("transform", &self.transform);
         if let Some(value) = self.transform2d {
             layer.field("transform2d", &value);
+        }
+        if let Some(value) = self.ancestors {
+            layer.field("ancestors", &value);
+        }
+        if let Some(value) = &self.sampling_tiles {
+            layer.field("sampling_tiles", value);
         }
         if let Some(value) = self.affine {
             layer.field("affine", &value);
@@ -331,6 +339,7 @@ pub(crate) fn evaluate_project(
     validate_media_source_ranges(project, &asset_by_id)?;
     let preflight = preflight_project(project, &asset_by_id)?;
     validate_project_stacking(project)?;
+    crate::validation::validate_parent_graph(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
     let transition_index = index_transitions(project, &preflight.visual_item_ids)?;
     let voiceover_intervals = audible_voiceover_intervals(
@@ -379,6 +388,8 @@ pub(crate) fn evaluate_project(
                         visual_layers.push(EvaluatedVisualLayer {
                             transform2d: item.visual_properties().transform2d,
                             affine: None,
+                            sampling_tiles: None,
+                            ancestors: None,
                             source_size: None,
                             item_id: media.id.clone(),
                             order,
@@ -425,6 +436,8 @@ pub(crate) fn evaluate_project(
                     visual_layers.push(EvaluatedVisualLayer {
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
                         source_size: None,
                         item_id: text.id.clone(),
                         order,
@@ -445,6 +458,8 @@ pub(crate) fn evaluate_project(
                     visual_layers.push(EvaluatedVisualLayer {
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
                         source_size: None,
                         item_id: color.id.clone(),
                         order,
@@ -461,6 +476,8 @@ pub(crate) fn evaluate_project(
                     visual_layers.push(EvaluatedVisualLayer {
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
                         source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
@@ -479,6 +496,8 @@ pub(crate) fn evaluate_project(
                     visual_layers.push(EvaluatedVisualLayer {
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
                         source_size: None,
                         item_id: caption.id.clone(),
                         order,
@@ -500,11 +519,12 @@ pub(crate) fn evaluate_project(
                         }),
                     });
                 }
-                TimelineItem::Transition(_) => {}
+                TimelineItem::Transition(_) | TimelineItem::Group(_) => {}
             }
         }
     }
 
+    apply_ancestors(project, &mut visual_layers, (width, height))?;
     for layer in &mut visual_layers {
         if let Some(value) = layer.transform2d {
             value.validate()?;
@@ -515,13 +535,15 @@ pub(crate) fn evaluate_project(
             {
                 return Err(invalid("Transform2D cannot use legacy transform keyframes"));
             }
+        }
+        if layer.requires_affine() {
             layer.source_size = match &layer.source {
                 EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
                 EvaluatedVisualSource::SolidColor { .. } => Some((width, height)),
                 _ => None,
             };
             if let Some(size) = layer.source_size {
-                layer.affine = Some(evaluate_affine(value, size, (width, height))?);
+                layer.affine = Some(evaluate_layer_affine(layer, size, (width, height))?);
             }
         }
     }
@@ -703,7 +725,7 @@ fn preflight_project<'a>(
                     )?;
                     visual_item_ids.insert(caption.id.as_str());
                 }
-                TimelineItem::Transition(_) => {}
+                TimelineItem::Transition(_) | TimelineItem::Group(_) => {}
             }
         }
     }
@@ -1124,6 +1146,218 @@ mod tests {
             assert_eq!(synthesized[0].item_id, "a-synthesized");
         }
         assert_eq!(serde_json::to_value(&p).unwrap(), before);
+    }
+
+    #[test]
+    fn groups_compose_geometry_clip_visibility_and_preserve_source_time() {
+        let mut p = project();
+        let mut group_transform = crate::Transform2D::default();
+        group_transform.position.x = 40.0;
+        group_transform.position.y = 10.0;
+        group_transform.rotation_deg = 90.0;
+        group_transform.opacity = 0.5;
+        p.tracks = serde_json::from_value(serde_json::json!([{
+            "id":"overlay","name":"Overlay","trackType":"overlay","items":[
+                {"type":"group","id":"outer","startMs":100,"durationMs":600,"zIndex":0,"stackOrder":0,"transform2d":group_transform},
+                {"type":"group","id":"inner","startMs":200,"durationMs":600,"zIndex":0,"stackOrder":1,"parent":{"scope":"root","id":"outer"},"transform2d":crate::Transform2D::default()},
+                {"type":"rectangle","id":"child","startMs":0,"durationMs":1000,"width":20,"height":10,"color":"#ff0000","keyframes":[],"zIndex":0,"stackOrder":2,"parent":{"scope":"root","id":"inner"},"transform":{"positionX":5,"positionY":3,"scale":1,"opacity":0.5}}
+            ]
+        }])).unwrap();
+        let before = serde_json::to_value(&p).unwrap();
+        let scene = evaluate_project(&p, 64, 64, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 1);
+        let layer = &scene.visual_layers[0];
+        assert_eq!(
+            layer.span,
+            EvaluatedTimeSpan {
+                start_ms: 0,
+                end_ms: 1000
+            }
+        );
+        assert_eq!(
+            layer.visible_span(),
+            EvaluatedTimeSpan {
+                start_ms: 200,
+                end_ms: 700
+            }
+        );
+        let affine = layer.affine.unwrap();
+        let [a, b, c, d, x, y] = affine.matrix;
+        for (px, py) in [(0.0, 0.0), (20.0, 0.0), (0.0, 10.0), (20.0, 10.0)] {
+            assert!((a * px + c * py + x - (37.0 - py)).abs() < 1e-9);
+            assert!((b * px + d * py + y - (15.0 + px)).abs() < 1e-9);
+        }
+        assert_eq!(affine.opacity, 0.25);
+        assert_eq!(evaluate_project(&p, 64, 64, 30).unwrap().scene, scene);
+        assert_eq!(serde_json::to_value(&p).unwrap(), before);
+        p.tracks[0].items[0].set_hidden(true);
+        assert!(
+            evaluate_project(&p, 64, 64, 30)
+                .unwrap()
+                .scene
+                .visual_layers
+                .is_empty()
+        );
+        p.tracks[0].items[0].visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "root".into(),
+            id: "inner".into(),
+        });
+        assert_eq!(
+            evaluate_project(&p, 64, 64, 30).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+    }
+
+    #[test]
+    fn nested_group_oracle_covers_anchor_skew_scale_audio_and_overflow() {
+        let mut p = project();
+        let mut outer = crate::Transform2D::default();
+        outer.position.unit = crate::PositionUnit::Normalized;
+        outer.position.x = 0.4;
+        outer.position.y = 0.3;
+        outer.anchor.x = 0.2;
+        outer.anchor.y = 0.7;
+        outer.scale_x = 1.2;
+        outer.scale_y = 0.8;
+        outer.rotation_deg = 31.0;
+        outer.skew_x_deg = 12.0;
+        outer.skew_y_deg = -8.0;
+        outer.opacity = 0.8;
+        let mut inner = outer;
+        inner.position.unit = crate::PositionUnit::Pixels;
+        inner.position.x = 15.0;
+        inner.position.y = 17.0;
+        inner.rotation_deg = -18.0;
+        inner.opacity = 0.5;
+        p.tracks=serde_json::from_value(serde_json::json!([{"id":"parents","name":"Parents","trackType":"overlay","items":[
+            {"type":"group","id":"outer","startMs":100,"durationMs":700,"stackOrder":0,"transform2d":outer},
+            {"type":"group","id":"inner","startMs":200,"durationMs":700,"stackOrder":1,"transform2d":inner,"parent":{"scope":"root","id":"outer"}}
+        ]}])).unwrap();
+        p.assets = vec![asset("video", MediaType::Video, true)];
+        let mut child = media("child", "video", 0);
+        child.visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "root".into(),
+            id: "inner".into(),
+        });
+        child.visual_properties_mut().transform2d = Some(crate::Transform2D::default());
+        p.tracks
+            .push(track("visual", TrackType::Video, vec![child]));
+        let mut scene = evaluate_project(&p, 320, 180, 30).unwrap().scene;
+        finalize_affine_geometry(
+            &mut scene,
+            &HashMap::from([("child".to_string(), (23, 11))]),
+        )
+        .unwrap();
+        let map = |t: crate::Transform2D, (x, y): (f64, f64)| {
+            let x = (x - t.anchor.x * 320.0) * t.scale_x;
+            let y = (y - t.anchor.y * 180.0) * t.scale_y;
+            let x = x + y * t.skew_x_deg.to_radians().tan();
+            let y = y + x * t.skew_y_deg.to_radians().tan();
+            let (s, c) = t.rotation_deg.to_radians().sin_cos();
+            let (fx, fy) = if t.position.unit == crate::PositionUnit::Normalized {
+                (320.0, 180.0)
+            } else {
+                (1.0, 1.0)
+            };
+            (
+                c * x - s * y + t.position.x * fx,
+                s * x + c * y + t.position.y * fy,
+            )
+        };
+        let affine = scene.visual_layers[0].affine.unwrap();
+        for (x, y) in [(0.0, 0.0), (23.0, 0.0), (0.0, 11.0), (23.0, 11.0)] {
+            let expected = map(outer, map(inner, (x, y)));
+            let [a, b, c, d, tx, ty] = affine.matrix;
+            assert!((a * x + c * y + tx - expected.0).abs() < 1e-9);
+            assert!((b * x + d * y + ty - expected.1).abs() < 1e-9);
+        }
+        assert_eq!(affine.opacity, 0.4);
+        let audio = scene.audio_layers.clone();
+        p.tracks[0].hidden = true;
+        let hidden = evaluate_project(&p, 320, 180, 30).unwrap().scene;
+        assert!(hidden.visual_layers.is_empty());
+        assert_eq!(hidden.audio_layers, audio);
+        p.tracks[0].hidden = false;
+        for group in &mut p.tracks[0].items {
+            let t = group.visual_properties_mut().transform2d.as_mut().unwrap();
+            t.scale_x = 100.0;
+            t.scale_y = 100.0;
+        }
+        let mut overflow = evaluate_project(&p, 320, 180, 30).unwrap().scene;
+        assert_eq!(
+            finalize_affine_geometry(
+                &mut overflow,
+                &HashMap::from([("child".to_string(), (23, 11))])
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::InvalidArgument
+        );
+    }
+
+    #[test]
+    fn legacy_text_anchors_and_animated_sampling_are_composed_before_parents() {
+        for (anchor, ax, ay) in [
+            ("top_left", 0.0, 0.0),
+            ("top_center", 0.5, 0.0),
+            ("top_right", 1.0, 0.0),
+            ("center_left", 0.0, 0.5),
+            ("center", 0.5, 0.5),
+            ("center_right", 1.0, 0.5),
+            ("bottom_left", 0.0, 1.0),
+            ("bottom_center", 0.5, 1.0),
+            ("bottom_right", 1.0, 1.0),
+        ] {
+            let mut p = project();
+            let mut t = crate::Transform2D::default();
+            t.position.x = 50.0;
+            t.rotation_deg = 90.0;
+            p.tracks=serde_json::from_value(serde_json::json!([{"id":"track","name":"Overlay","trackType":"overlay","items":[
+                {"type":"group","id":"g","startMs":0,"durationMs":1000,"stackOrder":0,"transform2d":t},
+                {"type":"text","id":"text","text":"Anchor","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":1,"style":{"anchor":anchor},"transform":{"positionX":200,"positionY":180,"scale":1.5,"opacity":1},"keyframes":[],"parent":{"scope":"root","id":"g"}}
+            ]}])).unwrap();
+            let mut scene = evaluate_project(&p, 800, 600, 30).unwrap().scene;
+            finalize_affine_geometry(
+                &mut scene,
+                &HashMap::from([("text".to_string(), (110, 30))]),
+            )
+            .unwrap();
+            let [a, b, c, d, x, y] = scene.visual_layers[0].affine.unwrap().matrix;
+            for (px, py) in [(0.0, 0.0), (110.0, 30.0)] {
+                assert!(
+                    (a * px + c * py + x - (50.0 - (180.0 + 1.5 * (py - ay * 30.0)))).abs() < 1e-9
+                );
+                assert!((b * px + d * py + y - (200.0 + 1.5 * (px - ax * 110.0))).abs() < 1e-9);
+            }
+        }
+        let mut p = project();
+        p.tracks=serde_json::from_value(serde_json::json!([{"id":"track","name":"Overlay","trackType":"overlay","items":[
+            {"type":"group","id":"g","startMs":0,"durationMs":1000,"stackOrder":0},
+            {"type":"rectangle","id":"r","startMs":0,"durationMs":1000,"width":20,"height":10,"color":"#ff0000","stackOrder":1,"keyframes":[{"property":"position","timeMs":0,"value":{"type":"position","x":0,"y":0},"easing":"linear"},{"property":"position","timeMs":1000,"value":{"type":"position","x":20000,"y":0},"easing":"linear"}],"parent":{"scope":"root","id":"g"}}
+        ]}])).unwrap();
+        let mut scene = evaluate_project(&p, 7680, 4320, 30).unwrap().scene;
+        finalize_affine_geometry(&mut scene, &HashMap::new()).unwrap();
+        let tiles = scene.visual_layers[0].sampling_tiles.as_ref().unwrap();
+        assert_eq!(tiles.len(), 2);
+        assert_eq!(
+            (tiles[0].left, tiles[0].width, tiles[0].height),
+            (0.0, 4096, 10)
+        );
+        assert_eq!(
+            (tiles[1].left, tiles[1].width, tiles[1].height),
+            (4096.0, 3584, 10)
+        );
+        p.tracks[0].items[0].visual_properties_mut().transform2d = Some(crate::Transform2D {
+            position: crate::TransformPosition {
+                x: 0.0,
+                y: 5000.0,
+                unit: crate::PositionUnit::Pixels,
+            },
+            ..Default::default()
+        });
+        let mut offscreen = evaluate_project(&p, 7680, 4320, 30).unwrap().scene;
+        finalize_affine_geometry(&mut offscreen, &HashMap::new()).unwrap();
+        assert!(offscreen.visual_layers.is_empty());
     }
 
     fn project() -> Project {
@@ -2055,6 +2289,122 @@ mod tests {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct EvaluatedAncestors {
+    pub(crate) matrix: [f64; 6],
+    pub(crate) inverse: [f64; 6],
+    pub(crate) opacity: f64,
+    pub(crate) clip: EvaluatedTimeSpan,
+}
+
+impl EvaluatedVisualLayer {
+    pub(crate) fn requires_affine(&self) -> bool {
+        self.transform2d.is_some() || self.ancestors.is_some()
+    }
+    pub(crate) fn has_animated_geometry(&self) -> bool {
+        self.ancestors.is_some()
+            && self.transform2d.is_none()
+            && self.keyframes.iter().any(|key| {
+                matches!(
+                    key.property,
+                    EvaluatedProperty::Position | EvaluatedProperty::Scale
+                )
+            })
+    }
+    pub(crate) fn legacy_anchor(&self, source: (u32, u32)) -> (f64, f64) {
+        let EvaluatedVisualSource::Text(text) = &self.source else {
+            return (0.0, 0.0);
+        };
+        use EvaluatedAnchorPoint::*;
+        let x = match text.style.anchor {
+            TopCenter | Center | BottomCenter => 0.5,
+            TopRight | CenterRight | BottomRight => 1.0,
+            _ => 0.0,
+        };
+        let y = match text.style.anchor {
+            CenterLeft | Center | CenterRight => 0.5,
+            BottomLeft | BottomCenter | BottomRight => 1.0,
+            _ => 0.0,
+        };
+        (x * f64::from(source.0), y * f64::from(source.1))
+    }
+    pub(crate) fn visible_span(&self) -> EvaluatedTimeSpan {
+        self.ancestors.map_or(self.span, |parent| parent.clip)
+    }
+}
+
+const IDENTITY_MATRIX: [f64; 6] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+
+fn multiply_matrix(left: [f64; 6], right: [f64; 6]) -> [f64; 6] {
+    let [a, b, c, d, x, y] = left;
+    let [e, f, g, h, u, v] = right;
+    [
+        a * e + c * f,
+        b * e + d * f,
+        a * g + c * h,
+        b * g + d * h,
+        a * u + c * v + x,
+        b * u + d * v + y,
+    ]
+}
+
+fn apply_ancestors(
+    project: &Project,
+    layers: &mut Vec<EvaluatedVisualLayer>,
+    canvas: (u32, u32),
+) -> Result<(), CoreError> {
+    let index: HashMap<_, _> = project
+        .tracks
+        .iter()
+        .flat_map(|track| {
+            track
+                .items
+                .iter()
+                .map(move |item| (item.id(), (track.hidden, item)))
+        })
+        .collect();
+    for layer in layers.iter_mut() {
+        let mut node = index[layer.item_id.as_str()].1;
+        if node.visual_properties().parent.is_none() {
+            continue;
+        }
+        let mut ancestors = EvaluatedAncestors {
+            matrix: IDENTITY_MATRIX,
+            inverse: IDENTITY_MATRIX,
+            opacity: 1.0,
+            clip: layer.span,
+        };
+        while let Some(parent) = &node.visual_properties().parent {
+            let (track_hidden, target) = index[parent.id.as_str()];
+            let transform = target.visual_properties().transform2d.unwrap_or_default();
+            let (matrix, inverse) = transform_matrices(transform, canvas, canvas)?;
+            ancestors.matrix = multiply_matrix(matrix, ancestors.matrix);
+            ancestors.inverse = multiply_matrix(ancestors.inverse, inverse);
+            ancestors.opacity *= transform.opacity;
+            if ancestors
+                .matrix
+                .iter()
+                .chain(&ancestors.inverse)
+                .any(|v| !v.is_finite())
+            {
+                return Err(invalid("non-finite ancestor matrix"));
+            }
+            ancestors.clip.start_ms = ancestors.clip.start_ms.max(target.start_ms());
+            ancestors.clip.end_ms = ancestors.clip.end_ms.min(target.end_ms());
+            if track_hidden || target.hidden() {
+                ancestors.clip.end_ms = ancestors.clip.start_ms;
+            }
+            node = target;
+        }
+        layer.ancestors = Some(ancestors);
+    }
+    layers.retain(|layer| {
+        let span = layer.visible_span();
+        span.start_ms < span.end_ms
+    });
+    Ok(())
+}
+
 /// One canonical source-to-composition affine map and its outward-rounded raster bounds.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct EvaluatedAffine {
@@ -2067,11 +2417,11 @@ pub(crate) struct EvaluatedAffine {
     pub(crate) opacity: f64,
 }
 
-pub(crate) fn evaluate_affine(
+fn transform_matrices(
     transform: crate::Transform2D,
     source: (u32, u32),
     canvas: (u32, u32),
-) -> Result<EvaluatedAffine, CoreError> {
+) -> Result<([f64; 6], [f64; 6]), CoreError> {
     transform.validate()?;
     if source.0 == 0 || source.1 == 0 {
         return Err(invalid("Transform2D source dimensions must be positive"));
@@ -2104,6 +2454,25 @@ pub(crate) fn evaluate_affine(
     if matrix.iter().chain(&inverse).any(|v| !v.is_finite()) {
         return Err(invalid("Transform2D derived matrix must be finite"));
     }
+    Ok((matrix, inverse))
+}
+
+pub(crate) fn evaluate_affine(
+    transform: crate::Transform2D,
+    source: (u32, u32),
+    canvas: (u32, u32),
+) -> Result<EvaluatedAffine, CoreError> {
+    let (matrix, inverse) = transform_matrices(transform, source, canvas)?;
+    affine_from_matrices(matrix, inverse, source, transform.opacity)
+}
+
+fn affine_from_matrices(
+    matrix: [f64; 6],
+    inverse: [f64; 6],
+    source: (u32, u32),
+    opacity: f64,
+) -> Result<EvaluatedAffine, CoreError> {
+    let [a, b, c, d, tx, ty] = matrix;
     let corners = [
         (0.0, 0.0),
         (f64::from(source.0), 0.0),
@@ -2149,8 +2518,119 @@ pub(crate) fn evaluate_affine(
         top,
         width: w as u32,
         height: h as u32,
-        opacity: transform.opacity,
+        opacity,
     })
+}
+
+pub(crate) fn evaluate_layer_affine(
+    layer: &EvaluatedVisualLayer,
+    source: (u32, u32),
+    canvas: (u32, u32),
+) -> Result<EvaluatedAffine, CoreError> {
+    if layer.ancestors.is_none() {
+        return evaluate_affine(
+            layer
+                .transform2d
+                .ok_or_else(|| invalid("missing local affine transform"))?,
+            source,
+            canvas,
+        );
+    }
+    let parent = layer.ancestors.unwrap();
+    let (local, inverse, opacity) = if let Some(transform) = layer.transform2d {
+        let (matrix, inverse) = transform_matrices(transform, source, canvas)?;
+        (matrix, inverse, transform.opacity)
+    } else {
+        let mut x = layer.transform.position_x;
+        let mut y = layer.transform.position_y;
+        if let EvaluatedVisualSource::Caption(caption) = &layer.source {
+            x = (f64::from(canvas.0) - f64::from(source.0)) / 2.0;
+            y = f64::from(canvas.1) - f64::from(source.1) - f64::from(caption.bottom_margin_px)
+                + 12.0;
+        }
+        let scale = layer.transform.scale;
+        let (ax, ay) = layer.legacy_anchor(source);
+        x -= scale * ax;
+        y -= scale * ay;
+        (
+            [scale, 0.0, 0.0, scale, x, y],
+            [1.0 / scale, 0.0, 0.0, 1.0 / scale, -x / scale, -y / scale],
+            layer.transform.opacity,
+        )
+    };
+    let matrix = multiply_matrix(parent.matrix, local);
+    let inverse = multiply_matrix(inverse, parent.inverse);
+    if matrix.iter().chain(&inverse).any(|v| !v.is_finite()) {
+        return Err(invalid("non-finite composed matrix"));
+    }
+    let mut affine = affine_from_matrices(matrix, inverse, source, opacity * parent.opacity)?;
+    if layer.has_animated_geometry() {
+        let mut xs = Vec::new();
+        let mut ys = Vec::new();
+        let mut scales = Vec::new();
+        for key in &layer.keyframes {
+            match (key.property, key.value) {
+                (EvaluatedProperty::Position, EvaluatedKeyframeValue::Position { x, y }) => {
+                    xs.push(x);
+                    ys.push(y);
+                }
+                (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) => {
+                    scales.push(value)
+                }
+                _ => {}
+            }
+        }
+        let extremes = |values: &[f64], default: f64| {
+            if values.is_empty() {
+                [default, default]
+            } else {
+                [
+                    values.iter().copied().fold(f64::INFINITY, f64::min),
+                    values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+                ]
+            }
+        };
+        let mut left = f64::INFINITY;
+        let mut top = f64::INFINITY;
+        let mut right = f64::NEG_INFINITY;
+        let mut bottom = f64::NEG_INFINITY;
+        // Existing easings are bounded by endpoint values. This fixed-size envelope
+        // bounds all combinations without expanding animation into per-frame facts.
+        for x in extremes(&xs, layer.transform.position_x) {
+            for y in extremes(&ys, layer.transform.position_y) {
+                for scale in extremes(&scales, layer.transform.scale) {
+                    if !scale.is_finite() || scale <= 0.0 {
+                        return Err(invalid("invalid animated scale"));
+                    }
+                    let (ax, ay) = layer.legacy_anchor(source);
+                    let x = x - scale * ax;
+                    let y = y - scale * ay;
+                    let matrix = multiply_matrix(parent.matrix, [scale, 0.0, 0.0, scale, x, y]);
+                    let inverse = multiply_matrix(
+                        [1.0 / scale, 0.0, 0.0, 1.0 / scale, -x / scale, -y / scale],
+                        parent.inverse,
+                    );
+                    let bounds =
+                        affine_from_matrices(matrix, inverse, source, opacity * parent.opacity)?;
+                    left = left.min(bounds.left);
+                    top = top.min(bounds.top);
+                    right = right.max(bounds.left + f64::from(bounds.width));
+                    bottom = bottom.max(bounds.top + f64::from(bounds.height));
+                }
+            }
+        }
+        // Geometry was validated above before clipping. Travel only determines
+        // which composition pixels may need sampling, never the object size limit.
+        left = left.max(0.0).min(f64::from(canvas.0));
+        top = top.max(0.0).min(f64::from(canvas.1));
+        right = right.max(0.0).min(f64::from(canvas.0));
+        bottom = bottom.max(0.0).min(f64::from(canvas.1));
+        affine.left = left;
+        affine.top = top;
+        affine.width = (right - left).max(0.0) as u32;
+        affine.height = (bottom - top).max(0.0) as u32;
+    }
+    Ok(affine)
 }
 
 pub(crate) fn finalize_affine_geometry(
@@ -2162,16 +2642,16 @@ pub(crate) fn finalize_affine_geometry(
         .visual_layers
         .iter()
         .map(|layer| {
-            let Some(value) = layer.transform2d else {
+            if !layer.requires_affine() {
                 return Ok(None);
-            };
+            }
             let size = layer
                 .source_size
                 .or_else(|| measurements.get(&layer.item_id).copied())
                 .ok_or_else(|| invalid("Transform2D source measurement is missing"))?;
             Ok(Some((
                 size,
-                evaluate_affine(value, size, (scene.canvas.width, scene.canvas.height))?,
+                evaluate_layer_affine(layer, size, (scene.canvas.width, scene.canvas.height))?,
             )))
         })
         .collect::<Result<Vec<_>, CoreError>>()?;
@@ -2179,8 +2659,26 @@ pub(crate) fn finalize_affine_geometry(
         if let Some((size, affine)) = result {
             layer.source_size = Some(size);
             layer.affine = Some(affine);
+            if layer.has_animated_geometry() {
+                let mut tiles = Vec::new();
+                for y in (0..affine.height).step_by(4096) {
+                    for x in (0..affine.width).step_by(4096) {
+                        tiles.push(EvaluatedAffine {
+                            left: affine.left + f64::from(x),
+                            top: affine.top + f64::from(y),
+                            width: (affine.width - x).min(4096),
+                            height: (affine.height - y).min(4096),
+                            ..affine
+                        });
+                    }
+                }
+                layer.sampling_tiles = Some(tiles);
+            }
         }
     }
+    scene
+        .visual_layers
+        .retain(|layer| !layer.sampling_tiles.as_ref().is_some_and(Vec::is_empty));
     Ok(())
 }
 

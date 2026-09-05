@@ -110,7 +110,7 @@ pub(crate) fn build_render_plan(
             current_video = composited;
             continue;
         }
-        if layer.transform2d.is_some() {
+        if layer.requires_affine() {
             return Err(CoreError::new(
                 ErrorCode::InvalidArgument,
                 "Transform2D geometry was not finalized",
@@ -926,21 +926,111 @@ fn append_affine_layer(
             )
         }
     };
+    if let Some(tiles) = &layer.sampling_tiles
+        && tiles.len() > 1
+    {
+        let labels = (0..tiles.len())
+            .map(|n| format!("[{label}input{n}]"))
+            .collect::<String>();
+        filters.push(format!("{source},split={}{labels}", tiles.len()));
+        let mut previous = base.to_string();
+        for (n, tile) in tiles.iter().enumerate() {
+            let next = if n + 1 == tiles.len() {
+                output.to_string()
+            } else {
+                format!("{label}base{n}")
+            };
+            append_affine_samples(
+                filters,
+                layer,
+                tile,
+                scene,
+                &format!("[{label}input{n}]"),
+                (&previous, &next, &format!("{label}tile{n}")),
+            )?;
+            previous = next;
+        }
+        return Ok(());
+    }
+    append_affine_samples(
+        filters,
+        layer,
+        affine,
+        scene,
+        &source,
+        (base, output, &label),
+    )
+}
+
+fn append_affine_samples(
+    filters: &mut Vec<String>,
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    affine: &crate::evaluated_scene::EvaluatedAffine,
+    scene: &EvaluatedScene,
+    source: &str,
+    destination: (&str, &str, &str),
+) -> Result<(), CoreError> {
+    let (base, output, label) = destination;
+    let (sw, sh) = layer
+        .source_size
+        .ok_or_else(|| CoreError::new(ErrorCode::InvalidArgument, "missing affine source size"))?;
+    let fps = scene.canvas.fps;
+    let duration = seconds(scene.duration_ms);
     // Four nearest-neighbor gathers followed by separable bilinear interpolation.
     // Each map has exactly the validated output dimensions, so a rotated thin
     // source never requires a square pad enclosing both source and destination.
-    let [a, b, c, d, tx, ty] = affine.inverse;
-    let x = format!(
-        "({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-0.5)",
-        affine.left, affine.top
-    );
-    let y = format!(
-        "({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-0.5)",
-        affine.left, affine.top
-    );
+    let (x, y) = if let Some(parent) = layer.ancestors.filter(|_| layer.has_animated_geometry()) {
+        let position = |x_axis, default| {
+            let values = layer
+                .keyframes
+                .iter()
+                .filter_map(|key| match (key.property, key.value) {
+                    (EvaluatedProperty::Position, EvaluatedKeyframeValue::Position { x, y }) => {
+                        Some((key.time_ms, if x_axis { x } else { y }, key.easing))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            evaluated_piecewise_expression_for(&values, default, layer.span.start_ms, "T")
+        };
+        let px = position(true, layer.transform.position_x);
+        let py = position(false, layer.transform.position_y);
+        let scale = evaluated_scalar_expression_for(
+            &layer.keyframes,
+            EvaluatedProperty::Scale,
+            layer.transform.scale,
+            layer.span.start_ms,
+            "T",
+        );
+        let [a, b, c, d, tx, ty] = parent.inverse;
+        let (anchor_x, anchor_y) = layer.legacy_anchor((sw, sh));
+        (
+            format!(
+                "(({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-({px}))/({scale})+{anchor_x:.17}-0.5)",
+                affine.left, affine.top
+            ),
+            format!(
+                "(({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-({py}))/({scale})+{anchor_y:.17}-0.5)",
+                affine.left, affine.top
+            ),
+        )
+    } else {
+        let [a, b, c, d, tx, ty] = affine.inverse;
+        (
+            format!(
+                "({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-0.5)",
+                affine.left, affine.top
+            ),
+            format!(
+                "({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-0.5)",
+                affine.left, affine.top
+            ),
+        )
+    };
     let fx = format!("({x}-floor({x}))");
     let fy = format!("({y}-floor({y}))");
-    filters.push(format!("{source},format=gbrap,geq=r='r(X,Y)*alpha(X,Y)/255':g='g(X,Y)*alpha(X,Y)/255':b='b(X,Y)*alpha(X,Y)/255':a='alpha(X,Y)',format=rgba,split=4[{label}s0][{label}s1][{label}s2][{label}s3]"));
+    let source_separator = if source.ends_with(']') { "" } else { "," };
+    filters.push(format!("{source}{source_separator}format=gbrap,geq=r='r(X,Y)*alpha(X,Y)/255':g='g(X,Y)*alpha(X,Y)/255':b='b(X,Y)*alpha(X,Y)/255':a='alpha(X,Y)',format=rgba,split=4[{label}s0][{label}s1][{label}s2][{label}s3]"));
     for (n, (dx, dy)) in [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().enumerate() {
         let sx = format!("floor({x})+{dx}");
         let sy = format!("floor({y})+{dy}");
@@ -958,10 +1048,25 @@ fn append_affine_layer(
     filters.push(format!(
         "[{label}p2][{label}p3]blend=all_expr='A*(1-{fx})+B*{fx}'[{label}row1]"
     ));
+    let opacity = if let Some(parent) = layer.ancestors.filter(|_| layer.transform2d.is_none()) {
+        format!(
+            "({:.17})*({})",
+            parent.opacity,
+            evaluated_scalar_expression_for(
+                &layer.keyframes,
+                EvaluatedProperty::Opacity,
+                layer.transform.opacity,
+                layer.span.start_ms,
+                "T"
+            )
+        )
+    } else {
+        format!("{:.17}", affine.opacity)
+    };
     let fade = evaluated_transition_filters(&layer.transitions);
-    filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq=r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*{:.17}',format=rgba{fade}[{label}]",affine.opacity));
+    filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq=r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*({opacity})',format=rgba{fade}[{label}]"));
     filters.push(format!("[{base}][{label}]overlay=x={:.0}:y={:.0}:format=auto:enable='gte(t,{})*lt(t,{})'[{output}]",
-        affine.left,affine.top,seconds(layer.span.start_ms),seconds(layer.span.end_ms)));
+        affine.left,affine.top,seconds(layer.visible_span().start_ms),seconds(layer.visible_span().end_ms)));
     Ok(())
 }
 

@@ -43,7 +43,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::AddMedia { .. }
+        EditOperation::AddGroup { .. }
+            | EditOperation::AddMedia { .. }
             | EditOperation::AddText { .. }
             | EditOperation::AddSolidColor { .. }
             | EditOperation::AddRectangle { .. }
@@ -73,6 +74,20 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::AddGroup {
+            track_id, parent, ..
+        } => {
+            resolve_alias(track_id, aliases)?;
+            if let Some(parent) = parent {
+                resolve_alias(&mut parent.id, aliases)?;
+            }
+        }
+        EditOperation::ItemSetParent { item_id, parent } => {
+            resolve_alias(item_id, aliases)?;
+            if let Some(parent) = parent {
+                resolve_alias(&mut parent.id, aliases)?;
+            }
+        }
         EditOperation::AddMedia { track_id, .. }
         | EditOperation::AddText { track_id, .. }
         | EditOperation::AddSolidColor { track_id, .. }
@@ -122,6 +137,7 @@ pub(crate) fn apply_operation(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     let (mut ids, summary) = apply_operation_inner(project, operation)?;
+    crate::validation::validate_parent_graph(project)?;
     for id in normalize_stack_order(project)? {
         if !ids.contains(&id) {
             ids.push(id);
@@ -151,6 +167,42 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::AddGroup {
+            track_id,
+            start_ms,
+            duration_ms,
+            transform2d,
+            parent,
+        } => {
+            validate_duration(duration_ms)?;
+            let transform2d = transform2d.unwrap_or_default();
+            transform2d.validate()?;
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "groups require overlay tracks",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Group(crate::GroupItem {
+                id: id.clone(),
+                start_ms,
+                duration_ms,
+                visual_properties: crate::VisualProperties {
+                    transform2d: Some(transform2d),
+                    parent,
+                    ..Default::default()
+                },
+            }));
+            Ok((vec![id], "Added group"))
+        }
+        EditOperation::ItemSetParent { item_id, parent } => {
+            find_editable_item_mut(project, &item_id)?
+                .visual_properties_mut()
+                .parent = parent;
+            Ok((vec![item_id], "Updated item parent"))
+        }
         EditOperation::ItemSetZIndex { item_id, z_index } => {
             let (track, index) = find_item_location(project, &item_id)?;
             if project.tracks[track].locked {
@@ -376,6 +428,12 @@ fn apply_operation_inner(
                 validate_transform(&transform)?;
                 match item {
                     TimelineItem::Media(media) => media.transform = transform,
+                    TimelineItem::Group(_) => {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "groups do not accept legacy transforms",
+                        ));
+                    }
                     TimelineItem::Text(text_item) => text_item.transform = transform,
                     TimelineItem::SolidColor(item) => item.transform = transform,
                     TimelineItem::Rectangle(item) => item.transform = transform,
@@ -491,6 +549,10 @@ fn apply_operation_inner(
                     text.start_ms = start_ms;
                     text.duration_ms = duration_ms;
                 }
+                TimelineItem::Group(group) => {
+                    group.start_ms = start_ms;
+                    group.duration_ms = duration_ms;
+                }
                 TimelineItem::SolidColor(item) => {
                     item.start_ms = start_ms;
                     item.duration_ms = duration_ms;
@@ -512,6 +574,22 @@ fn apply_operation_inner(
         }
         EditOperation::DeleteItem { item_id } => {
             ensure_item_track_unlocked(project, &item_id)?;
+            if project
+                .tracks
+                .iter()
+                .flat_map(|track| &track.items)
+                .any(|item| {
+                    item.visual_properties()
+                        .parent
+                        .as_ref()
+                        .is_some_and(|parent| parent.id == item_id)
+                })
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "group has surviving children",
+                ));
+            }
             remove_item(project, &item_id)?;
             for track in &mut project.tracks {
                 track.items.retain(|item| match item {
@@ -527,6 +605,12 @@ fn apply_operation_inner(
         EditOperation::SetKeyframes { item_id, keyframes } => {
             validate_keyframes(&keyframes)?;
             let item = find_editable_item_mut(project, &item_id)?;
+            if matches!(item, TimelineItem::Group(_)) {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "groups do not accept keyframes",
+                ));
+            }
             if keyframes
                 .iter()
                 .any(|keyframe| keyframe.property == KeyframeProperty::Volume)
@@ -576,6 +660,15 @@ fn apply_operation_inner(
                     "transition endpoint was not found",
                 ));
             }
+            if std::iter::once(&from_item_id)
+                .chain(to_item_id.iter())
+                .any(|id| matches!(project.find_item(id), Some(TimelineItem::Group(_))))
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "groups cannot be transition endpoints",
+                ));
+            }
             let track = editable_track_mut(project, &track_id)?;
             if matches!(track.track_type, TrackType::Audio | TrackType::Caption) {
                 return Err(CoreError::new(
@@ -599,6 +692,12 @@ fn apply_operation_inner(
             validate_audio(&audio)?;
             let item = find_editable_item_mut(project, &item_id)?;
             match item {
+                TimelineItem::Group(_) => {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "groups do not accept audio",
+                    ));
+                }
                 TimelineItem::Media(media) => media.audio = audio,
                 _ => {
                     return Err(CoreError::new(
@@ -615,6 +714,12 @@ fn apply_operation_inner(
                 return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
             }
             let item = &mut project.tracks[track_index].items[item_index];
+            if matches!(item, TimelineItem::Group(_)) {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "groups cannot be split",
+                ));
+            }
             if split_ms <= item.start_ms() || split_ms >= item.end_ms() {
                 return Err(CoreError::new(
                     ErrorCode::ValidationFailed,
@@ -625,6 +730,12 @@ fn apply_operation_inner(
             let right_duration = item.end_ms() - split_ms;
             let left_duration = split_ms - item.start_ms();
             let right = match item {
+                TimelineItem::Group(_) => {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "groups cannot be split",
+                    ));
+                }
                 TimelineItem::Media(media) => {
                     let mut right = media.clone();
                     let (left_keyframes, right_keyframes) =
@@ -951,6 +1062,7 @@ pub(crate) fn remove_item(project: &mut Project, item_id: &str) -> Result<Timeli
 
 pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
     match item {
+        TimelineItem::Group(group) => group.start_ms = start_ms,
         TimelineItem::Media(media) => media.start_ms = start_ms,
         TimelineItem::Text(text) => text.start_ms = start_ms,
         TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
@@ -962,6 +1074,7 @@ pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
 
 pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
     match item {
+        TimelineItem::Group(group) => group.id = id,
         TimelineItem::Media(media) => media.id = id,
         TimelineItem::Text(text) => text.id = id,
         TimelineItem::SolidColor(shape) => shape.id = id,
