@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -12,16 +12,21 @@ import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import STACKING from "../../../contracts/stacking-v1.json";
+import type SLOT_CATALOG from "../../../contracts/template-slots-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { EVALUATED_SCENE_RENDERING_CAPABILITY } from "../src/headless-contract";
 import {
+  closedSlotRecord,
   componentDefinitionSchema,
+  componentInstanceSchema,
   headlessEditSchema,
   headlessStatusSchema,
   schemas,
+  slotValueSchema,
+  templateSlotSchema,
   ttsStatusSchema,
 } from "../src/schemas";
 import {
@@ -129,6 +134,13 @@ const normalizeJson = (
 
 const normalizeSchemaJson = (value: unknown) => normalizeJson(value, true);
 
+// Parse the JSON as data: bundlers may emit __proto__ as object-literal syntax.
+const SLOTS: typeof SLOT_CATALOG = JSON.parse(
+  readFileSync(
+    new URL("../../../contracts/template-slots-v1.json", import.meta.url),
+    "utf8"
+  )
+);
 const schemaJson = (schema: z.ZodType, io: "input" | "output") =>
   normalizeSchemaJson(
     z.toJSONSchema(schema, {
@@ -518,4 +530,341 @@ describe("runtime group contract", () => {
       ).toBe(false);
     }
   });
+});
+
+it("matches runtime slot fixtures and closed typed values", () => {
+  for (const fixture of SLOTS.valid) {
+    expect(templateSlotSchema.safeParse(fixture.slot).success, fixture.id).toBe(
+      true
+    );
+    const operation = {
+      componentId: "card",
+      operation: "component_define_slots",
+      slots: [fixture.slot],
+    };
+    expect(headlessEditSchema.safeParse(operation).success).toBe(true);
+    expect(
+      schemas.componentDefineSlots.safeParse({
+        componentId: "card",
+        expectedRevision: 0,
+        projectId: "project",
+        slots: [fixture.slot],
+      }).success
+    ).toBe(true);
+  }
+  for (const fixture of SLOTS.invalid) {
+    expect(templateSlotSchema.safeParse(fixture.slot).success, fixture.id).toBe(
+      fixture.stage !== "structural"
+    );
+  }
+  for (const value of [
+    null,
+    { type: "text", value: true },
+    { extra: 1, type: "text", value: "x" },
+    { type: "duration", value: 0.5 },
+    { type: "text", value: "\ud800" },
+    {
+      type: "rich_text",
+      value: { runs: [{ href: "https://example.org", text: "x" }] },
+    },
+  ]) {
+    expect(slotValueSchema.safeParse(value).success).toBe(false);
+  }
+  expect(
+    slotValueSchema.safeParse({ type: "text", value: "😀é" }).success
+  ).toBe(true);
+});
+
+it("requires slot fields on schema-12 responses while retaining request defaults", () => {
+  const definition = {
+    ...COMPONENTS.definition,
+    tracks: [
+      {
+        id: "local",
+        items: [
+          {
+            componentId: "leaf",
+            durationMs: 1000,
+            hidden: false,
+            id: "nested",
+            stackOrder: 0,
+            startMs: 0,
+            timeScale: 1,
+            transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+            trimStartMs: 0,
+            type: "component_instance",
+            zIndex: 0,
+          },
+        ],
+        name: "Local",
+        trackType: "overlay",
+      },
+    ],
+  };
+  expect(componentDefinitionSchema.safeParse(definition).success).toBe(false);
+  expect(
+    headlessEditSchema.safeParse({
+      ...definition,
+      id: undefined,
+      operation: "component_create",
+    }).success
+  ).toBe(false);
+  const { id: _id, ...fields } = definition;
+  expect(
+    headlessEditSchema.safeParse({ ...fields, operation: "component_create" })
+      .success
+  ).toBe(true);
+  const complete = {
+    ...definition,
+    tracks: definition.tracks.map((track) => ({
+      ...track,
+      items: track.items.map((item) => ({ ...item, slotValues: {} })),
+    })),
+  };
+  expect(componentDefinitionSchema.safeParse(complete).success).toBe(true);
+  expect(
+    componentDefinitionSchema.safeParse({ ...complete, slots: undefined })
+      .success
+  ).toBe(false);
+});
+
+it("preserves and validates every canonical special override key", () => {
+  const schema = componentInstanceSchema.shape.slotValues;
+  for (const input of [
+    JSON.parse(JSON.stringify(SLOTS.regressions.overrides)),
+    Object.assign(Object.create(null), SLOTS.regressions.overrides),
+  ]) {
+    const parsed = schema.parse(input);
+    expect(parsed).toEqual(SLOTS.regressions.overrides);
+    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+    expect(JSON.parse(JSON.stringify(parsed))).toEqual(input);
+    for (const key of SLOTS.regressions.specialKeys) {
+      expect(Object.hasOwn(parsed, key)).toBe(true);
+      expect(parsed[key]).not.toBe(input[key]);
+      for (const invalid of SLOTS.regressions.invalidValues) {
+        const result = schema.safeParse(Object.fromEntries([[key, invalid]]));
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(
+            result.error.issues.every((issue) => issue.path[0] === key)
+          ).toBe(true);
+        }
+      }
+    }
+  }
+  const inherited = Object.create({ inherited: { type: "text", value: "x" } });
+  expect(schema.parse(inherited)).toEqual({});
+  for (const invalid of [null, [], 1, "map", undefined]) {
+    expect(schema.safeParse(invalid).success).toBe(false);
+  }
+  const unknown = {
+    [SLOTS.regressions.unknownSlotId]: { type: "text", value: "x" },
+  };
+  expect(schema.parse(unknown)).toEqual(unknown);
+  for (const io of ["input", "output"] as const) {
+    expect(z.toJSONSchema(schema, { io })).toEqual(
+      z.toJSONSchema(z.record(z.string(), slotValueSchema), { io })
+    );
+  }
+});
+
+it("rejects canonical closed slot records with complete nested paths", () => {
+  const locations = [
+    "definition",
+    "binding",
+    "constraints",
+    ...SLOTS.slotKinds.map((kind) => `envelope_${kind}`),
+    "rich_text_document",
+    "rich_text_run",
+    "asset_reference",
+  ];
+  expect(
+    SLOTS.regressions.closedRecords.map((fixture) => fixture.id).sort()
+  ).toEqual(
+    locations
+      .flatMap((location) =>
+        ["__proto__", "constructor", "toString", "unexpected"].map(
+          (key) => `${location}_${key}`
+        )
+      )
+      .sort()
+  );
+  const assertUnknown = (
+    schema: z.ZodType,
+    input: unknown,
+    path: (string | number)[],
+    key: string
+  ) => {
+    const result = schema.safeParse(input);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({
+          code: "unrecognized_keys",
+          keys: [key],
+          path,
+        })
+      );
+    }
+  };
+  for (const fixture of SLOTS.regressions.closedRecords) {
+    const record = fixture.recordPath.reduce<unknown>(
+      (value, key) => (value as Record<string | number, unknown>)[key],
+      fixture.slot
+    );
+    const bytes = JSON.stringify(fixture.slot);
+    expect(Object.hasOwn(record as object, fixture.key), fixture.id).toBe(true);
+    assertUnknown(
+      templateSlotSchema,
+      fixture.slot,
+      fixture.recordPath,
+      fixture.key
+    );
+    const request = {
+      componentId: "card",
+      expectedRevision: 0,
+      projectId: "project",
+      slots: [fixture.slot],
+    };
+    assertUnknown(
+      schemas.componentDefineSlots,
+      request,
+      ["slots", 0, ...fixture.recordPath],
+      fixture.key
+    );
+    const operation = {
+      componentId: "card",
+      operation: "component_define_slots",
+      slots: [fixture.slot],
+    };
+    assertUnknown(
+      headlessEditSchema,
+      operation,
+      ["slots", 0, ...fixture.recordPath],
+      fixture.key
+    );
+    assertUnknown(
+      schemas.timelineBatchEdit,
+      {
+        expectedRevision: 0,
+        operations: [operation],
+        projectId: "project",
+      },
+      ["operations", 0, "slots", 0, ...fixture.recordPath],
+      fixture.key
+    );
+    assertUnknown(
+      componentDefinitionSchema,
+      { ...COMPONENTS.definition, slots: [fixture.slot] },
+      ["slots", 0, ...fixture.recordPath],
+      fixture.key
+    );
+    if (fixture.overridePath) {
+      assertUnknown(
+        slotValueSchema,
+        fixture.override,
+        fixture.overridePath,
+        fixture.key
+      );
+      for (const id of SLOTS.regressions.specialKeys) {
+        const values = Object.fromEntries([[id, fixture.override]]);
+        assertUnknown(
+          componentInstanceSchema.shape.slotValues,
+          values,
+          [id, ...fixture.overridePath],
+          fixture.key
+        );
+        const item = {
+          componentId: "leaf",
+          durationMs: 1000,
+          hidden: false,
+          id: "nested",
+          slotValues: values,
+          stackOrder: 0,
+          startMs: 0,
+          timeScale: 1,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          trimStartMs: 0,
+          type: "component_instance",
+          zIndex: 0,
+        };
+        assertUnknown(
+          componentInstanceSchema,
+          item,
+          ["slotValues", id, ...fixture.overridePath],
+          fixture.key
+        );
+        const fields = {
+          durationMs: 1000,
+          height: 240,
+          name: "Outer",
+          tracks: [
+            { id: "local", items: [item], name: "Local", trackType: "overlay" },
+          ],
+          width: 320,
+        };
+        assertUnknown(
+          schemas.componentCreate,
+          { ...fields, expectedRevision: 0, projectId: "project" },
+          ["tracks", 0, "items", 0, "slotValues", id, ...fixture.overridePath],
+          fixture.key
+        );
+        assertUnknown(
+          schemas.timelineBatchEdit,
+          {
+            expectedRevision: 0,
+            operations: [{ ...fields, operation: "component_create" }],
+            projectId: "project",
+          },
+          [
+            "operations",
+            0,
+            "tracks",
+            0,
+            "items",
+            0,
+            "slotValues",
+            id,
+            ...fixture.overridePath,
+          ],
+          fixture.key
+        );
+      }
+    }
+    expect(JSON.stringify(fixture.slot)).toBe(bytes);
+    expect(Object.getPrototypeOf(record)).toBe(Object.prototype);
+  }
+});
+
+it("delegates closed record parsing without changing types or JSON schemas", () => {
+  const original = z
+    .object({ count: z.number().optional(), text: z.string() })
+    .strict();
+  const guarded = closedSlotRecord(original, Object.keys(original.shape));
+  const input = { text: "Hello" };
+  const parsed: z.infer<typeof original> = guarded.parse(input);
+  expect(parsed).toEqual(input);
+  expect(parsed).not.toBe(input);
+  for (const io of ["input", "output"] as const) {
+    expect(z.toJSONSchema(guarded, { io })).toEqual(
+      z.toJSONSchema(original, { io })
+    );
+  }
+  for (const value of [null, [], 3, { text: false }]) {
+    expect(guarded.safeParse(value).error?.issues).toEqual(
+      original.safeParse(value).error?.issues
+    );
+  }
+  const valueError = componentInstanceSchema.shape.slotValues.safeParse(
+    JSON.parse(
+      '{"__proto__":{"type":"rich_text","value":{"runs":[{"text":false}]}}}'
+    )
+  );
+  expect(valueError.error?.issues[0]?.path).toEqual([
+    "__proto__",
+    "value",
+    "runs",
+    0,
+    "text",
+  ]);
 });

@@ -185,3 +185,5 @@ Run `codex mcp list`, then use `/mcp` and `editor_get_status`. Agents should rea
 - HTTP is for localhost or authenticated trusted-LAN use, not public internet deployment. There is no remote URL import, scripting tool, OpenAI API, or generative video dependency.
 - Export is MP4/H.264/AAC at project, 1080p, or 720p resolution. The renderer supports the MVP transform, fade/crossfade, text, and audio controls; it is not yet a full nonlinear compositor.
 - The recommended next milestone is GPUI integration with the shared core and durable render-job recovery.
+
+Runtime template slots are documented in [typed template slots](template-slots.md). Protocol 1 exposes `component_define_slots` standalone and in batches and advertises `typed_template_slots`; schema 12 stores typed definitions and overrides. The separate `contracts/template-slots-v1.json` catalog governs all eight kinds; preparatory motion-graphics-v1 records retain their fixture-only status.

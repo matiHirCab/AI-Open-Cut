@@ -3,6 +3,7 @@ import type { z } from "zod/v4";
 import type {
   componentFieldsSchema,
   generatedAssetOriginSchema,
+  templateSlotSchema,
   transform2dSchema,
 } from "./schemas";
 
@@ -21,6 +22,11 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | {
+      operation: "component_define_slots";
+      componentId: string;
+      slots: z.infer<typeof templateSlotSchema>[];
+    }
   | ({
       operation: "component_create";
       resultAlias?: string | undefined;

@@ -89,6 +89,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "component_define_slots",
+    {
+      annotations: DESTRUCTIVE,
+      description:
+        "Replace typed component slots and validate every binding and instance override.",
+      inputSchema: schemas.componentDefineSlots,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_define_slots",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "component_delete",
     {
       annotations: DESTRUCTIVE,

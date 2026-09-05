@@ -28,6 +28,7 @@ pub(crate) enum AssetReferenceKind {
     MediaItem,
     CaptionSource,
     DraftOperation,
+    TemplateSlot,
 }
 
 impl AssetReferenceKind {
@@ -36,6 +37,7 @@ impl AssetReferenceKind {
             Self::MediaItem => "media item",
             Self::CaptionSource => "caption source",
             Self::DraftOperation => "draft operation",
+            Self::TemplateSlot => "template slot",
         }
     }
 }
@@ -48,7 +50,7 @@ pub(crate) struct AssetReference {
 }
 
 pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference> {
-    project
+    let mut references: Vec<AssetReference> = project
         .tracks
         .iter()
         .chain(project.components.iter().flat_map(|c| &c.tracks))
@@ -71,7 +73,34 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             | TimelineItem::Group(_)
             | TimelineItem::ComponentInstance(_) => None,
         })
-        .collect()
+        .collect();
+    for component in &project.components {
+        for value in component
+            .slots
+            .iter()
+            .filter_map(|s| s.default_value.as_ref())
+            .chain(
+                component
+                    .tracks
+                    .iter()
+                    .flat_map(|t| &t.items)
+                    .filter_map(|i| match i {
+                        TimelineItem::ComponentInstance(v) => Some(v.slot_values.values()),
+                        _ => None,
+                    })
+                    .flatten(),
+            )
+        {
+            if let crate::SlotValue::Asset(asset) = value {
+                references.push(AssetReference {
+                    asset_id: asset.id.clone(),
+                    kind: AssetReferenceKind::TemplateSlot,
+                    owner_id: component.id.clone(),
+                });
+            }
+        }
+    }
+    references
 }
 
 pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<AssetReference> {
@@ -80,13 +109,36 @@ pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<Ass
         let mut ids = Vec::new();
         match operation {
             EditOperation::AddMedia { asset_id, .. } => ids.push(asset_id.clone()),
-            EditOperation::ComponentCreate { tracks, .. }
-            | EditOperation::ComponentUpdate { tracks, .. } => {
+            EditOperation::ComponentCreate { tracks, slots, .. }
+            | EditOperation::ComponentUpdate { tracks, slots, .. } => {
+                for value in slots
+                    .iter()
+                    .flatten()
+                    .filter_map(|s| s.default_value.as_ref())
+                {
+                    if let crate::SlotValue::Asset(v) = value {
+                        ids.push(v.id.clone());
+                    }
+                }
                 for item in tracks.iter().flat_map(|t| &t.items) {
                     match item {
                         TimelineItem::Media(v) => ids.push(v.asset_id.clone()),
                         TimelineItem::Caption(v) => ids.push(v.source.asset_id.clone()),
+                        TimelineItem::ComponentInstance(v) => {
+                            for value in v.slot_values.values() {
+                                if let crate::SlotValue::Asset(v) = value {
+                                    ids.push(v.id.clone());
+                                }
+                            }
+                        }
                         _ => {}
+                    }
+                }
+            }
+            EditOperation::ComponentDefineSlots { slots, .. } => {
+                for value in slots.iter().filter_map(|s| s.default_value.as_ref()) {
+                    if let crate::SlotValue::Asset(v) = value {
+                        ids.push(v.id.clone());
                     }
                 }
             }

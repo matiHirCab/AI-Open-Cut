@@ -1,0 +1,2361 @@
+{
+  "version": 1,
+  "status": "runtime",
+  "schemaVersion": 12,
+  "capability": "typed_template_slots",
+  "slotKinds": [
+    "text",
+    "rich_text",
+    "color",
+    "number",
+    "boolean",
+    "enum",
+    "duration",
+    "asset"
+  ],
+  "properties": [
+    "text.document",
+    "text.color",
+    "visual.opacity",
+    "visual.hidden",
+    "text.alignment",
+    "item.durationMs",
+    "media.asset"
+  ],
+  "limits": {
+    "maxSlotsPerComponent": 128,
+    "maxSlotsPerProject": 4096,
+    "maxOverridesPerInstance": 128,
+    "maxTextScalars": 4096,
+    "maxRichTextRuns": 256,
+    "maxChoices": 128,
+    "maxChoiceScalars": 128,
+    "maxSnapshotTextScalars": 1048576,
+    "maxSafeInteger": 9007199254740991
+  },
+  "valid": [
+    {
+      "id": "text",
+      "slot": {
+        "id": "text",
+        "name": "text",
+        "kind": "text",
+        "required": true,
+        "defaultValue": {
+          "type": "text",
+          "value": "Hello"
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.document"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "rich_text",
+      "slot": {
+        "id": "rich_text",
+        "name": "rich_text",
+        "kind": "rich_text",
+        "required": true,
+        "defaultValue": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ]
+          }
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.document"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "color",
+      "slot": {
+        "id": "color",
+        "name": "color",
+        "kind": "color",
+        "required": true,
+        "defaultValue": {
+          "type": "color",
+          "value": "#12AbEf"
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.color"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "number",
+      "slot": {
+        "id": "number",
+        "name": "number",
+        "kind": "number",
+        "required": true,
+        "defaultValue": {
+          "type": "number",
+          "value": 0.5
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "visual.opacity"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "boolean",
+      "slot": {
+        "id": "boolean",
+        "name": "boolean",
+        "kind": "boolean",
+        "required": true,
+        "defaultValue": {
+          "type": "boolean",
+          "value": false
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "visual.hidden"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "enum",
+      "slot": {
+        "id": "enum",
+        "name": "enum",
+        "kind": "enum",
+        "required": true,
+        "defaultValue": {
+          "type": "enum",
+          "value": "center"
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.alignment"
+        },
+        "constraints": {
+          "choices": [
+            "left",
+            "center",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "id": "duration",
+      "slot": {
+        "id": "duration",
+        "name": "duration",
+        "kind": "duration",
+        "required": true,
+        "defaultValue": {
+          "type": "duration",
+          "value": 500
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "item.durationMs"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "asset",
+      "slot": {
+        "id": "asset",
+        "name": "asset",
+        "kind": "asset",
+        "required": true,
+        "defaultValue": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset"
+          }
+        },
+        "binding": {
+          "targetLayerId": "media",
+          "property": "media.asset"
+        },
+        "constraints": {}
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "wrong_tag",
+      "stage": "semantic",
+      "error": "INVALID_ARGUMENT",
+      "slot": {
+        "id": "text",
+        "name": "text",
+        "kind": "text",
+        "required": true,
+        "defaultValue": {
+          "type": "number",
+          "value": 1
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.document"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "missing_target",
+      "stage": "semantic",
+      "error": "ITEM_NOT_FOUND",
+      "slot": {
+        "id": "text",
+        "name": "text",
+        "kind": "text",
+        "required": true,
+        "defaultValue": {
+          "type": "text",
+          "value": "Hello"
+        },
+        "binding": {
+          "targetLayerId": "missing",
+          "property": "text.document"
+        },
+        "constraints": {}
+      }
+    },
+    {
+      "id": "unknown_property",
+      "stage": "structural",
+      "error": "INVALID_ARGUMENT",
+      "slot": {
+        "id": "text",
+        "name": "text",
+        "kind": "text",
+        "required": true,
+        "defaultValue": {
+          "type": "text",
+          "value": "Hello"
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "arbitrary.path"
+        },
+        "constraints": {}
+      }
+    }
+  ],
+  "regressions": {
+    "specialKeys": [
+      "__proto__",
+      "constructor",
+      "toString"
+    ],
+    "overrides": {
+      "__proto__": {
+        "type": "text",
+        "value": "Override __proto__"
+      },
+      "constructor": {
+        "type": "text",
+        "value": "Override constructor"
+      },
+      "toString": {
+        "type": "text",
+        "value": "Override toString"
+      }
+    },
+    "invalidValues": [
+      null,
+      {
+        "type": "text",
+        "value": false
+      },
+      {
+        "type": "text",
+        "value": "x",
+        "extra": true
+      }
+    ],
+    "unknownSlotId": "unknown",
+    "groupItems": [
+      {
+        "type": "group",
+        "id": "group",
+        "startMs": 0,
+        "durationMs": 1000
+      },
+      {
+        "type": "group",
+        "id": "group",
+        "startMs": 0,
+        "durationMs": 1000,
+        "transform2d": {
+          "position": {
+            "x": 12,
+            "y": 20,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "scaleX": 1.2,
+          "scaleY": 0.8,
+          "rotationDeg": 15,
+          "skewXDeg": 2,
+          "skewYDeg": 3,
+          "opacity": 0.75
+        }
+      }
+    ],
+    "opacityValues": [
+      0,
+      0.5,
+      1
+    ],
+    "invalidOpacityValues": [
+      -0.1,
+      1.1
+    ],
+    "closedRecords": [
+      {
+        "id": "definition___proto__",
+        "location": "definition",
+        "key": "__proto__",
+        "recordPath": [],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {},
+          "__proto__": true
+        }
+      },
+      {
+        "id": "definition_constructor",
+        "location": "definition",
+        "key": "constructor",
+        "recordPath": [],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {},
+          "constructor": true
+        }
+      },
+      {
+        "id": "definition_toString",
+        "location": "definition",
+        "key": "toString",
+        "recordPath": [],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {},
+          "toString": true
+        }
+      },
+      {
+        "id": "definition_unexpected",
+        "location": "definition",
+        "key": "unexpected",
+        "recordPath": [],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {},
+          "unexpected": true
+        }
+      },
+      {
+        "id": "binding___proto__",
+        "location": "binding",
+        "key": "__proto__",
+        "recordPath": [
+          "binding"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document",
+            "__proto__": true
+          },
+          "constraints": {}
+        }
+      },
+      {
+        "id": "binding_constructor",
+        "location": "binding",
+        "key": "constructor",
+        "recordPath": [
+          "binding"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document",
+            "constructor": true
+          },
+          "constraints": {}
+        }
+      },
+      {
+        "id": "binding_toString",
+        "location": "binding",
+        "key": "toString",
+        "recordPath": [
+          "binding"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document",
+            "toString": true
+          },
+          "constraints": {}
+        }
+      },
+      {
+        "id": "binding_unexpected",
+        "location": "binding",
+        "key": "unexpected",
+        "recordPath": [
+          "binding"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document",
+            "unexpected": true
+          },
+          "constraints": {}
+        }
+      },
+      {
+        "id": "constraints___proto__",
+        "location": "constraints",
+        "key": "__proto__",
+        "recordPath": [
+          "constraints"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "__proto__": true
+          }
+        }
+      },
+      {
+        "id": "constraints_constructor",
+        "location": "constraints",
+        "key": "constructor",
+        "recordPath": [
+          "constraints"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "constructor": true
+          }
+        }
+      },
+      {
+        "id": "constraints_toString",
+        "location": "constraints",
+        "key": "toString",
+        "recordPath": [
+          "constraints"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "toString": true
+          }
+        }
+      },
+      {
+        "id": "constraints_unexpected",
+        "location": "constraints",
+        "key": "unexpected",
+        "recordPath": [
+          "constraints"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "unexpected": true
+          }
+        }
+      },
+      {
+        "id": "envelope_text___proto__",
+        "location": "envelope_text",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello",
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "text",
+          "value": "Hello",
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_text_constructor",
+        "location": "envelope_text",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello",
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "text",
+          "value": "Hello",
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_text_toString",
+        "location": "envelope_text",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello",
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "text",
+          "value": "Hello",
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_text_unexpected",
+        "location": "envelope_text",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "text",
+          "name": "text",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "Hello",
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "text",
+          "value": "Hello",
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_rich_text___proto__",
+        "location": "envelope_rich_text",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ]
+            },
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ]
+          },
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_rich_text_constructor",
+        "location": "envelope_rich_text",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ]
+            },
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ]
+          },
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_rich_text_toString",
+        "location": "envelope_rich_text",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ]
+            },
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ]
+          },
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_rich_text_unexpected",
+        "location": "envelope_rich_text",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ]
+            },
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ]
+          },
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_color___proto__",
+        "location": "envelope_color",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "color",
+          "name": "color",
+          "kind": "color",
+          "required": true,
+          "defaultValue": {
+            "type": "color",
+            "value": "#12AbEf",
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.color"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "color",
+          "value": "#12AbEf",
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_color_constructor",
+        "location": "envelope_color",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "color",
+          "name": "color",
+          "kind": "color",
+          "required": true,
+          "defaultValue": {
+            "type": "color",
+            "value": "#12AbEf",
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.color"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "color",
+          "value": "#12AbEf",
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_color_toString",
+        "location": "envelope_color",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "color",
+          "name": "color",
+          "kind": "color",
+          "required": true,
+          "defaultValue": {
+            "type": "color",
+            "value": "#12AbEf",
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.color"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "color",
+          "value": "#12AbEf",
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_color_unexpected",
+        "location": "envelope_color",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "color",
+          "name": "color",
+          "kind": "color",
+          "required": true,
+          "defaultValue": {
+            "type": "color",
+            "value": "#12AbEf",
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.color"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "color",
+          "value": "#12AbEf",
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_number___proto__",
+        "location": "envelope_number",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "number",
+          "name": "number",
+          "kind": "number",
+          "required": true,
+          "defaultValue": {
+            "type": "number",
+            "value": 0.5,
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.opacity"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "number",
+          "value": 0.5,
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_number_constructor",
+        "location": "envelope_number",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "number",
+          "name": "number",
+          "kind": "number",
+          "required": true,
+          "defaultValue": {
+            "type": "number",
+            "value": 0.5,
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.opacity"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "number",
+          "value": 0.5,
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_number_toString",
+        "location": "envelope_number",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "number",
+          "name": "number",
+          "kind": "number",
+          "required": true,
+          "defaultValue": {
+            "type": "number",
+            "value": 0.5,
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.opacity"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "number",
+          "value": 0.5,
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_number_unexpected",
+        "location": "envelope_number",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "number",
+          "name": "number",
+          "kind": "number",
+          "required": true,
+          "defaultValue": {
+            "type": "number",
+            "value": 0.5,
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.opacity"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "number",
+          "value": 0.5,
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_boolean___proto__",
+        "location": "envelope_boolean",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "boolean",
+          "name": "boolean",
+          "kind": "boolean",
+          "required": true,
+          "defaultValue": {
+            "type": "boolean",
+            "value": false,
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.hidden"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "boolean",
+          "value": false,
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_boolean_constructor",
+        "location": "envelope_boolean",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "boolean",
+          "name": "boolean",
+          "kind": "boolean",
+          "required": true,
+          "defaultValue": {
+            "type": "boolean",
+            "value": false,
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.hidden"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "boolean",
+          "value": false,
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_boolean_toString",
+        "location": "envelope_boolean",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "boolean",
+          "name": "boolean",
+          "kind": "boolean",
+          "required": true,
+          "defaultValue": {
+            "type": "boolean",
+            "value": false,
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.hidden"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "boolean",
+          "value": false,
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_boolean_unexpected",
+        "location": "envelope_boolean",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "boolean",
+          "name": "boolean",
+          "kind": "boolean",
+          "required": true,
+          "defaultValue": {
+            "type": "boolean",
+            "value": false,
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "visual.hidden"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "boolean",
+          "value": false,
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_enum___proto__",
+        "location": "envelope_enum",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "enum",
+          "name": "enum",
+          "kind": "enum",
+          "required": true,
+          "defaultValue": {
+            "type": "enum",
+            "value": "center",
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.alignment"
+          },
+          "constraints": {
+            "choices": [
+              "left",
+              "center",
+              "right"
+            ]
+          }
+        },
+        "override": {
+          "type": "enum",
+          "value": "center",
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_enum_constructor",
+        "location": "envelope_enum",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "enum",
+          "name": "enum",
+          "kind": "enum",
+          "required": true,
+          "defaultValue": {
+            "type": "enum",
+            "value": "center",
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.alignment"
+          },
+          "constraints": {
+            "choices": [
+              "left",
+              "center",
+              "right"
+            ]
+          }
+        },
+        "override": {
+          "type": "enum",
+          "value": "center",
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_enum_toString",
+        "location": "envelope_enum",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "enum",
+          "name": "enum",
+          "kind": "enum",
+          "required": true,
+          "defaultValue": {
+            "type": "enum",
+            "value": "center",
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.alignment"
+          },
+          "constraints": {
+            "choices": [
+              "left",
+              "center",
+              "right"
+            ]
+          }
+        },
+        "override": {
+          "type": "enum",
+          "value": "center",
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_enum_unexpected",
+        "location": "envelope_enum",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "enum",
+          "name": "enum",
+          "kind": "enum",
+          "required": true,
+          "defaultValue": {
+            "type": "enum",
+            "value": "center",
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.alignment"
+          },
+          "constraints": {
+            "choices": [
+              "left",
+              "center",
+              "right"
+            ]
+          }
+        },
+        "override": {
+          "type": "enum",
+          "value": "center",
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_duration___proto__",
+        "location": "envelope_duration",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "duration",
+          "name": "duration",
+          "kind": "duration",
+          "required": true,
+          "defaultValue": {
+            "type": "duration",
+            "value": 500,
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "item.durationMs"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "duration",
+          "value": 500,
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_duration_constructor",
+        "location": "envelope_duration",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "duration",
+          "name": "duration",
+          "kind": "duration",
+          "required": true,
+          "defaultValue": {
+            "type": "duration",
+            "value": 500,
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "item.durationMs"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "duration",
+          "value": 500,
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_duration_toString",
+        "location": "envelope_duration",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "duration",
+          "name": "duration",
+          "kind": "duration",
+          "required": true,
+          "defaultValue": {
+            "type": "duration",
+            "value": 500,
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "item.durationMs"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "duration",
+          "value": 500,
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_duration_unexpected",
+        "location": "envelope_duration",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "duration",
+          "name": "duration",
+          "kind": "duration",
+          "required": true,
+          "defaultValue": {
+            "type": "duration",
+            "value": 500,
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "item.durationMs"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "duration",
+          "value": 500,
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_asset___proto__",
+        "location": "envelope_asset",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset"
+            },
+            "__proto__": true
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset"
+          },
+          "__proto__": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_asset_constructor",
+        "location": "envelope_asset",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset"
+            },
+            "constructor": true
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset"
+          },
+          "constructor": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_asset_toString",
+        "location": "envelope_asset",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset"
+            },
+            "toString": true
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset"
+          },
+          "toString": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "envelope_asset_unexpected",
+        "location": "envelope_asset",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset"
+            },
+            "unexpected": true
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset"
+          },
+          "unexpected": true
+        },
+        "overridePath": []
+      },
+      {
+        "id": "rich_text_document___proto__",
+        "location": "rich_text_document",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ],
+              "__proto__": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ],
+            "__proto__": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "rich_text_document_constructor",
+        "location": "rich_text_document",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ],
+              "constructor": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ],
+            "constructor": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "rich_text_document_toString",
+        "location": "rich_text_document",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ],
+              "toString": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ],
+            "toString": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "rich_text_document_unexpected",
+        "location": "rich_text_document",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true
+                }
+              ],
+              "unexpected": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true
+              }
+            ],
+            "unexpected": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "rich_text_run___proto__",
+        "location": "rich_text_run",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue",
+          "value",
+          "runs",
+          0
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true,
+                  "__proto__": true
+                }
+              ]
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true,
+                "__proto__": true
+              }
+            ]
+          }
+        },
+        "overridePath": [
+          "value",
+          "runs",
+          0
+        ]
+      },
+      {
+        "id": "rich_text_run_constructor",
+        "location": "rich_text_run",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue",
+          "value",
+          "runs",
+          0
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true,
+                  "constructor": true
+                }
+              ]
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true,
+                "constructor": true
+              }
+            ]
+          }
+        },
+        "overridePath": [
+          "value",
+          "runs",
+          0
+        ]
+      },
+      {
+        "id": "rich_text_run_toString",
+        "location": "rich_text_run",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue",
+          "value",
+          "runs",
+          0
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true,
+                  "toString": true
+                }
+              ]
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true,
+                "toString": true
+              }
+            ]
+          }
+        },
+        "overridePath": [
+          "value",
+          "runs",
+          0
+        ]
+      },
+      {
+        "id": "rich_text_run_unexpected",
+        "location": "rich_text_run",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue",
+          "value",
+          "runs",
+          0
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "rich_text",
+          "name": "rich_text",
+          "kind": "rich_text",
+          "required": true,
+          "defaultValue": {
+            "type": "rich_text",
+            "value": {
+              "runs": [
+                {
+                  "text": "Hello",
+                  "bold": true,
+                  "unexpected": true
+                }
+              ]
+            }
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "Hello",
+                "bold": true,
+                "unexpected": true
+              }
+            ]
+          }
+        },
+        "overridePath": [
+          "value",
+          "runs",
+          0
+        ]
+      },
+      {
+        "id": "asset_reference___proto__",
+        "location": "asset_reference",
+        "key": "__proto__",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset",
+              "__proto__": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset",
+            "__proto__": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "asset_reference_constructor",
+        "location": "asset_reference",
+        "key": "constructor",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset",
+              "constructor": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset",
+            "constructor": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "asset_reference_toString",
+        "location": "asset_reference",
+        "key": "toString",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset",
+              "toString": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset",
+            "toString": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      },
+      {
+        "id": "asset_reference_unexpected",
+        "location": "asset_reference",
+        "key": "unexpected",
+        "recordPath": [
+          "defaultValue",
+          "value"
+        ],
+        "stage": "structural",
+        "error": "INVALID_ARGUMENT",
+        "slot": {
+          "id": "asset",
+          "name": "asset",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "managed_asset",
+              "unexpected": true
+            }
+          },
+          "binding": {
+            "targetLayerId": "media",
+            "property": "media.asset"
+          },
+          "constraints": {}
+        },
+        "override": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed_asset",
+            "unexpected": true
+          }
+        },
+        "overridePath": [
+          "value"
+        ]
+      }
+    ]
+  }
+}

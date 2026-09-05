@@ -107,6 +107,83 @@ fn result(output: &Output) -> Value {
 }
 
 #[test]
+fn closed_slot_records_fail_native_decoding_without_mutating_history() {
+    let harness = Harness::new();
+    let project =
+        result(&harness.request(json!({"operation":"create_project","name":"Closed slots"})));
+    let id = project["projectId"].as_str().unwrap();
+    let directory = harness.root.path().join("projects").join(id);
+    let files = || {
+        ["project.json", "history.json"].map(|name| std::fs::read(directory.join(name)).unwrap())
+    };
+    let before = files();
+    let catalog: Value =
+        serde_json::from_slice(include_bytes!("../../../contracts/template-slots-v1.json"))
+            .unwrap();
+    for fixture in catalog["regressions"]["closedRecords"].as_array().unwrap() {
+        let mut edits = vec![
+            json!({"operation":"component_define_slots","componentId":"card","slots":[fixture["slot"]]}),
+        ];
+        if let Some(value) = fixture.get("override") {
+            edits.push(json!({"operation":"component_create","name":"Outer","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"component_instance","id":"nested","componentId":"leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"slotValues":{"__proto__":value}}]}]}));
+        }
+        for edit in edits {
+            for batch in [false, true] {
+                let request = if batch {
+                    json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[{"operation":"component_create","name":"First","width":320,"height":240,"durationMs":1000,"tracks":[],"resultAlias":"card"},edit]})
+                } else {
+                    json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":edit})
+                };
+                let failed = event(&harness.request(request));
+                assert_eq!(
+                    failed["error"]["code"], "INVALID_ARGUMENT",
+                    "{}: {failed}",
+                    fixture["id"]
+                );
+                assert!(
+                    failed["error"]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("invalid headless request"),
+                    "{failed}"
+                );
+                assert_eq!(files(), before, "{}", fixture["id"]);
+            }
+        }
+    }
+}
+
+#[test]
+fn template_slots_standalone_and_alias_batches_have_typed_atomic_results() {
+    let harness = Harness::new();
+    let project = result(&harness.request(json!({"operation":"create_project","name":"Slots"})));
+    let id = project["projectId"].as_str().unwrap();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/template-slots-v1.json")).unwrap();
+    let slot = catalog["valid"][0]["slot"].clone();
+    let create = json!({"operation":"component_create","resultAlias":"card","name":"Card","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"text","id":"title","text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]});
+    result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[create,{"operation":"component_define_slots","componentId":"@card","slots":[slot.clone()]}]})));
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let component = state["project"]["components"][0]["id"].as_str().unwrap();
+    assert_eq!(
+        state["project"]["components"][0]["slots"],
+        json!([slot.clone()])
+    );
+    let failure=event(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"component_define_slots","componentId":component,"slots":[]}})));
+    assert_eq!(failure["error"]["code"], "REVISION_CONFLICT");
+    assert_eq!(
+        result(&harness.request(json!({"operation":"get_state","projectId":id}))),
+        state
+    );
+    result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"component_define_slots","componentId":component,"slots":[]}})));
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]["components"],
+        state["project"]["components"]
+    );
+}
+
+#[test]
 fn component_protocol_aliases_failures_and_exact_history() {
     let harness = Harness::new();
     let created =
@@ -123,7 +200,7 @@ fn component_protocol_aliases_failures_and_exact_history() {
     ));
     let component = batch["aliases"]["leaf"].clone();
     let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(state["project"]["schemaVersion"], 11);
+    assert_eq!(state["project"]["schemaVersion"], 12);
     assert_eq!(state["project"]["components"][0]["id"], component);
     let dir = harness.root.path().join("projects").join(id);
     let before = (

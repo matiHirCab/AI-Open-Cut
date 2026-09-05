@@ -16,6 +16,7 @@
 /apps/agent-bridge/src/server/ @matiHirCab
 /apps/agent-bridge/tests/contracts.test.ts @matiHirCab
 /apps/agent-bridge/tests/group-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/component-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/smoke.test.ts @matiHirCab
 /apps/agent-bridge/tests/packaged-smoke.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts @matiHirCab
@@ -40,3 +41,5 @@
 /crates/editor-core/src/migrations.rs @matiHirCab
 /crates/editor-core/src/assets.rs @matiHirCab
 /crates/editor-core/tests/components.rs @matiHirCab
+
+/crates/editor-core/tests/template_slots.rs @matiHirCab

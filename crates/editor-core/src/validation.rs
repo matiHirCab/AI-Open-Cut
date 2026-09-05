@@ -3,6 +3,7 @@
 //! Transports, persistence, rendering infrastructure, and presentation code call
 //! these rules rather than maintaining parallel validation implementations.
 
+use crate::{ComponentDefinition, SlotKind, SlotProperty, SlotValue, TemplateSlot};
 use std::collections::BTreeMap;
 
 use crate::{
@@ -408,7 +409,6 @@ pub(crate) fn validate_item_track(item: &TimelineItem, track: TrackType) -> Resu
 
 pub(crate) fn validate_components(project: &Project) -> Result<(), CoreError> {
     let invalid = |message: &str| CoreError::new(ErrorCode::InvalidArgument, message);
-    let safe_time = 9_007_199_254_740_991u64;
     if project.components.len() > 512
         || project
             .components
@@ -441,228 +441,9 @@ pub(crate) fn validate_components(project: &Project) -> Result<(), CoreError> {
     }
     let mut edges = vec![Vec::new(); project.components.len()];
     for (i, component) in project.components.iter().enumerate() {
-        if component.name.trim().is_empty()
-            || component.name.len() > 4096
-            || component.width == 0
-            || component.width > 7680
-            || component.height == 0
-            || component.height > 4320
-            || component.duration_ms == 0
-            || component.duration_ms > safe_time
-        {
-            return Err(invalid("invalid component metadata"));
-        }
-        validate_scope(
-            project,
-            &component.tracks,
-            &format!("component:{}", component.id),
-        )
-        .map_err(|error| {
-            if error.code == ErrorCode::ItemNotFound {
-                error
-            } else {
-                invalid(&error.message)
-            }
-        })?;
-        let mut track_ids = std::collections::BTreeSet::new();
-        for track in &component.tracks {
-            if !identifier(&track.id)
-                || !track_ids.insert(&track.id)
-                || track.name.trim().is_empty()
-                || track.name.len() > 128
-            {
-                return Err(invalid("invalid or duplicate local track ID"));
-            }
-            validate_track_audio_settings(
-                track.track_type,
-                track.audio_role,
-                track.ducking.as_ref(),
-            )
-            .map_err(|e| invalid(&e.message))?;
-            for (position, item) in track.items.iter().enumerate() {
-                if !identifier(item.id())
-                    || item.duration_ms() == 0
-                    || item.duration_ms() > safe_time
-                    || item.start_ms() > safe_time
-                    || item
-                        .start_ms()
-                        .checked_add(item.duration_ms())
-                        .is_none_or(|end| end > component.duration_ms)
-                    || item.visual_properties().stack_order as usize != position
-                {
-                    return Err(invalid(
-                        "invalid component item identity, interval or ordering",
-                    ));
-                }
-                validate_item_track(item, track.track_type).map_err(|e| invalid(&e.message))?;
-                validate_transform(&item.visual_properties().transform)
-                    .map_err(|e| invalid(&e.message))?;
-                if let Some(transform) = item.visual_properties().transform2d {
-                    transform.validate()?;
-                }
-                if item.keyframes().len() > 10_000 {
-                    return Err(invalid("component keyframe limit exceeded"));
-                }
-                validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
-                if item.keyframes().iter().any(|key| {
-                    key.time_ms > safe_time
-                        || (key.property == KeyframeProperty::Volume
-                            && !matches!(item, TimelineItem::Media(_)))
-                }) {
-                    return Err(invalid("invalid component keyframe time or item property"));
-                }
-                if item.visual_properties().transform2d.is_some()
-                    && item
-                        .keyframes()
-                        .iter()
-                        .any(|k| k.property != KeyframeProperty::Volume)
-                {
-                    return Err(invalid("Transform2D conflicts with legacy keyframes"));
-                }
-                match item {
-                    TimelineItem::ComponentInstance(instance) => {
-                        if track.track_type != TrackType::Overlay
-                            || instance.visual_properties.transform != Transform::default()
-                            || !instance.time_scale.is_finite()
-                            || instance.time_scale <= 0.0
-                            || instance.trim_start_ms > safe_time
-                        {
-                            return Err(invalid("invalid nested component instance"));
-                        }
-                        let target =
-                            *definitions
-                                .get(instance.component_id.as_str())
-                                .ok_or_else(|| {
-                                    CoreError::new(
-                                        ErrorCode::ItemNotFound,
-                                        "component definition not found",
-                                    )
-                                })?;
-                        let source_end = instance.trim_start_ms as f64
-                            + instance.duration_ms as f64 * instance.time_scale;
-                        if !source_end.is_finite()
-                            || source_end > project.components[target].duration_ms as f64
-                        {
-                            return Err(invalid(
-                                "component instance source interval exceeds definition duration",
-                            ));
-                        }
-                        edges[i].push(target);
-                    }
-                    TimelineItem::Media(media) => {
-                        let asset = project
-                            .assets
-                            .iter()
-                            .find(|a| a.id == media.asset_id)
-                            .ok_or_else(|| {
-                                CoreError::new(
-                                    ErrorCode::ItemNotFound,
-                                    "component media asset not found",
-                                )
-                            })?;
-                        validate_track_media(track.track_type, asset.media_type)
-                            .map_err(|e| invalid(&e.message))?;
-                        validate_audio(&media.audio).map_err(|e| invalid(&e.message))?;
-                        if media.audio.fade_in_ms > safe_time || media.audio.fade_out_ms > safe_time
-                        {
-                            return Err(invalid("component media fade exceeds safe integer time"));
-                        }
-                        let end = media
-                            .source_in_ms
-                            .checked_add(media.duration_ms)
-                            .ok_or_else(|| invalid("media source interval overflows"))?;
-                        if media.source_in_ms > safe_time
-                            || (asset.media_type != MediaType::Image
-                                && asset.duration_ms.is_some_and(|d| end > d))
-                        {
-                            return Err(invalid("component media interval exceeds asset"));
-                        }
-                        if asset.media_type == MediaType::Audio
-                            && media.visual_properties.transform2d.is_some()
-                        {
-                            return Err(invalid("audio cannot use Transform2D"));
-                        }
-                    }
-                    TimelineItem::Text(text) => {
-                        validate_text(&text.text, text.font_size, &text.color)
-                            .map_err(|e| invalid(&e.message))?;
-                        validate_text_style(&text.style).map_err(|e| invalid(&e.message))?;
-                    }
-                    TimelineItem::SolidColor(shape) => {
-                        validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
-                    }
-                    TimelineItem::Rectangle(shape) => {
-                        validate_dimensions(shape.width, shape.height)
-                            .map_err(|e| invalid(&e.message))?;
-                        validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
-                    }
-                    TimelineItem::Caption(caption) => {
-                        if !project
-                            .assets
-                            .iter()
-                            .any(|a| a.id == caption.source.asset_id)
-                        {
-                            return Err(CoreError::new(
-                                ErrorCode::ItemNotFound,
-                                "component caption asset not found",
-                            ));
-                        }
-                        validate_text(&caption.text, caption.style.font_size, &caption.style.color)
-                            .map_err(|e| invalid(&e.message))?;
-                        validate_color(&caption.style.background_color)
-                            .map_err(|e| invalid(&e.message))?;
-                        let source = &caption.source;
-                        let confidence_valid = |value: Option<f64>| {
-                            value.is_none_or(|v| v.is_finite() && (0.0..=1.0).contains(&v))
-                        };
-                        if source.provider_id.trim().is_empty()
-                            || source.provider_id.len() > 128
-                            || source.model_id.trim().is_empty()
-                            || source.model_id.len() > 128
-                            || source.language.trim().is_empty()
-                            || source.model_version.as_ref().is_some_and(|v| v.is_empty())
-                            || source.original_text.trim().is_empty()
-                            || source.original_text.len() > 4096
-                            || source.generated_at_ms == 0
-                            || source.generated_at_ms > safe_time
-                            || !confidence_valid(source.confidence)
-                            || caption.style.bottom_margin_px > 4320
-                            || source.words.iter().any(|word| {
-                                word.word.trim().is_empty()
-                                    || word.start_ms > safe_time
-                                    || word.end_ms > safe_time
-                                    || word.start_ms >= word.end_ms
-                                    || !confidence_valid(word.confidence)
-                            })
-                        {
-                            return Err(invalid("invalid component caption provenance or style"));
-                        }
-                    }
-                    TimelineItem::Transition(transition) => {
-                        for id in std::iter::once(&transition.from_item_id)
-                            .chain(transition.to_item_id.iter())
-                        {
-                            if !component
-                                .tracks
-                                .iter()
-                                .flat_map(|t| &t.items)
-                                .any(|v| v.id() == id)
-                            {
-                                return Err(CoreError::new(
-                                    ErrorCode::ItemNotFound,
-                                    "component transition endpoint not found",
-                                ));
-                            }
-                        }
-                        if transition.visual_properties.transform2d.is_some() {
-                            return Err(invalid("transition cannot use Transform2D"));
-                        }
-                    }
-                    TimelineItem::Group(_) => {}
-                }
-            }
-        }
+        edges[i] = validate_component_content(project, component, &definitions)?;
     }
+    validate_template_slots(project, &definitions)?;
     // A bounded iterative leaf removal computes the longest path without recursive expansion.
     let mut depths = vec![None; edges.len()];
     for _ in 0..=edges.len() {
@@ -692,6 +473,563 @@ pub(crate) fn validate_components(project: &Project) -> Result<(), CoreError> {
         }
     }
     Err(invalid("component dependency cycle"))
+}
+
+fn validate_component_content(
+    project: &Project,
+    component: &crate::ComponentDefinition,
+    definitions: &BTreeMap<&str, usize>,
+) -> Result<Vec<usize>, CoreError> {
+    let invalid = slot_invalid;
+    let safe_time = 9_007_199_254_740_991u64;
+    let identifier = slot_identifier;
+    let mut edges = Vec::new();
+    if component.name.trim().is_empty()
+        || component.name.len() > 4096
+        || component.width == 0
+        || component.width > 7680
+        || component.height == 0
+        || component.height > 4320
+        || component.duration_ms == 0
+        || component.duration_ms > safe_time
+    {
+        return Err(invalid("invalid component metadata"));
+    }
+    validate_scope(
+        project,
+        &component.tracks,
+        &format!("component:{}", component.id),
+    )
+    .map_err(|error| {
+        if error.code == ErrorCode::ItemNotFound {
+            error
+        } else {
+            invalid(&error.message)
+        }
+    })?;
+    let mut track_ids = std::collections::BTreeSet::new();
+    for track in &component.tracks {
+        if !identifier(&track.id)
+            || !track_ids.insert(&track.id)
+            || track.name.trim().is_empty()
+            || track.name.len() > 128
+        {
+            return Err(invalid("invalid or duplicate local track ID"));
+        }
+        validate_track_audio_settings(track.track_type, track.audio_role, track.ducking.as_ref())
+            .map_err(|e| invalid(&e.message))?;
+        for (position, item) in track.items.iter().enumerate() {
+            if !identifier(item.id())
+                || item.duration_ms() == 0
+                || item.duration_ms() > safe_time
+                || item.start_ms() > safe_time
+                || item
+                    .start_ms()
+                    .checked_add(item.duration_ms())
+                    .is_none_or(|end| end > component.duration_ms)
+                || item.visual_properties().stack_order as usize != position
+            {
+                return Err(invalid(
+                    "invalid component item identity, interval or ordering",
+                ));
+            }
+            validate_item_track(item, track.track_type).map_err(|e| invalid(&e.message))?;
+            validate_transform(&item.visual_properties().transform)
+                .map_err(|e| invalid(&e.message))?;
+            if let Some(transform) = item.visual_properties().transform2d {
+                transform.validate()?;
+            }
+            if item.keyframes().len() > 10_000 {
+                return Err(invalid("component keyframe limit exceeded"));
+            }
+            validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
+            if item.keyframes().iter().any(|key| {
+                key.time_ms > safe_time
+                    || (key.property == KeyframeProperty::Volume
+                        && !matches!(item, TimelineItem::Media(_)))
+            }) {
+                return Err(invalid("invalid component keyframe time or item property"));
+            }
+            if item.visual_properties().transform2d.is_some()
+                && item
+                    .keyframes()
+                    .iter()
+                    .any(|k| k.property != KeyframeProperty::Volume)
+            {
+                return Err(invalid("Transform2D conflicts with legacy keyframes"));
+            }
+            match item {
+                TimelineItem::ComponentInstance(instance) => {
+                    if track.track_type != TrackType::Overlay
+                        || instance.visual_properties.transform != Transform::default()
+                        || !instance.time_scale.is_finite()
+                        || instance.time_scale <= 0.0
+                        || instance.trim_start_ms > safe_time
+                    {
+                        return Err(invalid("invalid nested component instance"));
+                    }
+                    let target =
+                        *definitions
+                            .get(instance.component_id.as_str())
+                            .ok_or_else(|| {
+                                CoreError::new(
+                                    ErrorCode::ItemNotFound,
+                                    "component definition not found",
+                                )
+                            })?;
+                    let source_end = instance.trim_start_ms as f64
+                        + instance.duration_ms as f64 * instance.time_scale;
+                    if !source_end.is_finite()
+                        || source_end > project.components[target].duration_ms as f64
+                    {
+                        return Err(invalid(
+                            "component instance source interval exceeds definition duration",
+                        ));
+                    }
+                    edges.push(target);
+                }
+                TimelineItem::Media(media) => {
+                    let asset = project
+                        .assets
+                        .iter()
+                        .find(|a| a.id == media.asset_id)
+                        .ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::ItemNotFound,
+                                "component media asset not found",
+                            )
+                        })?;
+                    validate_track_media(track.track_type, asset.media_type)
+                        .map_err(|e| invalid(&e.message))?;
+                    validate_audio(&media.audio).map_err(|e| invalid(&e.message))?;
+                    if media.audio.fade_in_ms > safe_time || media.audio.fade_out_ms > safe_time {
+                        return Err(invalid("component media fade exceeds safe integer time"));
+                    }
+                    let end = media
+                        .source_in_ms
+                        .checked_add(media.duration_ms)
+                        .ok_or_else(|| invalid("media source interval overflows"))?;
+                    if media.source_in_ms > safe_time
+                        || (asset.media_type != MediaType::Image
+                            && asset.duration_ms.is_some_and(|d| end > d))
+                    {
+                        return Err(invalid("component media interval exceeds asset"));
+                    }
+                    if asset.media_type == MediaType::Audio
+                        && media.visual_properties.transform2d.is_some()
+                    {
+                        return Err(invalid("audio cannot use Transform2D"));
+                    }
+                }
+                TimelineItem::Text(text) => {
+                    validate_text(&text.text, text.font_size, &text.color)
+                        .map_err(|e| invalid(&e.message))?;
+                    validate_text_style(&text.style).map_err(|e| invalid(&e.message))?;
+                }
+                TimelineItem::SolidColor(shape) => {
+                    validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
+                }
+                TimelineItem::Rectangle(shape) => {
+                    validate_dimensions(shape.width, shape.height)
+                        .map_err(|e| invalid(&e.message))?;
+                    validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
+                }
+                TimelineItem::Caption(caption) => {
+                    if !project
+                        .assets
+                        .iter()
+                        .any(|a| a.id == caption.source.asset_id)
+                    {
+                        return Err(CoreError::new(
+                            ErrorCode::ItemNotFound,
+                            "component caption asset not found",
+                        ));
+                    }
+                    validate_text(&caption.text, caption.style.font_size, &caption.style.color)
+                        .map_err(|e| invalid(&e.message))?;
+                    validate_color(&caption.style.background_color)
+                        .map_err(|e| invalid(&e.message))?;
+                    let source = &caption.source;
+                    let confidence_valid = |value: Option<f64>| {
+                        value.is_none_or(|v| v.is_finite() && (0.0..=1.0).contains(&v))
+                    };
+                    if source.provider_id.trim().is_empty()
+                        || source.provider_id.len() > 128
+                        || source.model_id.trim().is_empty()
+                        || source.model_id.len() > 128
+                        || source.language.trim().is_empty()
+                        || source.model_version.as_ref().is_some_and(|v| v.is_empty())
+                        || source.original_text.trim().is_empty()
+                        || source.original_text.len() > 4096
+                        || source.generated_at_ms == 0
+                        || source.generated_at_ms > safe_time
+                        || !confidence_valid(source.confidence)
+                        || caption.style.bottom_margin_px > 4320
+                        || source.words.iter().any(|word| {
+                            word.word.trim().is_empty()
+                                || word.start_ms > safe_time
+                                || word.end_ms > safe_time
+                                || word.start_ms >= word.end_ms
+                                || !confidence_valid(word.confidence)
+                        })
+                    {
+                        return Err(invalid("invalid component caption provenance or style"));
+                    }
+                }
+                TimelineItem::Transition(transition) => {
+                    for id in std::iter::once(&transition.from_item_id)
+                        .chain(transition.to_item_id.iter())
+                    {
+                        if !component
+                            .tracks
+                            .iter()
+                            .flat_map(|t| &t.items)
+                            .any(|v| v.id() == id)
+                        {
+                            return Err(CoreError::new(
+                                ErrorCode::ItemNotFound,
+                                "component transition endpoint not found",
+                            ));
+                        }
+                    }
+                    if transition.visual_properties.transform2d.is_some() {
+                        return Err(invalid("transition cannot use Transform2D"));
+                    }
+                }
+                TimelineItem::Group(_) => {}
+            }
+        }
+    }
+    Ok(edges)
+}
+
+fn slot_invalid(message: &str) -> CoreError {
+    CoreError::new(ErrorCode::InvalidArgument, message)
+}
+fn slot_identifier(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|v| v.is_ascii_alphanumeric() || matches!(v, b'_' | b'-'))
+}
+fn slot_text_size(value: &SlotValue) -> usize {
+    match value {
+        SlotValue::Text(v) | SlotValue::Enum(v) => v.chars().count(),
+        SlotValue::RichText(v) => v.runs.iter().map(|r| r.text.chars().count()).sum(),
+        _ => 0,
+    }
+}
+fn validate_slot_value(
+    project: &Project,
+    slot: &TemplateSlot,
+    value: &SlotValue,
+) -> Result<(), CoreError> {
+    let c = &slot.constraints;
+    let length = slot_text_size(value);
+    if length > 4096 {
+        return Err(slot_invalid("slot text exceeds 4096 scalars"));
+    }
+    let valid = match (slot.kind, value) {
+        (SlotKind::Text, SlotValue::Text(_)) | (SlotKind::RichText, SlotValue::RichText(_)) => {
+            c.min_length.is_none_or(|v| length as u64 >= v)
+                && c.max_length.is_none_or(|v| length as u64 <= v)
+        }
+        (SlotKind::Color, SlotValue::Color(v)) => validate_color(v).is_ok(),
+        (SlotKind::Number, SlotValue::Number(v)) => {
+            v.is_finite() && c.min.is_none_or(|m| *v >= m) && c.max.is_none_or(|m| *v <= m)
+        }
+        (SlotKind::Duration, SlotValue::Duration(v)) => {
+            *v <= 9_007_199_254_740_991
+                && c.min.is_none_or(|m| *v as f64 >= m)
+                && c.max.is_none_or(|m| *v as f64 <= m)
+        }
+        (SlotKind::Boolean, SlotValue::Boolean(_)) => true,
+        (SlotKind::Enum, SlotValue::Enum(v)) => c
+            .choices
+            .as_ref()
+            .is_some_and(|choices| choices.contains(v)),
+        (SlotKind::Asset, SlotValue::Asset(v)) => {
+            if !slot_identifier(&v.id) {
+                return Err(slot_invalid("unsafe slot asset ID"));
+            }
+            let asset = project
+                .assets
+                .iter()
+                .find(|a| a.id == v.id)
+                .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "slot asset not found"))?;
+            c.asset_kinds
+                .as_ref()
+                .is_none_or(|kinds| kinds.contains(&asset.media_type))
+        }
+        _ => false,
+    };
+    if !valid {
+        return Err(slot_invalid("slot value type or constraint mismatch"));
+    }
+    if let SlotValue::RichText(v) = value
+        && (v.runs.is_empty()
+            || v.runs.len() > 256
+            || v.runs
+                .iter()
+                .any(|r| r.color.as_ref().is_some_and(|c| validate_color(c).is_err())))
+    {
+        return Err(slot_invalid("invalid rich text document"));
+    }
+    Ok(())
+}
+fn validate_slot_definition(
+    project: &Project,
+    component: &ComponentDefinition,
+    slot: &TemplateSlot,
+) -> Result<(), CoreError> {
+    use SlotKind as K;
+    use SlotProperty as P;
+    let c = &slot.constraints;
+    if !slot_identifier(&slot.id)
+        || slot.name.trim().is_empty()
+        || slot.name.len() > 256
+        || !slot_identifier(&slot.binding.target_layer_id)
+    {
+        return Err(slot_invalid("invalid slot identity or target"));
+    }
+    let text = matches!(slot.kind, K::Text | K::RichText);
+    let numeric = matches!(slot.kind, K::Number | K::Duration);
+    if (!text && (c.min_length.is_some() || c.max_length.is_some()))
+        || (!numeric && (c.min.is_some() || c.max.is_some()))
+        || (slot.kind != K::Enum && c.choices.is_some())
+        || (slot.kind != K::Asset && c.asset_kinds.is_some())
+        || c.min_length.is_some_and(|v| v > 4096)
+        || c.max_length.is_some_and(|v| v > 4096)
+        || c.min_length.zip(c.max_length).is_some_and(|(a, b)| a > b)
+        || c.min.zip(c.max).is_some_and(|(a, b)| a > b)
+        || [c.min, c.max].into_iter().flatten().any(|v| {
+            !v.is_finite()
+                || (slot.kind == K::Duration
+                    && (v.fract() != 0.0 || !(0.0..=9_007_199_254_740_991.0).contains(&v)))
+        })
+    {
+        return Err(slot_invalid("invalid slot constraints"));
+    }
+    if slot.kind == K::Enum
+        && c.choices.as_ref().is_none_or(|v| {
+            v.is_empty()
+                || v.len() > 128
+                || v.iter().any(|s| s.is_empty() || s.chars().count() > 128)
+                || v.iter().collect::<std::collections::BTreeSet<_>>().len() != v.len()
+        })
+    {
+        return Err(slot_invalid("invalid enum choices"));
+    }
+    if c.asset_kinds.as_ref().is_some_and(|v| {
+        v.is_empty() || v.len() > 3 || v.iter().enumerate().any(|(i, k)| v[..i].contains(k))
+    }) {
+        return Err(slot_invalid("invalid asset kind constraints"));
+    }
+    let (track, target) = component
+        .tracks
+        .iter()
+        .find_map(|t| {
+            t.items
+                .iter()
+                .find(|i| i.id() == slot.binding.target_layer_id)
+                .map(|i| (t, i))
+        })
+        .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "slot target not found"))?;
+    let visual = track.track_type != TrackType::Audio
+        && !matches!(target, TimelineItem::Transition(_))
+        && !matches!(target, TimelineItem::Media(m) if project.assets.iter().any(|a| a.id == m.asset_id && a.media_type == MediaType::Audio));
+    let compatible = match slot.binding.property {
+        P::TextDocument => {
+            matches!(slot.kind, K::Text | K::RichText) && matches!(target, TimelineItem::Text(_))
+        }
+        P::TextColor => slot.kind == K::Color && matches!(target, TimelineItem::Text(_)),
+        P::TextAlignment => {
+            slot.kind == K::Enum
+                && matches!(target, TimelineItem::Text(_))
+                && c.choices.as_ref().is_some_and(|v| {
+                    v.iter()
+                        .all(|s| matches!(s.as_str(), "left" | "center" | "right"))
+                })
+        }
+        P::VisualOpacity => slot.kind == K::Number && visual,
+        P::VisualHidden => slot.kind == K::Boolean && visual,
+        P::ItemDuration => slot.kind == K::Duration,
+        P::MediaAsset => slot.kind == K::Asset && matches!(target, TimelineItem::Media(_)),
+    };
+    if !compatible {
+        return Err(slot_invalid("incompatible slot binding"));
+    }
+    if let Some(value) = &slot.default_value {
+        validate_slot_value(project, slot, value)?;
+    }
+    Ok(())
+}
+fn apply_slot_value(
+    item: &mut TimelineItem,
+    property: SlotProperty,
+    value: &SlotValue,
+) -> Result<(), CoreError> {
+    match (property, value) {
+        (SlotProperty::TextDocument, SlotValue::Text(value)) => {
+            if let TimelineItem::Text(t) = item {
+                t.text = value.clone();
+            }
+        }
+        // Rich text is validated as a typed document; no rendering fallback is introduced.
+        (SlotProperty::TextDocument, SlotValue::RichText(_)) => {}
+        (SlotProperty::TextColor, SlotValue::Color(value)) => {
+            if let TimelineItem::Text(t) = item {
+                t.color = value.clone();
+            }
+        }
+        (SlotProperty::TextAlignment, SlotValue::Enum(value)) => {
+            if let TimelineItem::Text(t) = item {
+                t.style.alignment = match value.as_str() {
+                    "left" => crate::TextAlignment::Left,
+                    "center" => crate::TextAlignment::Center,
+                    _ => crate::TextAlignment::Right,
+                };
+            }
+        }
+        (SlotProperty::VisualHidden, SlotValue::Boolean(value)) => {
+            item.visual_properties_mut().hidden = *value
+        }
+        (SlotProperty::VisualOpacity, SlotValue::Number(value)) => {
+            if !(0.0..=1.0).contains(value) {
+                return Err(slot_invalid("slot opacity outside [0,1]"));
+            }
+            let needs_transform2d = matches!(
+                item,
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+            );
+            let v = item.visual_properties_mut();
+            if needs_transform2d {
+                v.transform2d.get_or_insert_with(Default::default).opacity = *value;
+            } else if let Some(t) = &mut v.transform2d {
+                t.opacity = *value;
+            } else {
+                v.transform.opacity = *value;
+            }
+        }
+        (SlotProperty::MediaAsset, SlotValue::Asset(value)) => {
+            if let TimelineItem::Media(t) = item {
+                t.asset_id = value.id.clone();
+            }
+        }
+        (SlotProperty::ItemDuration, SlotValue::Duration(value)) => match item {
+            TimelineItem::Media(v) => v.duration_ms = *value,
+            TimelineItem::Text(v) => v.duration_ms = *value,
+            TimelineItem::SolidColor(v) => v.duration_ms = *value,
+            TimelineItem::Rectangle(v) => v.duration_ms = *value,
+            TimelineItem::Caption(v) => v.duration_ms = *value,
+            TimelineItem::Transition(v) => v.duration_ms = *value,
+            TimelineItem::Group(v) => v.duration_ms = *value,
+            TimelineItem::ComponentInstance(v) => v.duration_ms = *value,
+        },
+        _ => return Err(slot_invalid("incompatible effective slot value")),
+    }
+    Ok(())
+}
+fn validate_effective_slots(
+    project: &Project,
+    component: &ComponentDefinition,
+    values: Option<&BTreeMap<String, SlotValue>>,
+    definitions: &BTreeMap<&str, usize>,
+) -> Result<(), CoreError> {
+    if let Some(values) = values {
+        for id in values.keys() {
+            if !component.slots.iter().any(|s| &s.id == id) {
+                return Err(CoreError::new(
+                    ErrorCode::ItemNotFound,
+                    "instance slot not found",
+                ));
+            }
+        }
+    }
+    if component.slots.is_empty() {
+        return Ok(());
+    }
+    let mut effective = component.clone();
+    for slot in &component.slots {
+        let value = values
+            .and_then(|v| v.get(&slot.id))
+            .or(slot.default_value.as_ref());
+        if let Some(value) = value {
+            validate_slot_value(project, slot, value)?;
+            let target = effective
+                .tracks
+                .iter_mut()
+                .flat_map(|t| &mut t.items)
+                .find(|i| i.id() == slot.binding.target_layer_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "slot target not found"))?;
+            apply_slot_value(target, slot.binding.property, value)?;
+        } else if values.is_some() && slot.required {
+            return Err(slot_invalid("required slot value missing"));
+        }
+    }
+    validate_component_content(project, &effective, definitions)?;
+    Ok(())
+}
+fn validate_template_slots(
+    project: &Project,
+    definitions: &BTreeMap<&str, usize>,
+) -> Result<(), CoreError> {
+    let mut count = 0usize;
+    let mut text = 0usize;
+    for component in &project.components {
+        count += component.slots.len();
+        if component.slots.len() > 128 || count > 4096 {
+            return Err(slot_invalid("slot collection limit exceeded"));
+        }
+        for slot in &component.slots {
+            if let Some(v) = &slot.default_value {
+                text = text.saturating_add(slot_text_size(v));
+            }
+        }
+        for item in component.tracks.iter().flat_map(|t| &t.items) {
+            if let TimelineItem::ComponentInstance(instance) = item {
+                if instance.slot_values.len() > 128 {
+                    return Err(slot_invalid("instance slot count exceeded"));
+                }
+                for v in instance.slot_values.values() {
+                    text = text.saturating_add(slot_text_size(v));
+                }
+            }
+        }
+        if text > 1_048_576 {
+            return Err(slot_invalid("snapshot slot text limit exceeded"));
+        }
+    }
+    for component in &project.components {
+        let mut ids = std::collections::BTreeSet::new();
+        let mut writers = std::collections::BTreeSet::new();
+        for slot in &component.slots {
+            if !ids.insert(&slot.id)
+                || !writers.insert((&slot.binding.target_layer_id, slot.binding.property))
+            {
+                return Err(slot_invalid("duplicate slot or binding writer"));
+            }
+            validate_slot_definition(project, component, slot)?;
+        }
+        validate_effective_slots(project, component, None, definitions)?;
+        for item in component.tracks.iter().flat_map(|t| &t.items) {
+            if let TimelineItem::ComponentInstance(instance) = item {
+                let target = definitions
+                    .get(instance.component_id.as_str())
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "component not found")
+                    })?;
+                validate_effective_slots(
+                    project,
+                    &project.components[*target],
+                    Some(&instance.slot_values),
+                    definitions,
+                )?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -789,5 +1127,28 @@ mod tests {
         assert!(validate_draft_label(Some("draft")).is_ok());
         assert!(validate_draft_label(Some(" ")).is_err());
         assert!(validate_draft_label(Some(&"x".repeat(201))).is_err());
+    }
+
+    #[test]
+    fn group_opacity_uses_transform2d_and_preserves_other_fields() {
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/template-slots-v1.json"))
+                .unwrap();
+        for group in catalog["regressions"]["groupItems"].as_array().unwrap() {
+            for opacity in catalog["regressions"]["opacityValues"].as_array().unwrap() {
+                let mut item: TimelineItem = serde_json::from_value(group.clone()).unwrap();
+                let legacy = item.visual_properties().transform.clone();
+                let mut expected = item.visual_properties().transform2d.unwrap_or_default();
+                expected.opacity = opacity.as_f64().unwrap();
+                apply_slot_value(
+                    &mut item,
+                    SlotProperty::VisualOpacity,
+                    &SlotValue::Number(expected.opacity),
+                )
+                .unwrap();
+                assert_eq!(item.visual_properties().transform2d, Some(expected));
+                assert_eq!(item.visual_properties().transform, legacy);
+            }
+        }
     }
 }

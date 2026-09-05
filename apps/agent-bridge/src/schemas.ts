@@ -822,6 +822,159 @@ export const timelineItemSchema = z.discriminatedUnion("type", [
   transitionItemSchema,
 ]);
 
+const slotUnicode = z
+  .string()
+  .regex(/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/);
+const slotColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+// Check raw own keys before Zod can discard special names such as __proto__.
+export const closedSlotRecord = <T extends z.ZodType>(
+  schema: T,
+  allowedKeys: readonly string[]
+): z.ZodType<z.output<T>, z.input<T>> => {
+  const allowed = new Set(allowedKeys);
+  const { $schema: _dialect, ...metadata } = z.toJSONSchema(schema);
+  return z
+    .unknown()
+    .check((ctx) => {
+      const input = ctx.value;
+      if (
+        input !== null &&
+        typeof input === "object" &&
+        !Array.isArray(input)
+      ) {
+        const keys = Object.keys(input).filter((key) => !allowed.has(key));
+        if (keys.length > 0) {
+          ctx.issues.push({
+            code: "unrecognized_keys",
+            input: input as Record<string, unknown>,
+            keys,
+          });
+          return;
+        }
+      }
+      const result = schema.safeParse(input);
+      if (result.success) {
+        ctx.value = result.data;
+      } else {
+        for (const issue of result.error.issues) {
+          ctx.issues.push({ ...issue, input: undefined });
+        }
+      }
+    })
+    .meta(metadata) as z.ZodType<z.output<T>, z.input<T>>;
+};
+
+const closedSlotObject = <T extends z.ZodRawShape>(shape: T) =>
+  closedSlotRecord(z.object(shape).strict(), Object.keys(shape));
+
+export const slotValueSchema = closedSlotRecord(
+  z.discriminatedUnion("type", [
+    z.object({ type: z.literal("text"), value: slotUnicode }).strict(),
+    z
+      .object({
+        type: z.literal("rich_text"),
+        value: closedSlotObject({
+          runs: z
+            .array(
+              closedSlotObject({
+                bold: z.boolean().optional(),
+                color: slotColor.optional(),
+                italic: z.boolean().optional(),
+                text: slotUnicode,
+              })
+            )
+            .min(1)
+            .max(256),
+        }),
+      })
+      .strict(),
+    z.object({ type: z.literal("color"), value: slotColor }).strict(),
+    z.object({ type: z.literal("number"), value: finite }).strict(),
+    z.object({ type: z.literal("boolean"), value: z.boolean() }).strict(),
+    z.object({ type: z.literal("enum"), value: slotUnicode }).strict(),
+    z.object({ type: z.literal("duration"), value: milliseconds }).strict(),
+    z
+      .object({
+        type: z.literal("asset"),
+        value: closedSlotObject({
+          id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+          kind: z.literal("asset"),
+          scope: z.literal("project"),
+        }),
+      })
+      .strict(),
+  ]),
+  ["type", "value"]
+);
+export const templateSlotSchema = closedSlotObject({
+  binding: closedSlotObject({
+    property: z.enum([
+      "text.document",
+      "text.color",
+      "visual.opacity",
+      "visual.hidden",
+      "text.alignment",
+      "item.durationMs",
+      "media.asset",
+    ]),
+    targetLayerId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  }),
+  constraints: closedSlotObject({
+    assetKinds: z.array(z.enum(["image", "video", "audio"])).optional(),
+    choices: z.array(slotUnicode).optional(),
+    max: finite.optional(),
+    maxLength: milliseconds.optional(),
+    min: finite.optional(),
+    minLength: milliseconds.optional(),
+  }),
+  defaultValue: slotValueSchema.optional(),
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  kind: z.enum([
+    "text",
+    "rich_text",
+    "color",
+    "number",
+    "boolean",
+    "enum",
+    "duration",
+    "asset",
+  ]),
+  name: slotUnicode,
+  required: z.boolean(),
+});
+// Describe the existing wire contract without using Zod's lossy record parser.
+const { $schema: _slotSchemaDialect, ...slotValuesMetadata } = z.toJSONSchema(
+  z.record(z.string(), slotValueSchema)
+);
+const slotValuesSchema = z
+  .unknown()
+  .check((ctx) => {
+    const input = ctx.value;
+    if (input === null || typeof input !== "object" || Array.isArray(input)) {
+      ctx.issues.push({ code: "invalid_type", expected: "record", input });
+      return;
+    }
+    const entries: [string, z.infer<typeof slotValueSchema>][] = [];
+    for (const [key, value] of Object.entries(input)) {
+      const result = slotValueSchema.safeParse(value);
+      if (result.success) {
+        entries.push([key, result.data]);
+      } else {
+        for (const issue of result.error.issues) {
+          ctx.issues.push({
+            ...issue,
+            input: value,
+            path: [key, ...issue.path],
+          });
+        }
+      }
+    }
+    ctx.value = Object.fromEntries(entries);
+  })
+  .meta(slotValuesMetadata) as z.ZodType<
+  Record<string, z.infer<typeof slotValueSchema>>
+>;
+
 export const componentInstanceSchema = z
   .object({
     componentId: id,
@@ -829,6 +982,7 @@ export const componentInstanceSchema = z
     hidden: z.boolean(),
     id,
     parent: parentReferenceSchema.nullable().optional(),
+    slotValues: slotValuesSchema,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
     timeScale: finite.positive(),
@@ -850,6 +1004,7 @@ export const componentTrackSchema = z
         z.discriminatedUnion("type", [
           componentInstanceSchema.extend({
             hidden: z.boolean().default(false),
+            slotValues: slotValuesSchema.default({}),
             stackOrder: z.int().nonnegative().max(4_294_967_295).default(0),
             transform: transformSchema.default({
               opacity: 1,
@@ -911,12 +1066,32 @@ export const componentFieldsSchema = z
     durationMs: positiveMilliseconds,
     height: z.int().min(1).max(4320),
     name: z.string().min(1).max(4096),
+    slots: z.array(templateSlotSchema).max(128).optional(),
     tracks: z.array(componentTrackSchema).max(4096),
     width: z.int().min(1).max(7680),
   })
   .strict();
 export const componentDefinitionSchema = componentFieldsSchema
-  .extend({ id })
+  .extend({
+    id,
+    slots: z.array(templateSlotSchema).max(128),
+    tracks: z
+      .array(
+        componentTrackSchema.extend({
+          items: z
+            .array(
+              z.discriminatedUnion("type", [
+                componentTrackSchema.shape.items.element.options[0].extend({
+                  slotValues: slotValuesSchema,
+                }),
+                ...componentTrackSchema.shape.items.element.options.slice(1),
+              ])
+            )
+            .max(4096),
+        })
+      )
+      .max(4096),
+  })
   .strict();
 
 export const projectSummarySchema = z
@@ -982,7 +1157,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(11),
+        schemaVersion: z.literal(12),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1070,6 +1245,13 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      componentId: id,
+      operation: z.literal("component_define_slots"),
+      slots: z.array(templateSlotSchema).max(128),
+    })
+    .strict(),
   componentFieldsSchema
     .extend({
       operation: z.literal("component_create"),
@@ -1341,6 +1523,9 @@ export const schemas = {
     .strict(),
   componentCreate: projectRevisionSchema
     .extend(componentFieldsSchema.shape)
+    .strict(),
+  componentDefineSlots: projectRevisionSchema
+    .extend({ componentId: id, slots: z.array(templateSlotSchema).max(128) })
     .strict(),
   componentDelete: projectRevisionSchema.extend({ componentId: id }).strict(),
   componentUpdate: projectRevisionSchema
