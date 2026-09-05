@@ -995,6 +995,12 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
+      groupId: id,
+      operation: z.literal("group_ungroup"),
+    })
+    .strict(),
+  z
+    .object({
       assetId: id,
       durationMs: positiveMilliseconds,
       operation: z.literal("add_media"),
@@ -1243,6 +1249,7 @@ export const schemas = {
   editorGetStatus: z
     .object({ protocolVersion: z.literal(1).optional() })
     .strict(),
+  groupUngroup: projectRevisionSchema.extend({ groupId: id }).strict(),
   itemReorder: projectRevisionSchema
     .extend({ index: z.int().nonnegative(), itemId: id })
     .strict(),

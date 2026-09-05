@@ -670,6 +670,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "undo_redo",
         "stacking",
         "group_parenting",
+        "group_ungroup",
     ]
 }
 

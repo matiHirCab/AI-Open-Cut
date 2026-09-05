@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "group_ungroup",
+    {
+      annotations: DESTRUCTIVE,
+      description:
+        "Remove a group and promote its immediate children to its parent, preserving local properties.",
+      inputSchema: schemas.groupUngroup,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, groupId }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            groupId,
+            operation: "group_ungroup",
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "add_group",
     {
       annotations: WRITE,

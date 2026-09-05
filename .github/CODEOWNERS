@@ -5,6 +5,7 @@
 /apps/headless/tests/protocol.rs @matiHirCab
 /crates/editor-core/src/error.rs @matiHirCab
 /crates/editor-core/src/model.rs @matiHirCab
+/crates/editor-core/src/timeline.rs @matiHirCab
 /crates/editor-core/tests/motion_graphics_contracts.rs @matiHirCab
 /crates/editor-core/tests/stacking.rs @matiHirCab
 /crates/editor-core/tests/groups.rs @matiHirCab
@@ -14,6 +15,9 @@
 /apps/agent-bridge/src/schemas.ts @matiHirCab
 /apps/agent-bridge/src/server/ @matiHirCab
 /apps/agent-bridge/tests/contracts.test.ts @matiHirCab
+/apps/agent-bridge/tests/group-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/smoke.test.ts @matiHirCab
+/apps/agent-bridge/tests/packaged-smoke.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts @matiHirCab
 /docs/motion-graphics-contract-fixtures.md @matiHirCab
 

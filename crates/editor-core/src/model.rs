@@ -906,6 +906,9 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    GroupUngroup {
+        group_id: String,
+    },
     AddGroup {
         track_id: String,
         start_ms: u64,
@@ -1088,6 +1091,9 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    GroupUngroup {
+        group_id: String,
+    },
     AddGroup {
         track_id: String,
         start_ms: u64,
@@ -1271,6 +1277,7 @@ impl<'de> Deserialize<'de> for EditOperation {
             ));
         }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("group_ungroup") => Some(&["operation", "groupId"]),
             Some("add_group") => Some(&[
                 "operation",
                 "trackId",
@@ -1296,13 +1303,39 @@ impl<'de> Deserialize<'de> for EditOperation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BatchEditOperation {
     #[serde(flatten)]
     pub edit: EditOperation,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result_alias: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for BatchEditOperation {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct BatchFields {
+            #[serde(flatten)]
+            edit: EditOperation,
+            #[serde(default, deserialize_with = "deserialize_double_option")]
+            result_alias: Option<Option<String>>,
+        }
+
+        let fields = BatchFields::deserialize(deserializer)?;
+        if matches!(fields.edit, EditOperation::GroupUngroup { .. })
+            && fields.result_alias.is_some()
+        {
+            return Err(serde::de::Error::custom(
+                "group_ungroup does not accept resultAlias",
+            ));
+        }
+        Ok(Self {
+            edit: fields.edit,
+            result_alias: fields.result_alias.flatten(),
+        })
+    }
 }
 
 impl From<EditOperation> for BatchEditOperation {

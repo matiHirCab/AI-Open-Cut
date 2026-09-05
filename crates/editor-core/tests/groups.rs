@@ -35,12 +35,23 @@ fn canonical_group_payloads_are_closed() {
         serde_json::from_str(include_str!("../../../contracts/group-parent-v1.json")).unwrap();
     for fixture in catalog["valid"].as_array().unwrap() {
         serde_json::from_value::<EditOperation>(fixture["value"].clone()).unwrap();
+        if fixture["value"]["operation"] == "group_ungroup" {
+            serde_json::from_value::<BatchEditOperation>(fixture["value"].clone()).unwrap();
+        }
     }
     for fixture in catalog["invalid"].as_array().unwrap() {
         assert!(
             serde_json::from_value::<EditOperation>(fixture["value"].clone()).is_err(),
             "{fixture}"
         );
+    }
+    for fixture in catalog["invalid"].as_array().unwrap() {
+        if fixture["value"]["operation"] == "group_ungroup" {
+            assert!(
+                serde_json::from_value::<BatchEditOperation>(fixture["value"].clone()).is_err(),
+                "{fixture}"
+            );
+        }
     }
     let (_root, core, id, track) = setup();
     let mut creation = catalog["valid"][0]["value"].clone();
@@ -948,4 +959,587 @@ fn group_endpoints_are_rejected_before_draft_publication() {
     assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before);
     assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), history);
     assert!(!dir.join("drafts").exists());
+}
+
+fn ungroup_fixture(track: &str) -> Vec<BatchEditOperation> {
+    serde_json::from_value(json!([
+        {"operation":"create_track","trackType":"overlay","name":"Children","resultAlias":"children"},
+        {"operation":"create_track","trackType":"overlay","name":"Read only","resultAlias":"readonly"},
+        group("@readonly", "ancestor"),
+        {"operation":"add_group","trackId":track,"startMs":200,"durationMs":500,"parent":{"scope":"root","id":"@ancestor"},"resultAlias":"group"},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":20,"height":10,"color":"#ff0000","transform":{"positionX":7,"positionY":9,"scale":1,"opacity":0.5},"resultAlias":"child"},
+        {"operation":"item_set_parent","itemId":"@child","parent":{"scope":"root","id":"@group"}},
+        {"operation":"add_group","trackId":"@children","startMs":0,"durationMs":1000,"parent":{"scope":"root","id":"@group"},"resultAlias":"nested"},
+        {"operation":"add_group","trackId":"@readonly","startMs":0,"durationMs":1000,"parent":{"scope":"root","id":"@nested"},"resultAlias":"deep"},
+        {"operation":"item_set_z_index","itemId":"@child","zIndex":-5},
+        {"operation":"set_item_visibility","itemId":"@nested","hidden":true}
+    ])).unwrap()
+}
+
+fn persisted_bytes(core: &EditorCore, id: &str) -> (Vec<u8>, Vec<u8>) {
+    let dir = core.paths().project_dir(id).unwrap();
+    (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    )
+}
+
+#[test]
+fn ungroup_promotes_immediate_children_preserves_local_state_and_exact_history() {
+    for root_group in [false, true] {
+        let (_root, core, id, track) = setup();
+        let created = core.edit_batch(&id, 0, ungroup_fixture(&track)).unwrap();
+        let a = &created.aliases;
+        if root_group {
+            core.edit(
+                &id,
+                1,
+                op(json!({"operation":"item_set_parent","itemId":a["group"],"parent":null})),
+            )
+            .unwrap();
+        }
+        let before = core.get_project(&id).unwrap();
+        let mut expected = serde_json::to_value(&before).unwrap();
+        let replacement = before
+            .find_item(&a["group"])
+            .unwrap()
+            .visual_properties()
+            .parent
+            .clone();
+        // Independent state oracle: promote direct references, remove only the node,
+        // and rebuild ordinals without using mutation helpers.
+        for track in expected["tracks"].as_array_mut().unwrap() {
+            let items = track["items"].as_array_mut().unwrap();
+            items.retain(|item| item["id"] != a["group"]);
+            for (index, item) in items.iter_mut().enumerate() {
+                if item["parent"]["id"] == a["group"] {
+                    if let Some(parent) = &replacement {
+                        item["parent"] = json!(parent);
+                    } else {
+                        item.as_object_mut().unwrap().remove("parent");
+                    }
+                }
+                item["stackOrder"] = json!(index);
+            }
+        }
+        let result = core
+            .edit(
+                &id,
+                before.revision,
+                op(json!({"operation":"group_ungroup","groupId":a["group"]})),
+            )
+            .unwrap();
+        assert_eq!(
+            result.changed_ids,
+            vec![a["group"].clone(), a["child"].clone(), a["nested"].clone()]
+        );
+        let after = core.get_project(&id).unwrap();
+        let after_json = serde_json::to_value(&after).unwrap();
+        expected["revision"] = after_json["revision"].clone();
+        expected["updatedAtMs"] = after_json["updatedAtMs"].clone();
+        assert_eq!(after_json, expected);
+        let bytes = persisted_bytes(&core, &id);
+        assert_eq!(
+            serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
+            after_json
+        );
+        assert_eq!(persisted_bytes(&core, &id), bytes);
+        core.undo(&id, result.revision).unwrap();
+        assert_eq!(
+            json!(core.get_project(&id).unwrap().tracks),
+            json!(before.tracks)
+        );
+        core.redo(&id, result.revision + 1).unwrap();
+        assert_eq!(
+            json!(core.get_project(&id).unwrap().tracks),
+            after_json["tracks"]
+        );
+    }
+}
+
+#[test]
+fn ungroup_checks_all_affected_tracks_but_allows_read_only_locks() {
+    for locked in ["group", "children", "readonly"] {
+        let (_root, core, id, track) = setup();
+        let created = core.edit_batch(&id, 0, ungroup_fixture(&track)).unwrap();
+        let a = &created.aliases;
+        let locked_track = if locked == "group" {
+            &track
+        } else {
+            &a[locked]
+        };
+        core.edit(
+            &id,
+            1,
+            op(json!({"operation":"update_track","trackId":locked_track,"locked":true})),
+        )
+        .unwrap();
+        let before = persisted_bytes(&core, &id);
+        let edit = op(json!({"operation":"group_ungroup","groupId":a["group"]}));
+        let result = core.edit(&id, 2, edit);
+        if locked == "readonly" {
+            assert_eq!(result.unwrap().revision, 3);
+            assert_eq!(
+                core.get_project(&id)
+                    .unwrap()
+                    .find_item(&a["deep"])
+                    .unwrap()
+                    .visual_properties()
+                    .parent
+                    .as_ref()
+                    .unwrap()
+                    .id,
+                a["nested"]
+            );
+        } else {
+            assert_eq!(result.unwrap_err().code, ErrorCode::TrackLocked);
+            assert_eq!(persisted_bytes(&core, &id), before);
+        }
+    }
+}
+
+#[test]
+fn ungroup_canonical_target_failures_and_stale_revision_leave_files_untouched() {
+    let (_root, core, id, track) = setup();
+    let created = core.edit_batch(&id, 0, ungroup_fixture(&track)).unwrap();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/group-parent-v1.json")).unwrap();
+    let before = persisted_bytes(&core, &id);
+    for fixture in catalog["ungroupFailures"].as_array().unwrap() {
+        let reference = fixture["groupId"].as_str().unwrap();
+        let target = created
+            .aliases
+            .get(reference)
+            .map(String::as_str)
+            .unwrap_or(reference);
+        let error = core
+            .edit(
+                &id,
+                1,
+                op(json!({"operation":"group_ungroup","groupId":target})),
+            )
+            .unwrap_err();
+        assert_eq!(json!(error.code), fixture["error"]);
+        assert_eq!(persisted_bytes(&core, &id), before);
+    }
+    assert_eq!(
+        core.edit(
+            &id,
+            0,
+            op(json!({"operation":"group_ungroup","groupId":"missing"}))
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::RevisionConflict
+    );
+    assert_eq!(persisted_bytes(&core, &id), before);
+}
+
+#[test]
+fn ungroup_alias_creation_lifetime_and_late_failure_are_atomic() {
+    let (_root, core, id, track) = setup();
+    let initial = persisted_bytes(&core, &id);
+    let mut operations = ungroup_fixture(&track);
+    operations.push(op(json!({"operation":"group_ungroup","groupId":"@group"})).into());
+    let success = core.edit_batch(&id, 0, operations.clone()).unwrap();
+    assert!(success.aliases.contains_key("group"));
+    assert!(
+        core.get_project(&id)
+            .unwrap()
+            .find_item(&success.aliases["group"])
+            .is_none()
+    );
+    core.undo(&id, 1).unwrap();
+    assert!(core.get_project(&id).unwrap().tracks[1].items.is_empty());
+    core.redo(&id, 2).unwrap();
+    let after = persisted_bytes(&core, &id);
+    assert_ne!(initial, after);
+    for (extra, code) in [
+        (
+            json!({"operation":"group_ungroup","groupId":"@group"}),
+            ErrorCode::ItemNotFound,
+        ),
+        (
+            json!({"operation":"group_ungroup","groupId":"@missing"}),
+            ErrorCode::ValidationFailed,
+        ),
+        (
+            json!({"operation":"item_set_z_index","itemId":"absent","zIndex":0}),
+            ErrorCode::ItemNotFound,
+        ),
+    ] {
+        let mut failed = operations.clone();
+        failed.push(op(extra).into());
+        assert_eq!(core.edit_batch(&id, 3, failed).unwrap_err().code, code);
+        assert_eq!(persisted_bytes(&core, &id), after);
+    }
+    let forward: Vec<BatchEditOperation> = serde_json::from_value(json!([
+        {"operation":"group_ungroup","groupId":"@later"}, group(&track,"later")
+    ]))
+    .unwrap();
+    assert_eq!(
+        core.edit_batch(&id, 3, forward).unwrap_err().code,
+        ErrorCode::ValidationFailed
+    );
+    let forbidden = BatchEditOperation {
+        edit: op(json!({"operation":"group_ungroup","groupId":success.aliases["nested"]})),
+        result_alias: Some("removed".into()),
+    };
+    assert_eq!(
+        core.edit_batch(&id, 3, vec![forbidden]).unwrap_err().code,
+        ErrorCode::ValidationFailed
+    );
+    assert_eq!(persisted_bytes(&core, &id), after);
+}
+
+#[test]
+fn ungroup_empty_group_normalizes_other_ordinals_and_is_undoable() {
+    let (_root, core, id, track) = setup();
+    let created = core
+        .edit_batch(
+            &id,
+            0,
+            serde_json::from_value::<Vec<BatchEditOperation>>(json!([
+                group(&track, "empty"),
+                group(&track, "other")
+            ]))
+            .unwrap(),
+        )
+        .unwrap();
+    let before = core.get_project(&id).unwrap();
+    let result = core
+        .edit(
+            &id,
+            1,
+            op(json!({"operation":"group_ungroup","groupId":created.aliases["empty"]})),
+        )
+        .unwrap();
+    assert_eq!(
+        result.changed_ids,
+        vec![
+            created.aliases["empty"].clone(),
+            created.aliases["other"].clone()
+        ]
+    );
+    assert_eq!(
+        core.get_project(&id).unwrap().tracks[1].items[0]
+            .visual_properties()
+            .stack_order,
+        0
+    );
+    core.undo(&id, 2).unwrap();
+    assert_eq!(
+        json!(core.get_project(&id).unwrap().tracks),
+        json!(before.tracks)
+    );
+}
+
+#[test]
+fn ungroup_preserves_every_visual_kind_media_integrity_and_caption_provenance() {
+    use opencut_editor_core::{
+        CaptionStyle, CommitTranscriptionRequest, MediaProbeFacts, MediaType, TranscriptionSegment,
+    };
+    let (root, core, id, track) = setup();
+    let path = root.path().join("media/video.mp4");
+    std::fs::write(&path, b"trusted probe fixture").unwrap();
+    let imported = core
+        .import_asset(
+            &id,
+            0,
+            &path,
+            MediaType::Video,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let asset = &imported.changed_ids[0];
+    core.commit_transcription(CommitTranscriptionRequest {
+        project_id: id.clone(),
+        expected_revision: 1,
+        asset_id: asset.clone(),
+        caption_track_id: None,
+        provider_id: "test-provider".into(),
+        model_id: "test-model".into(),
+        model_version: Some("1".into()),
+        language: "en".into(),
+        generated_at_ms: 1,
+        segments: vec![TranscriptionSegment {
+            text: "Caption source".into(),
+            start_ms: 0,
+            end_ms: 500,
+            confidence: Some(0.9),
+            words: vec![],
+        }],
+        style: CaptionStyle::default(),
+    })
+    .unwrap();
+    let caption = core
+        .get_project(&id)
+        .unwrap()
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .find(|i| matches!(i, opencut_editor_core::TimelineItem::Caption(_)))
+        .unwrap()
+        .id()
+        .to_owned();
+    let operations:Vec<BatchEditOperation>=serde_json::from_value(json!([
+        group(&track,"group"),group(&track,"nested"),
+        {"operation":"add_media","trackId":track,"assetId":asset,"startMs":0,"durationMs":1000,"sourceInMs":0,"resultAlias":"media"},
+        {"operation":"add_text","trackId":track,"text":"Preserve","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":2,"positionY":3,"scale":1,"opacity":1},"resultAlias":"text"},
+        {"operation":"add_solid_color","trackId":track,"color":"#abcdef","startMs":0,"durationMs":1000,"transform":{"positionX":2,"positionY":3,"scale":1,"opacity":0.5},"resultAlias":"solid"},
+        {"operation":"add_rectangle","trackId":track,"width":20,"height":10,"color":"#123456","startMs":0,"durationMs":1000,"transform":{"positionX":2,"positionY":3,"scale":1,"opacity":1},"resultAlias":"rectangle"},
+        {"operation":"item_set_parent","itemId":"@nested","parent":{"scope":"root","id":"@group"}},
+        {"operation":"item_set_parent","itemId":"@media","parent":{"scope":"root","id":"@group"}},
+        {"operation":"item_set_parent","itemId":"@text","parent":{"scope":"root","id":"@group"}},
+        {"operation":"item_set_parent","itemId":"@solid","parent":{"scope":"root","id":"@group"}},
+        {"operation":"item_set_parent","itemId":"@rectangle","parent":{"scope":"root","id":"@group"}},
+        {"operation":"item_set_parent","itemId":caption,"parent":{"scope":"root","id":"@group"}}
+    ])).unwrap();
+    let created = core.edit_batch(&id, 2, operations).unwrap();
+    let before = core.get_project(&id).unwrap();
+    let dir = core.paths().project_dir(&id).unwrap();
+    let media = dir.join(&before.assets[0].project_relative_path);
+    let media_bytes = std::fs::read(&media).unwrap();
+    let removed = core
+        .edit(
+            &id,
+            3,
+            op(json!({"operation":"group_ungroup","groupId":created.aliases["group"]})),
+        )
+        .unwrap();
+    assert_eq!(removed.changed_ids.len(), 7);
+    let after = core.get_project(&id).unwrap();
+    assert_eq!(json!(before.assets), json!(after.assets));
+    for item in after.tracks.iter().flat_map(|t| &t.items) {
+        let mut expected = json!(before.find_item(item.id()).unwrap());
+        expected.as_object_mut().unwrap().remove("parent");
+        expected["stackOrder"] = json!(item.visual_properties().stack_order);
+        assert_eq!(json!(item), expected);
+    }
+    core.undo(&id, 4).unwrap();
+    assert_eq!(
+        json!(core.get_project(&id).unwrap().tracks),
+        json!(before.tracks)
+    );
+    core.redo(&id, 5).unwrap();
+    assert_eq!(
+        json!(core.get_project(&id).unwrap().tracks),
+        json!(after.tracks)
+    );
+    assert_eq!(std::fs::read(media).unwrap(), media_bytes);
+}
+
+#[test]
+fn native_ungroup_matches_explicit_reparent_delete_in_frame_range_and_export() {
+    use opencut_editor_core::{ExportOptions, PreviewRangeOptions, Renderer, Transform2D};
+    let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+        assert_ne!(std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref(), Ok("1"));
+        return;
+    };
+    let ffprobe = std::env::var_os("OPENCUT_FFPROBE_PATH").unwrap();
+    let (_root, core, id, track) = setup();
+    let mut values = ungroup_fixture(&track);
+    let mut transform = Transform2D::default();
+    transform.position.x = 30.0;
+    transform.rotation_deg = 30.0;
+    transform.opacity = 0.4;
+    values.push(
+        op(json!({"operation":"update_item","itemId":"@group","transform2d":transform})).into(),
+    );
+    values.push(
+        op(json!({"operation":"set_item_visibility","itemId":"@group","hidden":true})).into(),
+    );
+    let created = core.edit_batch(&id, 0, values).unwrap();
+    let a = &created.aliases;
+    let draft = core
+        .create_draft(
+            &id,
+            1,
+            vec![op(
+                json!({"operation":"group_ungroup","groupId":a["group"]}),
+            )],
+            None,
+        )
+        .unwrap();
+    let candidate = core.get_draft_state(&id, &draft.id).unwrap().project;
+    core.edit(
+        &id,
+        1,
+        op(json!({"operation":"group_ungroup","groupId":a["group"]})),
+    )
+    .unwrap();
+    let mut actual = core.get_project(&id).unwrap();
+    assert_eq!(json!(candidate.tracks), json!(actual.tracks));
+    core.undo(&id, 2).unwrap();
+    let equivalent:Vec<BatchEditOperation>=serde_json::from_value(json!([
+        {"operation":"item_set_parent","itemId":a["child"],"parent":{"scope":"root","id":a["ancestor"]}},
+        {"operation":"item_set_parent","itemId":a["nested"],"parent":{"scope":"root","id":a["ancestor"]}},
+        {"operation":"delete_item","itemId":a["group"]}
+    ])).unwrap();
+    core.edit_batch(&id, 3, equivalent).unwrap();
+    let mut oracle = core.get_project(&id).unwrap();
+    assert_eq!(json!(actual.tracks), json!(oracle.tracks));
+    actual.settings.width = 64;
+    actual.settings.height = 64;
+    oracle.settings = actual.settings.clone();
+    let dir = core.paths().project_dir(&id).unwrap();
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    let decode = |path: &std::path::Path, time: &str| {
+        let output = std::process::Command::new(&ffmpeg)
+            .args(["-v", "error", "-ss", time, "-i"])
+            .arg(path)
+            .args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout.len(), 64 * 64 * 3);
+        output.stdout
+    };
+    let mut references = Vec::new();
+    for project in [&actual, &oracle] {
+        let mut frames = Vec::new();
+        for time in [0, 500, 900] {
+            let preview = renderer.render_preview(project, &dir, time).unwrap();
+            frames.push(decode(&dir.join(preview.relative_path), "0"));
+        }
+        let range = renderer
+            .render_preview_range(
+                project,
+                &dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1000,
+                    width: 64,
+                    height: 64,
+                    fps: 30,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        let export = dir.join(format!("ungroup-{}.mp4", project.revision));
+        renderer
+            .export_video(
+                project,
+                &dir,
+                ExportOptions {
+                    output: &export,
+                    width: 64,
+                    height: 64,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        for (index, time) in ["0", "0.5", "0.9"].iter().enumerate() {
+            for output in [&dir.join(&range.relative_path), &export] {
+                let decoded = decode(output, time);
+                let mean_error = decoded
+                    .iter()
+                    .zip(&frames[index])
+                    .map(|(a, b)| f64::from(a.abs_diff(*b)))
+                    .sum::<f64>()
+                    / decoded.len() as f64;
+                assert!(mean_error < 3.0, "mean RGB error {mean_error}");
+            }
+        }
+        references.push(frames);
+    }
+    assert_eq!(references[0], references[1]);
+    assert!(
+        references[0][0].iter().any(|value| *value > 80),
+        "ungroup must reveal the previously hidden visual"
+    );
+}
+
+#[test]
+fn ungroup_batch_enforces_exact_operation_count_limits() {
+    let (_root, core, id, track) = setup();
+    let mut values = Vec::new();
+    for index in 0..50 {
+        let alias = format!("g{index}");
+        values.push(group(&track, &alias));
+        values.push(json!({"operation":"group_ungroup","groupId":format!("@{alias}")}));
+    }
+    let before = persisted_bytes(&core, &id);
+    let mut overflow = values.clone();
+    overflow.push(group(&track, "extra"));
+    for invalid in [json!([]), json!(overflow)] {
+        let operations: Vec<BatchEditOperation> = serde_json::from_value(invalid).unwrap();
+        assert_eq!(
+            core.edit_batch(&id, 0, operations).unwrap_err().code,
+            ErrorCode::ValidationFailed
+        );
+        assert_eq!(persisted_bytes(&core, &id), before);
+    }
+    let operations: Vec<BatchEditOperation> = serde_json::from_value(json!(values)).unwrap();
+    let result = core.edit_batch(&id, 0, operations).unwrap();
+    assert_eq!(result.revision, 1);
+    assert_eq!(result.aliases.len(), 50);
+    assert_eq!(result.changed_ids.len(), 50);
+    assert!(core.get_project(&id).unwrap().tracks[1].items.is_empty());
+    let created = core
+        .edit(
+            &id,
+            1,
+            op(json!({"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000})),
+        )
+        .unwrap();
+    core.edit_batch(
+        &id,
+        2,
+        vec![BatchEditOperation::from(op(
+            json!({"operation":"group_ungroup","groupId":created.changed_ids[0]}),
+        ))],
+    )
+    .unwrap();
+    assert!(core.get_project(&id).unwrap().tracks[1].items.is_empty());
+}
+
+#[test]
+fn batch_alias_presence_preserves_other_operations_and_duplicate_rejection() {
+    for operation in [
+        json!({"operation":"add_group","trackId":"overlay","startMs":0,"durationMs":1000}),
+        json!({"operation":"item_set_parent","itemId":"item","parent":null}),
+    ] {
+        for alias in [None, Some(Value::Null), Some(json!("created"))] {
+            let mut input = operation.clone();
+            if let Some(value) = &alias {
+                input["resultAlias"] = value.clone();
+            }
+            let batch: BatchEditOperation = serde_json::from_value(input).unwrap();
+            let expected = alias.as_ref().and_then(Value::as_str);
+            assert_eq!(batch.result_alias.as_deref(), expected);
+            let serialized = json!(batch);
+            assert_eq!(
+                serialized.get("resultAlias").and_then(Value::as_str),
+                expected
+            );
+            let round_trip: BatchEditOperation =
+                serde_json::from_value(serialized.clone()).unwrap();
+            assert_eq!(json!(round_trip), serialized);
+        }
+        let mut wrong = operation.clone();
+        wrong["resultAlias"] = json!(42);
+        assert!(serde_json::from_value::<BatchEditOperation>(wrong).is_err());
+        let prefix = serde_json::to_string(&operation).unwrap();
+        let prefix = prefix.strip_suffix('}').unwrap();
+        for fields in [
+            r#", "resultAlias":null,"resultAlias":null}"#,
+            r#", "resultAlias":null,"resultAlias":"alias"}"#,
+            r#", "resultAlias":"alias","resultAlias":null}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<BatchEditOperation>(&format!("{prefix}{fields}")).is_err()
+            );
+        }
+    }
 }

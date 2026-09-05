@@ -17,6 +17,7 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | { operation: "group_ungroup"; groupId: string }
   | {
       operation: "add_group";
       trackId: string;

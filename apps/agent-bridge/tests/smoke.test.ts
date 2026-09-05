@@ -26,6 +26,8 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 
+import { verifyGroupWorkflow } from "./group-workflow";
+
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
 const root = mkdtempSync(join(tmpdir(), "opencut-agent-smoke-"));
@@ -1024,4 +1026,8 @@ it("persists explicit stacking through standalone and alias batch tools", async 
     name: "item_reorder",
   });
   expect(stale.isError).toBe(true);
+});
+
+it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
+  await verifyGroupWorkflow(client, call);
 });

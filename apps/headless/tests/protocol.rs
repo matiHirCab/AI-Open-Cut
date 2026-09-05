@@ -625,3 +625,144 @@ fn stacking_public_protocol_and_batch_aliases() {
     let malformed=harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":4,"edit":{"operation":"item_set_z_index","itemId":item,"zIndex":0,"url":"https://example.com"}}));
     assert_eq!(event(&malformed)["error"]["code"], "INVALID_ARGUMENT");
 }
+
+#[test]
+fn ungroup_protocol_workflow_aliases_rollback_and_history() {
+    let harness = Harness::new();
+    let created = result(&harness.request(json!({"operation":"create_project","name":"Ungroup"})));
+    let id = &created["projectId"];
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let edit = |revision, value| {
+        result(&harness.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":value}),
+        ))
+    };
+    let group = edit(
+        0,
+        json!({"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000}),
+    );
+    let group_id = &group["changedIds"][0];
+    let child = edit(
+        1,
+        json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":20,"height":10,"color":"#ff0000","transform":{"positionX":7,"positionY":9,"scale":1,"opacity":1}}),
+    );
+    let child_id = &child["changedIds"][0];
+    edit(
+        2,
+        json!({"operation":"item_set_parent","itemId":child_id,"parent":{"scope":"root","id":group_id}}),
+    );
+    edit(
+        3,
+        json!({"operation":"item_set_z_index","itemId":child_id,"zIndex":-7}),
+    );
+    let before = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    for (revision, target, code) in [
+        (0, group_id.clone(), "REVISION_CONFLICT"),
+        (4, json!("absent"), "ITEM_NOT_FOUND"),
+        (4, child_id.clone(), "INVALID_ARGUMENT"),
+    ] {
+        let response = event(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"group_ungroup","groupId":target}})));
+        assert_eq!(response["error"]["code"], code);
+        assert_eq!(response["error"]["retryable"], code == "REVISION_CONFLICT");
+    }
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/group-parent-v1.json")).unwrap();
+    for fixture in catalog["invalid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| f["value"]["operation"] == "group_ungroup")
+    {
+        let output = harness.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":4,"edit":fixture["value"]}),
+        );
+        assert!(!output.status.success());
+        assert_eq!(event(&output)["type"], "error");
+    }
+    let failed = event(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":4,"operations":[{"operation":"group_ungroup","groupId":group_id},{"operation":"group_ungroup","groupId":group_id}]})));
+    assert_eq!(failed["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id}))),
+        before
+    );
+    edit(
+        4,
+        json!({"operation":"update_track","trackId":track,"locked":true}),
+    );
+    let locked=event(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":5,"edit":{"operation":"group_ungroup","groupId":group_id}})));
+    assert_eq!(locked["error"]["code"], "TRACK_LOCKED");
+    edit(
+        5,
+        json!({"operation":"update_track","trackId":track,"locked":false}),
+    );
+    let removed = edit(6, json!({"operation":"group_ungroup","groupId":group_id}));
+    assert_eq!(removed["changedIds"], json!([group_id, child_id]));
+    let after = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert!(
+        after["project"]["tracks"][1]["items"][0]
+            .get("parent")
+            .is_none()
+    );
+    assert_eq!(after["project"]["tracks"][1]["items"][0]["zIndex"], -7);
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":7})));
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        before["project"]["tracks"]
+    );
+    result(&harness.request(json!({"operation":"redo","projectId":id,"expectedRevision":8})));
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        after["project"]["tracks"]
+    );
+    let batch=result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":9,"operations":[
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"resultAlias":"g"},
+        {"operation":"item_set_parent","itemId":child_id,"parent":{"scope":"root","id":"@g"}},
+        {"operation":"item_set_z_index","itemId":"@g","zIndex":5},
+        {"operation":"group_ungroup","groupId":"@g"}
+    ]})));
+    assert_eq!(batch["revision"], 10);
+    assert!(batch["aliases"]["g"].is_string());
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        after["project"]["tracks"]
+    );
+}
+
+#[test]
+fn ungroup_null_alias_batch_is_rejected_before_any_publication() {
+    let harness = Harness::new();
+    let created =
+        result(&harness.request(json!({"operation":"create_project","name":"Null alias"})));
+    let id = created["projectId"].as_str().unwrap();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let created=result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000}})));
+    let group = &created["changedIds"][0];
+    let directory = harness.root.path().join("projects").join(id);
+    let snapshot = || {
+        (
+            std::fs::read(directory.join("project.json")).unwrap(),
+            std::fs::read(directory.join("history.json")).unwrap(),
+        )
+    };
+    let before = snapshot();
+    for alias in [Value::Null, json!("removed"), json!(42)] {
+        let malformed = json!({"operation":"group_ungroup","groupId":group,"resultAlias":alias});
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":malformed}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[{"operation":"item_set_z_index","itemId":group,"zIndex":7},malformed]}),
+        ] {
+            let output = harness.request(request);
+            assert!(!output.status.success());
+            assert_eq!(event(&output)["error"]["code"], "INVALID_ARGUMENT");
+            assert_eq!(event(&output)["error"]["retryable"], false);
+            assert_eq!(snapshot(), before);
+            assert_eq!(
+                result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]
+                    ["revision"],
+                1
+            );
+        }
+    }
+}

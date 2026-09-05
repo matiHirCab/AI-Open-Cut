@@ -23,7 +23,10 @@
     "reparent": "preserve_local",
     "duplicate": "node_only",
     "delete": "reject_surviving_references",
-    "compatibility": "additive_operations_existing_simple_requests_unchanged_schema10_requires_group_aware_reader"
+    "compatibility": "additive_operations_existing_simple_requests_unchanged_schema10_requires_group_aware_reader",
+    "ungroup": "remove_node_promote_immediate_children_to_parent_preserve_local",
+    "ungroupLocks": "group_and_immediate_children_tracks",
+    "ungroupAliases": "earlier_creation_groupId_no_resultAlias_creation_mapping_retained"
   },
   "valid": [
     {
@@ -63,6 +66,20 @@
           "scope": "root",
           "id": "@group"
         }
+      }
+    },
+    {
+      "id": "ungroup",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "group"
+      }
+    },
+    {
+      "id": "ungroup_alias",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "@group"
       }
     }
   ],
@@ -135,6 +152,51 @@
             "path": "/tmp/group"
           }
         }
+      }
+    },
+    {
+      "id": "ungroup_missing_id",
+      "value": {
+        "operation": "group_ungroup"
+      }
+    },
+    {
+      "id": "ungroup_wrong_type",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": 42
+      }
+    },
+    {
+      "id": "ungroup_unknown_field",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "group",
+        "path": "/tmp/group"
+      }
+    },
+    {
+      "id": "ungroup_result_alias",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "group",
+        "resultAlias": "removed"
+      }
+    },
+    {
+      "id": "ungroup_null_result_alias",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "group",
+        "resultAlias": null
+      }
+    },
+    {
+      "id": "ungroup_wrong_type_result_alias",
+      "value": {
+        "operation": "group_ungroup",
+        "groupId": "group",
+        "resultAlias": 42
       }
     }
   ],
@@ -236,5 +298,18 @@
     "transformContract": "transform2d-v1",
     "time": "unsigned_integer_milliseconds_positive_duration_checked_end",
     "reader": "schema10_group_aware"
-  }
+  },
+  "ungroupCapability": "group_ungroup",
+  "ungroupFailures": [
+    {
+      "id": "missing",
+      "groupId": "absent",
+      "error": "ITEM_NOT_FOUND"
+    },
+    {
+      "id": "non_group",
+      "groupId": "child",
+      "error": "INVALID_ARGUMENT"
+    }
+  ]
 }
