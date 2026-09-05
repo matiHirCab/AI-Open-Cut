@@ -14,7 +14,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("animation", &[]),
     ("assets", &["persistence"]),
     ("drafts", &["persistence"]),
-    ("evaluated_scene", &["animation"]),
+    ("evaluated_scene", &["animation", "validation"]),
     ("error", &[]),
     ("migrations", &[]),
     ("model", &["error"]),
@@ -1491,7 +1491,7 @@ fn required_owners_are_private_modules() {
 #[test]
 fn evaluated_scene_excludes_persistence_and_renderer_details() {
     let analysis = analyze_owner("evaluated_scene").unwrap();
-    validate_owner_analysis("evaluated_scene", &["animation"], &analysis).unwrap();
+    validate_owner_analysis("evaluated_scene", &["animation", "validation"], &analysis).unwrap();
 
     #[derive(Default)]
     struct FieldTypeVisitor {

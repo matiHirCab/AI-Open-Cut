@@ -17,6 +17,9 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | { operation: "item_set_z_index"; itemId: string; zIndex: number }
+  | { operation: "item_reorder"; itemId: string; index: number }
+  | { operation: "track_reorder"; trackId: string; index: number }
   | {
       operation: "add_media";
       assetId: string;

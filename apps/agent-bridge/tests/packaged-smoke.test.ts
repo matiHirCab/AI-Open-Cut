@@ -331,3 +331,78 @@ it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () 
       .find((item) => item.id === itemId)?.transform2d
   ).toBeUndefined();
 });
+
+it("persists explicit stacking through standalone and alias batch tools", async () => {
+  const created = await call(
+    "project_create",
+    { name: "Stacking smoke" },
+    writeResultSchema
+  );
+  const { projectId } = created;
+  const state = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  const trackId = state.project.tracks[1]?.id;
+  if (!trackId) {
+    throw new Error("overlay track missing");
+  }
+  const rectangle = (resultAlias: string) => ({
+    color: "#ff0000",
+    durationMs: 1000,
+    height: 20,
+    operation: "add_rectangle",
+    resultAlias,
+    startMs: 0,
+    trackId,
+    transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+    width: 30,
+  });
+  const added = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: 0,
+      operations: [
+        rectangle("a"),
+        rectangle("b"),
+        { itemId: "@a", operation: "item_set_z_index", zIndex: -5 },
+        { index: 0, itemId: "@b", operation: "item_reorder" },
+        { index: 0, operation: "track_reorder", trackId },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const { a } = added.aliases;
+  await call(
+    "item_set_z_index",
+    { expectedRevision: 1, itemId: a, projectId, zIndex: 7 },
+    writeResultSchema
+  );
+  await call(
+    "item_reorder",
+    { expectedRevision: 2, index: 0, itemId: a, projectId },
+    writeResultSchema
+  );
+  await call(
+    "track_reorder",
+    { expectedRevision: 3, index: 1, projectId, trackId },
+    writeResultSchema
+  );
+  const reopened = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(reopened.project.tracks[1]?.items[0]).toMatchObject({
+    id: a,
+    stackOrder: 0,
+    zIndex: 7,
+  });
+  const stale = await client.callTool({
+    arguments: { expectedRevision: 0, index: 0, itemId: a, projectId },
+    name: "item_reorder",
+  });
+  expect(stale.isError).toBe(true);
+});

@@ -25,7 +25,16 @@ pub(crate) fn migrate_project_documents(
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     match project.schema_version {
-        1..=7 => {
+        1..=8 => {
+            for track in &mut project.tracks {
+                for (index, item) in track.items.iter_mut().enumerate() {
+                    let visual = item.visual_properties_mut();
+                    visual.z_index = 0;
+                    visual.stack_order = u32::try_from(index).map_err(|_| {
+                        CoreError::new(ErrorCode::InvalidArgument, "too many items for stack order")
+                    })?;
+                }
+            }
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }

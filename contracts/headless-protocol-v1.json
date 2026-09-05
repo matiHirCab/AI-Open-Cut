@@ -64,7 +64,8 @@
       "audio",
       "audio_roles",
       "audio_ducking",
-      "undo_redo"
+      "undo_redo",
+      "stacking"
     ],
     "renderingCapabilities": [
       "preview",

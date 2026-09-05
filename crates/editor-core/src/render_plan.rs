@@ -1136,6 +1136,11 @@ mod tests {
                 }),
             ],
         }];
+        for track in &mut project.tracks {
+            for (index, item) in track.items.iter_mut().enumerate() {
+                item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
+            }
+        }
         let scene = evaluate_project(&project, 640, 360, 24).unwrap();
         let media_inputs = media_input_requests(&scene).unwrap();
         assert_eq!(
@@ -1370,6 +1375,11 @@ mod tests {
             },
         ];
 
+        for track in &mut project.tracks {
+            for (index, item) in track.items.iter_mut().enumerate() {
+                item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
+            }
+        }
         let evaluated = evaluate_project(&project, 640, 360, 24).unwrap();
         assert_eq!(evaluated.resource_bindings.media.len(), 3);
         assert_eq!(evaluated.resource_bindings.fonts.len(), 1);

@@ -31,7 +31,7 @@ describe("MCP contracts", () => {
         id: "project",
         name: "Visual properties",
         revision: 0,
-        schemaVersion: 8,
+        schemaVersion: 9,
         settings: { fps: 30, height: 1080, width: 1920 },
         tracks: [
           {
@@ -45,11 +45,13 @@ describe("MCP contracts", () => {
                 fromItemId: "source",
                 hidden: false,
                 id: "transition",
+                stackOrder: 0,
                 startMs: 0,
                 toItemId: null,
                 transform,
                 transitionType: "fade",
                 type: "transition",
+                zIndex: 0,
               },
             ],
             locked: false,

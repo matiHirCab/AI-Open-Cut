@@ -1046,6 +1046,100 @@ mod tests {
     }
 
     #[test]
+    fn malformed_stacking_is_rejected_without_side_effects_for_all_facades() {
+        let root = tempdir().unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        let mut valid = visual_project();
+        let mut second = valid.tracks[0].items[0].clone();
+        if let TimelineItem::SolidColor(item) = &mut second {
+            item.id = "second".into();
+        }
+        second.visual_properties_mut().stack_order = 1;
+        valid.tracks[0].items.push(second);
+        let mut empty = valid.tracks[0].clone();
+        empty.id = "empty".into();
+        empty.items.clear();
+        valid.tracks.push(empty);
+        assert!(evaluate_project(&valid, 320, 180, 15).is_ok());
+        assert!(evaluate_project(&empty_project(), 320, 180, 15).is_ok());
+        for (orders, hidden_item, hidden_track, kind) in [
+            ([7, 1], false, false, "visual"),
+            ([0, 0], false, false, "visual"),
+            ([1, 0], false, false, "visual"),
+            ([0, 7], true, false, "visual"),
+            ([0, 7], false, true, "visual"),
+            ([0, 7], false, false, "audio"),
+            ([0, 7], false, false, "transition"),
+        ] {
+            let mut project = valid.clone();
+            if kind == "audio" {
+                project.assets.push(crate::Asset {
+                    id: "audio".into(),
+                    media_type: MediaType::Audio,
+                    file_name: "audio.wav".into(),
+                    project_relative_path: "assets/audio.wav".into(),
+                    duration_ms: Some(1000),
+                    has_audio: true,
+                    origin: None,
+                    content_hash: None,
+                    size_bytes: None,
+                    probe: None,
+                });
+                project.tracks[0].items[1] = TimelineItem::Media(MediaItem {
+                    id: "audio-item".into(),
+                    asset_id: "audio".into(),
+                    start_ms: 0,
+                    duration_ms: 1000,
+                    source_in_ms: 0,
+                    visual_properties: crate::VisualProperties::default(),
+                    audio: crate::AudioSettings::default(),
+                    keyframes: vec![],
+                });
+            } else if kind == "transition" {
+                project.tracks[0].items[1] = TimelineItem::Transition(crate::TransitionItem {
+                    id: "transition".into(),
+                    transition_type: crate::TransitionType::Fade,
+                    from_item_id: "background".into(),
+                    to_item_id: None,
+                    start_ms: 0,
+                    duration_ms: 100,
+                    visual_properties: crate::VisualProperties::default(),
+                });
+            }
+            for (item, order) in project.tracks[0].items.iter_mut().zip(orders) {
+                item.visual_properties_mut().stack_order = order;
+            }
+            project.tracks[0].items[1].visual_properties_mut().hidden = hidden_item;
+            project.tracks[0].hidden = hidden_track;
+            // Exercise a current-schema document decoded outside the store facade.
+            let before = serde_json::to_value(&project).unwrap();
+            let project: Project = serde_json::from_value(before.clone()).unwrap();
+            let error = evaluate_project(&project, 320, 180, 15).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ValidationFailed);
+            assert_eq!(error.message, "stackOrder must match item array position");
+            assert_all_facades_reject_without_side_effects(
+                &renderer,
+                &io,
+                &process,
+                &project,
+                root.path(),
+                ErrorCode::ValidationFailed,
+            );
+            assert!(io.events.lock().unwrap().is_empty());
+            assert_eq!(serde_json::to_value(&project).unwrap(), before);
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        }
+    }
+
+    #[test]
     fn invalid_missing_non_finite_and_complex_scenes_are_side_effect_free_for_all_facades() {
         let root = tempdir().unwrap();
         let process = Arc::new(FakeProcess {
@@ -1103,6 +1197,9 @@ mod tests {
                 visual_properties: crate::VisualProperties::default(),
                 keyframes: vec![],
             }));
+        invalid_timing.tracks[0].items[1]
+            .visual_properties_mut()
+            .stack_order = 1;
         assert_all_facades_reject_without_side_effects(
             &renderer,
             &artifact_io,
@@ -1424,6 +1521,9 @@ mod tests {
                     visual_properties: crate::VisualProperties::default(),
                     keyframes: vec![],
                 }));
+            project.tracks[0].items[1]
+                .visual_properties_mut()
+                .stack_order = 1;
             let process = Arc::new(FakeProcess {
                 readiness_error: false,
                 probe_error: false,
@@ -2129,7 +2229,7 @@ mod tests {
             .output()
             .unwrap();
         assert!(tone.status.success());
-        let project = Project {
+        let mut project = Project {
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "renderer-consistency".into(),
             revision: 7,
@@ -2261,6 +2361,11 @@ mod tests {
                 },
             ],
         };
+        for track in &mut project.tracks {
+            for (index, item) in track.items.iter_mut().enumerate() {
+                item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
+            }
+        }
         let renderer = Renderer::new(&ffmpeg, ffprobe, Some(font_path));
         let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
         let range = renderer
@@ -2406,6 +2511,7 @@ mod tests {
         left.keyframes = left_keyframes;
         let mut right = rectangle;
         right.id = "animated-right".into();
+        right.visual_properties.stack_order = 1;
         right.start_ms = 500;
         right.duration_ms = 500;
         right.keyframes = right_keyframes;
@@ -2425,6 +2531,168 @@ mod tests {
             let unsplit = decode_rgb_frame(&ffmpeg, &root.path().join(unsplit.relative_path), 0);
             let split = decode_rgb_frame(&ffmpeg, &root.path().join(split.relative_path), 0);
             assert_frames_close(&unsplit, &split, 1.0);
+        }
+    }
+
+    #[test]
+    fn native_stacking_occlusion_and_render_intents_agree() {
+        let (Ok(ffmpeg), Ok(ffprobe)) = (
+            env::var("OPENCUT_FFMPEG_PATH"),
+            env::var("OPENCUT_FFPROBE_PATH"),
+        ) else {
+            return;
+        };
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        let tone = Command::new(&ffmpeg)
+            .args([
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:sample_rate=48000:duration=1",
+                "-y",
+            ])
+            .arg(root.path().join("assets/tone.wav"))
+            .output()
+            .unwrap();
+        assert!(tone.status.success());
+        let font = env::var_os("OPENCUT_TEST_FONT_PATH")
+            .map(PathBuf::from)
+            .expect("native stacking requires configured font");
+        let renderer = Renderer::new(&ffmpeg, &ffprobe, Some(font));
+        let mut project = visual_project();
+        project.settings = ProjectSettings {
+            width: 160,
+            height: 90,
+            fps: 10,
+        };
+        project.tracks[0].items=serde_json::from_value(serde_json::json!([
+            {"type":"solid_color","id":"red","color":"#ff0000","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":2,"stackOrder":0},
+            {"type":"solid_color","id":"green","color":"#00ff00","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":1,"stackOrder":1},
+            {"type":"rectangle","id":"blue","color":"#0000ff","width":80,"height":90,"startMs":0,"durationMs":1000,"keyframes":[],"zIndex":10,"stackOrder":2,"transform2d":{"position":{"x":80,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":0.5}},
+            {"type":"solid_color","id":"hidden","color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":99,"stackOrder":3,"hidden":true},
+            {"type":"transition","id":"fade","transitionType":"fade","fromItemId":"red","toItemId":null,"startMs":900,"durationMs":100,"zIndex":0,"stackOrder":4}
+        ])).unwrap();
+        project.assets=serde_json::from_value(serde_json::json!([{"id":"tone","mediaType":"audio","fileName":"tone.wav","projectRelativePath":"assets/tone.wav","durationMs":1000,"hasAudio":true}])).unwrap();
+        let mut audio = project.tracks[0].clone();
+        audio.id = "audio".into();
+        audio.track_type = TrackType::Audio;
+        audio.items=serde_json::from_value(serde_json::json!([{"type":"media","id":"sound","assetId":"tone","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[],"zIndex":0,"stackOrder":0}])).unwrap();
+        project.tracks.push(audio);
+        let mut upper = project.tracks[0].clone();
+        upper.id = "upper".into();
+        upper.items=serde_json::from_value(serde_json::json!([{"type":"rectangle","id":"corner","color":"#ff00ff","width":20,"height":20,"startMs":0,"durationMs":1000,"keyframes":[],"zIndex":-2147483648,"stackOrder":0}])).unwrap();
+        project.tracks.push(upper);
+        let mut captions = project.tracks[0].clone();
+        captions.id = "captions".into();
+        captions.track_type = TrackType::Caption;
+        captions.items=serde_json::from_value(serde_json::json!([{"type":"caption","id":"caption","text":"Stack","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"style":{"fontSize":10,"color":"#ffffff","backgroundColor":"#000000","bottomMarginPx":0},"source":{"assetId":"tone","providerId":"test","modelId":"test","modelVersion":null,"language":"en","generatedAtMs":1,"originalText":"Stack","confidence":null,"words":[]}}])).unwrap();
+        project.tracks.push(captions);
+        for mode in 0..3 {
+            if mode == 1 {
+                project.tracks[0].items[0].visual_properties_mut().z_index = 0;
+                project.tracks[0].items[1].visual_properties_mut().z_index = 0;
+            }
+            if mode == 2 {
+                project.tracks[0].items.swap(0, 1);
+                for (index, item) in project.tracks[0].items.iter_mut().enumerate() {
+                    item.visual_properties_mut().stack_order = index as u32;
+                }
+            }
+            if mode == 2 {
+                project.tracks.swap(0, 2);
+            }
+            let before = serde_json::to_value(&project).unwrap();
+            let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
+            // Draft previews render the materialized candidate through this same facade.
+            let materialized: Project = serde_json::from_value(before.clone()).unwrap();
+            let draft = renderer
+                .render_preview(&materialized, root.path(), 500)
+                .unwrap();
+            let range = renderer
+                .render_preview_range(
+                    &project,
+                    root.path(),
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 1000,
+                        width: 160,
+                        height: 90,
+                        fps: 10,
+                        include_audio: true,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let export = root.path().join(format!("stacking-{mode}.mp4"));
+            renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &export,
+                        width: 160,
+                        height: 90,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let frame = decode_rgb_frame(&ffmpeg, &root.path().join(preview.relative_path), 0);
+            let corner = &frame[(10 * 160 + 10) * 3..(10 * 160 + 10) * 3 + 3];
+            assert!(
+                if mode == 2 {
+                    corner[0] > 240 && corner[2] < 15
+                } else {
+                    corner[0] > 240 && corner[2] > 240
+                },
+                "track order: {corner:?}"
+            );
+            let left = &frame[(45 * 160 + 20) * 3..(45 * 160 + 20) * 3 + 3];
+            let dominant = if mode == 1 { 1 } else { 0 };
+            assert!(
+                left[dominant] > 240 && left[2] < 15,
+                "incorrect occlusion: {left:?}"
+            );
+            let right = &frame[(45 * 160 + 120) * 3..(45 * 160 + 120) * 3 + 3];
+            assert!(
+                right[2] > 90 && right[dominant] > 90,
+                "transparent overlay missing: {right:?}"
+            );
+            for (path, time) in [
+                (root.path().join(draft.relative_path), 0),
+                (root.path().join(&range.relative_path), 500),
+                (export.clone(), 500),
+            ] {
+                let compared = decode_rgb_frame(&ffmpeg, &path, time);
+                assert!(structural_similarity(&frame, &compared) >= 0.99);
+            }
+            let range_path = root.path().join(range.relative_path);
+            let a = decode_mono_f32(&ffmpeg, &range_path);
+            let b = decode_mono_f32(&ffmpeg, &export);
+            assert!(!a.is_empty());
+            assert_eq!(a.len(), b.len());
+            let rms = (a
+                .iter()
+                .zip(&b)
+                .map(|(a, b)| f64::from(a - b).powi(2))
+                .sum::<f64>()
+                / a.len() as f64)
+                .sqrt();
+            assert!(rms <= 0.0001);
+            assert!(
+                renderer
+                    .probe(&range_path)
+                    .unwrap()
+                    .duration_ms
+                    .unwrap()
+                    .abs_diff(renderer.probe(&export).unwrap().duration_ms.unwrap())
+                    <= 100
+            );
+            assert_eq!(serde_json::to_value(&project).unwrap(), before);
         }
     }
 
@@ -2781,6 +3049,9 @@ mod tests {
         let mut project = visual_project();
         project.assets = vec![serde_json::from_value(serde_json::json!({"id":"asset","mediaType":"video","fileName":"source.mp4","projectRelativePath":"assets/source.mp4","durationMs":1000})).unwrap()];
         project.tracks[0].items = ["first", "second"].iter().map(|id| serde_json::from_value(serde_json::json!({"type":"media","id":id,"assetId":"asset","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap()).collect();
+        project.tracks[0].items[1]
+            .visual_properties_mut()
+            .stack_order = 1;
         for kind in [crate::MediaType::Image, crate::MediaType::Video] {
             project.assets[0].media_type = kind;
             let before = serde_json::to_value(&project).unwrap();
@@ -2865,6 +3136,9 @@ mod tests {
         std::fs::write(root.path().join("assets/source.mp4"), b"metadata fixture").unwrap();
         project.assets = vec![serde_json::from_value(serde_json::json!({"id":"asset","mediaType":"image","fileName":"source.mp4","projectRelativePath":"assets/source.mp4","durationMs":1000})).unwrap()];
         project.tracks[0].items.push(serde_json::from_value(serde_json::json!({"type":"media","id":"media","assetId":"asset","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap());
+        project.tracks[0].items[1]
+            .visual_properties_mut()
+            .stack_order = 1;
         let output = root.path().join("exists.mp4");
         let process = Arc::new(GeometryProcess::default());
         let io = Arc::new(LifecycleArtifactIo::default());

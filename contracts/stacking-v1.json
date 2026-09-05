@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "contract": "stacking-v1",
+  "status": "runtime",
+  "schemaVersion": 9,
+  "capability": "stacking",
+  "fields": {
+    "zIndex": {
+      "type": "i32",
+      "default": 0
+    },
+    "stackOrder": {
+      "type": "u32",
+      "meaning": "zero-based item array index"
+    }
+  },
+  "ordering": [
+    "trackIndex",
+    "zIndex",
+    "stackOrder",
+    "itemId"
+  ],
+  "semantics": {
+    "index": "final zero-based position within existing owning collection",
+    "migration": "schemas 1 through 8: zero zIndex and array-index stackOrder in current and all retained history",
+    "itemReorder": "preserves track, timing and zIndex",
+    "trackReorder": "same semantics as indexed update_track",
+    "unsupportedZIndexTargets": [
+      "audio-only media",
+      "transition"
+    ]
+  },
+  "errors": {
+    "missingItem": "ITEM_NOT_FOUND",
+    "missingTrack": "TRACK_NOT_FOUND",
+    "locked": "TRACK_LOCKED",
+    "indexOutOfBounds": "VALIDATION_FAILED",
+    "unsupportedTarget": "INVALID_ARGUMENT",
+    "staleRevision": "REVISION_CONFLICT"
+  },
+  "valid": [
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": 0
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": -1
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": -2147483648
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": 2147483647
+    },
+    {
+      "operation": "item_reorder",
+      "itemId": "@created",
+      "index": 0
+    },
+    {
+      "operation": "track_reorder",
+      "trackId": "@track",
+      "index": 1
+    }
+  ],
+  "invalid": [
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": 2147483648
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": -2147483649
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": 0.5
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": "NaN"
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": "https://example.com"
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": "<svg onload=\"x\"/>"
+    },
+    {
+      "operation": "item_reorder",
+      "itemId": "item",
+      "index": -1
+    },
+    {
+      "operation": "track_reorder",
+      "trackId": "track",
+      "index": 0.5
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "item",
+      "zIndex": 0,
+      "expression": "x"
+    }
+  ]
+}

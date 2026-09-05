@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 8;
+pub const PROJECT_SCHEMA_VERSION: u32 = 9;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -14,6 +14,7 @@ where
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(try_from = "ProjectDocument")]
 pub struct Project {
     pub schema_version: u32,
     pub id: String,
@@ -24,6 +25,48 @@ pub struct Project {
     pub settings: ProjectSettings,
     pub assets: Vec<Asset>,
     pub tracks: Vec<Track>,
+}
+
+// Keep older documents readable while requiring explicit stacking in schema 9.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProjectDocument {
+    schema_version: u32,
+    id: String,
+    revision: u64,
+    name: String,
+    created_at_ms: u64,
+    updated_at_ms: u64,
+    settings: ProjectSettings,
+    assets: Vec<Asset>,
+    tracks: serde_json::Value,
+}
+
+impl TryFrom<ProjectDocument> for Project {
+    type Error = String;
+
+    fn try_from(value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version == 9 {
+            for track in value.tracks.as_array().into_iter().flatten() {
+                for item in track["items"].as_array().into_iter().flatten() {
+                    if item.get("zIndex").is_none() || item.get("stackOrder").is_none() {
+                        return Err("schema 9 requires zIndex and stackOrder".into());
+                    }
+                }
+            }
+        }
+        Ok(Self {
+            schema_version: value.schema_version,
+            id: value.id,
+            revision: value.revision,
+            name: value.name,
+            created_at_ms: value.created_at_ms,
+            updated_at_ms: value.updated_at_ms,
+            settings: value.settings,
+            assets: value.assets,
+            tracks: serde_json::from_value(value.tracks).map_err(|error| error.to_string())?,
+        })
+    }
 }
 
 impl Project {
@@ -428,6 +471,10 @@ impl TimelineItem {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
     #[serde(default)]
+    pub z_index: i32,
+    #[serde(default)]
+    pub stack_order: u32,
+    #[serde(default)]
     pub transform: Transform,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform2d: Option<Transform2D>,
@@ -441,6 +488,8 @@ impl VisualProperties {
             transform,
             hidden,
             transform2d: None,
+            z_index: 0,
+            stack_order: 0,
         }
     }
 }
@@ -822,13 +871,25 @@ pub struct ProjectState {
     pub duration_ms: u64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(
     tag = "operation",
     rename_all = "snake_case",
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    ItemSetZIndex {
+        item_id: String,
+        z_index: i32,
+    },
+    ItemReorder {
+        item_id: String,
+        index: usize,
+    },
+    TrackReorder {
+        track_id: String,
+        index: usize,
+    },
     AddMedia {
         track_id: String,
         asset_id: String,
@@ -978,6 +1039,197 @@ pub enum EditOperation {
         item_id: String,
         hidden: bool,
     },
+}
+
+#[derive(Deserialize)]
+#[serde(
+    remote = "EditOperation",
+    tag = "operation",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+enum EditOperationDef {
+    ItemSetZIndex {
+        item_id: String,
+        z_index: i32,
+    },
+    ItemReorder {
+        item_id: String,
+        index: usize,
+    },
+    TrackReorder {
+        track_id: String,
+        index: usize,
+    },
+    AddMedia {
+        track_id: String,
+        asset_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        source_in_ms: u64,
+    },
+    AddText {
+        track_id: String,
+        text: String,
+        start_ms: u64,
+        duration_ms: u64,
+        font_size: u32,
+        color: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        font_family: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        font_path: Option<String>,
+        #[serde(default)]
+        style: TextStyle,
+        transform: Transform,
+    },
+    AddSolidColor {
+        track_id: String,
+        color: String,
+        start_ms: u64,
+        duration_ms: u64,
+        transform: Transform,
+    },
+    AddRectangle {
+        track_id: String,
+        color: String,
+        width: u32,
+        height: u32,
+        start_ms: u64,
+        duration_ms: u64,
+        transform: Transform,
+    },
+    UpdateItem {
+        item_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        transform: Option<Transform>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        transform2d: Option<Option<Transform2D>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        width: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        height: Option<u32>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        font_family: Option<Option<String>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        font_path: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        style: Option<TextStyle>,
+    },
+    MoveItem {
+        item_id: String,
+        track_id: String,
+        start_ms: u64,
+    },
+    TrimItem {
+        item_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        source_in_ms: Option<u64>,
+    },
+    DeleteItem {
+        item_id: String,
+    },
+    SetKeyframes {
+        item_id: String,
+        keyframes: Vec<Keyframe>,
+    },
+    AddTransition {
+        track_id: String,
+        transition_type: TransitionType,
+        from_item_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        to_item_id: Option<String>,
+        start_ms: u64,
+        duration_ms: u64,
+    },
+    SetAudio {
+        item_id: String,
+        audio: AudioSettings,
+    },
+    SplitItem {
+        item_id: String,
+        split_ms: u64,
+    },
+    DuplicateItems {
+        item_ids: Vec<String>,
+        offset_ms: u64,
+    },
+    CreateTrack {
+        name: String,
+        track_type: TrackType,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+        #[serde(default)]
+        audio_role: AudioTrackRole,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ducking: Option<DuckingSettings>,
+    },
+    UpdateTrack {
+        track_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        locked: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        hidden: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        muted: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        audio_role: Option<AudioTrackRole>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        ducking: Option<Option<DuckingSettings>>,
+    },
+    DeleteTrack {
+        track_id: String,
+    },
+    SetItemVisibility {
+        item_id: String,
+        hidden: bool,
+    },
+}
+
+impl<'de> Deserialize<'de> for EditOperation {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("item_set_z_index") => Some(&["operation", "itemId", "zIndex"]),
+            Some("item_reorder") => Some(&["operation", "itemId", "index"]),
+            Some("track_reorder") => Some(&["operation", "trackId", "index"]),
+            _ => None,
+        };
+        if let Some(allowed) = allowed
+            && value
+                .as_object()
+                .is_some_and(|fields| fields.keys().any(|key| !allowed.contains(&key.as_str())))
+        {
+            return Err(serde::de::Error::custom("unknown stacking operation field"));
+        }
+        EditOperationDef::deserialize(value).map_err(serde::de::Error::custom)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

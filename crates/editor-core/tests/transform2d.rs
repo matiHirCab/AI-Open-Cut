@@ -217,7 +217,10 @@ fn migrate_every_supported_version_and_mixed_history() {
             serde_json::to_vec(&json!({"undo":[old],"redo":[value]})).unwrap(),
         )
         .unwrap();
-        assert_eq!(core.get_project(&id).unwrap().schema_version, 8);
+        assert_eq!(
+            core.get_project(&id).unwrap().schema_version,
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let history: Value =
             serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
         for entry in history["undo"]
@@ -226,7 +229,10 @@ fn migrate_every_supported_version_and_mixed_history() {
             .iter()
             .chain(history["redo"].as_array().unwrap())
         {
-            assert_eq!(entry["schemaVersion"], 8);
+            assert_eq!(
+                entry["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
         }
     }
 }
@@ -692,9 +698,22 @@ fn transition_and_audio_only_updates_are_rejected() {
             },
         )
         .unwrap();
+    assert_eq!(core.edit(&id,3,operation(json!({"operation":"item_set_z_index","itemId":transition.changed_ids[0],"zIndex":1}))).unwrap_err().code,ErrorCode::InvalidArgument);
     let audio_track = core.get_project(&id).unwrap().tracks[2].id.clone();
     let added=core.edit(&id,3,operation(json!({"operation":"add_media","trackId":audio_track,"assetId":imported.changed_ids[0],"startMs":0,"sourceInMs":0,"durationMs":1000}))).unwrap();
     assert_eq!(core.edit(&id,4,operation(json!({"operation":"update_item","itemId":added.changed_ids[0],"transform2d":fixture()["identity"]}))).unwrap_err().code,ErrorCode::InvalidArgument);
+    assert_eq!(
+        core.edit(
+            &id,
+            4,
+            operation(
+                json!({"operation":"item_set_z_index","itemId":added.changed_ids[0],"zIndex":1})
+            )
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::InvalidArgument
+    );
 }
 
 #[test]
