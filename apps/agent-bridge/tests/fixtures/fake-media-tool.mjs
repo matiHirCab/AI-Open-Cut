@@ -9,7 +9,9 @@ if (mode === "ffprobe") {
     console.log(
       JSON.stringify({
         format: {
-          duration: args.some((arg) => arg.endsWith("rule-tone.wav")) ? "1.000" : "0.100",
+          duration: args.some((arg) => arg.endsWith("rule-tone.wav"))
+            ? "1.000"
+            : "0.100",
           format_name: "fixture",
         },
         streams: [
