@@ -382,8 +382,10 @@ fn retimed_audio_preserves_pitch_and_preview_export_pcm() {
             String::from_utf8_lossy(&out.stderr)
         );
         out.stdout
-            .chunks_exact(4)
-            .map(|v| f32::from_le_bytes(v.try_into().unwrap()) as f64)
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|v| f32::from_le_bytes(*v) as f64)
             .collect::<Vec<_>>()
     };
     let a = decode(&dir.join(range.relative_path));
@@ -527,7 +529,9 @@ fn native_rich_text_runs_render_colors_and_missing_style_fails_cleanly() {
     assert!(
         pixels
             .stdout
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .filter(|p| p[0] > 150 && p[1] < 50 && p[2] < 50)
             .count()
             > 20
@@ -535,7 +539,9 @@ fn native_rich_text_runs_render_colors_and_missing_style_fails_cleanly() {
     assert!(
         pixels
             .stdout
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .filter(|p| p[2] > 150 && p[1] < 50 && p[0] < 50)
             .count()
             > 20
