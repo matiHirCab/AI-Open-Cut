@@ -9,12 +9,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { type ZodType, z } from "zod/v4";
-
 import {
   jobSchema,
   projectStateSchema,
@@ -25,9 +23,9 @@ import {
   ttsStatusSchema,
   writeResultSchema,
 } from "../src/schemas";
-
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyShapeWorkflow } from "./shape-workflow";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -1032,4 +1030,8 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
   await verifyComponentWorkflow(client, call, media, projects);
+});
+
+it("exercises all shape contracts, atomic batches and retained history", async () => {
+  await verifyShapeWorkflow(client, call, projects);
 });

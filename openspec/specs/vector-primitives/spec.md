@@ -51,7 +51,7 @@ Path MUST require `fillRule` (`nonzero` or `evenodd`) and `commands` with 1 thro
 - **THEN** core returns INVALID_ARGUMENT without traversal beyond the rejected collection limit or resource work
 
 ### Requirement: Governed parity and deferred activation
-A version-1 vector catalog MUST define exact identifiers, named limits, activation status `core_primitives_only`, and valid/invalid examples. Rust production types and mirrored strict TypeScript schemas MUST consume the same fixtures and agree on decoding, bounds, and semantic acceptance; core MUST remain the runtime domain authority. Existing wire operations, MCP surface and capabilities, persisted schema, legacy color strings, EvaluatedScene, and render output MUST remain unchanged. Documentation MUST identify ShapeItem and agent/render activation as subsequent issue #28 work. No new reference, revision, batch-alias, history, or migration behavior SHALL be introduced by these reference-free primitives.
+A version-1 vector catalog MUST define exact identifiers, named limits, activation status `core_primitives_only`, and valid/invalid examples. Rust production types and mirrored strict TypeScript schemas MUST consume the same fixtures and agree on decoding, bounds, and semantic acceptance; core MUST remain the runtime domain authority. The catalog activation status core_primitives_only MUST continue to describe this reference-free primitive contract. ShapeItem activation MUST be governed separately by the shape-items contract and shape_items/shape_rendering capabilities, with documentation identifying issue #28 as that activation milestone. Existing primitive values, limits, legacy color strings, and reference-free validation MUST remain unchanged; shape activation MUST NOT introduce resource resolution into primitive validation.
 
 #### Scenario: Verify shared fixture evidence
 - **WHEN** both language suites validate the catalog including malformed wrappers, all variants, inclusive limits, overflow, and wrong-type fixtures
@@ -59,10 +59,12 @@ A version-1 vector catalog MUST define exact identifiers, named limits, activati
 
 #### Scenario: Preserve existing workflows
 - **WHEN** legacy projects are opened, edited with standalone/batch operations, subjected to stale revisions and failed batches, undone/redone, reopened, and previewed/exported
-- **THEN** existing regression suites retain their established state, errors, atomicity, schema, and render behavior without advertising shape support
+- **THEN** existing regression suites retain their established state, errors, atomicity, schema, and render behavior while shape support is advertised only according to the separately governed activation capabilities
 
 ### Requirement: Canonical JSON representation enforcement
 VectorColor, VectorPoint, GradientStop, Stroke, CornerRadii, and VectorPath MUST decode only from JSON objects with their existing exact required fields, including at every nested occurrence. LineCap, LineJoin, and FillRule MUST decode only from their existing canonical JSON strings. Positional arrays, object-form unit enums, scalar substitutes, and missing, unknown, or duplicate fields MUST fail structural decoding before semantic validation. Raw JSON decoding MUST preserve duplicate-key detection rather than normalize duplicates away. Paint and PathCommand MUST retain their existing internally tagged object representations. Valid payloads, public Rust fields, serialization, semantic errors, numeric limits, path grammar, and radius resolution MUST remain unchanged.
+
+Raw JSON buffering through activated shape consumers MUST preserve duplicate entries until the strict vector records decode. Validation MUST remain in core. Already-parsed objects MUST retain existing behavior; duplicates erased by a caller are not recoverable.
 
 #### Scenario: Reject positional records at any nesting depth
 - **WHEN** a correctly sized positional array replaces any vector record at top level or inside paint, stroke, gradient stops, or any path-command point field
@@ -75,6 +77,14 @@ VectorColor, VectorPoint, GradientStop, Stroke, CornerRadii, and VectorPath MUST
 #### Scenario: Preserve strict object parsing and valid round trips
 - **WHEN** valid objects have reordered keys, or malformed objects contain missing, unknown, or duplicate fields
 - **THEN** valid values preserve canonical serialized fields and semantic behavior, missing/unknown fields fail both decoding paths, and duplicate keys fail raw JSON decoding including nested records
+
+#### Scenario: Reject duplicates through every shape consumer
+- **WHEN** raw JSON for a single edit, batch, draft, component definition, project document, or retained history contains duplicate fields in nested vector records, whether identical or invalid-first/valid-last
+- **THEN** typed structural decoding rejects the input before mutation or normalization, preserving project revision, current state, history, and batch/draft atomicity
+
+#### Scenario: Preserve compatibility and conflict behavior
+- **WHEN** valid schema-14 or supported legacy documents and valid operations pass through duplicate-preserving decoding, including omitted/null fields and stale revisions
+- **THEN** existing migrations, serialization, null semantics, revision conflicts, error mappings and valid legacy behavior remain unchanged, with no new wire fields or schema version
 
 ### Requirement: Representation regression evidence
 The canonical version-1 vector catalog and both native test consumers MUST cover structural representation rejection distinctly from semantic failure without changing activation status. Rust catalog and fixture wrappers MUST themselves accept objects only, the fixture kind MUST be a canonical string, and required fields, metadata and unique identities MUST retain existing validation. Canonical successful fixtures MUST continue passing both Rust decoding paths and TypeScript validation. Provider, project, headless/MCP, and render contracts MUST remain unchanged.

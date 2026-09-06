@@ -35,7 +35,7 @@ Example linear paint:
 
 ## Geometry and color semantics
 
-Points use a top-left origin with positive X right and Y down. All path commands are absolute. Linear gradient endpoints must differ; radial gradients are circular, centered on their focal point, with radius in (0,1000000]. Gradients pad beyond their endpoints. RGB values represent unassociated sRGB and alpha is linear. Interpolation converts RGB to linear light, premultiplies by alpha, interpolates, and uses zero RGB if unpremultiplying a fully transparent result. Raster sampling is implemented by the later renderer activation; these semantics do not imply a rasterizer exists now. Stops are never sorted, clamped, or repaired.
+Points use a top-left origin with positive X right and Y down. All path commands are absolute. Linear gradient endpoints must differ; radial gradients are circular, centered on their focal point, with radius in (0,1000000]. Gradients pad beyond their endpoints. RGB values represent unassociated sRGB and alpha is linear. Interpolation converts RGB to linear light, premultiplies by alpha, interpolates, and uses zero RGB if unpremultiplying a fully transparent result. Shape rendering activates these sampling semantics under the separately governed shape-items contract. Stops are never sorted, clamped, or repaired.
 
 Strokes are centered. Width is in (0,16384]. Caps are `butt|round|square`; joins are `miter|round|bevel`. Miter limit is in [1,1000], measured as miter length divided by half-width, with bevel fallback when exceeded. A dash array is empty (solid) or has an even number of at most 64 entries, each in (0,1000000] local pixels. Odd arrays are rejected. Dash offset is in [-1000000,1000000]; positive values advance into the pattern and phase restarts per subpath.
 
@@ -45,7 +45,7 @@ Every subpath starts with moveTo. A move-only path is legal empty geometry. Draw
 
 ## Compatibility and verification
 
-Legacy color strings, schema 13, current state and retained history, optimistic revisions, atomic batches, undo/redo, reopening, and existing EvaluatedScene/render output remain unchanged. Therefore no migration or new missing-reference/alias behavior applies. Future activation must add typed consumers, capability evidence, deterministic history migration for persisted additions, and preview/export parity through the shared scene; unsupported rendering must follow ADR 0004's fail-closed policy.
+The primitive vocabulary preserves legacy color strings and its reference-free validation contract. [Shape items](shape-items.md) activate schema 14, typed editing and rendering, including deterministic current/history migration and preview/export parity through the shared scene. Existing simple operations retain their behavior; unsupported complete rendering follows ADR 0004's fail-closed policy.
 
 Rust tests consume the catalog using production types; TypeScript tests use reusable strict Zod schemas in `src/vector-primitives.ts`. Both test canonical acceptance, malformed data, limits, and immutable round trips. Rust supplements JSON with directly constructed non-finite values and an independent radius-resolution oracle. The standalone bridge `bun run contracts:check` runs both vector suites.
 

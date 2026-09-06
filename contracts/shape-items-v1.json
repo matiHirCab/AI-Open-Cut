@@ -1,0 +1,1099 @@
+{
+  "version": 1,
+  "contract": "shape-items-v1",
+  "schemaVersion": 14,
+  "capabilities": [
+    "shape_items",
+    "shape_rendering"
+  ],
+  "operations": [
+    "add_shape"
+  ],
+  "geometryTypes": [
+    "rectangle",
+    "roundedRectangle",
+    "ellipse",
+    "line",
+    "polygon",
+    "star",
+    "path"
+  ],
+  "limits": {
+    "maxPoints": 4096,
+    "maxStarPoints": 2048,
+    "maxCompiledCommands": 8192,
+    "maxSegments": 65536,
+    "maxSceneSegments": 1048576,
+    "maxSubdivisionDepth": 16,
+    "maxOutputDeviation": 0.25
+  },
+  "valid": [
+    {
+      "id": "rectangle",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "roundedRectangle",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "roundedRectangle",
+          "width": 40,
+          "height": 20,
+          "radii": {
+            "topLeft": 4,
+            "topRight": 8,
+            "bottomRight": 3,
+            "bottomLeft": 0
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "ellipse",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "ellipse",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "line",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "line",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 40,
+            "y": 20
+          }
+        },
+        "fill": null,
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "polygon",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "polygon",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 40,
+              "y": 0
+            },
+            {
+              "x": 20,
+              "y": 20
+            }
+          ]
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "star",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "star",
+          "center": {
+            "x": 20,
+            "y": 20
+          },
+          "outerRadius": 20,
+          "innerRadius": 9,
+          "pointCount": 5,
+          "rotationDeg": 0
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "path",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 20,
+                  "y": 40
+                },
+                "to": {
+                  "x": 40,
+                  "y": 0
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 40,
+                  "y": -20
+                },
+                "control2": {
+                  "x": 0,
+                  "y": -20
+                },
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "missing-fill",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "missing-stroke",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-operation-field",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        },
+        "unexpected": true
+      }
+    },
+    {
+      "id": "unknown-geometry-field",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20,
+          "unexpected": true
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "zero-width",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 0,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "too-wide",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 16385,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "no-paint",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": null,
+        "stroke": null
+      }
+    },
+    {
+      "id": "raw-svg",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": "<svg/>",
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "positional-point",
+      "stage": "structural",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "line",
+          "start": [
+            0,
+            0
+          ],
+          "end": {
+            "x": 1,
+            "y": 1
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "coincident-line",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "line",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "fill": null,
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "filled-line",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "line",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 40,
+            "y": 20
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "too-few-points",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "polygon",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 40,
+              "y": 0
+            }
+          ]
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "invalid-star-radii",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "star",
+          "center": {
+            "x": 20,
+            "y": 20
+          },
+          "outerRadius": 20,
+          "innerRadius": 20,
+          "pointCount": 5,
+          "rotationDeg": 0
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "too-many-star-points",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "star",
+          "center": {
+            "x": 20,
+            "y": 20
+          },
+          "outerRadius": 20,
+          "innerRadius": 9,
+          "pointCount": 2049,
+          "rotationDeg": 0
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "bad-path-grammar",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "path",
+          "path": {
+            "fillRule": "nonzero",
+            "commands": [
+              {
+                "type": "close"
+              }
+            ]
+          }
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "bad-color",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 2
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 2
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "bad-dash",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 1000,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [
+            1
+          ],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    },
+    {
+      "id": "bad-duration",
+      "stage": "semantic",
+      "value": {
+        "operation": "add_shape",
+        "trackId": "overlay",
+        "startMs": 0,
+        "durationMs": 0,
+        "geometry": {
+          "type": "rectangle",
+          "width": 40,
+          "height": 20
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "stroke": {
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "width": 2,
+          "dash": [],
+          "dashOffset": 0,
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "miterLimit": 4
+        }
+      }
+    }
+  ]
+}

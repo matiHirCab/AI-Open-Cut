@@ -1,5 +1,6 @@
 //! Render workspace and artifact publication owner.
 
+mod shapes;
 use std::{
     collections::HashMap,
     env,
@@ -1125,6 +1126,34 @@ fn measure_rich_text(
             text_y: y,
         },
     })
+}
+
+/// Materialize only already-validated evaluated vector sources in the owned workspace.
+pub(crate) fn prepare_shape_resources(
+    io: &dyn ArtifactIo,
+    scene: &crate::evaluated_scene::EvaluatedScene,
+    workspace: &Path,
+    resources: &mut PreparedRenderResources,
+) -> Result<(), CoreError> {
+    for (index, layer) in scene.visual_layers.iter().enumerate() {
+        if let EvaluatedVisualSource::Shape(shape) = &layer.source {
+            let path = workspace.join(format!("shape-{index}.pam"));
+            let bytes = shapes::rasterize(shape)?;
+            io.write(&path, &bytes)
+                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+            resources.media_inputs.push(MediaInputRequest {
+                item_id: layer.item_id.clone(),
+                asset_id: format!("shape-{index}"),
+                project_relative_path: PathBuf::from(format!("shape-{index}.pam")),
+                media_type: crate::MediaType::Image,
+                source_in_ms: 0,
+                duration_ms: scene.duration_ms,
+                input_index: resources.media_inputs.len() + 2,
+            });
+            resources.media_paths.push(path);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

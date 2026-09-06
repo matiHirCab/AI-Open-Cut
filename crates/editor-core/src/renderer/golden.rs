@@ -47,6 +47,7 @@ const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod rule_card;
+mod shapes;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2409,6 +2410,7 @@ fn native_golden_render_conformance() {
         return;
     };
     rule_card::conformance(&tools);
+    shapes::conformance(&tools);
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)

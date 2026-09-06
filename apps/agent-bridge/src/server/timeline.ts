@@ -499,6 +499,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_add_shape",
+    {
+      annotations: WRITE,
+      description:
+        "Add a typed vector shape with paints, strokes, transforms and history support.",
+      inputSchema: schemas.timelineAddShape,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_shape",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_move_item",
     {
       annotations: WRITE,

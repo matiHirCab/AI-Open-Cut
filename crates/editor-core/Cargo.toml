@@ -12,6 +12,7 @@ serde_json = { workspace = true, features = ["float_roundtrip"] }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 ttf-parser = { workspace = true }
+tiny-skia = { version = "=0.11.4", default-features = false, features = ["std", "simd"] }
 uuid = { workspace = true }
 
 [dev-dependencies]

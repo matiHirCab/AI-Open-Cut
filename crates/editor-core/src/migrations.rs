@@ -24,6 +24,19 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 14
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| matches!(i, crate::TimelineItem::Shape(_)))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "shape items require schema 14",
+        ));
+    }
     if project.schema_version < 13
         && project
             .tracks
@@ -50,7 +63,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=12 => {
+        9..=13 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

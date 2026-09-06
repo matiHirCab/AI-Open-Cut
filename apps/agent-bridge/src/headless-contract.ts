@@ -1,7 +1,7 @@
 import type { z } from "zod/v4";
-
 import type {
   addComponentInstanceSchema,
+  addShapeSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
@@ -9,10 +9,13 @@ import type {
   templateSlotSchema,
   transform2dSchema,
 } from "./schemas";
+import type { ShapeGeometry } from "./shape-items";
+import type { Paint, Stroke } from "./vector-primitives";
 
 export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
 export type RenderingCapability =
+  | "shape_rendering"
   | "transform2d"
   | "preview"
   | "preview_range"
@@ -25,6 +28,9 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | ({ operation: "add_shape"; resultAlias?: string | undefined } & z.infer<
+      typeof addShapeSchema
+    >)
   | ({
       operation: "add_component_instance";
       resultAlias?: string | undefined;
@@ -127,6 +133,9 @@ export type HeadlessEdit =
     }
   | {
       operation: "update_item";
+      geometry?: ShapeGeometry | undefined;
+      fill?: Paint | null | undefined;
+      stroke?: Stroke | null | undefined;
       transform2d?: z.infer<typeof transform2dSchema> | null | undefined;
       itemId: string;
       color?: string | undefined;
