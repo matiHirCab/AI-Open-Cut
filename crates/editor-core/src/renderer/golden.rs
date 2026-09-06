@@ -46,6 +46,8 @@ const AUDIO_SAMPLE_RATE_HZ: u32 = 48_000;
 const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
+mod rule_card;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct GoldenPointer {
@@ -2406,6 +2408,7 @@ fn native_golden_render_conformance() {
     let Some(tools) = configured_native_tools() else {
         return;
     };
+    rule_card::conformance(&tools);
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)

@@ -1,9 +1,6 @@
-mod browser;
-mod inspector;
+pub(crate) mod browser;
+pub(crate) mod inspector;
 mod preview;
-mod timeline;
+pub(crate) mod timeline;
 
-pub(crate) use browser::Browser;
-pub(crate) use inspector::Inspector;
 pub(crate) use preview::Preview;
-pub(crate) use timeline::Timeline;

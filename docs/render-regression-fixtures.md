@@ -1,5 +1,19 @@
 # Render regression fixtures
 
+## Reusable rule-card evidence
+
+Issue #26 adds a separate `rule-card-av-v1` case under `crates/editor-core/tests/fixtures/rule-card`. Its shared `recipe.json` constructs six visual layers, three independent text/number/icon/opacity override maps and one movable root parent. Synthetic 8x8 BMP icons and a 48 kHz mono 440 Hz tone are generated locally. Canvas is 160x90, 10 fps, one second; timestamps are 0, 500 and 900 ms. Original card positions are (4,8), (48,12) and (92,16); the parent edit adds (6,4) to every child. Local child offsets and text/order expectations have an independent semantic oracle.
+
+The existing required `renderer::golden::native_golden_render_conformance` entry point verifies this case as well as the unchanged flat-scene baseline. It renders original, moved, undone, redone and freshly reopened states through still preview, audiovisual range preview and final export. All timestamps compare with reviewed frames (the fixture is static within its active interval), aligned decoded audio and exact normalized scene plans. Existing SSIM >= 0.99, PCM RMS <= 0.0001 and one-frame timing tolerance apply. The flat-scene generation, performance schema and work counts remain unchanged.
+
+`references.json` is one bounded, closed reference envelope with version, recipe/font hashes, canvas, timestamps, duration and named embedded reference bytes plus individual SHA-256 hashes. Embedding all references permits atomic replacement of the entire set. Names are a fixed portable relative inventory; they are never input resource paths. The required gate checks metadata/hashes before render work and rejects missing tools or a different DejaVu Sans identity. Ordinary verification cannot replace this file. A deliberate recapture uses the same explicit native tool/font environment as normal verification:
+
+```sh
+cargo test -p opencut-editor-core --lib renderer::golden::rule_card::capture_rule_card_references -- --ignored --exact
+```
+
+Review the resulting reference diff and run native conformance after a deliberate recapture. The ignored recapture test itself runs the complete lifecycle conformance after installing the reference set. See [desktop hierarchy](desktop-hierarchy.md) for creating an inspectable project from the same recipe.
+
 OpenCut's milestone-zero render baseline is the editor-core fixture `flat-scene-av-v1` under `crates/editor-core/tests/fixtures/render-golden`. It is a 160x90, 10-fps, one-second scene containing a layered solid, deterministic DejaVu Sans text with scale and opacity animation, and a generated 48 kHz mono PCM tone. The typed project builder lives beside the renderer tests and feeds the production `EvaluatedScene`, resource preparation, render planner, frame preview, audiovisual range preview, and export paths.
 
 The fixture is regression evidence, not a public or persisted contract. It adds no project field, migration, headless request, MCP tool, capability, stable error, or renderer input syntax.

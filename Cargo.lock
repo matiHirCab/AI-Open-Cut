@@ -3592,6 +3592,9 @@ name = "opencut-desktop"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "opencut-editor-core",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -8,7 +8,12 @@ if (mode === "ffprobe") {
   } else {
     console.log(
       JSON.stringify({
-        format: { duration: "0.100", format_name: "fixture" },
+        format: {
+          duration: args.some((arg) => arg.endsWith("rule-tone.wav"))
+            ? "1.000"
+            : "0.100",
+          format_name: "fixture",
+        },
         streams: [
           { codec_name: "rawvideo", codec_type: "video", height: 1, width: 1 },
           {

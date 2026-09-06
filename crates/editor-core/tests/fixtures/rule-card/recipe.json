@@ -1,0 +1,470 @@
+[
+  {
+    "operation": "component_create",
+    "name": "Rule card",
+    "width": 58,
+    "height": 62,
+    "durationMs": 1000,
+    "tracks": [
+      {
+        "id": "card",
+        "name": "Card layers",
+        "trackType": "overlay",
+        "items": [
+          {
+            "id": "background",
+            "stackOrder": 0,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "rectangle",
+            "width": 58,
+            "height": 62,
+            "color": "#203040"
+          },
+          {
+            "id": "accent",
+            "stackOrder": 1,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "rectangle",
+            "width": 4,
+            "height": 62,
+            "color": "#28b4aa"
+          },
+          {
+            "id": "number",
+            "stackOrder": 2,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 8,
+                "y": 5,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "text",
+            "text": "0",
+            "fontSize": 8,
+            "color": "#ffffff"
+          },
+          {
+            "id": "title",
+            "stackOrder": 3,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 8,
+                "y": 18,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "text",
+            "text": "Rule",
+            "fontSize": 8,
+            "color": "#ffffff"
+          },
+          {
+            "id": "body",
+            "stackOrder": 4,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 8,
+                "y": 32,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "text",
+            "text": "Base",
+            "fontSize": 8,
+            "color": "#ffffff"
+          },
+          {
+            "id": "icon",
+            "stackOrder": 5,
+            "startMs": 0,
+            "durationMs": 1000,
+            "transform2d": {
+              "position": {
+                "x": 40,
+                "y": 5,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "keyframes": [],
+            "type": "media",
+            "assetId": "$icon0",
+            "sourceInMs": 0,
+            "audio": {
+              "volume": 1,
+              "muted": false,
+              "fadeInMs": 0,
+              "fadeOutMs": 0
+            }
+          }
+        ]
+      }
+    ],
+    "resultAlias": "card"
+  },
+  {
+    "operation": "component_define_slots",
+    "componentId": "@card",
+    "slots": [
+      {
+        "id": "number",
+        "name": "number",
+        "kind": "text",
+        "required": false,
+        "defaultValue": {
+          "type": "text",
+          "value": "0"
+        },
+        "binding": {
+          "targetLayerId": "number",
+          "property": "text.document"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "title",
+        "name": "title",
+        "kind": "text",
+        "required": false,
+        "defaultValue": {
+          "type": "text",
+          "value": "Rule"
+        },
+        "binding": {
+          "targetLayerId": "title",
+          "property": "text.document"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "body",
+        "name": "body",
+        "kind": "text",
+        "required": false,
+        "defaultValue": {
+          "type": "text",
+          "value": "Base"
+        },
+        "binding": {
+          "targetLayerId": "body",
+          "property": "text.document"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "opacity",
+        "name": "opacity",
+        "kind": "number",
+        "required": false,
+        "defaultValue": {
+          "type": "number",
+          "value": 1
+        },
+        "binding": {
+          "targetLayerId": "background",
+          "property": "visual.opacity"
+        },
+        "constraints": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      {
+        "id": "icon",
+        "name": "icon",
+        "kind": "asset",
+        "required": false,
+        "defaultValue": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "$icon0"
+          }
+        },
+        "binding": {
+          "targetLayerId": "icon",
+          "property": "media.asset"
+        },
+        "constraints": {
+          "assetKinds": [
+            "image"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "operation": "add_group",
+    "trackId": "$overlay",
+    "startMs": 0,
+    "durationMs": 1000,
+    "resultAlias": "parent"
+  },
+  {
+    "operation": "add_component_instance",
+    "trackId": "$overlay",
+    "componentId": "@card",
+    "startMs": 0,
+    "trimStartMs": 0,
+    "durationMs": 1000,
+    "timeScale": 1,
+    "transform2d": {
+      "position": {
+        "x": 4,
+        "y": 8,
+        "unit": "pixels"
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1
+    },
+    "parent": {
+      "scope": "root",
+      "id": "@parent"
+    },
+    "slotValues": {
+      "number": {
+        "type": "text",
+        "value": "1"
+      },
+      "title": {
+        "type": "text",
+        "value": "Plan"
+      },
+      "body": {
+        "type": "text",
+        "value": "Think"
+      },
+      "opacity": {
+        "type": "number",
+        "value": 1
+      },
+      "icon": {
+        "type": "asset",
+        "value": {
+          "kind": "asset",
+          "scope": "project",
+          "id": "$icon0"
+        }
+      }
+    },
+    "resultAlias": "instance0"
+  },
+  {
+    "operation": "add_component_instance",
+    "trackId": "$overlay",
+    "componentId": "@card",
+    "startMs": 0,
+    "trimStartMs": 0,
+    "durationMs": 1000,
+    "timeScale": 1,
+    "transform2d": {
+      "position": {
+        "x": 48,
+        "y": 12,
+        "unit": "pixels"
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1
+    },
+    "parent": {
+      "scope": "root",
+      "id": "@parent"
+    },
+    "slotValues": {
+      "number": {
+        "type": "text",
+        "value": "2"
+      },
+      "title": {
+        "type": "text",
+        "value": "Build"
+      },
+      "body": {
+        "type": "text",
+        "value": "Make"
+      },
+      "opacity": {
+        "type": "number",
+        "value": 0.8
+      },
+      "icon": {
+        "type": "asset",
+        "value": {
+          "kind": "asset",
+          "scope": "project",
+          "id": "$icon1"
+        }
+      }
+    },
+    "resultAlias": "instance1"
+  },
+  {
+    "operation": "add_component_instance",
+    "trackId": "$overlay",
+    "componentId": "@card",
+    "startMs": 0,
+    "trimStartMs": 0,
+    "durationMs": 1000,
+    "timeScale": 1,
+    "transform2d": {
+      "position": {
+        "x": 92,
+        "y": 16,
+        "unit": "pixels"
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1
+    },
+    "parent": {
+      "scope": "root",
+      "id": "@parent"
+    },
+    "slotValues": {
+      "number": {
+        "type": "text",
+        "value": "3"
+      },
+      "title": {
+        "type": "text",
+        "value": "Check"
+      },
+      "body": {
+        "type": "text",
+        "value": "Test"
+      },
+      "opacity": {
+        "type": "number",
+        "value": 0.6
+      },
+      "icon": {
+        "type": "asset",
+        "value": {
+          "kind": "asset",
+          "scope": "project",
+          "id": "$icon2"
+        }
+      }
+    },
+    "resultAlias": "instance2"
+  },
+  {
+    "operation": "add_media",
+    "trackId": "$audio",
+    "assetId": "$tone",
+    "startMs": 0,
+    "sourceInMs": 0,
+    "durationMs": 1000
+  }
+]

@@ -335,6 +335,8 @@ Exit gate: existing projects render pixel-equivalently, existing MCP tests pass 
 
 Exit gate: build one rule-card component with at least six child layers, instantiate it three times with different text/number/icon slots, move the parent once, and verify all children move in still preview, range preview, export, undo, redo, and reopen.
 
+Issue #26 implements this gate with the separate `rule-card-av-v1` fixture: six child layers, three independent slotted instances, a shared parent translation, independent scene expectations, and reviewed still/audio references checked across all lifecycle states. The desktop now loads an existing core project, presents a scoped hierarchy and root timeline summary, and submits parent/z-index and history actions through core. Component-local inspection is read-only; the desktop preview player remains deferred. See [desktop hierarchy](desktop-hierarchy.md) and [render regression fixtures](render-regression-fixtures.md).
+
 ### Milestone 2 — vector graphics and rich typography (4–6 engineer-weeks)
 
 - Add shape, SVG, grid, and repeater models and MCP operations.
