@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "status": "runtime",
+  "schemaVersion": 13,
+  "capability": "component_lifecycle",
+  "aliasFields": [
+    "itemId"
+  ],
+  "overrideSemantics": {
+    "omitted": "copy source overrides",
+    "explicit": "replace complete map",
+    "empty": "clear overrides; validate defaults and required values"
+  },
+  "validOperations": [
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 0,
+      "slotValues": {}
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "text": {
+          "type": "text",
+          "value": "@literal"
+        },
+        "rich": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "styled",
+                "bold": true
+              }
+            ]
+          }
+        },
+        "color": {
+          "type": "color",
+          "value": "#00FF00"
+        },
+        "number": {
+          "type": "number",
+          "value": 0.5
+        },
+        "boolean": {
+          "type": "boolean",
+          "value": false
+        },
+        "enum": {
+          "type": "enum",
+          "value": "center"
+        },
+        "duration": {
+          "type": "duration",
+          "value": 500
+        },
+        "asset": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "managed"
+          }
+        }
+      }
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "__proto__": {
+          "type": "text",
+          "value": "@literal"
+        },
+        "constructor": {
+          "type": "text",
+          "value": "@literal"
+        },
+        "toString": {
+          "type": "text",
+          "value": "@literal"
+        }
+      }
+    }
+  ],
+  "invalidOperations": [
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance"
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": -1
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 0.5
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": null
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": null
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "text": {
+          "type": "text",
+          "value": 3
+        }
+      }
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "unknown": true
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "text": {
+          "type": "text",
+          "value": "ok",
+          "__proto__": true
+        }
+      }
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "asset": {
+          "type": "asset",
+          "value": "https://example.invalid/image.svg"
+        }
+      }
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "rich": {
+          "type": "rich_text",
+          "value": {
+            "runs": [
+              {
+                "text": "safe",
+                "href": "https://example.invalid"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "instance",
+      "offsetMs": 100,
+      "slotValues": {
+        "number": {
+          "type": "number",
+          "value": null
+        }
+      }
+    }
+  ],
+  "semanticFailures": [
+    {
+      "edit": {
+        "operation": "component_instance_duplicate",
+        "itemId": "missing",
+        "offsetMs": 100
+      },
+      "code": "ITEM_NOT_FOUND",
+      "mcpAccept": true
+    },
+    {
+      "edit": {
+        "operation": "component_instance_duplicate",
+        "itemId": "instance",
+        "offsetMs": 9007199254740992
+      },
+      "code": "INVALID_ARGUMENT",
+      "mcpAccept": false
+    },
+    {
+      "edit": {
+        "operation": "component_instance_duplicate",
+        "itemId": "instance",
+        "offsetMs": 100,
+        "slotValues": {
+          "missing": {
+            "type": "text",
+            "value": "@literal"
+          }
+        }
+      },
+      "code": "ITEM_NOT_FOUND",
+      "mcpAccept": true
+    },
+    {
+      "edit": {
+        "operation": "component_instance_duplicate",
+        "itemId": "instance",
+        "offsetMs": 100,
+        "slotValues": {
+          "opacity": {
+            "type": "number",
+            "value": 2
+          }
+        }
+      },
+      "code": "INVALID_ARGUMENT",
+      "mcpAccept": true
+    }
+  ],
+  "validBatch": [
+    {
+      "operation": "component_instance_duplicate",
+      "itemId": "@instance",
+      "offsetMs": 100,
+      "resultAlias": "copy"
+    }
+  ]
+}

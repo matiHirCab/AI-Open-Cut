@@ -674,6 +674,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "component_definitions",
         "component_instance_evaluation",
         "typed_template_slots",
+        "component_lifecycle",
     ]
 }
 

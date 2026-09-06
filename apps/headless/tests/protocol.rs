@@ -107,6 +107,81 @@ fn result(output: &Output) -> Value {
 }
 
 #[test]
+fn component_lifecycle_native_contract_and_atomic_history() {
+    let harness = Harness::new();
+    let id = result(&harness.request(json!({"operation":"create_project","name":"Lifecycle"})))["projectId"].clone();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["trackType"] == "overlay")
+        .unwrap()["id"]
+        .clone();
+    let created = result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"component_create","name":"Leaf","width":64,"height":64,"durationMs":1000,"tracks":[],"resultAlias":"leaf"},
+        {"operation":"component_define_slots","componentId":"@leaf","slots":[]},
+        {"operation":"add_component_instance","trackId":track,"componentId":"@leaf","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"resultAlias":"instance"},
+        {"operation":"component_instance_duplicate","itemId":"@instance","offsetMs":100,"resultAlias":"copy"},
+        {"operation":"item_set_z_index","itemId":"@copy","zIndex":2}
+    ]})));
+    let source = created["aliases"]["copy"].clone();
+    let catalog: Value = serde_json::from_slice(include_bytes!(
+        "../../../contracts/component-lifecycle-v1.json"
+    ))
+    .unwrap();
+    let directory = harness
+        .root
+        .path()
+        .join("projects")
+        .join(id.as_str().unwrap());
+    let files = || {
+        ["project.json", "history.json"].map(|name| std::fs::read(directory.join(name)).unwrap())
+    };
+    let before = files();
+    for edit in catalog["invalidOperations"].as_array().unwrap() {
+        let failed =
+            event(&harness.request(
+                json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":edit}),
+            ));
+        assert_eq!(
+            failed["error"]["code"], "INVALID_ARGUMENT",
+            "{edit}: {failed}"
+        );
+        assert_eq!(files(), before);
+    }
+    for (revision, edit, code) in [
+        (
+            0,
+            json!({"operation":"component_instance_duplicate","itemId":source,"offsetMs":0}),
+            "REVISION_CONFLICT",
+        ),
+        (
+            1,
+            json!({"operation":"component_instance_duplicate","itemId":"missing","offsetMs":0}),
+            "ITEM_NOT_FOUND",
+        ),
+    ] {
+        let failed = event(&harness.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(failed["error"]["code"], code);
+        assert_eq!(files(), before);
+    }
+    let failed = event(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[{"operation":"component_instance_duplicate","itemId":source,"offsetMs":0},{"operation":"delete_item","itemId":"missing"}]})));
+    assert_eq!(failed["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(files(), before);
+    let expected = result(&harness.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"].clone();
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":1})));
+    result(&harness.request(json!({"operation":"redo","projectId":id,"expectedRevision":2})));
+    assert_eq!(
+        result(&harness.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        expected
+    );
+    result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":3,"edit":{"operation":"component_instance_duplicate","itemId":source,"offsetMs":0,"slotValues":{}}})));
+}
+
+#[test]
 fn closed_slot_records_fail_native_decoding_without_mutating_history() {
     let harness = Harness::new();
     let project =

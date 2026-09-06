@@ -45,6 +45,7 @@ pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
         edit,
         EditOperation::ComponentCreate { .. }
             | EditOperation::AddComponentInstance { .. }
+            | EditOperation::ComponentInstanceDuplicate { .. }
             | EditOperation::AddGroup { .. }
             | EditOperation::AddMedia { .. }
             | EditOperation::AddText { .. }
@@ -130,7 +131,8 @@ pub(crate) fn resolve_operation_aliases(
         | EditOperation::AddText { track_id, .. }
         | EditOperation::AddSolidColor { track_id, .. }
         | EditOperation::AddRectangle { track_id, .. } => resolve_alias(track_id, aliases)?,
-        EditOperation::ItemSetZIndex { item_id, .. }
+        EditOperation::ComponentInstanceDuplicate { item_id, .. }
+        | EditOperation::ItemSetZIndex { item_id, .. }
         | EditOperation::ItemReorder { item_id, .. }
         | EditOperation::UpdateItem { item_id, .. }
         | EditOperation::TrimItem { item_id, .. }
@@ -254,6 +256,42 @@ fn apply_operation_inner(
                 },
             ));
             Ok((vec![id], "created component instance"))
+        }
+        EditOperation::ComponentInstanceDuplicate {
+            item_id,
+            offset_ms,
+            slot_values,
+        } => {
+            let (track_index, item_index) = find_item_location(project, &item_id)?;
+            let track = &mut project.tracks[track_index];
+            if track.locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            let TimelineItem::ComponentInstance(source) = &track.items[item_index] else {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "duplication requires a root component instance",
+                ));
+            };
+            let mut copy = source.clone();
+            copy.start_ms = copy
+                .start_ms
+                .checked_add(offset_ms)
+                .filter(|time| *time <= 9_007_199_254_740_991)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "duplicate time exceeds safe integer bounds",
+                    )
+                })?;
+            copy.id = Uuid::new_v4().to_string();
+            copy.visual_properties.stack_order = track.items.len() as u32;
+            if let Some(values) = slot_values {
+                copy.slot_values = values;
+            }
+            let id = copy.id.clone();
+            track.items.push(TimelineItem::ComponentInstance(copy));
+            Ok((vec![id], "duplicated component instance"))
         }
         EditOperation::ComponentInstanceUpdate {
             item_id,

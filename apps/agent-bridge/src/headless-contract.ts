@@ -3,6 +3,7 @@ import type { z } from "zod/v4";
 import type {
   addComponentInstanceSchema,
   componentFieldsSchema,
+  componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
   templateSlotSchema,
@@ -28,6 +29,10 @@ export type HeadlessEdit =
       operation: "add_component_instance";
       resultAlias?: string | undefined;
     } & z.infer<typeof addComponentInstanceSchema>)
+  | ({
+      operation: "component_instance_duplicate";
+      resultAlias?: string | undefined;
+    } & z.infer<typeof componentInstanceDuplicateSchema>)
   | ({ operation: "component_instance_update" } & z.infer<
       typeof componentInstanceUpdateSchema
     >)

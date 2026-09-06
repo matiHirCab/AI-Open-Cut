@@ -297,6 +297,26 @@ export const verifyComponentWorkflow = async (
             },
           ],
         },
+        {
+          componentId: "@slot_card",
+          durationMs: 1000,
+          operation: "add_component_instance",
+          resultAlias: "typed_source",
+          slotValues: values,
+          startMs: 0,
+          timeScale: 1,
+          trackId: bound.project.tracks.find(
+            (track) => track.trackType === "overlay"
+          )?.id,
+          trimStartMs: 0,
+        },
+        {
+          itemId: "@typed_source",
+          offsetMs: 0,
+          operation: "component_instance_duplicate",
+          resultAlias: "typed_copy",
+          slotValues: values,
+        },
       ],
       projectId,
     },
@@ -403,6 +423,48 @@ export const verifyComponentWorkflow = async (
   expect(await call("project_open", { projectId }, projectStateSchema)).toEqual(
     lockedState
   );
+  const source = withSlots.project.tracks
+    .flatMap((track) => track.items)
+    .find((item) => item.type === "component_instance");
+  expect(source).toBeDefined();
+  const duplicate = await call(
+    "component_instance_duplicate",
+    {
+      expectedRevision: 13,
+      itemId: source?.id,
+      offsetMs: 100,
+      projectId,
+      slotValues: values,
+    },
+    writeResultSchema
+  );
+  const afterDuplicate = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(afterDuplicate.project.components).toEqual(
+    lockedState.project.components
+  );
+  expect(
+    afterDuplicate.project.tracks.flatMap((track) => track.items)
+  ).toContainEqual(
+    expect.objectContaining({ id: duplicate.changedIds[0], slotValues: values })
+  );
+  await call(
+    "project_undo",
+    { expectedRevision: 14, projectId },
+    writeResultSchema
+  );
+  await call(
+    "project_redo",
+    { expectedRevision: 15, projectId },
+    writeResultSchema
+  );
+  expect(
+    (await call("project_open", { projectId }, projectStateSchema)).project
+      .tracks
+  ).toEqual(afterDuplicate.project.tracks);
   await verifySlotRegressionWorkflow(client, call, projectsDirectory);
 };
 

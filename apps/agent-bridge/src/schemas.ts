@@ -1017,6 +1017,14 @@ export const addComponentInstanceSchema = instanceTimingSchema
     zIndex: z.int().min(-2_147_483_648).max(2_147_483_647).optional(),
   })
   .strict();
+export const componentInstanceDuplicateSchema = z
+  .object({
+    itemId: id,
+    offsetMs: milliseconds,
+    slotValues: slotValuesSchema.optional(),
+  })
+  .strict();
+
 export const componentInstanceUpdateSchema = instanceTimingSchema
   .extend({
     itemId: id,
@@ -1286,6 +1294,15 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
     .strict(),
   componentInstanceUpdateSchema
     .extend({ operation: z.literal("component_instance_update") })
+    .strict(),
+  componentInstanceDuplicateSchema
+    .extend({
+      operation: z.literal("component_instance_duplicate"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
     .strict(),
   z
     .object({
@@ -1573,6 +1590,9 @@ export const schemas = {
     .extend({ componentId: id, slots: z.array(templateSlotSchema).max(128) })
     .strict(),
   componentDelete: projectRevisionSchema.extend({ componentId: id }).strict(),
+  componentInstanceDuplicate: projectRevisionSchema
+    .extend(componentInstanceDuplicateSchema.shape)
+    .strict(),
   componentInstanceUpdate: projectRevisionSchema
     .extend(componentInstanceUpdateSchema.shape)
     .strict(),

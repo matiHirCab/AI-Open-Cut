@@ -43,3 +43,4 @@
 /crates/editor-core/tests/components.rs @matiHirCab
 
 /crates/editor-core/tests/template_slots.rs @matiHirCab
+/crates/editor-core/tests/component_lifecycle.rs @matiHirCab

@@ -162,6 +162,24 @@
         "crates/editor-core/src/store.rs",
         "apps/agent-bridge/tests/instance-workflow.ts"
       ]
+    },
+    "componentLifecycle": {
+      "canonical": "contracts/component-lifecycle-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/tests/component_lifecycle.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/instance-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/tests/component-workflow.ts"
+      ]
     }
   }
 }

@@ -87,7 +87,8 @@
       "group_ungroup",
       "component_definitions",
       "component_instance_evaluation",
-      "typed_template_slots"
+      "typed_template_slots",
+      "component_lifecycle"
     ],
     "renderingCapabilities": [
       "preview",

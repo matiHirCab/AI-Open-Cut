@@ -72,6 +72,21 @@ export const verifyInstanceWorkflow = async (
           width: 64,
         },
         {
+          componentId: "@definition",
+          operation: "component_define_slots",
+          slots: [
+            {
+              binding: { property: "visual.opacity", targetLayerId: "box" },
+              constraints: { max: 1, min: 0 },
+              defaultValue: { type: "number", value: 1 },
+              id: "opacity",
+              kind: "number",
+              name: "Opacity",
+              required: false,
+            },
+          ],
+        },
+        {
           operation: "add_component_instance",
           ...fields,
           resultAlias: "instance",
@@ -83,6 +98,14 @@ export const verifyInstanceWorkflow = async (
           itemId: "@instance",
           startMs: 200,
         },
+        {
+          itemId: "@instance",
+          offsetMs: 50,
+          operation: "component_instance_duplicate",
+          resultAlias: "copy",
+          slotValues: { opacity: { type: "number", value: 0.5 } },
+        },
+        { itemId: "@copy", operation: "item_set_z_index", zIndex: 2 },
       ],
       projectId,
     },
@@ -104,6 +127,44 @@ export const verifyInstanceWorkflow = async (
     );
   const before = snapshot();
   const failures = [
+    {
+      expectedRevision: 1,
+      itemId: "missing",
+      name: "component_instance_duplicate",
+      offsetMs: 0,
+    },
+    {
+      expectedRevision: 0,
+      itemId,
+      name: "component_instance_duplicate",
+      offsetMs: 0,
+    },
+    {
+      expectedRevision: 1,
+      itemId,
+      name: "component_instance_duplicate",
+      offsetMs: -1,
+    },
+    {
+      expectedRevision: 1,
+      itemId,
+      name: "component_instance_duplicate",
+      offsetMs: 0,
+      slotValues: { opacity: { type: "number", value: 2 } },
+    },
+    {
+      expectedRevision: 1,
+      name: "timeline_batch_edit",
+      operations: [
+        {
+          itemId,
+          offsetMs: 0,
+          operation: "component_instance_duplicate",
+          resultAlias: "copy",
+        },
+        { itemId: "missing", operation: "delete_item" },
+      ],
+    },
     {
       expectedRevision: 1,
       name: "component_instance_update",
@@ -202,13 +263,12 @@ export const verifyInstanceWorkflow = async (
   );
   expect(reopened.project.tracks).toEqual(expected);
   await call(
-    "component_instance_update",
+    "component_instance_duplicate",
     {
       expectedRevision: 3,
-      projectId,
-      ...fields,
-      componentId,
       itemId,
+      offsetMs: 0,
+      projectId,
       slotValues: {},
     },
     writeResultSchema
@@ -226,12 +286,11 @@ export const verifyInstanceWorkflow = async (
   const rejected = await client.callTool({
     arguments: {
       expectedRevision: 5,
-      projectId,
-      ...fields,
-      componentId,
       itemId,
+      offsetMs: 0,
+      projectId,
     },
-    name: "component_instance_update",
+    name: "component_instance_duplicate",
   });
   expect(rejected.isError).toBe(true);
   expect(
