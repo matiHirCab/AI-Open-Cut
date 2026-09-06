@@ -55,6 +55,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | `store` | `assets`, `drafts`, `migrations`, `persistence`, `timeline`, `validation` |
 | `timeline` | `animation`, `validation` |
 | `validation` | none |
+| `vector` | none |
 
 ### Canonical owners
 
@@ -62,6 +63,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | --- | --- | --- |
 | Serialized editor model | `model` | I/O, process execution, transport schemas |
 | Domain validation | `validation` | Persistence, FFmpeg, presentation validation copies |
+| Reference-free vector primitive models and pure validation | `vector` | Persisted timeline activation, resource I/O, rasterization, transport orchestration |
 | Timeline operations and history transitions | `timeline` | Filesystem and transport behavior |
 | Asset references, integrity, and managed-content policy | `assets` | Transport/provider behavior |
 | Schema upgrades | `migrations` | Call orchestration and presentation fallback |

@@ -3,6 +3,16 @@
   "strategy": "fixture-governed-manual-synchronization",
   "reviewer": "@matiHirCab",
   "categories": {
+    "vectorPrimitives": {
+      "canonical": "contracts/vector-primitives-v1.json",
+      "consumers": [
+        "crates/editor-core/src/vector.rs",
+        "crates/editor-core/tests/vector_primitives.rs",
+        "apps/agent-bridge/src/vector-primitives.ts",
+        "apps/agent-bridge/tests/vector-primitives.test.ts",
+        "docs/vector-primitives.md"
+      ]
+    },
     "groupParent": {
       "canonical": "contracts/group-parent-v1.json",
       "consumers": [

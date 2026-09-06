@@ -14,6 +14,9 @@ mod renderer;
 mod store;
 mod timeline;
 mod validation;
+mod vector;
+
+pub use vector::*;
 
 pub use drafts::EditDraft;
 pub use error::{CoreError, ErrorCode};
