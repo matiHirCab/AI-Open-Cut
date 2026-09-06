@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "status": "runtime",
+  "schemaVersion": 13,
+  "capability": "component_instance_evaluation",
+  "validOperations": [
+    {
+      "operation": "add_component_instance",
+      "trackId": "overlay",
+      "componentId": "leaf",
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": 1.5
+    },
+    {
+      "operation": "component_instance_update",
+      "itemId": "instance",
+      "componentId": "leaf",
+      "startMs": 200,
+      "trimStartMs": 0,
+      "durationMs": 500,
+      "timeScale": 1
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "overlay",
+      "componentId": "leaf",
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": 1.5,
+      "slotValues": {},
+      "hidden": true,
+      "zIndex": -1
+    }
+  ],
+  "invalidOperations": [
+    {
+      "operation": "add_component_instance",
+      "trackId": "overlay",
+      "componentId": "leaf",
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": null
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "overlay",
+      "componentId": "leaf",
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": 1.5,
+      "unknown": true
+    },
+    {
+      "operation": "component_instance_update",
+      "itemId": "instance",
+      "componentId": "leaf",
+      "startMs": 200,
+      "trimStartMs": 0,
+      "durationMs": 500,
+      "timeScale": 1,
+      "slotValues": null
+    }
+  ],
+  "semanticFailures": [
+    {
+      "edit": {
+        "operation": "add_component_instance",
+        "trackId": "overlay",
+        "componentId": "leaf",
+        "startMs": 100,
+        "trimStartMs": 50,
+        "durationMs": 400,
+        "timeScale": 0
+      },
+      "code": "INVALID_ARGUMENT"
+    },
+    {
+      "edit": {
+        "operation": "add_component_instance",
+        "trackId": "overlay",
+        "componentId": "missing",
+        "startMs": 100,
+        "trimStartMs": 50,
+        "durationMs": 400,
+        "timeScale": 1.5
+      },
+      "code": "ITEM_NOT_FOUND"
+    },
+    {
+      "edit": {
+        "operation": "add_component_instance",
+        "trackId": "overlay",
+        "componentId": "leaf",
+        "startMs": 100,
+        "trimStartMs": 1000,
+        "durationMs": 400,
+        "timeScale": 1.5
+      },
+      "code": "INVALID_ARGUMENT"
+    }
+  ],
+  "limits": {
+    "maxExpandedOccurrences": 65536,
+    "maxVisualLayers": 4096,
+    "maxAudioLayers": 4096,
+    "maxMediaResources": 4096,
+    "maxTransitions": 4096,
+    "minMediaRate": 2.3283064365386963e-10,
+    "maxMediaRate": 4294967296,
+    "maxKeyframesPerChannel": 10000,
+    "maxVoiceoverActivityRanges": 10000
+  },
+  "clockCases": [
+    {
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": 1.5,
+      "parentMs": 101,
+      "localMs": 51.5
+    },
+    {
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 400,
+      "timeScale": 1.5,
+      "parentMs": 500,
+      "active": false
+    }
+  ],
+  "aliases": {
+    "add_component_instance": [
+      "trackId",
+      "componentId",
+      "parent.id"
+    ],
+    "component_instance_update": [
+      "itemId",
+      "componentId"
+    ]
+  },
+  "ordering": "recursive contiguous blocks ordered by track index, zIndex, stackOrder, stable ID",
+  "coordinates": "instance position in parent composition; anchor in referenced component dimensions; no implicit fit or component clipping",
+  "migration": {
+    "from": 12,
+    "to": 13,
+    "preserveCurrentAndHistory": true,
+    "rejectOldRootInstances": true
+  },
+  "renderFixture": {
+    "leafTracks": [
+      {
+        "id": "local",
+        "name": "Local",
+        "trackType": "overlay",
+        "items": [
+          {
+            "type": "rectangle",
+            "id": "box",
+            "startMs": 0,
+            "durationMs": 1000,
+            "width": 20,
+            "height": 20,
+            "color": "#FF0000",
+            "transform": {
+              "positionX": 4,
+              "positionY": 4,
+              "scale": 1,
+              "opacity": 1
+            },
+            "keyframes": [
+              {
+                "property": "position",
+                "timeMs": 0,
+                "value": {
+                  "type": "position",
+                  "x": 4,
+                  "y": 4
+                },
+                "easing": "linear"
+              },
+              {
+                "property": "position",
+                "timeMs": 1000,
+                "value": {
+                  "type": "position",
+                  "x": 14,
+                  "y": 4
+                },
+                "easing": "linear"
+              }
+            ]
+          },
+          {
+            "type": "transition",
+            "id": "fade",
+            "transitionType": "fade",
+            "fromItemId": "box",
+            "startMs": 700,
+            "durationMs": 300,
+            "stackOrder": 1
+          }
+        ]
+      }
+    ],
+    "nestedTiming": {
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1
+    },
+    "rootTiming": {
+      "startMs": 100,
+      "trimStartMs": 50,
+      "durationMs": 600,
+      "timeScale": 1.5
+    },
+    "canvas": {
+      "width": 64,
+      "height": 64
+    },
+    "sampleMs": 300,
+    "minimumSsim": 0.99,
+    "maximumPcmRms": 0.0001
+  },
+  "audioFixture": {
+    "sourceFrequencyHz": 440,
+    "sampleRateHz": 48000,
+    "instanceEdit": {
+      "operation": "add_component_instance",
+      "trackId": "overlay",
+      "componentId": "audio",
+      "startMs": 100,
+      "trimStartMs": 500,
+      "durationMs": 500,
+      "timeScale": 2
+    },
+    "maximumPcmRms": 0.0001
+  }
+}

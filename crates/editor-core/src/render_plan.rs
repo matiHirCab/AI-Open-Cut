@@ -45,7 +45,16 @@ pub(crate) enum RenderIntent {
     Export,
 }
 
+pub(crate) struct PreparedTextRun {
+    pub(crate) file_path: PathBuf,
+    pub(crate) font_path: Option<PathBuf>,
+    pub(crate) content: String,
+    pub(crate) color: String,
+    pub(crate) x: f64,
+    pub(crate) y: f64,
+}
 pub(crate) struct PreparedText {
+    pub(crate) rich_runs: Option<Vec<PreparedTextRun>>,
     pub(crate) file_path: PathBuf,
     pub(crate) font_path: Option<PathBuf>,
     pub(crate) layer_width: u32,
@@ -333,6 +342,7 @@ pub(crate) fn build_render_plan(
             &mut audio_labels,
             audio,
             &scene.voiceover_intervals,
+            scene.instance_voiceover_intervals.as_deref(),
             &input_indexes,
         )?;
     }
@@ -361,6 +371,7 @@ fn append_audio_layer(
     audio_labels: &mut Vec<String>,
     audio: &EvaluatedAudioLayer,
     voiceover_intervals: &[crate::evaluated_scene::EvaluatedTimeSpan],
+    precise_intervals: Option<&[(f64, f64)]>,
     input_indexes: &HashMap<&str, usize>,
 ) -> Result<(), CoreError> {
     let input = input_indexes.get(audio.item_id.as_str()).ok_or_else(|| {
@@ -373,7 +384,11 @@ fn append_audio_layer(
     let automation =
         evaluated_scalar_expression(&audio.volume_keyframes, EvaluatedProperty::Volume, 1.0, 0);
     let volume = format!("({})*({automation})", format_number(audio.volume));
-    let ducking = evaluated_ducking_expression(audio.ducking.as_ref(), voiceover_intervals);
+    let ducking = if let Some(intervals) = precise_intervals {
+        precise_ducking(audio.ducking.as_ref(), intervals)
+    } else {
+        evaluated_ducking_expression(audio.ducking.as_ref(), voiceover_intervals)
+    };
     let duration_ms = audio.span.end_ms - audio.span.start_ms;
     let mut chain = format!(
         "[{input}:a]atrim=duration={},asetpts=PTS-STARTPTS,volume='{volume}':eval=frame",
@@ -389,10 +404,21 @@ fn append_audio_layer(
             seconds(audio.fade_out_ms)
         ));
     }
-    chain.push_str(&format!(
-        ",asetpts=PTS+{}/TB,volume='{ducking}':eval=frame[{label}]",
-        seconds(audio.span.start_ms)
-    ));
+    if let Some(clock) = audio.instance {
+        chain.push_str(&tempo_filters(clock.rate)?);
+        chain.push_str(&format!(
+            ",asetpts=PTS+{}/TB,atrim=start={}:end={},asetpts=PTS-STARTPTS,adelay={:.17}:all=1,volume='{ducking}':eval=frame[{label}]",
+            precise_seconds(clock.root_ms(audio.span.start_ms)),
+            precise_seconds(clock.start_ms),
+            precise_seconds(clock.end_ms),
+            clock.start_ms
+        ));
+    } else {
+        chain.push_str(&format!(
+            ",asetpts=PTS+{}/TB,volume='{ducking}':eval=frame[{label}]",
+            seconds(audio.span.start_ms)
+        ));
+    }
     filters.push(chain);
     audio_labels.push(format!("[{label}]"));
     Ok(())
@@ -861,9 +887,13 @@ fn append_affine_layer(
             let input = input_indexes.get(layer.item_id.as_str()).ok_or_else(|| {
                 CoreError::new(ErrorCode::InternalError, "missing affine media input")
             })?;
+            let rate = layer.instance.map_or(1.0, |c| c.rate);
+            let start = layer.instance.map_or(layer.span.start_ms as f64, |c| {
+                c.root_ms(layer.span.start_ms)
+            });
             format!(
-                "[{input}:v]setpts=PTS-STARTPTS+{}/TB,format=rgba",
-                seconds(layer.span.start_ms)
+                "[{input}:v]setpts=(PTS-STARTPTS)/{rate:.17}+{}/TB,format=rgba",
+                precise_seconds(start)
             )
         }
         EvaluatedVisualSource::SolidColor { color }
@@ -875,38 +905,56 @@ fn append_affine_layer(
             let prepared = text_layers
                 .get(&layer.item_id)
                 .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing affine text"))?;
-            let font = prepared
-                .font_path
-                .as_ref()
-                .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
-                .unwrap_or_default();
-            let padding = &text.style.padding;
-            let alignment = match text.style.alignment {
-                EvaluatedTextAlignment::Left => "L",
-                EvaluatedTextAlignment::Center => "C",
-                EvaluatedTextAlignment::Right => "R",
-            };
-            format!(
-                "color=c=black@0:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={}",
-                escape_filter_path(&prepared.file_path),
-                text.font_size,
-                text.color,
-                text.style.outline_width_px,
-                text.style.outline_color,
-                text.style.shadow.offset_x,
-                text.style.shadow.offset_y,
-                text.style.shadow.color,
-                text.style.shadow.opacity,
-                text.style.background_color,
-                text.style.background_opacity,
-                padding.top,
-                padding.right,
-                padding.bottom,
-                padding.left,
-                text.style.line_spacing_px,
-                prepared.text_x,
-                prepared.text_y
-            )
+            if let Some(runs) = &prepared.rich_runs {
+                let mut source = format!(
+                    "color=c={}@{}:s={sw}x{sh}:r={fps}:d={duration},format=rgba",
+                    text.style.background_color, text.style.background_opacity
+                );
+                for run in runs {
+                    let font = run
+                        .font_path
+                        .as_ref()
+                        .map(|p| format!("fontfile='{}':", escape_filter_path(p)))
+                        .unwrap_or_default();
+                    source.push_str(&format!(",drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:x={:.17}:y={:.17}",
+                        escape_filter_path(&run.file_path),text.font_size,run.color,text.style.outline_width_px,text.style.outline_color,
+                        text.style.shadow.offset_x,text.style.shadow.offset_y,text.style.shadow.color,text.style.shadow.opacity,run.x,run.y));
+                }
+                source
+            } else {
+                let font = prepared
+                    .font_path
+                    .as_ref()
+                    .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+                    .unwrap_or_default();
+                let padding = &text.style.padding;
+                let alignment = match text.style.alignment {
+                    EvaluatedTextAlignment::Left => "L",
+                    EvaluatedTextAlignment::Center => "C",
+                    EvaluatedTextAlignment::Right => "R",
+                };
+                format!(
+                    "color=c=black@0:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={}",
+                    escape_filter_path(&prepared.file_path),
+                    text.font_size,
+                    text.color,
+                    text.style.outline_width_px,
+                    text.style.outline_color,
+                    text.style.shadow.offset_x,
+                    text.style.shadow.offset_y,
+                    text.style.shadow.color,
+                    text.style.shadow.opacity,
+                    text.style.background_color,
+                    text.style.background_opacity,
+                    padding.top,
+                    padding.right,
+                    padding.bottom,
+                    padding.left,
+                    text.style.line_spacing_px,
+                    prepared.text_x,
+                    prepared.text_y
+                )
+            }
         }
         EvaluatedVisualSource::Caption(caption) => {
             let prepared = text_layers.get(&layer.item_id).ok_or_else(|| {
@@ -975,6 +1023,10 @@ fn append_affine_samples(
         .source_size
         .ok_or_else(|| CoreError::new(ErrorCode::InvalidArgument, "missing affine source size"))?;
     let fps = scene.canvas.fps;
+    let local_time = layer.instance.map_or_else(
+        || "T".to_owned(),
+        |c| format!("(T*{:.17}+{:.17})", c.rate, c.offset / 1000.0),
+    );
     let duration = seconds(scene.duration_ms);
     // Four nearest-neighbor gathers followed by separable bilinear interpolation.
     // Each map has exactly the validated output dimensions, so a rotated thin
@@ -991,7 +1043,7 @@ fn append_affine_samples(
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            evaluated_piecewise_expression_for(&values, default, layer.span.start_ms, "T")
+            evaluated_piecewise_expression_for(&values, default, layer.span.start_ms, &local_time)
         };
         let px = position(true, layer.transform.position_x);
         let py = position(false, layer.transform.position_y);
@@ -1000,7 +1052,7 @@ fn append_affine_samples(
             EvaluatedProperty::Scale,
             layer.transform.scale,
             layer.span.start_ms,
-            "T",
+            &local_time,
         );
         let [a, b, c, d, tx, ty] = parent.inverse;
         let (anchor_x, anchor_y) = layer.legacy_anchor((sw, sh));
@@ -1057,17 +1109,92 @@ fn append_affine_samples(
                 EvaluatedProperty::Opacity,
                 layer.transform.opacity,
                 layer.span.start_ms,
-                "T"
+                &local_time
             )
         )
     } else {
         format!("{:.17}", affine.opacity)
     };
-    let fade = evaluated_transition_filters(&layer.transitions);
+    let fade = if layer.instance.is_some() {
+        String::new()
+    } else {
+        evaluated_transition_filters(&layer.transitions)
+    };
+    let opacity = if let Some(clock) = layer.instance {
+        let mut expression = opacity;
+        for transition in &layer.transitions {
+            let start = clock.root_ms(transition.span.start_ms) / 1000.0;
+            let end = clock.root_ms(transition.span.end_ms) / 1000.0;
+            let progress = format!("clip((T-({start:.17}))/({:.17}),0,1)", end - start);
+            let gain = if transition.role == EvaluatedTransitionRole::In {
+                progress
+            } else {
+                format!("(1-({progress}))")
+            };
+            expression = format!("({expression})*({gain})");
+        }
+        expression
+    } else {
+        opacity
+    };
     filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq=r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*({opacity})',format=rgba{fade}[{label}]"));
     filters.push(format!("[{base}][{label}]overlay=x={:.0}:y={:.0}:format=auto:enable='gte(t,{})*lt(t,{})'[{output}]",
-        affine.left,affine.top,seconds(layer.visible_span().start_ms),seconds(layer.visible_span().end_ms)));
+        affine.left,affine.top,precise_seconds(layer.instance.map_or(layer.visible_span().start_ms as f64, |c|c.start_ms)),precise_seconds(layer.instance.map_or(layer.visible_span().end_ms as f64, |c|c.end_ms))));
     Ok(())
+}
+
+fn precise_seconds(milliseconds: f64) -> String {
+    format!("{:.17}", milliseconds / 1000.0)
+}
+fn tempo_filters(mut rate: f64) -> Result<String, CoreError> {
+    if !rate.is_finite() || !(2f64.powi(-32)..=2f64.powi(32)).contains(&rate) {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "unsupported component media rate",
+        ));
+    }
+    let mut result = String::new();
+    for _ in 0..32 {
+        if rate == 1.0 {
+            return Ok(result);
+        }
+        let factor = rate.clamp(0.5, 2.0);
+        result.push_str(&format!(",atempo={factor:.17}"));
+        rate /= factor;
+    }
+    if rate != 1.0 {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "component tempo stage limit exceeded",
+        ));
+    }
+    Ok(result)
+}
+fn precise_ducking(settings: Option<&EvaluatedDucking>, intervals: &[(f64, f64)]) -> String {
+    let Some(settings) = settings else {
+        return "1".into();
+    };
+    let mut expression = "1".to_owned();
+    for &(start, end) in intervals {
+        let attack_start = (start - settings.attack_ms as f64).max(0.0);
+        let release_end = end + settings.release_ms as f64;
+        let attack = seconds(settings.attack_ms.max(1));
+        let release = seconds(settings.release_ms.max(1));
+        let gain = format_number(settings.gain);
+        let envelope = format!(
+            "if(between(t,{},{}),1-(1-({gain}))*((t-{})/{attack}),if(between(t,{},{}),({gain}),if(between(t,{},{}),({gain})+(1-({gain}))*((t-{})/{release}),1)))",
+            precise_seconds(attack_start),
+            precise_seconds(start),
+            precise_seconds(attack_start),
+            precise_seconds(start),
+            precise_seconds(end),
+            precise_seconds(end),
+            precise_seconds(release_end),
+            precise_seconds(end)
+        );
+        expression = format!("min({expression},{envelope})");
+    }
+    expression
 }
 
 #[cfg(test)]
@@ -1509,6 +1636,7 @@ mod tests {
         let text = HashMap::from([(
             "title".into(),
             PreparedText {
+                rich_runs: None,
                 file_path: PathBuf::from("/workspace/title.txt"),
                 font_path: Some(PathBuf::from("/fonts/deterministic.ttf")),
                 layer_width: 300,
@@ -1554,5 +1682,34 @@ mod tests {
         assert_eq!(escape_filter("it's: 100%"), "it\\'s\\: 100\\%");
         assert!(!scalar_expression(&[], KeyframeProperty::Scale, 1.0, 0).contains("$"));
         assert_eq!(seconds(1_250), "1.250");
+    }
+}
+
+#[cfg(test)]
+mod instance_tempo_tests {
+    use super::*;
+    #[test]
+    fn bounded_tempo_factors_preserve_the_requested_product() {
+        for rate in [2f64.powi(-32), 0.5, 0.75, 1.0, 1.5, 2.0, 2f64.powi(32)] {
+            let filters = tempo_filters(rate).unwrap();
+            let factors = filters
+                .split(",atempo=")
+                .skip(1)
+                .map(|v| v.parse::<f64>().unwrap())
+                .collect::<Vec<_>>();
+            assert!(factors.len() <= 32);
+            assert!(factors.iter().all(|v| (0.5..=2.0).contains(v)));
+            assert!((factors.iter().product::<f64>() / rate - 1.0).abs() < 1e-12);
+        }
+        for rate in [
+            0.0,
+            -1.0,
+            f64::NAN,
+            f64::INFINITY,
+            2f64.powi(-33),
+            2f64.powi(33),
+        ] {
+            assert!(tempo_filters(rate).is_err());
+        }
     }
 }

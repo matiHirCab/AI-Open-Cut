@@ -41,11 +41,58 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
-    "component_create",
+    "add_component_instance",
     {
       annotations: WRITE,
       description:
-        "Create a stored component definition; instances are not yet rendered.",
+        "Edit a component instance with canonical local timing and slot values.",
+      inputSchema: schemas.addComponentInstance,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_component_instance",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "component_instance_update",
+    {
+      annotations: WRITE,
+      description:
+        "Edit a component instance with canonical local timing and slot values.",
+      inputSchema: schemas.componentInstanceUpdate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_instance_update",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "component_create",
+    {
+      annotations: WRITE,
+      description: "Create a stored component definition.",
       inputSchema: schemas.componentCreate,
       outputSchema: writeResultSchema,
     },
@@ -68,8 +115,7 @@ export const registerTimelineTools = (
     "component_update",
     {
       annotations: DESTRUCTIVE,
-      description:
-        "Update a stored component definition; instances are not yet rendered.",
+      description: "Update a stored component definition.",
       inputSchema: schemas.componentUpdate,
       outputSchema: writeResultSchema,
     },
@@ -116,8 +162,7 @@ export const registerTimelineTools = (
     "component_delete",
     {
       annotations: DESTRUCTIVE,
-      description:
-        "Delete a stored component definition; instances are not yet rendered.",
+      description: "Delete a stored component definition.",
       inputSchema: schemas.componentDelete,
       outputSchema: writeResultSchema,
     },

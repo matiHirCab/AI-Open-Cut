@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
+import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
@@ -867,4 +868,29 @@ it("delegates closed record parsing without changing types or JSON schemas", () 
     0,
     "text",
   ]);
+});
+
+it("matches canonical component instance structural fixtures standalone and in batches", () => {
+  for (const operation of INSTANCE_CATALOG.validOperations) {
+    expect(headlessEditSchema.safeParse(operation).success).toBe(true);
+    expect(
+      schemas.timelineBatchEdit.safeParse({
+        expectedRevision: 0,
+        operations: [operation],
+        projectId: "project",
+      }).success
+    ).toBe(true);
+    const { operation: name, ...fields } = operation;
+    const schema =
+      name === "add_component_instance"
+        ? schemas.addComponentInstance
+        : schemas.componentInstanceUpdate;
+    expect(
+      schema.safeParse({ expectedRevision: 0, projectId: "project", ...fields })
+        .success
+    ).toBe(true);
+  }
+  for (const operation of INSTANCE_CATALOG.invalidOperations) {
+    expect(headlessEditSchema.safeParse(operation).success).toBe(false);
+  }
 });

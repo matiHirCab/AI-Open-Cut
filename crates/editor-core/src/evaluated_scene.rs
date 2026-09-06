@@ -1,9 +1,8 @@
-//! Owned, renderer-neutral evaluation of the current flat timeline model.
+//! Owned, renderer-neutral evaluation of root timelines and component occurrences.
 //!
 //! This module deliberately contains no filesystem, process, renderer, or artifact
 //! concerns. Production render planning consumes this representation through a
 //! separate path-bearing resource-binding sidecar.
-
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -19,6 +18,533 @@ pub(crate) const MAX_EVALUATED_AUDIO_LAYERS: usize = 4_096;
 pub(crate) const MAX_EVALUATED_TRANSITION_FACTS: usize = 4_096;
 pub(crate) const MAX_EVALUATED_KEYFRAMES_PER_CHANNEL: usize = 10_000;
 pub(crate) const MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES: usize = 10_000;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct EvaluatedInstance {
+    /// The leaf composition clock in milliseconds: local = rate * root + offset.
+    pub(crate) rate: f64,
+    pub(crate) offset: f64,
+    pub(crate) start_ms: f64,
+    pub(crate) end_ms: f64,
+    pub(crate) canvas: (u32, u32),
+}
+impl EvaluatedInstance {
+    pub(crate) fn root_ms(self, local_ms: u64) -> f64 {
+        (local_ms as f64 - self.offset) / self.rate
+    }
+    fn child(
+        self,
+        item: &crate::ComponentInstanceItem,
+        canvas: (u32, u32),
+    ) -> Result<Self, CoreError> {
+        let child = Self {
+            rate: self.rate * item.time_scale,
+            offset: item.trim_start_ms as f64
+                + (self.offset - item.start_ms as f64) * item.time_scale,
+            start_ms: self.start_ms.max(self.root_ms(item.start_ms)),
+            end_ms: self.end_ms.min(self.root_ms(item.end_ms())),
+            canvas,
+        };
+        if [child.rate, child.offset, child.start_ms, child.end_ms]
+            .iter()
+            .any(|v| !v.is_finite())
+            || child.rate <= 0.0
+        {
+            return Err(invalid("non-finite composed component clock"));
+        }
+        Ok(child)
+    }
+}
+impl crate::ComponentInstanceItem {
+    fn end_ms(&self) -> u64 {
+        self.start_ms + self.duration_ms
+    }
+}
+type InstanceOrder = Vec<(usize, i32, usize, String)>;
+
+pub(crate) fn evaluate_project(
+    project: &Project,
+    width: u32,
+    height: u32,
+    fps: u32,
+) -> Result<EvaluatedSceneResult, CoreError> {
+    if !project
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .any(|i| matches!(i, TimelineItem::ComponentInstance(_)))
+    {
+        return evaluate_flat_project(project, width, height, fps);
+    }
+    crate::validation::validate_project_visual_properties(project)?;
+    let definitions = project
+        .components
+        .iter()
+        .enumerate()
+        .map(|(i, c)| (c.id.as_str(), i))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    preflight_instance_occurrences(project, &definitions)?;
+    let duration_ms = checked_project_duration(project)?.max(1);
+    let mut result = EvaluatedSceneResult {
+        scene: EvaluatedScene {
+            instance_voiceover_intervals: Some(vec![]),
+            voiceover_activity_range_count: 0,
+            canvas: EvaluatedCanvas { width, height, fps },
+            duration_ms,
+            resources: vec![],
+            visual_layers: vec![],
+            audio_layers: vec![],
+            voiceover_intervals: vec![],
+        },
+        resource_bindings: SceneResourceBindings {
+            media: vec![],
+            fonts: vec![],
+        },
+    };
+    let clock = EvaluatedInstance {
+        rate: 1.0,
+        offset: 0.0,
+        start_ms: 0.0,
+        end_ms: duration_ms as f64,
+        canvas: (width, height),
+    };
+    preflight_instance_clocks(&project.tracks, clock, project, &definitions)?;
+    let mut orders = HashMap::new();
+    let context = InstanceTraversal {
+        project,
+        definitions: &definitions,
+    };
+    context.expand(
+        &project.tracks,
+        InstanceScope {
+            clock,
+            outer: IDENTITY_MATRIX,
+            outer_inverse: IDENTITY_MATRIX,
+            opacity: 1.0,
+            visual_start: clock.start_ms,
+            visual_end: clock.end_ms,
+            prefix: &[],
+        },
+        &mut orders,
+        &mut result,
+    )?;
+    result
+        .scene
+        .visual_layers
+        .sort_by(|a, b| orders[&a.item_id].cmp(&orders[&b.item_id]));
+    result
+        .scene
+        .audio_layers
+        .sort_by(|a, b| orders[&a.item_id].cmp(&orders[&b.item_id]));
+    let mut all = orders.iter().collect::<Vec<_>>();
+    all.sort_by(|a, b| a.1.cmp(b.1));
+    let ranks = all
+        .into_iter()
+        .enumerate()
+        .map(|(i, (id, _))| (id.clone(), i))
+        .collect::<HashMap<_, _>>();
+    for layer in &mut result.scene.visual_layers {
+        layer.order = EvaluatedLayerOrder {
+            track_index: ranks[&layer.item_id],
+            item_index: 0,
+        };
+    }
+    for layer in &mut result.scene.audio_layers {
+        layer.order = EvaluatedLayerOrder {
+            track_index: ranks[&layer.item_id],
+            item_index: 0,
+        };
+    }
+    Ok(result)
+}
+fn preflight_instance_occurrences(
+    project: &Project,
+    definitions: &std::collections::BTreeMap<&str, usize>,
+) -> Result<(), CoreError> {
+    fn count(
+        tracks: &[Track],
+        project: &Project,
+        definitions: &std::collections::BTreeMap<&str, usize>,
+        memo: &mut HashMap<usize, usize>,
+    ) -> usize {
+        let mut total = 0usize;
+        for item in tracks.iter().flat_map(|t| &t.items) {
+            total = total.saturating_add(1);
+            if let TimelineItem::ComponentInstance(instance) = item {
+                let id = definitions[instance.component_id.as_str()];
+                let descendants = if let Some(value) = memo.get(&id) {
+                    *value
+                } else {
+                    let value = count(&project.components[id].tracks, project, definitions, memo);
+                    memo.insert(id, value);
+                    value
+                };
+                total = total.saturating_add(descendants);
+            }
+            if total > 65_536 {
+                return 65_537;
+            }
+        }
+        total
+    }
+    // The canonical validator already established acyclicity and depth <= 16.
+    if count(&project.tracks, project, definitions, &mut HashMap::new()) > 65_536 {
+        return Err(invalid("maxExpandedOccurrences exceeded"));
+    }
+    Ok(())
+}
+fn preflight_instance_clocks(
+    tracks: &[Track],
+    clock: EvaluatedInstance,
+    project: &Project,
+    definitions: &std::collections::BTreeMap<&str, usize>,
+) -> Result<(), CoreError> {
+    for item in tracks.iter().flat_map(|t| &t.items) {
+        if !clock.root_ms(item.start_ms()).is_finite() || !clock.root_ms(item.end_ms()).is_finite()
+        {
+            return Err(invalid("non-finite derived component interval"));
+        }
+        if let TimelineItem::ComponentInstance(instance) = item {
+            let component = &project.components[definitions[instance.component_id.as_str()]];
+            let child = clock.child(instance, (component.width, component.height))?;
+            preflight_instance_clocks(&component.tracks, child, project, definitions)?;
+        }
+    }
+    Ok(())
+}
+struct InstanceTraversal<'a> {
+    project: &'a Project,
+    definitions: &'a std::collections::BTreeMap<&'a str, usize>,
+}
+
+struct InstanceScope<'a> {
+    clock: EvaluatedInstance,
+    outer: [f64; 6],
+    outer_inverse: [f64; 6],
+    opacity: f64,
+    visual_start: f64,
+    visual_end: f64,
+    prefix: &'a [(usize, i32, usize, String)],
+}
+impl InstanceTraversal<'_> {
+    fn expand(
+        &self,
+        tracks: &[Track],
+        scope: InstanceScope<'_>,
+        orders: &mut HashMap<String, InstanceOrder>,
+        result: &mut EvaluatedSceneResult,
+    ) -> Result<(), CoreError> {
+        let InstanceScope {
+            clock,
+            outer,
+            outer_inverse,
+            opacity,
+            visual_start,
+            visual_end,
+            prefix,
+        } = scope;
+        if outer.iter().chain(&outer_inverse).any(|v| !v.is_finite()) || !opacity.is_finite() {
+            return Err(invalid("non-finite composed component transform"));
+        }
+        let mut local = Project {
+            schema_version: self.project.schema_version,
+            id: self.project.id.clone(),
+            revision: self.project.revision,
+            name: self.project.name.clone(),
+            created_at_ms: self.project.created_at_ms,
+            updated_at_ms: self.project.updated_at_ms,
+            settings: self.project.settings.clone(),
+            assets: self.project.assets.clone(),
+            tracks: tracks.to_vec(),
+            components: vec![],
+        };
+        let mut item_orders = HashMap::new();
+        for (ti, track) in tracks.iter().enumerate() {
+            for (ii, item) in track.items.iter().enumerate() {
+                let mut order = prefix.to_vec();
+                order.push((
+                    ti,
+                    item.visual_properties().z_index,
+                    ii,
+                    item.id().to_owned(),
+                ));
+                item_orders.insert(item.id().to_owned(), order);
+            }
+        }
+        for track in &mut local.tracks {
+            track
+                .items
+                .retain(|i| !matches!(i, TimelineItem::ComponentInstance(_)));
+            for (i, item) in track.items.iter_mut().enumerate() {
+                item.visual_properties_mut().stack_order = i as u32;
+                if let Some(parent) = &mut item.visual_properties_mut().parent {
+                    parent.scope = "root".to_owned();
+                }
+            }
+        }
+        let mut evaluated = evaluate_flat_project(
+            &local,
+            clock.canvas.0,
+            clock.canvas.1,
+            result.scene.canvas.fps,
+        )?;
+        let identity = |id: &str| -> String {
+            // Length-prefixed scope positions avoid collisions even with repeated local identifiers.
+            let order = &item_orders[id];
+            order
+                .iter()
+                .map(|(t, _, i, _)| format!("{t}-{i}"))
+                .collect::<Vec<_>>()
+                .join("_")
+        };
+        for layer in &mut evaluated.scene.visual_layers {
+            let span = layer.visible_span();
+            let start = clock
+                .root_ms(span.start_ms)
+                .max(clock.start_ms)
+                .max(visual_start);
+            let end = clock.root_ms(span.end_ms).min(clock.end_ms).min(visual_end);
+            let id = identity(&layer.item_id);
+            orders.insert(id.clone(), item_orders[&layer.item_id].clone());
+            layer.item_id = id.clone();
+            let local_parent = layer.ancestors.unwrap_or(EvaluatedAncestors {
+                matrix: IDENTITY_MATRIX,
+                inverse: IDENTITY_MATRIX,
+                opacity: 1.0,
+                clip: layer.span,
+            });
+            layer.ancestors = Some(EvaluatedAncestors {
+                matrix: multiply_matrix(outer, local_parent.matrix),
+                inverse: multiply_matrix(local_parent.inverse, outer_inverse),
+                opacity: opacity * local_parent.opacity,
+                clip: local_parent.clip,
+            });
+            layer.instance = Some(EvaluatedInstance {
+                start_ms: start,
+                end_ms: end,
+                ..clock
+            });
+            if matches!(layer.source, EvaluatedVisualSource::Media { .. })
+                && !(2f64.powi(-32)..=2f64.powi(32)).contains(&clock.rate)
+            {
+                return Err(invalid("component media rate exceeds limits"));
+            }
+            layer.source_size = match &layer.source {
+                EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
+                EvaluatedVisualSource::SolidColor { .. } => Some(clock.canvas),
+                _ => layer.source_size,
+            };
+            layer.affine = None;
+            layer.sampling_tiles = None;
+            if let EvaluatedVisualSource::Text(text) = &mut layer.source
+                && let Some(font_id) = &mut text.font_resource_id
+            {
+                let old = font_id.clone();
+                *font_id = format!("instance-font-{id}");
+                for binding in &mut evaluated.resource_bindings.fonts {
+                    if binding.font_resource_id == old {
+                        binding.font_resource_id = font_id.clone();
+                    }
+                }
+            }
+        }
+        evaluated
+            .scene
+            .visual_layers
+            .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        result.scene.voiceover_activity_range_count +=
+            evaluated.scene.voiceover_activity_range_count;
+        if result.scene.voiceover_activity_range_count > MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES {
+            return Err(invalid("expanded voiceover interval limit exceeded"));
+        }
+        for span in &evaluated.scene.voiceover_intervals {
+            let start = clock.root_ms(span.start_ms).max(clock.start_ms);
+            let end = clock.root_ms(span.end_ms).min(clock.end_ms);
+            if start < end {
+                let intervals = result.scene.instance_voiceover_intervals.as_mut().unwrap();
+                if intervals.len() >= MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES {
+                    return Err(invalid("expanded voiceover interval limit exceeded"));
+                }
+                intervals.push((start, end));
+            }
+        }
+        for layer in &mut evaluated.scene.audio_layers {
+            layer.ducking = evaluate_ducking(&local.tracks[layer.order.track_index], true)?;
+            if !(2f64.powi(-32)..=2f64.powi(32)).contains(&clock.rate) {
+                return Err(invalid("component media rate exceeds tempo limits"));
+            }
+            let id = identity(&layer.item_id);
+            orders.insert(id.clone(), item_orders[&layer.item_id].clone());
+            layer.item_id = id;
+            layer.instance = Some(EvaluatedInstance {
+                start_ms: clock.root_ms(layer.span.start_ms).max(clock.start_ms),
+                end_ms: clock.root_ms(layer.span.end_ms).min(clock.end_ms),
+                ..clock
+            });
+        }
+        evaluated
+            .scene
+            .audio_layers
+            .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        if result.scene.visual_layers.len() + evaluated.scene.visual_layers.len()
+            > MAX_EVALUATED_VISUAL_LAYERS
+            || result.scene.audio_layers.len() + evaluated.scene.audio_layers.len()
+                > MAX_EVALUATED_AUDIO_LAYERS
+        {
+            return Err(invalid("expanded scene layer limit exceeded"));
+        }
+        for resource in evaluated.scene.resources {
+            if !result
+                .scene
+                .resources
+                .iter()
+                .any(|r| r.asset_id == resource.asset_id)
+            {
+                result.scene.resources.push(resource);
+            }
+        }
+        for binding in evaluated.resource_bindings.media {
+            if !result
+                .resource_bindings
+                .media
+                .iter()
+                .any(|b| b.asset_id == binding.asset_id)
+            {
+                result.resource_bindings.media.push(binding);
+            }
+        }
+        if result.scene.resources.len() > MAX_EVALUATED_MEDIA_RESOURCES {
+            return Err(invalid("expanded media resource limit exceeded"));
+        }
+        let transitions = result
+            .scene
+            .visual_layers
+            .iter()
+            .chain(&evaluated.scene.visual_layers)
+            .map(|l| l.transitions.len())
+            .sum::<usize>();
+        if transitions > MAX_EVALUATED_TRANSITION_FACTS {
+            return Err(invalid("expanded transition limit exceeded"));
+        }
+        result
+            .resource_bindings
+            .fonts
+            .extend(evaluated.resource_bindings.fonts);
+        result
+            .scene
+            .visual_layers
+            .extend(evaluated.scene.visual_layers);
+        result
+            .scene
+            .audio_layers
+            .extend(evaluated.scene.audio_layers);
+        for (ti, track) in tracks.iter().enumerate() {
+            for (ii, item) in track.items.iter().enumerate() {
+                let TimelineItem::ComponentInstance(instance) = item else {
+                    continue;
+                };
+                if track.hidden || item.hidden() {
+                    continue;
+                }
+                let component =
+                    &self.project.components[self.definitions[instance.component_id.as_str()]];
+                let effective = crate::validation::resolve_component_slots(
+                    self.project,
+                    component,
+                    Some(&instance.slot_values),
+                    self.definitions,
+                )?;
+                let child_clock = clock.child(instance, (component.width, component.height))?;
+                if child_clock.start_ms >= child_clock.end_ms {
+                    continue;
+                }
+                let transform = instance.visual_properties.transform2d.unwrap_or_else(|| {
+                    let t = &instance.visual_properties.transform;
+                    crate::Transform2D {
+                        position: crate::TransformPosition {
+                            x: t.position_x,
+                            y: t.position_y,
+                            unit: crate::PositionUnit::Pixels,
+                        },
+                        scale_x: t.scale,
+                        scale_y: t.scale,
+                        opacity: t.opacity,
+                        ..Default::default()
+                    }
+                });
+                let (mut matrix, mut inverse) =
+                    transform_matrices(transform, child_clock.canvas, clock.canvas)?;
+                let mut child_opacity = opacity * transform.opacity;
+                let mut start = visual_start.max(child_clock.start_ms);
+                let mut end = visual_end.min(child_clock.end_ms);
+                let mut node = item;
+                while let Some(parent) = &node.visual_properties().parent {
+                    let (pt, target) = tracks
+                        .iter()
+                        .find_map(|t| t.items.iter().find(|i| i.id() == parent.id).map(|i| (t, i)))
+                        .ok_or_else(|| invalid("missing validated instance ancestor"))?;
+                    let t = target.visual_properties().transform2d.unwrap_or_default();
+                    let (m, inv) = transform_matrices(t, clock.canvas, clock.canvas)?;
+                    matrix = multiply_matrix(m, matrix);
+                    inverse = multiply_matrix(inverse, inv);
+                    child_opacity *= t.opacity;
+                    start = start.max(clock.root_ms(target.start_ms()));
+                    end = end.min(clock.root_ms(target.end_ms()));
+                    if pt.hidden || target.hidden() {
+                        end = start;
+                    }
+                    node = target;
+                }
+                let mut order = prefix.to_vec();
+                order.push((
+                    ti,
+                    item.visual_properties().z_index,
+                    ii,
+                    item.id().to_owned(),
+                ));
+                let first_layer = result.scene.visual_layers.len();
+                self.expand(
+                    &effective.tracks,
+                    InstanceScope {
+                        clock: child_clock,
+                        outer: multiply_matrix(outer, matrix),
+                        outer_inverse: multiply_matrix(inverse, outer_inverse),
+                        opacity: child_opacity,
+                        visual_start: start,
+                        visual_end: end,
+                        prefix: &order,
+                    },
+                    orders,
+                    result,
+                )?;
+                for slot in &component.slots {
+                    if slot.binding.property != crate::SlotProperty::TextDocument {
+                        continue;
+                    }
+                    if let Some(crate::SlotValue::RichText(document)) = instance
+                        .slot_values
+                        .get(&slot.id)
+                        .or(slot.default_value.as_ref())
+                    {
+                        for layer in &mut result.scene.visual_layers[first_layer..] {
+                            let key = &orders[&layer.item_id];
+                            if key.len() == order.len() + 1
+                                && key
+                                    .last()
+                                    .is_some_and(|v| v.3 == slot.binding.target_layer_id)
+                                && let EvaluatedVisualSource::Text(text) = &mut layer.source
+                            {
+                                text.text = document.runs.iter().map(|r| r.text.as_str()).collect();
+                                text.rich_runs = Some(document.runs.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EvaluatedSceneResult {
@@ -45,8 +571,25 @@ pub(crate) struct FontResourceBinding {
     pub(crate) requested_family: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl std::fmt::Debug for EvaluatedScene {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedScene");
+        value.field("canvas", &self.canvas);
+        value.field("duration_ms", &self.duration_ms);
+        value.field("resources", &self.resources);
+        value.field("visual_layers", &self.visual_layers);
+        value.field("audio_layers", &self.audio_layers);
+        value.field("voiceover_intervals", &self.voiceover_intervals);
+        if let Some(extra) = &self.instance_voiceover_intervals {
+            value.field("instance_voiceover_intervals", extra);
+        }
+        value.finish()
+    }
+}
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
+    pub(crate) instance_voiceover_intervals: Option<Vec<(f64, f64)>>,
+    voiceover_activity_range_count: usize,
     pub(crate) canvas: EvaluatedCanvas,
     pub(crate) duration_ms: u64,
     pub(crate) resources: Vec<EvaluatedMediaResource>,
@@ -148,6 +691,7 @@ pub(crate) struct EvaluatedTransition {
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedVisualLayer {
+    pub(crate) instance: Option<EvaluatedInstance>,
     pub(crate) item_id: String,
     pub(crate) order: EvaluatedLayerOrder,
     pub(crate) span: EvaluatedTimeSpan,
@@ -221,8 +765,23 @@ pub(crate) struct EvaluatedCaption {
     pub(crate) bottom_margin_px: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl std::fmt::Debug for EvaluatedText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedText");
+        value.field("text", &self.text);
+        value.field("font_size", &self.font_size);
+        value.field("color", &self.color);
+        value.field("font_resource_id", &self.font_resource_id);
+        value.field("style", &self.style);
+        if let Some(extra) = &self.rich_runs {
+            value.field("rich_runs", extra);
+        }
+        value.finish()
+    }
+}
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedText {
+    pub(crate) rich_runs: Option<Vec<crate::RichTextRun>>,
     pub(crate) text: String,
     pub(crate) font_size: u32,
     pub(crate) color: String,
@@ -295,8 +854,29 @@ pub(crate) struct EvaluatedDucking {
     pub(crate) release_ms: u64,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl std::fmt::Debug for EvaluatedAudioLayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedAudioLayer");
+        value.field("item_id", &self.item_id);
+        value.field("order", &self.order);
+        value.field("asset_id", &self.asset_id);
+        value.field("span", &self.span);
+        value.field("source_in_ms", &self.source_in_ms);
+        value.field("volume", &self.volume);
+        value.field("fade_in_ms", &self.fade_in_ms);
+        value.field("fade_out_ms", &self.fade_out_ms);
+        value.field("volume_keyframes", &self.volume_keyframes);
+        value.field("role", &self.role);
+        value.field("ducking", &self.ducking);
+        if let Some(extra) = &self.instance {
+            value.field("instance", extra);
+        }
+        value.finish()
+    }
+}
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedAudioLayer {
+    pub(crate) instance: Option<EvaluatedInstance>,
     pub(crate) item_id: String,
     pub(crate) order: EvaluatedLayerOrder,
     pub(crate) asset_id: String,
@@ -318,7 +898,7 @@ struct EvaluationPreflight<'a> {
     voiceover_activity_range_count: usize,
 }
 
-pub(crate) fn evaluate_project(
+fn evaluate_flat_project(
     project: &Project,
     width: u32,
     height: u32,
@@ -386,6 +966,7 @@ pub(crate) fn evaluate_project(
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
                         visual_layers.push(EvaluatedVisualLayer {
+                            instance: None,
                             transform2d: item.visual_properties().transform2d,
                             affine: None,
                             sampling_tiles: None,
@@ -409,6 +990,7 @@ pub(crate) fn evaluate_project(
                         }
                         let ducking = evaluate_ducking(track, !voiceover_intervals.is_empty())?;
                         audio_layers.push(EvaluatedAudioLayer {
+                            instance: None,
                             item_id: media.id.clone(),
                             order,
                             asset_id: media.asset_id.clone(),
@@ -434,6 +1016,7 @@ pub(crate) fn evaluate_project(
                         });
                     }
                     visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
                         sampling_tiles: None,
@@ -446,6 +1029,7 @@ pub(crate) fn evaluate_project(
                         keyframes: evaluate_keyframes(&text.keyframes)?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
+                            rich_runs: None,
                             text: text.text.clone(),
                             font_size: text.font_size,
                             color: text.color.clone(),
@@ -456,6 +1040,7 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::SolidColor(color) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
                         sampling_tiles: None,
@@ -474,6 +1059,7 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::Rectangle(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
                         sampling_tiles: None,
@@ -494,6 +1080,7 @@ pub(crate) fn evaluate_project(
                 }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
                         sampling_tiles: None,
@@ -552,6 +1139,8 @@ pub(crate) fn evaluate_project(
     sort_visual_layers(project, &mut visual_layers);
     Ok(EvaluatedSceneResult {
         scene: EvaluatedScene {
+            instance_voiceover_intervals: None,
+            voiceover_activity_range_count: preflight.voiceover_activity_range_count,
             canvas: EvaluatedCanvas { width, height, fps },
             duration_ms,
             resources,
@@ -1839,6 +2428,17 @@ mod tests {
         );
     }
 
+    fn with_empty_instance(mut input: Project) -> Project {
+        for track in &mut input.tracks {
+            for (index, item) in track.items.iter_mut().enumerate() {
+                item.visual_properties_mut().stack_order = index as u32;
+            }
+        }
+        input.components.push(serde_json::from_value(serde_json::json!({"id":"empty","name":"Empty","width":16,"height":16,"durationMs":1,"slots":[],"tracks":[]})).unwrap());
+        input.tracks.push(track("instances",TrackType::Overlay,vec![serde_json::from_value(serde_json::json!({"type":"component_instance","id":"empty-instance","componentId":"empty","startMs":0,"durationMs":1,"trimStartMs":0,"timeScale":1,"slotValues":{}})).unwrap()]));
+        input
+    }
+
     #[test]
     fn accepts_each_scene_limit_and_rejects_boundary_plus_one() {
         let visual_project = |count: usize| {
@@ -1905,6 +2505,26 @@ mod tests {
         };
         assert!(
             evaluate_project(&resource_project(MAX_EVALUATED_MEDIA_RESOURCES), 16, 16, 1).is_ok()
+        );
+        assert!(
+            evaluate_project(
+                &with_empty_instance(resource_project(MAX_EVALUATED_MEDIA_RESOURCES)),
+                16,
+                16,
+                1
+            )
+            .is_ok()
+        );
+        assert_eq!(
+            evaluate_project(
+                &with_empty_instance(resource_project(MAX_EVALUATED_MEDIA_RESOURCES + 1)),
+                16,
+                16,
+                1
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::InvalidArgument
         );
         assert_eq!(
             evaluate_project(
@@ -2058,6 +2678,11 @@ mod tests {
         voice.audio_role = AudioTrackRole::Voiceover;
         exact.tracks = vec![voice];
 
+        let expanded = evaluate_project(&with_empty_instance(exact.clone()), 16, 16, 1).unwrap();
+        assert_eq!(
+            expanded.scene.instance_voiceover_intervals.unwrap().len(),
+            MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES
+        );
         let evaluated = evaluate_project(&exact, 16, 16, 1).unwrap();
         assert_eq!(
             evaluated.scene.voiceover_intervals.len(),
@@ -2078,12 +2703,37 @@ mod tests {
             }
         );
 
+        let mut repeated = with_empty_instance(exact.clone());
+        let mut local = repeated.tracks.remove(0);
+        if let TimelineItem::Media(m) = &mut local.items[1] {
+            m.start_ms = 0;
+        }
+        repeated.components[0].tracks = vec![local];
+        repeated.components[0].duration_ms = 10_000;
+        if let TimelineItem::ComponentInstance(i) = &mut repeated.tracks[0].items[0] {
+            i.duration_ms = 10_000;
+        }
+        let mut copy = repeated.tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(i) = &mut copy {
+            i.id = "repeated".into();
+            i.visual_properties.stack_order = 1;
+        }
+        repeated.tracks[0].items.push(copy);
+        assert!(
+            evaluate_project(&repeated, 16, 16, 1)
+                .unwrap_err()
+                .message
+                .contains("voiceover interval limit")
+        );
+
         let mut overflow = exact;
         overflow.tracks[0]
             .items
             .push(media("voice-c", "voice", 40_000));
         assert_eq!(
-            evaluate_project(&overflow, 16, 16, 1).unwrap_err().code,
+            evaluate_project(&with_empty_instance(overflow), 16, 16, 1)
+                .unwrap_err()
+                .code,
             ErrorCode::InvalidArgument
         );
     }
@@ -2532,6 +3182,7 @@ pub(crate) fn evaluate_layer_affine(
     source: (u32, u32),
     canvas: (u32, u32),
 ) -> Result<EvaluatedAffine, CoreError> {
+    let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
     if layer.ancestors.is_none() {
         return evaluate_affine(
             layer
@@ -2742,5 +3393,490 @@ mod affine_tests {
         t.rotation_deg = 90.;
         let a = evaluate_affine(t, (100, 20), (200, 200)).unwrap();
         assert_eq!((a.width, a.height, a.left, a.top), (20, 100, -20., 0.));
+    }
+}
+
+#[cfg(test)]
+mod instance_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn project() -> Project {
+        let shape = json!({"type":"rectangle","id":"same","startMs":0,"durationMs":500,"width":10,"height":20,"color":"#ff0000","transform":{"positionX":3,"positionY":0,"scale":1,"opacity":1},"keyframes":[]});
+        let track =
+            |items| json!({"id":"local","name":"Local","trackType":"overlay","items":items});
+        let inner = json!({"type":"component_instance","id":"same","componentId":"leaf","startMs":20,"trimStartMs":10,"durationMs":700,"timeScale":0.5,"slotValues":{},"transform":{"positionX":10,"positionY":0,"scale":1,"opacity":0.5}});
+        let root = json!({"type":"component_instance","id":"same","componentId":"outer","startMs":100,"trimStartMs":50,"durationMs":400,"timeScale":1.5,"slotValues":{},"zIndex":0,"stackOrder":0,"transform":{"positionX":20,"positionY":0,"scale":1,"opacity":0.5}});
+        serde_json::from_value(json!({"schemaVersion":13,"id":"project","revision":0,"name":"Instances","createdAtMs":1,"updatedAtMs":1,"settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[track(json!([root]))],"components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":500,"slots":[],"tracks":[track(json!([shape]))]},{"id":"outer","name":"Outer","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[track(json!([inner]))]}]})).unwrap()
+    }
+
+    #[test]
+    fn nested_fractional_clock_affine_and_repeated_identity() {
+        let mut project = project();
+        let before = serde_json::to_value(&project).unwrap();
+        let mut evaluated = evaluate_project(&project, 100, 100, 30).unwrap();
+        assert_eq!(evaluated.scene.visual_layers.len(), 1);
+        let layer = &evaluated.scene.visual_layers[0];
+        let clock = layer.instance.unwrap();
+        assert_eq!(clock.rate, 0.75);
+        assert_eq!(clock.offset, -50.0);
+        assert_eq!((clock.start_ms, clock.end_ms), (100.0, 500.0));
+        assert!((clock.root_ms(26) - 101.33333333333333).abs() < 1e-10);
+        finalize_affine_geometry(&mut evaluated.scene, &HashMap::new()).unwrap();
+        let affine = evaluated.scene.visual_layers[0].affine.unwrap();
+        assert_eq!(affine.matrix, [1.0, 0.0, 0.0, 1.0, 33.0, 0.0]);
+        assert_eq!(affine.opacity, 0.25);
+        assert_eq!(serde_json::to_value(&project).unwrap(), before);
+        let mut repeated = project.tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(instance) = &mut repeated {
+            instance.id = "second".into();
+            instance.visual_properties.stack_order = 1;
+        }
+        project.tracks[0].items.push(repeated);
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap();
+        assert_eq!(scene.scene.visual_layers.len(), 2);
+        assert_ne!(
+            scene.scene.visual_layers[0].item_id,
+            scene.scene.visual_layers[1].item_id
+        );
+        assert_eq!(scene, evaluate_project(&project, 100, 100, 30).unwrap());
+    }
+
+    #[test]
+    fn component_dimensions_affine_oracle_and_contiguous_order() {
+        let mut p = project();
+        p.components[0].width = 200;
+        p.components[0].height = 80;
+        p.components[1].width = 320;
+        p.components[1].height = 180;
+        let nested = crate::Transform2D {
+            position: crate::TransformPosition {
+                x: 0.25,
+                y: 0.5,
+                unit: crate::PositionUnit::Normalized,
+            },
+            anchor: crate::TransformAnchor { x: 0.2, y: 0.1 },
+            rotation_deg: 30.0,
+            skew_x_deg: 10.0,
+            scale_x: 1.2,
+            scale_y: 0.8,
+            opacity: 0.5,
+            ..Default::default()
+        };
+        let outer = crate::Transform2D {
+            position: crate::TransformPosition {
+                x: 0.5,
+                y: 0.25,
+                unit: crate::PositionUnit::Normalized,
+            },
+            anchor: crate::TransformAnchor { x: 0.2, y: 0.7 },
+            rotation_deg: -15.0,
+            skew_y_deg: 5.0,
+            scale_x: 0.9,
+            scale_y: 1.1,
+            opacity: 0.4,
+            ..Default::default()
+        };
+        for (item, t) in [
+            (&mut p.components[1].tracks[0].items[0], nested),
+            (&mut p.tracks[0].items[0], outer),
+        ] {
+            item.visual_properties_mut().transform = Transform::default();
+            item.visual_properties_mut().transform2d = Some(t);
+        }
+        p.components[0].tracks[0].items[0]
+            .visual_properties_mut()
+            .z_index = 1000;
+        p.tracks[0].items.push(serde_json::from_value(json!({"type":"rectangle","id":"sibling","startMs":0,"durationMs":1000,"width":1,"height":1,"color":"#0000ff","keyframes":[],"zIndex":1,"stackOrder":1})).unwrap());
+        let mut scene = evaluate_project(&p, 640, 360, 30).unwrap().scene;
+        finalize_affine_geometry(&mut scene, &HashMap::new()).unwrap();
+        assert!(
+            matches!(&scene.visual_layers[1].source,EvaluatedVisualSource::Rectangle{color,..} if color=="#0000ff")
+        );
+        let map =
+            |t: crate::Transform2D, source: (f64, f64), parent: (f64, f64), (x, y): (f64, f64)| {
+                let x = (x - t.anchor.x * source.0) * t.scale_x;
+                let y = (y - t.anchor.y * source.1) * t.scale_y;
+                let x = x + y * t.skew_x_deg.to_radians().tan();
+                let y = y + x * t.skew_y_deg.to_radians().tan();
+                let (sin, cos) = t.rotation_deg.to_radians().sin_cos();
+                (
+                    cos * x - sin * y + t.position.x * parent.0,
+                    sin * x + cos * y + t.position.y * parent.1,
+                )
+            };
+        let affine = scene.visual_layers[0].affine.unwrap();
+        for (x, y) in [(0.0, 0.0), (10.0, 0.0), (0.0, 20.0), (10.0, 20.0)] {
+            let expected = map(
+                outer,
+                (320.0, 180.0),
+                (640.0, 360.0),
+                map(nested, (200.0, 80.0), (320.0, 180.0), (x + 3.0, y)),
+            );
+            let [a, b, c, d, tx, ty] = affine.matrix;
+            assert!((a * x + c * y + tx - expected.0).abs() < 1e-9);
+            assert!((b * x + d * y + ty - expected.1).abs() < 1e-9);
+        }
+        assert!((affine.opacity - 0.2).abs() < 1e-12);
+    }
+
+    #[test]
+    fn audio_expansion_limits_and_instance_vs_group_visibility() {
+        let mut p = project();
+        p.assets=serde_json::from_value(json!([{"id":"sound","mediaType":"audio","fileName":"sound.wav","projectRelativePath":"assets/sound.wav","durationMs":1000,"hasAudio":true}])).unwrap();
+        p.components[0].tracks=serde_json::from_value(json!([{"id":"audio","name":"Audio","trackType":"audio","items":[{"type":"media","id":"sound","assetId":"sound","startMs":0,"durationMs":500,"sourceInMs":125,"audio":{"volume":1,"muted":false,"fadeInMs":10,"fadeOutMs":20},"keyframes":[]}]}])).unwrap();
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.audio_layers.len(), 1);
+        assert_eq!(scene.audio_layers[0].source_in_ms, 125);
+        assert_eq!(scene.audio_layers[0].instance.unwrap().rate, 0.75);
+        let mut group:TimelineItem=serde_json::from_value(json!({"type":"group","id":"group","startMs":0,"durationMs":1000,"hidden":true,"stackOrder":1,"transform2d":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"anchor":{"x":0,"y":0},"opacity":1}})).unwrap();
+        group.visual_properties_mut().stack_order = 1;
+        p.tracks[0].items[0].visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "root".into(),
+            id: "group".into(),
+        });
+        p.tracks[0].items.push(group);
+        assert_eq!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .audio_layers
+                .len(),
+            1
+        );
+        p.tracks[0].items[0].visual_properties_mut().hidden = true;
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .audio_layers
+                .is_empty()
+        );
+        p.tracks[0].items.pop();
+        p.tracks[0].items[0].visual_properties_mut().hidden = false;
+        p.tracks[0].items[0].visual_properties_mut().parent = None;
+        p.components[0].tracks[0].muted = true;
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .audio_layers
+                .is_empty()
+        );
+        p.components[0].tracks[0].muted = false;
+        let leaf = p.components[0].tracks[0].items[0].clone();
+        p.components[0].tracks[0].items = (0..64)
+            .map(|i| {
+                let mut v = leaf.clone();
+                if let TimelineItem::Media(m) = &mut v {
+                    m.id = format!("m{i}");
+                    m.visual_properties.stack_order = i;
+                }
+                v
+            })
+            .collect();
+        let instance = p.tracks[0].items[0].clone();
+        p.tracks[0].items = (0..64)
+            .map(|i| {
+                let mut v = instance.clone();
+                if let TimelineItem::ComponentInstance(m) = &mut v {
+                    m.id = format!("i{i}");
+                    m.visual_properties.stack_order = i;
+                }
+                v
+            })
+            .collect();
+        assert_eq!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .audio_layers
+                .len(),
+            4096
+        );
+        let mut extra = instance;
+        if let TimelineItem::ComponentInstance(i) = &mut extra {
+            i.id = "extra".into();
+            i.visual_properties.stack_order = 64;
+        }
+        p.tracks[0].items.push(extra);
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap_err()
+                .message
+                .contains("layer limit")
+        );
+    }
+
+    #[test]
+    fn canonical_half_open_clock_cases_and_hidden_nonfinite_clock() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/component-evaluation-v1.json"
+        ))
+        .unwrap();
+        for case in fixtures["clockCases"].as_array().unwrap() {
+            let parent = EvaluatedInstance {
+                rate: 1.0,
+                offset: 0.0,
+                start_ms: 0.0,
+                end_ms: 1000.0,
+                canvas: (100, 100),
+            };
+            let mut p = project();
+            let TimelineItem::ComponentInstance(i) = &mut p.tracks[0].items[0] else {
+                unreachable!()
+            };
+            i.start_ms = case["startMs"].as_u64().unwrap();
+            i.trim_start_ms = case["trimStartMs"].as_u64().unwrap();
+            i.duration_ms = case["durationMs"].as_u64().unwrap();
+            i.time_scale = case["timeScale"].as_f64().unwrap();
+            let clock = parent.child(i, (100, 100)).unwrap();
+            let t = case["parentMs"].as_f64().unwrap();
+            if let Some(expected) = case["localMs"].as_f64() {
+                assert_eq!(clock.rate * t + clock.offset, expected);
+            } else {
+                assert!(!(clock.start_ms <= t && t < clock.end_ms));
+            }
+        }
+        let mut p = project();
+        p.tracks[0].hidden = true;
+        if let TimelineItem::ComponentInstance(i) = &mut p.tracks[0].items[0] {
+            i.time_scale = 1e-310;
+        }
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap_err()
+                .message
+                .contains("non-finite")
+        );
+    }
+
+    #[test]
+    fn expanded_transition_facts_have_an_inclusive_limit() {
+        let mut p = project();
+        for (index, start) in [0, 400].into_iter().enumerate() {
+            p.components[0].tracks[0].items.push(serde_json::from_value(json!({"type":"transition","id":format!("fade{index}"),"transitionType":"fade","fromItemId":"same","startMs":start,"durationMs":100,"stackOrder":index+1})).unwrap());
+        }
+        let instance = p.tracks[0].items[0].clone();
+        p.tracks[0].items = (0..2048)
+            .map(|n| {
+                let mut v = instance.clone();
+                if let TimelineItem::ComponentInstance(i) = &mut v {
+                    i.id = format!("i{n}");
+                    i.visual_properties.stack_order = n;
+                }
+                v
+            })
+            .collect();
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(
+            scene
+                .visual_layers
+                .iter()
+                .map(|l| l.transitions.len())
+                .sum::<usize>(),
+            4096
+        );
+        let mut extra = instance;
+        if let TimelineItem::ComponentInstance(i) = &mut extra {
+            i.id = "extra".into();
+            i.visual_properties.stack_order = 2048;
+        }
+        p.tracks[0].items.push(extra);
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap_err()
+                .message
+                .contains("transition limit")
+        );
+    }
+
+    #[test]
+    fn expanded_visual_limit_is_inclusive_and_hidden_graph_is_validated() {
+        let mut p = project();
+        let leaf = p.components[0].tracks[0].items[0].clone();
+        p.components[0].tracks[0].items = (0..64)
+            .map(|i| {
+                let mut v = leaf.clone();
+                if let TimelineItem::Rectangle(r) = &mut v {
+                    r.id = format!("r{i}");
+                    r.visual_properties.stack_order = i;
+                }
+                v
+            })
+            .collect();
+        let instance = p.tracks[0].items[0].clone();
+        p.tracks[0].items = (0..64)
+            .map(|i| {
+                let mut v = instance.clone();
+                if let TimelineItem::ComponentInstance(r) = &mut v {
+                    r.id = format!("i{i}");
+                    r.visual_properties.stack_order = i;
+                }
+                v
+            })
+            .collect();
+        assert_eq!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .visual_layers
+                .len(),
+            4096
+        );
+        let mut extra = instance;
+        if let TimelineItem::ComponentInstance(r) = &mut extra {
+            r.id = "extra".into();
+            r.visual_properties.stack_order = 64;
+        }
+        p.tracks[0].items.push(extra);
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap_err()
+                .message
+                .contains("layer limit")
+        );
+        p.tracks[0].hidden = true;
+        assert!(
+            evaluate_project(&p, 100, 100, 30)
+                .unwrap()
+                .scene
+                .visual_layers
+                .is_empty()
+        );
+        if let TimelineItem::ComponentInstance(r) = &mut p.components[1].tracks[0].items[0] {
+            r.component_id = "missing".into();
+        }
+        assert_eq!(
+            evaluate_project(&p, 100, 100, 30).unwrap_err().code,
+            ErrorCode::ItemNotFound
+        );
+    }
+
+    #[test]
+    fn every_canonical_slot_kind_is_resolved_in_root_occurrences() {
+        let slots: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/template-slots-v1.json"))
+                .unwrap();
+        for fixture in slots["valid"].as_array().unwrap() {
+            let mut p = project();
+            p.components.truncate(1);
+            p.components[0].duration_ms = 1000;
+            p.components[0].tracks[0].items=serde_json::from_value(json!([{"type":"text","id":"title","text":"Base","fontSize":20,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}])).unwrap();
+            p.components[0].slots = serde_json::from_value(json!([fixture["slot"]])).unwrap();
+            if let TimelineItem::ComponentInstance(i) = &mut p.tracks[0].items[0] {
+                i.component_id = "leaf".into();
+                i.time_scale = 1.0;
+                i.start_ms = 0;
+                i.trim_start_ms = 0;
+                i.duration_ms = 1000;
+                i.visual_properties.transform = Transform::default();
+            }
+            let kind = fixture["id"].as_str().unwrap();
+            if kind == "asset" {
+                p.assets=serde_json::from_value(json!([{"id":"managed_asset","mediaType":"image","fileName":"image.png","projectRelativePath":"assets/image.png","durationMs":null,"hasAudio":false}])).unwrap();
+                p.components[0].tracks[0].items=serde_json::from_value(json!([{"type":"media","id":"media","assetId":"managed_asset","startMs":0,"durationMs":1000,"sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[]}])).unwrap();
+            }
+            let before = serde_json::to_value(&p).unwrap();
+            let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+            let layer = &scene.visual_layers[0];
+            if let EvaluatedVisualSource::Text(t) = &layer.source {
+                match kind {
+                    "text" | "rich_text" => assert_eq!(t.text, "Hello"),
+                    "color" => assert_eq!(t.color, "#12AbEf"),
+                    "enum" => assert_eq!(t.style.alignment, EvaluatedTextAlignment::Center),
+                    "duration" => assert_eq!(layer.instance.unwrap().end_ms, 500.0),
+                    "number" => assert_eq!(layer.transform.opacity, 0.5),
+                    "boolean" => assert_eq!(scene.visual_layers.len(), 1),
+                    _ => unreachable!(),
+                }
+            } else {
+                assert_eq!(scene.resources[0].asset_id, "managed_asset");
+            }
+            assert_eq!(serde_json::to_value(&p).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn root_slots_keep_independent_rich_runs_colors_and_defaults() {
+        let mut p = project();
+        let mut value = serde_json::to_value(&p).unwrap();
+        value["components"][0]["tracks"][0]["items"] = json!([{"type":"text","id":"same","text":"Base","fontSize":20,"color":"#ffffff","startMs":0,"durationMs":500,"keyframes":[],"stackOrder":0}]);
+        value["components"][0]["slots"] = json!([{"id":"__proto__","name":"Title","kind":"rich_text","required":true,"defaultValue":{"type":"rich_text","value":{"runs":[{"text":"Default","bold":true}]}},"binding":{"targetLayerId":"same","property":"text.document"},"constraints":{}}]);
+        value["tracks"][0]["items"][0]["componentId"] = json!("leaf");
+        value["tracks"][0]["items"][0]["durationMs"] = json!(300);
+        let mut second = value["tracks"][0]["items"][0].clone();
+        second["id"] = json!("second");
+        second["stackOrder"] = json!(1);
+        second["slotValues"] = json!({"__proto__":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}]}}});
+        value["tracks"][0]["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(second);
+        p = serde_json::from_value(value.clone()).unwrap();
+        let result = evaluate_project(&p, 100, 100, 30).unwrap();
+        let texts = result
+            .scene
+            .visual_layers
+            .iter()
+            .map(|l| match &l.source {
+                EvaluatedVisualSource::Text(t) => t,
+                _ => panic!("not text"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(texts[0].text, "Default");
+        assert_eq!(texts[0].rich_runs.as_ref().unwrap()[0].bold, Some(true));
+        assert_eq!(texts[1].text, "RedBlue");
+        assert_eq!(texts[1].rich_runs.as_ref().unwrap()[0].italic, Some(true));
+        assert_eq!(
+            texts[1].rich_runs.as_ref().unwrap()[1].color.as_deref(),
+            Some("#0000ff")
+        );
+        assert_eq!(
+            serde_json::to_value(&p).unwrap(),
+            serde_json::to_value(serde_json::from_value::<Project>(value).unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn bounded_shared_graph_rejects_exponential_expansion() {
+        let mut project = project();
+        project.components.clear();
+        for depth in 0..16 {
+            let mut definition:crate::ComponentDefinition=serde_json::from_value(json!({"id":format!("c{depth}"),"name":"C","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[]})).unwrap();
+            if depth > 0 {
+                let items=(0..2).map(|i|json!({"type":"component_instance","id":format!("i{i}"),"componentId":format!("c{}",depth-1),"startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"stackOrder":i})).collect::<Vec<_>>();
+                definition.tracks = serde_json::from_value(
+                    json!([{"id":"t","name":"T","trackType":"overlay","items":items}]),
+                )
+                .unwrap();
+            }
+            project.components.push(definition);
+        }
+        if let TimelineItem::ComponentInstance(instance) = &mut project.tracks[0].items[0] {
+            instance.component_id = "c15".into();
+        }
+        project.tracks[0].hidden = true;
+        assert!(evaluate_project(&project, 100, 100, 30).is_ok()); // 65535 occurrences.
+        let mut empty = project.tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(i) = &mut empty {
+            i.id = "empty".into();
+            i.component_id = "c0".into();
+            i.visual_properties.stack_order = 1;
+        }
+        project.tracks[0].items.push(empty);
+        assert!(evaluate_project(&project, 100, 100, 30).is_ok()); // Exactly 65536.
+        project.tracks[0].items.pop();
+        let mut second = project.tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(instance) = &mut second {
+            instance.id = "second".into();
+            instance.visual_properties.stack_order = 1;
+        }
+        project.tracks[0].items.push(second);
+        let error = evaluate_project(&project, 100, 100, 30).unwrap_err();
+        assert!(
+            error.message.contains("maxExpandedOccurrences"),
+            "{error:?}"
+        );
     }
 }

@@ -102,17 +102,6 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
 }
 
 pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> {
-    if project
-        .tracks
-        .iter()
-        .flat_map(|t| &t.items)
-        .any(|i| matches!(i, TimelineItem::ComponentInstance(_)))
-    {
-        return Err(CoreError::new(
-            ErrorCode::InvalidArgument,
-            "root component instances are not supported",
-        ));
-    }
     validate_scope(project, &project.tracks, "root")?;
     validate_components(project)
 }
@@ -443,6 +432,16 @@ pub(crate) fn validate_components(project: &Project) -> Result<(), CoreError> {
     for (i, component) in project.components.iter().enumerate() {
         edges[i] = validate_component_content(project, component, &definitions)?;
     }
+    for track in &project.tracks {
+        for item in &track.items {
+            if let TimelineItem::ComponentInstance(instance) = item {
+                if project.schema_version < 13 {
+                    return Err(invalid("root instances require schema 13"));
+                }
+                validate_instance(project, instance, track.track_type, &definitions)?;
+            }
+        }
+    }
     validate_template_slots(project, &definitions)?;
     // A bounded iterative leaf removal computes the longest path without recursive expansion.
     let mut depths = vec![None; edges.len()];
@@ -560,32 +559,8 @@ fn validate_component_content(
             }
             match item {
                 TimelineItem::ComponentInstance(instance) => {
-                    if track.track_type != TrackType::Overlay
-                        || instance.visual_properties.transform != Transform::default()
-                        || !instance.time_scale.is_finite()
-                        || instance.time_scale <= 0.0
-                        || instance.trim_start_ms > safe_time
-                    {
-                        return Err(invalid("invalid nested component instance"));
-                    }
                     let target =
-                        *definitions
-                            .get(instance.component_id.as_str())
-                            .ok_or_else(|| {
-                                CoreError::new(
-                                    ErrorCode::ItemNotFound,
-                                    "component definition not found",
-                                )
-                            })?;
-                    let source_end = instance.trim_start_ms as f64
-                        + instance.duration_ms as f64 * instance.time_scale;
-                    if !source_end.is_finite()
-                        || source_end > project.components[target].duration_ms as f64
-                    {
-                        return Err(invalid(
-                            "component instance source interval exceeds definition duration",
-                        ));
-                    }
+                        validate_instance(project, instance, track.track_type, definitions)?;
                     edges.push(target);
                 }
                 TimelineItem::Media(media) => {
@@ -937,6 +912,14 @@ fn validate_effective_slots(
     values: Option<&BTreeMap<String, SlotValue>>,
     definitions: &BTreeMap<&str, usize>,
 ) -> Result<(), CoreError> {
+    resolve_component_slots(project, component, values, definitions).map(|_| ())
+}
+pub(crate) fn resolve_component_slots(
+    project: &Project,
+    component: &ComponentDefinition,
+    values: Option<&BTreeMap<String, SlotValue>>,
+    definitions: &BTreeMap<&str, usize>,
+) -> Result<ComponentDefinition, CoreError> {
     if let Some(values) = values {
         for id in values.keys() {
             if !component.slots.iter().any(|s| &s.id == id) {
@@ -948,7 +931,7 @@ fn validate_effective_slots(
         }
     }
     if component.slots.is_empty() {
-        return Ok(());
+        return Ok(component.clone());
     }
     let mut effective = component.clone();
     for slot in &component.slots {
@@ -969,7 +952,7 @@ fn validate_effective_slots(
         }
     }
     validate_component_content(project, &effective, definitions)?;
-    Ok(())
+    Ok(effective)
 }
 fn validate_template_slots(
     project: &Project,
@@ -1001,6 +984,28 @@ fn validate_template_slots(
             return Err(slot_invalid("snapshot slot text limit exceeded"));
         }
     }
+    for instance in project
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .filter_map(|i| {
+            if let TimelineItem::ComponentInstance(v) = i {
+                Some(v)
+            } else {
+                None
+            }
+        })
+    {
+        if instance.slot_values.len() > 128 {
+            return Err(slot_invalid("instance slot count exceeded"));
+        }
+        for value in instance.slot_values.values() {
+            text = text.saturating_add(slot_text_size(value));
+        }
+    }
+    if text > 1_048_576 {
+        return Err(slot_invalid("snapshot slot text limit exceeded"));
+    }
     for component in &project.components {
         let mut ids = std::collections::BTreeSet::new();
         let mut writers = std::collections::BTreeSet::new();
@@ -1029,7 +1034,61 @@ fn validate_template_slots(
             }
         }
     }
+    for item in project.tracks.iter().flat_map(|t| &t.items) {
+        if let TimelineItem::ComponentInstance(instance) = item {
+            let target = definitions
+                .get(instance.component_id.as_str())
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            validate_effective_slots(
+                project,
+                &project.components[*target],
+                Some(&instance.slot_values),
+                definitions,
+            )?;
+        }
+    }
     Ok(())
+}
+
+fn validate_instance(
+    project: &Project,
+    instance: &crate::ComponentInstanceItem,
+    track_type: TrackType,
+    definitions: &BTreeMap<&str, usize>,
+) -> Result<usize, CoreError> {
+    const SAFE: u64 = 9_007_199_254_740_991;
+    if track_type != TrackType::Overlay
+        || instance.duration_ms == 0
+        || instance.duration_ms > SAFE
+        || instance.start_ms > SAFE
+        || instance
+            .start_ms
+            .checked_add(instance.duration_ms)
+            .is_none_or(|v| v > SAFE)
+        || instance.trim_start_ms > SAFE
+        || !instance.time_scale.is_finite()
+        || instance.time_scale <= 0.0
+    {
+        return Err(slot_invalid("invalid component instance interval or track"));
+    }
+    validate_transform(&instance.visual_properties.transform)
+        .map_err(|e| slot_invalid(&e.message))?;
+    if let Some(transform) = instance.visual_properties.transform2d {
+        transform.validate()?;
+        if instance.visual_properties.transform != Transform::default() {
+            return Err(slot_invalid("instance transform forms cannot be combined"));
+        }
+    }
+    let target = *definitions
+        .get(instance.component_id.as_str())
+        .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component definition not found"))?;
+    let end = instance.trim_start_ms as f64 + instance.duration_ms as f64 * instance.time_scale;
+    if !end.is_finite() || end > project.components[target].duration_ms as f64 {
+        return Err(slot_invalid(
+            "component instance source interval exceeds definition duration",
+        ));
+    }
+    Ok(target)
 }
 
 #[cfg(test)]

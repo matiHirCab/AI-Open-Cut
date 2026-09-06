@@ -267,7 +267,7 @@ fn canonical_component_operations_are_closed() {
 }
 
 #[test]
-fn component_item_defaults_closed_fields_and_unsupported_root_placement() {
+fn component_item_defaults_closed_fields_and_missing_root_reference() {
     let (_root, core, id) = setup();
     let mut create_group = create();
     create_group["tracks"] = json!([track(vec![
@@ -303,7 +303,7 @@ fn component_item_defaults_closed_fields_and_unsupported_root_placement() {
     let root_before = files(&core, &id);
     assert_eq!(
         core.get_project(&id).unwrap_err().code,
-        ErrorCode::InvalidArgument
+        ErrorCode::ItemNotFound
     );
     assert_eq!(files(&core, &id), root_before);
 }
@@ -625,7 +625,10 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
         )
         .unwrap();
         let migrated = core.get_project(&id).unwrap();
-        assert_eq!(migrated.schema_version, 12);
+        assert_eq!(
+            migrated.schema_version,
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         assert!(migrated.components.is_empty());
         let before = files(&core, &id);
         core.get_project(&id).unwrap();
@@ -637,7 +640,10 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
             .iter()
             .chain(history["redo"].as_array().unwrap())
         {
-            assert_eq!(s["schemaVersion"], 12);
+            assert_eq!(
+                s["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(s["components"], json!([]));
         }
     }
@@ -649,7 +655,7 @@ fn invalid_current_and_retained_components_never_rewrite() {
     let dir = core.paths().project_dir(&id).unwrap();
     let original = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     for history_case in [false, true] {
-        for version in [0, 12, 13] {
+        for version in [0, 12, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = original.clone();
             bad["schemaVersion"] = json!(version);
             if version == 12 {

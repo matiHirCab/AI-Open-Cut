@@ -24,6 +24,18 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 13
+        && project
+            .tracks
+            .iter()
+            .flat_map(|t| &t.items)
+            .any(|item| matches!(item, crate::TimelineItem::ComponentInstance(_)))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "root component instances require schema 13",
+        ));
+    }
     match project.schema_version {
         1..=8 => {
             for track in &mut project.tracks {
@@ -38,7 +50,8 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=11 => {
+        9..=12 => {
+            validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
@@ -50,6 +63,27 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             ),
         )),
     }
+}
+
+/// Check historical constraints before migration discards the source version.
+fn validate_source_component_transforms(project: &Project) -> Result<(), CoreError> {
+    if (11..=12).contains(&project.schema_version)
+        && project
+            .components
+            .iter()
+            .flat_map(|component| &component.tracks)
+            .flat_map(|track| &track.items)
+            .any(|item| {
+                matches!(item, crate::TimelineItem::ComponentInstance(instance)
+                    if instance.visual_properties.transform != crate::Transform::default())
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "non-default legacy component instance transforms require schema 13",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -121,5 +155,39 @@ mod tests {
             ErrorCode::InternalError
         );
         assert_eq!(serde_json::to_value((&current, &history)).unwrap(), before);
+    }
+
+    #[test]
+    fn source_schema_transform_failure_preserves_all_input_documents() {
+        for version in [11, 12] {
+            for location in 0..3 {
+                let mut invalid = project(version);
+                invalid.components = serde_json::from_value(serde_json::json!([
+                    {"id":"unused","name":"Unused","width":320,"height":240,"durationMs":1000,"slots":[],"tracks":[
+                        {"id":"local","name":"Local","trackType":"overlay","hidden":true,"items":[
+                            {"type":"component_instance","id":"nested","componentId":"leaf","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"transform":{"positionX":0,"positionY":0,"scale":2,"opacity":1}}
+                        ]}
+                    ]}
+                ])).unwrap();
+                let mut current = project(12);
+                let mut history = History {
+                    undo: vec![project(11)],
+                    redo: vec![project(12)],
+                };
+                match location {
+                    0 => current = invalid,
+                    1 => history.undo[0] = invalid,
+                    _ => history.redo[0] = invalid,
+                }
+                let before = serde_json::to_value((&current, &history)).unwrap();
+                assert_eq!(
+                    migrate_project_documents(&mut current, &mut history)
+                        .unwrap_err()
+                        .code,
+                    ErrorCode::InvalidArgument
+                );
+                assert_eq!(serde_json::to_value((&current, &history)).unwrap(), before);
+            }
+        }
     }
 }

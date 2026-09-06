@@ -650,7 +650,10 @@ fn canonical_all_kinds_roundtrip_defaults_overrides_history_and_reopen() {
             state["components"][1]["tracks"][0]["items"][0]["slotValues"],
             json!(values)
         );
-        assert_eq!(state["schemaVersion"], 12);
+        assert_eq!(
+            state["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let persisted = files(&core, &id);
         core.get_project(&id).unwrap();
         assert_eq!(files(&core, &id), persisted);

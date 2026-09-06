@@ -239,6 +239,7 @@ pub(crate) fn prepare_text_layers(
         result.insert(
             text.id.clone(),
             PreparedText {
+                rich_runs: None,
                 file_path: path,
                 font_path,
                 layer_width,
@@ -269,6 +270,13 @@ pub(crate) fn prepare_render_resources(
         text.prepared.file_path = workspace.join(&text.prepared.file_path);
         io.write(&text.prepared.file_path, text.content.as_bytes())
             .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+        if let Some(runs) = &mut text.prepared.rich_runs {
+            for run in runs {
+                run.file_path = workspace.join(&run.file_path);
+                io.write(&run.file_path, run.content.as_bytes())
+                    .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+            }
+        }
         text_layers.insert(id, text.prepared);
     }
     Ok(PreparedRenderResources {
@@ -448,6 +456,7 @@ pub(crate) fn measure_evaluated_text_layers(
                 layer.item_id.clone(),
                 MeasuredText {
                     prepared: PreparedText {
+                        rich_runs: None,
                         file_path: PathBuf::from(format!("text-{}.txt", layer.item_id)),
                         font_path: default_font_path.map(Path::to_path_buf),
                         layer_width: width,
@@ -486,6 +495,11 @@ pub(crate) fn measure_evaluated_text_layers(
             font_roots,
             warnings,
         );
+        if let Some(runs) = &text.rich_runs {
+            let measured = measure_rich_text(io, &layer.item_id, text, runs, font_path.as_deref())?;
+            result.insert(layer.item_id.clone(), measured);
+            continue;
+        }
         let content = wrap_text_with_io(
             io,
             &text.text,
@@ -546,6 +560,7 @@ pub(crate) fn measure_evaluated_text_layers(
             MeasuredText {
                 content,
                 prepared: PreparedText {
+                    rich_runs: None,
                     file_path: path,
                     font_path,
                     layer_width,
@@ -929,6 +944,186 @@ pub(crate) fn artifact_with(
         mime_type: mime_type.into(),
         size_bytes,
         warnings,
+    })
+}
+
+fn styled_font(
+    io: &dyn ArtifactIo,
+    base: Option<&Path>,
+    bold: bool,
+    italic: bool,
+) -> Result<Option<PathBuf>, CoreError> {
+    if !bold && !italic {
+        return Ok(base.map(Path::to_path_buf));
+    }
+    let base = base.ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "rich text styles require a configured font",
+        )
+    })?;
+    let parent = base.parent().ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "rich text font has no parent directory",
+        )
+    })?;
+    let stem = base.file_stem().unwrap_or_default().to_string_lossy();
+    let stem = stem
+        .trim_end_matches("-Regular")
+        .trim_end_matches("Regular");
+    let suffixes: &[&str] = match (bold, italic) {
+        (true, true) => &["-BoldItalic", "-BoldOblique", "BoldItalic", "bi"],
+        (true, false) => &["-Bold", "Bold", "bd", "b"],
+        (false, true) => &["-Italic", "-Oblique", "Italic", "i"],
+        _ => &[],
+    };
+    let parent = io.canonicalize_artifact_path(parent).map_err(|_| {
+        CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "rich text font directory unavailable",
+        )
+    })?;
+    for suffix in suffixes {
+        let candidate = parent.join(format!(
+            "{stem}{suffix}.{}",
+            base.extension().unwrap_or_default().to_string_lossy()
+        ));
+        if let Ok(path) = io.canonicalize_artifact_path(&candidate)
+            && path.starts_with(&parent)
+            && io.entry_kind(&path).ok() == Some(ArtifactEntryKind::File)
+        {
+            return Ok(Some(path));
+        }
+    }
+    Err(CoreError::new(
+        ErrorCode::DependencyUnavailable,
+        "configured font has no matching bold/italic face",
+    ))
+}
+fn measure_rich_text(
+    io: &dyn ArtifactIo,
+    id: &str,
+    text: &crate::evaluated_scene::EvaluatedText,
+    runs: &[crate::RichTextRun],
+    base: Option<&Path>,
+) -> Result<MeasuredText, CoreError> {
+    use crate::render_plan::PreparedTextRun;
+    let mut prepared_runs: Vec<PreparedTextRun> = vec![];
+    let mut line_widths = vec![0.0f64];
+    let mut line = 0usize;
+    let mut line_height = f64::from(text.font_size) * 1.2;
+    let mut run_lines = vec![];
+    for run in runs {
+        let font = styled_font(
+            io,
+            base,
+            run.bold.unwrap_or(false),
+            run.italic.unwrap_or(false),
+        )?;
+        let bytes = font.as_deref().and_then(|p| io.read(p).ok());
+        let face = bytes
+            .as_deref()
+            .and_then(|b| ttf_parser::Face::parse(b, 0).ok());
+        let metrics = measure_text_block(io, &run.text, text.font_size, font.as_deref());
+        line_height = line_height.max(metrics.height / metrics.line_count as f64);
+        let mut content = String::new();
+        let mut start = line_widths[line];
+        let flush = |content: &mut String,
+                     start: f64,
+                     line: usize,
+                     prepared: &mut Vec<PreparedTextRun>,
+                     lines: &mut Vec<usize>| {
+            if content.is_empty() {
+                return;
+            }
+            prepared.push(PreparedTextRun {
+                file_path: PathBuf::from(format!("text-{id}-run-{}.txt", prepared.len())),
+                font_path: font.clone(),
+                content: std::mem::take(content),
+                color: run.color.clone().unwrap_or_else(|| text.color.clone()),
+                x: start,
+                y: 0.0,
+            });
+            lines.push(line);
+        };
+        for character in run.text.chars() {
+            let width = measure_text_run(&character.to_string(), text.font_size, face.as_ref());
+            if character == '\n'
+                || text.style.wrap_width_px.is_some_and(|max| {
+                    line_widths[line] > 0.0 && line_widths[line] + width > f64::from(max)
+                })
+            {
+                flush(
+                    &mut content,
+                    start,
+                    line,
+                    &mut prepared_runs,
+                    &mut run_lines,
+                );
+                line += 1;
+                line_widths.push(0.0);
+                start = 0.0;
+                if character == '\n' {
+                    continue;
+                }
+            }
+            content.push(character);
+            line_widths[line] += width;
+        }
+        flush(
+            &mut content,
+            start,
+            line,
+            &mut prepared_runs,
+            &mut run_lines,
+        );
+    }
+    let width = line_widths.iter().copied().fold(0.0, f64::max);
+    let x = text.style.padding.left
+        + text.style.outline_width_px
+        + text.style.shadow.offset_x.min(0).unsigned_abs();
+    let y = text.style.padding.top
+        + text.style.outline_width_px
+        + text.style.shadow.offset_y.min(0).unsigned_abs();
+    let spacing = line_height + f64::from(text.style.line_spacing_px);
+    for (run, line) in prepared_runs.iter_mut().zip(run_lines) {
+        use crate::evaluated_scene::EvaluatedTextAlignment::*;
+        let offset = match text.style.alignment {
+            Left => 0.0,
+            Center => (width - line_widths[line]) / 2.0,
+            Right => width - line_widths[line],
+        };
+        run.x += f64::from(x) + offset;
+        run.y = f64::from(y) + line as f64 * spacing;
+    }
+    let w = (width.ceil() as u32)
+        .saturating_add(x)
+        .saturating_add(text.style.padding.right)
+        .saturating_add(text.style.outline_width_px)
+        .saturating_add(text.style.shadow.offset_x.max(0) as u32)
+        .saturating_add(2)
+        .max(1);
+    let h = ((line_height + line as f64 * spacing).max(1.0).ceil() as u32)
+        .saturating_add(y)
+        .saturating_add(text.style.padding.bottom)
+        .saturating_add(text.style.outline_width_px)
+        .saturating_add(text.style.shadow.offset_y.max(0) as u32)
+        .saturating_add(2)
+        .max(1);
+    Ok(MeasuredText {
+        content: text.text.clone(),
+        prepared: PreparedText {
+            rich_runs: Some(prepared_runs),
+            file_path: PathBuf::from(format!("text-{id}.txt")),
+            font_path: base.map(Path::to_path_buf),
+            layer_width: w,
+            layer_height: h,
+            canvas_width: w,
+            canvas_height: h,
+            text_x: x,
+            text_y: y,
+        },
     })
 }
 

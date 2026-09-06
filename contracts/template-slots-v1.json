@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "runtime",
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "capability": "typed_template_slots",
   "slotKinds": [
     "text",

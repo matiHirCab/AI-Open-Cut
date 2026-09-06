@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 12;
+pub const PROJECT_SCHEMA_VERSION: u32 = 13;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -49,6 +49,22 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        for item in value
+            .tracks
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|track| track["items"].as_array().into_iter().flatten())
+        {
+            if item["type"] == "component_instance" {
+                if value.schema_version < 13 {
+                    return Err("root component instances require schema 13".into());
+                }
+                if item.get("slotValues").is_none() {
+                    return Err("schema 13 requires root slotValues".into());
+                }
+            }
+        }
         if (9..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version) {
             for track in value.tracks.as_array().into_iter().flatten() {
                 for item in track["items"].as_array().into_iter().flatten() {
@@ -1175,6 +1191,34 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    AddComponentInstance {
+        track_id: String,
+        component_id: String,
+        start_ms: u64,
+        trim_start_ms: u64,
+        duration_ms: u64,
+        time_scale: f64,
+        #[serde(default)]
+        slot_values: std::collections::BTreeMap<String, SlotValue>,
+        #[serde(default)]
+        transform: Transform,
+        transform2d: Option<Transform2D>,
+        #[serde(default)]
+        hidden: bool,
+        #[serde(default)]
+        z_index: i32,
+        parent: Option<ParentReference>,
+    },
+    ComponentInstanceUpdate {
+        item_id: String,
+        component_id: String,
+        start_ms: u64,
+        trim_start_ms: u64,
+        duration_ms: u64,
+        time_scale: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
+    },
     ComponentCreate {
         name: String,
         width: u32,
@@ -1387,6 +1431,34 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    AddComponentInstance {
+        track_id: String,
+        component_id: String,
+        start_ms: u64,
+        trim_start_ms: u64,
+        duration_ms: u64,
+        time_scale: f64,
+        #[serde(default)]
+        slot_values: std::collections::BTreeMap<String, SlotValue>,
+        #[serde(default)]
+        transform: Transform,
+        transform2d: Option<Transform2D>,
+        #[serde(default)]
+        hidden: bool,
+        #[serde(default)]
+        z_index: i32,
+        parent: Option<ParentReference>,
+    },
+    ComponentInstanceUpdate {
+        item_id: String,
+        component_id: String,
+        start_ms: u64,
+        trim_start_ms: u64,
+        duration_ms: u64,
+        time_scale: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
+    },
     ComponentCreate {
         name: String,
         width: u32,
@@ -1602,7 +1674,38 @@ impl<'de> Deserialize<'de> for EditOperation {
         if value.get("slots").is_some_and(serde_json::Value::is_null) {
             return Err(serde::de::Error::custom("slots cannot be null"));
         }
+        if value
+            .get("slotValues")
+            .is_some_and(serde_json::Value::is_null)
+        {
+            return Err(serde::de::Error::custom("slotValues cannot be null"));
+        }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("add_component_instance") => Some(&[
+                "operation",
+                "trackId",
+                "componentId",
+                "startMs",
+                "trimStartMs",
+                "durationMs",
+                "timeScale",
+                "slotValues",
+                "transform",
+                "transform2d",
+                "hidden",
+                "zIndex",
+                "parent",
+            ]),
+            Some("component_instance_update") => Some(&[
+                "operation",
+                "itemId",
+                "componentId",
+                "startMs",
+                "trimStartMs",
+                "durationMs",
+                "timeScale",
+                "slotValues",
+            ]),
             Some("component_create") => Some(&[
                 "operation",
                 "name",
@@ -1674,6 +1777,7 @@ impl<'de> Deserialize<'de> for BatchEditOperation {
         if matches!(
             fields.edit,
             EditOperation::GroupUngroup { .. }
+                | EditOperation::ComponentInstanceUpdate { .. }
                 | EditOperation::ComponentUpdate { .. }
                 | EditOperation::ComponentDefineSlots { .. }
                 | EditOperation::ComponentDelete { .. }

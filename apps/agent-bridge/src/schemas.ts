@@ -799,7 +799,7 @@ const transitionItemSchema = z
   })
   .strict();
 
-export const timelineItemSchema = z.discriminatedUnion("type", [
+const baseTimelineItemSchema = z.discriminatedUnion("type", [
   z
     .object({
       durationMs: positiveMilliseconds,
@@ -993,6 +993,36 @@ export const componentInstanceSchema = z
     zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
   })
   .strict();
+export const timelineItemSchema = z.discriminatedUnion("type", [
+  ...baseTimelineItemSchema.options,
+  componentInstanceSchema,
+]);
+export const instanceTimingSchema = z
+  .object({
+    componentId: id,
+    durationMs: positiveMilliseconds,
+    startMs: milliseconds,
+    timeScale: finite.positive(),
+    trimStartMs: milliseconds,
+  })
+  .strict();
+export const addComponentInstanceSchema = instanceTimingSchema
+  .extend({
+    hidden: z.boolean().optional(),
+    parent: parentReferenceSchema.nullable().optional(),
+    slotValues: slotValuesSchema.optional(),
+    trackId: id,
+    transform: transformSchema.optional(),
+    transform2d: transform2dSchema.nullable().optional(),
+    zIndex: z.int().min(-2_147_483_648).max(2_147_483_647).optional(),
+  })
+  .strict();
+export const componentInstanceUpdateSchema = instanceTimingSchema
+  .extend({
+    itemId: id,
+    slotValues: slotValuesSchema.optional(),
+  })
+  .strict();
 export const componentTrackSchema = z
   .object({
     audioRole: audioRoleSchema.default("unassigned"),
@@ -1157,7 +1187,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(12),
+        schemaVersion: z.literal(13),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1245,6 +1275,18 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  addComponentInstanceSchema
+    .extend({
+      operation: z.literal("add_component_instance"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
+    .strict(),
+  componentInstanceUpdateSchema
+    .extend({ operation: z.literal("component_instance_update") })
+    .strict(),
   z
     .object({
       componentId: id,
@@ -1505,6 +1547,9 @@ export const editDraftSchema = z
   .strict();
 
 export const schemas = {
+  addComponentInstance: projectRevisionSchema
+    .extend(addComponentInstanceSchema.shape)
+    .strict(),
   addGroup: projectRevisionSchema
     .extend({
       durationMs: positiveMilliseconds,
@@ -1528,6 +1573,9 @@ export const schemas = {
     .extend({ componentId: id, slots: z.array(templateSlotSchema).max(128) })
     .strict(),
   componentDelete: projectRevisionSchema.extend({ componentId: id }).strict(),
+  componentInstanceUpdate: projectRevisionSchema
+    .extend(componentInstanceUpdateSchema.shape)
+    .strict(),
   componentUpdate: projectRevisionSchema
     .extend(componentFieldsSchema.shape)
     .extend({ componentId: id })
