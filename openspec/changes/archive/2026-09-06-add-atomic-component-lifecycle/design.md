@@ -36,4 +36,4 @@ Map each delta scenario to automated tests in verification.md as tasks progress.
 
 ## Open Questions
 
-The user approved this API and complete-replacement semantics on 2026-09-06. Final contract-owner review of implementation evidence remains required before archive.
+The user approved this API and complete-replacement semantics on 2026-09-06. Final contract-owner review of the implementation and canonical consumers was approved by @matiHirCab on 2026-09-06 with "Approve final contract review and commit"; see verification.md.

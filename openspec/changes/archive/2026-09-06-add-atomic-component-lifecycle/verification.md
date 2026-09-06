@@ -39,23 +39,23 @@ All changed normative behavior has automated evidence. Provider workers and prov
 - `bun run test:integration`: 9 source integration tests passed, including complete lifecycle and all slot kinds.
 - `bun run test:smoke`: 4 packaged smoke tests passed, including the shared lifecycle workflows.
 - Pinned OpenSpec `validate --all --strict --no-interactive`: 18 items passed.
-- `moon run openspec-validate` via pinned @moonrepo/cli@2.3.3: normalization, 231 policy tests and all 18 OpenSpec items passed; final archive-only policy correctly rejected this active change. Rerun after approved archival.
+- `moon run openspec-validate` via pinned @moonrepo/cli@2.3.3: final post-archive run passed normalization, all 231 policy tests, all 17 living specifications and the CI parity/archive-only policy. The earlier pre-archive rejection is resolved.
 - `git diff --check`: passed.
 
 Real rendering uses temporary FFmpeg/FFprobe 7.1.1 and the repository's DejaVuSans.ttf fixture. The installed newer FFmpeg rejected the existing filter_complex_script option; its installation and renderer implementation were not changed. The host Arial font was not the reviewed golden identity; the final run uses the bundled fixture.
 
-## Remaining gates
+## Final contract-owner approval
 
-1. Obtain designated @matiHirCab review of the concrete canonical contract/consumer diff. Proposal approval is recorded but is not represented as review of subsequently written implementation.
-2. Once verified and reviewed, synchronize delta specs, archive using openspec-archive-change, and rerun Moon validation. No archive or merge-ready claim is made before these gates pass.
+Designated owner @matiHirCab approved the concrete canonical contract and consumer implementation in PR #111 at commit 69f91e1a88ee6e545c41971a8e9719d4043aa773 on 2026-09-06 with the explicit message "Approve final contract review and commit". This approval is distinct from the earlier proposal and amendment approvals.
+The four approved requirements are synchronized to the agent-bridge, component-evaluation and motion-graphics-contracts living specs. The change is archived at openspec/changes/archive/2026-09-06-add-atomic-component-lifecycle. Post-archive Moon validation passed; executable implementation and previously verified scenario coverage are unchanged.
 
 
 ## Final assessment
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | Implementation, scenario coverage and executable checks complete; 12/15 lifecycle tasks complete. Tasks 5.4–5.6 retain final owner review, archival and the post-archive Moon gate. |
+| Completeness | Implementation, scenario coverage and executable checks complete; 15/15 lifecycle tasks complete, including designated owner approval, synchronization, archival and the post-archive Moon gate. |
 | Correctness | Approved behavior and amendment match code; no unresolved scenario mismatch. |
 | Coherence | Core owns semantics, transports adapt typed input, schema/protocol compatibility is preserved, no new dependency edge. |
 
-CRITICAL merge-readiness gates: designated contract-owner review is pending; the change is intentionally active and living requirements are not yet synchronized; Moon therefore fails its archive-only policy. Obtain review of this concrete diff, archive/synchronize, then rerun Moon. These are not represented as passed checks or completed work.
+All required local checks and lifecycle gates passed. Contract-owner review, living-spec synchronization and archival are complete. No unresolved completeness, correctness or coherence findings remain. Remote PR checks remain subject to GitHub CI.
