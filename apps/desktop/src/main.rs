@@ -4,9 +4,14 @@ use gpui::{
 };
 
 mod components;
+mod hierarchy;
 mod panels;
+mod session;
 mod shell;
 mod theme;
+
+#[cfg(test)]
+mod tests;
 
 use shell::Shell;
 
@@ -30,7 +35,11 @@ fn main() {
         }
     }
 
-    Application::new().run(|cx: &mut App| {
+    let startup = session::Startup::parse(std::env::args_os().skip(1)).unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    Application::new().run(move |cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(960.), px(600.)), cx);
         cx.open_window(
             WindowOptions {
@@ -48,7 +57,7 @@ fn main() {
                     })
                     .detach();
 
-                    Shell::new(cx)
+                    Shell::new(startup.clone(), cx)
                 })
             },
         )
