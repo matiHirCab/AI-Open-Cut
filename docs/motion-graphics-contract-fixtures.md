@@ -1,5 +1,7 @@
 # Motion-graphics contract fixtures
 
+The additive [component lifecycle](component-lifecycle.md) contract in `contracts/component-lifecycle-v1.json` governs `component_instance_duplicate`, creation aliases and override replacement. It retains protocol 1 and schema 13, with native, headless, Zod, source integration and packaged smoke evidence.
+
 `contracts/motion-graphics-v1.json` is the canonical, versioned vocabulary for the motion-graphics initiative. It defines lower-camel-case fields, lower-snake-case tagged variants, identifier catalogs, observable semantics, explicit safety limits, and deterministic valid and invalid examples shared by Rust and TypeScript consumers.
 
 Every valid concept payload is parsed by a closed test-only Rust Serde declaration and a mirrored strict TypeScript Zod schema. The validators derive logical definitions and references from payload fields and require exact agreement with structured `{ kind, scope, id }` metadata. Scopes are `project`, `root`, or `component:<id>`; reference closure uses the complete tuple rather than an unscoped string. Fixture IDs are unique across the combined valid and invalid collections so validation results cannot overwrite one another.

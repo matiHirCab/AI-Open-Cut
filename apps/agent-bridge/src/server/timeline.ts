@@ -65,6 +65,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "component_instance_duplicate",
+    {
+      annotations: WRITE,
+      description:
+        "Duplicate a root component instance with optional complete slot override replacement.",
+      inputSchema: schemas.componentInstanceDuplicate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "component_instance_duplicate",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "component_instance_update",
     {
       annotations: WRITE,

@@ -1209,6 +1209,12 @@ pub enum EditOperation {
         z_index: i32,
         parent: Option<ParentReference>,
     },
+    ComponentInstanceDuplicate {
+        item_id: String,
+        offset_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
+    },
     ComponentInstanceUpdate {
         item_id: String,
         component_id: String,
@@ -1448,6 +1454,12 @@ enum EditOperationDef {
         #[serde(default)]
         z_index: i32,
         parent: Option<ParentReference>,
+    },
+    ComponentInstanceDuplicate {
+        item_id: String,
+        offset_ms: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
     },
     ComponentInstanceUpdate {
         item_id: String,
@@ -1696,6 +1708,9 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "zIndex",
                 "parent",
             ]),
+            Some("component_instance_duplicate") => {
+                Some(&["operation", "itemId", "offsetMs", "slotValues"])
+            }
             Some("component_instance_update") => Some(&[
                 "operation",
                 "itemId",

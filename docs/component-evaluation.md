@@ -1,5 +1,7 @@
 # Component instance evaluation
 
+For atomic creation, slot definition, instantiation and duplication with overrides, see [component lifecycle](component-lifecycle.md).
+
 Schema 13 activates root overlay instances. Protocol 1 advertises `component_instance_evaluation`. Definitions remain shared and immutable during evaluation; placing an instance adds its active interval to the root timeline. Frame preview, range preview, draft preview and export use the same core scene and rendering path.
 
 Use `add_component_instance` with `trackId`, `componentId`, `startMs`, `trimStartMs`, `durationMs`, `timeScale`, and optional `slotValues`, `transform` or `transform2d`, `hidden`, `zIndex` and root `parent`. Identity, transform, visibility and order defaults match ordinary root items. `component_instance_update` accepts `itemId` and the complete component/timing tuple; omitted `slotValues` preserves overrides and an explicit map replaces them. Both are headless edits and standalone MCP tools with `projectId` and `expectedRevision`. Aliased batches can refer to earlier definition/instance creations; only creation produces `resultAlias`.

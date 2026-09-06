@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
+import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
@@ -48,6 +49,13 @@ import {
   assertMalformedPayloadRegressions,
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
+
+const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
+  readFileSync(
+    new URL("../../../contracts/component-lifecycle-v1.json", import.meta.url),
+    "utf8"
+  )
+);
 
 const TYPECHECK_GATE_PREFIX = /^bun run typecheck && /;
 
@@ -314,6 +322,7 @@ describe("canonical public contracts", () => {
       EVALUATED_SCENE_RENDERING_CAPABILITY
     );
     expect(MCP_SURFACE.capabilityIdentifiers).toEqual([
+      LIFECYCLE.capability,
       EVALUATED_SCENE_RENDERING_CAPABILITY,
     ]);
     expect(Object.keys(status)).toEqual(
@@ -892,5 +901,45 @@ it("matches canonical component instance structural fixtures standalone and in b
   }
   for (const operation of INSTANCE_CATALOG.invalidOperations) {
     expect(headlessEditSchema.safeParse(operation).success).toBe(false);
+  }
+});
+
+it("matches lifecycle duplication fixtures across standalone and batch contracts", () => {
+  for (const edit of LIFECYCLE.validOperations) {
+    expect(headlessEditSchema.safeParse(edit).success).toBe(true);
+    const { operation: _operation, ...fields } = edit;
+    expect(
+      schemas.componentInstanceDuplicate.safeParse({
+        expectedRevision: 0,
+        projectId: "project",
+        ...fields,
+      }).success
+    ).toBe(true);
+    expect(
+      schemas.timelineBatchEdit.safeParse({
+        expectedRevision: 0,
+        operations: [edit],
+        projectId: "project",
+      }).success
+    ).toBe(true);
+  }
+  for (const edit of LIFECYCLE.invalidOperations) {
+    expect(headlessEditSchema.safeParse(edit).success).toBe(false);
+    const { operation: _operation, ...fields } = edit;
+    expect(
+      schemas.componentInstanceDuplicate.safeParse({
+        expectedRevision: 0,
+        projectId: "project",
+        ...fields,
+      }).success
+    ).toBe(false);
+  }
+  for (const fixture of LIFECYCLE.semanticFailures) {
+    expect(headlessEditSchema.safeParse(fixture.edit).success).toBe(
+      fixture.mcpAccept
+    );
+  }
+  for (const edit of LIFECYCLE.validBatch) {
+    expect(headlessEditSchema.safeParse(edit).success).toBe(true);
   }
 });

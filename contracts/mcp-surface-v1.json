@@ -1,5 +1,6 @@
 {
   "capabilityIdentifiers": [
+    "component_lifecycle",
     "evaluated_scene_rendering"
   ],
   "prompts": [
@@ -4653,6 +4654,306 @@
         "type": "object"
       }
     },
+    "component_instance_duplicate": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "offsetMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slotValues": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "text",
+                      "type": "string"
+                    },
+                    "value": {
+                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "rich_text",
+                      "type": "string"
+                    },
+                    "value": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "color",
+                      "type": "string"
+                    },
+                    "value": {
+                      "pattern": "^#[0-9A-Fa-f]{6}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "number",
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "boolean",
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "enum",
+                      "type": "string"
+                    },
+                    "value": {
+                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "duration",
+                      "type": "string"
+                    },
+                    "value": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "asset",
+                      "type": "string"
+                    },
+                    "value": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "const": "asset",
+                          "type": "string"
+                        },
+                        "scope": {
+                          "const": "project",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "scope"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "itemId",
+          "offsetMs"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
     "component_instance_update": {
       "annotations": {
         "destructiveHint": false,
@@ -9005,6 +9306,240 @@
                     "timeScale",
                     "trimStartMs",
                     "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
                     "operation"
                   ],
                   "type": "object"
@@ -18090,6 +18625,240 @@
                     "timeScale",
                     "trimStartMs",
                     "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
                     "operation"
                   ],
                   "type": "object"
@@ -27413,6 +28182,240 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "componentId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -36722,6 +37725,240 @@
                     "timeScale",
                     "trimStartMs",
                     "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
                     "operation"
                   ],
                   "type": "object"
@@ -46648,6 +47885,240 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "componentId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -55933,6 +57404,240 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "componentId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -65012,6 +66717,240 @@
                     "timeScale",
                     "trimStartMs",
                     "itemId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
                     "operation"
                   ],
                   "type": "object"
@@ -95704,6 +97643,240 @@
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "itemId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "operation": {
+                      "const": "component_instance_duplicate",
+                      "type": "string"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "slotValues": {
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "rich_text",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "color",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "number",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "boolean",
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "enum",
+                                "type": "string"
+                              },
+                              "value": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "duration",
+                                "type": "string"
+                              },
+                              "value": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "const": "asset",
+                                "type": "string"
+                              },
+                              "value": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "const": "asset",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "const": "project",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "kind",
+                                  "scope"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "itemId",
+                    "offsetMs",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
                     "componentId": {
                       "maxLength": 128,
                       "minLength": 1,
@@ -111019,6 +113192,7 @@
     "component_create",
     "component_define_slots",
     "component_delete",
+    "component_instance_duplicate",
     "component_instance_update",
     "component_update",
     "draft_commit",
