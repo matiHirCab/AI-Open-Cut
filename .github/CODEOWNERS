@@ -44,3 +44,10 @@
 
 /crates/editor-core/tests/template_slots.rs @matiHirCab
 /crates/editor-core/tests/component_lifecycle.rs @matiHirCab
+
+# Vector primitive contract consumers.
+/crates/editor-core/src/vector.rs @matiHirCab
+/crates/editor-core/tests/vector_primitives.rs @matiHirCab
+/apps/agent-bridge/src/vector-primitives.ts @matiHirCab
+/apps/agent-bridge/tests/vector-primitives.test.ts @matiHirCab
+/docs/vector-primitives.md @matiHirCab

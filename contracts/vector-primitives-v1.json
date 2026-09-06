@@ -1,0 +1,6443 @@
+{
+  "version": 1,
+  "activation": "core_primitives_only",
+  "limits": {
+    "maxCoordinate": 1000000,
+    "maxGradientStops": 64,
+    "maxDashEntries": 64,
+    "maxPathCommands": 4096,
+    "maxDimension": 16384,
+    "maxMiterLimit": 1000
+  },
+  "identifiers": {
+    "paint": [
+      "solid",
+      "linearGradient",
+      "radialGradient"
+    ],
+    "lineCap": [
+      "butt",
+      "round",
+      "square"
+    ],
+    "lineJoin": [
+      "miter",
+      "round",
+      "bevel"
+    ],
+    "fillRule": [
+      "nonzero",
+      "evenodd"
+    ],
+    "command": [
+      "moveTo",
+      "lineTo",
+      "quadraticTo",
+      "cubicTo",
+      "close"
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "representation-tagged-paint-solid-sequence",
+      "kind": "paint",
+      "value": [
+        "solid",
+        {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-paint-linearGradient-sequence",
+      "kind": "paint",
+      "value": [
+        "linearGradient",
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 1
+        },
+        [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-paint-radialGradient-sequence",
+      "kind": "paint",
+      "value": [
+        "radialGradient",
+        {
+          "x": 0,
+          "y": 0
+        },
+        1,
+        [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-pathCommand-moveTo-sequence",
+      "kind": "pathCommand",
+      "value": [
+        "moveTo",
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-pathCommand-lineTo-sequence",
+      "kind": "pathCommand",
+      "value": [
+        "lineTo",
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-pathCommand-quadraticTo-sequence",
+      "kind": "pathCommand",
+      "value": [
+        "quadraticTo",
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-pathCommand-cubicTo-sequence",
+      "kind": "pathCommand",
+      "value": [
+        "cubicTo",
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-tagged-pathCommand-close-sequence",
+      "kind": "pathCommand",
+      "value": [
+        "close"
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-nested-command-sequence",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          [
+            "moveTo",
+            {
+              "x": 0,
+              "y": 0
+            }
+          ]
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-stroke-nested-paint-sequence",
+      "kind": "stroke",
+      "value": {
+        "paint": [
+          "solid",
+          {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        ],
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-color-array",
+      "kind": "color",
+      "value": [
+        1,
+        0,
+        0,
+        1
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-point-array",
+      "kind": "point",
+      "value": [
+        10,
+        20
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradientStop-array",
+      "kind": "gradientStop",
+      "value": [
+        0,
+        {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-stroke-array",
+      "kind": "stroke",
+      "value": [
+        {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        1,
+        [],
+        0,
+        "butt",
+        "miter",
+        4
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-cornerRadii-array",
+      "kind": "cornerRadii",
+      "value": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-array",
+      "kind": "path",
+      "value": [
+        "nonzero",
+        [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          }
+        ]
+      ],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradientStop-valid",
+      "kind": "gradientStop",
+      "value": {
+        "offset": 0,
+        "color": {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-lineCap-butt-string",
+      "kind": "lineCap",
+      "value": "butt",
+      "valid": true
+    },
+    {
+      "id": "representation-lineCap-butt-object",
+      "kind": "lineCap",
+      "value": {
+        "butt": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-round-string",
+      "kind": "lineCap",
+      "value": "round",
+      "valid": true
+    },
+    {
+      "id": "representation-lineCap-round-object",
+      "kind": "lineCap",
+      "value": {
+        "round": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-square-string",
+      "kind": "lineCap",
+      "value": "square",
+      "valid": true
+    },
+    {
+      "id": "representation-lineCap-square-object",
+      "kind": "lineCap",
+      "value": {
+        "square": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-array",
+      "kind": "lineCap",
+      "value": [],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-number",
+      "kind": "lineCap",
+      "value": 1,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-unknown",
+      "kind": "lineCap",
+      "value": "unknown",
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineCap-null",
+      "kind": "lineCap",
+      "value": null,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-miter-string",
+      "kind": "lineJoin",
+      "value": "miter",
+      "valid": true
+    },
+    {
+      "id": "representation-lineJoin-miter-object",
+      "kind": "lineJoin",
+      "value": {
+        "miter": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-round-string",
+      "kind": "lineJoin",
+      "value": "round",
+      "valid": true
+    },
+    {
+      "id": "representation-lineJoin-round-object",
+      "kind": "lineJoin",
+      "value": {
+        "round": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-bevel-string",
+      "kind": "lineJoin",
+      "value": "bevel",
+      "valid": true
+    },
+    {
+      "id": "representation-lineJoin-bevel-object",
+      "kind": "lineJoin",
+      "value": {
+        "bevel": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-array",
+      "kind": "lineJoin",
+      "value": [],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-number",
+      "kind": "lineJoin",
+      "value": 1,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-unknown",
+      "kind": "lineJoin",
+      "value": "unknown",
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-lineJoin-null",
+      "kind": "lineJoin",
+      "value": null,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-nonzero-string",
+      "kind": "fillRule",
+      "value": "nonzero",
+      "valid": true
+    },
+    {
+      "id": "representation-fillRule-nonzero-object",
+      "kind": "fillRule",
+      "value": {
+        "nonzero": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-evenodd-string",
+      "kind": "fillRule",
+      "value": "evenodd",
+      "valid": true
+    },
+    {
+      "id": "representation-fillRule-evenodd-object",
+      "kind": "fillRule",
+      "value": {
+        "evenodd": null
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-array",
+      "kind": "fillRule",
+      "value": [],
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-number",
+      "kind": "fillRule",
+      "value": 1,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-unknown",
+      "kind": "fillRule",
+      "value": "unknown",
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-fillRule-null",
+      "kind": "fillRule",
+      "value": null,
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-paint-color-array",
+      "kind": "paint",
+      "value": {
+        "type": "solid",
+        "color": [
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-stroke-paint-color-array",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": [
+            1,
+            0,
+            0,
+            1
+          ]
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradient-start-array",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": [
+          10,
+          20
+        ],
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradient-end-array",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 10,
+          "y": 20
+        },
+        "end": [
+          10,
+          20
+        ],
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-radial-center-array",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": [
+          10,
+          20
+        ],
+        "radius": 1,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradient-stop-array",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 10,
+          "y": 20
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          [
+            0,
+            {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          ],
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-gradient-stop-color-array",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 10,
+          "y": 20
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": [
+              1,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-moveTo-valid",
+      "kind": "pathCommand",
+      "value": {
+        "type": "moveTo",
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-command-moveTo-to-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "moveTo",
+        "to": [
+          10,
+          20
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-moveTo-to-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "moveTo",
+            "to": [
+              10,
+              20
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-lineTo-valid",
+      "kind": "pathCommand",
+      "value": {
+        "type": "lineTo",
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-command-lineTo-to-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "lineTo",
+        "to": [
+          10,
+          20
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-lineTo-to-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": [
+              10,
+              20
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-quadraticTo-valid",
+      "kind": "pathCommand",
+      "value": {
+        "type": "quadraticTo",
+        "control": {
+          "x": 10,
+          "y": 20
+        },
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-command-quadraticTo-control-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "quadraticTo",
+        "control": [
+          10,
+          20
+        ],
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-quadraticTo-control-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": [
+              10,
+              20
+            ],
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-quadraticTo-to-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "quadraticTo",
+        "control": {
+          "x": 10,
+          "y": 20
+        },
+        "to": [
+          10,
+          20
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-quadraticTo-to-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 10,
+              "y": 20
+            },
+            "to": [
+              10,
+              20
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-cubicTo-valid",
+      "kind": "pathCommand",
+      "value": {
+        "type": "cubicTo",
+        "control1": {
+          "x": 10,
+          "y": 20
+        },
+        "control2": {
+          "x": 10,
+          "y": 20
+        },
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-command-cubicTo-control1-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "cubicTo",
+        "control1": [
+          10,
+          20
+        ],
+        "control2": {
+          "x": 10,
+          "y": 20
+        },
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-cubicTo-control1-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": [
+              10,
+              20
+            ],
+            "control2": {
+              "x": 10,
+              "y": 20
+            },
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-cubicTo-control2-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "cubicTo",
+        "control1": {
+          "x": 10,
+          "y": 20
+        },
+        "control2": [
+          10,
+          20
+        ],
+        "to": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-cubicTo-control2-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 10,
+              "y": 20
+            },
+            "control2": [
+              10,
+              20
+            ],
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-cubicTo-to-array",
+      "kind": "pathCommand",
+      "value": {
+        "type": "cubicTo",
+        "control1": {
+          "x": 10,
+          "y": 20
+        },
+        "control2": {
+          "x": 10,
+          "y": 20
+        },
+        "to": [
+          10,
+          20
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-cubicTo-to-array",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 10,
+              "y": 20
+            },
+            "control2": {
+              "x": 10,
+              "y": 20
+            },
+            "to": [
+              10,
+              20
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-command-close-valid",
+      "kind": "pathCommand",
+      "value": {
+        "type": "close"
+      },
+      "valid": true
+    },
+    {
+      "id": "representation-stroke-lineCap-object",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": {
+          "butt": null
+        },
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-stroke-lineJoin-object",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": {
+          "miter": null
+        },
+        "miterLimit": 4
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "representation-path-fillRule-object",
+      "kind": "path",
+      "value": {
+        "fillRule": {
+          "nonzero": null
+        },
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 10,
+              "y": 20
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "structuralInvalid": true
+    },
+    {
+      "id": "paint-0-absent-type",
+      "kind": "paint",
+      "value": {
+        "color": {
+          "r": 1,
+          "g": 0.25,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-0-absent-color",
+      "kind": "paint",
+      "value": {
+        "type": "solid"
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-0-extra",
+      "kind": "paint",
+      "value": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 0.25,
+          "b": 0,
+          "a": 1
+        },
+        "extra": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-2-absent-type",
+      "kind": "paint",
+      "value": {
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 100,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-2-absent-center",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "radius": 100,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-2-absent-radius",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-2-absent-stops",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 100
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-2-extra",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 100,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ],
+        "extra": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "stop-missing-offset",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stop-missing-color",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stop-range--0.1",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": -0.1,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stop-range-1.1",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 1.1,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-unknown-lineCap",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "unknown",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-unknown-lineJoin",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "unknown",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "command-missing-control",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "to": {
+              "x": 1,
+              "y": 1
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "command-missing-control1",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control2": {
+              "x": 1,
+              "y": 1
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "command-missing-control2",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 0,
+              "y": 0
+            },
+            "to": {
+              "x": 2,
+              "y": 2
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "command-missing-to",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 0,
+              "y": 0
+            },
+            "control2": {
+              "x": 1,
+              "y": 1
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-unknown-fill-rule",
+      "kind": "path",
+      "value": {
+        "fillRule": "winding",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "color-0",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-1",
+      "kind": "color",
+      "value": {
+        "r": 0,
+        "g": 1,
+        "b": 1,
+        "a": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "point-0",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "point-1",
+      "kind": "point",
+      "value": {
+        "x": -1000000,
+        "y": 1000000
+      },
+      "valid": true
+    },
+    {
+      "id": "paint-0",
+      "kind": "paint",
+      "value": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 0.25,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "valid": true
+    },
+    {
+      "id": "paint-1",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "paint-2",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 100,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-0",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-0",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "path-0",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "path-1",
+      "kind": "path",
+      "value": {
+        "fillRule": "evenodd",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "path-2",
+      "kind": "path",
+      "value": {
+        "fillRule": "evenodd",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-butt-miter",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-butt-round",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "butt",
+        "lineJoin": "round",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-butt-bevel",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "butt",
+        "lineJoin": "bevel",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-round-miter",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "round",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-round-round",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "round",
+        "lineJoin": "round",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-round-bevel",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "round",
+        "lineJoin": "bevel",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-square-miter",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "square",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-square-round",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "square",
+        "lineJoin": "round",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-square-bevel",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          2
+        ],
+        "dashOffset": -100,
+        "lineCap": "square",
+        "lineJoin": "bevel",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "color-missing-r",
+      "kind": "color",
+      "value": {
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-wrong-r",
+      "kind": "color",
+      "value": {
+        "r": "bad",
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-missing-g",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-wrong-g",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": "bad",
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-missing-b",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-wrong-b",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": "bad",
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-missing-a",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "color-wrong-a",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "color-unknown",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1,
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-0",
+      "kind": "color",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-1",
+      "kind": "color",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-2",
+      "kind": "color",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-3",
+      "kind": "color",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-4",
+      "kind": "color",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "color-unsafe-5",
+      "kind": "color",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "point-missing-x",
+      "kind": "point",
+      "value": {
+        "y": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-wrong-x",
+      "kind": "point",
+      "value": {
+        "x": "bad",
+        "y": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-missing-y",
+      "kind": "point",
+      "value": {
+        "x": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-wrong-y",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "point-unknown",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": 0,
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-0",
+      "kind": "point",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-1",
+      "kind": "point",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-2",
+      "kind": "point",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-3",
+      "kind": "point",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-4",
+      "kind": "point",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "point-unsafe-5",
+      "kind": "point",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "paint-missing-type",
+      "kind": "paint",
+      "value": {
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-wrong-type",
+      "kind": "paint",
+      "value": {
+        "type": "bad",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missing-start",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-wrong-start",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": "bad",
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missing-end",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-wrong-end",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": "bad",
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missing-stops",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        }
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-wrong-stops",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-unknown",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ],
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-0",
+      "kind": "paint",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-1",
+      "kind": "paint",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-2",
+      "kind": "paint",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-3",
+      "kind": "paint",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-4",
+      "kind": "paint",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "paint-unsafe-5",
+      "kind": "paint",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-paint",
+      "kind": "stroke",
+      "value": {
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-paint",
+      "kind": "stroke",
+      "value": {
+        "paint": "bad",
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-width",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-width",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": "bad",
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-dash",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-dash",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": "bad",
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-dashOffset",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-dashOffset",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": "bad",
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-lineCap",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-lineCap",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "bad",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-lineJoin",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-lineJoin",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "bad",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-missing-miterLimit",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter"
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-wrong-miterLimit",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-unknown",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4,
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-0",
+      "kind": "stroke",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-1",
+      "kind": "stroke",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-2",
+      "kind": "stroke",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-3",
+      "kind": "stroke",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-4",
+      "kind": "stroke",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "stroke-unsafe-5",
+      "kind": "stroke",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-missing-topLeft",
+      "kind": "cornerRadii",
+      "value": {
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-wrong-topLeft",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": "bad",
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-missing-topRight",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-wrong-topRight",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": "bad",
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-missing-bottomRight",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-wrong-bottomRight",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": "bad",
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-missing-bottomLeft",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-wrong-bottomLeft",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unknown",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40,
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-0",
+      "kind": "cornerRadii",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-1",
+      "kind": "cornerRadii",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-2",
+      "kind": "cornerRadii",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-3",
+      "kind": "cornerRadii",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-4",
+      "kind": "cornerRadii",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-unsafe-5",
+      "kind": "cornerRadii",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "path-missing-fillRule",
+      "kind": "path",
+      "value": {
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-wrong-fillRule",
+      "kind": "path",
+      "value": {
+        "fillRule": "bad",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-missing-commands",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero"
+      },
+      "valid": false
+    },
+    {
+      "id": "path-wrong-commands",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": "bad"
+      },
+      "valid": false
+    },
+    {
+      "id": "path-unknown",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ],
+        "unexpected": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-0",
+      "kind": "path",
+      "value": "<svg onload='run()'/>",
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-1",
+      "kind": "path",
+      "value": "../../file",
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-2",
+      "kind": "path",
+      "value": "https://example.com/x",
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-3",
+      "kind": "path",
+      "value": "sin(t)",
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-4",
+      "kind": "path",
+      "value": null,
+      "valid": false
+    },
+    {
+      "id": "path-unsafe-5",
+      "kind": "path",
+      "value": [],
+      "valid": false
+    },
+    {
+      "id": "color-r-min",
+      "kind": "color",
+      "value": {
+        "r": 0,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-r-max",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-r-under",
+      "kind": "color",
+      "value": {
+        "r": -0.01,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-r-over",
+      "kind": "color",
+      "value": {
+        "r": 1.01,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-g-min",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-g-max",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-g-under",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": -0.01,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-g-over",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 1.01,
+        "b": 0,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-b-min",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-b-max",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 1,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-b-under",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": -0.01,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-b-over",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 1.01,
+        "a": 1
+      },
+      "valid": false
+    },
+    {
+      "id": "color-a-min",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "color-a-max",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "color-a-under",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": -0.01
+      },
+      "valid": false
+    },
+    {
+      "id": "color-a-over",
+      "kind": "color",
+      "value": {
+        "r": 1,
+        "g": 0.25,
+        "b": 0,
+        "a": 1.01
+      },
+      "valid": false
+    },
+    {
+      "id": "point-x-min",
+      "kind": "point",
+      "value": {
+        "x": -1000000,
+        "y": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "point-x-max",
+      "kind": "point",
+      "value": {
+        "x": 1000000,
+        "y": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "point-x-under",
+      "kind": "point",
+      "value": {
+        "x": -1000000.01,
+        "y": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-x-over",
+      "kind": "point",
+      "value": {
+        "x": 1000000.01,
+        "y": 0
+      },
+      "valid": false
+    },
+    {
+      "id": "point-y-min",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": -1000000
+      },
+      "valid": true
+    },
+    {
+      "id": "point-y-max",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": 1000000
+      },
+      "valid": true
+    },
+    {
+      "id": "point-y-under",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": -1000000.01
+      },
+      "valid": false
+    },
+    {
+      "id": "point-y-over",
+      "kind": "point",
+      "value": {
+        "x": 0,
+        "y": 1000000.01
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-radius-min",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 0,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-radius-max",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 1000000,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "paint-radius-under",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": -0.01,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-radius-over",
+      "kind": "paint",
+      "value": {
+        "type": "radialGradient",
+        "center": {
+          "x": 0,
+          "y": 0
+        },
+        "radius": 1000000.01,
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-width-min",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 0,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-width-max",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 16384,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-width-under",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": -0.01,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-width-over",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 16384.01,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dashOffset-min",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": -1000000,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-dashOffset-max",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 1000000,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-dashOffset-under",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": -1000000.01,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dashOffset-over",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 1000000.01,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-miterLimit-min",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 1
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-miterLimit-max",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 1000
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-miterLimit-under",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 0.99
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-miterLimit-over",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 1000.01
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-topLeft-min",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-topLeft-max",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 16384,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-topLeft-under",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": -0.01,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-topLeft-over",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 16384.01,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-topRight-min",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-topRight-max",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 16384,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-topRight-under",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": -0.01,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-topRight-over",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 16384.01,
+        "bottomRight": 30,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-bottomRight-min",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 0,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-bottomRight-max",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 16384,
+        "bottomLeft": 40
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-bottomRight-under",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": -0.01,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-bottomRight-over",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 16384.01,
+        "bottomLeft": 40
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-bottomLeft-min",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 0
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-bottomLeft-max",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 16384
+      },
+      "valid": true
+    },
+    {
+      "id": "cornerRadii-bottomLeft-under",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": -0.01
+      },
+      "valid": false
+    },
+    {
+      "id": "cornerRadii-bottomLeft-over",
+      "kind": "cornerRadii",
+      "value": {
+        "topLeft": 0,
+        "topRight": 20,
+        "bottomRight": 30,
+        "bottomLeft": 16384.01
+      },
+      "valid": false
+    },
+    {
+      "id": "path-empty",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": []
+      },
+      "valid": false
+    },
+    {
+      "id": "path-lineFirst",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-quadFirst",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "quadraticTo",
+            "control": {
+              "x": 1,
+              "y": 2
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-cubicFirst",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 3,
+              "y": 4
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-closeFirst",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "close"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-closeMove",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "close"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-repeatClose",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "close"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-drawAfterClose",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "close"
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-badControl",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "cubicTo",
+            "control1": {
+              "x": 1,
+              "y": 2
+            },
+            "control2": {
+              "x": 1000001,
+              "y": 0
+            },
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-badTag",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "arcTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "path-closeFields",
+      "kind": "path",
+      "value": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 100,
+              "y": 100
+            }
+          },
+          {
+            "type": "close",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-sameEndpoints",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 0,
+          "y": 0
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missingStops",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": []
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-oneStop",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-duplicateStops",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-reversedStops",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          },
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missingZero",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0.1,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-missingOne",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-nestedColor",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 2
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-extraPoint",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-extraStop",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            },
+            "extra": 1
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dash-odd",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dash-zero",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          0,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dash-negative",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          -1,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dash-overflow",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1000001,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "stroke-dash-maxValue",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1000000,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-dash-maxCount",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": true
+    },
+    {
+      "id": "stroke-dash-overCount",
+      "kind": "stroke",
+      "value": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 0.25,
+            "b": 0,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "dash": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "valid": false
+    },
+    {
+      "id": "paint-stops-64",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.015873015873015872,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.031746031746031744,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.047619047619047616,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.06349206349206349,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.07936507936507936,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.09523809523809523,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.1111111111111111,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.12698412698412698,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.14285714285714285,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.15873015873015872,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.1746031746031746,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.19047619047619047,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.20634920634920634,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.2222222222222222,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.23809523809523808,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.25396825396825395,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.2698412698412698,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.2857142857142857,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.30158730158730157,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.31746031746031744,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.3333333333333333,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.3492063492063492,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.36507936507936506,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.38095238095238093,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.3968253968253968,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.4126984126984127,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.42857142857142855,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.4444444444444444,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.4603174603174603,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.47619047619047616,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.49206349206349204,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5079365079365079,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5238095238095238,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5396825396825397,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5555555555555556,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5714285714285714,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5873015873015873,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6031746031746031,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6190476190476191,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6349206349206349,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6507936507936508,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6666666666666666,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6825396825396826,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6984126984126984,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.7142857142857143,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.7301587301587301,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.746031746031746,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.7619047619047619,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.7777777777777778,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.7936507936507936,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8095238095238095,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8253968253968254,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8412698412698413,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8571428571428571,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.873015873015873,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8888888888888888,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9047619047619048,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9206349206349206,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9365079365079365,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9523809523809523,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9682539682539683,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9841269841269841,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "id": "paint-stops-65",
+      "kind": "paint",
+      "value": {
+        "type": "linearGradient",
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "end": {
+          "x": 100,
+          "y": 100
+        },
+        "stops": [
+          {
+            "offset": 0,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.015625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.03125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.046875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.0625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.078125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.09375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.109375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.140625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.15625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.171875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.1875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.203125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.21875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.234375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.25,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.265625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.28125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.296875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.3125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.328125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.34375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.359375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.390625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.40625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.421875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.4375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.453125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.46875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.484375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.515625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.53125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.546875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.5625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.578125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.59375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.609375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.640625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.65625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.671875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.6875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.703125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.71875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.734375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.75,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.765625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.78125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.796875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.8125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.828125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.84375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.859375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.890625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.90625,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.921875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.9375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.953125,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.96875,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 0.984375,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          },
+          {
+            "offset": 1,
+            "color": {
+              "r": 1,
+              "g": 0.25,
+              "b": 0,
+              "a": 1
+            }
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

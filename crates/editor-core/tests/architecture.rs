@@ -45,6 +45,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ),
     ("timeline", &["animation", "validation"]),
     ("validation", &[]),
+    ("vector", &[]),
 ];
 
 fn source_root() -> PathBuf {
