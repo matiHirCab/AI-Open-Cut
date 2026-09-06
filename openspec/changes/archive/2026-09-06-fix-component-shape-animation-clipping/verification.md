@@ -54,3 +54,11 @@ Correctness: one modified requirement, all four new scenarios mapped above; exis
 Coherence: the production fix follows the approved separation of coordinate dimensions and preserves core ownership. New tests use the existing native test owner and unchanged reference policy.
 
 No critical, warning or suggestion discrepancies remain in code, tests, requirement coverage or design. All required checks passed. Living requirements are synchronized, this change is archived, and the post-archive Moon gate passed. No required check remains failed or skipped.
+
+## PR #114 CI fixture provenance correction
+
+GitHub Actions run 34067129186 failed the shape recipe SHA-256 assertion before golden image comparison. The stored checksum d3d08b5d2f8bcdb9d93615d45e01199f677e2991931247ef9fb875d3fdcf8f95 described the original Windows CRLF working copy; `.gitattributes` stores the recipe with LF endings, whose digest is 606d7cf7addd2253de325a4a849936898dfbeaf4a7270b3bcce69f1f3250f829. Foundation parity failed only because its render-parity dependency failed. All three platform correctness jobs, contracts, packaged tests and OpenSpec passed.
+
+Corrected only reference.json's recipe_sha256 to match the committed recipe. The RGB oracle, semantic plan, recipe content, production code and comparison logic/tolerances are unchanged. This restores the existing approved fixture-provenance contract; it introduces no new behavior or requirement. The existing checksum assertion is the failing regression. Local recipe line endings were normalized to the already committed LF bytes for validation.
+
+Post-correction verification: required release native golden conformance passed in 89.31 seconds using the committed LF recipe; the Moon OpenSpec gate and whitespace validation passed. GitHub CI will rerun on the correction commit.
