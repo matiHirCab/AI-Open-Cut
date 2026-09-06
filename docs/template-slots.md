@@ -1,6 +1,6 @@
 # Typed template slots
 
-Schema 12 adds `slots` to each component definition and `slotValues` to each stored nested instance. Protocol 1 advertises `typed_template_slots`. Slots are validated and persisted now; root component placement and rendering remain issue #24. Adding slots does not change root duration, preview, range preview, draft preview, export, audio, ordering or renderer fallback.
+Schema 12 adds `slots` to each component definition and `slotValues` to each stored nested instance. Protocol 1 advertises `typed_template_slots`. Schema 12 validated and persisted slots without rendering instances. Schema 13 applies effective slot values independently for each root and nested occurrence in [component evaluation](component-evaluation.md), including styled rich text. Unused definitions remain inert.
 
 Use `component_define_slots {componentId, slots}` to replace a definition's entire slot list. Headless wraps it in `edit`; MCP exposes the same name. Both support `timeline_batch_edit`/headless `edit_batch`, `projectId` and `expectedRevision`. An earlier component creation alias can be used as `componentId: "@card"`. The slot operation does not produce `resultAlias`; slot and target IDs are literal local identifiers.
 

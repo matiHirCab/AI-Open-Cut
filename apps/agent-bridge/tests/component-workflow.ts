@@ -6,6 +6,7 @@ import type { ZodType } from "zod/v4";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import type SLOT_CATALOG from "../../../contracts/template-slots-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
+import { verifyInstanceWorkflow } from "./instance-workflow";
 
 // Parse the JSON as data: bundlers may emit __proto__ as object-literal syntax.
 const SLOTS: typeof SLOT_CATALOG = JSON.parse(
@@ -26,6 +27,7 @@ export const verifyComponentWorkflow = async (
   mediaDirectory: string,
   projectsDirectory: string
 ) => {
+  await verifyInstanceWorkflow(client, call, projectsDirectory);
   const { projectId } = await call(
     "project_create",
     { name: "Components" },

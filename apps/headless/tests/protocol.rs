@@ -200,7 +200,10 @@ fn component_protocol_aliases_failures_and_exact_history() {
     ));
     let component = batch["aliases"]["leaf"].clone();
     let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(state["project"]["schemaVersion"], 12);
+    assert_eq!(
+        state["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(state["project"]["components"][0]["id"], component);
     let dir = harness.root.path().join("projects").join(id);
     let before = (

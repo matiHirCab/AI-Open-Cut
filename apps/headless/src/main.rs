@@ -672,6 +672,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "group_parenting",
         "group_ungroup",
         "component_definitions",
+        "component_instance_evaluation",
         "typed_template_slots",
     ]
 }

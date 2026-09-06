@@ -3890,7 +3890,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11]
+        for (version, phase) in [6, 9, 10, 11, 12]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -3910,6 +3910,12 @@ mod tests {
                 legacy["components"] = serde_json::json!([
                     {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[]},
                     {"id":"outer","name":"Outer","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"component_instance","id":"instance","componentId":"leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1}]}]}
+                ]);
+            }
+            if version == 12 {
+                legacy["components"] = serde_json::json!([
+                    {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[],"slots":[]},
+                    {"id":"outer","name":"Outer","width":320,"height":240,"durationMs":1000,"slots":[],"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"component_instance","id":"instance","componentId":"leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"slotValues":{}}]}]}
                 ]);
             }
             let mut oldest = legacy.clone();

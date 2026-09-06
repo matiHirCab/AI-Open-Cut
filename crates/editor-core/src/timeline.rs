@@ -44,6 +44,7 @@ pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
         EditOperation::ComponentCreate { .. }
+            | EditOperation::AddComponentInstance { .. }
             | EditOperation::AddGroup { .. }
             | EditOperation::AddMedia { .. }
             | EditOperation::AddText { .. }
@@ -75,6 +76,26 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::AddComponentInstance {
+            track_id,
+            component_id,
+            parent,
+            ..
+        } => {
+            resolve_alias(track_id, aliases)?;
+            resolve_alias(component_id, aliases)?;
+            if let Some(parent) = parent {
+                resolve_alias(&mut parent.id, aliases)?;
+            }
+        }
+        EditOperation::ComponentInstanceUpdate {
+            item_id,
+            component_id,
+            ..
+        } => {
+            resolve_alias(item_id, aliases)?;
+            resolve_alias(component_id, aliases)?;
+        }
         EditOperation::ComponentCreate { tracks, .. } => {
             resolve_component_aliases(tracks, aliases)?
         }
@@ -184,6 +205,83 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::AddComponentInstance {
+            track_id,
+            component_id,
+            start_ms,
+            trim_start_ms,
+            duration_ms,
+            time_scale,
+            slot_values,
+            transform,
+            transform2d,
+            hidden,
+            z_index,
+            parent,
+        } => {
+            if transform2d.is_some() && transform != crate::Transform::default() {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "instance transform forms cannot be combined",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "instances require overlay tracks",
+                ));
+            }
+            let visual_properties = crate::VisualProperties {
+                transform,
+                transform2d,
+                hidden,
+                z_index,
+                parent,
+                stack_order: track.items.len() as u32,
+            };
+            track.items.push(TimelineItem::ComponentInstance(
+                crate::ComponentInstanceItem {
+                    id: id.clone(),
+                    component_id,
+                    start_ms,
+                    trim_start_ms,
+                    duration_ms,
+                    time_scale,
+                    slot_values,
+                    visual_properties,
+                },
+            ));
+            Ok((vec![id], "created component instance"))
+        }
+        EditOperation::ComponentInstanceUpdate {
+            item_id,
+            component_id,
+            start_ms,
+            trim_start_ms,
+            duration_ms,
+            time_scale,
+            slot_values,
+        } => {
+            let TimelineItem::ComponentInstance(instance) =
+                find_editable_item_mut(project, &item_id)?
+            else {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "update requires a component instance",
+                ));
+            };
+            instance.component_id = component_id;
+            instance.start_ms = start_ms;
+            instance.trim_start_ms = trim_start_ms;
+            instance.duration_ms = duration_ms;
+            instance.time_scale = time_scale;
+            if let Some(values) = slot_values {
+                instance.slot_values = values;
+            }
+            Ok((vec![item_id], "updated component instance"))
+        }
         EditOperation::ComponentCreate {
             name,
             width,
@@ -267,7 +365,7 @@ fn apply_operation_inner(
                     "component has locked tracks",
                 ));
             }
-            if project.components.iter().flat_map(|c| &c.tracks).flat_map(|t| &t.items)
+            if project.tracks.iter().chain(project.components.iter().flat_map(|c| &c.tracks)).flat_map(|t| &t.items)
                 .any(|i| matches!(i, TimelineItem::ComponentInstance(v) if v.component_id == component_id)) {
                 return Err(CoreError::new(ErrorCode::InvalidArgument, "component is referenced"));
             }
@@ -574,7 +672,10 @@ fn apply_operation_inner(
                 validate_transform(&transform)?;
                 match item {
                     TimelineItem::Media(media) => media.transform = transform,
-                    TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
+                    TimelineItem::ComponentInstance(instance) => {
+                        instance.visual_properties.transform = transform
+                    }
+                    TimelineItem::Group(_) => {
                         return Err(CoreError::new(
                             ErrorCode::InvalidArgument,
                             "groups do not accept legacy transforms",
@@ -698,7 +799,7 @@ fn apply_operation_inner(
                 TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
-                        "root component instances are not supported",
+                        "use component_instance_update to change instance timing",
                     ));
                 }
                 TimelineItem::Group(group) => {
@@ -757,10 +858,13 @@ fn apply_operation_inner(
         EditOperation::SetKeyframes { item_id, keyframes } => {
             validate_keyframes(&keyframes)?;
             let item = find_editable_item_mut(project, &item_id)?;
-            if matches!(item, TimelineItem::Group(_)) {
+            if matches!(
+                item,
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+            ) {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
-                    "groups do not accept keyframes",
+                    "groups and component instances do not accept keyframes",
                 ));
             }
             if keyframes
@@ -814,11 +918,16 @@ fn apply_operation_inner(
             }
             if std::iter::once(&from_item_id)
                 .chain(to_item_id.iter())
-                .any(|id| matches!(project.find_item(id), Some(TimelineItem::Group(_))))
+                .any(|id| {
+                    matches!(
+                        project.find_item(id),
+                        Some(TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
+                    )
+                })
             {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
-                    "groups cannot be transition endpoints",
+                    "groups and component instances cannot be transition endpoints",
                 ));
             }
             let track = editable_track_mut(project, &track_id)?;
@@ -866,10 +975,13 @@ fn apply_operation_inner(
                 return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
             }
             let item = &mut project.tracks[track_index].items[item_index];
-            if matches!(item, TimelineItem::Group(_)) {
+            if matches!(
+                item,
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+            ) {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
-                    "groups cannot be split",
+                    "groups and component instances cannot be split",
                 ));
             }
             if split_ms <= item.start_ms() || split_ms >= item.end_ms() {
@@ -885,7 +997,7 @@ fn apply_operation_inner(
                 TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
-                        "groups cannot be split",
+                        "groups and component instances cannot be split",
                     ));
                 }
                 TimelineItem::Media(media) => {

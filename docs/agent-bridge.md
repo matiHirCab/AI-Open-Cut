@@ -187,3 +187,5 @@ Run `codex mcp list`, then use `/mcp` and `editor_get_status`. Agents should rea
 - The recommended next milestone is GPUI integration with the shared core and durable render-job recovery.
 
 Runtime template slots are documented in [typed template slots](template-slots.md). Protocol 1 exposes `component_define_slots` standalone and in batches and advertises `typed_template_slots`; schema 12 stores typed definitions and overrides. The separate `contracts/template-slots-v1.json` catalog governs all eight kinds; preparatory motion-graphics-v1 records retain their fixture-only status.
+
+Schema 13 activates [component instance evaluation](component-evaluation.md) with the `component_instance_evaluation` capability. Root `add_component_instance` and `component_instance_update` edits are available standalone and in aliased batches; the runtime catalog is `contracts/component-evaluation-v1.json`. Preview, draft preview and export share core timing, transforms, effective slots and audio behavior.

@@ -26,12 +26,23 @@ if (mode === "ffprobe") {
     " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... "
   );
 } else {
-  const output = args.at(-1);
+  // Render commands can append a discarded audio output after the PNG/MP4.
+  let output = args.at(-1);
+  if (args.includes("-filter_complex_script")) {
+    output = args.includes("-frames:v")
+      ? args[args.indexOf("[video]") + 1]
+      : args[args.indexOf("-y") + 1];
+  }
   if (!output) {
     process.exit(2);
   }
-  mkdirSync(dirname(output), { recursive: true });
-  writeFileSync(output, "fake rendered media");
+  if (output !== "-" && output !== "NUL") {
+    const directory = dirname(output);
+    if (directory !== ".") {
+      mkdirSync(directory, { recursive: true });
+    }
+    writeFileSync(output, "fake rendered media");
+  }
   console.log("out_time_ms=100000");
   console.log("progress=end");
 }
