@@ -17,4 +17,4 @@
 ## 4. Completion and PR
 
 - [x] 4.1 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `git diff --check`. Use openspec-verify-change; resolve every discrepancy among requirements, design, tasks, tests and code.
-- [ ] 4.2 Synchronize and archive with openspec-sync-specs and openspec-archive-change, then run `bunx @moonrepo/cli@2.3.3 run root:openspec-validate`. Push the verified correction to PR #114 and confirm hosted render/foundation parity plus remaining required CI checks pass. Report any failed or skipped required check as blocking completion.
+- [x] 4.2 Synchronize and archive with openspec-sync-specs and openspec-archive-change, then run `bunx @moonrepo/cli@2.3.3 run root:openspec-validate`. Push the verified correction to PR #114 and confirm hosted render/foundation parity plus remaining required CI checks pass. Report any failed or skipped required check as blocking completion.

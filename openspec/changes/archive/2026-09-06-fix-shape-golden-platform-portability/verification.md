@@ -34,14 +34,14 @@ Local logs: ignored `local-data/shape-portability-verification/`.
 - PASS: source MCP integration (10 tests) and packaged smoke (5 tests).
 - PASS: OpenSpec verification and whitespace validation; unchanged fixture bytes checked against Git HEAD.
 - PASS: synchronized living requirements, archived the verified change, and ran the post-archive Moon gate (20 specs and CI policy).
-- PENDING: publication and hosted CI confirmation (task 4.2).
+- PASS: published as c00e986e to PR #114. GitHub Actions run 34069082774 passed all eight checks: Linux render parity, foundation parity, contract parity, OpenSpec, packaged integration/smoke, and correctness on Ubuntu, macOS and Windows.
 
 ## Assessment
 
-Completeness: 8/9 tasks complete; all implementation and local validation tasks passed. Only the authorized archive/publication/hosted-CI lifecycle task remains.
+Completeness: 9/9 tasks complete; all implementation, local validation, archive/publication and hosted-CI tasks passed.
 Correctness: all four scenarios mapped, with independent negative controls against broad numeric tolerance.
 Coherence: approved test-only scope and unchanged references/production semantics.
 
-No critical, warning or suggestion discrepancies remain in implementation, design or local scenario coverage. Ready for authorized synchronization and archival. Completion remains conditional on publication and passing hosted CI.
+No critical, warning or suggestion discrepancies remain. The approved comparison is implemented, all local and hosted checks passed, and the change is synchronized and archived.
 
 The six pre-existing ignored workspace entries are isolated subprocess helpers invoked by parent tests and explicit recapture/report-only utilities. No required check was skipped.
