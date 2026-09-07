@@ -404,7 +404,7 @@ fn geometry(
                 return Err(invalid("points"));
             }
             let mut commands = Vec::new();
-            for p in values.chunks_exact(2) {
+            for p in values.as_chunks::<2>().0 {
                 if commands.len() == MAX_VECTOR_PATH_COMMANDS {
                     return Err(invalid("path command budget"));
                 }
@@ -419,7 +419,9 @@ fn geometry(
             if tag == "polygon" && style.fill_rule == FillRule::Nonzero {
                 ShapeGeometry::Polygon {
                     points: values
-                        .chunks_exact(2)
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
                         .map(|p| VectorPoint { x: p[0], y: p[1] })
                         .collect(),
                 }

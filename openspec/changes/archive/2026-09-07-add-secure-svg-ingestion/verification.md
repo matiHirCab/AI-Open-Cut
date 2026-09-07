@@ -40,3 +40,8 @@ Native verification used the existing local FFmpeg/FFprobe 8.1.2 toolset and Dej
 ## Finalization
 
 On 2026-09-07, synchronized the SVG capability and migration clarification into living specifications and archived this change. `bunx @moonrepo/cli@2.3.3 run root:openspec-validate` passed through the unchanged protected policy: 231 policy tests, 21 living specifications, and CI parity gate validation. All 17 tasks are complete; no required check remains failed or skipped.
+## PR #115 CI correction (2026-09-07)
+
+Run 34130357925 failed strict Clippy on Linux, macOS and Windows with `chunks_exact_to_as_chunks` at the two polygon/polyline pair-iteration sites. Local validation had used Rust 1.93.0; CI reported the newer lint. Under approved tasks 2.2 and 6.1, both sites now use `as_chunks::<2>()` with the unchanged preceding even-length/minimum-point checks. Point order, coordinates, budgets and failure behavior are unchanged; no warning suppression, toolchain configuration or public contract change was introduced.
+
+OpenSpec verification: the correction conforms to Explicit SVG geometry and complexity and the approved normalization design; existing canonical polygon/polyline and budget scenarios remain the automated evidence. No specification delta is needed. Local formatting, strict workspace Clippy, workspace tests and whitespace checks passed. CI contract parity, native render parity, integration/smoke and OpenSpec jobs passed on the preceding commit. The corrected commit will rerun the complete CI matrix.
