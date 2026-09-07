@@ -160,7 +160,7 @@ pub(super) fn conformance(tools: &NativeTools) {
         serde_json::from_slice(&fs::read(path).expect("reviewed shape reference is required"))
             .unwrap();
     assert_eq!(reference.recipe_sha256, recipe_sha256);
-    assert_eq!(reference.plan, plan);
+    compare_shape_reference_plan(&reference.plan, &plan).unwrap();
     assert!(structural_similarity(&reference.rgb, &rgb).unwrap() >= 0.99);
     let draft_root = tempdir().unwrap();
     let core = crate::EditorCore::new(
@@ -281,6 +281,173 @@ pub(super) fn conformance(tools: &NativeTools) {
             <= 1000 / u64::from(FPS)
     );
     assert_eq!(serde_json::to_vec(&p).unwrap(), before);
+}
+
+// Portability is limited to generated contour points in this stored shape oracle.
+// Production evaluation and same-runtime repeated plans still compare exactly.
+fn compare_shape_reference_plan(reference: &str, actual: &str) -> Result<(), String> {
+    let reference_coordinates = shape_plan_coordinates(reference)?;
+    let actual_coordinates = shape_plan_coordinates(actual)?;
+    let reference_lines: Vec<_> = reference.split('\n').collect();
+    let actual_lines: Vec<_> = actual.split('\n').collect();
+    if reference_lines.len() != actual_lines.len() {
+        return Err("shape semantic plan line count differs".into());
+    }
+    let ordered = |value: f64| {
+        let bits = value.to_bits();
+        if value.is_sign_negative() {
+            !bits
+        } else {
+            bits | (1 << 63)
+        }
+    };
+    for (index, (expected, observed)) in reference_lines.iter().zip(&actual_lines).enumerate() {
+        let matches = match (reference_coordinates[index], actual_coordinates[index]) {
+            (Some(a), Some(b)) => {
+                let same_zero_sign = a != 0.0 || b != 0.0 || a.to_bits() == b.to_bits();
+                same_zero_sign && (a - b).abs() <= 1e-12 && ordered(a).abs_diff(ordered(b)) <= 8
+            }
+            (None, None) => expected == observed,
+            _ => false,
+        };
+        if !matches {
+            return Err(format!(
+                "shape semantic plan line {}: expected {expected:?}, observed {observed:?}",
+                index + 1
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn shape_plan_coordinates(plan: &str) -> Result<Vec<Option<f64>>, String> {
+    const POINT_SCOPE: [&str; 9] = [
+        "EvaluatedScene {",
+        "visual_layers: [",
+        "EvaluatedVisualLayer {",
+        "source: Shape(",
+        "EvaluatedShape {",
+        "contours: [",
+        "Contour {",
+        "points: [",
+        "VectorPoint {",
+    ];
+    struct Frame<'a> {
+        header: &'a str,
+        indent: usize,
+        coordinates: usize,
+    }
+    let mut stack: Vec<Frame<'_>> = Vec::new();
+    let mut result = vec![];
+    let mut contours = 0;
+    for (index, line) in plan.split('\n').enumerate() {
+        let invalid = || {
+            format!(
+                "unsupported shape semantic plan structure at line {}: {line:?}",
+                index + 1
+            )
+        };
+        let text = line.trim_start_matches(' ');
+        let indent = line.len() - text.len();
+        let scope = |stack: &[Frame<'_>], expected: &[&str]| {
+            stack
+                .iter()
+                .map(|frame| frame.header)
+                .eq(expected.iter().copied())
+        };
+        let point = scope(&stack, &POINT_SCOPE);
+        let closing = matches!(text, "}" | "}," | "]" | "]," | ")" | "),");
+        let mut coordinate = None;
+        if closing {
+            let frame = stack.pop().ok_or_else(invalid)?;
+            let expected = match frame.header.as_bytes().last() {
+                Some(b'{') => b'}',
+                Some(b'[') => b']',
+                Some(b'(') => b')',
+                _ => return Err(invalid()),
+            };
+            if indent != frame.indent
+                || text.as_bytes()[0] != expected
+                || (point && frame.coordinates != 2)
+            {
+                return Err(invalid());
+            }
+        } else {
+            if indent != stack.last().map_or(0, |frame| frame.indent + 4) {
+                return Err(invalid());
+            }
+            if stack.is_empty() && (index != 0 || text != POINT_SCOPE[0]) {
+                return Err(invalid());
+            }
+            if point {
+                let frame = stack.last_mut().unwrap();
+                let prefix = match frame.coordinates {
+                    0 => "x: ",
+                    1 => "y: ",
+                    _ => return Err(invalid()),
+                };
+                let number = text
+                    .strip_prefix(prefix)
+                    .and_then(|s| s.strip_suffix(','))
+                    .ok_or_else(invalid)?;
+                let value: f64 = number.parse().map_err(|_| invalid())?;
+                if !value.is_finite() {
+                    return Err(invalid());
+                }
+                coordinate = Some(value);
+                frame.coordinates += 1;
+            } else if text.ends_with(['{', '[', '(']) {
+                if text == "contours: [" {
+                    if !scope(&stack, &POINT_SCOPE[..5]) {
+                        return Err(invalid());
+                    }
+                    contours += 1;
+                }
+                // Derived contours accept only the reviewed points/closed layout.
+                if scope(&stack, &POINT_SCOPE[..6]) && text != "Contour {"
+                    || scope(&stack, &POINT_SCOPE[..7]) && text != "points: ["
+                    || scope(&stack, &POINT_SCOPE[..8]) && text != "VectorPoint {"
+                {
+                    return Err(invalid());
+                }
+                stack.push(Frame {
+                    header: text,
+                    indent,
+                    coordinates: 0,
+                });
+            } else if scope(&stack, &POINT_SCOPE[..6])
+                || scope(&stack, &POINT_SCOPE[..8])
+                || scope(&stack, &POINT_SCOPE[..7])
+                    && !matches!(text, "closed: true," | "closed: false,")
+            {
+                return Err(invalid());
+            }
+        }
+        result.push(coordinate);
+    }
+    if !stack.is_empty() || contours == 0 {
+        return Err("incomplete shape semantic plan".into());
+    }
+    Ok(result)
+}
+
+#[test]
+fn shape_reference_plan_accepts_measured_platform_contours() {
+    let reference: Reference = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/shapes/reference.json"
+    ))
+    .unwrap();
+    let mut linux = reference.plan.clone();
+    for (windows, replacement) in [
+        ("2.3431457505076194", "2.3431457505076203"),
+        ("0.5358983848622461", "0.5358983848622465"),
+        ("3.819660112501051", "3.8196601125010474"),
+    ] {
+        assert!(linux.contains(windows));
+        linux = linux.replace(windows, replacement);
+    }
+    assert_ne!(reference.plan, linux);
+    compare_shape_reference_plan(&reference.plan, &linux).unwrap();
 }
 
 fn component_animation_project(animated: bool) -> Project {
@@ -1154,4 +1321,136 @@ fn check_component_animation_rendering(tools: &NativeTools, case: &ComponentAnim
         fs::read(root.path().join("history.json")).unwrap(),
         b"retained-history-sentinel"
     );
+}
+
+fn shape_plan_with_first_contour_x(plan: &str, value: f64) -> String {
+    let contour = plan.find("contours: [").unwrap();
+    let start = contour + plan[contour..].find("x: ").unwrap() + 3;
+    let end = start + plan[start..].find(',').unwrap();
+    format!("{}{:?}{}", &plan[..start], value, &plan[end..])
+}
+
+#[test]
+fn shape_reference_plan_enforces_both_numeric_bounds() {
+    let reference: Reference = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/shapes/reference.json"
+    ))
+    .unwrap();
+    for base in [2.0_f64, -2.0] {
+        let expected = shape_plan_with_first_contour_x(&reference.plan, base);
+        for distance in [0, 1, 8, 9] {
+            let actual = shape_plan_with_first_contour_x(
+                &reference.plan,
+                f64::from_bits(base.to_bits() + distance),
+            );
+            assert_eq!(
+                compare_shape_reference_plan(&expected, &actual).is_ok(),
+                distance <= 8,
+                "{base}, {distance} ULPs"
+            );
+        }
+    }
+    let large = 1e8_f64;
+    assert!(
+        compare_shape_reference_plan(
+            &shape_plan_with_first_contour_x(&reference.plan, large),
+            &shape_plan_with_first_contour_x(&reference.plan, f64::from_bits(large.to_bits() + 1)),
+        )
+        .is_err(),
+        "absolute cap rejects even one ULP at large magnitudes"
+    );
+    let zero = shape_plan_with_first_contour_x(&reference.plan, 0.0);
+    assert!(
+        compare_shape_reference_plan(
+            &zero,
+            &shape_plan_with_first_contour_x(&reference.plan, -0.0)
+        )
+        .is_err()
+    );
+    assert!(
+        compare_shape_reference_plan(
+            &zero,
+            &shape_plan_with_first_contour_x(&reference.plan, f64::from_bits(8))
+        )
+        .is_ok()
+    );
+    for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let bad = shape_plan_with_first_contour_x(&reference.plan, invalid);
+        assert!(
+            compare_shape_reference_plan(&bad, &bad).is_err(),
+            "non-finite values never pass, including identical inputs"
+        );
+    }
+    assert!(
+        compare_shape_reference_plan(
+            &reference.plan,
+            &shape_plan_with_first_contour_x(&reference.plan, 0.001)
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn shape_reference_plan_rejects_unrelated_semantic_drift() {
+    let reference: Reference = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/shapes/reference.json"
+    ))
+    .unwrap();
+    for (before, after) in [
+        ("width: 40.0,", "width: 40.00000000000001,"),
+        ("position_x: 0.0,", "position_x: 0.000000000000001,"),
+        ("density: 1.0,", "density: 1.0000000000000002,"),
+        ("r: 1.0,", "r: 0.9999999999999999,"),
+        ("track_index: 0,", "track_index: 1,"),
+        ("end_ms: 1000,", "end_ms: 1001,"),
+        ("left: 5.0,", "left: 5.000000000000001,"),
+        ("closed: true,", "closed: false,"),
+    ] {
+        assert!(reference.plan.contains(before));
+        let actual = reference.plan.replacen(before, after, 1);
+        let error = compare_shape_reference_plan(&reference.plan, &actual).unwrap_err();
+        assert!(error.contains("line"), "mismatch has location: {error}");
+    }
+    // Authored VectorPoints have identical field names but are outside contours.
+    let start = reference.plan.find("geometry: Polygon {").unwrap();
+    let point = start + reference.plan[start..].find("x: ").unwrap() + 3;
+    let end = point + reference.plan[point..].find(',').unwrap();
+    let value: f64 = reference.plan[point..end].parse().unwrap();
+    let changed = format!(
+        "{}{:?}{}",
+        &reference.plan[..point],
+        f64::from_bits(value.to_bits() + 1),
+        &reference.plan[end..]
+    );
+    assert!(compare_shape_reference_plan(&reference.plan, &changed).is_err());
+}
+
+#[test]
+fn shape_reference_plan_rejects_malformed_or_mismatched_structure() {
+    let reference: Reference = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/shapes/reference.json"
+    ))
+    .unwrap();
+    for actual in [
+        reference.plan.replacen("VectorPoint {", "OtherPoint {", 1),
+        reference.plan.replacen("contours: [", "unscoped: [", 1),
+        reference.plan.replacen(
+            "x: 0.0,",
+            "x: 0.0,\n                                    z: 0.0,",
+            1,
+        ),
+        reference.plan.replacen("x: 0.0,", "", 1),
+        reference.plan.replacen("y: 0.0,", "x: 0.0,", 1),
+        reference.plan[..reference.plan.len() - 1].to_owned(),
+        format!("{}\nextra", reference.plan),
+        format!("{}\n", reference.plan),
+    ] {
+        assert!(compare_shape_reference_plan(&reference.plan, &actual).is_err());
+    }
+    for malformed in ["", "EvaluatedScene {", "WrongRoot {\n}"] {
+        assert!(compare_shape_reference_plan(malformed, malformed).is_err());
+    }
+    // Even identical malformed coordinate scopes must fail rather than bypass validation.
+    let bad = reference.plan.replacen("contours: [", "contours: (", 1);
+    assert!(compare_shape_reference_plan(&bad, &bad).is_err());
 }
