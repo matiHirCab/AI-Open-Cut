@@ -75,6 +75,8 @@ pub(crate) struct FilterContext<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderPlan {
+    /// Fine procedural marks need export-quality range encoding for parity.
+    pub(crate) grid_fidelity: bool,
     pub(crate) filter_graph: String,
     pub(crate) width: u32,
     pub(crate) height: u32,
@@ -361,6 +363,9 @@ pub(crate) fn build_render_plan(
         audio_labels.len()
     ));
     Ok(RenderPlan {
+        grid_fidelity: scene.visual_layers.iter().any(|layer| {
+            matches!(&layer.source, EvaluatedVisualSource::Shape(shape) if shape.grid_descriptor.is_some())
+        }),
         filter_graph: filters.join(";\n"),
         width,
         height,

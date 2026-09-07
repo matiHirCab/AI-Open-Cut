@@ -1,6 +1,8 @@
 import type { z } from "zod/v4";
+import type { GridDescriptor } from "./procedural-grids";
 import type {
   addComponentInstanceSchema,
+  addGridSchema,
   addShapeSchema,
   addSvgSchema,
   componentFieldsSchema,
@@ -18,6 +20,7 @@ export const EVALUATED_SCENE_RENDERING_CAPABILITY =
 export type RenderingCapability =
   | "shape_rendering"
   | "svg_rendering"
+  | "grid_rendering"
   | "transform2d"
   | "preview"
   | "preview_range"
@@ -32,6 +35,9 @@ interface Revisioned {
 export type HeadlessEdit =
   | ({ operation: "add_svg"; resultAlias?: string | undefined } & z.infer<
       typeof addSvgSchema
+    >)
+  | ({ operation: "add_grid"; resultAlias?: string | undefined } & z.infer<
+      typeof addGridSchema
     >)
   | ({ operation: "add_shape"; resultAlias?: string | undefined } & z.infer<
       typeof addShapeSchema
@@ -139,6 +145,7 @@ export type HeadlessEdit =
   | {
       operation: "update_item";
       geometry?: ShapeGeometry | undefined;
+      grid?: GridDescriptor | undefined;
       fill?: Paint | null | undefined;
       stroke?: Stroke | null | undefined;
       transform2d?: z.infer<typeof transform2dSchema> | null | undefined;

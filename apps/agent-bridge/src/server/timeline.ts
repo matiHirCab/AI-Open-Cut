@@ -547,6 +547,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_add_grid",
+    {
+      annotations: WRITE,
+      description:
+        "Add a bounded rectangular, diagonal, dot or isometric grid with vector paints.",
+      inputSchema: schemas.timelineAddGrid,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_grid",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_move_item",
     {
       annotations: WRITE,

@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { gridDescriptorSchema } from "./procedural-grids";
 import { shapeFields, shapeGeometrySchema } from "./shape-items";
 import { svgDocumentSchema } from "./svg-ingestion";
 import { paintSchema, strokeSchema } from "./vector-primitives";
@@ -755,6 +756,18 @@ export const addSvgSchema = z.strictObject({
   trackId: id,
   transform2d: transform2dSchema.nullable().optional(),
 });
+const gridItemSchema = solidColorItemSchema
+  .omit({ color: true })
+  .extend({ grid: gridDescriptorSchema, type: z.literal("grid") })
+  .strict();
+export const addGridSchema = z.strictObject({
+  durationMs: positiveMilliseconds,
+  grid: gridDescriptorSchema,
+  parent: parentReferenceSchema.nullable().optional(),
+  startMs: milliseconds,
+  trackId: id,
+  transform2d: transform2dSchema.nullable().optional(),
+});
 export const addShapeSchema = z.strictObject({
   ...shapeFields,
   durationMs: positiveMilliseconds,
@@ -849,6 +862,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   rectangleItemSchema,
   shapeItemSchema,
   svgItemSchema,
+  gridItemSchema,
   captionItemSchema,
   transitionItemSchema,
 ]);
@@ -1096,6 +1110,7 @@ export const componentTrackSchema = z
             rectangleItemSchema,
             shapeItemSchema,
             svgItemSchema,
+            gridItemSchema,
             captionItemSchema.extend({
               source: captionItemSchema.shape.source.extend({
                 confidence: finite.min(0).max(1).nullable().default(null),
@@ -1228,7 +1243,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(15),
+        schemaVersion: z.literal(16),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1442,6 +1457,15 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
         .optional(),
     })
     .strict(),
+  addGridSchema
+    .extend({
+      operation: z.literal("add_grid"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
+    .strict(),
   addShapeSchema
     .extend({
       operation: z.literal("add_shape"),
@@ -1474,6 +1498,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
       geometry: shapeGeometrySchema.optional(),
+      grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       operation: z.literal("update_item"),
@@ -1779,6 +1804,7 @@ export const schemas = {
       voice: speechVoiceIdSchema.optional(),
     })
     .strict(),
+  timelineAddGrid: projectRevisionSchema.extend(addGridSchema.shape).strict(),
   timelineAddMedia: projectRevisionSchema
     .extend({
       assetId: id,
@@ -1872,6 +1898,7 @@ export const schemas = {
           "rectangle",
           "shape",
           "svg",
+          "grid",
           "caption",
           "transition",
         ])
@@ -1911,6 +1938,7 @@ export const schemas = {
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
       geometry: shapeGeometrySchema.optional(),
+      grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       stroke: strokeSchema.nullable().optional(),

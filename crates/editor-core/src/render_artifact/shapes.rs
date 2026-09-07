@@ -248,6 +248,129 @@ pub(super) fn rasterize(shape: &EvaluatedShape) -> Result<Vec<u8>, CoreError> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn grid_clipped_dashes_caps_paints_and_empty_coverage() {
+        use serde_json::{Value, json};
+        let catalog: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/procedural-grids-v1.json"
+        ))
+        .unwrap();
+        let mut grid = catalog["valid"][0]["grid"].clone();
+        grid["width"] = json!(30.5);
+        grid["height"] = json!(10.5);
+        grid["pattern"]["spacingX"] = json!(20);
+        grid["pattern"]["spacingY"] = json!(20);
+        grid["pattern"]["stroke"]["width"] = json!(2);
+        grid["pattern"]["stroke"]["dash"] = json!([4, 4]);
+        grid["pattern"]["stroke"]["paint"]["color"]["a"] = json!(1);
+        let alpha = |grid: &Value, x: u32, y: u32, density: f64| {
+            let shape = EvaluatedShape::grid_with_budget(
+                serde_json::from_value(grid.clone()).unwrap(),
+                density,
+                65536,
+            )
+            .unwrap();
+            let data = rasterize(&shape).unwrap();
+            let pixels = &data[data.len() - (shape.size.0 * shape.size.1 * 4) as usize..];
+            pixels[((y * shape.size.0 + x) * 4 + 3) as usize]
+        };
+        grid["pattern"]["stroke"]["lineCap"] = json!("butt");
+        assert_eq!(alpha(&grid, 20, 4, 1.), 0);
+        assert!(alpha(&grid, 20, 10, 1.).abs_diff(128) <= 1);
+        grid["pattern"]["stroke"]["lineCap"] = json!("square");
+        assert_eq!(alpha(&grid, 20, 4, 1.), 255);
+        grid["pattern"]["stroke"]["lineCap"] = json!("round");
+        let rounded = alpha(&grid, 20, 4, 1.);
+        assert!(rounded > 0 && rounded < 255);
+        grid["pattern"]["stroke"]["dashOffset"] = json!(3);
+        grid["pattern"]["stroke"]["lineCap"] = json!("butt");
+        assert_eq!(alpha(&grid, 20, 3, 1.), 0);
+        grid["pattern"]["stroke"]["dash"] = json!([]);
+        grid["pattern"]["stroke"]["paint"]["color"]["a"] = json!(0.5);
+        assert!(alpha(&grid, 20, 10, 1.).abs_diff(64) <= 1);
+        assert!(alpha(&grid, 40, 20, 2.).abs_diff(128) <= 1);
+        grid["pattern"]["stroke"]["paint"] = json!({"type":"linearGradient","start":{"x":0,"y":0},"end":{"x":40,"y":0},"stops":[{"offset":0,"color":{"r":1,"g":0,"b":0,"a":0}},{"offset":1,"color":{"r":1,"g":0,"b":0,"a":1}}]});
+        assert!(alpha(&grid, 20, 10, 1.).abs_diff(65) <= 1);
+        grid["width"] = json!(0.5);
+        grid["height"] = json!(0.5);
+        grid["pattern"]["stroke"]["dash"] = json!([1, 100]);
+        grid["pattern"]["stroke"]["dashOffset"] = json!(2);
+        assert_eq!(alpha(&grid, 0, 0, 1.), 0);
+        let mut dot = catalog["valid"][2]["grid"].clone();
+        dot["width"] = json!(10.5);
+        dot["height"] = json!(10.5);
+        dot["pattern"]["paint"]["color"]["a"] = json!(1);
+        assert!(alpha(&dot, 10, 10, 1.).abs_diff(64) <= 1);
+    }
+    #[test]
+    fn grid_fractional_edges_preserve_partial_stroke_coverage() {
+        use serde_json::json;
+        for (width, height, x, y, expected) in [
+            (10.5, 10., 10, 5, 128),
+            (11., 10., 10, 5, 128),
+            (10., 10.5, 5, 10, 128),
+            (10.5, 10.5, 10, 10, 112),
+        ] {
+            let grid = json!({"width":width,"height":height,"pattern":{"type":"rectangular","spacingX":10,"spacingY":10,"stroke":{"width":1,"dash":[],"dashOffset":0,"lineCap":"butt","lineJoin":"miter","miterLimit":4,"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}}}}});
+            let shape =
+                EvaluatedShape::grid_with_budget(serde_json::from_value(grid).unwrap(), 1., 65536)
+                    .unwrap();
+            let data = rasterize(&shape).unwrap();
+            let pixels = &data[data.len() - (shape.size.0 * shape.size.1 * 4) as usize..];
+            let alpha = pixels[((y * shape.size.0 + x) * 4 + 3) as usize];
+            assert!(
+                alpha.abs_diff(expected) <= 1,
+                "{width}x{height} ({x},{y}): {alpha} != {expected}"
+            );
+        }
+    }
+    #[test]
+    fn grid_intersections_local_paints_and_fractional_viewport() {
+        use serde_json::{Value, json};
+        let catalog: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/procedural-grids-v1.json"
+        ))
+        .unwrap();
+        let mut grid = catalog["valid"][0]["grid"].clone();
+        grid["pattern"]["stroke"]["width"] = json!(2);
+        let shape = EvaluatedShape::grid_with_budget(
+            serde_json::from_value(grid.clone()).unwrap(),
+            1.,
+            65536,
+        )
+        .unwrap();
+        let data = rasterize(&shape).unwrap();
+        let pixels = &data[data.len() - 20 * 20 * 4..];
+        let pixel = |x: usize, y: usize| &pixels[(y * 20 + x) * 4..(y * 20 + x + 1) * 4];
+        assert_eq!(pixel(9, 9), &[255, 0, 0, 191]);
+        assert_eq!(pixel(5, 9), &[255, 0, 0, 128]);
+        assert_eq!(pixel(5, 5), &[0, 0, 0, 0]);
+        grid["pattern"]["stroke"]["paint"] = json!({"type":"linearGradient","start":{"x":0,"y":0},"end":{"x":20,"y":0},"stops":[{"offset":0,"color":{"r":1,"g":0,"b":0,"a":1}},{"offset":1,"color":{"r":0,"g":0,"b":1,"a":1}}]});
+        let shape =
+            EvaluatedShape::grid_with_budget(serde_json::from_value(grid).unwrap(), 1., 65536)
+                .unwrap();
+        let data = rasterize(&shape).unwrap();
+        let pixels = &data[data.len() - 1600..];
+        let x = 5;
+        let y = 9;
+        let p = &pixels[(y * 20 + x) * 4..(y * 20 + x + 1) * 4];
+        let expected = [
+            (srgb(1. - 5.5 / 20.) * 255.).round() as u8,
+            0,
+            (srgb(5.5 / 20.) * 255.).round() as u8,
+            255,
+        ];
+        assert_eq!(p, expected);
+        let mut dot = catalog["valid"][2]["grid"].clone();
+        dot["width"] = json!(0.5);
+        dot["height"] = json!(0.5);
+        dot["pattern"]["paint"]["color"]["a"] = json!(1);
+        let shape =
+            EvaluatedShape::grid_with_budget(serde_json::from_value(dot).unwrap(), 1., 65536)
+                .unwrap();
+        let data = rasterize(&shape).unwrap();
+        assert_eq!(&data[data.len() - 4..], &[255, 0, 0, 64]);
+    }
     use super::*;
     use serde_json::json;
     #[test]

@@ -227,6 +227,23 @@
         "apps/agent-bridge/tests/svg-ingestion.test.ts",
         "docs/svg-ingestion.md"
       ]
+    },
+    "proceduralGrids": {
+      "canonical": "contracts/procedural-grids-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/grid.rs",
+        "crates/editor-core/src/validation/grid.rs",
+        "crates/editor-core/tests/procedural_grids.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/procedural-grids.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/procedural-grids.test.ts",
+        "apps/agent-bridge/tests/grid-workflow.ts",
+        "docs/procedural-grids.md"
+      ]
     }
   }
 }

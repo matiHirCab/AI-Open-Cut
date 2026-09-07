@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyComponentWorkflow } from "./component-workflow";
+import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
@@ -1036,4 +1037,5 @@ it("ungroups through standalone and alias MCP edits with atomic failures and his
 it("exercises all shape contracts, atomic batches and retained history", async () => {
   await verifyShapeWorkflow(client, call, projects);
   await verifySvgWorkflow(client, call);
+  await verifyGridWorkflow(client, call);
 });

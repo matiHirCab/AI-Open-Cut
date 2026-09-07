@@ -1,0 +1,7 @@
+- [x] 1. Record the explicitly approved plan and read the living requirements before implementation.
+- [x] 2. Add failing independent fractional edge regressions. Trace: Geometric fractional grid coverage / Preserve partially covered edges.
+- [x] 3. Implement bounded evaluated stroke/fill clipping and remove post-raster coverage multiplication; verify orientation, caps/dashes, paints, scale and complexity. Trace: Geometric fractional grid coverage / all scenarios.
+- [x] 4. Fix source/packaged MCP domain rollback assertions and verify both workflows. Trace: MCP grid rollback reaches domain execution / both scenarios.
+- [x] 5. Add native fractional render regression and run the complete native golden gate. Trace: Fractional grid render conformance / all scenarios.
+- [x] 6. Run Rust formatting, strict workspace Clippy, serial workspace tests, bridge type/lint/unit/contracts/integration/packaged checks and hermetic workers; record exact results.
+- [x] 7. Use openspec-verify-change, resolve mismatches, synchronize living requirements, archive with openspec-archive-change, then pass Moon and git diff --check.

@@ -90,7 +90,8 @@
       "typed_template_slots",
       "component_lifecycle",
       "shape_items",
-      "svg_items"
+      "svg_items",
+      "grid_items"
     ],
     "renderingCapabilities": [
       "preview",
@@ -99,6 +100,7 @@
       "evaluated_scene_rendering",
       "shape_rendering",
       "svg_rendering",
+      "grid_rendering",
       "transform2d"
     ]
   }

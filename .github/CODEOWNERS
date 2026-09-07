@@ -68,3 +68,17 @@
 /apps/agent-bridge/tests/svg-ingestion.test.ts @matiHirCab
 /apps/agent-bridge/tests/svg-workflow.ts @matiHirCab
 /docs/svg-ingestion.md @matiHirCab
+
+# Procedural grid contract consumers.
+/crates/editor-core/src/model/grid.rs @matiHirCab
+/crates/editor-core/src/validation/grid.rs @matiHirCab
+/crates/editor-core/tests/procedural_grids.rs @matiHirCab
+/apps/headless/src/main.rs @matiHirCab
+/apps/headless/tests/protocol.rs @matiHirCab
+/apps/agent-bridge/src/procedural-grids.ts @matiHirCab
+/apps/agent-bridge/src/schemas.ts @matiHirCab
+/apps/agent-bridge/src/headless-contract.ts @matiHirCab
+/apps/agent-bridge/src/server/timeline.ts @matiHirCab
+/apps/agent-bridge/tests/procedural-grids.test.ts @matiHirCab
+/apps/agent-bridge/tests/grid-workflow.ts @matiHirCab
+/docs/procedural-grids.md @matiHirCab
