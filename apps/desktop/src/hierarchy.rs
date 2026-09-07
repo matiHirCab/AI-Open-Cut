@@ -74,6 +74,7 @@ pub(crate) fn kind(item: &TimelineItem) -> &'static str {
         TimelineItem::SolidColor(_) => "Solid",
         TimelineItem::Rectangle(_) => "Rectangle",
         TimelineItem::Shape(_) => "Shape",
+        TimelineItem::Svg(_) => "SVG",
         TimelineItem::Caption(_) => "Caption",
         TimelineItem::Transition(_) => "Transition",
     }

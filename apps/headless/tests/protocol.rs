@@ -95,6 +95,44 @@ fn native_parity_is_configured() -> bool {
     true
 }
 
+#[test]
+fn native_svg_numeric_rejection_preserves_state() {
+    for source in [
+        "<svg width=\"100\" height=\"100\" viewBox=\"0 0 0.0001 0.0001\"><rect x=\"-5000\" y=\"-5000\" width=\"10000\" height=\"10000\"/></svg>",
+        "<svg width=\"100\" height=\"100\" viewBox=\"0 0 .001 .001\"><polygon points=\"-5000,-5000 5000,5000 5000,5000.0001 -5000,-4999.9999\" fill=\"#f00\"/></svg>",
+    ] {
+        assert_svg_numeric_rejection(source);
+    }
+}
+
+fn assert_svg_numeric_rejection(source: &str) {
+    if !native_parity_is_configured() {
+        return;
+    }
+    let harness = Harness::new();
+    let created = result(&harness.request(json!({"operation":"create_project","name":"SVG numeric rejection","settings":{"width":100,"height":100,"fps":10}})));
+    let id = created["projectId"].as_str().unwrap();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["trackType"] == "overlay")
+        .unwrap()["id"]
+        .as_str()
+        .unwrap();
+    result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_svg","trackId":track,"startMs":0,"durationMs":1000,"svg":source}})));
+    let before = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let failed = event(&harness.request(
+        json!({"operation":"render_preview","projectId":id,"expectedRevision":1,"timeMs":0}),
+    ));
+    assert_eq!(failed["error"]["code"], "INVALID_ARGUMENT");
+    assert_eq!(
+        result(&harness.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
+}
+
 fn event(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap()
 }
@@ -108,6 +146,33 @@ fn result(output: &Output) -> Value {
     let envelope = event(output);
     assert_eq!(envelope["type"], "result");
     envelope["result"].clone()
+}
+
+#[test]
+fn svg_contract_reaches_core_and_preserves_batch_atomicity() {
+    let h = Harness::new();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"SVG"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/svg-ingestion-v1.json")).unwrap();
+    let mut revision = 0;
+    for f in catalog["valid"].as_array().unwrap() {
+        let r=result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"add_svg","trackId":track,"startMs":0,"durationMs":1000,"svg":f["svg"]}})));
+        revision = r["revision"].as_u64().unwrap();
+    }
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    for f in catalog["invalid"].as_array().unwrap() {
+        let e=event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"add_svg","trackId":track,"startMs":0,"durationMs":1000,"svg":f["svg"]}})));
+        assert_eq!(e["error"]["code"], "INVALID_ARGUMENT", "{e}");
+    }
+    let batch = json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"add_svg","trackId":track,"startMs":0,"durationMs":1000,"svg":catalog["valid"][0]["svg"],"resultAlias":"icon"},{"operation":"item_set_z_index","itemId":"@icon","zIndex":3},{"operation":"delete_item","itemId":"missing"}]});
+    assert_eq!(event(&h.request(batch))["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
 }
 
 #[test]
@@ -1085,7 +1150,7 @@ fn shape_contract_standalone_batch_and_atomic_failures() {
         ),
     );
     let opened = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(opened["project"]["schemaVersion"], 14);
+    assert_eq!(opened["project"]["schemaVersion"], 15);
     assert_eq!(
         opened["project"]["tracks"][1]["items"]
             .as_array()

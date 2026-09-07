@@ -1,12 +1,14 @@
 mod buffered;
 use buffered::BufferedValue;
 mod shape;
+mod svg;
 use serde::{Deserialize, Deserializer, Serialize};
 pub use shape::*;
+pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 14;
+pub const PROJECT_SCHEMA_VERSION: u32 = 15;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -461,6 +463,7 @@ pub enum TimelineItem {
     SolidColor(SolidColorItem),
     Rectangle(RectangleItem),
     Shape(ShapeItem),
+    Svg(SvgItem),
     Caption(CaptionItem),
     Transition(TransitionItem),
 }
@@ -475,6 +478,7 @@ impl TimelineItem {
             Self::SolidColor(item) => &item.id,
             Self::Rectangle(item) => &item.id,
             Self::Shape(item) => &item.id,
+            Self::Svg(item) => &item.id,
             Self::Caption(item) => &item.id,
             Self::Transition(item) => &item.id,
         }
@@ -489,6 +493,7 @@ impl TimelineItem {
             Self::SolidColor(item) => item.start_ms,
             Self::Rectangle(item) => item.start_ms,
             Self::Shape(item) => item.start_ms,
+            Self::Svg(item) => item.start_ms,
             Self::Caption(item) => item.start_ms,
             Self::Transition(item) => item.start_ms,
         }
@@ -503,6 +508,7 @@ impl TimelineItem {
             Self::SolidColor(item) => item.duration_ms,
             Self::Rectangle(item) => item.duration_ms,
             Self::Shape(item) => item.duration_ms,
+            Self::Svg(item) => item.duration_ms,
             Self::Caption(item) => item.duration_ms,
             Self::Transition(item) => item.duration_ms,
         }
@@ -524,6 +530,7 @@ impl TimelineItem {
             Self::SolidColor(v) => &v.keyframes,
             Self::Rectangle(v) => &v.keyframes,
             Self::Shape(v) => &v.keyframes,
+            Self::Svg(v) => &v.keyframes,
             Self::Caption(_) | Self::Transition(_) => &[],
         }
     }
@@ -536,6 +543,7 @@ impl TimelineItem {
             Self::SolidColor(item) => Some(&mut item.keyframes),
             Self::Rectangle(item) => Some(&mut item.keyframes),
             Self::Shape(item) => Some(&mut item.keyframes),
+            Self::Svg(item) => Some(&mut item.keyframes),
             Self::Caption(_) => None,
             Self::Transition(_) => None,
         }
@@ -558,6 +566,7 @@ impl TimelineItem {
             Self::SolidColor(item) => &item.visual_properties,
             Self::Rectangle(item) => &item.visual_properties,
             Self::Shape(item) => &item.visual_properties,
+            Self::Svg(item) => &item.visual_properties,
             Self::Caption(item) => &item.visual_properties,
             Self::Transition(item) => &item.visual_properties,
         }
@@ -572,6 +581,7 @@ impl TimelineItem {
             Self::SolidColor(item) => &mut item.visual_properties,
             Self::Rectangle(item) => &mut item.visual_properties,
             Self::Shape(item) => &mut item.visual_properties,
+            Self::Svg(item) => &mut item.visual_properties,
             Self::Caption(item) => &mut item.visual_properties,
             Self::Transition(item) => &mut item.visual_properties,
         }
@@ -996,6 +1006,18 @@ pub struct ShapeItem {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SvgItem {
+    pub id: String,
+    pub document: SvgDocument,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
+    pub keyframes: Vec<Keyframe>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionWord {
     pub word: String,
     pub start_ms: u64,
@@ -1096,6 +1118,7 @@ impl_visual_properties_access!(
     SolidColorItem,
     RectangleItem,
     ShapeItem,
+    SvgItem,
     CaptionItem,
     TransitionItem,
 );
@@ -1336,6 +1359,16 @@ pub enum EditOperation {
         start_ms: u64,
         duration_ms: u64,
         transform: Transform,
+    },
+    AddSvg {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        svg: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        transform2d: Option<Transform2D>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<ParentReference>,
     },
     AddShape {
         track_id: String,
@@ -1615,6 +1648,16 @@ enum EditOperationDef {
         duration_ms: u64,
         transform: Transform,
     },
+    AddSvg {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        svg: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        transform2d: Option<Transform2D>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<ParentReference>,
+    },
     AddShape {
         track_id: String,
         start_ms: u64,
@@ -1837,6 +1880,15 @@ impl<'de> Deserialize<'de> for EditOperation {
             Some("component_define_slots") => Some(&["operation", "componentId", "slots"]),
             Some("component_delete") => Some(&["operation", "componentId"]),
             Some("group_ungroup") => Some(&["operation", "groupId"]),
+            Some("add_svg") => Some(&[
+                "operation",
+                "trackId",
+                "startMs",
+                "durationMs",
+                "svg",
+                "transform2d",
+                "parent",
+            ]),
             Some("add_shape") => Some(&[
                 "operation",
                 "trackId",

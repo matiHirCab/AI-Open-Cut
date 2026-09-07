@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { shapeFields, shapeGeometrySchema } from "./shape-items";
+import { svgDocumentSchema } from "./svg-ingestion";
 import { paintSchema, strokeSchema } from "./vector-primitives";
 
 const id = z.string().min(1).max(128);
@@ -741,6 +742,19 @@ const shapeItemSchema = solidColorItemSchema
   .omit({ color: true, type: true })
   .extend({ type: z.literal("shape"), ...shapeFields })
   .strict();
+
+const svgItemSchema = solidColorItemSchema
+  .omit({ color: true })
+  .extend({ document: svgDocumentSchema, type: z.literal("svg") })
+  .strict();
+export const addSvgSchema = z.strictObject({
+  durationMs: positiveMilliseconds,
+  parent: parentReferenceSchema.nullable().optional(),
+  startMs: milliseconds,
+  svg: z.string(),
+  trackId: id,
+  transform2d: transform2dSchema.nullable().optional(),
+});
 export const addShapeSchema = z.strictObject({
   ...shapeFields,
   durationMs: positiveMilliseconds,
@@ -834,6 +848,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   solidColorItemSchema,
   rectangleItemSchema,
   shapeItemSchema,
+  svgItemSchema,
   captionItemSchema,
   transitionItemSchema,
 ]);
@@ -1080,6 +1095,7 @@ export const componentTrackSchema = z
             solidColorItemSchema,
             rectangleItemSchema,
             shapeItemSchema,
+            svgItemSchema,
             captionItemSchema.extend({
               source: captionItemSchema.shape.source.extend({
                 confidence: finite.min(0).max(1).nullable().default(null),
@@ -1212,7 +1228,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(14),
+        schemaVersion: z.literal(15),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1415,6 +1431,15 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       startMs: milliseconds,
       trackId: id,
       transform: transformSchema,
+    })
+    .strict(),
+  addSvgSchema
+    .extend({
+      operation: z.literal("add_svg"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
     })
     .strict(),
   addShapeSchema
@@ -1794,6 +1819,7 @@ export const schemas = {
       }),
     })
     .strict(),
+  timelineAddSvg: projectRevisionSchema.extend(addSvgSchema.shape).strict(),
   timelineAddText: projectRevisionSchema
     .extend({
       color: z
@@ -1845,6 +1871,7 @@ export const schemas = {
           "solid_color",
           "rectangle",
           "shape",
+          "svg",
           "caption",
           "transition",
         ])

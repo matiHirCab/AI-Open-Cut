@@ -89,7 +89,8 @@
       "component_instance_evaluation",
       "typed_template_slots",
       "component_lifecycle",
-      "shape_items"
+      "shape_items",
+      "svg_items"
     ],
     "renderingCapabilities": [
       "preview",
@@ -97,6 +98,7 @@
       "mp4_export",
       "evaluated_scene_rendering",
       "shape_rendering",
+      "svg_rendering",
       "transform2d"
     ]
   }

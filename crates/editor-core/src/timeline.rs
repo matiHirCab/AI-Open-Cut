@@ -52,6 +52,7 @@ pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
             | EditOperation::AddSolidColor { .. }
             | EditOperation::AddRectangle { .. }
             | EditOperation::AddShape { .. }
+            | EditOperation::AddSvg { .. }
             | EditOperation::AddTransition { .. }
             | EditOperation::CreateTrack { .. }
     )
@@ -115,6 +116,9 @@ pub(crate) fn resolve_operation_aliases(
         }
         EditOperation::GroupUngroup { group_id } => resolve_alias(group_id, aliases)?,
         EditOperation::AddGroup {
+            track_id, parent, ..
+        }
+        | EditOperation::AddSvg {
             track_id, parent, ..
         }
         | EditOperation::AddShape {
@@ -637,6 +641,39 @@ fn apply_operation_inner(
             }));
             Ok((vec![id], "Added solid color item"))
         }
+        EditOperation::AddSvg {
+            track_id,
+            start_ms,
+            duration_ms,
+            svg,
+            transform2d,
+            parent,
+        } => {
+            let document = crate::validation::svg::parse(&svg)?;
+            let transform2d = transform2d.unwrap_or_default();
+            transform2d.validate()?;
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "shapes require an overlay track",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Svg(crate::SvgItem {
+                id: id.clone(),
+                document,
+                start_ms,
+                duration_ms,
+                visual_properties: crate::VisualProperties {
+                    transform2d: Some(transform2d),
+                    parent,
+                    ..Default::default()
+                },
+                keyframes: vec![],
+            }));
+            Ok((vec![id], "Added SVG item"))
+        }
         EditOperation::AddShape {
             track_id,
             start_ms,
@@ -785,6 +822,7 @@ fn apply_operation_inner(
                     TimelineItem::SolidColor(item) => item.transform = transform,
                     TimelineItem::Rectangle(item) => item.transform = transform,
                     TimelineItem::Shape(item) => item.transform = transform,
+                    TimelineItem::Svg(item) => item.transform = transform,
                     TimelineItem::Caption(_) => {
                         return Err(CoreError::new(
                             ErrorCode::ValidationFailed,
@@ -916,6 +954,10 @@ fn apply_operation_inner(
                     item.duration_ms = duration_ms;
                 }
                 TimelineItem::Shape(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
+                TimelineItem::Svg(item) => {
                     item.start_ms = start_ms;
                     item.duration_ms = duration_ms;
                 }
@@ -1060,7 +1102,8 @@ fn apply_operation_inner(
             match item {
                 TimelineItem::Group(_)
                 | TimelineItem::ComponentInstance(_)
-                | TimelineItem::Shape(_) => {
+                | TimelineItem::Shape(_)
+                | TimelineItem::Svg(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "this item does not accept audio",
@@ -1167,6 +1210,18 @@ fn apply_operation_inner(
                     shape.duration_ms = left_duration;
                     shape.keyframes = left_keyframes;
                     TimelineItem::Shape(right)
+                }
+                TimelineItem::Svg(shape) => {
+                    let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
+                    shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
+                    TimelineItem::Svg(right)
                 }
                 TimelineItem::Caption(caption) => {
                     let mut right = caption.clone();
@@ -1452,6 +1507,7 @@ pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
         TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
         TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
         TimelineItem::Shape(shape) => shape.start_ms = start_ms,
+        TimelineItem::Svg(shape) => shape.start_ms = start_ms,
         TimelineItem::Caption(caption) => caption.start_ms = start_ms,
         TimelineItem::Transition(transition) => transition.start_ms = start_ms,
     }
@@ -1466,6 +1522,7 @@ pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
         TimelineItem::SolidColor(shape) => shape.id = id,
         TimelineItem::Rectangle(shape) => shape.id = id,
         TimelineItem::Shape(shape) => shape.id = id,
+        TimelineItem::Svg(shape) => shape.id = id,
         TimelineItem::Caption(caption) => caption.id = id,
         TimelineItem::Transition(transition) => transition.id = id,
     }

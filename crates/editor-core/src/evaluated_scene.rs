@@ -69,6 +69,7 @@ pub(crate) fn evaluate_project(
     height: u32,
     fps: u32,
 ) -> Result<EvaluatedSceneResult, CoreError> {
+    shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps)?;
     shapes::refine_scene(&mut result.scene)?;
     Ok(result)
@@ -86,7 +87,7 @@ fn evaluate_project_inner(
         .flat_map(|t| &t.items)
         .any(|i| matches!(i, TimelineItem::ComponentInstance(_)))
     {
-        return evaluate_flat_project(project, width, height, fps);
+        return evaluate_flat_project(project, width, height, fps, shapes::MAX_SCENE_SEGMENTS);
     }
     crate::validation::validate_project_visual_properties(project)?;
     let definitions = project
@@ -299,6 +300,16 @@ impl InstanceTraversal<'_> {
             clock.canvas.0,
             clock.canvas.1,
             result.scene.canvas.fps,
+            shapes::MAX_SCENE_SEGMENTS
+                - result
+                    .scene
+                    .visual_layers
+                    .iter()
+                    .filter_map(|l| match &l.source {
+                        EvaluatedVisualSource::Shape(s) => Some(s.segments()),
+                        _ => None,
+                    })
+                    .sum::<usize>(),
         )?;
         let identity = |id: &str| -> String {
             // Length-prefixed scope positions avoid collisions even with repeated local identifiers.
@@ -930,6 +941,7 @@ fn evaluate_flat_project(
     width: u32,
     height: u32,
     fps: u32,
+    shape_budget: usize,
 ) -> Result<EvaluatedSceneResult, CoreError> {
     if width == 0 || height == 0 || fps == 0 {
         return Err(invalid(
@@ -944,7 +956,7 @@ fn evaluate_flat_project(
         .collect::<HashMap<_, _>>();
     validate_referenced_assets(project, &asset_by_id)?;
     validate_media_source_ranges(project, &asset_by_id)?;
-    let preflight = preflight_project(project, &asset_by_id)?;
+    let preflight = preflight_project(project, &asset_by_id, shape_budget)?;
     validate_project_stacking(project)?;
     crate::validation::validate_parent_graph(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
@@ -1129,6 +1141,25 @@ fn evaluate_flat_project(
                         )),
                     });
                 }
+                TimelineItem::Svg(rectangle) => {
+                    visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
+                        source_size: None,
+                        item_id: rectangle.id.clone(),
+                        order,
+                        span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
+                        transform: evaluate_transform(&rectangle.transform)?,
+                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        transitions: transitions_for(&rectangle.id, &transition_index),
+                        source: EvaluatedVisualSource::Shape(Box::new(
+                            shapes::EvaluatedShape::pending_svg(rectangle.document.clone()),
+                        )),
+                    });
+                }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
                         instance: None,
@@ -1285,6 +1316,7 @@ fn validate_media_source_ranges(
 fn preflight_project<'a>(
     project: &'a Project,
     asset_by_id: &HashMap<&str, &Asset>,
+    shape_budget: usize,
 ) -> Result<EvaluationPreflight<'a>, CoreError> {
     let mut visual_item_ids = HashSet::new();
     let mut media_resource_ids = HashSet::new();
@@ -1379,9 +1411,19 @@ fn preflight_project<'a>(
                         1.0,
                     )?
                     .segments();
-                    if shape_segments > shapes::MAX_SCENE_SEGMENTS {
+                    if shape_segments > shape_budget {
                         return Err(invalid("scene shape segment limit exceeded"));
                     }
+                    validate_keyframe_limit(&rectangle.keyframes)?;
+                    increment_bounded(
+                        &mut visual_layer_count,
+                        MAX_EVALUATED_VISUAL_LAYERS,
+                        "evaluated visual layer limit exceeded",
+                    )?;
+                    visual_item_ids.insert(rectangle.id.as_str());
+                }
+                TimelineItem::Svg(rectangle) => {
+                    crate::validation::svg::validate_document(&rectangle.document)?;
                     validate_keyframe_limit(&rectangle.keyframes)?;
                     increment_bounded(
                         &mut visual_layer_count,
@@ -3501,6 +3543,86 @@ mod instance_tests {
         serde_json::from_value(json!({"schemaVersion":13,"id":"project","revision":0,"name":"Instances","createdAtMs":1,"updatedAtMs":1,"settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[track(json!([root]))],"components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":500,"slots":[],"tracks":[track(json!([shape]))]},{"id":"outer","name":"Outer","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[track(json!([inner]))]}]})).unwrap()
     }
 
+    #[test]
+    fn svg_component_sampling_precision() {
+        let mut p = project();
+        p.schema_version = 15;
+        let document = crate::validation::svg::parse("<svg width=\"100\" height=\"100\" viewBox=\"0 0 .1 .1\"><path d=\"M8388.60825 0 L8388.73625 0 L8388.73625 .01 Z\"/></svg>").unwrap();
+        p.components[0].tracks[0].items = vec![serde_json::from_value(json!({"type":"svg","id":"svg","document":document,"startMs":0,"durationMs":500,"keyframes":[]})).unwrap()];
+        assert!(evaluate_project(&p, 100, 100, 30).is_ok());
+        p.tracks[0].items[0].visual_properties_mut().transform.scale = 2.;
+        let error = evaluate_project(&p, 100, 100, 30).unwrap_err();
+        assert!(error.message.contains("coordinate conversion precision"));
+        p.tracks[0].hidden = true;
+        assert!(evaluate_project(&p, 100, 100, 30).is_err());
+    }
+    #[test]
+    fn svg_component_scale_cancellation() {
+        let mut p = project();
+        p.schema_version = 15;
+        let document = crate::validation::svg::parse("<svg width=\"100\" height=\"100\"><rect width=\"100\" height=\"100\" fill=\"#f00\"/></svg>").unwrap();
+        p.components[0].tracks[0].items = vec![serde_json::from_value(json!({"type":"svg","id":"svg","document":document,"startMs":0,"durationMs":500,"keyframes":[],"transform":{"positionX":0,"positionY":0,"scale":100,"opacity":1}})).unwrap()];
+        p.tracks[0].items[0].visual_properties_mut().transform.scale = 0.01;
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        let EvaluatedVisualSource::Shape(shape) = &scene.visual_layers[0].source else {
+            panic!("SVG missing")
+        };
+        assert_eq!(shape.size, (100, 100));
+        let mut identity = p.clone();
+        identity.components[0].tracks[0].items[0]
+            .visual_properties_mut()
+            .transform
+            .scale = 1.;
+        identity.tracks[0].items[0]
+            .visual_properties_mut()
+            .transform
+            .scale = 1.;
+        let identity = evaluate_project(&identity, 100, 100, 30).unwrap().scene;
+        let EvaluatedVisualSource::Shape(expected) = &identity.visual_layers[0].source else {
+            panic!()
+        };
+        assert_eq!(shape, expected);
+        let mut second = p.tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(i) = &mut second {
+            i.id = "second".into();
+        }
+        second.visual_properties_mut().stack_order = 1;
+        second.visual_properties_mut().transform.scale = 0.02;
+        p.tracks[0].items.push(second);
+        let two = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        let EvaluatedVisualSource::Shape(second) = &two.visual_layers[1].source else {
+            panic!()
+        };
+        assert_eq!(second.size, (200, 200));
+        p.tracks[0].items.pop();
+        // Unreachable definitions retain their own identity-root contract.
+        let mut unused = p.clone();
+        unused.tracks.clear();
+        assert!(evaluate_project(&unused, 100, 100, 30).is_err());
+        let legacy = p.tracks[0].items[0].visual_properties().transform.clone();
+        p.tracks[0].items[0].visual_properties_mut().transform = Transform::default();
+        p.tracks[0].items[0].visual_properties_mut().transform2d = Some(crate::Transform2D {
+            scale_x: 0.01,
+            scale_y: 0.01,
+            ..Default::default()
+        });
+        assert!(evaluate_project(&p, 100, 100, 30).is_ok());
+        p.tracks[0].items[0].visual_properties_mut().transform2d = None;
+        p.tracks[0].items[0].visual_properties_mut().transform = legacy;
+        let local = &mut p.components[0].tracks[0].items[0];
+        local.visual_properties_mut().transform.scale = 10.;
+        local.visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "component:leaf".into(),
+            id: "group".into(),
+        });
+        let group = serde_json::from_value(json!({"type":"group","id":"group","startMs":0,"durationMs":500,"stackOrder":1,"transform2d":crate::Transform2D { scale_x: 10., scale_y: 10., ..Default::default() }})).unwrap();
+        p.components[0].tracks[0].items.push(group);
+        assert!(evaluate_project(&p, 100, 100, 30).is_ok());
+        p.tracks[0].hidden = true;
+        assert!(evaluate_project(&p, 100, 100, 30).is_ok());
+        p.tracks[0].items[0].visual_properties_mut().transform.scale = 1.;
+        assert!(evaluate_project(&p, 100, 100, 30).is_err());
+    }
     #[test]
     fn nested_fractional_clock_affine_and_repeated_identity() {
         let mut project = project();
