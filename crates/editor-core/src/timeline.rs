@@ -53,6 +53,7 @@ pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
             | EditOperation::AddRectangle { .. }
             | EditOperation::AddShape { .. }
             | EditOperation::AddSvg { .. }
+            | EditOperation::AddGrid { .. }
             | EditOperation::AddTransition { .. }
             | EditOperation::CreateTrack { .. }
     )
@@ -116,6 +117,9 @@ pub(crate) fn resolve_operation_aliases(
         }
         EditOperation::GroupUngroup { group_id } => resolve_alias(group_id, aliases)?,
         EditOperation::AddGroup {
+            track_id, parent, ..
+        }
+        | EditOperation::AddGrid {
             track_id, parent, ..
         }
         | EditOperation::AddSvg {
@@ -641,6 +645,39 @@ fn apply_operation_inner(
             }));
             Ok((vec![id], "Added solid color item"))
         }
+        EditOperation::AddGrid {
+            track_id,
+            start_ms,
+            duration_ms,
+            grid,
+            transform2d,
+            parent,
+        } => {
+            crate::validation::grid::validate_grid(&grid)?;
+            let transform2d = transform2d.unwrap_or_default();
+            transform2d.validate()?;
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "shapes require an overlay track",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track.items.push(TimelineItem::Grid(crate::GridItem {
+                id: id.clone(),
+                grid,
+                start_ms,
+                duration_ms,
+                visual_properties: crate::VisualProperties {
+                    transform2d: Some(transform2d),
+                    parent,
+                    ..Default::default()
+                },
+                keyframes: vec![],
+            }));
+            Ok((vec![id], "Added grid item"))
+        }
         EditOperation::AddSvg {
             track_id,
             start_ms,
@@ -741,6 +778,7 @@ fn apply_operation_inner(
         }
         EditOperation::UpdateItem {
             item_id,
+            grid,
             geometry,
             fill,
             stroke,
@@ -764,6 +802,16 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(grid) = grid {
+                let TimelineItem::Grid(item) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "grid requires a grid item",
+                    ));
+                };
+                crate::validation::grid::validate_grid(&grid)?;
+                item.grid = *grid;
+            }
             if geometry.is_some() || fill.is_some() || stroke.is_some() {
                 let TimelineItem::Shape(shape) = item else {
                     return Err(CoreError::new(
@@ -823,6 +871,7 @@ fn apply_operation_inner(
                     TimelineItem::Rectangle(item) => item.transform = transform,
                     TimelineItem::Shape(item) => item.transform = transform,
                     TimelineItem::Svg(item) => item.transform = transform,
+                    TimelineItem::Grid(item) => item.transform = transform,
                     TimelineItem::Caption(_) => {
                         return Err(CoreError::new(
                             ErrorCode::ValidationFailed,
@@ -958,6 +1007,10 @@ fn apply_operation_inner(
                     item.duration_ms = duration_ms;
                 }
                 TimelineItem::Svg(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
+                TimelineItem::Grid(item) => {
                     item.start_ms = start_ms;
                     item.duration_ms = duration_ms;
                 }
@@ -1103,7 +1156,8 @@ fn apply_operation_inner(
                 TimelineItem::Group(_)
                 | TimelineItem::ComponentInstance(_)
                 | TimelineItem::Shape(_)
-                | TimelineItem::Svg(_) => {
+                | TimelineItem::Svg(_)
+                | TimelineItem::Grid(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "this item does not accept audio",
@@ -1222,6 +1276,18 @@ fn apply_operation_inner(
                     shape.duration_ms = left_duration;
                     shape.keyframes = left_keyframes;
                     TimelineItem::Svg(right)
+                }
+                TimelineItem::Grid(shape) => {
+                    let mut right = shape.clone();
+                    let (left_keyframes, right_keyframes) =
+                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    right.keyframes = right_keyframes;
+                    shape.duration_ms = left_duration;
+                    shape.keyframes = left_keyframes;
+                    TimelineItem::Grid(right)
                 }
                 TimelineItem::Caption(caption) => {
                     let mut right = caption.clone();
@@ -1508,6 +1574,7 @@ pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
         TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
         TimelineItem::Shape(shape) => shape.start_ms = start_ms,
         TimelineItem::Svg(shape) => shape.start_ms = start_ms,
+        TimelineItem::Grid(shape) => shape.start_ms = start_ms,
         TimelineItem::Caption(caption) => caption.start_ms = start_ms,
         TimelineItem::Transition(transition) => transition.start_ms = start_ms,
     }
@@ -1523,6 +1590,7 @@ pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
         TimelineItem::Rectangle(shape) => shape.id = id,
         TimelineItem::Shape(shape) => shape.id = id,
         TimelineItem::Svg(shape) => shape.id = id,
+        TimelineItem::Grid(shape) => shape.id = id,
         TimelineItem::Caption(caption) => caption.id = id,
         TimelineItem::Transition(transition) => transition.id = id,
     }

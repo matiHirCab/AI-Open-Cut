@@ -3,6 +3,7 @@
 //! Transports, persistence, rendering infrastructure, and presentation code call
 //! these rules rather than maintaining parallel validation implementations.
 
+pub(crate) mod grid;
 pub(crate) mod svg;
 
 use crate::{ComponentDefinition, SlotKind, SlotProperty, SlotValue, TemplateSlot};
@@ -179,6 +180,29 @@ fn validate_scope(
                     return Err(invalid("shape cannot animate volume"));
                 }
             }
+            if let TimelineItem::Grid(shape) = item {
+                if project.schema_version < 16 {
+                    return Err(invalid("grid items require schema 16"));
+                }
+                validate_item_track(item, track.track_type)?;
+                grid::validate_grid(&shape.grid)?;
+                if shape.duration_ms == 0
+                    || shape
+                        .start_ms
+                        .checked_add(shape.duration_ms)
+                        .is_none_or(|end| end > 9_007_199_254_740_991)
+                {
+                    return Err(invalid("invalid shape interval"));
+                }
+                validate_keyframes(&shape.keyframes)?;
+                if shape
+                    .keyframes
+                    .iter()
+                    .any(|k| k.property == KeyframeProperty::Volume)
+                {
+                    return Err(invalid("shape cannot animate volume"));
+                }
+            }
             if let TimelineItem::Group(group) = item {
                 if track.track_type != TrackType::Overlay {
                     return Err(invalid("groups require overlay tracks"));
@@ -213,6 +237,7 @@ fn validate_scope(
                                 | TimelineItem::ComponentInstance(_)
                                 | TimelineItem::Shape(_)
                                 | TimelineItem::Svg(_)
+                                | TimelineItem::Grid(_)
                         )
                     )
                 })
@@ -423,9 +448,14 @@ pub(crate) fn validate_track_media(track: TrackType, media: MediaType) -> Result
 
 pub(crate) fn validate_item_track(item: &TimelineItem, track: TrackType) -> Result<(), CoreError> {
     match item {
-        TimelineItem::Shape(_) | TimelineItem::Svg(_) if track != TrackType::Overlay => Err(
-            CoreError::new(ErrorCode::InvalidArgument, "shapes require overlay tracks"),
-        ),
+        TimelineItem::Shape(_) | TimelineItem::Svg(_) | TimelineItem::Grid(_)
+            if track != TrackType::Overlay =>
+        {
+            Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "shapes require overlay tracks",
+            ))
+        }
         TimelineItem::Text(_) if track != TrackType::Overlay => Err(CoreError::new(
             ErrorCode::ValidationFailed,
             "text items require an overlay track",
@@ -661,6 +691,7 @@ fn validate_component_content(
                     validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
                 }
                 TimelineItem::Svg(shape) => svg::validate_document(&shape.document)?,
+                TimelineItem::Grid(shape) => grid::validate_grid(&shape.grid)?,
                 TimelineItem::Shape(shape) => {
                     crate::validate_shape(&shape.geometry, &shape.fill, &shape.stroke)?
                 }
@@ -959,6 +990,7 @@ fn apply_slot_value(
             TimelineItem::Rectangle(v) => v.duration_ms = *value,
             TimelineItem::Shape(v) => v.duration_ms = *value,
             TimelineItem::Svg(v) => v.duration_ms = *value,
+            TimelineItem::Grid(v) => v.duration_ms = *value,
             TimelineItem::Caption(v) => v.duration_ms = *value,
             TimelineItem::Transition(v) => v.duration_ms = *value,
             TimelineItem::Group(v) => v.duration_ms = *value,

@@ -1,4 +1,5 @@
 //! Canonical path compilation, analytic bounds and bounded curve subdivision.
+mod grids;
 use super::invalid;
 use super::{
     EvaluatedAffine, EvaluatedKeyframeValue, EvaluatedProperty, EvaluatedScene,
@@ -34,6 +35,7 @@ pub(crate) struct Contour {
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedShape {
     pub geometry: ShapeGeometry,
+    pub grid_descriptor: Option<crate::GridDescriptor>,
     pub svg_document: Option<crate::SvgDocument>,
     pub svg_children: Option<Vec<EvaluatedShape>>,
     pub fill: Option<Paint>,
@@ -60,6 +62,10 @@ impl std::fmt::Debug for EvaluatedShape {
             .field("size", &self.size)
             .field("density", &self.density)
             .field("work_segments", &self.work_segments);
+        if self.grid_descriptor.is_some() {
+            d.field("grid_descriptor", &self.grid_descriptor)
+                .field("grid_children", &self.svg_children);
+        }
         if self.svg_document.is_some() {
             d.field("svg_document", &self.svg_document)
                 .field("svg_children", &self.svg_children);
@@ -417,6 +423,7 @@ impl EvaluatedShape {
             },
             bounds: [0., 0., document.width, document.height],
             size: (document.width.ceil() as u32, document.height.ceil() as u32),
+            grid_descriptor: None,
             svg_document: Some(document),
             svg_children: None,
             fill: None,
@@ -601,6 +608,7 @@ impl EvaluatedShape {
             }
             let child = Self {
                 geometry: value.geometry.clone(),
+                grid_descriptor: None,
                 svg_document: None,
                 svg_children: None,
                 fill: value.fill.clone(),
@@ -631,6 +639,7 @@ impl EvaluatedShape {
             size,
             density,
             work_segments: 0,
+            grid_descriptor: None,
             svg_document: Some(document),
             svg_children: Some(children),
         })
@@ -693,6 +702,7 @@ impl EvaluatedShape {
             fill_rule,
             contours: c.contours,
             work_segments,
+            grid_descriptor: None,
             svg_document: None,
             svg_children: None,
             density,
@@ -860,7 +870,12 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
         .chain(project.components.iter().map(|c| &c.tracks))
         .flat_map(|t| t.iter())
         .flat_map(|t| &t.items)
-        .any(|i| matches!(i, crate::TimelineItem::Svg(_)))
+        .any(|i| {
+            matches!(
+                i,
+                crate::TimelineItem::Svg(_) | crate::TimelineItem::Grid(_)
+            )
+        })
     {
         return Ok(());
     }
@@ -905,7 +920,9 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
             budget.occurrences += 1;
             if !matches!(
                 item,
-                crate::TimelineItem::Svg(_) | crate::TimelineItem::ComponentInstance(_)
+                crate::TimelineItem::Svg(_)
+                    | crate::TimelineItem::Grid(_)
+                    | crate::TimelineItem::ComponentInstance(_)
             ) {
                 continue;
             }
@@ -928,6 +945,15 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
                 crate::TimelineItem::Svg(svg) => {
                     let shape = EvaluatedShape::svg_with_budget(
                         svg.document.clone(),
+                        magnification(composed),
+                        MAX_SCENE_SEGMENTS - budget.segments,
+                    )?;
+                    budget.segments += shape.segments();
+                    budget.bytes = add_raster_bytes(budget.bytes, &shape)?;
+                }
+                crate::TimelineItem::Grid(svg) => {
+                    let shape = EvaluatedShape::grid_with_budget(
+                        svg.grid.clone(),
                         magnification(composed),
                         MAX_SCENE_SEGMENTS - budget.segments,
                     )?;
@@ -1037,7 +1063,9 @@ pub(super) fn refine_scene(scene: &mut EvaluatedScene) -> Result<(), CoreError> 
                     }
                 }
             }
-            let value = if let Some(doc) = &shape.svg_document {
+            let value = if let Some(grid) = &shape.grid_descriptor {
+                EvaluatedShape::grid_with_budget(grid.clone(), scale, MAX_SCENE_SEGMENTS - count)?
+            } else if let Some(doc) = &shape.svg_document {
                 EvaluatedShape::svg_with_budget(doc.clone(), scale, MAX_SCENE_SEGMENTS - count)?
             } else {
                 EvaluatedShape::with_budget(

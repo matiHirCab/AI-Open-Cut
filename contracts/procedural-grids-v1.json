@@ -1,0 +1,889 @@
+{
+  "version": 1,
+  "contract": "procedural-grids-v1",
+  "schemaVersion": 16,
+  "activation": "runtime",
+  "capabilities": [
+    "grid_items",
+    "grid_rendering"
+  ],
+  "operations": [
+    "add_grid"
+  ],
+  "descriptorFields": [
+    "width",
+    "height",
+    "pattern"
+  ],
+  "patternFields": {
+    "rectangular": [
+      "type",
+      "spacingX",
+      "spacingY",
+      "stroke"
+    ],
+    "diagonal": [
+      "type",
+      "spacing",
+      "stroke"
+    ],
+    "dot": [
+      "type",
+      "spacingX",
+      "spacingY",
+      "radius",
+      "paint"
+    ],
+    "isometric": [
+      "type",
+      "spacing",
+      "stroke"
+    ]
+  },
+  "limits": {
+    "maxDimension": 16384,
+    "maxMarks": 4096,
+    "maxGridSegments": 65536,
+    "maxSceneSegments": 1048576
+  },
+  "valid": [
+    {
+      "id": "rectangular",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "diagonal",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "diagonal",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "dot",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 10,
+          "spacingY": 10,
+          "radius": 2,
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "isometric",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "isometric",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "rectangular-linearGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "linearGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "start": {
+                "x": 0,
+                "y": 0
+              },
+              "end": {
+                "x": 20,
+                "y": 0
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "diagonal-linearGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "diagonal",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "linearGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "start": {
+                "x": 0,
+                "y": 0
+              },
+              "end": {
+                "x": 20,
+                "y": 0
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "dot-linearGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 10,
+          "spacingY": 10,
+          "radius": 2,
+          "paint": {
+            "type": "linearGradient",
+            "stops": [
+              {
+                "offset": 0,
+                "color": {
+                  "r": 1,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.5
+                }
+              },
+              {
+                "offset": 1,
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 20,
+              "y": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "isometric-linearGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "isometric",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "linearGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "start": {
+                "x": 0,
+                "y": 0
+              },
+              "end": {
+                "x": 20,
+                "y": 0
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "rectangular-radialGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "radialGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "center": {
+                "x": 10,
+                "y": 10
+              },
+              "radius": 10
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "diagonal-radialGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "diagonal",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "radialGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "center": {
+                "x": 10,
+                "y": 10
+              },
+              "radius": 10
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "dot-radialGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 10,
+          "spacingY": 10,
+          "radius": 2,
+          "paint": {
+            "type": "radialGradient",
+            "stops": [
+              {
+                "offset": 0,
+                "color": {
+                  "r": 1,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.5
+                }
+              },
+              {
+                "offset": 1,
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "center": {
+              "x": 10,
+              "y": 10
+            },
+            "radius": 10
+          }
+        }
+      }
+    },
+    {
+      "id": "isometric-radialGradient",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "isometric",
+          "spacing": 10,
+          "stroke": {
+            "paint": {
+              "type": "radialGradient",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": {
+                    "r": 1,
+                    "g": 0,
+                    "b": 0,
+                    "a": 0.5
+                  }
+                },
+                {
+                  "offset": 1,
+                  "color": {
+                    "r": 0,
+                    "g": 0,
+                    "b": 1,
+                    "a": 1
+                  }
+                }
+              ],
+              "center": {
+                "x": 10,
+                "y": 10
+              },
+              "radius": 10
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "width-0",
+      "stage": "semantic",
+      "grid": {
+        "width": 0,
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "height-16385",
+      "stage": "semantic",
+      "grid": {
+        "width": 20,
+        "height": 16385,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "extra-True",
+      "stage": "structure",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        },
+        "extra": true
+      }
+    },
+    {
+      "id": "pattern-{'type': 'polar'}",
+      "stage": "structure",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "polar"
+        }
+      }
+    },
+    {
+      "id": "width-10",
+      "stage": "structure",
+      "grid": {
+        "width": "10",
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "spacingX-0",
+      "stage": "semantic",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 0,
+          "spacingY": 10,
+          "radius": 2,
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "spacingX-1e-300",
+      "stage": "semantic",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 1e-300,
+          "spacingY": 10,
+          "radius": 2,
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "radius-6",
+      "stage": "semantic",
+      "grid": {
+        "width": 20,
+        "height": 20,
+        "pattern": {
+          "type": "dot",
+          "spacingX": 10,
+          "spacingY": 10,
+          "radius": 6,
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "representation-8",
+      "stage": "structure",
+      "grid": null
+    },
+    {
+      "id": "representation-9",
+      "stage": "structure",
+      "grid": []
+    },
+    {
+      "id": "representation-10",
+      "stage": "structure",
+      "grid": "<svg/>"
+    },
+    {
+      "id": "representation-11",
+      "stage": "structure",
+      "grid": {
+        "height": 20,
+        "pattern": {
+          "type": "rectangular",
+          "spacingX": 10,
+          "spacingY": 10,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    }
+  ],
+  "geometryExamples": [
+    {
+      "id": "rectangular",
+      "segments": [
+        [
+          0,
+          0,
+          0,
+          20
+        ],
+        [
+          10,
+          0,
+          10,
+          20
+        ],
+        [
+          20,
+          0,
+          20,
+          20
+        ],
+        [
+          0,
+          0,
+          20,
+          0
+        ],
+        [
+          0,
+          10,
+          20,
+          10
+        ],
+        [
+          0,
+          20,
+          20,
+          20
+        ]
+      ]
+    },
+    {
+      "id": "dot",
+      "centers": [
+        [
+          0,
+          0
+        ],
+        [
+          10,
+          0
+        ],
+        [
+          20,
+          0
+        ],
+        [
+          0,
+          10
+        ],
+        [
+          10,
+          10
+        ],
+        [
+          20,
+          10
+        ],
+        [
+          0,
+          20
+        ],
+        [
+          10,
+          20
+        ],
+        [
+          20,
+          20
+        ]
+      ]
+    }
+  ],
+  "migrationCases": [
+    {
+      "sourceVersion": 15,
+      "containsGrid": false,
+      "accept": true
+    },
+    {
+      "sourceVersion": 15,
+      "containsGrid": true,
+      "accept": false
+    },
+    {
+      "sourceVersion": 16,
+      "containsGrid": true,
+      "accept": true
+    },
+    {
+      "sourceVersion": 17,
+      "containsGrid": false,
+      "accept": false
+    }
+  ]
+}

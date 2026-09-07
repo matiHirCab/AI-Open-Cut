@@ -1,14 +1,16 @@
 mod buffered;
 use buffered::BufferedValue;
+mod grid;
 mod shape;
 mod svg;
+pub use grid::*;
 use serde::{Deserialize, Deserializer, Serialize};
 pub use shape::*;
 pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 15;
+pub const PROJECT_SCHEMA_VERSION: u32 = 16;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -464,6 +466,7 @@ pub enum TimelineItem {
     Rectangle(RectangleItem),
     Shape(ShapeItem),
     Svg(SvgItem),
+    Grid(GridItem),
     Caption(CaptionItem),
     Transition(TransitionItem),
 }
@@ -479,6 +482,7 @@ impl TimelineItem {
             Self::Rectangle(item) => &item.id,
             Self::Shape(item) => &item.id,
             Self::Svg(item) => &item.id,
+            Self::Grid(item) => &item.id,
             Self::Caption(item) => &item.id,
             Self::Transition(item) => &item.id,
         }
@@ -494,6 +498,7 @@ impl TimelineItem {
             Self::Rectangle(item) => item.start_ms,
             Self::Shape(item) => item.start_ms,
             Self::Svg(item) => item.start_ms,
+            Self::Grid(item) => item.start_ms,
             Self::Caption(item) => item.start_ms,
             Self::Transition(item) => item.start_ms,
         }
@@ -509,6 +514,7 @@ impl TimelineItem {
             Self::Rectangle(item) => item.duration_ms,
             Self::Shape(item) => item.duration_ms,
             Self::Svg(item) => item.duration_ms,
+            Self::Grid(item) => item.duration_ms,
             Self::Caption(item) => item.duration_ms,
             Self::Transition(item) => item.duration_ms,
         }
@@ -531,6 +537,7 @@ impl TimelineItem {
             Self::Rectangle(v) => &v.keyframes,
             Self::Shape(v) => &v.keyframes,
             Self::Svg(v) => &v.keyframes,
+            Self::Grid(v) => &v.keyframes,
             Self::Caption(_) | Self::Transition(_) => &[],
         }
     }
@@ -544,6 +551,7 @@ impl TimelineItem {
             Self::Rectangle(item) => Some(&mut item.keyframes),
             Self::Shape(item) => Some(&mut item.keyframes),
             Self::Svg(item) => Some(&mut item.keyframes),
+            Self::Grid(item) => Some(&mut item.keyframes),
             Self::Caption(_) => None,
             Self::Transition(_) => None,
         }
@@ -567,6 +575,7 @@ impl TimelineItem {
             Self::Rectangle(item) => &item.visual_properties,
             Self::Shape(item) => &item.visual_properties,
             Self::Svg(item) => &item.visual_properties,
+            Self::Grid(item) => &item.visual_properties,
             Self::Caption(item) => &item.visual_properties,
             Self::Transition(item) => &item.visual_properties,
         }
@@ -582,6 +591,7 @@ impl TimelineItem {
             Self::Rectangle(item) => &mut item.visual_properties,
             Self::Shape(item) => &mut item.visual_properties,
             Self::Svg(item) => &mut item.visual_properties,
+            Self::Grid(item) => &mut item.visual_properties,
             Self::Caption(item) => &mut item.visual_properties,
             Self::Transition(item) => &mut item.visual_properties,
         }
@@ -1018,6 +1028,18 @@ pub struct SvgItem {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GridItem {
+    pub id: String,
+    pub grid: GridDescriptor,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
+    pub keyframes: Vec<Keyframe>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionWord {
     pub word: String,
     pub start_ms: u64,
@@ -1119,6 +1141,7 @@ impl_visual_properties_access!(
     RectangleItem,
     ShapeItem,
     SvgItem,
+    GridItem,
     CaptionItem,
     TransitionItem,
 );
@@ -1360,6 +1383,16 @@ pub enum EditOperation {
         duration_ms: u64,
         transform: Transform,
     },
+    AddGrid {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        grid: GridDescriptor,
+        #[serde(default)]
+        transform2d: Option<Transform2D>,
+        #[serde(default)]
+        parent: Option<ParentReference>,
+    },
     AddSvg {
         track_id: String,
         start_ms: u64,
@@ -1401,6 +1434,8 @@ pub enum EditOperation {
             skip_serializing_if = "Option::is_none"
         )]
         geometry: Option<Box<ShapeGeometry>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grid: Option<Box<GridDescriptor>>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -1648,6 +1683,16 @@ enum EditOperationDef {
         duration_ms: u64,
         transform: Transform,
     },
+    AddGrid {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        grid: GridDescriptor,
+        #[serde(default)]
+        transform2d: Option<Transform2D>,
+        #[serde(default)]
+        parent: Option<ParentReference>,
+    },
     AddSvg {
         track_id: String,
         start_ms: u64,
@@ -1689,6 +1734,8 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         geometry: Option<Box<ShapeGeometry>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grid: Option<Box<GridDescriptor>>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -1829,6 +1876,9 @@ impl<'de> Deserialize<'de> for EditOperation {
         {
             return Err(serde::de::Error::custom("slotValues cannot be null"));
         }
+        if value.get("grid").is_some_and(serde_json::Value::is_null) {
+            return Err(serde::de::Error::custom("grid cannot be null"));
+        }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
             Some("add_component_instance") => Some(&[
                 "operation",
@@ -1880,6 +1930,15 @@ impl<'de> Deserialize<'de> for EditOperation {
             Some("component_define_slots") => Some(&["operation", "componentId", "slots"]),
             Some("component_delete") => Some(&["operation", "componentId"]),
             Some("group_ungroup") => Some(&["operation", "groupId"]),
+            Some("add_grid") => Some(&[
+                "operation",
+                "trackId",
+                "startMs",
+                "durationMs",
+                "grid",
+                "transform2d",
+                "parent",
+            ]),
             Some("add_svg") => Some(&[
                 "operation",
                 "trackId",

@@ -1150,7 +1150,7 @@ fn shape_contract_standalone_batch_and_atomic_failures() {
         ),
     );
     let opened = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(opened["project"]["schemaVersion"], 15);
+    assert_eq!(opened["project"]["schemaVersion"], 16);
     assert_eq!(
         opened["project"]["tracks"][1]["items"]
             .as_array()
@@ -1193,4 +1193,31 @@ fn raw_shape_duplicates_fail_before_single_batch_or_draft_mutation() {
         assert_eq!(before, std::fs::read(dir.join("project.json")).unwrap());
         assert_eq!(history, std::fs::read(dir.join("history.json")).unwrap());
     }
+}
+
+#[test]
+fn grid_contract_reaches_core_and_preserves_batch_atomicity() {
+    let h = Harness::new();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"SVG"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/procedural-grids-v1.json")).unwrap();
+    let mut revision = 0;
+    for f in catalog["valid"].as_array().unwrap() {
+        let r=result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"add_grid","trackId":track,"startMs":0,"durationMs":1000,"grid":f["grid"]}})));
+        revision = r["revision"].as_u64().unwrap();
+    }
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    for f in catalog["invalid"].as_array().unwrap() {
+        let e=event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"add_grid","trackId":track,"startMs":0,"durationMs":1000,"grid":f["grid"]}})));
+        assert_eq!(e["error"]["code"], "INVALID_ARGUMENT", "{e}");
+    }
+    let batch = json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"add_grid","trackId":track,"startMs":0,"durationMs":1000,"grid":catalog["valid"][0]["grid"],"resultAlias":"icon"},{"operation":"item_set_z_index","itemId":"@icon","zIndex":3},{"operation":"delete_item","itemId":"missing"}]});
+    assert_eq!(event(&h.request(batch))["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
 }

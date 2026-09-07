@@ -46,6 +46,7 @@ const AUDIO_SAMPLE_RATE_HZ: u32 = 48_000;
 const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
+mod grids;
 mod rule_card;
 mod shapes;
 mod svg;
@@ -2413,6 +2414,7 @@ fn native_golden_render_conformance() {
     rule_card::conformance(&tools);
     shapes::conformance(&tools);
     svg::conformance(&tools);
+    grids::conformance(&tools);
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)

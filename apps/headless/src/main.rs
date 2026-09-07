@@ -677,6 +677,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "component_lifecycle",
         "shape_items",
         "svg_items",
+        "grid_items",
     ]
 }
 
@@ -688,6 +689,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "evaluated_scene_rendering",
         "shape_rendering",
         "svg_rendering",
+        "grid_rendering",
         "transform2d",
     ]
 }

@@ -1160,6 +1160,25 @@ fn evaluate_flat_project(
                         )),
                     });
                 }
+                TimelineItem::Grid(rectangle) => {
+                    visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
+                        source_size: None,
+                        item_id: rectangle.id.clone(),
+                        order,
+                        span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
+                        transform: evaluate_transform(&rectangle.transform)?,
+                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        transitions: transitions_for(&rectangle.id, &transition_index),
+                        source: EvaluatedVisualSource::Shape(Box::new(
+                            shapes::EvaluatedShape::pending_grid(rectangle.grid.clone()),
+                        )),
+                    });
+                }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
                         instance: None,
@@ -1424,6 +1443,16 @@ fn preflight_project<'a>(
                 }
                 TimelineItem::Svg(rectangle) => {
                     crate::validation::svg::validate_document(&rectangle.document)?;
+                    validate_keyframe_limit(&rectangle.keyframes)?;
+                    increment_bounded(
+                        &mut visual_layer_count,
+                        MAX_EVALUATED_VISUAL_LAYERS,
+                        "evaluated visual layer limit exceeded",
+                    )?;
+                    visual_item_ids.insert(rectangle.id.as_str());
+                }
+                TimelineItem::Grid(rectangle) => {
+                    crate::validation::grid::validate_grid(&rectangle.grid)?;
                     validate_keyframe_limit(&rectangle.keyframes)?;
                     increment_bounded(
                         &mut visual_layer_count,
