@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "fixtureId": "shape-items-av-v1",
+  "canvas": [
+    240,
+    120
+  ],
+  "frameMs": 500,
+  "source": "contracts/shape-items-v1.json valid geometry variants",
+  "layout": "four shapes at y=15, three at y=75; x=10+55*column; rounded rectangle rotated 15deg and skewed 8deg; transparent linear ellipse; dashed round-cap line; star under opacity parent; radial-gradient component occurrence in fourth lower cell; legacy rectangle overlap; polygon clipped at left edge; evenodd hole in curved path",
+  "audio": "existing deterministic golden tone",
+  "oracles": [
+    "red rectangle interior at 25,25",
+    "black background at 2,2",
+    "analytic vector unit tests",
+    "exact evaluated plan",
+    "SSIM>=0.99",
+    "PCM RMS<=0.0001",
+    "timing within one frame"
+  ],
+  "intents": [
+    "frame",
+    "range",
+    "persisted draft materialization",
+    "export"
+  ]
+}

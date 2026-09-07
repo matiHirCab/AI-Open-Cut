@@ -131,6 +131,29 @@ fn validate_scope(
             if index.insert(item.id(), item).is_some() {
                 return Err(invalid("duplicate timeline item ID"));
             }
+            if let TimelineItem::Shape(shape) = item {
+                if project.schema_version < 14 {
+                    return Err(invalid("shape items require schema 14"));
+                }
+                validate_item_track(item, track.track_type)?;
+                crate::validate_shape(&shape.geometry, &shape.fill, &shape.stroke)?;
+                if shape.duration_ms == 0
+                    || shape
+                        .start_ms
+                        .checked_add(shape.duration_ms)
+                        .is_none_or(|end| end > 9_007_199_254_740_991)
+                {
+                    return Err(invalid("invalid shape interval"));
+                }
+                validate_keyframes(&shape.keyframes)?;
+                if shape
+                    .keyframes
+                    .iter()
+                    .any(|k| k.property == KeyframeProperty::Volume)
+                {
+                    return Err(invalid("shape cannot animate volume"));
+                }
+            }
             if let TimelineItem::Group(group) = item {
                 if track.track_type != TrackType::Overlay {
                     return Err(invalid("groups require overlay tracks"));
@@ -160,7 +183,11 @@ fn validate_scope(
                 .any(|id| {
                     matches!(
                         index.get(id.as_str()),
-                        Some(TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
+                        Some(
+                            TimelineItem::Group(_)
+                                | TimelineItem::ComponentInstance(_)
+                                | TimelineItem::Shape(_)
+                        )
                     )
                 })
         {
@@ -370,6 +397,10 @@ pub(crate) fn validate_track_media(track: TrackType, media: MediaType) -> Result
 
 pub(crate) fn validate_item_track(item: &TimelineItem, track: TrackType) -> Result<(), CoreError> {
     match item {
+        TimelineItem::Shape(_) if track != TrackType::Overlay => Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "shapes require overlay tracks",
+        )),
         TimelineItem::Text(_) if track != TrackType::Overlay => Err(CoreError::new(
             ErrorCode::ValidationFailed,
             "text items require an overlay track",
@@ -603,6 +634,9 @@ fn validate_component_content(
                 }
                 TimelineItem::SolidColor(shape) => {
                     validate_color(&shape.color).map_err(|e| invalid(&e.message))?;
+                }
+                TimelineItem::Shape(shape) => {
+                    crate::validate_shape(&shape.geometry, &shape.fill, &shape.stroke)?
                 }
                 TimelineItem::Rectangle(shape) => {
                     validate_dimensions(shape.width, shape.height)
@@ -897,6 +931,7 @@ fn apply_slot_value(
             TimelineItem::Text(v) => v.duration_ms = *value,
             TimelineItem::SolidColor(v) => v.duration_ms = *value,
             TimelineItem::Rectangle(v) => v.duration_ms = *value,
+            TimelineItem::Shape(v) => v.duration_ms = *value,
             TimelineItem::Caption(v) => v.duration_ms = *value,
             TimelineItem::Transition(v) => v.duration_ms = *value,
             TimelineItem::Group(v) => v.duration_ms = *value,

@@ -190,6 +190,27 @@
         "apps/agent-bridge/tests/packaged-smoke.test.ts",
         "apps/agent-bridge/tests/component-workflow.ts"
       ]
+    },
+    "shapeItems": {
+      "canonical": "contracts/shape-items-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/shape.rs",
+        "crates/editor-core/tests/shape_items.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/shape-items.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/shape-items.test.ts",
+        "docs/shape-items.md",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/timeline.rs",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/shape-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts"
+      ]
     }
   }
 }

@@ -675,6 +675,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "component_instance_evaluation",
         "typed_template_slots",
         "component_lifecycle",
+        "shape_items",
     ]
 }
 
@@ -684,6 +685,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "preview_range",
         "mp4_export",
         "evaluated_scene_rendering",
+        "shape_rendering",
         "transform2d",
     ]
 }

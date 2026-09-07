@@ -657,14 +657,14 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             // Canonicalize historical defaults before comparing the version-only migration.
             let typed: Project = serde_json::from_value(document).unwrap();
             let mut expected = serde_json::to_value(&typed).unwrap();
-            expected["schemaVersion"] = json!(13);
+            expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
             let mut older = expected.clone();
             older["schemaVersion"] = json!(11);
             older["components"][1]["tracks"][0]["items"][0]["transform"] =
                 json!({"positionX":0,"positionY":0,"scale":1,"opacity":1});
             let older: Project = serde_json::from_value(older).unwrap();
             let mut expected_older = serde_json::to_value(&older).unwrap();
-            expected_older["schemaVersion"] = json!(13);
+            expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
             let dir = core.paths().project_dir(&id).unwrap();
             std::fs::write(
                 dir.join("project.json"),

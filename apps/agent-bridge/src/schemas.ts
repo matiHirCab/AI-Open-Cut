@@ -1,4 +1,6 @@
 import { z } from "zod/v4";
+import { shapeFields, shapeGeometrySchema } from "./shape-items";
+import { paintSchema, strokeSchema } from "./vector-primitives";
 
 const id = z.string().min(1).max(128);
 const milliseconds = z.int().nonnegative();
@@ -735,6 +737,19 @@ const rectangleItemSchema = solidColorItemSchema
   })
   .strict();
 
+const shapeItemSchema = solidColorItemSchema
+  .omit({ color: true, type: true })
+  .extend({ type: z.literal("shape"), ...shapeFields })
+  .strict();
+export const addShapeSchema = z.strictObject({
+  ...shapeFields,
+  durationMs: positiveMilliseconds,
+  parent: parentReferenceSchema.nullable().optional(),
+  startMs: milliseconds,
+  trackId: id,
+  transform2d: transform2dSchema.nullable().optional(),
+});
+
 const captionWordSchema = z
   .object({
     confidence: finite.min(0).max(1).nullable(),
@@ -818,6 +833,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   textItemSchema,
   solidColorItemSchema,
   rectangleItemSchema,
+  shapeItemSchema,
   captionItemSchema,
   transitionItemSchema,
 ]);
@@ -1063,6 +1079,7 @@ export const componentTrackSchema = z
             }),
             solidColorItemSchema,
             rectangleItemSchema,
+            shapeItemSchema,
             captionItemSchema.extend({
               source: captionItemSchema.shape.source.extend({
                 confidence: finite.min(0).max(1).nullable().default(null),
@@ -1195,7 +1212,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(13),
+        schemaVersion: z.literal(14),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1400,6 +1417,15 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       transform: transformSchema,
     })
     .strict(),
+  addShapeSchema
+    .extend({
+      operation: z.literal("add_shape"),
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
+    .strict(),
   z
     .object({
       color,
@@ -1419,11 +1445,14 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
   z
     .object({
       color: color.optional(),
+      fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
+      geometry: shapeGeometrySchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       operation: z.literal("update_item"),
+      stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),
@@ -1750,6 +1779,7 @@ export const schemas = {
       width: z.int().positive().max(7680),
     })
     .strict(),
+  timelineAddShape: projectRevisionSchema.extend(addShapeSchema.shape).strict(),
   timelineAddSolidColor: projectRevisionSchema
     .extend({
       color,
@@ -1814,6 +1844,7 @@ export const schemas = {
           "text",
           "solid_color",
           "rectangle",
+          "shape",
           "caption",
           "transition",
         ])
@@ -1849,10 +1880,13 @@ export const schemas = {
   timelineUpdateItem: projectRevisionSchema
     .extend({
       color: color.optional(),
+      fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
+      geometry: shapeGeometrySchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
       transform: transformSchema.optional(),

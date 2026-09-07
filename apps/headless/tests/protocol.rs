@@ -23,6 +23,10 @@ impl Harness {
     }
 
     fn request(&self, request: Value) -> Output {
+        self.request_raw(&serde_json::to_string(&request).unwrap())
+    }
+
+    fn request_raw(&self, request: &str) -> Output {
         let projects = self.root.path().join("projects");
         let media = self.root.path().join("media");
         let exports = self.root.path().join("exports");
@@ -46,7 +50,7 @@ impl Harness {
             command.env("OPENCUT_DEFAULT_FONT_PATH", value);
         }
         let mut child = command.spawn().unwrap();
-        serde_json::to_writer(child.stdin.take().unwrap(), &request).unwrap();
+        std::io::Write::write_all(&mut child.stdin.take().unwrap(), request.as_bytes()).unwrap();
         child.wait_with_output().unwrap()
     }
 
@@ -732,6 +736,8 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
+    assert!(capabilities.contains(&json!("shape_items")));
+    assert!(!capabilities.contains(&json!("shape_rendering")));
 }
 
 #[test]
@@ -1019,5 +1025,107 @@ fn component_nested_input_failures_preserve_headless_generation() {
             assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before.0);
             assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), before.1);
         }
+    }
+}
+
+#[test]
+fn shape_contract_standalone_batch_and_atomic_failures() {
+    let harness = Harness::new();
+    let id=result(&harness.request(json!({"operation":"create_project","name":"Shapes"})))["projectId"].clone();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/shape-items-v1.json")).unwrap();
+    let mut revision = 0;
+    for f in catalog["valid"].as_array().unwrap() {
+        let mut edit = f["value"].clone();
+        edit["trackId"] = track.clone();
+        let r = result(&harness.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        revision = r["revision"].as_u64().unwrap();
+    }
+    let dir = harness
+        .root
+        .path()
+        .join("projects")
+        .join(id.as_str().unwrap());
+    let files = || ["project.json", "history.json"].map(|n| std::fs::read(dir.join(n)).unwrap());
+    let before = files();
+    for f in catalog["invalid"].as_array().unwrap() {
+        let mut edit = f["value"].clone();
+        edit["trackId"] = track.clone();
+        let failed = event(&harness.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(failed["error"]["code"], "INVALID_ARGUMENT", "{f}: {failed}");
+        assert_eq!(files(), before);
+    }
+    let mut edit = catalog["valid"][0]["value"].clone();
+    edit["trackId"] = track.clone();
+    edit["resultAlias"] = json!("shape");
+    let r=result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[edit,{"operation":"update_item","itemId":"@shape","stroke":null}]})));
+    revision = r["revision"].as_u64().unwrap();
+    assert!(r["aliases"]["shape"].is_string());
+    let before = files();
+    let mut valid = catalog["valid"][0]["value"].clone();
+    valid["trackId"] = track.clone();
+    let failed=event(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[valid,{"operation":"delete_item","itemId":"missing"}]})));
+    assert_eq!(failed["type"], "error");
+    assert_eq!(files(), before);
+    let failed=event(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"delete_item","itemId":r["aliases"]["shape"]}})));
+    assert_eq!(failed["error"]["code"], "REVISION_CONFLICT");
+    assert_eq!(files(), before);
+    let undone = result(
+        &harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision})),
+    );
+    result(
+        &harness.request(
+            json!({"operation":"redo","projectId":id,"expectedRevision":undone["revision"]}),
+        ),
+    );
+    let opened = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(opened["project"]["schemaVersion"], 14);
+    assert_eq!(
+        opened["project"]["tracks"][1]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        8
+    );
+}
+
+#[test]
+fn raw_shape_duplicates_fail_before_single_batch_or_draft_mutation() {
+    let h = Harness::new();
+    let output=h.request(json!({"operation":"create_project","name":"Raw shapes","settings":{"width":160,"height":120,"fps":24}}));
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let id = response["result"]["projectId"].as_str().unwrap();
+    let dir = h.root.path().join("projects").join(id);
+    let before = std::fs::read(dir.join("project.json")).unwrap();
+    let history = std::fs::read(dir.join("history.json")).unwrap();
+    let project: Value = serde_json::from_slice(&before).unwrap();
+    let track = project["tracks"][1]["id"].as_str().unwrap();
+    let edit = format!(
+        r#"{{"operation":"add_shape","trackId":"{track}","startMs":0,"durationMs":1000,"geometry":{{"type":"ellipse","width":2,"height":2}},"fill":{{"type":"solid","color":{{"r":2,"r":1,"g":0,"b":0,"a":1}}}},"stroke":null}}"#
+    );
+    let good = edit.replace("\"r\":2,", "");
+    for (operation, fields) in [
+        ("edit", format!(r#""edit":{edit}"#)),
+        ("edit_batch", format!(r#""operations":[{good},{edit}]"#)),
+        ("create_draft", format!(r#""operations":[{good},{edit}]"#)),
+    ] {
+        let raw = format!(
+            r#"{{"operation":"{operation}","projectId":"{id}","expectedRevision":0,{fields}}}"#
+        );
+        let output = h.request_raw(&raw);
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["type"], "error", "{response}");
+        assert!(
+            response.to_string().contains("duplicate field"),
+            "{response}"
+        );
+        assert_eq!(before, std::fs::read(dir.join("project.json")).unwrap());
+        assert_eq!(history, std::fs::read(dir.join("history.json")).unwrap());
     }
 }

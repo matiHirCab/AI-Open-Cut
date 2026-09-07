@@ -5,6 +5,7 @@
 //! separate path-bearing resource-binding sidecar.
 use std::collections::{HashMap, HashSet};
 
+pub(crate) mod shapes;
 use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
     KeyframeValue, MediaType, Project, TextAlignment, TextStyle, TimelineItem, Track, Transform,
@@ -63,6 +64,17 @@ impl crate::ComponentInstanceItem {
 type InstanceOrder = Vec<(usize, i32, usize, String)>;
 
 pub(crate) fn evaluate_project(
+    project: &Project,
+    width: u32,
+    height: u32,
+    fps: u32,
+) -> Result<EvaluatedSceneResult, CoreError> {
+    let mut result = evaluate_project_inner(project, width, height, fps)?;
+    shapes::refine_scene(&mut result.scene)?;
+    Ok(result)
+}
+
+fn evaluate_project_inner(
     project: &Project,
     width: u32,
     height: u32,
@@ -331,6 +343,7 @@ impl InstanceTraversal<'_> {
             }
             layer.source_size = match &layer.source {
                 EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
+                EvaluatedVisualSource::Shape(shape) => Some(shape.size),
                 EvaluatedVisualSource::SolidColor { .. } => Some(clock.canvas),
                 _ => layer.source_size,
             };
@@ -352,6 +365,19 @@ impl InstanceTraversal<'_> {
             .scene
             .visual_layers
             .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        let shape_segments: usize = result
+            .scene
+            .visual_layers
+            .iter()
+            .chain(&evaluated.scene.visual_layers)
+            .filter_map(|layer| match &layer.source {
+                EvaluatedVisualSource::Shape(shape) => Some(shape.segments()),
+                _ => None,
+            })
+            .sum();
+        if shape_segments > shapes::MAX_SCENE_SEGMENTS {
+            return Err(invalid("scene shape segment limit exceeded"));
+        }
         result.scene.voiceover_activity_range_count +=
             evaluated.scene.voiceover_activity_range_count;
         if result.scene.voiceover_activity_range_count > MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES {
@@ -748,6 +774,7 @@ pub(crate) enum EvaluatedVisualSource {
     SolidColor {
         color: String,
     },
+    Shape(Box<shapes::EvaluatedShape>),
     Rectangle {
         color: String,
         width: u32,
@@ -1078,6 +1105,30 @@ fn evaluate_flat_project(
                         },
                     });
                 }
+                TimelineItem::Shape(rectangle) => {
+                    visual_layers.push(EvaluatedVisualLayer {
+                        instance: None,
+                        transform2d: item.visual_properties().transform2d,
+                        affine: None,
+                        sampling_tiles: None,
+                        ancestors: None,
+                        source_size: None,
+                        item_id: rectangle.id.clone(),
+                        order,
+                        span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
+                        transform: evaluate_transform(&rectangle.transform)?,
+                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        transitions: transitions_for(&rectangle.id, &transition_index),
+                        source: EvaluatedVisualSource::Shape(Box::new(
+                            shapes::EvaluatedShape::new(
+                                rectangle.geometry.clone(),
+                                rectangle.fill.clone(),
+                                rectangle.stroke.clone(),
+                                1.0,
+                            )?,
+                        )),
+                    });
+                }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
                         instance: None,
@@ -1115,6 +1166,14 @@ fn evaluate_flat_project(
 
     apply_ancestors(project, &mut visual_layers, (width, height))?;
     for layer in &mut visual_layers {
+        if matches!(layer.source, EvaluatedVisualSource::Shape(_)) && layer.ancestors.is_none() {
+            layer.ancestors = Some(EvaluatedAncestors {
+                matrix: IDENTITY_MATRIX,
+                inverse: IDENTITY_MATRIX,
+                opacity: 1.0,
+                clip: layer.span,
+            });
+        }
         if let Some(value) = layer.transform2d {
             value.validate()?;
             if layer
@@ -1128,10 +1187,13 @@ fn evaluate_flat_project(
         if layer.requires_affine() {
             layer.source_size = match &layer.source {
                 EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
+                EvaluatedVisualSource::Shape(shape) => Some(shape.size),
                 EvaluatedVisualSource::SolidColor { .. } => Some((width, height)),
                 _ => None,
             };
-            if let Some(size) = layer.source_size {
+            if let Some(size) = layer.source_size
+                && !matches!(layer.source, EvaluatedVisualSource::Shape(_))
+            {
                 layer.affine = Some(evaluate_layer_affine(layer, size, (width, height))?);
             }
         }
@@ -1229,6 +1291,7 @@ fn preflight_project<'a>(
     let mut visual_layer_count = 0_usize;
     let mut audio_layer_count = 0_usize;
     let mut voiceover_activity_range_count = 0_usize;
+    let mut shape_segments = 0_usize;
 
     for track in project.tracks.iter().filter(|track| !track.hidden) {
         for item in track.items.iter().filter(|item| !item.hidden()) {
@@ -1300,6 +1363,25 @@ fn preflight_project<'a>(
                     visual_item_ids.insert(color.id.as_str());
                 }
                 TimelineItem::Rectangle(rectangle) => {
+                    validate_keyframe_limit(&rectangle.keyframes)?;
+                    increment_bounded(
+                        &mut visual_layer_count,
+                        MAX_EVALUATED_VISUAL_LAYERS,
+                        "evaluated visual layer limit exceeded",
+                    )?;
+                    visual_item_ids.insert(rectangle.id.as_str());
+                }
+                TimelineItem::Shape(rectangle) => {
+                    shape_segments += shapes::EvaluatedShape::new(
+                        rectangle.geometry.clone(),
+                        rectangle.fill.clone(),
+                        rectangle.stroke.clone(),
+                        1.0,
+                    )?
+                    .segments();
+                    if shape_segments > shapes::MAX_SCENE_SEGMENTS {
+                        return Err(invalid("scene shape segment limit exceeded"));
+                    }
                     validate_keyframe_limit(&rectangle.keyframes)?;
                     increment_bounded(
                         &mut visual_layer_count,
@@ -2954,10 +3036,12 @@ pub(crate) struct EvaluatedAncestors {
 
 impl EvaluatedVisualLayer {
     pub(crate) fn requires_affine(&self) -> bool {
-        self.transform2d.is_some() || self.ancestors.is_some()
+        self.transform2d.is_some()
+            || self.ancestors.is_some()
+            || matches!(self.source, EvaluatedVisualSource::Shape(_))
     }
     pub(crate) fn has_animated_geometry(&self) -> bool {
-        self.ancestors.is_some()
+        (self.ancestors.is_some() || matches!(self.source, EvaluatedVisualSource::Shape(_)))
             && self.transform2d.is_none()
             && self.keyframes.iter().any(|key| {
                 matches!(
@@ -2967,6 +3051,9 @@ impl EvaluatedVisualLayer {
             })
     }
     pub(crate) fn legacy_anchor(&self, source: (u32, u32)) -> (f64, f64) {
+        if let EvaluatedVisualSource::Shape(shape) = &self.source {
+            return (-shape.origin.0, -shape.origin.1);
+        }
         let EvaluatedVisualSource::Text(text) = &self.source else {
             return (0.0, 0.0);
         };
@@ -3182,6 +3269,9 @@ pub(crate) fn evaluate_layer_affine(
     source: (u32, u32),
     canvas: (u32, u32),
 ) -> Result<EvaluatedAffine, CoreError> {
+    if let EvaluatedVisualSource::Shape(shape) = &layer.source {
+        return shapes::affine(layer, shape, canvas);
+    }
     let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
     if layer.ancestors.is_none() {
         return evaluate_affine(
@@ -3293,6 +3383,7 @@ pub(crate) fn finalize_affine_geometry(
     scene: &mut EvaluatedScene,
     measurements: &HashMap<String, (u32, u32)>,
 ) -> Result<(), CoreError> {
+    shapes::refine_scene(scene)?;
     // Collect first so a bad measurement cannot partially finalize the scene.
     let resolved = scene
         .visual_layers

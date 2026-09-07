@@ -278,6 +278,12 @@ pub(crate) fn build_render_plan(
                 filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(layer.span.start_ms), seconds(layer.span.end_ms)));
                 current_video = composited;
             }
+            EvaluatedVisualSource::Shape(_) => {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "shape affine preparation missing",
+                ));
+            }
             EvaluatedVisualSource::Rectangle {
                 color,
                 width: layer_width,
@@ -896,6 +902,12 @@ fn append_affine_layer(
                 precise_seconds(start)
             )
         }
+        EvaluatedVisualSource::Shape(_) => {
+            let input = input_indexes
+                .get(layer.item_id.as_str())
+                .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing shape input"))?;
+            format!("[{input}:v]setpts=PTS-STARTPTS,format=rgba")
+        }
         EvaluatedVisualSource::SolidColor { color }
         | EvaluatedVisualSource::Rectangle { color, .. } => format!(
             "color=c={}:s={sw}x{sh}:r={fps}:d={duration},format=rgba",
@@ -1056,13 +1068,17 @@ fn append_affine_samples(
         );
         let [a, b, c, d, tx, ty] = parent.inverse;
         let (anchor_x, anchor_y) = layer.legacy_anchor((sw, sh));
+        let density = match &layer.source {
+            EvaluatedVisualSource::Shape(shape) => shape.density,
+            _ => 1.0,
+        };
         (
             format!(
-                "(({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-({px}))/({scale})+{anchor_x:.17}-0.5)",
+                "((({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-({px}))/({scale})+{anchor_x:.17})*{density:.17}-0.5)",
                 affine.left, affine.top
             ),
             format!(
-                "(({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-({py}))/({scale})+{anchor_y:.17}-0.5)",
+                "((({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-({py}))/({scale})+{anchor_y:.17})*{density:.17}-0.5)",
                 affine.left, affine.top
             ),
         )

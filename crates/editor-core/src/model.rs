@@ -1,8 +1,12 @@
+mod buffered;
+use buffered::BufferedValue;
+mod shape;
 use serde::{Deserialize, Deserializer, Serialize};
+pub use shape::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 13;
+pub const PROJECT_SCHEMA_VERSION: u32 = 14;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -40,9 +44,9 @@ struct ProjectDocument {
     updated_at_ms: u64,
     settings: ProjectSettings,
     assets: Vec<Asset>,
-    tracks: serde_json::Value,
+    tracks: BufferedValue,
     #[serde(default)]
-    components: Option<serde_json::Value>,
+    components: Option<BufferedValue>,
 }
 
 impl TryFrom<ProjectDocument> for Project {
@@ -136,10 +140,11 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         Ok(Self {
-            components: serde_json::from_value(
-                value.components.unwrap_or_else(|| serde_json::json!([])),
-            )
-            .map_err(|e| e.to_string())?,
+            components: value
+                .components
+                .unwrap_or_else(|| serde_json::json!([]).into())
+                .decode()
+                .map_err(|e| e.to_string())?,
             schema_version: value.schema_version,
             id: value.id,
             revision: value.revision,
@@ -148,7 +153,7 @@ impl TryFrom<ProjectDocument> for Project {
             updated_at_ms: value.updated_at_ms,
             settings: value.settings,
             assets: value.assets,
-            tracks: serde_json::from_value(value.tracks).map_err(|error| error.to_string())?,
+            tracks: value.tracks.decode().map_err(|error| error.to_string())?,
         })
     }
 }
@@ -455,6 +460,7 @@ pub enum TimelineItem {
     Text(TextItem),
     SolidColor(SolidColorItem),
     Rectangle(RectangleItem),
+    Shape(ShapeItem),
     Caption(CaptionItem),
     Transition(TransitionItem),
 }
@@ -468,6 +474,7 @@ impl TimelineItem {
             Self::Text(item) => &item.id,
             Self::SolidColor(item) => &item.id,
             Self::Rectangle(item) => &item.id,
+            Self::Shape(item) => &item.id,
             Self::Caption(item) => &item.id,
             Self::Transition(item) => &item.id,
         }
@@ -481,6 +488,7 @@ impl TimelineItem {
             Self::Text(item) => item.start_ms,
             Self::SolidColor(item) => item.start_ms,
             Self::Rectangle(item) => item.start_ms,
+            Self::Shape(item) => item.start_ms,
             Self::Caption(item) => item.start_ms,
             Self::Transition(item) => item.start_ms,
         }
@@ -494,6 +502,7 @@ impl TimelineItem {
             Self::Text(item) => item.duration_ms,
             Self::SolidColor(item) => item.duration_ms,
             Self::Rectangle(item) => item.duration_ms,
+            Self::Shape(item) => item.duration_ms,
             Self::Caption(item) => item.duration_ms,
             Self::Transition(item) => item.duration_ms,
         }
@@ -514,6 +523,7 @@ impl TimelineItem {
             Self::Text(v) => &v.keyframes,
             Self::SolidColor(v) => &v.keyframes,
             Self::Rectangle(v) => &v.keyframes,
+            Self::Shape(v) => &v.keyframes,
             Self::Caption(_) | Self::Transition(_) => &[],
         }
     }
@@ -525,6 +535,7 @@ impl TimelineItem {
             Self::Text(item) => Some(&mut item.keyframes),
             Self::SolidColor(item) => Some(&mut item.keyframes),
             Self::Rectangle(item) => Some(&mut item.keyframes),
+            Self::Shape(item) => Some(&mut item.keyframes),
             Self::Caption(_) => None,
             Self::Transition(_) => None,
         }
@@ -546,6 +557,7 @@ impl TimelineItem {
             Self::Text(item) => &item.visual_properties,
             Self::SolidColor(item) => &item.visual_properties,
             Self::Rectangle(item) => &item.visual_properties,
+            Self::Shape(item) => &item.visual_properties,
             Self::Caption(item) => &item.visual_properties,
             Self::Transition(item) => &item.visual_properties,
         }
@@ -559,6 +571,7 @@ impl TimelineItem {
             Self::Text(item) => &mut item.visual_properties,
             Self::SolidColor(item) => &mut item.visual_properties,
             Self::Rectangle(item) => &mut item.visual_properties,
+            Self::Shape(item) => &mut item.visual_properties,
             Self::Caption(item) => &mut item.visual_properties,
             Self::Transition(item) => &mut item.visual_properties,
         }
@@ -967,6 +980,22 @@ pub struct RectangleItem {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ShapeItem {
+    pub id: String,
+    pub geometry: ShapeGeometry,
+    #[serde(deserialize_with = "shape::required_nullable")]
+    pub fill: Option<crate::Paint>,
+    #[serde(deserialize_with = "shape::required_nullable")]
+    pub stroke: Option<crate::Stroke>,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
+    pub keyframes: Vec<Keyframe>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionWord {
     pub word: String,
     pub start_ms: u64,
@@ -1066,6 +1095,7 @@ impl_visual_properties_access!(
     TextItem,
     SolidColorItem,
     RectangleItem,
+    ShapeItem,
     CaptionItem,
     TransitionItem,
 );
@@ -1307,6 +1337,20 @@ pub enum EditOperation {
         duration_ms: u64,
         transform: Transform,
     },
+    AddShape {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        geometry: ShapeGeometry,
+        #[serde(deserialize_with = "shape::required_nullable")]
+        fill: Option<crate::Paint>,
+        #[serde(deserialize_with = "shape::required_nullable")]
+        stroke: Option<crate::Stroke>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        transform2d: Option<Transform2D>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<ParentReference>,
+    },
     AddRectangle {
         track_id: String,
         color: String,
@@ -1318,6 +1362,24 @@ pub enum EditOperation {
     },
     UpdateItem {
         item_id: String,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        geometry: Option<Box<ShapeGeometry>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        fill: Option<Option<Box<crate::Paint>>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        stroke: Option<Option<Box<crate::Stroke>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         transform: Option<Transform>,
         #[serde(
@@ -1553,6 +1615,20 @@ enum EditOperationDef {
         duration_ms: u64,
         transform: Transform,
     },
+    AddShape {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        geometry: ShapeGeometry,
+        #[serde(deserialize_with = "shape::required_nullable")]
+        fill: Option<crate::Paint>,
+        #[serde(deserialize_with = "shape::required_nullable")]
+        stroke: Option<crate::Stroke>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        transform2d: Option<Transform2D>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<ParentReference>,
+    },
     AddRectangle {
         track_id: String,
         color: String,
@@ -1564,6 +1640,24 @@ enum EditOperationDef {
     },
     UpdateItem {
         item_id: String,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        geometry: Option<Box<ShapeGeometry>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        fill: Option<Option<Box<crate::Paint>>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        stroke: Option<Option<Box<crate::Stroke>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         transform: Option<Transform>,
         #[serde(
@@ -1677,7 +1771,7 @@ enum EditOperationDef {
 
 impl<'de> Deserialize<'de> for EditOperation {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = serde_json::Value::deserialize(deserializer)?;
+        let value = BufferedValue::deserialize(deserializer)?;
         if value["operation"] == "item_set_parent" && value.get("parent").is_none() {
             return Err(serde::de::Error::custom(
                 "parent is required; use null to detach",
@@ -1743,6 +1837,17 @@ impl<'de> Deserialize<'de> for EditOperation {
             Some("component_define_slots") => Some(&["operation", "componentId", "slots"]),
             Some("component_delete") => Some(&["operation", "componentId"]),
             Some("group_ungroup") => Some(&["operation", "groupId"]),
+            Some("add_shape") => Some(&[
+                "operation",
+                "trackId",
+                "startMs",
+                "durationMs",
+                "geometry",
+                "fill",
+                "stroke",
+                "transform2d",
+                "parent",
+            ]),
             Some("add_group") => Some(&[
                 "operation",
                 "trackId",
@@ -1764,7 +1869,9 @@ impl<'de> Deserialize<'de> for EditOperation {
         {
             return Err(serde::de::Error::custom("unknown stacking operation field"));
         }
-        EditOperationDef::deserialize(value).map_err(serde::de::Error::custom)
+        value
+            .deserialize_with(EditOperationDef::deserialize)
+            .map_err(serde::de::Error::custom)
     }
 }
 

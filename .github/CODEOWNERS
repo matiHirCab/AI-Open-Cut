@@ -51,3 +51,11 @@
 /apps/agent-bridge/src/vector-primitives.ts @matiHirCab
 /apps/agent-bridge/tests/vector-primitives.test.ts @matiHirCab
 /docs/vector-primitives.md @matiHirCab
+
+# Shape contract consumers.
+/crates/editor-core/src/model/shape.rs @matiHirCab
+/crates/editor-core/tests/shape_items.rs @matiHirCab
+/apps/agent-bridge/src/shape-items.ts @matiHirCab
+/apps/agent-bridge/tests/shape-items.test.ts @matiHirCab
+/apps/agent-bridge/tests/shape-workflow.ts @matiHirCab
+/docs/shape-items.md @matiHirCab

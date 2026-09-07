@@ -324,6 +324,8 @@ describe("canonical public contracts", () => {
     expect(MCP_SURFACE.capabilityIdentifiers).toEqual([
       LIFECYCLE.capability,
       EVALUATED_SCENE_RENDERING_CAPABILITY,
+      "shape_items",
+      "shape_rendering",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

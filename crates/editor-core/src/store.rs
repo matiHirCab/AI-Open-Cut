@@ -3890,7 +3890,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12]
+        for (version, phase) in [6, 9, 10, 11, 12, 13]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -3949,31 +3949,33 @@ mod tests {
     }
 
     #[test]
-    fn schema_nine_migration_before_journal_failure_preserves_generation() {
-        let (core, _) = core();
-        let created = core
-            .create_project("migration pre-commit", ProjectSettings::default())
+    fn supported_migration_before_journal_failure_preserves_generation() {
+        for version in [9, 13] {
+            let (core, _) = core();
+            let created = core
+                .create_project("migration pre-commit", ProjectSettings::default())
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            let project_file = project_path(&dir);
+            let history_file = history_path(&dir);
+            let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+            legacy["schemaVersion"] = serde_json::json!(version);
+            write_json_atomic(&project_file, &legacy).unwrap();
+            write_json_atomic(
+                &history_file,
+                &serde_json::json!({ "undo": [legacy], "redo": [] }),
+            )
             .unwrap();
-        let dir = core.paths().project_dir(&created.project_id).unwrap();
-        let project_file = project_path(&dir);
-        let history_file = history_path(&dir);
-        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
-        legacy["schemaVersion"] = serde_json::json!(9);
-        write_json_atomic(&project_file, &legacy).unwrap();
-        write_json_atomic(
-            &history_file,
-            &serde_json::json!({ "undo": [legacy], "redo": [] }),
-        )
-        .unwrap();
-        let project_before = std::fs::read(&project_file).unwrap();
-        let history_before = std::fs::read(&history_file).unwrap();
+            let project_before = std::fs::read(&project_file).unwrap();
+            let history_before = std::fs::read(&history_file).unwrap();
 
-        set_persistence_fault(&core, PersistencePhase::BeforeJournal);
-        let error = core.get_project(&created.project_id).unwrap_err();
-        assert_eq!(error.code, ErrorCode::InternalError);
-        assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
-        assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
-        assert_no_managed_transaction_files(&dir);
+            set_persistence_fault(&core, PersistencePhase::BeforeJournal);
+            let error = core.get_project(&created.project_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::InternalError);
+            assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+            assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+            assert_no_managed_transaction_files(&dir);
+        }
     }
 
     #[test]

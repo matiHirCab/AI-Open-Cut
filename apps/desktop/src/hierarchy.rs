@@ -73,6 +73,7 @@ pub(crate) fn kind(item: &TimelineItem) -> &'static str {
         TimelineItem::Text(_) => "Text",
         TimelineItem::SolidColor(_) => "Solid",
         TimelineItem::Rectangle(_) => "Rectangle",
+        TimelineItem::Shape(_) => "Shape",
         TimelineItem::Caption(_) => "Caption",
         TimelineItem::Transition(_) => "Transition",
     }

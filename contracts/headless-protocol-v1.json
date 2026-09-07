@@ -88,13 +88,15 @@
       "component_definitions",
       "component_instance_evaluation",
       "typed_template_slots",
-      "component_lifecycle"
+      "component_lifecycle",
+      "shape_items"
     ],
     "renderingCapabilities": [
       "preview",
       "preview_range",
       "mp4_export",
       "evaluated_scene_rendering",
+      "shape_rendering",
       "transform2d"
     ]
   }

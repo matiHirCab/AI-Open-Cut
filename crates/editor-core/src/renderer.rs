@@ -415,8 +415,14 @@ impl Renderer {
             mut warnings,
         } = preflight;
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
-        let resources =
+        let mut resources =
             prepare_render_resources(self.artifact_io.as_ref(), media, workspace.path(), measured)?;
+        crate::render_artifact::prepare_shape_resources(
+            self.artifact_io.as_ref(),
+            &finalized,
+            workspace.path(),
+            &mut resources,
+        )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
             &finalized,
@@ -1144,6 +1150,67 @@ mod tests {
             assert_eq!(serde_json::to_value(&project).unwrap(), before);
             assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
         }
+    }
+
+    #[test]
+    fn invalid_and_expensive_shapes_fail_before_artifact_io_for_all_facades() {
+        let root = tempdir().unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        let mut p = visual_project();
+        p.tracks[0].items=vec![serde_json::from_value(serde_json::json!({"type":"shape","id":"shape","startMs":0,"durationMs":1000,"keyframes":[],"geometry":{"type":"rectangle","width":16384,"height":16384},"fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null})).unwrap()];
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &p,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        let TimelineItem::Shape(shape) = &mut p.tracks[0].items[0] else {
+            unreachable!()
+        };
+        shape.geometry = crate::ShapeGeometry::Rectangle {
+            width: 100.0,
+            height: 100.0,
+        };
+        shape.transform2d = Some(crate::Transform2D {
+            scale_x: 100.0,
+            scale_y: 100.0,
+            ..Default::default()
+        });
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &p,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        let TimelineItem::Shape(shape) = &mut p.tracks[0].items[0] else {
+            unreachable!()
+        };
+        shape.geometry = crate::ShapeGeometry::Ellipse {
+            width: 0.0,
+            height: 1.0,
+        };
+        shape.hidden = true;
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &p,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
 
     #[test]

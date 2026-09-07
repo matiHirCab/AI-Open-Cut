@@ -8,12 +8,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
-
 import {
   editDraftSchema,
   jobSchema,
@@ -23,9 +21,9 @@ import {
   ttsStatusSchema,
   writeResultSchema,
 } from "../src/schemas";
-
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyShapeWorkflow } from "./shape-workflow";
 
 const root = mkdtempSync(join(tmpdir(), "opencut-packaged-test-"));
 const directories = {
@@ -418,4 +416,8 @@ it("completes the packaged group workflow with aliases, rollback and history", a
     directories.media,
     directories.projects
   );
+});
+
+it("exercises all shape contracts, atomic batches and retained history", async () => {
+  await verifyShapeWorkflow(client, call, directories.projects);
 });
