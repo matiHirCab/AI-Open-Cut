@@ -266,8 +266,10 @@ mod tests {
         let bytes = rasterize(&shape).unwrap();
         assert!(
             bytes[bytes.len() - 40000..]
-                .chunks_exact(4)
-                .all(|p| p == [255, 0, 0, 255])
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|p| *p == [255, 0, 0, 255])
         );
     }
     #[test]
