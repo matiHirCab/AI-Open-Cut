@@ -26,6 +26,7 @@ import {
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
+import { verifySvgWorkflow } from "./svg-workflow";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -1034,4 +1035,5 @@ it("ungroups through standalone and alias MCP edits with atomic failures and his
 
 it("exercises all shape contracts, atomic batches and retained history", async () => {
   await verifyShapeWorkflow(client, call, projects);
+  await verifySvgWorkflow(client, call);
 });

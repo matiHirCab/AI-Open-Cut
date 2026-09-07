@@ -523,6 +523,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_add_svg",
+    {
+      annotations: WRITE,
+      description:
+        "Add a bounded offline SVG document. Unsupported or unsafe SVG is rejected by core.",
+      inputSchema: schemas.timelineAddSvg,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_svg",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_move_item",
     {
       annotations: WRITE,

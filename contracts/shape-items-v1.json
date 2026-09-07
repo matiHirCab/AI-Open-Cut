@@ -1,7 +1,7 @@
 {
   "version": 1,
   "contract": "shape-items-v1",
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "capabilities": [
     "shape_items",
     "shape_rendering"

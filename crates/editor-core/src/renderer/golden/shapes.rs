@@ -2,7 +2,7 @@
 use super::*;
 use serde_json::json;
 
-fn decode_rgb_frame(ffmpeg: &Path, path: &Path, time_ms: u64) -> Vec<u8> {
+pub(super) fn decode_rgb_frame(ffmpeg: &Path, path: &Path, time_ms: u64) -> Vec<u8> {
     let output = std::process::Command::new(ffmpeg)
         .args(["-hide_banner", "-loglevel", "error", "-ss"])
         .arg(format!("{}", time_ms as f64 / 1000.0))

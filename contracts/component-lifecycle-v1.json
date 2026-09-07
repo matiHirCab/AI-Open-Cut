@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "runtime",
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "capability": "component_lifecycle",
   "aliasFields": [
     "itemId"

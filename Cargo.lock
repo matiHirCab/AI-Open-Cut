@@ -3602,6 +3602,7 @@ name = "opencut-editor-core"
 version = "0.1.0"
 dependencies = [
  "fs2",
+ "quick-xml 0.39.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",

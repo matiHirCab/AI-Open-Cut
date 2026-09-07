@@ -59,3 +59,12 @@
 /apps/agent-bridge/tests/shape-items.test.ts @matiHirCab
 /apps/agent-bridge/tests/shape-workflow.ts @matiHirCab
 /docs/shape-items.md @matiHirCab
+
+# Secure SVG contract consumers.
+/crates/editor-core/src/model/svg.rs @matiHirCab
+/crates/editor-core/src/validation/svg.rs @matiHirCab
+/crates/editor-core/tests/svg_ingestion.rs @matiHirCab
+/apps/agent-bridge/src/svg-ingestion.ts @matiHirCab
+/apps/agent-bridge/tests/svg-ingestion.test.ts @matiHirCab
+/apps/agent-bridge/tests/svg-workflow.ts @matiHirCab
+/docs/svg-ingestion.md @matiHirCab

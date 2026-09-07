@@ -2,6 +2,7 @@ import type { z } from "zod/v4";
 import type {
   addComponentInstanceSchema,
   addShapeSchema,
+  addSvgSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
@@ -16,6 +17,7 @@ export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
 export type RenderingCapability =
   | "shape_rendering"
+  | "svg_rendering"
   | "transform2d"
   | "preview"
   | "preview_range"
@@ -28,6 +30,9 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | ({ operation: "add_svg"; resultAlias?: string | undefined } & z.infer<
+      typeof addSvgSchema
+    >)
   | ({ operation: "add_shape"; resultAlias?: string | undefined } & z.infer<
       typeof addShapeSchema
     >)

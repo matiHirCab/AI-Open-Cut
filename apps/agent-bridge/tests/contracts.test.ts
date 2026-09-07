@@ -326,6 +326,8 @@ describe("canonical public contracts", () => {
       EVALUATED_SCENE_RENDERING_CAPABILITY,
       "shape_items",
       "shape_rendering",
+      "svg_items",
+      "svg_rendering",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
