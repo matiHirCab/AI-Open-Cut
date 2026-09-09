@@ -2,7 +2,7 @@
 mod grids;
 use super::invalid;
 use super::{
-    EvaluatedAffine, EvaluatedKeyframeValue, EvaluatedProperty, EvaluatedScene,
+    EvaluatedAffine, EvaluatedAncestors, EvaluatedKeyframeValue, EvaluatedProperty, EvaluatedScene,
     EvaluatedVisualLayer, EvaluatedVisualSource, IDENTITY_MATRIX, affine_from_matrices,
     multiply_matrix, transform_matrices,
 };
@@ -725,6 +725,15 @@ pub(super) fn affine(
     shape: &EvaluatedShape,
     output_canvas: (u32, u32),
 ) -> Result<EvaluatedAffine, CoreError> {
+    affine_with_ancestors(layer, shape, output_canvas, layer.ancestors)
+}
+
+fn affine_with_ancestors(
+    layer: &EvaluatedVisualLayer,
+    shape: &EvaluatedShape,
+    output_canvas: (u32, u32),
+    ancestors: Option<EvaluatedAncestors>,
+) -> Result<EvaluatedAffine, CoreError> {
     // Local units belong to the component; sampling bounds belong to the output.
     let local_canvas = layer.instance.map_or(output_canvas, |i| i.canvas);
     let (mut m, opacity) = if let Some(mut t) = layer.transform2d {
@@ -761,7 +770,7 @@ pub(super) fn affine(
             layer.transform.opacity,
         )
     };
-    let parent = layer.ancestors.map_or(IDENTITY_MATRIX, |p| p.matrix);
+    let parent = ancestors.map_or(IDENTITY_MATRIX, |p| p.matrix);
     m = multiply_matrix(parent, m);
     m = multiply_matrix(
         m,
@@ -784,7 +793,7 @@ pub(super) fn affine(
         m,
         inv,
         shape.size,
-        opacity * layer.ancestors.map_or(1.0, |p| p.opacity),
+        opacity * ancestors.map_or(1.0, |p| p.opacity),
     )?;
     if layer.has_animated_geometry() {
         let mut xs = vec![layer.transform.position_x];
@@ -822,7 +831,7 @@ pub(super) fn affine(
                     sample.transform.position_x = x;
                     sample.transform.position_y = y;
                     sample.transform.scale = scale;
-                    let a = affine(&sample, shape, output_canvas)?;
+                    let a = affine_with_ancestors(&sample, shape, output_canvas, ancestors)?;
                     bounds[0] = bounds[0].min(a.left);
                     bounds[1] = bounds[1].min(a.top);
                     bounds[2] = bounds[2].max(a.left + f64::from(a.width));
@@ -861,6 +870,28 @@ fn add_raster_bytes(total: u64, shape: &EvaluatedShape) -> Result<u64, CoreError
         return Err(invalid("scene shape raster allocation limit exceeded"));
     }
     Ok(total)
+}
+
+#[derive(Default)]
+struct SceneShapeBudget {
+    segments: usize,
+    raster_bytes: u64,
+}
+
+impl SceneShapeBudget {
+    fn remaining_segments(&self) -> usize {
+        MAX_SCENE_SEGMENTS - self.segments
+    }
+
+    fn add(&mut self, shape: &EvaluatedShape) -> Result<(), CoreError> {
+        self.segments = self
+            .segments
+            .checked_add(shape.segments())
+            .filter(|segments| *segments <= MAX_SCENE_SEGMENTS)
+            .ok_or_else(|| invalid("scene shape segment limit exceeded"))?;
+        self.raster_bytes = add_raster_bytes(self.raster_bytes, shape)?;
+        Ok(())
+    }
 }
 
 /// Validate complete occurrences, including hidden and unreachable content.
@@ -1014,73 +1045,106 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
                 &definitions,
                 &mut vec![c.id.as_str()],
                 &mut HashSet::new(),
-                &mut budget,
+                &mut Budget {
+                    occurrences: 0,
+                    segments: 0,
+                    bytes: 0,
+                },
             )?;
         }
     }
     Ok(())
 }
 
+fn measure_layer_shape(
+    layer: &EvaluatedVisualLayer,
+    ancestors: Option<EvaluatedAncestors>,
+    output_canvas: (u32, u32),
+    segment_budget: usize,
+) -> Result<Option<EvaluatedShape>, CoreError> {
+    let EvaluatedVisualSource::Shape(shape) = &layer.source else {
+        return Ok(None);
+    };
+    // Density comes from authored transforms, before raster padding or
+    // source-space compensation can affect geometry validation.
+    let local = if let Some(mut t) = layer.transform2d {
+        t.anchor = crate::TransformAnchor { x: 0.0, y: 0.0 };
+        transform_matrices(
+            t,
+            (1, 1),
+            layer
+                .instance
+                .map_or(output_canvas, |instance| instance.canvas),
+        )?
+        .0
+    } else {
+        [
+            layer.transform.scale,
+            0.0,
+            0.0,
+            layer.transform.scale,
+            0.0,
+            0.0,
+        ]
+    };
+    let base_scale = magnification(multiply_matrix(
+        ancestors.map_or(IDENTITY_MATRIX, |parent| parent.matrix),
+        local,
+    ));
+    let mut scale = base_scale;
+    if layer.transform2d.is_none() {
+        for keyframe in &layer.keyframes {
+            if let (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) =
+                (keyframe.property, keyframe.value)
+            {
+                scale = scale.max(base_scale / layer.transform.scale * value);
+            }
+        }
+    }
+    let value = if let Some(grid) = &shape.grid_descriptor {
+        EvaluatedShape::grid_with_budget(grid.clone(), scale, segment_budget)?
+    } else if let Some(document) = &shape.svg_document {
+        EvaluatedShape::svg_with_budget(document.clone(), scale, segment_budget)?
+    } else {
+        EvaluatedShape::with_budget(
+            shape.geometry.clone(),
+            shape.fill.clone(),
+            shape.stroke.clone(),
+            scale,
+            segment_budget,
+        )?
+    };
+    Ok(Some(value))
+}
+
+pub(super) fn preflight_shape_layers<'a>(
+    layers: impl IntoIterator<Item = (&'a EvaluatedVisualLayer, Option<EvaluatedAncestors>)>,
+    output_canvas: (u32, u32),
+) -> Result<(), CoreError> {
+    let mut budget = SceneShapeBudget::default();
+    for (layer, ancestors) in layers {
+        let Some(value) =
+            measure_layer_shape(layer, ancestors, output_canvas, budget.remaining_segments())?
+        else {
+            continue;
+        };
+        budget.add(&value)?;
+        affine_with_ancestors(layer, &value, output_canvas, ancestors)?;
+    }
+    Ok(())
+}
+
 pub(super) fn refine_scene(scene: &mut EvaluatedScene) -> Result<(), CoreError> {
     let mut replacements = vec![];
-    let mut count = 0;
-    let mut raster_bytes = 0_u64;
+    let mut budget = SceneShapeBudget::default();
     for (i, layer) in scene.visual_layers.iter().enumerate() {
-        if let EvaluatedVisualSource::Shape(shape) = &layer.source {
-            // Density comes from authored transforms, before raster padding or
-            // source-space compensation can affect geometry validation.
-            let local = if let Some(mut t) = layer.transform2d {
-                t.anchor = crate::TransformAnchor { x: 0.0, y: 0.0 };
-                transform_matrices(
-                    t,
-                    (1, 1),
-                    layer
-                        .instance
-                        .map_or((scene.canvas.width, scene.canvas.height), |i| i.canvas),
-                )?
-                .0
-            } else {
-                [
-                    layer.transform.scale,
-                    0.0,
-                    0.0,
-                    layer.transform.scale,
-                    0.0,
-                    0.0,
-                ]
-            };
-            let base_scale = magnification(multiply_matrix(
-                layer.ancestors.map_or(IDENTITY_MATRIX, |p| p.matrix),
-                local,
-            ));
-            let mut scale = base_scale;
-            if layer.transform2d.is_none() {
-                for k in &layer.keyframes {
-                    if let (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) =
-                        (k.property, k.value)
-                    {
-                        scale = scale.max(base_scale / layer.transform.scale * value);
-                    }
-                }
-            }
-            let value = if let Some(grid) = &shape.grid_descriptor {
-                EvaluatedShape::grid_with_budget(grid.clone(), scale, MAX_SCENE_SEGMENTS - count)?
-            } else if let Some(doc) = &shape.svg_document {
-                EvaluatedShape::svg_with_budget(doc.clone(), scale, MAX_SCENE_SEGMENTS - count)?
-            } else {
-                EvaluatedShape::with_budget(
-                    shape.geometry.clone(),
-                    shape.fill.clone(),
-                    shape.stroke.clone(),
-                    scale,
-                    MAX_SCENE_SEGMENTS - count,
-                )?
-            };
-            raster_bytes = add_raster_bytes(raster_bytes, &value)?;
-            count += value.segments();
-            if count > MAX_SCENE_SEGMENTS {
-                return Err(invalid("scene shape segment limit exceeded"));
-            }
+        if let Some(value) = measure_layer_shape(
+            layer,
+            layer.ancestors,
+            (scene.canvas.width, scene.canvas.height),
+            budget.remaining_segments(),
+        )? {
+            budget.add(&value)?;
             let resolved = affine(layer, &value, (scene.canvas.width, scene.canvas.height))?;
             replacements.push((i, value, resolved));
         }
@@ -1229,6 +1293,40 @@ mod tests {
             ));
             assert!(EvaluatedShape::new_svg(doc, 1.).is_err());
         }
+    }
+
+    #[test]
+    fn scene_shape_budget_accepts_exact_segment_and_raster_limits_only() {
+        let mut exact_segments = compile(json!({"type":"rectangle","width":1,"height":1}));
+        exact_segments.work_segments = MAX_SCENE_SEGMENTS;
+        exact_segments.size = (1, 1);
+        let mut segment_budget = SceneShapeBudget::default();
+        segment_budget.add(&exact_segments).unwrap();
+        let mut one_segment = exact_segments.clone();
+        one_segment.work_segments = 1;
+        assert!(segment_budget.add(&one_segment).is_err());
+
+        let mut full_surface = compile(json!({"type":"rectangle","width":1,"height":1}));
+        full_surface.work_segments = 0;
+        full_surface.size = (4096, 4096);
+        let mut raster_budget = SceneShapeBudget::default();
+        for _ in 0..super::super::MAX_EVALUATED_VISUAL_LAYERS {
+            raster_budget.add(&full_surface).unwrap();
+        }
+        assert!(raster_budget.add(&full_surface).is_err());
+        let cap = 16_777_216 * 12 * super::super::MAX_EVALUATED_VISUAL_LAYERS as u64;
+        full_surface.size = (1, 1);
+        let mut one_byte_over = SceneShapeBudget {
+            segments: 0,
+            raster_bytes: cap - 11,
+        };
+        assert!(one_byte_over.add(&full_surface).is_err());
+        let mut exact_bytes = SceneShapeBudget {
+            segments: 0,
+            raster_bytes: cap - 12,
+        };
+        exact_bytes.add(&full_surface).unwrap();
+        assert_eq!(exact_bytes.raster_bytes, cap);
     }
     #[test]
     fn density_surface_limits_and_singular_value_oracles() {

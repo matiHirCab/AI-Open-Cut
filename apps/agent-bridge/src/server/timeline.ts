@@ -571,6 +571,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_add_repeater",
+    {
+      annotations: WRITE,
+      description:
+        "Add a bounded lazy repeater for a shape, group, or component instance.",
+      inputSchema: schemas.timelineAddRepeater,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "add_repeater",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_move_item",
     {
       annotations: WRITE,

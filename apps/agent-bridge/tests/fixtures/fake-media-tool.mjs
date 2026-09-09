@@ -22,7 +22,14 @@ if (mode === "ffprobe") {
             codec_type: "audio",
             sample_rate: "24000",
           },
-        ],
+        ].filter(
+          (stream) =>
+            stream.codec_type !== "audio" ||
+            !(
+              args.includes("-select_streams") ||
+              args.some((arg) => arg.includes("repeater-silent"))
+            )
+        ),
       })
     );
   }

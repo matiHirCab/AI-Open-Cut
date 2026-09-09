@@ -72,6 +72,7 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             | TimelineItem::Shape(_)
             | TimelineItem::Svg(_)
             | TimelineItem::Grid(_)
+            | TimelineItem::Repeater(_)
             | TimelineItem::Transition(_)
             | TimelineItem::Group(_)
             | TimelineItem::ComponentInstance(_) => None,

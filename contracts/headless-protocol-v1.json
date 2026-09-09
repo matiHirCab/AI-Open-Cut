@@ -92,6 +92,7 @@
       "shape_items",
       "svg_items",
       "grid_items"
+      ,"repeater_items"
     ],
     "renderingCapabilities": [
       "preview",
@@ -101,6 +102,7 @@
       "shape_rendering",
       "svg_rendering",
       "grid_rendering",
+      "repeater_rendering",
       "transform2d"
     ]
   }

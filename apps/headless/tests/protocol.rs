@@ -11,6 +11,87 @@ fn error_catalog() -> Value {
     serde_json::from_str(include_str!("../../../contracts/error-codes-v1.json")).unwrap()
 }
 
+#[test]
+fn effective_repeater_audio_rejection_is_atomic_over_headless() {
+    use opencut_editor_core::{
+        BatchEditOperation, EditorCore, MediaProbeFacts, MediaType, PathPolicy, ProjectSettings,
+    };
+    let harness = Harness::new();
+    let media = harness.root.path().join("media");
+    std::fs::create_dir(&media).unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            harness.root.path().join("projects"),
+            [&media],
+            harness.root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let id = core
+        .create_project("Audio closure", ProjectSettings::default())
+        .unwrap()
+        .project_id;
+    let mut assets = Vec::new();
+    for (n, audio) in [false, true].into_iter().enumerate() {
+        let path = media.join(format!("source{n}.mp4"));
+        std::fs::write(&path, format!("source{n}")).unwrap();
+        assets.push(
+            core.import_asset(
+                &id,
+                n as u64,
+                &path,
+                MediaType::Video,
+                MediaProbeFacts {
+                    duration_ms: Some(1000),
+                    has_audio: audio,
+                    has_video: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+            .changed_ids[0]
+                .clone(),
+        );
+    }
+    let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/repeaters-v1.json")).unwrap();
+    let mut descriptor = catalog["valid"][0]["repeater"].clone();
+    descriptor["source"]["id"] = json!("@instance");
+    let added = core.edit_batch::<BatchEditOperation>(&id,2,serde_json::from_value(json!([
+        {"operation":"component_create","resultAlias":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,
+        "slots":[{"id":"asset","name":"Asset","kind":"asset","required":false,"binding":{"targetLayerId":"media","property":"media.asset"},"constraints":{}}],
+        "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"media","id":"media","assetId":assets[0],"startMs":0,"durationMs":1000,
+        "sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[]}]}]},
+        {"operation":"add_component_instance","trackId":track,"componentId":"@leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"resultAlias":"instance"},
+        {"operation":"add_repeater","trackId":track,"startMs":0,"durationMs":1000,"repeater":descriptor}
+    ])).unwrap()).unwrap();
+    let bad = json!({"operation":"component_instance_update","itemId":added.aliases["instance"],"componentId":added.aliases["leaf"],
+        "startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"slotValues":{"asset":{"type":"asset","value":{"kind":"asset","scope":"project","id":assets[1]}}}});
+    let dir = core.paths().project_dir(&id).unwrap();
+    let files = || {
+        (
+            std::fs::read(dir.join("project.json")).unwrap(),
+            std::fs::read(dir.join("history.json")).unwrap(),
+        )
+    };
+    let before = files();
+    for operation in ["edit_batch", "create_draft"] {
+        let response = event(&harness.request(
+            json!({"operation":operation,"projectId":id,"expectedRevision":3,"operations":[bad]}),
+        ));
+        assert_eq!(response["error"]["code"], "INVALID_ARGUMENT", "{response}");
+        assert_eq!(files(), before);
+    }
+    let response = event(&harness.request(
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[bad]}),
+    ));
+    assert_eq!(response["error"]["code"], "REVISION_CONFLICT");
+    let state = result(&harness.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(state["project"]["revision"], 3);
+    assert_eq!(files(), before);
+}
+
 struct Harness {
     root: TempDir,
 }
@@ -1150,7 +1231,7 @@ fn shape_contract_standalone_batch_and_atomic_failures() {
         ),
     );
     let opened = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(opened["project"]["schemaVersion"], 16);
+    assert_eq!(opened["project"]["schemaVersion"], 17);
     assert_eq!(
         opened["project"]["tracks"][1]["items"]
             .as_array()
@@ -1219,5 +1300,131 @@ fn grid_contract_reaches_core_and_preserves_batch_atomicity() {
     assert_eq!(
         result(&h.request(json!({"operation":"get_state","projectId":id}))),
         before
+    );
+}
+
+#[test]
+fn repeater_contract_reaches_core_drafts_and_atomic_batches() {
+    let harness = Harness::new();
+    let id = result(&harness.request(json!({"operation":"create_project","name":"Repeaters"})))
+        ["projectId"]
+        .clone();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/repeaters-v1.json")).unwrap();
+    let shape = result(&harness.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":0,
+        "edit":{"operation":"add_shape","trackId":track,"startMs":0,"durationMs":1000,
+        "geometry":{"type":"rectangle","width":20,"height":20},
+        "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null}}),
+    ));
+    let source = shape["changedIds"][0].clone();
+    let mut descriptor = catalog["valid"][0]["repeater"].clone();
+    descriptor["source"]["id"] = source;
+    let added = result(&harness.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,
+        "edit":{"operation":"add_repeater","trackId":track,"startMs":100,"durationMs":800,"repeater":descriptor}})));
+    let repeater = added["changedIds"][0].clone();
+    let draft = result(&harness.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":2,
+        "operations":[{"operation":"update_item","itemId":repeater,"repeater":descriptor}],"label":"repeater"})));
+    let draft_state = result(
+        &harness
+            .request(json!({"operation":"get_draft_state","projectId":id,"draftId":draft["id"]})),
+    );
+    assert_eq!(
+        draft_state["project"]["tracks"][1]["items"][1]["type"],
+        "repeater"
+    );
+    let before = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let failed = event(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":2,"operations":[
+        {"operation":"add_repeater","trackId":track,"startMs":0,"durationMs":1000,"repeater":descriptor,"resultAlias":"copies"},
+        {"operation":"delete_item","itemId":"missing"}
+    ]})));
+    assert_eq!(failed["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&harness.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
+}
+
+#[test]
+fn repeater_replacement_aliases_reach_core_and_roll_back_across_reopen() {
+    let harness = Harness::new();
+    let id = result(&harness.request(json!({"operation":"create_project","name":"Aliases"})))["projectId"].clone();
+    let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/repeaters-v1.json")).unwrap();
+    let mut descriptor = catalog["valid"][0]["repeater"].clone();
+    descriptor["source"]["id"] = json!("@source");
+    let shape = json!({"operation":"add_shape","trackId":track,"startMs":0,"durationMs":1000,
+        "geometry":{"type":"rectangle","width":20,"height":20},
+        "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,"resultAlias":"source"});
+    let mut replacement = shape.clone();
+    replacement["resultAlias"] = json!("replacement");
+    let mut updated = descriptor.clone();
+    updated["source"]["id"] = json!("@replacement");
+    let operations = json!([shape,
+        {"operation":"add_repeater","trackId":track,"startMs":0,"durationMs":1000,"repeater":descriptor,"resultAlias":"copies"},
+        replacement, {"operation":"update_item","itemId":"@copies","repeater":updated}]);
+    let success = result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":operations})));
+    assert_eq!(success["revision"], 1);
+    let after = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        after["project"]["tracks"][1]["items"][1]["repeater"]["source"]["id"],
+        success["aliases"]["replacement"]
+    );
+    let directory = harness
+        .root
+        .path()
+        .join("projects")
+        .join(id.as_str().unwrap());
+    let bytes = || {
+        (
+            std::fs::read(directory.join("project.json")).unwrap(),
+            std::fs::read(directory.join("history.json")).unwrap(),
+        )
+    };
+    let before = bytes();
+    for case in ["missing", "forward", "trailing"] {
+        let mut bad = operations.clone();
+        let code = match case {
+            "missing" => {
+                bad[3]["repeater"]["source"]["id"] = json!("@missing");
+                "VALIDATION_FAILED"
+            }
+            "forward" => {
+                bad.as_array_mut().unwrap().swap(2, 3);
+                "VALIDATION_FAILED"
+            }
+            _ => {
+                bad.as_array_mut()
+                    .unwrap()
+                    .push(json!({"operation":"delete_item","itemId":"missing"}));
+                "ITEM_NOT_FOUND"
+            }
+        };
+        let failed = event(&harness.request(
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":bad}),
+        ));
+        assert_eq!(failed["error"]["code"], code);
+        assert_eq!(bytes(), before);
+        assert_eq!(
+            result(&harness.request(json!({"operation":"get_state","projectId":id}))),
+            after
+        );
+    }
+    result(&harness.request(json!({"operation":"undo","projectId":id,"expectedRevision":1})));
+    let undone = result(&harness.request(json!({"operation":"get_state","projectId":id})));
+    assert!(
+        undone["project"]["tracks"][1]["items"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    result(&harness.request(json!({"operation":"redo","projectId":id,"expectedRevision":2})));
+    assert_eq!(
+        result(&harness.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"],
+        after["project"]["tracks"]
     );
 }

@@ -54,6 +54,7 @@ pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
             | EditOperation::AddShape { .. }
             | EditOperation::AddSvg { .. }
             | EditOperation::AddGrid { .. }
+            | EditOperation::AddRepeater { .. }
             | EditOperation::AddTransition { .. }
             | EditOperation::CreateTrack { .. }
     )
@@ -133,6 +134,20 @@ pub(crate) fn resolve_operation_aliases(
                 resolve_alias(&mut parent.id, aliases)?;
             }
         }
+        EditOperation::AddRepeater {
+            track_id, repeater, ..
+        } => {
+            resolve_alias(track_id, aliases)?;
+            resolve_alias(&mut repeater.source.id, aliases)?;
+        }
+        EditOperation::UpdateItem {
+            item_id, repeater, ..
+        } => {
+            resolve_alias(item_id, aliases)?;
+            if let Some(repeater) = repeater {
+                resolve_alias(&mut repeater.source.id, aliases)?;
+            }
+        }
         EditOperation::ItemSetParent { item_id, parent } => {
             resolve_alias(item_id, aliases)?;
             if let Some(parent) = parent {
@@ -146,7 +161,6 @@ pub(crate) fn resolve_operation_aliases(
         EditOperation::ComponentInstanceDuplicate { item_id, .. }
         | EditOperation::ItemSetZIndex { item_id, .. }
         | EditOperation::ItemReorder { item_id, .. }
-        | EditOperation::UpdateItem { item_id, .. }
         | EditOperation::TrimItem { item_id, .. }
         | EditOperation::DeleteItem { item_id }
         | EditOperation::SetKeyframes { item_id, .. }
@@ -431,6 +445,17 @@ fn apply_operation_inner(
                 ));
             };
             let parent = group.visual_properties.parent.clone();
+            if project
+                .tracks
+                .iter()
+                .flat_map(|track| &track.items)
+                .any(|item| matches!(item, TimelineItem::Repeater(r) if r.repeater.source.id == group_id))
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "group is referenced by a repeater",
+                ));
+            }
             // Check every affected track before changing even the candidate graph.
             for (index, track) in project.tracks.iter().enumerate() {
                 let affected = index == group_track
@@ -492,9 +517,14 @@ fn apply_operation_inner(
             Ok((vec![id], "Added group"))
         }
         EditOperation::ItemSetParent { item_id, parent } => {
-            find_editable_item_mut(project, &item_id)?
-                .visual_properties_mut()
-                .parent = parent;
+            let item = find_editable_item_mut(project, &item_id)?;
+            if matches!(item, TimelineItem::Repeater(_)) {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "repeaters cannot be parented",
+                ));
+            }
+            item.visual_properties_mut().parent = parent;
             Ok((vec![item_id], "Updated item parent"))
         }
         EditOperation::ItemSetZIndex { item_id, z_index } => {
@@ -645,6 +675,33 @@ fn apply_operation_inner(
             }));
             Ok((vec![id], "Added solid color item"))
         }
+        EditOperation::AddRepeater {
+            track_id,
+            start_ms,
+            duration_ms,
+            repeater,
+        } => {
+            validate_duration(duration_ms)?;
+            crate::validation::repeater::validate_descriptor(&repeater)?;
+            let track = editable_track_mut(project, &track_id)?;
+            if track.track_type != TrackType::Overlay {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "repeaters require an overlay track",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            track
+                .items
+                .push(TimelineItem::Repeater(crate::RepeaterItem {
+                    id: id.clone(),
+                    repeater,
+                    start_ms,
+                    duration_ms,
+                    visual_properties: crate::VisualProperties::default(),
+                }));
+            Ok((vec![id], "Added repeater item"))
+        }
         EditOperation::AddGrid {
             track_id,
             start_ms,
@@ -779,6 +836,7 @@ fn apply_operation_inner(
         EditOperation::UpdateItem {
             item_id,
             grid,
+            repeater,
             geometry,
             fill,
             stroke,
@@ -802,6 +860,16 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(repeater) = repeater {
+                let TimelineItem::Repeater(item) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "repeater requires a repeater item",
+                    ));
+                };
+                crate::validation::repeater::validate_descriptor(&repeater)?;
+                item.repeater = *repeater;
+            }
             if let Some(grid) = grid {
                 let TimelineItem::Grid(item) = item else {
                     return Err(CoreError::new(
@@ -831,7 +899,12 @@ fn apply_operation_inner(
                 crate::validate_shape(&shape.geometry, &shape.fill, &shape.stroke)?;
             }
             if let Some(value) = transform2d {
-                if is_audio || matches!(item, TimelineItem::Transition(_)) {
+                if is_audio
+                    || matches!(
+                        item,
+                        TimelineItem::Transition(_) | TimelineItem::Repeater(_)
+                    )
+                {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "Transform2D requires a visual source",
@@ -872,6 +945,12 @@ fn apply_operation_inner(
                     TimelineItem::Shape(item) => item.transform = transform,
                     TimelineItem::Svg(item) => item.transform = transform,
                     TimelineItem::Grid(item) => item.transform = transform,
+                    TimelineItem::Repeater(_) => {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "repeaters do not accept common transforms",
+                        ));
+                    }
                     TimelineItem::Caption(_) => {
                         return Err(CoreError::new(
                             ErrorCode::ValidationFailed,
@@ -1014,6 +1093,10 @@ fn apply_operation_inner(
                     item.start_ms = start_ms;
                     item.duration_ms = duration_ms;
                 }
+                TimelineItem::Repeater(item) => {
+                    item.start_ms = start_ms;
+                    item.duration_ms = duration_ms;
+                }
                 TimelineItem::Caption(caption) => {
                     caption.start_ms = start_ms;
                     caption.duration_ms = duration_ms;
@@ -1027,6 +1110,14 @@ fn apply_operation_inner(
         }
         EditOperation::DeleteItem { item_id } => {
             ensure_item_track_unlocked(project, &item_id)?;
+            if project.tracks.iter().flat_map(|track| &track.items).any(
+                |item| matches!(item, TimelineItem::Repeater(r) if r.repeater.source.id == item_id),
+            ) {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "item is referenced by a repeater",
+                ));
+            }
             if project
                 .tracks
                 .iter()
@@ -1060,7 +1151,9 @@ fn apply_operation_inner(
             let item = find_editable_item_mut(project, &item_id)?;
             if matches!(
                 item,
-                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+                TimelineItem::Group(_)
+                    | TimelineItem::ComponentInstance(_)
+                    | TimelineItem::Repeater(_)
             ) {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
@@ -1121,7 +1214,11 @@ fn apply_operation_inner(
                 .any(|id| {
                     matches!(
                         project.find_item(id),
-                        Some(TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
+                        Some(
+                            TimelineItem::Group(_)
+                                | TimelineItem::ComponentInstance(_)
+                                | TimelineItem::Repeater(_)
+                        )
                     )
                 })
             {
@@ -1158,6 +1255,12 @@ fn apply_operation_inner(
                 | TimelineItem::Shape(_)
                 | TimelineItem::Svg(_)
                 | TimelineItem::Grid(_) => {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "this item does not accept audio",
+                    ));
+                }
+                TimelineItem::Repeater(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
                         "this item does not accept audio",
@@ -1288,6 +1391,14 @@ fn apply_operation_inner(
                     shape.duration_ms = left_duration;
                     shape.keyframes = left_keyframes;
                     TimelineItem::Grid(right)
+                }
+                TimelineItem::Repeater(repeater) => {
+                    let mut right = repeater.clone();
+                    right.id = right_id.clone();
+                    right.start_ms = split_ms;
+                    right.duration_ms = right_duration;
+                    repeater.duration_ms = left_duration;
+                    TimelineItem::Repeater(right)
                 }
                 TimelineItem::Caption(caption) => {
                     let mut right = caption.clone();
@@ -1575,6 +1686,7 @@ pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
         TimelineItem::Shape(shape) => shape.start_ms = start_ms,
         TimelineItem::Svg(shape) => shape.start_ms = start_ms,
         TimelineItem::Grid(shape) => shape.start_ms = start_ms,
+        TimelineItem::Repeater(item) => item.start_ms = start_ms,
         TimelineItem::Caption(caption) => caption.start_ms = start_ms,
         TimelineItem::Transition(transition) => transition.start_ms = start_ms,
     }
@@ -1591,6 +1703,7 @@ pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
         TimelineItem::Shape(shape) => shape.id = id,
         TimelineItem::Svg(shape) => shape.id = id,
         TimelineItem::Grid(shape) => shape.id = id,
+        TimelineItem::Repeater(item) => item.id = id,
         TimelineItem::Caption(caption) => caption.id = id,
         TimelineItem::Transition(transition) => transition.id = id,
     }
@@ -1642,6 +1755,9 @@ fn resolve_component_aliases(
     for item in tracks.iter_mut().flat_map(|t| &mut t.items) {
         if let TimelineItem::ComponentInstance(instance) = item {
             resolve_alias(&mut instance.component_id, aliases)?;
+        }
+        if let TimelineItem::Repeater(repeater) = item {
+            resolve_alias(&mut repeater.repeater.source.id, aliases)?;
         }
     }
     Ok(())

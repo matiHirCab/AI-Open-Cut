@@ -26,6 +26,7 @@ import {
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 
@@ -1038,4 +1039,5 @@ it("exercises all shape contracts, atomic batches and retained history", async (
   await verifyShapeWorkflow(client, call, projects);
   await verifySvgWorkflow(client, call);
   await verifyGridWorkflow(client, call);
+  await verifyRepeaterWorkflow(client, call, media);
 });

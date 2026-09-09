@@ -237,10 +237,10 @@ fn svg_migration_current_history_and_future_rejection() {
             serde_json::to_vec(&json!({"undo":[state.clone()],"redo":[state]})).unwrap(),
         )
         .unwrap();
-        assert_eq!(core.get_project(&id).unwrap().schema_version, 16);
+        assert_eq!(core.get_project(&id).unwrap().schema_version, 17);
         let h: Value = serde_json::from_slice(&files(&core, &id).1).unwrap();
-        assert_eq!(h["undo"][0]["schemaVersion"], 16);
-        assert_eq!(h["redo"][0]["schemaVersion"], 16);
+        assert_eq!(h["undo"][0]["schemaVersion"], 17);
+        assert_eq!(h["redo"][0]["schemaVersion"], 17);
     }
     for location in ["current", "undo", "redo"] {
         let (_root, core, id, track) = setup();
@@ -252,7 +252,7 @@ fn svg_migration_current_history_and_future_rejection() {
         .unwrap();
         let dir = core.paths().project_dir(&id).unwrap();
         let state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-        for version in [14, 17] {
+        for version in [14, 18] {
             let mut bad = state.clone();
             bad["schemaVersion"] = json!(version);
             std::fs::write(

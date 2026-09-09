@@ -3890,7 +3890,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -3950,7 +3950,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13] {
+        for version in [9, 13, 16] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())
@@ -3974,6 +3974,19 @@ mod tests {
             assert_eq!(error.code, ErrorCode::InternalError);
             assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
             assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
+            assert_no_managed_transaction_files(&dir);
+
+            let reopened = EditorCore::new(core.paths().clone());
+            let migrated = reopened.get_project(&created.project_id).unwrap();
+            assert_eq!(migrated.schema_version, PROJECT_SCHEMA_VERSION);
+            let history: History = read_json(&history_file).unwrap();
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|snapshot| snapshot.schema_version == PROJECT_SCHEMA_VERSION)
+            );
             assert_no_managed_transaction_files(&dir);
         }
     }

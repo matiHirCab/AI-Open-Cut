@@ -82,3 +82,12 @@
 /apps/agent-bridge/tests/procedural-grids.test.ts @matiHirCab
 /apps/agent-bridge/tests/grid-workflow.ts @matiHirCab
 /docs/procedural-grids.md @matiHirCab
+
+# Repeater contract consumers.
+/crates/editor-core/src/model/repeater.rs @matiHirCab
+/crates/editor-core/src/validation/repeater.rs @matiHirCab
+/crates/editor-core/tests/repeaters.rs @matiHirCab
+/apps/agent-bridge/src/repeaters.ts @matiHirCab
+/apps/agent-bridge/tests/repeaters.test.ts @matiHirCab
+/apps/agent-bridge/tests/repeater-workflow.ts @matiHirCab
+/docs/repeaters.md @matiHirCab

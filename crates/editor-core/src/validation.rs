@@ -4,6 +4,7 @@
 //! these rules rather than maintaining parallel validation implementations.
 
 pub(crate) mod grid;
+pub(crate) mod repeater;
 pub(crate) mod svg;
 
 use crate::{ComponentDefinition, SlotKind, SlotProperty, SlotValue, TemplateSlot};
@@ -106,7 +107,146 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
 
 pub(crate) fn validate_parent_graph(project: &Project) -> Result<(), CoreError> {
     validate_scope(project, &project.tracks, "root")?;
-    validate_components(project)
+    validate_components(project)?;
+    repeater::validate_effective_audio(project)
+}
+
+/// Validate only the graph invariants needed to make recursive preflights safe.
+/// Remaining domain validation keeps its established ordering in the normal path.
+pub(crate) fn validate_recursive_graphs(project: &Project) -> Result<(), CoreError> {
+    let invalid = |message: &str| CoreError::new(ErrorCode::InvalidArgument, message);
+    fn parents(
+        tracks: &[crate::Track],
+        scope: &str,
+        invalid: impl Fn(&str) -> CoreError,
+    ) -> Result<(), CoreError> {
+        let mut index = BTreeMap::new();
+        for item in tracks.iter().flat_map(|track| &track.items) {
+            if index.insert(item.id(), item).is_some() {
+                return Err(invalid("duplicate timeline item ID"));
+            }
+        }
+        for item in tracks.iter().flat_map(|track| &track.items) {
+            let mut current = item;
+            let mut visited = vec![item.id()];
+            while let Some(parent) = &current.visual_properties().parent {
+                if parent.scope != scope {
+                    return Err(invalid("parent reference must name a root group"));
+                }
+                let target = index.get(parent.id.as_str()).copied().ok_or_else(|| {
+                    CoreError::new(ErrorCode::ItemNotFound, "parent group not found")
+                })?;
+                if !matches!(target, TimelineItem::Group(_)) {
+                    return Err(invalid("parent must be a group"));
+                }
+                if visited.contains(&parent.id.as_str()) {
+                    return Err(invalid("parent cycle"));
+                }
+                if visited.len() > 32 {
+                    return Err(invalid("maxParentDepth exceeded"));
+                }
+                visited.push(parent.id.as_str());
+                current = target;
+            }
+        }
+        for item in tracks.iter().flat_map(|track| &track.items) {
+            let TimelineItem::Repeater(repeater) = item else {
+                continue;
+            };
+            if repeater.repeater.source.scope != scope {
+                return Err(invalid("repeater source must use its containing scope"));
+            }
+            let source = index
+                .get(repeater.repeater.source.id.as_str())
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::ItemNotFound, "repeater source was not found")
+                })?;
+            if !matches!(
+                source,
+                TimelineItem::Shape(_)
+                    | TimelineItem::Group(_)
+                    | TimelineItem::ComponentInstance(_)
+            ) {
+                return Err(invalid("repeater source kind is unsupported"));
+            }
+        }
+        Ok(())
+    }
+
+    parents(&project.tracks, "root", invalid)?;
+    for component in &project.components {
+        parents(
+            &component.tracks,
+            &format!("component:{}", component.id),
+            invalid,
+        )?;
+    }
+
+    let mut definitions = BTreeMap::new();
+    for (index, component) in project.components.iter().enumerate() {
+        if definitions.insert(component.id.as_str(), index).is_some() {
+            return Err(invalid("invalid or duplicate component ID"));
+        }
+    }
+    let mut edges = vec![Vec::new(); project.components.len()];
+    for (index, component) in project.components.iter().enumerate() {
+        for instance in component
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .filter_map(|item| match item {
+                TimelineItem::ComponentInstance(instance) => Some(instance),
+                _ => None,
+            })
+        {
+            edges[index].push(*definitions.get(instance.component_id.as_str()).ok_or_else(
+                || CoreError::new(ErrorCode::ItemNotFound, "component definition not found"),
+            )?);
+        }
+    }
+    for instance in project
+        .tracks
+        .iter()
+        .flat_map(|track| &track.items)
+        .filter_map(|item| match item {
+            TimelineItem::ComponentInstance(instance) => Some(instance),
+            _ => None,
+        })
+    {
+        definitions
+            .get(instance.component_id.as_str())
+            .ok_or_else(|| {
+                CoreError::new(ErrorCode::ItemNotFound, "component definition not found")
+            })?;
+    }
+    let mut depths = vec![None; edges.len()];
+    for _ in 0..=edges.len() {
+        let mut progress = false;
+        for (index, children) in edges.iter().enumerate() {
+            if depths[index].is_some() {
+                continue;
+            }
+            if children.iter().all(|child| depths[*child].is_some()) {
+                let depth = children
+                    .iter()
+                    .map(|child| depths[*child].unwrap() + 1usize)
+                    .max()
+                    .unwrap_or(0);
+                if depth > 16 {
+                    return Err(invalid("maxComponentDepth exceeded"));
+                }
+                depths[index] = Some(depth);
+                progress = true;
+            }
+        }
+        if depths.iter().all(Option::is_some) {
+            return Ok(());
+        }
+        if !progress {
+            return Err(invalid("component dependency cycle"));
+        }
+    }
+    Err(invalid("component dependency cycle"))
 }
 
 fn validate_scope(
@@ -203,6 +343,29 @@ fn validate_scope(
                     return Err(invalid("shape cannot animate volume"));
                 }
             }
+            if let TimelineItem::Repeater(repeater) = item {
+                if project.schema_version < 17 {
+                    return Err(invalid("repeater items require schema 17"));
+                }
+                validate_item_track(item, track.track_type)?;
+                repeater::validate_descriptor(&repeater.repeater)?;
+                validate_duration(repeater.duration_ms)?;
+                if repeater
+                    .start_ms
+                    .checked_add(repeater.duration_ms)
+                    .is_none()
+                {
+                    return Err(invalid("repeater interval overflows"));
+                }
+                if repeater.visual_properties.parent.is_some()
+                    || repeater.visual_properties.transform != Transform::default()
+                    || repeater.visual_properties.transform2d.is_some()
+                {
+                    return Err(invalid(
+                        "repeaters do not accept parent or common transforms",
+                    ));
+                }
+            }
             if let TimelineItem::Group(group) = item {
                 if track.track_type != TrackType::Overlay {
                     return Err(invalid("groups require overlay tracks"));
@@ -225,25 +388,9 @@ fn validate_scope(
             }
         }
     }
+    // Establish the complete parent graph before any closure traversal. This keeps
+    // malformed hidden/unused content away from recursive repeater/audio preflight.
     for item in tracks.iter().flat_map(|track| &track.items) {
-        if let TimelineItem::Transition(transition) = item
-            && std::iter::once(&transition.from_item_id)
-                .chain(transition.to_item_id.iter())
-                .any(|id| {
-                    matches!(
-                        index.get(id.as_str()),
-                        Some(
-                            TimelineItem::Group(_)
-                                | TimelineItem::ComponentInstance(_)
-                                | TimelineItem::Shape(_)
-                                | TimelineItem::Svg(_)
-                                | TimelineItem::Grid(_)
-                        )
-                    )
-                })
-        {
-            return Err(invalid("groups cannot be transition endpoints"));
-        }
         let mut current = item;
         let mut visited = vec![item.id()];
         while let Some(parent) = &current.visual_properties().parent {
@@ -271,6 +418,45 @@ fn validate_scope(
             }
             visited.push(parent.id.as_str());
             current = target;
+        }
+    }
+    for item in tracks.iter().flat_map(|track| &track.items) {
+        if let TimelineItem::Repeater(repeater) = item {
+            if repeater.repeater.source.scope != scope {
+                return Err(invalid("repeater source must use its containing scope"));
+            }
+            let source = index
+                .get(repeater.repeater.source.id.as_str())
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::ItemNotFound, "repeater source was not found")
+                })?;
+            if !matches!(
+                source,
+                TimelineItem::Shape(_)
+                    | TimelineItem::Group(_)
+                    | TimelineItem::ComponentInstance(_)
+            ) {
+                return Err(invalid("repeater source kind is unsupported"));
+            }
+        }
+        if let TimelineItem::Transition(transition) = item
+            && std::iter::once(&transition.from_item_id)
+                .chain(transition.to_item_id.iter())
+                .any(|id| {
+                    matches!(
+                        index.get(id.as_str()),
+                        Some(
+                            TimelineItem::Group(_)
+                                | TimelineItem::ComponentInstance(_)
+                                | TimelineItem::Shape(_)
+                                | TimelineItem::Svg(_)
+                                | TimelineItem::Grid(_)
+                                | TimelineItem::Repeater(_)
+                        )
+                    )
+                })
+        {
+            return Err(invalid("groups cannot be transition endpoints"));
         }
     }
     Ok(())
@@ -448,7 +634,10 @@ pub(crate) fn validate_track_media(track: TrackType, media: MediaType) -> Result
 
 pub(crate) fn validate_item_track(item: &TimelineItem, track: TrackType) -> Result<(), CoreError> {
     match item {
-        TimelineItem::Shape(_) | TimelineItem::Svg(_) | TimelineItem::Grid(_)
+        TimelineItem::Shape(_)
+        | TimelineItem::Svg(_)
+        | TimelineItem::Grid(_)
+        | TimelineItem::Repeater(_)
             if track != TrackType::Overlay =>
         {
             Err(CoreError::new(
@@ -692,6 +881,17 @@ fn validate_component_content(
                 }
                 TimelineItem::Svg(shape) => svg::validate_document(&shape.document)?,
                 TimelineItem::Grid(shape) => grid::validate_grid(&shape.grid)?,
+                TimelineItem::Repeater(item) => {
+                    repeater::validate_descriptor(&item.repeater)?;
+                    if item.visual_properties.parent.is_some()
+                        || item.visual_properties.transform != Transform::default()
+                        || item.visual_properties.transform2d.is_some()
+                    {
+                        return Err(invalid(
+                            "repeaters do not accept parent or common transforms",
+                        ));
+                    }
+                }
                 TimelineItem::Shape(shape) => {
                     crate::validate_shape(&shape.geometry, &shape.fill, &shape.stroke)?
                 }
@@ -991,6 +1191,7 @@ fn apply_slot_value(
             TimelineItem::Shape(v) => v.duration_ms = *value,
             TimelineItem::Svg(v) => v.duration_ms = *value,
             TimelineItem::Grid(v) => v.duration_ms = *value,
+            TimelineItem::Repeater(v) => v.duration_ms = *value,
             TimelineItem::Caption(v) => v.duration_ms = *value,
             TimelineItem::Transition(v) => v.duration_ms = *value,
             TimelineItem::Group(v) => v.duration_ms = *value,
@@ -1013,6 +1214,19 @@ pub(crate) fn resolve_component_slots(
     component: &ComponentDefinition,
     values: Option<&BTreeMap<String, SlotValue>>,
     definitions: &BTreeMap<&str, usize>,
+) -> Result<ComponentDefinition, CoreError> {
+    let effective = apply_component_slots(project, component, values)?;
+    if !component.slots.is_empty() {
+        validate_component_content(project, &effective, definitions)?;
+    }
+    Ok(effective)
+}
+
+// Applies and validates values only; never re-enters component/graph validation.
+fn apply_component_slots(
+    project: &Project,
+    component: &ComponentDefinition,
+    values: Option<&BTreeMap<String, SlotValue>>,
 ) -> Result<ComponentDefinition, CoreError> {
     if let Some(values) = values {
         for id in values.keys() {
@@ -1045,7 +1259,6 @@ pub(crate) fn resolve_component_slots(
             return Err(slot_invalid("required slot value missing"));
         }
     }
-    validate_component_content(project, &effective, definitions)?;
     Ok(effective)
 }
 fn validate_template_slots(

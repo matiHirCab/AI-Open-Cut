@@ -5,6 +5,8 @@
 //! separate path-bearing resource-binding sidecar.
 use std::collections::{HashMap, HashSet};
 
+#[cfg(test)]
+pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
 use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
@@ -69,6 +71,7 @@ pub(crate) fn evaluate_project(
     height: u32,
     fps: u32,
 ) -> Result<EvaluatedSceneResult, CoreError> {
+    crate::validation::validate_recursive_graphs(project)?;
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps)?;
     shapes::refine_scene(&mut result.scene)?;
@@ -81,15 +84,6 @@ fn evaluate_project_inner(
     height: u32,
     fps: u32,
 ) -> Result<EvaluatedSceneResult, CoreError> {
-    if !project
-        .tracks
-        .iter()
-        .flat_map(|t| &t.items)
-        .any(|i| matches!(i, TimelineItem::ComponentInstance(_)))
-    {
-        return evaluate_flat_project(project, width, height, fps, shapes::MAX_SCENE_SEGMENTS);
-    }
-    crate::validation::validate_project_visual_properties(project)?;
     let definitions = project
         .components
         .iter()
@@ -97,6 +91,30 @@ fn evaluate_project_inner(
         .map(|(i, c)| (c.id.as_str(), i))
         .collect::<std::collections::BTreeMap<_, _>>();
     preflight_instance_occurrences(project, &definitions)?;
+    preflight_repeater_arithmetic(project, (width, height))?;
+    let retained = std::iter::once(&project.tracks)
+        .chain(project.components.iter().map(|c| &c.tracks))
+        .flat_map(|tracks| tracks.iter())
+        .flat_map(|track| &track.items)
+        .any(|item| matches!(item, TimelineItem::Repeater(_)));
+    if !retained
+        && !project.tracks.iter().flat_map(|t| &t.items).any(|i| {
+            matches!(
+                i,
+                TimelineItem::ComponentInstance(_) | TimelineItem::Repeater(_)
+            )
+        })
+    {
+        return evaluate_flat_project(
+            project,
+            width,
+            height,
+            fps,
+            shapes::MAX_SCENE_SEGMENTS,
+            false,
+        );
+    }
+    crate::validation::validate_project_visual_properties(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
     let mut result = EvaluatedSceneResult {
         scene: EvaluatedScene {
@@ -121,12 +139,87 @@ fn evaluate_project_inner(
         end_ms: duration_ms as f64,
         canvas: (width, height),
     };
-    preflight_instance_clocks(&project.tracks, clock, project, &definitions)?;
+    preflight_instance_clocks(
+        &project.tracks,
+        clock,
+        project,
+        &definitions,
+        &mut HashSet::new(),
+    )?;
     let mut orders = HashMap::new();
     let context = InstanceTraversal {
         project,
         definitions: &definitions,
+        retained,
     };
+    // Independent definitions are validated before any root copies are published.
+    if retained {
+        for (index, component) in project.components.iter().enumerate() {
+            let effective =
+                crate::validation::resolve_component_slots(project, component, None, &definitions)?;
+            let mut domain = EvaluatedSceneResult {
+                scene: EvaluatedScene {
+                    instance_voiceover_intervals: Some(vec![]),
+                    voiceover_activity_range_count: 0,
+                    canvas: EvaluatedCanvas {
+                        width: component.width,
+                        height: component.height,
+                        fps,
+                    },
+                    duration_ms: component.duration_ms,
+                    resources: vec![],
+                    visual_layers: vec![],
+                    audio_layers: vec![],
+                    voiceover_intervals: vec![],
+                },
+                resource_bindings: SceneResourceBindings {
+                    media: vec![],
+                    fonts: vec![],
+                },
+            };
+            let domain_clock = EvaluatedInstance {
+                canvas: (component.width, component.height),
+                end_ms: component.duration_ms as f64,
+                ..clock
+            };
+            let mut projection = Vec::new();
+            let rich_text_overrides = component
+                .slots
+                .iter()
+                .filter_map(|slot| {
+                    if slot.binding.property != crate::SlotProperty::TextDocument {
+                        return None;
+                    }
+                    match slot.default_value.as_ref() {
+                        Some(crate::SlotValue::RichText(document)) => {
+                            Some((slot.binding.target_layer_id.clone(), document.clone()))
+                        }
+                        _ => None,
+                    }
+                })
+                .collect();
+            context.expand(
+                &effective.tracks,
+                InstanceScope {
+                    clock: domain_clock,
+                    outer: IDENTITY_MATRIX,
+                    outer_inverse: IDENTITY_MATRIX,
+                    opacity: 1.0,
+                    visual_start: 0.0,
+                    visual_end: domain_clock.end_ms,
+                    prefix: &[],
+                    rich_text_overrides,
+                    audio_visible: true,
+                },
+                &mut HashMap::new(),
+                &mut domain,
+                &mut HashSet::from([index]),
+                &mut projection,
+            )?;
+            validate_projection(&domain, &projection)?;
+        }
+    }
+    let mut projection = Vec::new();
     context.expand(
         &project.tracks,
         InstanceScope {
@@ -137,10 +230,81 @@ fn evaluate_project_inner(
             visual_start: clock.start_ms,
             visual_end: clock.end_ms,
             prefix: &[],
+            rich_text_overrides: HashMap::new(),
+            audio_visible: true,
         },
         &mut orders,
         &mut result,
+        &mut HashSet::new(),
+        &mut projection,
     )?;
+    validate_projection(&result, &projection)?;
+    let mut published = Vec::new();
+    // Clone only generated visible occurrences after every domain succeeded.
+    for copy in projection
+        .iter()
+        .filter(|copy| copy.generated && copy.instance.start_ms < copy.instance.end_ms)
+    {
+        #[cfg(test)]
+        GENERATED_MATERIALIZATIONS.with(|count| count.set(count.get() + 1));
+        let mut layer = result.scene.visual_layers[copy.base_index].clone();
+        layer.item_id = copy.item_id.clone();
+        layer.instance = Some(copy.instance);
+        layer.ancestors = Some(copy.ancestors);
+        layer.affine = None;
+        layer.sampling_tiles = None;
+        orders.insert(layer.item_id.clone(), copy.order.clone());
+        published.push(layer);
+    }
+    published.extend(
+        std::mem::take(&mut result.scene.visual_layers)
+            .into_iter()
+            .filter(|layer| layer.instance.is_some_and(|c| c.start_ms < c.end_ms)),
+    );
+    result.scene.visual_layers = published;
+    result
+        .scene
+        .audio_layers
+        .retain(|layer| layer.instance.is_some_and(|c| c.start_ms < c.end_ms));
+    if retained {
+        let media = result
+            .scene
+            .visual_layers
+            .iter()
+            .filter_map(|layer| match &layer.source {
+                EvaluatedVisualSource::Media { asset_id, .. } => Some(asset_id.as_str()),
+                _ => None,
+            })
+            .chain(
+                result
+                    .scene
+                    .audio_layers
+                    .iter()
+                    .map(|layer| layer.asset_id.as_str()),
+            )
+            .collect::<HashSet<_>>();
+        result
+            .scene
+            .resources
+            .retain(|resource| media.contains(resource.asset_id.as_str()));
+        result
+            .resource_bindings
+            .media
+            .retain(|binding| media.contains(binding.asset_id.as_str()));
+        let fonts = result
+            .scene
+            .visual_layers
+            .iter()
+            .filter_map(|layer| match &layer.source {
+                EvaluatedVisualSource::Text(text) => text.font_resource_id.as_deref(),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+        result
+            .resource_bindings
+            .fonts
+            .retain(|binding| fonts.contains(binding.font_resource_id.as_str()));
+    }
     result
         .scene
         .visual_layers
@@ -170,39 +334,269 @@ fn evaluate_project_inner(
     }
     Ok(result)
 }
+
+#[cfg(test)]
+thread_local! { static GENERATED_MATERIALIZATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
+fn validate_projection(
+    result: &EvaluatedSceneResult,
+    projection: &[ProjectedVisualCopy],
+) -> Result<(), CoreError> {
+    let mut transition_facts = 0usize;
+    for occurrence in projection {
+        transition_facts = transition_facts
+            .checked_add(occurrence.transition_facts)
+            .filter(|count| *count <= MAX_EVALUATED_TRANSITION_FACTS)
+            .ok_or_else(|| invalid("expanded transition limit exceeded"))?;
+        if occurrence
+            .ancestors
+            .matrix
+            .iter()
+            .chain(&occurrence.ancestors.inverse)
+            .chain([occurrence.ancestors.opacity].iter())
+            .any(|value| !value.is_finite())
+        {
+            return Err(invalid("non-finite retained occurrence transform"));
+        }
+        let layer = &result.scene.visual_layers[occurrence.base_index];
+        if !matches!(layer.source, EvaluatedVisualSource::Shape(_))
+            && let Some(size) = layer.source_size
+        {
+            measure_layer_affine(
+                layer,
+                size,
+                (result.scene.canvas.width, result.scene.canvas.height),
+                Some(occurrence.ancestors),
+            )?;
+        }
+    }
+    shapes::preflight_shape_layers(
+        projection.iter().map(|copy| {
+            (
+                &result.scene.visual_layers[copy.base_index],
+                Some(copy.ancestors),
+            )
+        }),
+        (result.scene.canvas.width, result.scene.canvas.height),
+    )
+}
 fn preflight_instance_occurrences(
     project: &Project,
     definitions: &std::collections::BTreeMap<&str, usize>,
 ) -> Result<(), CoreError> {
-    fn count(
+    const LIMIT: usize = 65_536;
+
+    fn add(total: &mut usize, value: usize) -> Result<(), CoreError> {
+        *total = total
+            .checked_add(value)
+            .filter(|value| *value <= LIMIT)
+            .ok_or_else(|| invalid("maxExpandedOccurrences exceeded"))?;
+        Ok(())
+    }
+
+    fn count_source(
+        source: &TimelineItem,
         tracks: &[Track],
         project: &Project,
         definitions: &std::collections::BTreeMap<&str, usize>,
         memo: &mut HashMap<usize, usize>,
-    ) -> usize {
-        let mut total = 0usize;
-        for item in tracks.iter().flat_map(|t| &t.items) {
-            total = total.saturating_add(1);
-            if let TimelineItem::ComponentInstance(instance) = item {
-                let id = definitions[instance.component_id.as_str()];
+        active_components: &mut HashSet<usize>,
+        active_groups: &mut HashSet<String>,
+    ) -> Result<usize, CoreError> {
+        let mut total = 1usize;
+        match source {
+            TimelineItem::Group(group) => {
+                if !active_groups.insert(group.id.clone()) {
+                    return Err(invalid("parent cycle"));
+                }
+                for child in tracks.iter().flat_map(|track| &track.items).filter(|item| {
+                    item.visual_properties()
+                        .parent
+                        .as_ref()
+                        .is_some_and(|parent| parent.id == group.id)
+                }) {
+                    add(
+                        &mut total,
+                        count_source(
+                            child,
+                            tracks,
+                            project,
+                            definitions,
+                            memo,
+                            active_components,
+                            active_groups,
+                        )?,
+                    )?;
+                }
+                active_groups.remove(&group.id);
+            }
+            TimelineItem::ComponentInstance(instance) => {
+                let id = *definitions
+                    .get(instance.component_id.as_str())
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "component definition missing")
+                    })?;
                 let descendants = if let Some(value) = memo.get(&id) {
                     *value
                 } else {
-                    let value = count(&project.components[id].tracks, project, definitions, memo);
+                    if !active_components.insert(id) {
+                        return Err(invalid("component dependency cycle"));
+                    }
+                    let value = count_tracks(
+                        &project.components[id].tracks,
+                        project,
+                        definitions,
+                        memo,
+                        active_components,
+                    )?;
+                    active_components.remove(&id);
                     memo.insert(id, value);
                     value
                 };
-                total = total.saturating_add(descendants);
+                add(&mut total, descendants)?;
             }
-            if total > 65_536 {
-                return 65_537;
+            _ => {}
+        }
+        Ok(total)
+    }
+
+    fn count_item(
+        item: &TimelineItem,
+        tracks: &[Track],
+        project: &Project,
+        definitions: &std::collections::BTreeMap<&str, usize>,
+        memo: &mut HashMap<usize, usize>,
+        active_components: &mut HashSet<usize>,
+    ) -> Result<usize, CoreError> {
+        let mut total = 1usize;
+        match item {
+            TimelineItem::ComponentInstance(_) => {
+                let expanded = count_source(
+                    item,
+                    tracks,
+                    project,
+                    definitions,
+                    memo,
+                    active_components,
+                    &mut HashSet::new(),
+                )?;
+                add(&mut total, expanded - 1)?;
+            }
+            TimelineItem::Repeater(repeater) => {
+                let source = tracks
+                    .iter()
+                    .flat_map(|track| &track.items)
+                    .find(|item| item.id() == repeater.repeater.source.id)
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "repeater source missing")
+                    })?;
+                let source_count = count_source(
+                    source,
+                    tracks,
+                    project,
+                    definitions,
+                    memo,
+                    active_components,
+                    &mut HashSet::new(),
+                )?;
+                let generated = source_count
+                    .checked_mul(usize::from(repeater.repeater.copies))
+                    .ok_or_else(|| invalid("maxExpandedOccurrences exceeded"))?;
+                add(&mut total, generated)?;
+            }
+            _ => {}
+        }
+        Ok(total)
+    }
+
+    fn count_tracks(
+        tracks: &[Track],
+        project: &Project,
+        definitions: &std::collections::BTreeMap<&str, usize>,
+        memo: &mut HashMap<usize, usize>,
+        active_components: &mut HashSet<usize>,
+    ) -> Result<usize, CoreError> {
+        let mut total = 0usize;
+        for item in tracks.iter().flat_map(|t| &t.items) {
+            add(
+                &mut total,
+                count_item(item, tracks, project, definitions, memo, active_components)?,
+            )?;
+        }
+        Ok(total)
+    }
+
+    // Validation has already established component acyclicity. Preflight the root
+    // expansion and every retained definition, including unused/hidden content.
+    count_tracks(
+        &project.tracks,
+        project,
+        definitions,
+        &mut HashMap::new(),
+        &mut HashSet::new(),
+    )?;
+    for (component_index, component) in project.components.iter().enumerate() {
+        count_tracks(
+            &component.tracks,
+            project,
+            definitions,
+            &mut HashMap::new(),
+            &mut HashSet::from([component_index]),
+        )?;
+    }
+    Ok(())
+}
+
+fn preflight_repeater_arithmetic(
+    project: &Project,
+    root_canvas: (u32, u32),
+) -> Result<(), CoreError> {
+    let scopes = std::iter::once((&project.tracks[..], root_canvas)).chain(
+        project
+            .components
+            .iter()
+            .map(|component| (&component.tracks[..], (component.width, component.height))),
+    );
+    for (tracks, canvas) in scopes {
+        for repeater in tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .filter_map(|item| {
+                if let TimelineItem::Repeater(repeater) = item {
+                    Some(repeater)
+                } else {
+                    None
+                }
+            })
+        {
+            let offset = &repeater.repeater.transform_offset;
+            let transform = crate::Transform2D {
+                position: offset.position,
+                scale_x: offset.scale_x,
+                scale_y: offset.scale_y,
+                rotation_deg: offset.rotation_deg,
+                skew_x_deg: offset.skew_x_deg,
+                skew_y_deg: offset.skew_y_deg,
+                opacity: 1.0,
+                ..Default::default()
+            };
+            let (step, step_inverse) = transform_matrices(transform, canvas, canvas)?;
+            let mut power = IDENTITY_MATRIX;
+            let mut inverse_power = IDENTITY_MATRIX;
+            for copy_index in 1..=usize::from(repeater.repeater.copies) {
+                power = multiply_matrix(power, step);
+                inverse_power = multiply_matrix(step_inverse, inverse_power);
+                let opacity = 1.0 + copy_index as f64 * repeater.repeater.opacity_offset;
+                if power
+                    .iter()
+                    .chain(&inverse_power)
+                    .chain([opacity].iter())
+                    .any(|value| !value.is_finite())
+                {
+                    return Err(invalid("non-finite repeater transform expansion"));
+                }
             }
         }
-        total
-    }
-    // The canonical validator already established acyclicity and depth <= 16.
-    if count(&project.tracks, project, definitions, &mut HashMap::new()) > 65_536 {
-        return Err(invalid("maxExpandedOccurrences exceeded"));
     }
     Ok(())
 }
@@ -211,6 +605,7 @@ fn preflight_instance_clocks(
     clock: EvaluatedInstance,
     project: &Project,
     definitions: &std::collections::BTreeMap<&str, usize>,
+    active_components: &mut HashSet<usize>,
 ) -> Result<(), CoreError> {
     for item in tracks.iter().flat_map(|t| &t.items) {
         if !clock.root_ms(item.start_ms()).is_finite() || !clock.root_ms(item.end_ms()).is_finite()
@@ -218,9 +613,20 @@ fn preflight_instance_clocks(
             return Err(invalid("non-finite derived component interval"));
         }
         if let TimelineItem::ComponentInstance(instance) = item {
-            let component = &project.components[definitions[instance.component_id.as_str()]];
+            let component_index = definitions[instance.component_id.as_str()];
+            if !active_components.insert(component_index) {
+                return Err(invalid("component dependency cycle"));
+            }
+            let component = &project.components[component_index];
             let child = clock.child(instance, (component.width, component.height))?;
-            preflight_instance_clocks(&component.tracks, child, project, definitions)?;
+            preflight_instance_clocks(
+                &component.tracks,
+                child,
+                project,
+                definitions,
+                active_components,
+            )?;
+            active_components.remove(&component_index);
         }
     }
     Ok(())
@@ -228,6 +634,7 @@ fn preflight_instance_clocks(
 struct InstanceTraversal<'a> {
     project: &'a Project,
     definitions: &'a std::collections::BTreeMap<&'a str, usize>,
+    retained: bool,
 }
 
 struct InstanceScope<'a> {
@@ -238,7 +645,21 @@ struct InstanceScope<'a> {
     visual_start: f64,
     visual_end: f64,
     prefix: &'a [(usize, i32, usize, String)],
+    rich_text_overrides: HashMap<String, crate::RichTextDocument>,
+    audio_visible: bool,
 }
+
+#[derive(Clone)]
+struct ProjectedVisualCopy {
+    base_index: usize,
+    item_id: String,
+    instance: EvaluatedInstance,
+    ancestors: EvaluatedAncestors,
+    order: InstanceOrder,
+    generated: bool,
+    transition_facts: usize,
+}
+
 impl InstanceTraversal<'_> {
     fn expand(
         &self,
@@ -246,6 +667,8 @@ impl InstanceTraversal<'_> {
         scope: InstanceScope<'_>,
         orders: &mut HashMap<String, InstanceOrder>,
         result: &mut EvaluatedSceneResult,
+        active_components: &mut HashSet<usize>,
+        projection: &mut Vec<ProjectedVisualCopy>,
     ) -> Result<(), CoreError> {
         let InstanceScope {
             clock,
@@ -255,10 +678,13 @@ impl InstanceTraversal<'_> {
             visual_start,
             visual_end,
             prefix,
+            rich_text_overrides,
+            audio_visible,
         } = scope;
         if outer.iter().chain(&outer_inverse).any(|v| !v.is_finite()) || !opacity.is_finite() {
             return Err(invalid("non-finite composed component transform"));
         }
+        let scope_first_layer = projection.len();
         let mut local = Project {
             schema_version: self.project.schema_version,
             id: self.project.id.clone(),
@@ -284,14 +710,21 @@ impl InstanceTraversal<'_> {
                 item_orders.insert(item.id().to_owned(), order);
             }
         }
+        let scope_project = local.clone();
         for track in &mut local.tracks {
-            track
-                .items
-                .retain(|i| !matches!(i, TimelineItem::ComponentInstance(_)));
+            track.items.retain(|item| {
+                !matches!(
+                    item,
+                    TimelineItem::ComponentInstance(_) | TimelineItem::Repeater(_)
+                )
+            });
             for (i, item) in track.items.iter_mut().enumerate() {
                 item.visual_properties_mut().stack_order = i as u32;
                 if let Some(parent) = &mut item.visual_properties_mut().parent {
                     parent.scope = "root".to_owned();
+                }
+                if let TimelineItem::Repeater(repeater) = item {
+                    repeater.repeater.source.scope = "root".to_owned();
                 }
             }
         }
@@ -310,15 +743,67 @@ impl InstanceTraversal<'_> {
                         _ => None,
                     })
                     .sum::<usize>(),
+            self.retained,
         )?;
-        let identity = |id: &str| -> String {
-            // Length-prefixed scope positions avoid collisions even with repeated local identifiers.
-            let order = &item_orders[id];
-            order
+        // Retained validation counts roles without adding hidden facts to output.
+        let mut retained_transition_counts = HashMap::<&str, usize>::new();
+        if self.retained {
+            for transition in local
+                .tracks
                 .iter()
-                .map(|(t, _, i, _)| format!("{t}-{i}"))
-                .collect::<Vec<_>>()
-                .join("_")
+                .flat_map(|track| &track.items)
+                .filter_map(|item| {
+                    if let TimelineItem::Transition(t) = item {
+                        Some(t)
+                    } else {
+                        None
+                    }
+                })
+            {
+                for endpoint in std::iter::once(transition.from_item_id.as_str())
+                    .chain(transition.to_item_id.as_deref())
+                {
+                    let count = retained_transition_counts.entry(endpoint).or_default();
+                    *count = count
+                        .checked_add(1)
+                        .filter(|count| *count <= MAX_EVALUATED_TRANSITION_FACTS)
+                        .ok_or_else(|| invalid("expanded transition limit exceeded"))?;
+                }
+            }
+        }
+        for layer in &mut evaluated.scene.visual_layers {
+            if let Some(document) = rich_text_overrides.get(&layer.item_id)
+                && let EvaluatedVisualSource::Text(text) = &mut layer.source
+            {
+                text.text = document.runs.iter().map(|run| run.text.as_str()).collect();
+                text.rich_runs = Some(document.runs.clone());
+            }
+        }
+        let root_has_component_instances = self
+            .project
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .any(|item| matches!(item, TimelineItem::ComponentInstance(_)));
+        let identity = |order: EvaluatedLayerOrder, id: &str| -> (String, InstanceOrder) {
+            // Length-prefixed scope positions avoid collisions even with repeated local identifiers.
+            let owner_id = local.tracks[order.track_index].items[order.item_index].id();
+            let instance_order = item_orders[owner_id].clone();
+            let identity = if prefix.is_empty() && !root_has_component_instances {
+                id.to_owned()
+            } else {
+                let mut identity = instance_order
+                    .iter()
+                    .map(|(t, _, i, _)| format!("{t}-{i}"))
+                    .collect::<Vec<_>>()
+                    .join("_");
+                if owner_id != id {
+                    identity.push(':');
+                    identity.push_str(id);
+                }
+                identity
+            };
+            (identity, instance_order)
         };
         for layer in &mut evaluated.scene.visual_layers {
             let span = layer.visible_span();
@@ -327,8 +812,15 @@ impl InstanceTraversal<'_> {
                 .max(clock.start_ms)
                 .max(visual_start);
             let end = clock.root_ms(span.end_ms).min(clock.end_ms).min(visual_end);
-            let id = identity(&layer.item_id);
-            orders.insert(id.clone(), item_orders[&layer.item_id].clone());
+            let owner_track = &local.tracks[layer.order.track_index];
+            let owner = &owner_track.items[layer.order.item_index];
+            let end = if owner_track.hidden || owner.hidden() {
+                start
+            } else {
+                end
+            };
+            let (id, order) = identity(layer.order, &layer.item_id);
+            orders.insert(id.clone(), order);
             layer.item_id = id.clone();
             let local_parent = layer.ancestors.unwrap_or(EvaluatedAncestors {
                 matrix: IDENTITY_MATRIX,
@@ -372,10 +864,12 @@ impl InstanceTraversal<'_> {
                 }
             }
         }
-        evaluated
-            .scene
-            .visual_layers
-            .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        if !self.retained {
+            evaluated
+                .scene
+                .visual_layers
+                .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        }
         let shape_segments: usize = result
             .scene
             .visual_layers
@@ -397,7 +891,7 @@ impl InstanceTraversal<'_> {
         for span in &evaluated.scene.voiceover_intervals {
             let start = clock.root_ms(span.start_ms).max(clock.start_ms);
             let end = clock.root_ms(span.end_ms).min(clock.end_ms);
-            if start < end {
+            if audio_visible && start < end {
                 let intervals = result.scene.instance_voiceover_intervals.as_mut().unwrap();
                 if intervals.len() >= MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES {
                     return Err(invalid("expanded voiceover interval limit exceeded"));
@@ -410,21 +904,30 @@ impl InstanceTraversal<'_> {
             if !(2f64.powi(-32)..=2f64.powi(32)).contains(&clock.rate) {
                 return Err(invalid("component media rate exceeds tempo limits"));
             }
-            let id = identity(&layer.item_id);
-            orders.insert(id.clone(), item_orders[&layer.item_id].clone());
+            let (id, order) = identity(layer.order, &layer.item_id);
+            orders.insert(id.clone(), order);
             layer.item_id = id;
             layer.instance = Some(EvaluatedInstance {
                 start_ms: clock.root_ms(layer.span.start_ms).max(clock.start_ms),
                 end_ms: clock.root_ms(layer.span.end_ms).min(clock.end_ms),
                 ..clock
             });
+            let owner_track = &local.tracks[layer.order.track_index];
+            if owner_track.hidden
+                || owner_track.items[layer.order.item_index].hidden()
+                || !audio_visible
+            {
+                let instance = layer.instance.as_mut().unwrap();
+                instance.end_ms = instance.start_ms;
+            }
         }
-        evaluated
-            .scene
-            .audio_layers
-            .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
-        if result.scene.visual_layers.len() + evaluated.scene.visual_layers.len()
-            > MAX_EVALUATED_VISUAL_LAYERS
+        if !self.retained {
+            evaluated
+                .scene
+                .audio_layers
+                .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
+        }
+        if projection.len() + evaluated.scene.visual_layers.len() > MAX_EVALUATED_VISUAL_LAYERS
             || result.scene.audio_layers.len() + evaluated.scene.audio_layers.len()
                 > MAX_EVALUATED_AUDIO_LAYERS
         {
@@ -467,6 +970,23 @@ impl InstanceTraversal<'_> {
             .resource_bindings
             .fonts
             .extend(evaluated.resource_bindings.fonts);
+        for (index, layer) in evaluated.scene.visual_layers.iter().enumerate() {
+            projection.push(ProjectedVisualCopy {
+                base_index: result.scene.visual_layers.len() + index,
+                item_id: layer.item_id.clone(),
+                instance: layer.instance.unwrap(),
+                ancestors: layer.ancestors.unwrap(),
+                order: orders[&layer.item_id].clone(),
+                generated: false,
+                transition_facts: if self.retained {
+                    let owner =
+                        local.tracks[layer.order.track_index].items[layer.order.item_index].id();
+                    retained_transition_counts.get(owner).copied().unwrap_or(0)
+                } else {
+                    layer.transitions.len()
+                },
+            });
+        }
         result
             .scene
             .visual_layers
@@ -480,11 +1000,14 @@ impl InstanceTraversal<'_> {
                 let TimelineItem::ComponentInstance(instance) = item else {
                     continue;
                 };
-                if track.hidden || item.hidden() {
+                if !self.retained && (track.hidden || item.hidden()) {
                     continue;
                 }
-                let component =
-                    &self.project.components[self.definitions[instance.component_id.as_str()]];
+                let component_index = self.definitions[instance.component_id.as_str()];
+                if !active_components.insert(component_index) {
+                    return Err(invalid("component dependency cycle"));
+                }
+                let component = &self.project.components[component_index];
                 let effective = crate::validation::resolve_component_slots(
                     self.project,
                     component,
@@ -492,7 +1015,8 @@ impl InstanceTraversal<'_> {
                     self.definitions,
                 )?;
                 let child_clock = clock.child(instance, (component.width, component.height))?;
-                if child_clock.start_ms >= child_clock.end_ms {
+                if !self.retained && child_clock.start_ms >= child_clock.end_ms {
+                    active_components.remove(&component_index);
                     continue;
                 }
                 let transform = instance.visual_properties.transform2d.unwrap_or_else(|| {
@@ -514,6 +1038,9 @@ impl InstanceTraversal<'_> {
                 let mut child_opacity = opacity * transform.opacity;
                 let mut start = visual_start.max(child_clock.start_ms);
                 let mut end = visual_end.min(child_clock.end_ms);
+                if track.hidden || item.hidden() {
+                    end = start;
+                }
                 let mut node = item;
                 while let Some(parent) = &node.visual_properties().parent {
                     let (pt, target) = tracks
@@ -539,7 +1066,25 @@ impl InstanceTraversal<'_> {
                     ii,
                     item.id().to_owned(),
                 ));
-                let first_layer = result.scene.visual_layers.len();
+                let rich_text_overrides = component
+                    .slots
+                    .iter()
+                    .filter_map(|slot| {
+                        if slot.binding.property != crate::SlotProperty::TextDocument {
+                            return None;
+                        }
+                        match instance
+                            .slot_values
+                            .get(&slot.id)
+                            .or(slot.default_value.as_ref())
+                        {
+                            Some(crate::SlotValue::RichText(document)) => {
+                                Some((slot.binding.target_layer_id.clone(), document.clone()))
+                            }
+                            _ => None,
+                        }
+                    })
+                    .collect();
                 self.expand(
                     &effective.tracks,
                     InstanceScope {
@@ -550,35 +1095,183 @@ impl InstanceTraversal<'_> {
                         visual_start: start,
                         visual_end: end,
                         prefix: &order,
+                        rich_text_overrides,
+                        audio_visible: audio_visible && !track.hidden && !item.hidden(),
                     },
                     orders,
                     result,
+                    active_components,
+                    projection,
                 )?;
-                for slot in &component.slots {
-                    if slot.binding.property != crate::SlotProperty::TextDocument {
-                        continue;
-                    }
-                    if let Some(crate::SlotValue::RichText(document)) = instance
-                        .slot_values
-                        .get(&slot.id)
-                        .or(slot.default_value.as_ref())
-                    {
-                        for layer in &mut result.scene.visual_layers[first_layer..] {
-                            let key = &orders[&layer.item_id];
-                            if key.len() == order.len() + 1
-                                && key
-                                    .last()
-                                    .is_some_and(|v| v.3 == slot.binding.target_layer_id)
-                                && let EvaluatedVisualSource::Text(text) = &mut layer.source
-                            {
-                                text.text = document.runs.iter().map(|r| r.text.as_str()).collect();
-                                text.rich_runs = Some(document.runs.clone());
+                active_components.remove(&component_index);
+            }
+        }
+
+        // Same-scope repeaters resolve only against the immutable ordinary range.
+        // Keep lightweight indices/order metadata, project the complete scope, and
+        // clone layers only after every layer/geometry/memory budget has succeeded.
+        let scope_ordinary_end = projection.len();
+        let ordinary_layers = (scope_first_layer..scope_ordinary_end)
+            .map(|index| (index, projection[index].order.clone()))
+            .collect::<Vec<_>>();
+        let mut projected = Vec::<ProjectedVisualCopy>::new();
+        for (repeater_track, track) in tracks.iter().enumerate() {
+            if !self.retained && track.hidden {
+                continue;
+            }
+            for (repeater_index, candidate) in track.items.iter().enumerate() {
+                let TimelineItem::Repeater(repeater) = candidate else {
+                    continue;
+                };
+                if !self.retained && candidate.hidden() {
+                    continue;
+                }
+                let source = tracks
+                    .iter()
+                    .flat_map(|track| &track.items)
+                    .find(|item| item.id() == repeater.repeater.source.id)
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "repeater source missing")
+                    })?;
+                let mut bases = ordinary_layers
+                    .iter()
+                    .filter_map(|(base_index, order)| {
+                        let owner_id = order.get(prefix.len())?.3.as_str();
+                        let selected = match source {
+                            TimelineItem::Shape(shape) => owner_id == shape.id,
+                            TimelineItem::Group(group) => {
+                                is_descendant_of(&scope_project, owner_id, &group.id)
                             }
+                            TimelineItem::ComponentInstance(instance) => owner_id == instance.id,
+                            _ => false,
+                        };
+                        selected.then(|| (*base_index, order.clone()))
+                    })
+                    .collect::<Vec<_>>();
+                bases.sort_by(|left, right| left.1.cmp(&right.1));
+
+                let offset = &repeater.repeater.transform_offset;
+                let transform = crate::Transform2D {
+                    position: offset.position,
+                    scale_x: offset.scale_x,
+                    scale_y: offset.scale_y,
+                    rotation_deg: offset.rotation_deg,
+                    skew_x_deg: offset.skew_x_deg,
+                    skew_y_deg: offset.skew_y_deg,
+                    opacity: 1.0,
+                    ..Default::default()
+                };
+                let (step, step_inverse) =
+                    transform_matrices(transform, clock.canvas, clock.canvas)?;
+                let (parent, parent_inverse) = parent_matrices(tracks, source, clock.canvas)?;
+                let parent = multiply_matrix(outer, parent);
+                let parent_inverse = multiply_matrix(parent_inverse, outer_inverse);
+                let mut power = IDENTITY_MATRIX;
+                let mut inverse_power = IDENTITY_MATRIX;
+                let repeater_span = checked_span(repeater.start_ms, repeater.duration_ms)?;
+                let repeater_start = clock.root_ms(repeater.start_ms).max(visual_start);
+                let repeater_end = clock
+                    .root_ms(repeater.start_ms + repeater.duration_ms)
+                    .min(visual_end);
+                for copy_index in 1..=usize::from(repeater.repeater.copies) {
+                    power = multiply_matrix(power, step);
+                    inverse_power = multiply_matrix(step_inverse, inverse_power);
+                    if power
+                        .iter()
+                        .chain(&inverse_power)
+                        .any(|value| !value.is_finite())
+                    {
+                        return Err(invalid("non-finite repeater transform expansion"));
+                    }
+                    let copy_opacity = (1.0 + copy_index as f64 * repeater.repeater.opacity_offset)
+                        .clamp(0.0, 1.0);
+                    let conjugated =
+                        multiply_matrix(multiply_matrix(parent, power), parent_inverse);
+                    let inverse_conjugated =
+                        multiply_matrix(multiply_matrix(parent, inverse_power), parent_inverse);
+                    if conjugated
+                        .iter()
+                        .chain(&inverse_conjugated)
+                        .any(|value| !value.is_finite())
+                    {
+                        return Err(invalid("non-finite repeater transform expansion"));
+                    }
+                    let mut visible_source_index = 0;
+                    for (base_index, base_order) in &bases {
+                        if projection.len() + projected.len() >= MAX_EVALUATED_VISUAL_LAYERS {
+                            return Err(invalid("expanded scene layer limit exceeded"));
                         }
+                        let base = &projection[*base_index];
+                        let source_index = visible_source_index;
+                        if base.instance.start_ms < base.instance.end_ms {
+                            visible_source_index += 1;
+                        }
+                        let mut instance_data = base.instance;
+                        instance_data.start_ms = instance_data.start_ms.max(repeater_start);
+                        instance_data.end_ms = instance_data.end_ms.min(repeater_end);
+                        if track.hidden || candidate.hidden() {
+                            instance_data.end_ms = instance_data.start_ms;
+                        }
+                        if !self.retained && instance_data.start_ms >= instance_data.end_ms {
+                            continue;
+                        }
+                        let base_id = base.item_id.clone();
+                        let item_id = if matches!(source, TimelineItem::ComponentInstance(_)) {
+                            format!("repeater:{}:{copy_index:03}:{base_id}", repeater.id)
+                        } else {
+                            format!(
+                                "repeater:{}:{copy_index:03}:{source_index:06}:{base_id}",
+                                repeater.id
+                            )
+                        };
+                        let ancestors = base.ancestors;
+                        let ancestors = EvaluatedAncestors {
+                            matrix: multiply_matrix(conjugated, ancestors.matrix),
+                            inverse: multiply_matrix(
+                                multiply_matrix(
+                                    multiply_matrix(ancestors.inverse, parent),
+                                    inverse_power,
+                                ),
+                                parent_inverse,
+                            ),
+                            opacity: ancestors.opacity * copy_opacity,
+                            clip: EvaluatedTimeSpan {
+                                start_ms: ancestors.clip.start_ms.max(repeater_span.start_ms),
+                                end_ms: ancestors.clip.end_ms.min(repeater_span.end_ms),
+                            },
+                        };
+                        if ancestors
+                            .matrix
+                            .iter()
+                            .chain(&ancestors.inverse)
+                            .chain([ancestors.opacity].iter())
+                            .any(|value| !value.is_finite())
+                        {
+                            return Err(invalid("non-finite repeater transform expansion"));
+                        }
+                        let mut copy_order = prefix.to_vec();
+                        copy_order.push((
+                            repeater_track,
+                            repeater.visual_properties.z_index,
+                            repeater_index,
+                            repeater.id.clone(),
+                        ));
+                        copy_order.push((copy_index, 0, 0, String::new()));
+                        copy_order.extend(base_order.iter().skip(prefix.len()).cloned());
+                        projected.push(ProjectedVisualCopy {
+                            base_index: base.base_index,
+                            item_id,
+                            instance: instance_data,
+                            ancestors,
+                            order: copy_order,
+                            generated: true,
+                            transition_facts: base.transition_facts,
+                        });
                     }
                 }
             }
         }
+        projection.extend(projected);
         Ok(())
     }
 }
@@ -942,6 +1635,7 @@ fn evaluate_flat_project(
     height: u32,
     fps: u32,
     shape_budget: usize,
+    retained: bool,
 ) -> Result<EvaluatedSceneResult, CoreError> {
     if width == 0 || height == 0 || fps == 0 {
         return Err(invalid(
@@ -954,9 +1648,9 @@ fn evaluate_flat_project(
         .iter()
         .map(|asset| (asset.id.as_str(), asset))
         .collect::<HashMap<_, _>>();
-    validate_referenced_assets(project, &asset_by_id)?;
-    validate_media_source_ranges(project, &asset_by_id)?;
-    let preflight = preflight_project(project, &asset_by_id, shape_budget)?;
+    validate_referenced_assets(project, &asset_by_id, retained)?;
+    validate_media_source_ranges(project, &asset_by_id, retained)?;
+    let preflight = preflight_project(project, &asset_by_id, shape_budget, retained)?;
     validate_project_stacking(project)?;
     crate::validation::validate_parent_graph(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
@@ -975,11 +1669,11 @@ fn evaluate_flat_project(
     let mut audio_layers = Vec::with_capacity(preflight.audio_layer_count);
 
     for (track_index, track) in project.tracks.iter().enumerate() {
-        if track.hidden {
+        if !retained && track.hidden {
             continue;
         }
         for (item_index, item) in track.items.iter().enumerate() {
-            if item.hidden() {
+            if !retained && item.hidden() {
                 continue;
             }
             let order = EvaluatedLayerOrder {
@@ -1209,12 +1903,13 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Transition(_)
                 | TimelineItem::Group(_)
-                | TimelineItem::ComponentInstance(_) => {}
+                | TimelineItem::ComponentInstance(_)
+                | TimelineItem::Repeater(_) => {}
             }
         }
     }
 
-    apply_ancestors(project, &mut visual_layers, (width, height))?;
+    apply_ancestors(project, &mut visual_layers, (width, height), retained)?;
     for layer in &mut visual_layers {
         if matches!(layer.source, EvaluatedVisualSource::Shape(_)) && layer.ancestors.is_none() {
             layer.ancestors = Some(EvaluatedAncestors {
@@ -1283,12 +1978,60 @@ fn sort_visual_layers(project: &Project, visual_layers: &mut [EvaluatedVisualLay
     });
 }
 
+fn is_descendant_of(project: &Project, item_id: &str, group_id: &str) -> bool {
+    let mut current = project.find_item(item_id);
+    for _ in 0..=32 {
+        let Some(parent_id) = current
+            .and_then(|item| item.visual_properties().parent.as_ref())
+            .map(|parent| parent.id.as_str())
+        else {
+            return false;
+        };
+        if parent_id == group_id {
+            return true;
+        }
+        current = project.find_item(parent_id);
+    }
+    false
+}
+
+fn parent_matrices(
+    tracks: &[Track],
+    source: &TimelineItem,
+    canvas: (u32, u32),
+) -> Result<([f64; 6], [f64; 6]), CoreError> {
+    let index = tracks
+        .iter()
+        .flat_map(|track| &track.items)
+        .map(|item| (item.id(), item))
+        .collect::<HashMap<_, _>>();
+    let mut matrix = IDENTITY_MATRIX;
+    let mut inverse = IDENTITY_MATRIX;
+    let mut node = source;
+    while let Some(parent) = &node.visual_properties().parent {
+        let target = index
+            .get(parent.id.as_str())
+            .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "parent group missing"))?;
+        let transform = target.visual_properties().transform2d.unwrap_or_default();
+        let (next, next_inverse) = transform_matrices(transform, canvas, canvas)?;
+        matrix = multiply_matrix(next, matrix);
+        inverse = multiply_matrix(inverse, next_inverse);
+        node = target;
+    }
+    Ok((matrix, inverse))
+}
+
 fn validate_referenced_assets(
     project: &Project,
     asset_by_id: &HashMap<&str, &Asset>,
+    retained: bool,
 ) -> Result<(), CoreError> {
-    for track in project.tracks.iter().filter(|track| !track.hidden) {
-        for item in track.items.iter().filter(|item| !item.hidden()) {
+    for track in project
+        .tracks
+        .iter()
+        .filter(|track| retained || !track.hidden)
+    {
+        for item in track.items.iter().filter(|item| retained || !item.hidden()) {
             if let TimelineItem::Media(media) = item
                 && !asset_by_id.contains_key(media.asset_id.as_str())
             {
@@ -1305,9 +2048,14 @@ fn validate_referenced_assets(
 fn validate_media_source_ranges(
     project: &Project,
     asset_by_id: &HashMap<&str, &Asset>,
+    retained: bool,
 ) -> Result<(), CoreError> {
-    for track in project.tracks.iter().filter(|track| !track.hidden) {
-        for item in track.items.iter().filter(|item| !item.hidden()) {
+    for track in project
+        .tracks
+        .iter()
+        .filter(|track| retained || !track.hidden)
+    {
+        for item in track.items.iter().filter(|item| retained || !item.hidden()) {
             let TimelineItem::Media(media) = item else {
                 continue;
             };
@@ -1336,6 +2084,7 @@ fn preflight_project<'a>(
     project: &'a Project,
     asset_by_id: &HashMap<&str, &Asset>,
     shape_budget: usize,
+    retained: bool,
 ) -> Result<EvaluationPreflight<'a>, CoreError> {
     let mut visual_item_ids = HashSet::new();
     let mut media_resource_ids = HashSet::new();
@@ -1344,8 +2093,12 @@ fn preflight_project<'a>(
     let mut voiceover_activity_range_count = 0_usize;
     let mut shape_segments = 0_usize;
 
-    for track in project.tracks.iter().filter(|track| !track.hidden) {
-        for item in track.items.iter().filter(|item| !item.hidden()) {
+    for track in project
+        .tracks
+        .iter()
+        .filter(|track| retained || !track.hidden)
+    {
+        for item in track.items.iter().filter(|item| retained || !item.hidden()) {
             match item {
                 TimelineItem::Media(media) => {
                     validate_keyframe_limit(&media.keyframes)?;
@@ -1471,7 +2224,8 @@ fn preflight_project<'a>(
                 }
                 TimelineItem::Transition(_)
                 | TimelineItem::Group(_)
-                | TimelineItem::ComponentInstance(_) => {}
+                | TimelineItem::ComponentInstance(_)
+                | TimelineItem::Repeater(_) => {}
             }
         }
     }
@@ -3165,6 +3919,7 @@ fn apply_ancestors(
     project: &Project,
     layers: &mut Vec<EvaluatedVisualLayer>,
     canvas: (u32, u32),
+    retained: bool,
 ) -> Result<(), CoreError> {
     let index: HashMap<_, _> = project
         .tracks
@@ -3213,7 +3968,7 @@ fn apply_ancestors(
     }
     layers.retain(|layer| {
         let span = layer.visible_span();
-        span.start_ms < span.end_ms
+        retained || span.start_ms < span.end_ms
     });
     Ok(())
 }
@@ -3340,11 +4095,20 @@ pub(crate) fn evaluate_layer_affine(
     source: (u32, u32),
     canvas: (u32, u32),
 ) -> Result<EvaluatedAffine, CoreError> {
+    measure_layer_affine(layer, source, canvas, layer.ancestors)
+}
+
+fn measure_layer_affine(
+    layer: &EvaluatedVisualLayer,
+    source: (u32, u32),
+    canvas: (u32, u32),
+    ancestors: Option<EvaluatedAncestors>,
+) -> Result<EvaluatedAffine, CoreError> {
     if let EvaluatedVisualSource::Shape(shape) = &layer.source {
         return shapes::affine(layer, shape, canvas);
     }
     let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
-    if layer.ancestors.is_none() {
+    if ancestors.is_none() {
         return evaluate_affine(
             layer
                 .transform2d
@@ -3353,7 +4117,7 @@ pub(crate) fn evaluate_layer_affine(
             canvas,
         );
     }
-    let parent = layer.ancestors.unwrap();
+    let parent = ancestors.unwrap();
     let (local, inverse, opacity) = if let Some(transform) = layer.transform2d {
         let (matrix, inverse) = transform_matrices(transform, source, canvas)?;
         (matrix, inverse, transform.opacity)
@@ -4119,6 +4883,793 @@ mod instance_tests {
         assert!(
             error.message.contains("maxExpandedOccurrences"),
             "{error:?}"
+        );
+    }
+
+    #[test]
+    fn invalid_repeater_graphs_fail_in_a_subprocess_without_aborting() {
+        for mode in ["component", "group"] {
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--ignored",
+                    "--exact",
+                    "evaluated_scene::instance_tests::invalid_repeater_graph_child",
+                ])
+                .env("OPENCUT_INVALID_REPEATER_GRAPH", mode)
+                .status()
+                .unwrap();
+            assert!(status.success(), "{mode} cycle aborted its subprocess");
+        }
+    }
+
+    #[test]
+    #[ignore = "subprocess helper for invalid graph isolation"]
+    fn invalid_repeater_graph_child() {
+        let mode = std::env::var("OPENCUT_INVALID_REPEATER_GRAPH").unwrap();
+        let project: Project = if mode == "component" {
+            serde_json::from_value(json!({
+                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[],
+                "components":[
+                    {"id":"a","name":"A","width":100,"height":100,"durationMs":1000,"slots":[],
+                     "tracks":[{"id":"a-track","name":"A","trackType":"overlay","hidden":true,"items":[
+                        {"type":"component_instance","id":"to-b","componentId":"b","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"stackOrder":0}
+                     ]}]},
+                    {"id":"b","name":"B","width":100,"height":100,"durationMs":1000,"slots":[],
+                     "tracks":[{"id":"b-track","name":"B","trackType":"overlay","hidden":true,"items":[
+                        {"type":"component_instance","id":"to-a","componentId":"a","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"stackOrder":0}
+                     ]}]}
+                ]
+            }))
+            .unwrap()
+        } else {
+            serde_json::from_value(json!({
+                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
+                "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+                    {"type":"group","id":"a","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"parent":{"scope":"root","id":"b"}},
+                    {"type":"group","id":"b","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,"parent":{"scope":"root","id":"a"}},
+                    {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":2,
+                     "repeater":{"source":{"scope":"root","id":"a"},"copies":1,
+                     "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+                ]}]
+            }))
+            .unwrap()
+        };
+        let error = evaluate_project(&project, 100, 100, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+    }
+
+    #[test]
+    fn missing_repeater_source_keeps_item_not_found_precedence() {
+        let mut project = project();
+        project.schema_version = 17;
+        project.components.clear();
+        project.tracks = serde_json::from_value(json!([{
+            "id":"root","name":"Root","trackType":"overlay","items":[
+                {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"stackOrder":0,
+                 "repeater":{"source":{"scope":"root","id":"missing"},"copies":1,
+                 "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]
+        }]))
+        .unwrap();
+        assert_eq!(
+            evaluate_project(&project, 100, 100, 30).unwrap_err().code,
+            ErrorCode::ItemNotFound
+        );
+    }
+
+    #[test]
+    fn repeater_adds_stable_translated_and_faded_shape_occurrences() {
+        let mut value = project();
+        value.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        value.components.clear();
+        value.tracks = serde_json::from_value(serde_json::json!([{
+            "id":"overlay","name":"Overlay","trackType":"overlay","items":[
+                {"type":"shape","id":"source","geometry":{"type":"rectangle","width":10,"height":10},
+                 "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+                 "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0,
+                 "transform2d":{"position":{"x":10,"y":10,"unit":"pixels"},"anchor":{"x":0,"y":0},
+                 "scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":0.8}},
+                {"type":"repeater","id":"copies","startMs":100,"durationMs":800,"zIndex":0,"stackOrder":1,
+                 "repeater":{"source":{"scope":"root","id":"source"},"copies":3,
+                 "transformOffset":{"position":{"x":20,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                 "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":-0.25}}
+            ]
+        }])).unwrap();
+        let evaluated = evaluate_project(&value, 100, 100, 30).unwrap();
+        assert_eq!(evaluated.scene.visual_layers.len(), 4);
+        assert_eq!(evaluated.scene.visual_layers[0].item_id, "source");
+        for (index, layer) in evaluated.scene.visual_layers[1..].iter().enumerate() {
+            assert_eq!(
+                layer.item_id,
+                format!("repeater:copies:{:03}:000000:source", index + 1)
+            );
+            assert_eq!(
+                layer.visible_span(),
+                EvaluatedTimeSpan {
+                    start_ms: 100,
+                    end_ms: 900
+                }
+            );
+            let affine = layer.affine.expect("shape affine");
+            assert!((affine.opacity - 0.8 * (1.0 - (index + 1) as f64 * 0.25)).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn ordinary_components_do_not_materialize_repeater_copies() {
+        GENERATED_MATERIALIZATIONS.with(|count| count.set(0));
+        assert!(
+            !evaluate_project(&project(), 100, 100, 30)
+                .unwrap()
+                .scene
+                .visual_layers
+                .is_empty()
+        );
+        assert_eq!(GENERATED_MATERIALIZATIONS.with(|count| count.get()), 0);
+    }
+
+    #[test]
+    fn repeater_visual_layer_preflight_accepts_4096_and_rejects_4097() {
+        fn fixture(last_copies: u16) -> Project {
+            let mut items = vec![json!({
+                "type":"shape","id":"source","startMs":0,"durationMs":1000,
+                "geometry":{"type":"rectangle","width":1,"height":1},
+                "fill":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"stroke":null,
+                "keyframes":[],"zIndex":0,"stackOrder":0
+            })];
+            for index in 0..16 {
+                let copies = if index == 15 { last_copies } else { 256 };
+                items.push(json!({
+                    "type":"repeater","id":format!("copies-{index}"),"startMs":0,"durationMs":1000,
+                    "zIndex":0,"stackOrder":index + 1,
+                    "repeater":{"source":{"scope":"root","id":"source"},"copies":copies,
+                    "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                    "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}
+                }));
+            }
+            serde_json::from_value(json!({
+                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
+                "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":items}]
+            }))
+            .unwrap()
+        }
+
+        let exact = evaluate_project(&fixture(255), 16, 16, 30).unwrap();
+        assert_eq!(exact.scene.visual_layers.len(), MAX_EVALUATED_VISUAL_LAYERS);
+        let mut missing = fixture(255);
+        missing.tracks[0].hidden = true;
+        missing.tracks[0].items.push(serde_json::from_value(json!({
+            "type":"media","id":"missing-media","assetId":"absent","startMs":0,"durationMs":1000,
+            "sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},
+            "keyframes":[],"stackOrder":17,"zIndex":0
+        })).unwrap());
+        assert_eq!(
+            evaluate_project(&missing, 16, 16, 30).unwrap_err().code,
+            ErrorCode::AssetNotFound
+        );
+        let error = evaluate_project(&fixture(256), 16, 16, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("expanded scene layer limit"));
+        for mode in ["track", "repeater", "instance", "clipped", "unused"] {
+            for copies in [255, 256] {
+                let mut retained = fixture(copies);
+                match mode {
+                    "track" => retained.tracks[0].hidden = true,
+                    "repeater" => {
+                        for item in &mut retained.tracks[0].items[1..] {
+                            item.visual_properties_mut().hidden = true;
+                        }
+                    }
+                    _ => {
+                        let mut tracks = serde_json::to_value(&retained.tracks).unwrap();
+                        for item in tracks[0]["items"].as_array_mut().unwrap() {
+                            if item["type"] == "repeater" {
+                                item["repeater"]["source"]["scope"] = json!("component:definition");
+                            }
+                        }
+                        retained.components = serde_json::from_value(json!([{
+                            "id":"definition","name":"Definition","width":16,"height":16,
+                            "durationMs":2000,"tracks":tracks,"slots":[]
+                        }]))
+                        .unwrap();
+                        retained.tracks[0].items = if mode == "unused" {
+                            vec![]
+                        } else {
+                            serde_json::from_value(json!([{"type":"component_instance","id":"instance",
+                                "componentId":"definition","startMs":0,"durationMs":1000,
+                                "trimStartMs":if mode == "clipped" {1000} else {0},"timeScale":1,
+                                "hidden":mode == "instance","zIndex":0,"stackOrder":0,"slotValues":{}}])).unwrap()
+                        };
+                        if mode == "unused" && copies == 255 {
+                            let mut second = retained.components[0].clone();
+                            second.id = "independent".into();
+                            for item in &mut second.tracks[0].items {
+                                if let TimelineItem::Repeater(r) = item {
+                                    r.repeater.source.scope = format!("component:{}", second.id);
+                                }
+                            }
+                            retained.components.push(second);
+                        }
+                    }
+                }
+                GENERATED_MATERIALIZATIONS.with(|count| count.set(0));
+                let result = evaluate_project(&retained, 16, 16, 30);
+                if copies == 256 {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InvalidArgument,
+                        "{mode}"
+                    );
+                } else {
+                    assert_eq!(
+                        result.unwrap().scene.visual_layers.len(),
+                        usize::from(mode == "repeater"),
+                        "{mode}"
+                    );
+                    retained.components.reverse();
+                    assert!(evaluate_project(&retained, 16, 16, 30).is_ok(), "{mode}");
+                    if mode == "unused" {
+                        let TimelineItem::Repeater(last) =
+                            retained.components[1].tracks[0].items.last_mut().unwrap()
+                        else {
+                            unreachable!()
+                        };
+                        last.repeater.copies = 256;
+                        assert_eq!(
+                            evaluate_project(&retained, 16, 16, 30).unwrap_err().code,
+                            ErrorCode::InvalidArgument
+                        );
+                    }
+                }
+                assert_eq!(
+                    GENERATED_MATERIALIZATIONS.with(|count| count.get()),
+                    0,
+                    "{mode}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn repeater_preflight_rejects_non_finite_parent_conjugation() {
+        let project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+                {"type":"group","id":"parent","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,
+                 "transform2d":{"position":{"x":0,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},
+                 "scaleX":100,"scaleY":100,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":1}},
+                {"type":"shape","id":"source","startMs":0,"durationMs":1000,
+                 "geometry":{"type":"rectangle","width":1,"height":1},
+                 "fill":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"stroke":null,
+                 "keyframes":[],"zIndex":0,"stackOrder":1,
+                 "parent":{"scope":"root","id":"parent"}},
+                {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":2,
+                 "repeater":{"source":{"scope":"root","id":"source"},"copies":154,
+                 "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":100,"scaleY":100,
+                 "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        }))
+        .unwrap();
+        let error = evaluate_project(&project, 16, 16, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("non-finite repeater"));
+        for hidden in [false, true] {
+            let mut retained = project.clone();
+            retained.tracks[0].hidden = hidden;
+            GENERATED_MATERIALIZATIONS.with(|count| count.set(0));
+            assert_eq!(
+                evaluate_project(&retained, 16, 16, 30).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+            assert_eq!(GENERATED_MATERIALIZATIONS.with(|count| count.get()), 0);
+        }
+    }
+
+    #[test]
+    fn retained_repeater_surface_boundaries_precede_materialization() {
+        for hidden in [false, true] {
+            for width in [2047.0_f64, f64::from_bits(2047.0_f64.to_bits() + 1)] {
+                let project: Project = serde_json::from_value(json!({
+                    "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                    "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
+                    "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":hidden,"items":[
+                        {"type":"shape","id":"source","startMs":0,"durationMs":1000,
+                         "geometry":{"type":"rectangle","width":width,"height":2047},
+                         "fill":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"stroke":null,
+                         "keyframes":[],"zIndex":0,"stackOrder":0},
+                        {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,
+                         "zIndex":0,"stackOrder":1,"repeater":{"source":{"scope":"root","id":"source"},"copies":1,
+                         "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":2,"scaleY":2,
+                         "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+                    ]}]
+                })).unwrap();
+                GENERATED_MATERIALIZATIONS.with(|count| count.set(0));
+                let evaluated = evaluate_project(&project, 16, 16, 30);
+                if width == 2047.0 {
+                    assert_eq!(
+                        evaluated.unwrap().scene.visual_layers.len(),
+                        if hidden { 0 } else { 2 }
+                    );
+                } else {
+                    assert_eq!(evaluated.unwrap_err().code, ErrorCode::InvalidArgument);
+                    assert_eq!(GENERATED_MATERIALIZATIONS.with(|count| count.get()), 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn repeater_group_uses_source_parent_origin_and_preserves_subtree_order() {
+        let project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
+            "tracks":[{"id":"t","name":"T","trackType":"overlay","items":[
+                {"type":"group","id":"group","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,
+                 "transform2d":{"position":{"x":10,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":0.8}},
+                {"type":"rectangle","id":"second","startMs":0,"durationMs":1000,"width":10,"height":10,"color":"#00ff00","keyframes":[],"zIndex":0,"stackOrder":1,
+                 "parent":{"scope":"root","id":"group"},"transform2d":{"position":{"x":5,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":0.5}},
+                {"type":"rectangle","id":"first","startMs":0,"durationMs":1000,"width":10,"height":10,"color":"#ff0000","keyframes":[],"zIndex":0,"stackOrder":2,"parent":{"scope":"root","id":"group"}},
+                {"type":"repeater","id":"copies","startMs":200,"durationMs":300,"zIndex":1,"stackOrder":3,
+                 "repeater":{"source":{"scope":"root","id":"group"},"copies":1,
+                 "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":2,"scaleY":2,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":-0.5}}
+            ]}]
+        })).unwrap();
+        let before = serde_json::to_value(&project).unwrap();
+        let mut scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        let generated = scene
+            .visual_layers
+            .iter()
+            .filter(|layer| layer.item_id.starts_with("repeater:copies:"))
+            .map(|layer| layer.item_id.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            generated,
+            [
+                "repeater:copies:001:000000:second",
+                "repeater:copies:001:000001:first"
+            ]
+        );
+        finalize_affine_geometry(&mut scene, &HashMap::new()).unwrap();
+        let copy = scene
+            .visual_layers
+            .iter()
+            .find(|layer| layer.item_id.ends_with(":second"))
+            .unwrap();
+        assert_eq!(
+            copy.visible_span(),
+            EvaluatedTimeSpan {
+                start_ms: 200,
+                end_ms: 500
+            }
+        );
+        let affine = copy.affine.unwrap();
+        assert_eq!(affine.matrix, [2.0, 0.0, 0.0, 2.0, 30.0, 0.0]);
+        assert!((affine.opacity - 0.2).abs() < 1e-12);
+        assert_eq!(serde_json::to_value(&project).unwrap(), before);
+    }
+
+    #[test]
+    fn repeater_preflight_accepts_exact_occurrence_limit_and_rejects_one_over() {
+        let groups = (0..256).map(|index| json!({
+            "type":"group","id":format!("g{index}"),"startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":index
+        })).collect::<Vec<_>>();
+        let mut project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[{"id":"definition","name":"Definition","width":100,"height":100,"durationMs":1000,"slots":[],
+                "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":groups}]}],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":true,"items":[
+                {"type":"component_instance","id":"source","componentId":"definition","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":0},
+                {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,
+                 "repeater":{"source":{"scope":"root","id":"source"},"copies":254,
+                 "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        })).unwrap();
+        assert!(evaluate_project(&project, 100, 100, 30).is_ok());
+        project.tracks[0].items.push(
+            serde_json::from_value(json!({
+                "type":"group","id":"one-over","startMs":0,"durationMs":1,"zIndex":0,"stackOrder":2
+            }))
+            .unwrap(),
+        );
+        let error = evaluate_project(&project, 100, 100, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("maxExpandedOccurrences"));
+    }
+
+    #[test]
+    fn nested_group_repeater_preflight_counts_exact_limit_and_one_over() {
+        let nested_groups = (0..255)
+            .map(|index| {
+                json!({
+                    "type":"group","id":format!("leaf-{index}"),"startMs":0,"durationMs":1000,
+                    "hidden":true,"zIndex":0,"stackOrder":index + 2,
+                    "parent":{"scope":"root","id":"inner"}
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut items = vec![
+            json!({"type":"group","id":"outer","startMs":0,"durationMs":1000,"hidden":true,"zIndex":0,"stackOrder":0}),
+            json!({"type":"group","id":"inner","startMs":0,"durationMs":1000,"hidden":true,"zIndex":0,"stackOrder":1,
+                   "parent":{"scope":"root","id":"outer"}}),
+        ];
+        items.extend(nested_groups);
+        items.push(json!({
+            "type":"repeater","id":"copies","startMs":0,"durationMs":1000,"hidden":true,
+            "zIndex":0,"stackOrder":257,
+            "repeater":{"source":{"scope":"root","id":"outer"},"copies":254,
+            "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+            "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}
+        }));
+        let mut project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":true,"items":items}]
+        }))
+        .unwrap();
+
+        assert!(evaluate_project(&project, 100, 100, 30).is_ok());
+        project.tracks[0].items.push(
+            serde_json::from_value(json!({
+                "type":"group","id":"one-over","startMs":0,"durationMs":1,
+                "hidden":true,"zIndex":0,"stackOrder":258
+            }))
+            .unwrap(),
+        );
+        let error = evaluate_project(&project, 100, 100, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("maxExpandedOccurrences"));
+    }
+
+    #[test]
+    fn hidden_unused_repeater_transform_overflow_fails_preflight() {
+        let mut project = project();
+        project.schema_version = 17;
+        project.tracks.clear();
+        project.components.truncate(1);
+        project.components[0].tracks[0].hidden = true;
+        project.components[0].tracks[0].items =
+            vec![serde_json::from_value(json!({
+            "type":"shape","id":"source","geometry":{"type":"rectangle","width":1,"height":1},
+            "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+            "startMs":0,"durationMs":500,"keyframes":[],"zIndex":0,"stackOrder":0
+        })).unwrap()];
+        project.components[0].tracks[0].items.push(serde_json::from_value(json!({
+            "type":"repeater","id":"copies","startMs":0,"durationMs":500,"hidden":true,"zIndex":0,"stackOrder":1,
+            "repeater":{"source":{"scope":"component:leaf","id":"source"},"copies":256,
+            "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":100,"scaleY":100,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}
+        })).unwrap());
+        let error = evaluate_project(&project, 100, 100, 30).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("non-finite repeater"));
+        if let TimelineItem::Repeater(item) = &mut project.components[0].tracks[0].items[1] {
+            item.repeater.transform_offset.scale_x = 1.0;
+            item.repeater.transform_offset.scale_y = 1.0;
+        }
+        assert!(evaluate_project(&project, 100, 100, 30).is_ok());
+    }
+
+    #[test]
+    fn repeater_clones_complete_component_occurrence_and_clock() {
+        let project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[{"id":"badge","name":"Badge","width":50,"height":50,"durationMs":1000,"slots":[],
+              "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[
+                {"type":"shape","id":"shape","geometry":{"type":"rectangle","width":10,"height":10},
+                 "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+                 "startMs":100,"durationMs":600,"keyframes":[],"zIndex":0,"stackOrder":0}
+              ]}]}],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"component_instance","id":"source","componentId":"badge","startMs":200,"trimStartMs":0,"durationMs":500,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":0},
+              {"type":"repeater","id":"copies","startMs":300,"durationMs":300,"zIndex":0,"stackOrder":1,
+               "repeater":{"source":{"scope":"root","id":"source"},"copies":2,
+               "transformOffset":{"position":{"x":10,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        })).unwrap();
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 3);
+        let ordinary = &scene.visual_layers[0];
+        assert_eq!(ordinary.instance.unwrap().start_ms, 300.0);
+        assert_eq!(ordinary.instance.unwrap().end_ms, 700.0);
+        let ordinary_x = ordinary.affine.unwrap().matrix[4];
+        for (index, copy) in scene.visual_layers[1..].iter().enumerate() {
+            assert!(
+                copy.item_id
+                    .starts_with(&format!("repeater:copies:{:03}:", index + 1))
+            );
+            let instance = copy.instance.unwrap();
+            assert_eq!((instance.start_ms, instance.end_ms), (300.0, 600.0));
+            assert_eq!(
+                copy.affine.unwrap().matrix[4] - ordinary_x,
+                10.0 * (index + 1) as f64
+            );
+        }
+    }
+
+    #[test]
+    fn group_repeater_includes_nested_component_and_local_repeater_occurrences() {
+        let project: Project = serde_json::from_str(r#"{
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
+              "tracks":[{"id":"leaf-track","name":"Leaf","trackType":"overlay","items":[
+                {"type":"shape","id":"leaf-shape","geometry":{"type":"rectangle","width":10,"height":10},
+                 "fill":{"type":"solid","color":{"r":0,"g":0,"b":1,"a":1}},"stroke":null,
+                 "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0},
+                {"type":"repeater","id":"leaf-copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,
+                 "repeater":{"source":{"scope":"component:leaf","id":"leaf-shape"},"copies":1,
+                 "transformOffset":{"position":{"x":5,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                 "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+              ]}]}],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"group","id":"outer","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,
+               "transform2d":{"position":{"x":10,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},
+               "scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":0.8}},
+              {"type":"group","id":"inner","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,
+               "parent":{"scope":"root","id":"outer"}},
+              {"type":"shape","id":"flat","geometry":{"type":"rectangle","width":10,"height":10},
+               "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+               "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":2,
+               "parent":{"scope":"root","id":"outer"}},
+              {"type":"component_instance","id":"component","componentId":"leaf","startMs":0,"trimStartMs":0,
+               "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":3,
+               "parent":{"scope":"root","id":"inner"}},
+              {"type":"repeater","id":"group-copy-a","startMs":100,"durationMs":500,"zIndex":1,"stackOrder":4,
+               "repeater":{"source":{"scope":"root","id":"outer"},"copies":1,
+               "transformOffset":{"position":{"x":20,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+               "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":-0.5}},
+              {"type":"repeater","id":"group-copy-b","startMs":200,"durationMs":400,"zIndex":2,"stackOrder":5,
+               "repeater":{"source":{"scope":"root","id":"outer"},"copies":1,
+               "transformOffset":{"position":{"x":30,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+               "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        }"#).unwrap();
+
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 9);
+        for repeater_id in ["group-copy-a", "group-copy-b"] {
+            let copies = scene
+                .visual_layers
+                .iter()
+                .filter(|layer| {
+                    layer
+                        .item_id
+                        .starts_with(&format!("repeater:{repeater_id}:"))
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(copies.len(), 3, "{repeater_id} omitted a group descendant");
+            assert_eq!(
+                copies
+                    .iter()
+                    .filter(|layer| layer.item_id.contains("leaf-copies"))
+                    .count(),
+                1,
+                "{repeater_id} omitted the nested local repeater occurrence"
+            );
+            assert!(copies.iter().all(|layer| {
+                let instance = layer.instance.unwrap();
+                instance.start_ms
+                    >= if repeater_id == "group-copy-a" {
+                        100.0
+                    } else {
+                        200.0
+                    }
+                    && instance.end_ms <= 600.0
+            }));
+        }
+        let faded_component = scene
+            .visual_layers
+            .iter()
+            .find(|layer| {
+                layer.item_id.starts_with("repeater:group-copy-a:")
+                    && layer.item_id.ends_with("0-3_0-0")
+            })
+            .unwrap();
+        assert!((faded_component.affine.unwrap().opacity - 0.4).abs() < 1e-12);
+    }
+
+    #[test]
+    fn component_repeater_preserves_numeric_order_for_eleven_equal_z_siblings() {
+        let siblings = (0..11)
+            .map(|index| json!({
+                "type":"shape","id":format!("layer-{index}"),
+                "geometry":{"type":"rectangle","width":10,"height":10},
+                "fill":{"type":"solid","color":{"r":index as f64 / 10.0,"g":0,"b":0,"a":1}},"stroke":null,
+                "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":index
+            }))
+            .collect::<Vec<_>>();
+        let project: Project = serde_json::from_value(json!({
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[{"id":"stack","name":"Stack","width":100,"height":100,"durationMs":1000,"slots":[],
+              "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":siblings}]}],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"component_instance","id":"source","componentId":"stack","startMs":0,"trimStartMs":0,
+               "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":0},
+              {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,
+               "repeater":{"source":{"scope":"root","id":"source"},"copies":1,
+               "transformOffset":{"position":{"x":20,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+               "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        })).unwrap();
+
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        let generated = scene
+            .visual_layers
+            .iter()
+            .filter(|layer| layer.item_id.starts_with("repeater:copies:"))
+            .map(|layer| layer.item_id.rsplit('_').next().unwrap().to_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            generated,
+            (0..11)
+                .map(|index| format!("0-{index}"))
+                .collect::<Vec<_>>()
+        );
+        let EvaluatedVisualSource::Shape(top) = &scene.visual_layers.last().unwrap().source else {
+            panic!("topmost generated sibling is not a shape")
+        };
+        let Some(crate::Paint::Solid { color }) = &top.fill else {
+            panic!("topmost generated sibling has no solid fill")
+        };
+        assert_eq!(color.r, 1.0);
+    }
+
+    #[test]
+    fn component_local_group_repeater_includes_nested_component_occurrences() {
+        let project: Project = serde_json::from_str(r#"{
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[
+              {"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
+               "tracks":[{"id":"leaf-track","name":"Leaf","trackType":"overlay","items":[
+                 {"type":"shape","id":"leaf-shape","geometry":{"type":"rectangle","width":10,"height":10},
+                  "fill":{"type":"solid","color":{"r":0,"g":1,"b":0,"a":1}},"stroke":null,
+                  "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0}
+               ]}]},
+              {"id":"container","name":"Container","width":100,"height":100,"durationMs":1000,"slots":[],
+               "tracks":[{"id":"container-track","name":"Container","trackType":"overlay","items":[
+                 {"type":"group","id":"local-group","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0},
+                 {"type":"component_instance","id":"local-component","componentId":"leaf","startMs":0,"trimStartMs":0,
+                  "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":1,
+                  "parent":{"scope":"component:container","id":"local-group"}},
+                 {"type":"repeater","id":"local-group-copy","startMs":100,"durationMs":500,"zIndex":1,"stackOrder":2,
+                  "repeater":{"source":{"scope":"component:container","id":"local-group"},"copies":1,
+                  "transformOffset":{"position":{"x":15,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                  "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+               ]}]}
+            ],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"component_instance","id":"root-component","componentId":"container","startMs":0,"trimStartMs":0,
+               "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":0}
+            ]}]
+        }"#).unwrap();
+
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 2);
+        let generated = scene
+            .visual_layers
+            .iter()
+            .find(|layer| layer.item_id.contains("repeater:local-group-copy:"))
+            .expect("component-local group copy omitted its nested component");
+        let instance = generated.instance.unwrap();
+        assert_eq!((instance.start_ms, instance.end_ms), (100.0, 600.0));
+    }
+
+    #[test]
+    fn rich_text_bindings_reach_local_and_outer_repeater_copies_without_scope_leakage() {
+        let project: Project = serde_json::from_str(r##"{
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[
+              {"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
+               "tracks":[{"id":"leaf-track","name":"Leaf","trackType":"overlay","items":[
+                 {"type":"text","id":"title","text":"Nested","fontSize":20,"color":"#ffffff",
+                  "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0}
+               ]}]},
+              {"id":"container","name":"Container","width":100,"height":100,"durationMs":1000,
+               "slots":[{"id":"copy","name":"Copy","kind":"rich_text","required":true,
+                 "defaultValue":{"type":"rich_text","value":{"runs":[{"text":"Default","bold":true}]}},
+                 "binding":{"targetLayerId":"title","property":"text.document"},"constraints":{}}],
+               "tracks":[{"id":"container-track","name":"Container","trackType":"overlay","items":[
+                 {"type":"group","id":"local-group","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0},
+                 {"type":"text","id":"title","text":"Base","fontSize":20,"color":"#ffffff",
+                  "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":1,
+                  "parent":{"scope":"component:container","id":"local-group"}},
+                 {"type":"component_instance","id":"nested","componentId":"leaf","startMs":0,"trimStartMs":0,
+                  "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":2,
+                  "parent":{"scope":"component:container","id":"local-group"}},
+                 {"type":"repeater","id":"local-copies","startMs":50,"durationMs":700,"zIndex":1,"stackOrder":3,
+                  "repeater":{"source":{"scope":"component:container","id":"local-group"},"copies":1,
+                  "transformOffset":{"position":{"x":10,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                  "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+               ]}]}
+            ],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"component_instance","id":"source","componentId":"container","startMs":100,"trimStartMs":0,
+               "durationMs":800,"timeScale":1,"slotValues":{"copy":{"type":"rich_text","value":{"runs":[
+                 {"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}
+               ]}}},"zIndex":0,"stackOrder":0},
+              {"type":"repeater","id":"outer-copies","startMs":200,"durationMs":500,"zIndex":1,"stackOrder":1,
+               "repeater":{"source":{"scope":"root","id":"source"},"copies":1,
+               "transformOffset":{"position":{"x":20,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+               "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+            ]}]
+        }"##)
+        .unwrap();
+
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 8);
+        let mut overridden = 0;
+        let mut nested = 0;
+        for layer in &scene.visual_layers {
+            let EvaluatedVisualSource::Text(text) = &layer.source else {
+                panic!("repeater fixture emitted a non-text visual layer")
+            };
+            if text.text == "RedBlue" {
+                overridden += 1;
+                let runs = text.rich_runs.as_ref().expect("rich runs were discarded");
+                assert_eq!(runs.len(), 2);
+                assert_eq!(runs[0].italic, Some(true));
+                assert_eq!(runs[0].color.as_deref(), Some("#ff0000"));
+                assert_eq!(runs[1].color.as_deref(), Some("#0000ff"));
+            } else {
+                nested += 1;
+                assert_eq!(text.text, "Nested");
+                assert!(
+                    text.rich_runs.is_none(),
+                    "rich text leaked into nested scope"
+                );
+            }
+            if layer.item_id.starts_with("repeater:outer-copies:") {
+                let instance = layer.instance.unwrap();
+                assert_eq!((instance.start_ms, instance.end_ms), (200.0, 700.0));
+            }
+        }
+        assert_eq!((overridden, nested), (4, 4));
+    }
+
+    #[test]
+    fn component_local_repeater_occurrences_keep_unique_scoped_identities() {
+        let project: Project = serde_json::from_str(r#"{
+            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":100,"height":100,"fps":30},"assets":[],
+            "components":[{"id":"badge","name":"Badge","width":100,"height":100,"durationMs":1000,"slots":[],
+              "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[
+                {"type":"shape","id":"shape","geometry":{"type":"rectangle","width":10,"height":10},
+                 "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+                 "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0},
+                {"type":"repeater","id":"local-copies","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,
+                 "repeater":{"source":{"scope":"component:badge","id":"shape"},"copies":2,
+                 "transformOffset":{"position":{"x":10,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                 "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+              ]}]}],
+            "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
+              {"type":"component_instance","id":"source","componentId":"badge","startMs":0,"trimStartMs":0,
+               "durationMs":1000,"timeScale":1,"slotValues":{},"zIndex":0,"stackOrder":0}
+            ]}]
+        }"#)
+        .unwrap();
+        let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 3);
+        let ids = scene
+            .visual_layers
+            .iter()
+            .map(|layer| layer.item_id.as_str())
+            .collect::<HashSet<_>>();
+        assert_eq!(ids.len(), 3);
+        assert_eq!(
+            scene
+                .visual_layers
+                .iter()
+                .filter(|layer| layer.item_id.contains("repeater:local-copies:"))
+                .count(),
+            2
         );
     }
 }
