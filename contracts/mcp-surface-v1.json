@@ -9,7 +9,8 @@
     "grid_items",
     "grid_rendering",
     "repeater_items",
-    "repeater_rendering"
+    "repeater_rendering",
+    "rich_text_documents"
   ],
   "prompts": [
     "add_narration",
@@ -2329,6 +2330,43 @@
                         "properties": {
                           "color": {
                             "type": "string"
+                          },
+                          "document": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "runs": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "bold": {
+                                      "type": "boolean"
+                                    },
+                                    "color": {
+                                      "pattern": "^#[0-9A-Fa-f]{6}$",
+                                      "type": "string"
+                                    },
+                                    "italic": {
+                                      "type": "boolean"
+                                    },
+                                    "text": {
+                                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "text"
+                                  ],
+                                  "type": "object"
+                                },
+                                "maxItems": 256,
+                                "minItems": 1,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "runs"
+                            ],
+                            "type": "object"
                           },
                           "durationMs": {
                             "exclusiveMinimum": 0,
@@ -11187,6 +11225,43 @@
                         "properties": {
                           "color": {
                             "type": "string"
+                          },
+                          "document": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "runs": {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "bold": {
+                                      "type": "boolean"
+                                    },
+                                    "color": {
+                                      "pattern": "^#[0-9A-Fa-f]{6}$",
+                                      "type": "string"
+                                    },
+                                    "italic": {
+                                      "type": "boolean"
+                                    },
+                                    "text": {
+                                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "text"
+                                  ],
+                                  "type": "object"
+                                },
+                                "maxItems": 256,
+                                "minItems": 1,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "runs"
+                            ],
+                            "type": "object"
                           },
                           "durationMs": {
                             "exclusiveMinimum": 0,
@@ -20265,6 +20340,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -27944,6 +28056,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -34527,6 +34676,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -34769,7 +34955,6 @@
                     "fontSize",
                     "operation",
                     "startMs",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -37931,6 +38116,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -44078,6 +44300,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -51838,6 +52097,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -58489,6 +58785,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -58756,7 +59089,6 @@
                     "operation",
                     "startMs",
                     "style",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -61918,6 +62250,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -68133,6 +68502,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -75893,6 +76299,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -82544,6 +82987,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -82811,7 +83291,6 @@
                     "operation",
                     "startMs",
                     "style",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -85973,6 +86452,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -92188,6 +92704,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -99948,6 +100501,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -106599,6 +107189,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -106866,7 +107493,6 @@
                     "operation",
                     "startMs",
                     "style",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -110028,6 +110654,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -116846,6 +117509,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -124606,6 +125306,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -131257,6 +131994,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -131524,7 +132298,6 @@
                     "operation",
                     "startMs",
                     "style",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -134686,6 +135459,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -140857,6 +141667,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -148536,6 +149383,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -155119,6 +156003,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -155361,7 +156282,6 @@
                     "fontSize",
                     "operation",
                     "startMs",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -158523,6 +159443,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -164671,6 +165628,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -172431,6 +173425,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -179082,6 +180113,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -179349,7 +180417,6 @@
                     "operation",
                     "startMs",
                     "style",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -182511,6 +183578,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -192353,6 +193457,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -192876,6 +194017,7 @@
                                   },
                                   "required": [
                                     "color",
+                                    "document",
                                     "durationMs",
                                     "fontFamily",
                                     "fontPath",
@@ -198732,7 +199874,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 17,
+                "const": 18,
                 "type": "number"
               },
               "settings": {
@@ -199379,6 +200521,43 @@
                               "color": {
                                 "type": "string"
                               },
+                              "document": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              },
                               "durationMs": {
                                 "exclusiveMinimum": 0,
                                 "maximum": 9007199254740991,
@@ -199869,6 +201048,7 @@
                             },
                             "required": [
                               "color",
+                              "document",
                               "durationMs",
                               "fontFamily",
                               "fontPath",
@@ -208145,6 +209325,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -208668,6 +209885,7 @@
                                   },
                                   "required": [
                                     "color",
+                                    "document",
                                     "durationMs",
                                     "fontFamily",
                                     "fontPath",
@@ -214524,7 +215742,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 17,
+                "const": 18,
                 "type": "number"
               },
               "settings": {
@@ -215171,6 +216389,43 @@
                               "color": {
                                 "type": "string"
                               },
+                              "document": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "runs": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "type": "boolean"
+                                        },
+                                        "color": {
+                                          "pattern": "^#[0-9A-Fa-f]{6}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "type": "boolean"
+                                        },
+                                        "text": {
+                                          "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "maxItems": 256,
+                                    "minItems": 1,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "runs"
+                                ],
+                                "type": "object"
+                              },
                               "durationMs": {
                                 "exclusiveMinimum": 0,
                                 "maximum": 9007199254740991,
@@ -215661,6 +216916,7 @@
                             },
                             "required": [
                               "color",
+                              "document",
                               "durationMs",
                               "fontFamily",
                               "fontPath",
@@ -228874,6 +230130,43 @@
             "pattern": "^#[0-9a-fA-F]{6}$",
             "type": "string"
           },
+          "document": {
+            "additionalProperties": false,
+            "properties": {
+              "runs": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bold": {
+                      "type": "boolean"
+                    },
+                    "color": {
+                      "pattern": "^#[0-9A-Fa-f]{6}$",
+                      "type": "string"
+                    },
+                    "italic": {
+                      "type": "boolean"
+                    },
+                    "text": {
+                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 256,
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": [
+              "runs"
+            ],
+            "type": "object"
+          },
           "durationMs": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -229124,7 +230417,6 @@
           "projectId",
           "durationMs",
           "startMs",
-          "text",
           "trackId"
         ],
         "type": "object"
@@ -231941,6 +233233,43 @@
                                   "properties": {
                                     "color": {
                                       "type": "string"
+                                    },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
                                     },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
@@ -239621,6 +240950,43 @@
                                     "color": {
                                       "type": "string"
                                     },
+                                    "document": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "runs": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "bold": {
+                                                "type": "boolean"
+                                              },
+                                              "color": {
+                                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                                "type": "string"
+                                              },
+                                              "italic": {
+                                                "type": "boolean"
+                                              },
+                                              "text": {
+                                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "text"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "maxItems": 256,
+                                          "minItems": 1,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "runs"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "durationMs": {
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
@@ -246204,6 +247570,43 @@
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -246446,7 +247849,6 @@
                     "fontSize",
                     "operation",
                     "startMs",
-                    "text",
                     "trackId",
                     "transform"
                   ],
@@ -249608,6 +251010,43 @@
                     "color": {
                       "pattern": "^#[0-9a-fA-F]{6}$",
                       "type": "string"
+                    },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
                     },
                     "fill": {
                       "anyOf": [
@@ -253960,6 +255399,43 @@
                     "color": {
                       "type": "string"
                     },
+                    "document": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "runs": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "type": "boolean"
+                              },
+                              "color": {
+                                "pattern": "^#[0-9A-Fa-f]{6}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "type": "boolean"
+                              },
+                              "text": {
+                                "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "text"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 256,
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "runs"
+                      ],
+                      "type": "object"
+                    },
                     "durationMs": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
@@ -254450,6 +255926,7 @@
                   },
                   "required": [
                     "color",
+                    "document",
                     "durationMs",
                     "fontFamily",
                     "fontPath",
@@ -261636,6 +263113,43 @@
           "color": {
             "pattern": "^#[0-9a-fA-F]{6}$",
             "type": "string"
+          },
+          "document": {
+            "additionalProperties": false,
+            "properties": {
+              "runs": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "bold": {
+                      "type": "boolean"
+                    },
+                    "color": {
+                      "pattern": "^#[0-9A-Fa-f]{6}$",
+                      "type": "string"
+                    },
+                    "italic": {
+                      "type": "boolean"
+                    },
+                    "text": {
+                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 256,
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": [
+              "runs"
+            ],
+            "type": "object"
           },
           "expectedRevision": {
             "maximum": 9007199254740991,

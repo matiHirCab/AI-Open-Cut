@@ -265,13 +265,22 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
             serde_json::to_vec(&json!({"undo":[state.clone()],"redo":[state]})).unwrap(),
         )
         .unwrap();
-        assert_eq!(core.get_project(&id).unwrap().schema_version, 17);
+        assert_eq!(
+            core.get_project(&id).unwrap().schema_version,
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let before = files(&core, &id);
         core.get_project(&id).unwrap();
         assert_eq!(files(&core, &id), before);
         let h: Value = serde_json::from_slice(&before.1).unwrap();
-        assert_eq!(h["undo"][0]["schemaVersion"], 17);
-        assert_eq!(h["redo"][0]["schemaVersion"], 17);
+        assert_eq!(
+            h["undo"][0]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
+        assert_eq!(
+            h["redo"][0]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
     }
     for location in ["current", "undo", "redo"] {
         let (_root, core, id, track) = setup();
@@ -358,7 +367,7 @@ fn shape_lifecycle_drafts_and_scoped_components_preserve_semantics() {
     );
     assert_eq!(files(&core, &id), before);
     let mut future = serde_json::to_value(p).unwrap();
-    future["schemaVersion"] = json!(18);
+    future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
     let dir = core.paths().project_dir(&id).unwrap();
     std::fs::write(
         dir.join("project.json"),
@@ -447,7 +456,10 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
         .iter()
         .chain(h["redo"].as_array().unwrap())
     {
-        assert_eq!(snapshot["schemaVersion"], 17);
+        assert_eq!(
+            snapshot["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
     }
 }
 

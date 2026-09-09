@@ -25,6 +25,7 @@ import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
+import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 
@@ -426,4 +427,8 @@ it("exercises all shape contracts, atomic batches and retained history", async (
   await verifySvgWorkflow(client, call);
   await verifyGridWorkflow(client, call);
   await verifyRepeaterWorkflow(client, call, directories.media);
+});
+
+it("preserves rich text documents through MCP standalone and alias batches", async () => {
+  await verifyRichTextWorkflow(client, call);
 });

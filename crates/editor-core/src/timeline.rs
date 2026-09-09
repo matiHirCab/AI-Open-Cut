@@ -616,6 +616,7 @@ fn apply_operation_inner(
         EditOperation::AddText {
             track_id,
             text,
+            document,
             start_ms,
             duration_ms,
             font_size,
@@ -625,6 +626,24 @@ fn apply_operation_inner(
             style,
             transform,
         } => {
+            let document = match (text, document) {
+                (Some(text), None) => {
+                    validate_text(&text, font_size, &color)?;
+                    crate::RichTextDocument::plain(text)
+                }
+                (None, Some(document)) => {
+                    crate::validation::validate_rich_text(&document)?;
+                    document
+                }
+                _ => {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "provide exactly one of text or document",
+                    ));
+                }
+            };
+            let text = document.text();
+            crate::validation::validate_text_document(&document, &text)?;
             validate_duration(duration_ms)?;
             validate_transform(&transform)?;
             validate_text(&text, font_size, &color)?;
@@ -640,6 +659,7 @@ fn apply_operation_inner(
             track.items.push(TimelineItem::Text(TextItem {
                 id: id.clone(),
                 text,
+                document,
                 start_ms,
                 duration_ms,
                 font_size,
@@ -843,6 +863,7 @@ fn apply_operation_inner(
             transform,
             transform2d,
             text,
+            document,
             color,
             width,
             height,
@@ -850,6 +871,12 @@ fn apply_operation_inner(
             font_path,
             style,
         } => {
+            if text.is_some() && document.is_some() {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "text and document cannot be updated together",
+                ));
+            }
             if transform.is_some() && transform2d.is_some() {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
@@ -860,6 +887,19 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(document) = document {
+                let TimelineItem::Text(text_item) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "document requires a text item",
+                    ));
+                };
+                crate::validation::validate_rich_text(&document)?;
+                let text = document.text();
+                crate::validation::validate_text_document(&document, &text)?;
+                text_item.text = text;
+                text_item.document = document;
+            }
             if let Some(repeater) = repeater {
                 let TimelineItem::Repeater(item) = item else {
                     return Err(CoreError::new(
@@ -969,6 +1009,7 @@ fn apply_operation_inner(
                 match item {
                     TimelineItem::Text(text_item) => {
                         validate_text(&text, text_item.font_size, &text_item.color)?;
+                        text_item.document = crate::RichTextDocument::plain(text.clone());
                         text_item.text = text;
                     }
                     TimelineItem::Caption(caption) => {
@@ -1823,7 +1864,8 @@ mod tests {
         assert!(validate_alias("@bad").is_err());
         let mut operation = EditOperation::AddText {
             track_id: "@track".into(),
-            text: "Hello".into(),
+            document: None,
+            text: Some("Hello".into()),
             start_ms: 0,
             duration_ms: 1_000,
             font_size: 48,
@@ -1847,7 +1889,8 @@ mod tests {
         let mut project = project();
         let invalid = EditOperation::AddText {
             track_id: "missing".into(),
-            text: "Hello".into(),
+            document: None,
+            text: Some("Hello".into()),
             start_ms: 0,
             duration_ms: 1_000,
             font_size: 48,

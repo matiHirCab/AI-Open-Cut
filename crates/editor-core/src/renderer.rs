@@ -1581,6 +1581,7 @@ mod tests {
                 .items
                 .push(TimelineItem::Text(crate::TextItem {
                     id: "text".into(),
+                    document: crate::RichTextDocument::plain("artifact adapter".into()),
                     text: "artifact adapter".into(),
                     start_ms: 0,
                     duration_ms: 1_000,
@@ -1973,6 +1974,7 @@ mod tests {
                 ducking: None,
                 items: vec![TimelineItem::Text(crate::TextItem {
                     id: "text".into(),
+                    document: crate::RichTextDocument::plain("Styled\ntext".into()),
                     text: "Styled\ntext".into(),
                     start_ms: 0,
                     duration_ms: 1_000,
@@ -2180,6 +2182,7 @@ mod tests {
                 ducking: None,
                 items: vec![TimelineItem::Text(crate::TextItem {
                     id: "missing/parent".into(),
+                    document: crate::RichTextDocument::plain("failure".into()),
                     text: "failure".into(),
                     start_ms: 0,
                     duration_ms: 1_000,
@@ -2360,6 +2363,7 @@ mod tests {
                         }),
                         TimelineItem::Text(crate::TextItem {
                             id: "animated-text".into(),
+                            document: crate::RichTextDocument::plain("café →\nWWWW iiii".into()),
                             text: "café →\nWWWW iiii".into(),
                             start_ms: 0,
                             duration_ms: 1_000,
@@ -2950,6 +2954,7 @@ mod tests {
             } else {
                 project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
                     id: "text".into(),
+                    document: crate::RichTextDocument::plain("W".repeat(100)),
                     text: "W".repeat(100),
                     font_size: 1000,
                     color: "#ffffff".into(),
@@ -3113,6 +3118,7 @@ mod tests {
         let mut project = visual_project();
         project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
             id: "font-test".into(),
+            document: crate::RichTextDocument::plain("WWiii".into()),
             text: "WWiii".into(),
             font_size: 40,
             color: "#ffffff".into(),
@@ -3293,7 +3299,7 @@ mod tests {
     fn measured_overflow_precedes_collision_and_metadata_probes() {
         let root = tempdir().unwrap();
         let mut project = visual_project();
-        project.tracks[0].items = vec![serde_json::from_value(serde_json::json!({"type":"text","id":"text","text":"W".repeat(100),"fontSize":1000,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap()];
+        project.tracks[0].items = vec![serde_json::from_value(serde_json::json!({"type":"text","id":"text","text":"W".repeat(100),"document":{"runs":[{"text":"W".repeat(100)}]},"fontSize":1000,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"transform2d":crate::Transform2D::default()})).unwrap()];
         std::fs::create_dir(root.path().join("assets")).unwrap();
         std::fs::write(root.path().join("assets/source.mp4"), b"metadata fixture").unwrap();
         project.assets = vec![serde_json::from_value(serde_json::json!({"id":"asset","mediaType":"image","fileName":"source.mp4","projectRelativePath":"assets/source.mp4","durationMs":1000})).unwrap()];

@@ -12,7 +12,7 @@ pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 17;
+pub const PROJECT_SCHEMA_VERSION: u32 = 18;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -59,6 +59,7 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        prepare_text_documents(&mut value.tracks, value.schema_version)?;
         for item in value
             .tracks
             .as_array()
@@ -119,6 +120,9 @@ impl TryFrom<ProjectDocument> for Project {
                 } else if !fields.contains_key("slots") {
                     return Err("schema 12 requires slots".into());
                 }
+                if let Some(tracks) = fields.get_mut("tracks") {
+                    prepare_text_documents(tracks, value.schema_version)?;
+                }
                 for track in fields
                     .get_mut("tracks")
                     .and_then(serde_json::Value::as_array_mut)
@@ -168,6 +172,36 @@ impl TryFrom<ProjectDocument> for Project {
             tracks: value.tracks.decode().map_err(|error| error.to_string())?,
         })
     }
+}
+
+// Legacy preprocessing is restricted to the enclosing persisted schema. Direct
+// current-schema persisted item decoding always requires a document.
+fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Result<(), String> {
+    for item in tracks
+        .as_array_mut()
+        .into_iter()
+        .flatten()
+        .flat_map(|track| {
+            track
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut)
+                .into_iter()
+                .flatten()
+        })
+    {
+        if item["type"] == "text" && version < 18 {
+            if item.get("document").is_some() {
+                return Err("text item documents require schema 18".into());
+            }
+            let text = item
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("text must be a string")?
+                .to_owned();
+            item["document"] = serde_json::json!({"runs":[{"text":text}]});
+        }
+    }
+    Ok(())
 }
 
 impl Project {
@@ -787,6 +821,37 @@ pub struct RichTextDocument {
     pub runs: Vec<RichTextRun>,
 }
 
+impl RichTextDocument {
+    pub fn plain(text: String) -> Self {
+        Self {
+            runs: vec![RichTextRun {
+                text,
+                bold: None,
+                italic: None,
+                color: None,
+            }],
+        }
+    }
+
+    pub fn text(&self) -> String {
+        self.runs.iter().map(|run| run.text.as_str()).collect()
+    }
+
+    pub(crate) fn styled_runs(&self, base_color: &str) -> Option<Vec<RichTextRun>> {
+        self.runs
+            .iter()
+            .any(|run| {
+                run.bold == Some(true)
+                    || run.italic == Some(true)
+                    || run
+                        .color
+                        .as_ref()
+                        .is_some_and(|color| !color.eq_ignore_ascii_case(base_color))
+            })
+            .then(|| self.runs.clone())
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct RichTextRun {
@@ -873,6 +938,7 @@ pub struct MediaItem {
 pub struct TextItem {
     pub id: String,
     pub text: String,
+    pub document: RichTextDocument,
     pub start_ms: u64,
     pub duration_ms: u64,
     pub font_size: u32,
@@ -1388,7 +1454,18 @@ pub enum EditOperation {
     },
     AddText {
         track_id: String,
-        text: String,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        text: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        document: Option<RichTextDocument>,
         start_ms: u64,
         duration_ms: u64,
         font_size: u32,
@@ -1489,8 +1566,18 @@ pub enum EditOperation {
             skip_serializing_if = "Option::is_none"
         )]
         transform2d: Option<Option<Transform2D>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         text: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        document: Option<RichTextDocument>,
         #[serde(skip_serializing_if = "Option::is_none")]
         color: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1696,7 +1783,18 @@ enum EditOperationDef {
     },
     AddText {
         track_id: String,
-        text: String,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        text: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        document: Option<RichTextDocument>,
         start_ms: u64,
         duration_ms: u64,
         font_size: u32,
@@ -1797,8 +1895,18 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         transform2d: Option<Option<Transform2D>>,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         text: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        document: Option<RichTextDocument>,
         #[serde(skip_serializing_if = "Option::is_none")]
         color: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1902,7 +2010,32 @@ enum EditOperationDef {
 
 impl<'de> Deserialize<'de> for EditOperation {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = BufferedValue::deserialize(deserializer)?;
+        let mut value = BufferedValue::deserialize(deserializer)?;
+        if matches!(
+            value["operation"].as_str(),
+            Some("component_create" | "component_update")
+        ) {
+            for item in value
+                .get_mut("tracks")
+                .and_then(serde_json::Value::as_array_mut)
+                .into_iter()
+                .flatten()
+                .flat_map(|track| {
+                    track
+                        .get_mut("items")
+                        .and_then(serde_json::Value::as_array_mut)
+                        .into_iter()
+                        .flatten()
+                })
+            {
+                if item["type"] == "text"
+                    && item.get("document").is_none()
+                    && let Some(text) = item.get("text").and_then(serde_json::Value::as_str)
+                {
+                    item["document"] = serde_json::json!({"runs":[{"text":text.to_owned()}]});
+                }
+            }
+        }
         if value["operation"] == "item_set_parent" && value.get("parent").is_none() {
             return Err(serde::de::Error::custom(
                 "parent is required; use null to detach",
@@ -2299,6 +2432,7 @@ mod tests {
     fn half_open_overlap_excludes_touching_items() {
         let item = TimelineItem::Text(TextItem {
             id: "text".into(),
+            document: crate::RichTextDocument::plain("hello".into()),
             text: "hello".into(),
             start_ms: 1_000,
             duration_ms: 1_000,
@@ -2334,7 +2468,7 @@ mod tests {
                 }, "keyframes": [], "transform": common["transform"], "hidden": true
             }),
             serde_json::json!({
-                "type": "text", "id": "text", "text": "Text", "startMs": 0,
+                "type": "text", "id": "text", "text": "Text","document":{"runs":[{"text":"Text"}]}, "startMs": 0,
                 "durationMs": 100, "fontSize": 24, "color": "#ffffff",
                 "fontFamily": null, "fontPath": null, "style": TextStyle::default(),
                 "keyframes": [], "transform": common["transform"], "hidden": true

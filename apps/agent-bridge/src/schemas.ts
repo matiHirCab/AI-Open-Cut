@@ -698,6 +698,7 @@ const mediaItemSchema = z
 const textItemSchema = z
   .object({
     color: z.string(),
+    document: z.lazy(() => richTextDocumentSchema),
     durationMs: positiveMilliseconds,
     fontFamily: z.string().nullable(),
     fontPath: z.string().nullable(),
@@ -936,25 +937,27 @@ export const closedSlotRecord = <T extends z.ZodType>(
 const closedSlotObject = <T extends z.ZodRawShape>(shape: T) =>
   closedSlotRecord(z.object(shape).strict(), Object.keys(shape));
 
+export const richTextDocumentSchema = closedSlotObject({
+  runs: z
+    .array(
+      closedSlotObject({
+        bold: z.boolean().optional(),
+        color: slotColor.optional(),
+        italic: z.boolean().optional(),
+        text: slotUnicode,
+      })
+    )
+    .min(1)
+    .max(256),
+});
+
 export const slotValueSchema = closedSlotRecord(
   z.discriminatedUnion("type", [
     z.object({ type: z.literal("text"), value: slotUnicode }).strict(),
     z
       .object({
         type: z.literal("rich_text"),
-        value: closedSlotObject({
-          runs: z
-            .array(
-              closedSlotObject({
-                bold: z.boolean().optional(),
-                color: slotColor.optional(),
-                italic: z.boolean().optional(),
-                text: slotUnicode,
-              })
-            )
-            .min(1)
-            .max(256),
-        }),
+        value: richTextDocumentSchema,
       })
       .strict(),
     z.object({ type: z.literal("color"), value: slotColor }).strict(),
@@ -1126,6 +1129,7 @@ export const componentTrackSchema = z
             timelineItemSchema.options[0],
             mediaItemSchema,
             textItemSchema.extend({
+              document: richTextDocumentSchema.optional(),
               fontFamily: z.string().nullable().default(null),
               fontPath: z.string().nullable().default(null),
               style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
@@ -1194,7 +1198,13 @@ export const componentDefinitionSchema = componentFieldsSchema
                 componentTrackSchema.shape.items.element.options[0].extend({
                   slotValues: slotValuesSchema,
                 }),
-                ...componentTrackSchema.shape.items.element.options.slice(1),
+                ...componentTrackSchema.shape.items.element.options
+                  .slice(1)
+                  .map((item) =>
+                    item.shape.type.value === "text"
+                      ? item.extend({ document: richTextDocumentSchema })
+                      : item
+                  ),
               ])
             )
             .max(4096),
@@ -1267,7 +1277,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(17),
+        schemaVersion: z.literal(18),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1442,6 +1452,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
   z
     .object({
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      document: richTextDocumentSchema.optional(),
       durationMs: positiveMilliseconds,
       fontFamily: z.string().min(1).max(200).optional(),
       fontPath: z.string().min(1).max(1000).optional(),
@@ -1453,7 +1464,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
         .optional(),
       startMs: milliseconds,
       style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
-      text: z.string().min(1).max(4096),
+      text: z.string().min(1).max(4096).optional(),
       trackId: id,
       transform: transformSchema,
     })
@@ -1528,6 +1539,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
   z
     .object({
       color: color.optional(),
+      document: richTextDocumentSchema.optional(),
       fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
@@ -1890,13 +1902,14 @@ export const schemas = {
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/)
         .default("#ffffff"),
+      document: richTextDocumentSchema.optional(),
       durationMs: positiveMilliseconds,
       fontFamily: z.string().min(1).max(200).optional(),
       fontPath: z.string().min(1).max(1000).optional(),
       fontSize: z.int().min(1).max(1000).default(64),
       startMs: milliseconds,
       style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
-      text: z.string().min(1).max(4096),
+      text: z.string().min(1).max(4096).optional(),
       trackId: id,
       transform: transformSchema.default({
         opacity: 1,
@@ -1972,6 +1985,7 @@ export const schemas = {
   timelineUpdateItem: projectRevisionSchema
     .extend({
       color: color.optional(),
+      document: richTextDocumentSchema.optional(),
       fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),

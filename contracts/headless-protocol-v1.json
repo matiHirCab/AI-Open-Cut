@@ -92,7 +92,7 @@
       "shape_items",
       "svg_items",
       "grid_items"
-      ,"repeater_items"
+      ,"repeater_items", "rich_text_documents"
     ],
     "renderingCapabilities": [
       "preview",

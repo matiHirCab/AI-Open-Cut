@@ -293,3 +293,33 @@ Frame preview, audiovisual range preview, materialized-draft preview, and final 
 #### Scenario: Fail rather than degrade
 - **WHEN** copy expansion exceeds a canonical budget or no local backend can render the complete repeated scene
 - **THEN** evaluation returns `INVALID_ARGUMENT` for complexity or readiness returns `DEPENDENCY_UNAVAILABLE`, and no partial or copy-reduced artifact is published
+
+### Requirement: Shared stored rich text evaluation
+Frame, range, draft preview and export MUST evaluate stored documents through the same EvaluatedScene semantics. Effective template text slots MUST replace a document with one unstyled run; rich-text slots MUST replace it with their ordered runs, following existing override/default precedence without mutating shared definitions. Run colors and bold/italic MUST retain existing styled-slot behavior and item typography fallback. Timing MUST retain integer-millisecond half-open intervals, run order MUST be textual order, and common transform/anchor/stacking/opacity semantics MUST remain unchanged. Semantically plain documents MUST preserve legacy rendering and default-font behavior, including after migration. Missing styled font dependencies MUST retain DEPENDENCY_UNAVAILABLE and resource/path safety MUST remain unchanged. Preview/export MUST satisfy existing exact semantic-plan and decoded-content tolerances with fixed resources; no new font hashing/shaping guarantee is introduced.
+
+#### Scenario: Preserve legacy rendered output
+- **WHEN** representative plain-text items with Unicode, wrapping, alignment, backgrounds, shadows, outlines, transforms and animation are rendered before and after migration with identical resources
+- **THEN** legacy output and evaluated semantics remain equivalent and every render entry point satisfies existing visual/audio/timing tolerances
+
+#### Scenario: Render stored styling and independent slot overrides
+- **WHEN** root text and repeated component instances use multirun stored documents with independent text/rich-text slot defaults and overrides
+- **THEN** each occurrence renders its effective document deterministically without altering stored base runs and preview/draft/export agree
+
+#### Scenario: Fail safely on unavailable styled fonts
+- **WHEN** effective styled text requires an unavailable font face or violates existing resource confinement
+- **THEN** preparation returns the existing dependency/path error before artifact publication and never silently drops styling
+
+### Requirement: Styled root text retains legacy animation
+Ungrouped styled root text MUST retain identity ancestry throughout evaluation, measurement and rendering so position, scale and opacity keyframes follow existing timing/easing semantics. All render intents MUST match independently calculated static styled-text snapshots at equivalent timestamps within existing tolerances. Plain text MUST retain its legacy path, real parent ancestry MUST remain intact, and Transform2D MUST retain precedence. No public or persisted contract changes are introduced.
+
+#### Scenario: Animate each supported legacy property
+- **WHEN** ungrouped styled text has position, scale or opacity keyframes sampled at 0, 400 and 800 milliseconds
+- **THEN** its displacement, visible bounds or brightness changes as expected and output matches static snapshots with independently calculated values
+
+#### Scenario: Preserve ancestry and transform compatibility
+- **WHEN** styled text has a non-default anchor, a real group/component parent, or an explicit Transform2D, or text is semantically plain
+- **THEN** existing anchor, parent composition, Transform2D precedence and plain rendering semantics remain unchanged and evaluator ancestry is preserved through finalization
+
+#### Scenario: Agree across render intents without freezing
+- **WHEN** the animated project renders through frame, range, materialized draft and export at the same selections
+- **THEN** outputs satisfy existing decoded-content tolerances, exhibit the independently expected animation and leave authoritative state unchanged

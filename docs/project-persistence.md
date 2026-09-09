@@ -50,3 +50,7 @@ The journal format is private recovery metadata with its own version. Before dow
 ## Durability limits
 
 The protocol prevents mixed logical generations caused by process termination or ordinary I/O failure. It relies on same-filesystem atomic rename and the synchronization guarantees exposed by the operating system and filesystem. It cannot recover from total storage loss, filesystem or hardware behavior that violates acknowledged synchronization, simultaneous out-of-band file modification, or corruption of both authoritative recovery metadata and the required target data. Use whole-directory backups for protection from those failures.
+
+## Schema 18 text documents
+
+Schema 18 adds a required run-based `document` to every text item and retains `text` as its exact concatenated compatibility projection. Opening supported schemas 1-17 adds one unstyled run with the original string to current state and every retained undo/redo snapshot, including hidden/unused component text, under the existing locked recoverable transaction. Existing typography, content, revisions, assets and output are preserved. Source schemas below 18 reject text-item documents; schema 18 requires matching document/text. Unknown future versions fail closed. See [rich text documents](rich-text-documents.md) for request compatibility and limits.

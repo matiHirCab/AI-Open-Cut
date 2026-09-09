@@ -906,7 +906,7 @@ fn native_identity_parent_preserves_every_styled_text_anchor() {
                 json!([])
             };
             p.tracks[1].items=serde_json::from_value(json!([
-                {"type":"text","id":"text","text":"ANCHOR","fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":0,"style":{"anchor":anchor,"padding":{"left":2,"right":4,"top":2,"bottom":4},"outlineWidthPx":1,"outlineColor":"#224466"},"transform":{"positionX":160,"positionY":90,"scale":1.25,"opacity":1},"keyframes":keys}
+                {"type":"text","id":"text","text":"ANCHOR","document":{"runs":[{"text":"ANCHOR"}]},"fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":0,"style":{"anchor":anchor,"padding":{"left":2,"right":4,"top":2,"bottom":4},"outlineWidthPx":1,"outlineColor":"#224466"},"transform":{"positionX":160,"positionY":90,"scale":1.25,"opacity":1},"keyframes":keys}
             ])).unwrap();
             let legacy = renderer.render_preview(&p, &dir, 500).unwrap();
             let expected = bounds(&dir.join(legacy.relative_path));

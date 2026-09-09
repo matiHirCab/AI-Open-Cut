@@ -208,7 +208,7 @@ fn all_slot_kinds_and_special_keys_duplicate_without_materializing_definitions()
         let (root, core, id, track) = setup();
         let mut slot = fixture["slot"].clone();
         let mut leaf = definition();
-        leaf["tracks"] = json!([{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"text","id":"title","text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]);
+        leaf["tracks"] = json!([{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"text","id":"title","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]);
         let mut revision = 0;
         if fixture["id"] == "asset" {
             let path = root.path().join("media/image.png");
@@ -416,7 +416,7 @@ fn duplicate_matches_explicit_placement_in_preview_range_draft_and_export() {
 #[test]
 fn duplication_enforces_aggregate_text_at_the_inclusive_boundary() {
     let (_root, core, id, track) = setup();
-    let items: Vec<_> = (0..128).map(|i| json!({"type":"text","id":format!("t{i}"),"stackOrder":i,"text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]})).collect();
+    let items: Vec<_> = (0..128).map(|i| json!({"type":"text","id":format!("t{i}"),"stackOrder":i,"text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]})).collect();
     let slots: Vec<_> = (0..128).map(|i| json!({"id":format!("s{i}"),"name":"Text","kind":"text","required":true,"binding":{"targetLayerId":format!("t{i}"),"property":"text.document"},"constraints":{}})).collect();
     let values: serde_json::Map<String, Value> = (0..128)
         .map(|i| {
