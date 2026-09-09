@@ -116,12 +116,16 @@ pub(super) fn conformance(tools: &NativeTools) {
             assert_ne!(pixels, old_pixels, "stored run colors were discarded");
             assert!(
                 pixels
-                    .chunks_exact(3)
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
                     .any(|rgb| rgb[0] > rgb[1].saturating_add(40))
             );
             assert!(
                 pixels
-                    .chunks_exact(3)
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
                     .any(|rgb| rgb[1] > rgb[0].saturating_add(40))
             );
         }
@@ -319,7 +323,9 @@ fn animation_conformance(tools: &NativeTools) {
                 grids::decode_rgb_frame(&tools.ffmpeg, &dir.join(draft_frame.relative_path), 0)
             );
             let visible: Vec<_> = pixels
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .enumerate()
                 .filter(|(_, rgb)| rgb[0] > 8)
                 .map(|(i, _)| (i % WIDTH as usize) as i32)
@@ -327,7 +333,12 @@ fn animation_conformance(tools: &NativeTools) {
             assert!(!visible.is_empty());
             let left = *visible.iter().min().unwrap();
             let right = *visible.iter().max().unwrap();
-            let brightness: u64 = pixels.chunks_exact(3).map(|rgb| u64::from(rgb[0])).sum();
+            let brightness: u64 = pixels
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|rgb| u64::from(rgb[0]))
+                .sum();
             metrics.push((left, right - left + 1, brightness));
         }
         for pair in metrics.windows(2) {
