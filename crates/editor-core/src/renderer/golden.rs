@@ -47,6 +47,7 @@ const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod grids;
+mod repeaters;
 mod rule_card;
 mod shapes;
 mod svg;
@@ -2415,6 +2416,7 @@ fn native_golden_render_conformance() {
     shapes::conformance(&tools);
     svg::conformance(&tools);
     grids::conformance(&tools);
+    repeaters::conformance(&tools);
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)
@@ -4079,6 +4081,46 @@ fn invalid_render_work_preserves_project_and_files() {
     );
     assert_eq!(serde_json::to_vec(&invalid).unwrap(), before);
     assert_eq!(directory_entries(root.path()), files_before);
+
+    let retained: Project = serde_json::from_value(serde_json::json!({
+        "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+        "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
+        "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":true,"items":[
+            {"type":"shape","id":"source","startMs":0,"durationMs":1000,
+             "geometry":{"type":"rectangle","width":2047.1,"height":2047},
+             "fill":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"stroke":null,
+             "keyframes":[],"zIndex":0,"stackOrder":0},
+            {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,
+             "zIndex":0,"stackOrder":1,"repeater":{"source":{"scope":"root","id":"source"},"copies":1,
+             "transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":2,"scaleY":2,
+             "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+        ]}]
+    })).unwrap();
+    let retained_before = serde_json::to_vec(&retained).unwrap();
+    assert_eq!(
+        renderer
+            .render_preview(&retained, root.path(), 0)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(serde_json::to_vec(&retained).unwrap(), retained_before);
+    assert_eq!(directory_entries(root.path()), files_before);
+    for invalid in [
+        crate::evaluated_scene::repeater_conformance::transition_fixture(17, 256, false),
+        crate::evaluated_scene::repeater_conformance::audio_fixture(),
+    ] {
+        let before = serde_json::to_vec(&invalid).unwrap();
+        assert_eq!(
+            renderer
+                .render_preview(&invalid, root.path(), 0)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(serde_json::to_vec(&invalid).unwrap(), before);
+        assert_eq!(directory_entries(root.path()), files_before);
+    }
 }
 
 fn directory_entries(root: &Path) -> Vec<PathBuf> {

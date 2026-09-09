@@ -1,5 +1,9 @@
 import { z } from "zod/v4";
 import { gridDescriptorSchema } from "./procedural-grids";
+import {
+  repeaterDescriptorSchema,
+  repeaterEditDescriptorSchema,
+} from "./repeaters";
 import { shapeFields, shapeGeometrySchema } from "./shape-items";
 import { svgDocumentSchema } from "./svg-ingestion";
 import { paintSchema, strokeSchema } from "./vector-primitives";
@@ -768,6 +772,25 @@ export const addGridSchema = z.strictObject({
   trackId: id,
   transform2d: transform2dSchema.nullable().optional(),
 });
+const repeaterItemSchema = z.strictObject({
+  durationMs: positiveMilliseconds,
+  hidden: z.boolean(),
+  id,
+  parent: parentReferenceSchema.nullable().optional(),
+  repeater: repeaterDescriptorSchema,
+  stackOrder: z.int().nonnegative().max(4_294_967_295),
+  startMs: milliseconds,
+  transform: transformSchema,
+  transform2d: transform2dSchema.nullable().optional(),
+  type: z.literal("repeater"),
+  zIndex: z.int().min(-2_147_483_648).max(2_147_483_647),
+});
+export const addRepeaterSchema = z.strictObject({
+  durationMs: positiveMilliseconds,
+  repeater: repeaterDescriptorSchema,
+  startMs: milliseconds,
+  trackId: id,
+});
 export const addShapeSchema = z.strictObject({
   ...shapeFields,
   durationMs: positiveMilliseconds,
@@ -863,6 +886,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   shapeItemSchema,
   svgItemSchema,
   gridItemSchema,
+  repeaterItemSchema,
   captionItemSchema,
   transitionItemSchema,
 ]);
@@ -1243,7 +1267,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(16),
+        schemaVersion: z.literal(17),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1466,6 +1490,16 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
         .optional(),
     })
     .strict(),
+  addRepeaterSchema
+    .extend({
+      operation: z.literal("add_repeater"),
+      repeater: repeaterEditDescriptorSchema,
+      resultAlias: z
+        .string()
+        .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+        .optional(),
+    })
+    .strict(),
   addShapeSchema
     .extend({
       operation: z.literal("add_shape"),
@@ -1502,6 +1536,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       operation: z.literal("update_item"),
+      repeater: repeaterEditDescriptorSchema.optional(),
       stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
@@ -1830,6 +1865,9 @@ export const schemas = {
       width: z.int().positive().max(7680),
     })
     .strict(),
+  timelineAddRepeater: projectRevisionSchema
+    .extend(addRepeaterSchema.shape)
+    .strict(),
   timelineAddShape: projectRevisionSchema.extend(addShapeSchema.shape).strict(),
   timelineAddSolidColor: projectRevisionSchema
     .extend({
@@ -1941,6 +1979,7 @@ export const schemas = {
       grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      repeater: repeaterDescriptorSchema.optional(),
       stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),

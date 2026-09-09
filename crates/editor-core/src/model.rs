@@ -1,16 +1,18 @@
 mod buffered;
 use buffered::BufferedValue;
 mod grid;
+mod repeater;
 mod shape;
 mod svg;
 pub use grid::*;
+pub use repeater::*;
 use serde::{Deserialize, Deserializer, Serialize};
 pub use shape::*;
 pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 16;
+pub const PROJECT_SCHEMA_VERSION: u32 = 17;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -71,6 +73,9 @@ impl TryFrom<ProjectDocument> for Project {
                 if item.get("slotValues").is_none() {
                     return Err("schema 13 requires root slotValues".into());
                 }
+            }
+            if item["type"] == "repeater" && value.schema_version < 17 {
+                return Err("repeater items require schema 17".into());
             }
         }
         if (9..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version) {
@@ -138,6 +143,9 @@ impl TryFrom<ProjectDocument> for Project {
                             } else if item.get("slotValues").is_none() {
                                 return Err("schema 12 requires slotValues".into());
                             }
+                        }
+                        if item["type"] == "repeater" && value.schema_version < 17 {
+                            return Err("repeater items require schema 17".into());
                         }
                     }
                 }
@@ -467,6 +475,7 @@ pub enum TimelineItem {
     Shape(ShapeItem),
     Svg(SvgItem),
     Grid(GridItem),
+    Repeater(RepeaterItem),
     Caption(CaptionItem),
     Transition(TransitionItem),
 }
@@ -483,6 +492,7 @@ impl TimelineItem {
             Self::Shape(item) => &item.id,
             Self::Svg(item) => &item.id,
             Self::Grid(item) => &item.id,
+            Self::Repeater(item) => &item.id,
             Self::Caption(item) => &item.id,
             Self::Transition(item) => &item.id,
         }
@@ -499,6 +509,7 @@ impl TimelineItem {
             Self::Shape(item) => item.start_ms,
             Self::Svg(item) => item.start_ms,
             Self::Grid(item) => item.start_ms,
+            Self::Repeater(item) => item.start_ms,
             Self::Caption(item) => item.start_ms,
             Self::Transition(item) => item.start_ms,
         }
@@ -515,6 +526,7 @@ impl TimelineItem {
             Self::Shape(item) => item.duration_ms,
             Self::Svg(item) => item.duration_ms,
             Self::Grid(item) => item.duration_ms,
+            Self::Repeater(item) => item.duration_ms,
             Self::Caption(item) => item.duration_ms,
             Self::Transition(item) => item.duration_ms,
         }
@@ -530,7 +542,7 @@ impl TimelineItem {
 
     pub fn keyframes(&self) -> &[Keyframe] {
         match self {
-            Self::Group(_) | Self::ComponentInstance(_) => &[],
+            Self::Group(_) | Self::ComponentInstance(_) | Self::Repeater(_) => &[],
             Self::Media(v) => &v.keyframes,
             Self::Text(v) => &v.keyframes,
             Self::SolidColor(v) => &v.keyframes,
@@ -544,7 +556,7 @@ impl TimelineItem {
 
     pub fn keyframes_mut(&mut self) -> Option<&mut Vec<Keyframe>> {
         match self {
-            Self::Group(_) | Self::ComponentInstance(_) => None,
+            Self::Group(_) | Self::ComponentInstance(_) | Self::Repeater(_) => None,
             Self::Media(item) => Some(&mut item.keyframes),
             Self::Text(item) => Some(&mut item.keyframes),
             Self::SolidColor(item) => Some(&mut item.keyframes),
@@ -576,6 +588,7 @@ impl TimelineItem {
             Self::Shape(item) => &item.visual_properties,
             Self::Svg(item) => &item.visual_properties,
             Self::Grid(item) => &item.visual_properties,
+            Self::Repeater(item) => &item.visual_properties,
             Self::Caption(item) => &item.visual_properties,
             Self::Transition(item) => &item.visual_properties,
         }
@@ -592,6 +605,7 @@ impl TimelineItem {
             Self::Shape(item) => &mut item.visual_properties,
             Self::Svg(item) => &mut item.visual_properties,
             Self::Grid(item) => &mut item.visual_properties,
+            Self::Repeater(item) => &mut item.visual_properties,
             Self::Caption(item) => &mut item.visual_properties,
             Self::Transition(item) => &mut item.visual_properties,
         }
@@ -1040,6 +1054,17 @@ pub struct GridItem {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RepeaterItem {
+    pub id: String,
+    pub repeater: RepeaterDescriptor,
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    #[serde(flatten)]
+    pub visual_properties: VisualProperties,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CaptionWord {
     pub word: String,
     pub start_ms: u64,
@@ -1393,6 +1418,12 @@ pub enum EditOperation {
         #[serde(default)]
         parent: Option<ParentReference>,
     },
+    AddRepeater {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        repeater: RepeaterDescriptor,
+    },
     AddSvg {
         track_id: String,
         start_ms: u64,
@@ -1436,6 +1467,8 @@ pub enum EditOperation {
         geometry: Option<Box<ShapeGeometry>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         grid: Option<Box<GridDescriptor>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        repeater: Option<Box<RepeaterDescriptor>>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -1693,6 +1726,12 @@ enum EditOperationDef {
         #[serde(default)]
         parent: Option<ParentReference>,
     },
+    AddRepeater {
+        track_id: String,
+        start_ms: u64,
+        duration_ms: u64,
+        repeater: RepeaterDescriptor,
+    },
     AddSvg {
         track_id: String,
         start_ms: u64,
@@ -1736,6 +1775,8 @@ enum EditOperationDef {
         geometry: Option<Box<ShapeGeometry>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         grid: Option<Box<GridDescriptor>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        repeater: Option<Box<RepeaterDescriptor>>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -1879,6 +1920,12 @@ impl<'de> Deserialize<'de> for EditOperation {
         if value.get("grid").is_some_and(serde_json::Value::is_null) {
             return Err(serde::de::Error::custom("grid cannot be null"));
         }
+        if value
+            .get("repeater")
+            .is_some_and(serde_json::Value::is_null)
+        {
+            return Err(serde::de::Error::custom("repeater cannot be null"));
+        }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
             Some("add_component_instance") => Some(&[
                 "operation",
@@ -1939,6 +1986,9 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "transform2d",
                 "parent",
             ]),
+            Some("add_repeater") => {
+                Some(&["operation", "trackId", "startMs", "durationMs", "repeater"])
+            }
             Some("add_svg") => Some(&[
                 "operation",
                 "trackId",

@@ -24,6 +24,19 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 17
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| matches!(i, crate::TimelineItem::Repeater(_)))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "repeater items require schema 17",
+        ));
+    }
     if project.schema_version < 16
         && project
             .tracks
@@ -89,7 +102,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=15 => {
+        9..=16 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

@@ -182,3 +182,44 @@ Source and packaged MCP regression workflows MUST use valid operation identifier
 #### Scenario: Reject a stale revision
 - **WHEN** a real MCP client submits a valid grid edit batch with an obsolete revision
 - **THEN** the response contains REVISION_CONFLICT and retryable true and state remains identical
+
+### Requirement: Typed discoverable repeater workflows
+The public protocol MUST add headless edit operation `add_repeater`, batch union membership, repeater-bearing project/draft/component/item responses, and MCP tool `timeline_add_repeater` using strict mirrored schemas for the canonical descriptor. `timeline_batch_edit` MUST accept the same operation and alias rules. Canonical operation, MCP structural schema/annotation, capability, fixture, ownership, Rust, and TypeScript parity evidence MUST be updated together. Capability `repeater_items` MUST report editing support and `repeater_rendering` MUST be available only when a configured local renderer can execute the complete evaluated scene. Existing protocol-1 envelopes, simple operations, errors, and retryability MUST retain their meaning.
+
+#### Scenario: Discover and invoke standalone and batch edits
+- **WHEN** a client inspects operations, MCP tools, annotations, schemas, and capabilities and then submits equivalent valid standalone or batched repeater edits
+- **THEN** every surface reports the exact canonical identifiers/fields, forwards typed input to editor-core, and returns equivalent revision, changed-ID, alias, item, and typed-error behavior
+
+#### Scenario: Reject malformed and semantic failures consistently
+- **WHEN** headless or MCP receives unknown/duplicate/missing fields, invalid values, missing/unsupported/cyclic sources, a locked track, or stale expected revision
+- **THEN** transport decoding or core translation returns the established non-retryable `INVALID_ARGUMENT`, `ITEM_NOT_FOUND`, `TRACK_LOCKED`, or retryable `REVISION_CONFLICT` behavior without adapter-side domain rules or partial mutation
+
+#### Scenario: Report readiness without degraded fallback
+- **WHEN** editing support exists but no configured local renderer supports every instruction in the repeated evaluated scene
+- **THEN** `repeater_items` remains discoverable, `repeater_rendering` is unavailable, and render readiness fails with `DEPENDENCY_UNAVAILABLE` rather than dropping or approximating copies
+
+#### Scenario: Preserve additive compatibility boundaries
+- **WHEN** an existing protocol-1 client continues using simple operations against projects without repeaters
+- **THEN** its accepted requests and responses retain their meaning, while documentation states that schema-17 repeater-bearing projects and the new item variant require a repeater-aware decoder
+
+### Requirement: Transport parity for aliased repeater replacement
+Headless, source MCP and packaged MCP workflows MUST delegate aliased update_item.repeater replacements to editor-core using the existing typed schemas and protocol envelopes. No transport MUST implement its own alias substitution. Existing public shapes, capabilities, errors and retryability MUST remain unchanged.
+
+#### Scenario: Exercise replacement across transports
+- **WHEN** native headless, source MCP and packaged clients create and retarget a repeater with earlier source and item aliases
+- **THEN** every transport returns equivalent resolved state, revision and alias results, supports undo/redo and reopen, and renders the resulting visible scene
+
+#### Scenario: Preserve transaction failures across transports
+- **WHEN** the replacement uses missing or forward aliases or is followed by a failing operation
+- **THEN** each transport returns the established core error and preserves authoritative state and history
+
+### Requirement: Transport parity for effective repeater audio rejection
+Headless, source MCP and packaged MCP MUST delegate effective repeater source validation to editor-core with unchanged typed schemas and errors. Transports MUST NOT substitute slot values or classify source audio independently.
+
+#### Scenario: Preserve effective-audio failure across transports
+- **WHEN** clients submit a batch or draft whose effective asset slots introduce audio into a repeater source
+- **THEN** headless, source MCP and packaged MCP return the established core error and preserve authoritative state, revision and history
+
+#### Scenario: Preserve valid silent-source workflows
+- **WHEN** a client submits a valid silent effective source with repeaters
+- **THEN** existing aliases, undo/redo, reopening and rendered preview continue to work without public contract changes

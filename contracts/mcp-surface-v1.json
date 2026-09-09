@@ -7,7 +7,9 @@
     "svg_items",
     "svg_rendering",
     "grid_items",
-    "grid_rendering"
+    "grid_rendering",
+    "repeater_items",
+    "repeater_rendering"
   ],
   "prompts": [
     "add_narration",
@@ -36461,6 +36463,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -39891,6 +40035,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -60200,6 +60450,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -63630,6 +64022,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -84007,6 +84505,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -87437,6 +88077,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -107814,6 +108560,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -111244,6 +112132,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -132224,6 +133218,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -135654,6 +136790,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -155813,6 +157055,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -159243,6 +160627,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -179553,6 +181043,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -182983,6 +184615,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -196994,7 +198732,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 16,
+                "const": 17,
                 "type": "number"
               },
               "settings": {
@@ -203270,6 +205008,311 @@
                               "type",
                               "zIndex",
                               "grid"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "durationMs": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "hidden": {
+                                "type": "boolean"
+                              },
+                              "id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "parent": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "scope": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "scope"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "repeater": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "copies": {
+                                    "maximum": 256,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "opacityOffset": {
+                                    "maximum": 1,
+                                    "minimum": -1,
+                                    "type": "number"
+                                  },
+                                  "source": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^[A-Za-z0-9_-]+$",
+                                        "type": "string"
+                                      },
+                                      "scope": {
+                                        "maxLength": 256,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "scope"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "transformOffset": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "position": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "unit": {
+                                            "enum": [
+                                              "pixels",
+                                              "normalized"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "x": {
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "unit",
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "rotationDeg": {
+                                        "maximum": 36000,
+                                        "minimum": -36000,
+                                        "type": "number"
+                                      },
+                                      "scaleX": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "scaleY": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "skewXDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      },
+                                      "skewYDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "position",
+                                      "rotationDeg",
+                                      "scaleX",
+                                      "scaleY",
+                                      "skewXDeg",
+                                      "skewYDeg"
+                                    ],
+                                    "type": "object"
+                                  }
+                                },
+                                "required": [
+                                  "copies",
+                                  "opacityOffset",
+                                  "source",
+                                  "transformOffset"
+                                ],
+                                "type": "object"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "startMs": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
+                              "transform2d": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "anchor": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "x": {
+                                            "maximum": 1,
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "maximum": 1,
+                                            "minimum": 0,
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "opacity": {
+                                        "maximum": 1,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "position": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "unit": {
+                                            "enum": [
+                                              "pixels",
+                                              "normalized"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "x": {
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "unit",
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "rotationDeg": {
+                                        "maximum": 36000,
+                                        "minimum": -36000,
+                                        "type": "number"
+                                      },
+                                      "scaleX": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "scaleY": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "skewXDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      },
+                                      "skewYDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "anchor",
+                                      "opacity",
+                                      "position",
+                                      "rotationDeg",
+                                      "scaleX",
+                                      "scaleY",
+                                      "skewXDeg",
+                                      "skewYDeg"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "type": {
+                                "const": "repeater",
+                                "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "durationMs",
+                              "hidden",
+                              "id",
+                              "repeater",
+                              "stackOrder",
+                              "startMs",
+                              "transform",
+                              "type",
+                              "zIndex"
                             ],
                             "type": "object"
                           },
@@ -212481,7 +214524,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 16,
+                "const": 17,
                 "type": "number"
               },
               "settings": {
@@ -218801,6 +220844,311 @@
                                   }
                                 ]
                               },
+                              "repeater": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "copies": {
+                                    "maximum": 256,
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "opacityOffset": {
+                                    "maximum": 1,
+                                    "minimum": -1,
+                                    "type": "number"
+                                  },
+                                  "source": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "pattern": "^[A-Za-z0-9_-]+$",
+                                        "type": "string"
+                                      },
+                                      "scope": {
+                                        "maxLength": 256,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "scope"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "transformOffset": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "position": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "unit": {
+                                            "enum": [
+                                              "pixels",
+                                              "normalized"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "x": {
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "unit",
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "rotationDeg": {
+                                        "maximum": 36000,
+                                        "minimum": -36000,
+                                        "type": "number"
+                                      },
+                                      "scaleX": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "scaleY": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "skewXDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      },
+                                      "skewYDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "position",
+                                      "rotationDeg",
+                                      "scaleX",
+                                      "scaleY",
+                                      "skewXDeg",
+                                      "skewYDeg"
+                                    ],
+                                    "type": "object"
+                                  }
+                                },
+                                "required": [
+                                  "copies",
+                                  "opacityOffset",
+                                  "source",
+                                  "transformOffset"
+                                ],
+                                "type": "object"
+                              },
+                              "stackOrder": {
+                                "maximum": 4294967295,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "startMs": {
+                                "maximum": 9007199254740991,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "transform": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "opacity": {
+                                    "maximum": 1,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "positionX": {
+                                    "type": "number"
+                                  },
+                                  "positionY": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "opacity",
+                                  "positionX",
+                                  "positionY",
+                                  "scale"
+                                ],
+                                "type": "object"
+                              },
+                              "transform2d": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "anchor": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "x": {
+                                            "maximum": 1,
+                                            "minimum": 0,
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "maximum": 1,
+                                            "minimum": 0,
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "opacity": {
+                                        "maximum": 1,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "position": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "unit": {
+                                            "enum": [
+                                              "pixels",
+                                              "normalized"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "x": {
+                                            "type": "number"
+                                          },
+                                          "y": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "unit",
+                                          "x",
+                                          "y"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "rotationDeg": {
+                                        "maximum": 36000,
+                                        "minimum": -36000,
+                                        "type": "number"
+                                      },
+                                      "scaleX": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "scaleY": {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100,
+                                        "type": "number"
+                                      },
+                                      "skewXDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      },
+                                      "skewYDeg": {
+                                        "maximum": 80,
+                                        "minimum": -80,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "anchor",
+                                      "opacity",
+                                      "position",
+                                      "rotationDeg",
+                                      "scaleX",
+                                      "scaleY",
+                                      "skewXDeg",
+                                      "skewYDeg"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "type": {
+                                "const": "repeater",
+                                "type": "string"
+                              },
+                              "zIndex": {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "durationMs",
+                              "hidden",
+                              "id",
+                              "repeater",
+                              "stackOrder",
+                              "startMs",
+                              "transform",
+                              "type",
+                              "zIndex"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "durationMs": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "hidden": {
+                                "type": "boolean"
+                              },
+                              "id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "parent": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maxLength": 128,
+                                        "minLength": 1,
+                                        "type": "string"
+                                      },
+                                      "scope": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "scope"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "source": {
                                 "additionalProperties": false,
                                 "properties": {
@@ -224564,6 +226912,214 @@
           "startMs",
           "trackId",
           "width"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "timeline_add_repeater": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "durationMs": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "repeater": {
+            "additionalProperties": false,
+            "properties": {
+              "copies": {
+                "maximum": 256,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "opacityOffset": {
+                "maximum": 1,
+                "minimum": -1,
+                "type": "number"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "scope"
+                ],
+                "type": "object"
+              },
+              "transformOffset": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "unit": {
+                        "enum": [
+                          "pixels",
+                          "normalized"
+                        ],
+                        "type": "string"
+                      },
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "x",
+                      "y"
+                    ],
+                    "type": "object"
+                  },
+                  "rotationDeg": {
+                    "maximum": 36000,
+                    "minimum": -36000,
+                    "type": "number"
+                  },
+                  "scaleX": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "scaleY": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "skewXDeg": {
+                    "maximum": 80,
+                    "minimum": -80,
+                    "type": "number"
+                  },
+                  "skewYDeg": {
+                    "maximum": 80,
+                    "minimum": -80,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "position",
+                  "rotationDeg",
+                  "scaleX",
+                  "scaleY",
+                  "skewXDeg",
+                  "skewYDeg"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "copies",
+              "opacityOffset",
+              "source",
+              "transformOffset"
+            ],
+            "type": "object"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "durationMs",
+          "repeater",
+          "startMs",
+          "trackId"
         ],
         "type": "object"
       },
@@ -245584,6 +248140,148 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "operation": {
+                      "const": "add_repeater",
+                      "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "resultAlias": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+                      "type": "string"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "trackId": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "repeater",
+                    "startMs",
+                    "trackId",
+                    "operation"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
                     "fill": {
                       "anyOf": [
                         {
@@ -249014,6 +251712,112 @@
                     "operation": {
                       "const": "update_item",
                       "type": "string"
+                    },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^(?:[A-Za-z0-9_-]+|@[A-Za-z][A-Za-z0-9_-]{0,63})$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
                     },
                     "stroke": {
                       "anyOf": [
@@ -256829,6 +259633,311 @@
                         }
                       ]
                     },
+                    "repeater": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "copies": {
+                          "maximum": 256,
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "opacityOffset": {
+                          "maximum": 1,
+                          "minimum": -1,
+                          "type": "number"
+                        },
+                        "source": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "pattern": "^[A-Za-z0-9_-]+$",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "maxLength": 256,
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        "transformOffset": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "copies",
+                        "opacityOffset",
+                        "source",
+                        "transformOffset"
+                      ],
+                      "type": "object"
+                    },
+                    "stackOrder": {
+                      "maximum": 4294967295,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "transform": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "opacity": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "positionX": {
+                          "type": "number"
+                        },
+                        "positionY": {
+                          "type": "number"
+                        },
+                        "scale": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 100,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "opacity",
+                        "positionX",
+                        "positionY",
+                        "scale"
+                      ],
+                      "type": "object"
+                    },
+                    "transform2d": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "anchor": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "x": {
+                                  "maximum": 1,
+                                  "minimum": 0,
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "maximum": 1,
+                                  "minimum": 0,
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "opacity": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "position": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "unit": {
+                                  "enum": [
+                                    "pixels",
+                                    "normalized"
+                                  ],
+                                  "type": "string"
+                                },
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "unit",
+                                "x",
+                                "y"
+                              ],
+                              "type": "object"
+                            },
+                            "rotationDeg": {
+                              "maximum": 36000,
+                              "minimum": -36000,
+                              "type": "number"
+                            },
+                            "scaleX": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "scaleY": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 100,
+                              "type": "number"
+                            },
+                            "skewXDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            },
+                            "skewYDeg": {
+                              "maximum": 80,
+                              "minimum": -80,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "anchor",
+                            "opacity",
+                            "position",
+                            "rotationDeg",
+                            "scaleX",
+                            "scaleY",
+                            "skewXDeg",
+                            "skewYDeg"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "type": {
+                      "const": "repeater",
+                      "type": "string"
+                    },
+                    "zIndex": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "durationMs",
+                    "hidden",
+                    "id",
+                    "repeater",
+                    "stackOrder",
+                    "startMs",
+                    "transform",
+                    "type",
+                    "zIndex"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "durationMs": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "hidden": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "parent": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maxLength": 128,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "scope": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "scope"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "source": {
                       "additionalProperties": false,
                       "properties": {
@@ -260638,6 +263747,112 @@
             "minLength": 1,
             "type": "string"
           },
+          "repeater": {
+            "additionalProperties": false,
+            "properties": {
+              "copies": {
+                "maximum": 256,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "opacityOffset": {
+                "maximum": 1,
+                "minimum": -1,
+                "type": "number"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "scope"
+                ],
+                "type": "object"
+              },
+              "transformOffset": {
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "unit": {
+                        "enum": [
+                          "pixels",
+                          "normalized"
+                        ],
+                        "type": "string"
+                      },
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "x",
+                      "y"
+                    ],
+                    "type": "object"
+                  },
+                  "rotationDeg": {
+                    "maximum": 36000,
+                    "minimum": -36000,
+                    "type": "number"
+                  },
+                  "scaleX": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "scaleY": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "skewXDeg": {
+                    "maximum": 80,
+                    "minimum": -80,
+                    "type": "number"
+                  },
+                  "skewYDeg": {
+                    "maximum": 80,
+                    "minimum": -80,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "position",
+                  "rotationDeg",
+                  "scaleX",
+                  "scaleY",
+                  "skewXDeg",
+                  "skewYDeg"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "copies",
+              "opacityOffset",
+              "source",
+              "transformOffset"
+            ],
+            "type": "object"
+          },
           "stroke": {
             "anyOf": [
               {
@@ -264120,6 +267335,7 @@
     "timeline_add_grid",
     "timeline_add_media",
     "timeline_add_rectangle",
+    "timeline_add_repeater",
     "timeline_add_shape",
     "timeline_add_solid_color",
     "timeline_add_svg",

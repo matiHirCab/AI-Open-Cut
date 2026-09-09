@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "contract": "repeaters-v1",
+  "schemaVersion": 17,
+  "activation": "runtime",
+  "capabilities": ["repeater_items", "repeater_rendering"],
+  "operations": ["add_repeater"],
+  "descriptorFields": ["source", "copies", "transformOffset", "opacityOffset"],
+  "sourceFields": ["scope", "id"],
+  "transformOffsetFields": ["position", "scaleX", "scaleY", "rotationDeg", "skewXDeg", "skewYDeg"],
+  "supportedSources": ["shape", "group", "component_instance"],
+  "unsupportedSources": ["media", "text", "solid_color", "rectangle", "svg", "grid", "caption", "transition", "repeater"],
+  "limits": {"minCopies": 1, "maxCopies": 256, "maxExpandedOccurrences": 65536, "maxVisualLayers": 4096},
+  "valid": [
+    {"id": "pixel-translation", "repeater": {"source": {"scope": "root", "id": "shape"}, "copies": 3, "transformOffset": {"position": {"x": 20, "y": -5, "unit": "pixels"}, "scaleX": 1, "scaleY": 1, "rotationDeg": 0, "skewXDeg": 0, "skewYDeg": 0}, "opacityOffset": -0.2}},
+    {"id": "normalized-boundary", "repeater": {"source": {"scope": "component:badge", "id": "group"}, "copies": 256, "transformOffset": {"position": {"x": 1, "y": 0.5, "unit": "normalized"}, "scaleX": 0.5, "scaleY": 2, "rotationDeg": 15, "skewXDeg": 5, "skewYDeg": -5}, "opacityOffset": 0}}
+  ],
+  "invalid": [
+    {"id": "copies-zero", "stage": "semantic", "path": "copies", "value": 0},
+    {"id": "copies-over-limit", "stage": "semantic", "path": "copies", "value": 257},
+    {"id": "copies-fractional", "stage": "structure", "path": "copies", "value": 1.5},
+    {"id": "opacity-under", "stage": "semantic", "path": "opacityOffset", "value": -1.01},
+    {"id": "opacity-over", "stage": "semantic", "path": "opacityOffset", "value": 1.01},
+    {"id": "scale-zero", "stage": "semantic", "path": "transformOffset.scaleX", "value": 0},
+    {"id": "unknown-position-unit", "stage": "structure", "path": "transformOffset.position.unit", "value": "percent"},
+    {"id": "missing-source-id", "stage": "structure", "remove": "source.id"},
+    {"id": "unknown-field", "stage": "structure", "path": "extra", "value": true},
+    {"id": "null-descriptor", "stage": "structure", "repeater": null},
+    {"id": "array-descriptor", "stage": "structure", "repeater": []},
+    {"id": "expression-descriptor", "stage": "structure", "repeater": "1+index"}
+  ],
+  "evaluationExamples": [
+    {"id": "translation-opacity", "canvas": {"width": 100, "height": 100}, "sourceMatrix": [1, 0, 0, 1, 10, 10], "sourceOpacity": 0.8, "repeater": {"source": {"scope": "root", "id": "shape"}, "copies": 3, "transformOffset": {"position": {"x": 20, "y": 0, "unit": "pixels"}, "scaleX": 1, "scaleY": 1, "rotationDeg": 0, "skewXDeg": 0, "skewYDeg": 0}, "opacityOffset": -0.25}, "copies": [{"index": 1, "matrix": [1, 0, 0, 1, 30, 10], "opacity": 0.6}, {"index": 2, "matrix": [1, 0, 0, 1, 50, 10], "opacity": 0.4}, {"index": 3, "matrix": [1, 0, 0, 1, 70, 10], "opacity": 0.2}]}
+  ],
+  "migrationCases": [
+    {"sourceVersion": 16, "containsRepeater": false, "accept": true},
+    {"sourceVersion": 16, "containsRepeater": true, "accept": false},
+    {"sourceVersion": 17, "containsRepeater": true, "accept": true},
+    {"sourceVersion": 18, "containsRepeater": false, "accept": false}
+  ]
+}

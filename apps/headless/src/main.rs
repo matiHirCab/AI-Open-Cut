@@ -678,6 +678,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "shape_items",
         "svg_items",
         "grid_items",
+        "repeater_items",
     ]
 }
 
@@ -690,6 +691,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "shape_rendering",
         "svg_rendering",
         "grid_rendering",
+        "repeater_rendering",
         "transform2d",
     ]
 }

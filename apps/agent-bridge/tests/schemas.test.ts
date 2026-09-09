@@ -32,7 +32,7 @@ describe("MCP contracts", () => {
         id: "project",
         name: "Visual properties",
         revision: 0,
-        schemaVersion: 16,
+        schemaVersion: 17,
         settings: { fps: 30, height: 1080, width: 1920 },
         tracks: [
           {

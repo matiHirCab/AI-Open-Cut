@@ -244,6 +244,23 @@
         "apps/agent-bridge/tests/grid-workflow.ts",
         "docs/procedural-grids.md"
       ]
+    },
+    "repeaters": {
+      "canonical": "contracts/repeaters-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/repeater.rs",
+        "crates/editor-core/src/validation/repeater.rs",
+        "crates/editor-core/tests/repeaters.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/repeaters.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/repeaters.test.ts",
+        "apps/agent-bridge/tests/repeater-workflow.ts",
+        "docs/repeaters.md"
+      ]
     }
   }
 }

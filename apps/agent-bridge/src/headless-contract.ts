@@ -1,8 +1,10 @@
 import type { z } from "zod/v4";
 import type { GridDescriptor } from "./procedural-grids";
+import type { RepeaterDescriptor } from "./repeaters";
 import type {
   addComponentInstanceSchema,
   addGridSchema,
+  addRepeaterSchema,
   addShapeSchema,
   addSvgSchema,
   componentFieldsSchema,
@@ -21,6 +23,7 @@ export type RenderingCapability =
   | "shape_rendering"
   | "svg_rendering"
   | "grid_rendering"
+  | "repeater_rendering"
   | "transform2d"
   | "preview"
   | "preview_range"
@@ -38,6 +41,9 @@ export type HeadlessEdit =
     >)
   | ({ operation: "add_grid"; resultAlias?: string | undefined } & z.infer<
       typeof addGridSchema
+    >)
+  | ({ operation: "add_repeater"; resultAlias?: string | undefined } & z.infer<
+      typeof addRepeaterSchema
     >)
   | ({ operation: "add_shape"; resultAlias?: string | undefined } & z.infer<
       typeof addShapeSchema
@@ -146,6 +152,7 @@ export type HeadlessEdit =
       operation: "update_item";
       geometry?: ShapeGeometry | undefined;
       grid?: GridDescriptor | undefined;
+      repeater?: RepeaterDescriptor | undefined;
       fill?: Paint | null | undefined;
       stroke?: Stroke | null | undefined;
       transform2d?: z.infer<typeof transform2dSchema> | null | undefined;
