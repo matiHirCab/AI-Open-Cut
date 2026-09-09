@@ -271,6 +271,9 @@ fn validate_scope(
     let mut index = BTreeMap::new();
     for track in tracks {
         for item in &track.items {
+            if let TimelineItem::Text(text) = item {
+                validate_text_document(&text.document, &text.text)?;
+            }
             if index.insert(item.id(), item).is_some() {
                 return Err(invalid("duplicate timeline item ID"));
             }
@@ -458,6 +461,39 @@ fn validate_scope(
         {
             return Err(invalid("groups cannot be transition endpoints"));
         }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_rich_text(document: &crate::RichTextDocument) -> Result<(), CoreError> {
+    if document.runs.is_empty()
+        || document.runs.len() > 256
+        || document
+            .runs
+            .iter()
+            .map(|run| run.text.chars().count())
+            .sum::<usize>()
+            > 4096
+        || document.runs.iter().any(|run| {
+            run.color
+                .as_ref()
+                .is_some_and(|c| validate_color(c).is_err())
+        })
+    {
+        return Err(slot_invalid("invalid rich text document"));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_text_document(
+    document: &crate::RichTextDocument,
+    text: &str,
+) -> Result<(), CoreError> {
+    validate_rich_text(document)?;
+    if text.is_empty() || text.len() > 4096 || document.text() != text {
+        return Err(slot_invalid(
+            "text must match document and contain 1-4096 UTF-8 bytes",
+        ));
     }
     Ok(())
 }
@@ -1033,14 +1069,8 @@ fn validate_slot_value(
     if !valid {
         return Err(slot_invalid("slot value type or constraint mismatch"));
     }
-    if let SlotValue::RichText(v) = value
-        && (v.runs.is_empty()
-            || v.runs.len() > 256
-            || v.runs
-                .iter()
-                .any(|r| r.color.as_ref().is_some_and(|c| validate_color(c).is_err())))
-    {
-        return Err(slot_invalid("invalid rich text document"));
+    if let SlotValue::RichText(v) = value {
+        validate_rich_text(v)?;
     }
     Ok(())
 }
@@ -1140,9 +1170,12 @@ fn apply_slot_value(
         (SlotProperty::TextDocument, SlotValue::Text(value)) => {
             if let TimelineItem::Text(t) = item {
                 t.text = value.clone();
+                t.document = crate::RichTextDocument::plain(value.clone());
             }
         }
-        // Rich text is validated as a typed document; no rendering fallback is introduced.
+        // Rich-text slots retain their published scalar-count limit and are
+        // applied by the evaluator's typed override map, without rewriting the
+        // stored text item (whose compatibility projection has a byte limit).
         (SlotProperty::TextDocument, SlotValue::RichText(_)) => {}
         (SlotProperty::TextColor, SlotValue::Color(value)) => {
             if let TimelineItem::Text(t) = item {
@@ -1473,6 +1506,7 @@ mod tests {
 
         let text = TimelineItem::Text(TextItem {
             id: "text".into(),
+            document: crate::RichTextDocument::plain("text".into()),
             text: "text".into(),
             start_ms: 0,
             duration_ms: 1,

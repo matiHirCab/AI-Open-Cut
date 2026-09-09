@@ -509,7 +509,7 @@ fn native_rich_text_runs_render_colors_and_missing_style_fails_cleanly() {
         .join("tests/fixtures/fonts/DejaVuSans.ttf");
     let (_root, core, id, track) = setup();
     let mut leaf = definition();
-    leaf["tracks"] = json!([{"id":"local","name":"Text","trackType":"overlay","items":[{"type":"text","id":"text","text":"Base","fontSize":20,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]);
+    leaf["tracks"] = json!([{"id":"local","name":"Text","trackType":"overlay","items":[{"type":"text","id":"text","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":20,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]);
     leaf["slots"] = json!([{"id":"title","name":"Title","kind":"rich_text","required":true,"defaultValue":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000"},{"text":"Blue","color":"#0000ff"}]}},"binding":{"targetLayerId":"text","property":"text.document"},"constraints":{}}]);
     let component = core.edit(&id, 0, op(leaf)).unwrap().changed_ids[0].clone();
     let instance=core.edit(&id,1,op(json!({"operation":"add_component_instance","trackId":track,"componentId":component,"startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1}))).unwrap().changed_ids[0].clone();

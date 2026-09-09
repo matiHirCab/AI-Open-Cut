@@ -1954,7 +1954,8 @@ mod tests {
                 0,
                 EditOperation::AddText {
                     track_id: overlay,
-                    text: "migrate".into(),
+                    document: None,
+                    text: Some("migrate".into()),
                     start_ms: 0,
                     duration_ms: 1_000,
                     font_size: 48,
@@ -2410,7 +2411,8 @@ mod tests {
                 0,
                 EditOperation::AddText {
                     track_id: overlay,
-                    text: "hello".into(),
+                    document: None,
+                    text: Some("hello".into()),
                     start_ms: 0,
                     duration_ms: 1_000,
                     font_size: 48,
@@ -2505,7 +2507,8 @@ mod tests {
                 0,
                 EditOperation::AddText {
                     track_id: overlay,
-                    text: "clear selectors".into(),
+                    document: None,
+                    text: Some("clear selectors".into()),
                     start_ms: 0,
                     duration_ms: 1_000,
                     font_size: 48,
@@ -3106,7 +3109,8 @@ mod tests {
                 4 + index as u64,
                 EditOperation::AddText {
                     track_id: overlay.clone(),
-                    text: format!("history {index}"),
+                    document: None,
+                    text: Some(format!("history {index}")),
                     start_ms: index as u64,
                     duration_ms: 1,
                     font_size: 16,
@@ -3150,7 +3154,8 @@ mod tests {
                 0,
                 EditOperation::AddText {
                     track_id: overlay,
-                    text: "committed despite cleanup warning".into(),
+                    document: None,
+                    text: Some("committed despite cleanup warning".into()),
                     start_ms: 0,
                     duration_ms: 1_000,
                     font_size: 24,
@@ -3632,7 +3637,8 @@ mod tests {
                 0,
                 EditOperation::AddText {
                     track_id: overlay.clone(),
-                    text: "Split me".into(),
+                    document: None,
+                    text: Some("Split me".into()),
                     start_ms: 100,
                     duration_ms: 1_000,
                     font_size: 48,
@@ -3890,7 +3896,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -3917,6 +3923,13 @@ mod tests {
                     {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[],"slots":[]},
                     {"id":"outer","name":"Outer","width":320,"height":240,"durationMs":1000,"slots":[],"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"component_instance","id":"instance","componentId":"leaf","startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"slotValues":{}}]}]}
                 ]);
+            }
+            if version == 17 {
+                legacy["tracks"][1]["items"] = serde_json::json!([{
+                    "type":"text","id":"legacy-text","text":"Unicode é\nbody",
+                    "fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,
+                    "keyframes":[],"zIndex":0,"stackOrder":0
+                }]);
             }
             let mut oldest = legacy.clone();
             oldest["schemaVersion"] = serde_json::json!(1);
@@ -3950,7 +3963,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13, 16] {
+        for version in [9, 13, 16, 17] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())

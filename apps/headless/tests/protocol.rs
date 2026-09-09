@@ -12,6 +12,50 @@ fn error_catalog() -> Value {
 }
 
 #[test]
+fn rich_text_documents_roundtrip_batches_drafts_and_failures() {
+    let h = Harness::new();
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/rich-text-documents-v1.json"
+    ))
+    .unwrap();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"Rich text"})))["projectId"]
+            .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let document = &catalog["valid"][1]["document"];
+    let added = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_text","trackId":track,"resultAlias":"title","document":document,"startMs":0,"durationMs":1000,"fontSize":48,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}},
+        {"operation":"update_item","itemId":"@title","color":"#00ff00"}]})));
+    let item = &added["changedIds"][0];
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["document"],
+        *document
+    );
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["text"],
+        catalog["valid"][1]["text"]
+    );
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"update_item","itemId":item,"text":"plain"}]})));
+    let draft_state = result(
+        &h.request(json!({"operation":"get_draft_state","projectId":id,"draftId":draft["id"]})),
+    );
+    assert_eq!(
+        draft_state["project"]["tracks"][1]["items"][0]["document"],
+        json!({"runs":[{"text":"plain"}]})
+    );
+    for fixture in catalog["invalid"].as_array().unwrap() {
+        let failure = event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"document":fixture["document"]}})));
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT", "{failure}");
+    }
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        state
+    );
+}
+
+#[test]
 fn effective_repeater_audio_rejection_is_atomic_over_headless() {
     use opencut_editor_core::{
         BatchEditOperation, EditorCore, MediaProbeFacts, MediaType, PathPolicy, ProjectSettings,
@@ -386,7 +430,7 @@ fn template_slots_standalone_and_alias_batches_have_typed_atomic_results() {
     let catalog: Value =
         serde_json::from_str(include_str!("../../../contracts/template-slots-v1.json")).unwrap();
     let slot = catalog["valid"][0]["slot"].clone();
-    let create = json!({"operation":"component_create","resultAlias":"card","name":"Card","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"text","id":"title","text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]});
+    let create = json!({"operation":"component_create","resultAlias":"card","name":"Card","width":320,"height":240,"durationMs":1000,"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[{"type":"text","id":"title","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}]}]});
     result(&harness.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[create,{"operation":"component_define_slots","componentId":"@card","slots":[slot.clone()]}]})));
     let state = result(&harness.request(json!({"operation":"get_state","projectId":id})));
     let component = state["project"]["components"][0]["id"].as_str().unwrap();
@@ -1231,7 +1275,10 @@ fn shape_contract_standalone_batch_and_atomic_failures() {
         ),
     );
     let opened = result(&harness.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(opened["project"]["schemaVersion"], 17);
+    assert_eq!(
+        opened["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         opened["project"]["tracks"][1]["items"]
             .as_array()

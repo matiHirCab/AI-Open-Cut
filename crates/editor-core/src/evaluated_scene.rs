@@ -1762,7 +1762,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(&text.keyframes)?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
-                            rich_runs: None,
+                            rich_runs: text.document.styled_runs(&text.color),
                             text: text.text.clone(),
                             font_size: text.font_size,
                             color: text.color.clone(),
@@ -2814,7 +2814,7 @@ mod tests {
             t.rotation_deg = 90.0;
             p.tracks=serde_json::from_value(serde_json::json!([{"id":"track","name":"Overlay","trackType":"overlay","items":[
                 {"type":"group","id":"g","startMs":0,"durationMs":1000,"stackOrder":0,"transform2d":t},
-                {"type":"text","id":"text","text":"Anchor","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":1,"style":{"anchor":anchor},"transform":{"positionX":200,"positionY":180,"scale":1.5,"opacity":1},"keyframes":[],"parent":{"scope":"root","id":"g"}}
+                {"type":"text","id":"text","text":"Anchor","document":{"runs":[{"text":"Anchor"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":1,"style":{"anchor":anchor},"transform":{"positionX":200,"positionY":180,"scale":1.5,"opacity":1},"keyframes":[],"parent":{"scope":"root","id":"g"}}
             ]}])).unwrap();
             let mut scene = evaluate_project(&p, 800, 600, 30).unwrap().scene;
             finalize_affine_geometry(
@@ -2967,6 +2967,7 @@ mod tests {
                     }),
                     TimelineItem::Text(TextItem {
                         id: "title".into(),
+                        document: crate::RichTextDocument::plain("Title".into()),
                         text: "Title".into(),
                         start_ms: 750,
                         duration_ms: 1_000,
@@ -3452,6 +3453,7 @@ mod tests {
                 TrackType::Overlay,
                 vec![TimelineItem::Text(TextItem {
                     id: "animated".into(),
+                    document: crate::RichTextDocument::plain("Animated".into()),
                     text: "Animated".into(),
                     start_ms: 0,
                     duration_ms: count as u64 + 1,
@@ -3782,6 +3784,7 @@ mod tests {
         let text = |id: &str, path: Option<&str>, family: Option<&str>| {
             TimelineItem::Text(TextItem {
                 id: id.into(),
+                document: crate::RichTextDocument::plain(id.into()),
                 text: id.into(),
                 start_ms: 0,
                 duration_ms: 1,
@@ -3864,9 +3867,12 @@ impl EvaluatedVisualLayer {
         self.transform2d.is_some()
             || self.ancestors.is_some()
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
+            || matches!(&self.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some())
     }
     pub(crate) fn has_animated_geometry(&self) -> bool {
-        (self.ancestors.is_some() || matches!(self.source, EvaluatedVisualSource::Shape(_)))
+        (self.ancestors.is_some()
+            || matches!(self.source, EvaluatedVisualSource::Shape(_))
+            || matches!(&self.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some()))
             && self.transform2d.is_none()
             && self.keyframes.iter().any(|key| {
                 matches!(
@@ -3934,6 +3940,17 @@ fn apply_ancestors(
     for layer in layers.iter_mut() {
         let mut node = index[layer.item_id.as_str()].1;
         if node.visual_properties().parent.is_none() {
+            // Retain identity ancestry for styled root text so measurement and
+            // rendering share legacy position, scale and opacity animation.
+            if matches!(&layer.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some())
+            {
+                layer.ancestors = Some(EvaluatedAncestors {
+                    matrix: IDENTITY_MATRIX,
+                    inverse: IDENTITY_MATRIX,
+                    opacity: 1.0,
+                    clip: layer.span,
+                });
+            }
             continue;
         }
         let mut ancestors = EvaluatedAncestors {
@@ -4333,7 +4350,7 @@ mod instance_tests {
             |items| json!({"id":"local","name":"Local","trackType":"overlay","items":items});
         let inner = json!({"type":"component_instance","id":"same","componentId":"leaf","startMs":20,"trimStartMs":10,"durationMs":700,"timeScale":0.5,"slotValues":{},"transform":{"positionX":10,"positionY":0,"scale":1,"opacity":0.5}});
         let root = json!({"type":"component_instance","id":"same","componentId":"outer","startMs":100,"trimStartMs":50,"durationMs":400,"timeScale":1.5,"slotValues":{},"zIndex":0,"stackOrder":0,"transform":{"positionX":20,"positionY":0,"scale":1,"opacity":0.5}});
-        serde_json::from_value(json!({"schemaVersion":13,"id":"project","revision":0,"name":"Instances","createdAtMs":1,"updatedAtMs":1,"settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[track(json!([root]))],"components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":500,"slots":[],"tracks":[track(json!([shape]))]},{"id":"outer","name":"Outer","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[track(json!([inner]))]}]})).unwrap()
+        serde_json::from_value(json!({"schemaVersion":18,"id":"project","revision":0,"name":"Instances","createdAtMs":1,"updatedAtMs":1,"settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[track(json!([root]))],"components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":500,"slots":[],"tracks":[track(json!([shape]))]},{"id":"outer","name":"Outer","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[track(json!([inner]))]}]})).unwrap()
     }
 
     #[test]
@@ -4768,7 +4785,7 @@ mod instance_tests {
             let mut p = project();
             p.components.truncate(1);
             p.components[0].duration_ms = 1000;
-            p.components[0].tracks[0].items=serde_json::from_value(json!([{"type":"text","id":"title","text":"Base","fontSize":20,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}])).unwrap();
+            p.components[0].tracks[0].items=serde_json::from_value(json!([{"type":"text","id":"title","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":20,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]}])).unwrap();
             p.components[0].slots = serde_json::from_value(json!([fixture["slot"]])).unwrap();
             if let TimelineItem::ComponentInstance(i) = &mut p.tracks[0].items[0] {
                 i.component_id = "leaf".into();
@@ -4807,7 +4824,7 @@ mod instance_tests {
     fn root_slots_keep_independent_rich_runs_colors_and_defaults() {
         let mut p = project();
         let mut value = serde_json::to_value(&p).unwrap();
-        value["components"][0]["tracks"][0]["items"] = json!([{"type":"text","id":"same","text":"Base","fontSize":20,"color":"#ffffff","startMs":0,"durationMs":500,"keyframes":[],"stackOrder":0}]);
+        value["components"][0]["tracks"][0]["items"] = json!([{"type":"text","id":"same","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":20,"color":"#ffffff","startMs":0,"durationMs":500,"keyframes":[],"stackOrder":0}]);
         value["components"][0]["slots"] = json!([{"id":"__proto__","name":"Title","kind":"rich_text","required":true,"defaultValue":{"type":"rich_text","value":{"runs":[{"text":"Default","bold":true}]}},"binding":{"targetLayerId":"same","property":"text.document"},"constraints":{}}]);
         value["tracks"][0]["items"][0]["componentId"] = json!("leaf");
         value["tracks"][0]["items"][0]["durationMs"] = json!(300);
@@ -4908,7 +4925,7 @@ mod instance_tests {
         let mode = std::env::var("OPENCUT_INVALID_REPEATER_GRAPH").unwrap();
         let project: Project = if mode == "component" {
             serde_json::from_value(json!({
-                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
                 "settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[],
                 "components":[
                     {"id":"a","name":"A","width":100,"height":100,"durationMs":1000,"slots":[],
@@ -4924,7 +4941,7 @@ mod instance_tests {
             .unwrap()
         } else {
             serde_json::from_value(json!({
-                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
                 "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
                 "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
                     {"type":"group","id":"a","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"parent":{"scope":"root","id":"b"}},
@@ -5030,7 +5047,7 @@ mod instance_tests {
                 }));
             }
             serde_json::from_value(json!({
-                "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
                 "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
                 "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":items}]
             }))
@@ -5136,7 +5153,7 @@ mod instance_tests {
     #[test]
     fn repeater_preflight_rejects_non_finite_parent_conjugation() {
         let project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
             "tracks":[{"id":"root","name":"Root","trackType":"overlay","items":[
                 {"type":"group","id":"parent","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,
@@ -5174,7 +5191,7 @@ mod instance_tests {
         for hidden in [false, true] {
             for width in [2047.0_f64, f64::from_bits(2047.0_f64.to_bits() + 1)] {
                 let project: Project = serde_json::from_value(json!({
-                    "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+                    "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
                     "settings":{"width":16,"height":16,"fps":30},"assets":[],"components":[],
                     "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":hidden,"items":[
                         {"type":"shape","id":"source","startMs":0,"durationMs":1000,
@@ -5205,7 +5222,7 @@ mod instance_tests {
     #[test]
     fn repeater_group_uses_source_parent_origin_and_preserves_subtree_order() {
         let project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
             "tracks":[{"id":"t","name":"T","trackType":"overlay","items":[
                 {"type":"group","id":"group","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,
@@ -5258,7 +5275,7 @@ mod instance_tests {
             "type":"group","id":format!("g{index}"),"startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":index
         })).collect::<Vec<_>>();
         let mut project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[{"id":"definition","name":"Definition","width":100,"height":100,"durationMs":1000,"slots":[],
                 "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":groups}]}],
@@ -5306,7 +5323,7 @@ mod instance_tests {
             "rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}
         }));
         let mut project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],"components":[],
             "tracks":[{"id":"root","name":"Root","trackType":"overlay","hidden":true,"items":items}]
         }))
@@ -5356,7 +5373,7 @@ mod instance_tests {
     #[test]
     fn repeater_clones_complete_component_occurrence_and_clock() {
         let project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[{"id":"badge","name":"Badge","width":50,"height":50,"durationMs":1000,"slots":[],
               "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[
@@ -5394,7 +5411,7 @@ mod instance_tests {
     #[test]
     fn group_repeater_includes_nested_component_and_local_repeater_occurrences() {
         let project: Project = serde_json::from_str(r#"{
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
               "tracks":[{"id":"leaf-track","name":"Leaf","trackType":"overlay","items":[
@@ -5484,7 +5501,7 @@ mod instance_tests {
             }))
             .collect::<Vec<_>>();
         let project: Project = serde_json::from_value(json!({
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[{"id":"stack","name":"Stack","width":100,"height":100,"durationMs":1000,"slots":[],
               "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":siblings}]}],
@@ -5523,7 +5540,7 @@ mod instance_tests {
     #[test]
     fn component_local_group_repeater_includes_nested_component_occurrences() {
         let project: Project = serde_json::from_str(r#"{
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[
               {"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
@@ -5564,12 +5581,12 @@ mod instance_tests {
     #[test]
     fn rich_text_bindings_reach_local_and_outer_repeater_copies_without_scope_leakage() {
         let project: Project = serde_json::from_str(r##"{
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[
               {"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
                "tracks":[{"id":"leaf-track","name":"Leaf","trackType":"overlay","items":[
-                 {"type":"text","id":"title","text":"Nested","fontSize":20,"color":"#ffffff",
+                 {"type":"text","id":"title","text":"Nested","document":{"runs":[{"text":"Nested"}]},"fontSize":20,"color":"#ffffff",
                   "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":0}
                ]}]},
               {"id":"container","name":"Container","width":100,"height":100,"durationMs":1000,
@@ -5578,7 +5595,7 @@ mod instance_tests {
                  "binding":{"targetLayerId":"title","property":"text.document"},"constraints":{}}],
                "tracks":[{"id":"container-track","name":"Container","trackType":"overlay","items":[
                  {"type":"group","id":"local-group","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0},
-                 {"type":"text","id":"title","text":"Base","fontSize":20,"color":"#ffffff",
+                 {"type":"text","id":"title","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":20,"color":"#ffffff",
                   "startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":1,
                   "parent":{"scope":"component:container","id":"local-group"}},
                  {"type":"component_instance","id":"nested","componentId":"leaf","startMs":0,"trimStartMs":0,
@@ -5637,7 +5654,7 @@ mod instance_tests {
     #[test]
     fn component_local_repeater_occurrences_keep_unique_scoped_identities() {
         let project: Project = serde_json::from_str(r#"{
-            "schemaVersion":17,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":18,"id":"p","revision":0,"name":"P","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":100,"height":100,"fps":30},"assets":[],
             "components":[{"id":"badge","name":"Badge","width":100,"height":100,"durationMs":1000,"slots":[],
               "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[
@@ -5671,5 +5688,96 @@ mod instance_tests {
                 .count(),
             2
         );
+    }
+}
+
+#[cfg(test)]
+mod styled_root_animation_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn project(styled: bool, property: &str) -> Project {
+        let run = if styled {
+            json!({"text":"Text","color":"#ff0000"})
+        } else {
+            json!({"text":"Text"})
+        };
+        let value = if property == "position" {
+            json!({"type":"position","x":40,"y":30})
+        } else {
+            json!({"type":"scalar","value":0.5})
+        };
+        serde_json::from_value(json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"test","revision":0,"name":"Animation","createdAtMs":0,"updatedAtMs":0,"settings":{"width":160,"height":90,"fps":10},"assets":[],"components":[],"tracks":[{"id":"overlay","name":"Overlay","trackType":"overlay","items":[{"type":"text","id":"text","text":"Text","document":{"runs":[run]},"fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"style":{"anchor":"center"},"keyframes":[{"property":property,"timeMs":0,"value":value,"easing":"linear"}]}]}]})).unwrap()
+    }
+
+    #[test]
+    fn styled_root_retains_identity_ancestry_through_finalization() {
+        for property in ["position", "scale", "opacity"] {
+            let mut scene = evaluate_project(&project(true, property), 160, 90, 10)
+                .unwrap()
+                .scene;
+            let before = scene.visual_layers[0]
+                .ancestors
+                .expect("styled root needs retained identity ancestry");
+            assert_eq!(before.matrix, IDENTITY_MATRIX);
+            assert_eq!(before.inverse, IDENTITY_MATRIX);
+            assert_eq!(before.opacity, 1.0);
+            assert_eq!(before.clip, scene.visual_layers[0].span);
+            finalize_affine_geometry(&mut scene, &HashMap::from([("text".into(), (40, 20))]))
+                .unwrap();
+            assert_eq!(scene.visual_layers[0].ancestors, Some(before));
+            assert_eq!(scene.visual_layers[0].legacy_anchor((40, 20)), (20.0, 10.0));
+        }
+        let plain = evaluate_project(&project(false, "opacity"), 160, 90, 10)
+            .unwrap()
+            .scene;
+        assert!(plain.visual_layers[0].ancestors.is_none());
+        assert!(!plain.visual_layers[0].requires_affine());
+    }
+
+    #[test]
+    fn styled_root_preserves_real_parent_and_transform2d_precedence() {
+        let mut p = project(true, "scale");
+        p.tracks[0].items[0].visual_properties_mut().transform2d =
+            Some(crate::Transform2D::default());
+        assert_eq!(
+            evaluate_project(&p, 160, 90, 10).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+        let TimelineItem::Text(text) = &mut p.tracks[0].items[0] else {
+            unreachable!()
+        };
+        text.keyframes.clear();
+        let mut scene = evaluate_project(&p, 160, 90, 10).unwrap().scene;
+        assert!(!scene.visual_layers[0].has_animated_geometry());
+        finalize_affine_geometry(&mut scene, &HashMap::from([("text".into(), (40, 20))])).unwrap();
+        assert_eq!(scene.visual_layers[0].affine.unwrap().opacity, 1.0);
+        p.tracks[0].items[0].visual_properties_mut().parent =
+            Some(serde_json::from_value(json!({"scope":"root","id":"parent"})).unwrap());
+        let mut transform = crate::Transform2D::default();
+        transform.position.x = 12.0;
+        transform.position.y = 5.0;
+        transform.opacity = 0.4;
+        p.tracks[0].items.push(serde_json::from_value(json!({"type":"group","id":"parent","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":1,"transform2d":transform})).unwrap());
+        let scene = evaluate_project(&p, 160, 90, 10).unwrap().scene;
+        let parent = scene.visual_layers[0].ancestors.unwrap();
+        assert_eq!(parent.matrix[4], 12.0);
+        assert_eq!(parent.matrix[5], 5.0);
+        assert_eq!(parent.opacity, 0.4);
+
+        let mut component_project = project(true, "opacity");
+        let tracks = serde_json::to_value(&component_project.tracks).unwrap();
+        component_project.components=serde_json::from_value(json!([{"id":"component","name":"Component","width":160,"height":90,"durationMs":1000,"tracks":tracks,"slots":[]}])).unwrap();
+        component_project.tracks[0].items=serde_json::from_value(json!([{"type":"component_instance","id":"instance","componentId":"component","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"stackOrder":0,"transform":{"positionX":7,"positionY":3,"scale":1,"opacity":0.6}}])).unwrap();
+        let mut scene = evaluate_project(&component_project, 160, 90, 10)
+            .unwrap()
+            .scene;
+        let before = scene.visual_layers[0].ancestors.unwrap();
+        assert_eq!(before.matrix[4], 7.0);
+        assert_eq!(before.matrix[5], 3.0);
+        assert_eq!(before.opacity, 0.6);
+        let id = scene.visual_layers[0].item_id.clone();
+        finalize_affine_geometry(&mut scene, &HashMap::from([(id, (40, 20))])).unwrap();
+        assert_eq!(scene.visual_layers[0].ancestors, Some(before));
     }
 }

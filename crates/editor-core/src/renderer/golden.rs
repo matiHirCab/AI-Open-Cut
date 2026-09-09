@@ -48,6 +48,7 @@ const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod grids;
 mod repeaters;
+mod rich_text;
 mod rule_card;
 mod shapes;
 mod svg;
@@ -448,6 +449,7 @@ pub(super) fn fixture_project() -> Project {
                     }),
                     TimelineItem::Text(TextItem {
                         id: "animated-text".into(),
+                        document: crate::RichTextDocument::plain("café →\nWWWW iiii".into()),
                         text: "café →\nWWWW iiii".into(),
                         start_ms: 0,
                         duration_ms: DURATION_MS,
@@ -2417,6 +2419,7 @@ fn native_golden_render_conformance() {
     svg::conformance(&tools);
     grids::conformance(&tools);
     repeaters::conformance(&tools);
+    rich_text::conformance(&tools);
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)

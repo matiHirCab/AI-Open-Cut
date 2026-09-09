@@ -501,7 +501,7 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
     let cases = [
         json!({"type":"rectangle","color":"#ff0000","width":30,"height":20,"keyframes":[]}),
         json!({"type":"solid_color","color":"#00aaee","keyframes":[]}),
-        json!({"type":"text","text":"Affine W","fontSize":16,"color":"#ffffff","fontFamily":null,"keyframes":[]}),
+        json!({"type":"text","text":"Affine W","document":{"runs":[{"text":"Affine W"}]},"fontSize":16,"color":"#ffffff","fontFamily":null,"keyframes":[]}),
         json!({"type":"media","assetId":"source","sourceInMs":0,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[]}),
         json!({"type":"caption","text":"Caption","style":{"fontSize":14,"color":"#ffffff","backgroundColor":"#445566","bottomMarginPx":10},
             "source":{"assetId":"source","providerId":"fixture","modelId":"fixture","modelVersion":null,"language":"en","generatedAtMs":1,"originalText":"Caption","confidence":null,"words":[]}}),

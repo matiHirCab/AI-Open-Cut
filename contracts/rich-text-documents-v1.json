@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "contract": "rich-text-documents-v1",
+  "schemaVersion": 18,
+  "activation": "runtime",
+  "capability": "rich_text_documents",
+  "operations": ["add_text", "update_item"],
+  "documentFields": ["runs"],
+  "runFields": ["text", "bold", "italic", "color"],
+  "limits": {"minRuns": 1, "maxRuns": 256, "minTextBytes": 1, "maxTextBytes": 4096},
+  "valid": [
+    {"id": "plain", "document": {"runs": [{"text": "Hello"}]}, "text": "Hello"},
+    {"id": "unicode-styles", "document": {"runs": [{"text": "👋 é\n", "bold": true}, {"text": "<svg>literal</svg>", "italic": false, "color": "#ABCdef"}]}, "text": "👋 é\n<svg>literal</svg>"},
+    {"id": "empty-run", "document": {"runs": [{"text": ""}, {"text": " body "}]}, "text": " body "}
+  ],
+  "invalid": [
+    {"id": "null", "stage": "structure", "document": null},
+    {"id": "missing-runs", "stage": "structure", "document": {}},
+    {"id": "unknown-document-field", "stage": "structure", "document": {"runs": [{"text": "x"}], "extra": true}},
+    {"id": "unknown-run-field", "stage": "structure", "document": {"runs": [{"text": "x", "fontPath": "../font"}]}},
+    {"id": "null-style", "stage": "structure", "document": {"runs": [{"text": "x", "bold": null}]}},
+    {"id": "wrong-style", "stage": "structure", "document": {"runs": [{"text": "x", "italic": "true"}]}},
+    {"id": "empty-runs", "stage": "semantic", "document": {"runs": []}},
+    {"id": "empty-text", "stage": "semantic", "document": {"runs": [{"text": ""}]}},
+    {"id": "bad-color", "stage": "semantic", "document": {"runs": [{"text": "x", "color": "red"}]}}
+  ]
+}

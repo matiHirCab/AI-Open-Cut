@@ -1377,6 +1377,7 @@ mod tests {
                 }),
                 TimelineItem::Text(TextItem {
                     id: "title".into(),
+                    document: crate::RichTextDocument::plain("Title".into()),
                     text: "Title".into(),
                     start_ms: 0,
                     duration_ms: 1_000,
@@ -1525,6 +1526,7 @@ mod tests {
                     }),
                     TimelineItem::Text(TextItem {
                         id: "title".into(),
+                        document: crate::RichTextDocument::plain("Evaluated title".into()),
                         text: "Evaluated title".into(),
                         start_ms: 750,
                         duration_ms: 1_500,

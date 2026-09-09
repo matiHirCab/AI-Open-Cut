@@ -388,8 +388,14 @@ fn schema_16_current_and_history_migrate_atomically() {
     );
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
-    assert_eq!(history["undo"][0]["schemaVersion"], 17);
-    assert_eq!(history["redo"][0]["schemaVersion"], 17);
+    assert_eq!(
+        history["undo"][0]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        history["redo"][0]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let migrated = (
         std::fs::read(dir.join("project.json")).unwrap(),
         std::fs::read(dir.join("history.json")).unwrap(),
@@ -460,7 +466,7 @@ fn pre_17_repeaters_and_future_versions_fail_without_rewrite() {
     let (_root, core, id, _) = setup();
     let dir = core.paths().project_dir(&id).unwrap();
     let mut future = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-    future["schemaVersion"] = json!(18);
+    future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec(&future).unwrap(),

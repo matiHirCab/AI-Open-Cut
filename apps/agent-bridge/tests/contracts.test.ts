@@ -332,6 +332,7 @@ describe("canonical public contracts", () => {
       "grid_rendering",
       "repeater_items",
       "repeater_rendering",
+      "rich_text_documents",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

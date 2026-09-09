@@ -11,6 +11,7 @@ import type {
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
+  richTextDocumentSchema,
   templateSlotSchema,
   transform2dSchema,
 } from "./schemas";
@@ -107,7 +108,8 @@ export type HeadlessEdit =
       fontPath?: string | undefined;
       fontSize: number;
       startMs: number;
-      text: string;
+      text?: string | undefined;
+      document?: z.infer<typeof richTextDocumentSchema> | undefined;
       style: Record<string, unknown>;
       trackId: string;
       transform: {
@@ -162,6 +164,7 @@ export type HeadlessEdit =
       fontPath?: string | null | undefined;
       height?: number | undefined;
       text?: string | undefined;
+      document?: z.infer<typeof richTextDocumentSchema> | undefined;
       style?: Record<string, unknown> | undefined;
       transform?:
         | {

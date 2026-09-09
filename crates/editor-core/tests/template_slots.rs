@@ -569,7 +569,7 @@ fn op(v: Value) -> EditOperation {
     serde_json::from_value(v).unwrap()
 }
 fn title(id: &str, order: usize) -> Value {
-    json!({"type":"text","id":id,"text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"stackOrder":order})
+    json!({"type":"text","id":id,"text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"stackOrder":order})
 }
 fn track(items: Vec<Value>) -> Value {
     json!({"id":"local","name":"Local","trackType":"overlay","items":items})
@@ -937,6 +937,7 @@ fn schema11_nested_history_migrates_and_schema12_fields_are_required() {
         for t in c["tracks"].as_array_mut().unwrap() {
             for i in t["items"].as_array_mut().unwrap() {
                 i.as_object_mut().unwrap().remove("slotValues");
+                i.as_object_mut().unwrap().remove("document");
             }
         }
     }

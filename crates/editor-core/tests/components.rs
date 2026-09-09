@@ -97,7 +97,7 @@ fn native_unused_definitions_preserve_frame_range_export_and_draft_output() {
     let create = || {
         let mut value = create();
         value["tracks"] = json!([track(vec![
-            json!({"type":"text","id":"title","text":"Base","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]})
+            json!({"type":"text","id":"title","text":"Base","document":{"runs":[{"text":"Base"}]},"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[]})
         ])]);
         value["slots"] = json!([{"id":"title","name":"Title","kind":"text","required":true,"defaultValue":{"type":"text","value":"Slot text"},"binding":{"targetLayerId":"title","property":"text.document"},"constraints":{}}]);
         value

@@ -679,6 +679,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "svg_items",
         "grid_items",
         "repeater_items",
+        "rich_text_documents",
     ]
 }
 
