@@ -389,6 +389,31 @@ fn schema_18_migration_pins_current_and_retained_history() {
 }
 
 #[test]
+fn native_font_configuration_is_explicit_and_required_mode_fails_closed() {
+    assert!(
+        native_font_configuration([None, None, None], false)
+            .unwrap()
+            .is_none()
+    );
+    assert!(native_font_configuration([None, None, None], true).is_err());
+    for required in [false, true] {
+        for mask in 1..7 {
+            let values = std::array::from_fn(|i| {
+                (mask & (1 << i) != 0).then(|| std::ffi::OsString::from("configured"))
+            });
+            assert!(native_font_configuration(values, required).is_err());
+        }
+        let values = ["ffmpeg", "ffprobe", "fixture.ttf"].map(|v| Some(v.into()));
+        assert_eq!(
+            native_font_configuration(values, required)
+                .unwrap()
+                .unwrap(),
+            ["ffmpeg", "ffprobe", "fixture.ttf"].map(std::path::PathBuf::from)
+        );
+    }
+}
+
+#[test]
 fn native_preview_uses_pinned_glyphs_after_reopen_and_source_removal() {
     native_pinned_text(None);
 }
@@ -398,8 +423,46 @@ fn native_mandatory_separators_agree_across_render_intents() {
     native_pinned_text(Some("AV\u{2028}אב\u{2029}ffi\r\nZ"));
 }
 
+fn native_font_configuration(
+    configured: [Option<std::ffi::OsString>; 3],
+    required: bool,
+) -> Result<Option<[std::path::PathBuf; 3]>, &'static str> {
+    if configured.iter().all(Option::is_none) {
+        return if required {
+            Err("required native font test configuration is missing")
+        } else {
+            Ok(None)
+        };
+    }
+    let [Some(ffmpeg), Some(ffprobe), Some(font)] = configured else {
+        return Err(
+            "OPENCUT_FFMPEG_PATH, OPENCUT_FFPROBE_PATH, and OPENCUT_TEST_FONT_PATH must be configured together",
+        );
+    };
+    Ok(Some([ffmpeg.into(), ffprobe.into(), font.into()]))
+}
+
 fn native_pinned_text(text: Option<&str>) {
     use opencut_editor_core::{ExportOptions, PreviewRangeOptions};
+    let Some([ffmpeg, ffprobe, font]) = native_font_configuration(
+        [
+            std::env::var_os("OPENCUT_FFMPEG_PATH"),
+            std::env::var_os("OPENCUT_FFPROBE_PATH"),
+            std::env::var_os("OPENCUT_TEST_FONT_PATH"),
+        ],
+        std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref() == Ok("1"),
+    )
+    .expect("native font test configuration") else {
+        return;
+    };
+    assert!(
+        std::fs::read(&font).is_ok(),
+        "configured native font must be readable"
+    );
+    let renderer = opencut_editor_core::Renderer::new(ffmpeg, ffprobe, None);
+    renderer
+        .readiness()
+        .expect("configured native tools must be usable");
     let (root, core, id, track) = setup();
     let mut operation = serde_json::to_value(add(&track)).unwrap();
     if let Some(text) = text {
@@ -411,11 +474,6 @@ fn native_pinned_text(text: Option<&str>) {
         serde_json::from_value(operation).unwrap(),
     )
     .unwrap();
-    let renderer = opencut_editor_core::Renderer::new(
-        std::env::var_os("OPENCUT_FFMPEG_PATH").unwrap_or_else(|| "ffmpeg".into()),
-        std::env::var_os("OPENCUT_FFPROBE_PATH").unwrap_or_else(|| "ffprobe".into()),
-        None,
-    );
     let dir = core.project_directory(&id).unwrap();
     let before = renderer
         .render_preview(&core.get_project(&id).unwrap(), &dir, 0)
