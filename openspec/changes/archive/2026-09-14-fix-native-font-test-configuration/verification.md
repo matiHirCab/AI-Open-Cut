@@ -1,6 +1,6 @@
 # Verification report
 
-Status: implementation verified against scenarios; full repository verification and finalization in progress.
+Status: all implementation checks and conformance verification passed. Synchronization, archival and final protected gates follow.
 
 ## Approval and failing evidence
 
@@ -26,6 +26,13 @@ The test-local parser follows the existing Transform2D configuration policy. The
 
 Rust 1.97.0 formatting and strict workspace Clippy pass. TypeScript typecheck, lint and all 392 unit tests pass. Python passes 10 unittest and 5 pytest tests. Strict OpenSpec validation passes all 27 items. Logs: opencut-ci-fmt.log, opencut-ci-clippy.log, opencut-ci-typecheck.log, opencut-ci-lint.log, opencut-ci-unit.log, opencut-ci-python.log and opencut-ci-spec.log.
 
-The first workspace run failed an unrelated process-memory sampler assertion (opencut-ci-workspace.log). Its isolated retry passes (opencut-ci-sampler-retry.log); full rerun with RUST_TEST_THREADS=2 remains in progress. The first configured native attempt referenced a removed temporary FFmpeg directory and failed readiness (opencut-ci-native.log); restored 7.1.1 passes.
+The first workspace run failed an unrelated process-memory sampler assertion (opencut-ci-workspace.log). Its isolated retry passes (opencut-ci-sampler-retry.log); full workspace rerun with RUST_TEST_THREADS=2 passed (opencut-ci-workspace-retry.log). The first configured native attempt referenced a removed temporary FFmpeg directory and failed readiness (opencut-ci-native.log); restored 7.1.1 passes.
 
 Moon in the shared checkout rejects this active change and unrelated reduce-agent-context-overhead (opencut-ci-moon.log). Unrelated files remain untouched. Finalization will use a clean checkout of the scoped PR commit, subject to all implementation checks passing; no protected policy is weakened to clear the inventory gate.
+
+Contract parity passed its governed Rust suites and 328 TypeScript tests (opencut-ci-contracts.log). MCP integration passed 11 tests (opencut-ci-integration.log); packaged smoke passed 6 (opencut-ci-smoke.log).
+
+OpenSpec verification: completeness, correctness and coherence pass for both requirements and all five scenarios. Implementation tasks complete; finalization remains pending until archive and post-archive gates. Clean PR checkout 74160e19 pre-archive Moon validated all 26 items and rejected only this active change (opencut-ci-clean-prearchive.log). No unrelated failure blocks archival in the PR tree. Implementation inputs match the checked original checkout; passing implementation evidence is reused without rebuilding unchanged code.
+
+
+Final local verification: specifications synchronized and change archived on 2026-09-14. Post-archive Moon passes and strict validation passes all 25 living specs (opencut-ci-postarchive.log, opencut-ci-postarchive-strict.log). All 9 tasks complete. Remote PR CI will be inspected after pushing; its results are not implied by local passes.
