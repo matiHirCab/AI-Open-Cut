@@ -2,7 +2,7 @@
 
 ## Preceding-bindings extension: implementation verified
 
-The approved extension addresses two confirmed failures after a preceding exact action supplies a font: equivalent inherited replacements incorrectly reject, and explicit-resolution versus inheritance alternatives incorrectly succeed. Both replacement orders were reproduced in `%TEMP%/opencut-reversion-review-reproduction-final.log`. Weighted global alternative analysis and chronological preparation now correct both outcomes. All required implementation checks passed with Rust 1.97.0. Atomic rejection remains in force; overall finalization is pending the unrelated archival blocker.
+The approved extension addresses two confirmed failures after a preceding exact action supplies a font: equivalent inherited replacements incorrectly reject, and explicit-resolution versus inheritance alternatives incorrectly succeed. Both replacement orders were reproduced in `%TEMP%/opencut-reversion-review-reproduction-final.log`. Weighted global alternative analysis and chronological preparation now correct both outcomes. All required implementation checks passed with Rust 1.97.0. Atomic rejection remains in force. This font change is now synchronized and archived; the clean-PR post-archive gate passes. Unrelated local work remains excluded from the PR.
 
 Both permanent public-API regressions failed before implementation (`opencut-prefix-red.log`). Focused tests passed (`opencut-prefix-drafts-final.log`: 20 tests; `opencut-prefix-matching.log`: three matching tests). The final longer-chain assertions passed separately (`opencut-prefix-chains.log`) and in the complete workspace run (`opencut-prefix-workspace.log`).
 
@@ -75,14 +75,23 @@ The first TypeScript unit run failed `accepts protocol events split across stdou
 
 | Dimension | Assessment |
 | --- | --- |
-| Completeness | 14/15 tasks performed; all five requirements and fourteen scenarios covered. Synchronization, archival and post-archive gate remain pending. |
+| Completeness | 15/15 tasks performed; all five requirements and fourteen scenarios covered. Living specifications are synchronized, the change is archived, and the clean-PR post-archive gate passes. |
 | Correctness | Both reproduced prefix failures corrected; exhaustive weighted alternatives and chronological outcomes agree with independent enumeration. All prior lifecycle, selector-reversion, collision, revision and integrity coverage passes. No remaining implementation/specification mismatch identified. |
 | Coherence | Matching remains internal to editor-core assets. Store uses its shared preparation loop and actual prefix state. Canonicalization never narrows the global alternatives checked later. Bounds and public/persisted versions remain unchanged. |
 
 The proof obligation for chronological comparison is explicit: after every previously accepted step, all globally optimal assignments have the same normalized font outcome and therefore the same prepared font state. Every allowed current edge occurs in a global optimum. Comparing all of those edges against that common state preserves all alternatives without enumerating assignments. The weighted exhaustive test checks this invariant against full chronological traces, separately from the public-API regressions.
 
-## Gate status
+## Historical shared-checkout gate results
 
 The final repeat against the completed artifacts had the same result (`opencut-prefix-moon-final.log`); OpenSpec reports 14/15 tasks complete (`opencut-prefix-apply-final.json`).
 
 After all implementation checks passed, Moon validated all 27 OpenSpec items but exited 1 because this change and unrelated `reduce-agent-context-overhead` remain active (`opencut-prefix-moon.log`). The repository's `docs/spec-driven-development.md` Verification order states: "Any other failure blocks archival; never modify or archive unrelated work to clear it." Accordingly, specifications were not synchronized, the change was not archived, and a post-archive Moon run was not possible. Task 3.4 remains open. The verification report does not claim overall completion or merge readiness. Unrelated work was left untouched.
+## Finalization on the PR tree — 2026-09-14
+
+At the user's request, finalization used a clean detached worktree of PR commit `f8a052c39c5b7ff2eb95195d419a237bf142a68e`. The unrelated, uncommitted `reduce-agent-context-overhead` change and its files were neither moved nor modified. No implementation, contract, fixture, toolchain or protected policy input changed; prior passing implementation evidence remains applicable. Only living specifications and this change's archival/task/evidence artifacts changed.
+
+The clean pre-archive Moon run passed all 26 validations and rejected only this active change (`%TEMP%/opencut-archive-preflight.log`), satisfying the pre-archive condition. All artifacts were complete and all implementation tasks verified. Five added requirements were synchronized to `openspec/specs/font-resolution/spec.md`, preserving the existing scenarios, and the change was archived here with `.openspec.yaml` intact.
+
+The required post-archive `moon run root:openspec-validate` passed all 25 specification validations and the unchanged CI parity policy (`%TEMP%/opencut-archive-postflight.log`). Task 3.4 is complete. The shared original checkout may still reject the unrelated active change; that result is separate from the verified PR tree. No merge or claim about GitHub-hosted CI is implied by these local checks.
+
+Final repeat checks also passed: strict all-spec validation in %TEMP%/opencut-archive-strict-final.log and protected Moon in %TEMP%/opencut-archive-moon-final.log (25 specifications, no active changes in the PR tree).
