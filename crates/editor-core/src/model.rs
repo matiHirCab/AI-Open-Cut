@@ -1,6 +1,8 @@
 mod buffered;
 use buffered::BufferedValue;
+mod font;
 mod grid;
+pub use font::*;
 mod repeater;
 mod shape;
 mod svg;
@@ -12,7 +14,7 @@ pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 18;
+pub const PROJECT_SCHEMA_VERSION: u32 = 19;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -22,10 +24,11 @@ where
     Option::<T>::deserialize(deserializer).map(Some)
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[serde(try_from = "ProjectDocument")]
 pub struct Project {
+    pub fonts: std::collections::BTreeMap<String, FontRecord>,
     pub schema_version: u32,
     pub id: String,
     pub revision: u64,
@@ -38,10 +41,34 @@ pub struct Project {
     pub components: Vec<ComponentDefinition>,
 }
 
+impl Serialize for Project {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer
+            .serialize_struct("Project", if self.schema_version >= 19 { 11 } else { 10 })?;
+        if self.schema_version >= 19 {
+            state.serialize_field("fonts", &self.fonts)?;
+        }
+        state.serialize_field("schemaVersion", &self.schema_version)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("revision", &self.revision)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("createdAtMs", &self.created_at_ms)?;
+        state.serialize_field("updatedAtMs", &self.updated_at_ms)?;
+        state.serialize_field("settings", &self.settings)?;
+        state.serialize_field("assets", &self.assets)?;
+        state.serialize_field("tracks", &self.tracks)?;
+        state.serialize_field("components", &self.components)?;
+        state.end()
+    }
+}
+
 // Keep older documents readable while requiring explicit stacking in schema 9.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProjectDocument {
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    fonts: Option<Option<std::collections::BTreeMap<String, FontRecord>>>,
     schema_version: u32,
     id: String,
     revision: u64,
@@ -59,6 +86,12 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 19 && value.fonts.is_some() {
+            return Err("font catalogs require schema 19".into());
+        }
+        if value.schema_version == 19 && value.fonts.as_ref().is_none_or(Option::is_none) {
+            return Err("schema 19 requires font catalog".into());
+        }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
         for item in value
             .tracks
@@ -156,6 +189,7 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         Ok(Self {
+            fonts: value.fonts.flatten().unwrap_or_default(),
             components: value
                 .components
                 .unwrap_or_else(|| serde_json::json!([]).into())
@@ -189,6 +223,14 @@ fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Resul
                 .flatten()
         })
     {
+        if item["type"] == "text" {
+            if version < 19 && item.get("fontBinding").is_some() {
+                return Err("text font bindings require schema 19".into());
+            }
+            if version == 19 && item.get("fontBinding").is_none_or(|v| v.is_null()) {
+                return Err("schema 19 requires text font binding".into());
+            }
+        }
         if item["type"] == "text" && version < 18 {
             if item.get("document").is_some() {
                 return Err("text item documents require schema 18".into());
@@ -936,6 +978,8 @@ pub struct MediaItem {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TextItem {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_binding: Option<FontBinding>,
     pub id: String,
     pub text: String,
     pub document: RichTextDocument,
@@ -2339,6 +2383,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project-1".into(),
@@ -2431,6 +2476,7 @@ mod tests {
     #[test]
     fn half_open_overlap_excludes_touching_items() {
         let item = TimelineItem::Text(TextItem {
+            font_binding: None,
             id: "text".into(),
             document: crate::RichTextDocument::plain("hello".into()),
             text: "hello".into(),

@@ -1,4 +1,5 @@
 //! Canonical asset ownership and integrity rules.
+pub(crate) mod fonts;
 
 use std::{
     collections::HashSet,
@@ -19,6 +20,7 @@ pub(crate) const ASSET_GC_FAILED: &str = "ASSET_GC_FAILED";
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DraftAssetOperations<'a> {
+    pub(crate) font_catalog: Option<&'a std::collections::BTreeMap<String, crate::FontRecord>>,
     pub(crate) id: &'a str,
     pub(crate) operations: &'a [EditOperation],
 }
@@ -463,6 +465,24 @@ pub(crate) fn retained_managed_paths(
         .flat_map(|snapshot| snapshot.assets.iter())
         .map(|asset| asset.project_relative_path.replace('\\', "/"))
         .collect::<HashSet<_>>();
+    for snapshot in std::iter::once(project)
+        .chain(&history.undo)
+        .chain(&history.redo)
+    {
+        crate::fonts::validate_catalog(&snapshot.fonts)?;
+        referenced.extend(
+            snapshot
+                .fonts
+                .values()
+                .map(|face| face.relative_path.clone()),
+        );
+    }
+    for draft in drafts {
+        if let Some(catalog) = draft.font_catalog {
+            crate::fonts::validate_catalog(catalog)?;
+            referenced.extend(catalog.values().map(|face| face.relative_path.clone()));
+        }
+    }
     for reference in drafts.iter().copied().flat_map(draft_asset_references) {
         let asset = project
             .assets
@@ -488,6 +508,9 @@ pub(crate) fn garbage_collect(
     };
     let mut files = Vec::new();
     if collect_files(storage, &dir.join("assets"), &mut files).is_err() {
+        return vec![ASSET_GC_FAILED.into()];
+    }
+    if collect_files(storage, &dir.join("fonts"), &mut files).is_err() {
         return vec![ASSET_GC_FAILED.into()];
     }
     let mut failed = false;
@@ -621,6 +644,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),
@@ -675,6 +699,7 @@ mod tests {
             source_in_ms: 0,
         }];
         let draft = DraftAssetOperations {
+            font_catalog: None,
             id: "draft",
             operations: &operations,
         };
@@ -775,7 +800,10 @@ mod tests {
         );
         assert_eq!(
             storage.removed.lock().unwrap().as_slice(),
-            &[root.join("assets/orphan.bin")]
+            &[
+                root.join("assets/orphan.bin"),
+                root.join("fonts/orphan.bin")
+            ]
         );
     }
 }

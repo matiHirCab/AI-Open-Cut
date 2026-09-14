@@ -164,9 +164,12 @@ fn assert_oracle(project: &Project, moved: bool) {
 }
 
 fn semantic(project: &Project) -> Vec<u8> {
+    let project = historical_layout(project);
     let mut text = format!(
         "{:#?}\n",
-        evaluate_project(project, WIDTH, HEIGHT, FPS).unwrap().scene
+        evaluate_project(&project, WIDTH, HEIGHT, FPS)
+            .unwrap()
+            .scene
     );
     for (index, asset) in project.assets.iter().enumerate() {
         text = text.replace(&asset.id, &format!("asset-{index}"));
@@ -185,8 +188,28 @@ struct Outputs {
     export_audio: Vec<f32>,
 }
 
+// These reviewed v1 references describe the historical layout. Schema-19
+// shaping has independent glyph and native parity evidence in font_resolution
+// and rich_text; do not recapture the legacy pixel oracle during migration.
+fn historical_layout(project: &Project) -> Project {
+    let mut project = project.clone();
+    project.schema_version = 18;
+    project.fonts.clear();
+    for item in project
+        .tracks
+        .iter_mut()
+        .chain(project.components.iter_mut().flat_map(|c| &mut c.tracks))
+        .flat_map(|t| &mut t.items)
+    {
+        if let TimelineItem::Text(text) = item {
+            text.font_binding = None;
+        }
+    }
+    project
+}
+
 fn render(tools: &NativeTools, f: &fixture::Fixture) -> Outputs {
-    let project = f.project();
+    let project = historical_layout(&f.project());
     let root = f.core.paths().project_dir(&f.id).unwrap();
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     renderer.readiness().unwrap();

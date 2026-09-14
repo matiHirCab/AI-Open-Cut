@@ -1505,6 +1505,7 @@ mod tests {
         );
 
         let text = TimelineItem::Text(TextItem {
+            font_binding: None,
             id: "text".into(),
             document: crate::RichTextDocument::plain("text".into()),
             text: "text".into(),

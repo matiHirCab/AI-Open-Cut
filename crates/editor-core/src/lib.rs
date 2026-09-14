@@ -3,6 +3,7 @@ mod assets;
 mod drafts;
 mod error;
 mod evaluated_scene;
+mod fonts;
 mod migrations;
 mod model;
 mod path_policy;
@@ -18,6 +19,7 @@ mod vector;
 
 pub use vector::*;
 
+pub use assets::fonts::FontConfig;
 pub use drafts::EditDraft;
 pub use error::{CoreError, ErrorCode};
 pub use model::*;

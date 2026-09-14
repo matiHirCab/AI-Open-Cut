@@ -371,6 +371,7 @@ fn schema_16_current_and_history_migrate_atomically() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(16);
+    clear_legacy_font_fields(&mut state);
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec(&state).unwrap(),
@@ -430,6 +431,7 @@ fn pre_17_repeaters_and_future_versions_fail_without_rewrite() {
         let state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         let mut bad = state.clone();
         bad["schemaVersion"] = json!(16);
+        clear_legacy_font_fields(&mut bad);
         std::fs::write(
             dir.join("project.json"),
             serde_json::to_vec(if location == "current" { &bad } else { &state }).unwrap(),
@@ -467,6 +469,7 @@ fn pre_17_repeaters_and_future_versions_fail_without_rewrite() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut future = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
+    clear_legacy_font_fields(&mut future);
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec(&future).unwrap(),
@@ -509,6 +512,7 @@ fn hidden_unused_component_repeaters_are_version_gated() {
             .is_ok()
     );
     state["schemaVersion"] = json!(16);
+    clear_legacy_font_fields(&mut state);
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec(&state).unwrap(),
@@ -614,3 +618,8 @@ fn repeater_lifecycle_update_and_unsupported_edits_are_transactional() {
     );
     assert_eq!(redone.revision, duplicate.revision + 2);
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

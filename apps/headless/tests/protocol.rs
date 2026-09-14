@@ -171,9 +171,9 @@ impl Harness {
                 command.env(name, value);
             }
         }
-        if let Some(value) = std::env::var_os("OPENCUT_TEST_FONT_PATH") {
-            command.env("OPENCUT_DEFAULT_FONT_PATH", value);
-        }
+        // Text defaults are embedded; ambient font configuration must not be
+        // required by headless or packaged workflows.
+        command.env_remove("OPENCUT_DEFAULT_FONT_PATH");
         let mut child = command.spawn().unwrap();
         std::io::Write::write_all(&mut child.stdin.take().unwrap(), request.as_bytes()).unwrap();
         child.wait_with_output().unwrap()
@@ -856,9 +856,14 @@ fn canonical_status_requests_negotiate_protocol_version_and_capabilities() {
     let harness = Harness::new();
     let contract = headless_contract();
 
-    for request_name in ["statusDefault", "statusCurrent"] {
+    for request_name in ["statusDefault", "statusCurrent", "statusLayoutCurrent"] {
         let status = result(&harness.request(contract["requests"][request_name].clone()));
         assert_eq!(status["protocolVersion"], contract["version"]);
+        assert_eq!(
+            status["projectSchemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
+        assert_eq!(status["textLayoutVersion"], 2);
         assert_eq!(
             status["subsystems"]["editor"]["capabilities"],
             contract["status"]["editorCapabilities"]
@@ -879,7 +884,11 @@ fn canonical_unsupported_version_and_unknown_field_are_stable_errors() {
     let expected_error = &contract["negotiation"]["unsupportedError"];
     let catalog = error_catalog();
 
-    for request_name in ["statusUnsupported", "statusUnknownField"] {
+    for request_name in [
+        "statusUnsupported",
+        "statusUnknownField",
+        "statusLayoutUnsupported",
+    ] {
         let output = harness.request(contract["requests"][request_name].clone());
         assert!(!output.status.success());
         let error = event(&output)["error"].clone();

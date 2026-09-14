@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "contract": "text-layout-v2",
+  "schemaVersion": 19,
+  "profile": "opencut-text-v2",
+  "capability": "content_addressed_text_layout_v2",
+  "activation": "runtime",
+  "operations": ["add_text", "update_item"],
+  "fontFields": ["sha256", "relativePath", "sizeBytes", "faceIndex"],
+  "bindingFields": ["profile", "regular", "bold", "italic", "boldItalic", "warnings"],
+  "limits": {"fontBytes": 16777216, "fontFiles": 256, "totalFontBytes": 268435456, "candidatesPerRoot": 4096, "directoryDepth": 8, "glyphs": 16384, "lines": 4096},
+  "shaping": {"rustybuzz": "0.20.1", "unicodeBidi": "0.3.18", "unicodeScript": "0.5.8", "unicodeLinebreak": "0.1.5", "language": "und", "missingGlyph": 0, "normalization": "none", "faceIndex": 0},
+  "defaultFamily": {
+    "release": "DejaVu Sans 2.37",
+    "source": "https://github.com/dejavu-fonts/dejavu-fonts/releases/tag/version_2_37",
+    "regular": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
+    "bold": "e6476c1b80502924294eed40894c5b18e06c181444ca953e5334262df9c27724",
+    "italic": "4af75fa16ee6d3ad43e1ecec41862c24954af26a55c6bb1ebb27bd486a50f5f4",
+    "boldItalic": "eb436dca0c2594b73d8b603b892e374fdfd8d885d25ffb4f18df4c4c0b49e50f"
+  },
+  "valid": [
+    {"id": "empty-project", "fonts": {}},
+    {"id": "regular-face", "font": {"sha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954", "relativePath": "fonts/7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954.font", "sizeBytes": 757076, "faceIndex": 0}}
+  ],
+  "invalid": [
+    {"id": "future-profile", "field": "profile", "value": "opencut-text-v3", "error": "INVALID_ARGUMENT"},
+    {"id": "font-collection-index", "field": "faceIndex", "value": 1, "error": "INVALID_ARGUMENT"},
+    {"id": "unsafe-managed-path", "field": "relativePath", "value": "../font.ttf", "error": "PATH_NOT_ALLOWED"},
+    {"id": "network-selector", "field": "fontPath", "value": "https://example.invalid/font.ttf", "error": "PATH_NOT_ALLOWED"},
+    {"id": "font-overflow", "field": "sizeBytes", "value": 16777217, "error": "INVALID_ARGUMENT"},
+    {"id": "stale-revision", "error": "REVISION_CONFLICT"},
+    {"id": "missing-item", "error": "ITEM_NOT_FOUND"},
+    {"id": "missing-face", "error": "ASSET_INTEGRITY_FAILED"},
+    {"id": "changed-face", "error": "ASSET_INTEGRITY_FAILED"},
+    {"id": "missing-style", "error": "DEPENDENCY_UNAVAILABLE"}
+  ],
+  "migration": {"from": 18, "to": 19, "preserve": ["ids", "revisions", "documents", "history", "draftOperations", "media", "provenance"], "layoutTransition": "legacy-to-opencut-text-v2", "downgrade": false}
+}

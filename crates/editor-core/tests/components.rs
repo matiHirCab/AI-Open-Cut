@@ -598,6 +598,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut project = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         project["schemaVersion"] = version.clone();
+        clear_legacy_font_fields(&mut project);
         project.as_object_mut().unwrap().remove("components");
         let snapshots = |key: &str| {
             catalog()["migration"][key]
@@ -607,6 +608,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
                 .map(|v| {
                     let mut s = project.clone();
                     s["schemaVersion"] = v.clone();
+                    clear_legacy_font_fields(&mut s);
                     s
                 })
                 .collect::<Vec<_>>()
@@ -658,6 +660,7 @@ fn invalid_current_and_retained_components_never_rewrite() {
         for version in [0, 12, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = original.clone();
             bad["schemaVersion"] = json!(version);
+            clear_legacy_font_fields(&mut bad);
             if version == 12 {
                 let mut def = catalog()["definition"].clone();
                 def["durationMs"] = json!(0);
@@ -791,6 +794,8 @@ fn canonical_component_item_validation_is_atomic_at_every_core_boundary() {
         let original = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         let mut bad = original.clone();
         bad["components"][0]["tracks"] = value["tracks"].clone();
+        bad["schemaVersion"] = json!(18);
+        clear_legacy_font_fields(&mut bad);
         let project: Project = serde_json::from_value(bad.clone()).unwrap();
         let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);
         let output = root.path().join("uncreated-render-dir");
@@ -890,3 +895,8 @@ fn typed_nonfinite_component_caption_confidence_is_rejected() {
         }
     }
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

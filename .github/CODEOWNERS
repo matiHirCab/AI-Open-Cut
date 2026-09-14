@@ -1,6 +1,14 @@
 # Cross-language public contract owners. Keep this list synchronized with
 # contracts/contract-ownership-v1.json.
 /contracts/ @matiHirCab
+/crates/editor-core/src/model/font.rs @matiHirCab
+/crates/editor-core/src/fonts.rs @matiHirCab
+/crates/editor-core/src/fonts/ @matiHirCab
+/crates/editor-core/src/assets/fonts.rs @matiHirCab
+/crates/editor-core/tests/font_resolution.rs @matiHirCab
+/apps/agent-bridge/src/text-layout.ts @matiHirCab
+/apps/agent-bridge/tests/text-layout.test.ts @matiHirCab
+/docs/text-layout.md @matiHirCab
 /apps/headless/src/main.rs @matiHirCab
 /apps/headless/tests/protocol.rs @matiHirCab
 /crates/editor-core/src/error.rs @matiHirCab

@@ -6,6 +6,11 @@ import {
 } from "./repeaters";
 import { shapeFields, shapeGeometrySchema } from "./shape-items";
 import { svgDocumentSchema } from "./svg-ingestion";
+import {
+  fontBindingSchema,
+  fontCatalogSchema,
+  fontStepsSchema,
+} from "./text-layout";
 import { paintSchema, strokeSchema } from "./vector-primitives";
 
 const id = z.string().min(1).max(128);
@@ -225,6 +230,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
+    projectSchemaVersion: z.literal(19).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     subsystems: z
@@ -283,6 +289,7 @@ export const statusSchema = z
           .strict(),
       })
       .strict(),
+    textLayoutVersion: z.literal(2).optional(),
     version: z.string(),
   })
   .strict();
@@ -700,6 +707,7 @@ const textItemSchema = z
     color: z.string(),
     document: z.lazy(() => richTextDocumentSchema),
     durationMs: positiveMilliseconds,
+    fontBinding: fontBindingSchema,
     fontFamily: z.string().nullable(),
     fontPath: z.string().nullable(),
     fontSize: z.int().positive(),
@@ -1130,6 +1138,7 @@ export const componentTrackSchema = z
             mediaItemSchema,
             textItemSchema.extend({
               document: richTextDocumentSchema.optional(),
+              fontBinding: fontBindingSchema.optional(),
               fontFamily: z.string().nullable().default(null),
               fontPath: z.string().nullable().default(null),
               style: textStyleSchema.default(DEFAULT_TEXT_STYLE),
@@ -1274,10 +1283,11 @@ export const projectStateSchema = z
         ),
         components: z.array(componentDefinitionSchema).max(512),
         createdAtMs: milliseconds,
+        fonts: fontCatalogSchema,
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(18),
+        schemaVersion: z.literal(19),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1680,12 +1690,14 @@ export const editDraftSchema = z
   .object({
     baseRevision: z.int().nonnegative(),
     createdAtMs: milliseconds,
+    fontCatalog: fontCatalogSchema,
+    fontSteps: fontStepsSchema,
     id,
     label: z.string().nullable(),
     operations: z.array(headlessEditSchema).min(1).max(100),
     projectId: id,
     updatedAtMs: milliseconds,
-    version: z.literal(1),
+    version: z.literal(2),
   })
   .strict();
 
@@ -1747,7 +1759,10 @@ export const schemas = {
     })
     .strict(),
   editorGetStatus: z
-    .object({ protocolVersion: z.literal(1).optional() })
+    .object({
+      protocolVersion: z.literal(1).optional(),
+      textLayoutVersion: z.literal(2).optional(),
+    })
     .strict(),
   groupUngroup: projectRevisionSchema.extend({ groupId: id }).strict(),
   itemReorder: projectRevisionSchema

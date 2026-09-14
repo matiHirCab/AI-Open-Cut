@@ -26,6 +26,8 @@ enum Request {
     Status {
         #[serde(default)]
         protocol_version: Option<u32>,
+        #[serde(default)]
+        text_layout_version: Option<u32>,
     },
     ListProjects {},
     CreateProject {
@@ -204,6 +206,8 @@ struct HeadlessSubsystems {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Status {
+    project_schema_version: u32,
+    text_layout_version: u32,
     ready: bool,
     version: &'static str,
     protocol_version: u32,
@@ -250,8 +254,17 @@ fn run() -> Result<(), CoreError> {
         )
     })?;
     match request {
-        Request::Status { protocol_version } => {
+        Request::Status {
+            protocol_version,
+            text_layout_version,
+        } => {
             negotiate_protocol_version(protocol_version)?;
+            if text_layout_version.is_some_and(|version| version != 2) {
+                return Err(CoreError::new(
+                    opencut_editor_core::ErrorCode::InvalidArgument,
+                    "unsupported text layout contract version",
+                ));
+            }
             emit_value(status(&renderer))
         }
         Request::ListProjects {} => emit_value(core.list_projects()?),
@@ -628,7 +641,10 @@ fn configured_services() -> Result<(EditorCore, Renderer), CoreError> {
         .map(|value| env::split_paths(&value).collect::<Vec<_>>())
         .unwrap_or_default();
     Ok((
-        EditorCore::new(policy),
+        EditorCore::new(policy).with_font_config(opencut_editor_core::FontConfig {
+            roots: font_roots.clone(),
+            default_path: env::var_os("OPENCUT_DEFAULT_FONT_PATH").map(PathBuf::from),
+        }),
         Renderer::new(ffmpeg, ffprobe, font).with_font_roots(font_roots),
     ))
 }
@@ -680,6 +696,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "grid_items",
         "repeater_items",
         "rich_text_documents",
+        "content_addressed_text_layout_v2",
     ]
 }
 
@@ -734,6 +751,8 @@ fn status(renderer: &Renderer) -> Status {
     let mut capabilities = editor_capabilities();
     capabilities.extend(rendering.capabilities.iter().copied());
     Status {
+        project_schema_version: opencut_editor_core::PROJECT_SCHEMA_VERSION,
+        text_layout_version: 2,
         ready: true,
         version: env!("CARGO_PKG_VERSION"),
         protocol_version: HEADLESS_PROTOCOL_VERSION,

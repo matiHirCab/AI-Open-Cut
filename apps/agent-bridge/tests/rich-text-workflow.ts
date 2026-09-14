@@ -2,7 +2,9 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import CATALOG from "../../../contracts/rich-text-documents-v1.json";
+import LAYOUT from "../../../contracts/text-layout-v2.json";
 import {
+  editDraftSchema,
   projectStateSchema,
   statusSchema,
   writeResultSchema,
@@ -17,6 +19,8 @@ type Call = <Output>(
 export async function verifyRichTextWorkflow(client: Client, call: Call) {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.capabilities).toContain(CATALOG.capability);
+  expect(status.capabilities).toContain(LAYOUT.capability);
+  expect(status.textLayoutVersion).toBe(2);
   const created = await call(
     "project_create",
     { name: "Rich text smoke" },
@@ -46,7 +50,16 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
   );
   const [itemId] = added.changedIds;
   const saved = await read();
-  expect(saved.project.schemaVersion).toBe(CATALOG.schemaVersion);
+  expect(saved.project.schemaVersion).toBe(19);
+  expect(Object.keys(saved.project.fonts)).toHaveLength(4);
+  expect(Object.keys(saved.project.fonts).sort()).toEqual(
+    [
+      LAYOUT.defaultFamily.regular,
+      LAYOUT.defaultFamily.bold,
+      LAYOUT.defaultFamily.italic,
+      LAYOUT.defaultFamily.boldItalic,
+    ].sort()
+  );
   expect(
     saved.project.tracks.flatMap((t) => t.items).find((i) => i.id === itemId)
   ).toMatchObject({ document, text: CATALOG.valid[1]?.text });
@@ -106,4 +119,27 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
       }),
     ])
   );
+  const draft = await call(
+    "draft_create",
+    {
+      expectedRevision: final.project.revision,
+      operations: [{ itemId, operation: "update_item", text: "Draft AV ffi" }],
+      projectId,
+    },
+    editDraftSchema
+  );
+  expect(draft.version).toBe(2);
+  expect(Object.keys(draft.fontCatalog).sort()).toEqual(
+    Object.keys(saved.project.fonts).sort()
+  );
+  expect(
+    await call("draft_get", { draftId: draft.id, projectId }, editDraftSchema)
+  ).toEqual(draft);
+  expect(await read()).toEqual(final);
+  await call(
+    "draft_commit",
+    { draftId: draft.id, expectedRevision: final.project.revision, projectId },
+    writeResultSchema
+  );
+  expect((await read()).project.fonts).toEqual(final.project.fonts);
 }

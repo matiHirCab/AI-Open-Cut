@@ -33,12 +33,13 @@ export const registerProjectTools = (
       inputSchema: schemas.editorGetStatus,
       outputSchema: statusSchema,
     },
-    async ({ protocolVersion }) => {
+    async ({ protocolVersion, textLayoutVersion }) => {
       try {
         const status = await headless.call(
           {
             operation: "status",
             ...(protocolVersion === undefined ? {} : { protocolVersion }),
+            ...(textLayoutVersion === undefined ? {} : { textLayoutVersion }),
           },
           headlessStatusSchema
         );

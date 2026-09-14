@@ -277,6 +277,23 @@
         "apps/agent-bridge/tests/rich-text-documents.test.ts",
         "docs/rich-text-documents.md"
       ]
+    },
+    "textLayout": {
+      "canonical": "contracts/text-layout-v2.json",
+      "consumers": [
+        "crates/editor-core/src/model/font.rs",
+        "crates/editor-core/src/fonts.rs",
+        "crates/editor-core/src/assets/fonts.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/tests/font_resolution.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/text-layout.test.ts",
+        "apps/agent-bridge/src/text-layout.ts",
+        "docs/text-layout.md"
+      ]
     }
   }
 }

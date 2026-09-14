@@ -1,3 +1,4 @@
+use opencut_editor_core::PROJECT_SCHEMA_VERSION;
 use opencut_editor_core::{
     BatchEditOperation, EditOperation, EditorCore, ErrorCode, PathPolicy, Project, ProjectSettings,
 };
@@ -61,7 +62,7 @@ fn canonical_documents_and_limits_preserve_unicode_and_reject_invalid_input() {
     .unwrap();
     assert_eq!(
         catalog["schemaVersion"],
-        opencut_editor_core::PROJECT_SCHEMA_VERSION
+        18 // Historical document activation version; font activation is schema 19.
     );
     for fixture in catalog["valid"].as_array().unwrap() {
         let created = edit(&core, &id, add(&track, fixture["document"].clone())).unwrap();
@@ -183,6 +184,7 @@ fn edits_preserve_projection_aliases_history_and_atomic_failures() {
 
 fn legacy(project: &mut Value, version: u32) {
     project["schemaVersion"] = json!(version);
+    clear_legacy_font_fields(project);
     for track in project["tracks"].as_array_mut().unwrap() {
         for item in track["items"].as_array_mut().unwrap() {
             if item["type"] == "text" {
@@ -230,7 +232,10 @@ fn migration_upgrades_current_and_both_history_stacks_without_rewriting_reopen()
     )
     .unwrap();
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 18);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         item(&core, &id, item_id)["document"],
         json!({"runs":[{"text":"old é\n"}]})
@@ -239,7 +244,7 @@ fn migration_upgrades_current_and_both_history_stacks_without_rewriting_reopen()
     let retained: Value = serde_json::from_slice(&first.1).unwrap();
     for key in ["undo", "redo"] {
         for snapshot in retained[key].as_array().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 18);
+            assert_eq!(snapshot["schemaVersion"], PROJECT_SCHEMA_VERSION);
         }
     }
     core.get_project(&id).unwrap();
@@ -266,7 +271,10 @@ fn persisted_current_and_retained_documents_fail_closed() {
                         .remove("document");
                 }
                 "mismatch" => invalid["tracks"][1]["items"][0]["text"] = json!("other"),
-                _ => invalid["schemaVersion"] = json!(19),
+                _ => {
+                    invalid["schemaVersion"] =
+                        json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1)
+                }
             }
             if failure == "old-document" || failure == "missing-document" {
                 assert!(serde_json::from_value::<Project>(invalid.clone()).is_err());
@@ -408,7 +416,10 @@ fn every_supported_source_version_preserves_simple_text() {
             serde_json::to_vec(&json!({"undo":[old],"redo":[]})).unwrap(),
         )
         .unwrap();
-        assert_eq!(core.get_project(&id).unwrap().schema_version, 18);
+        assert_eq!(
+            core.get_project(&id).unwrap().schema_version,
+            PROJECT_SCHEMA_VERSION
+        );
         assert_eq!(
             item(&core, &id, &created.changed_ids[0])["document"],
             json!({"runs":[{"text":" é 👋\n"}]})
@@ -441,3 +452,8 @@ fn legacy_component_text_requests_remain_compatible_with_strict_persistence() {
         .remove("document");
     assert!(serde_json::from_value::<Project>(invalid).is_err());
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

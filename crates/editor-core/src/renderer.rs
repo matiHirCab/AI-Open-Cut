@@ -14,7 +14,7 @@ use crate::{
     },
     render_artifact::{
         ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, MeasuredText, PreparedMediaResources,
-        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers,
+        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers_with_fonts,
         prepare_media_resources, prepare_render_resources, publish_output_with, temporary_output,
         write_filter_script,
     },
@@ -26,7 +26,8 @@ use crate::{
 
 #[cfg(test)]
 use crate::render_artifact::{
-    PUBLISH_STAGE, media_input_requests, wrap_text, wrap_text_with_measure,
+    PUBLISH_STAGE, measure_evaluated_text_layers, media_input_requests, wrap_text,
+    wrap_text_with_measure,
 };
 #[cfg(test)]
 use crate::render_plan::{
@@ -310,14 +311,22 @@ impl Renderer {
         media: PreparedMediaResources,
     ) -> Result<RenderPreflight, CoreError> {
         let mut warnings = Vec::new();
-        let mut measured = measure_evaluated_text_layers(
+        let mut measured = measure_evaluated_text_layers_with_fonts(
             self.artifact_io.as_ref(),
             evaluated,
             self.default_font_path.as_deref(),
             &self.font_roots,
             &mut warnings,
+            &media.font_faces,
         )?;
         let mut finalized = evaluated.scene.clone();
+        for layer in &mut finalized.visual_layers {
+            if let EvaluatedVisualSource::Text(text) = &mut layer.source {
+                text.shaped = measured
+                    .get(&layer.item_id)
+                    .and_then(|m| m.shaped.as_ref().map(|(s, _)| s.clone()));
+            }
+        }
         let mut measurements: HashMap<String, (u32, u32)> = measured
             .iter()
             .map(|(id, text)| {
@@ -415,8 +424,13 @@ impl Renderer {
             mut warnings,
         } = preflight;
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
-        let mut resources =
-            prepare_render_resources(self.artifact_io.as_ref(), media, workspace.path(), measured)?;
+        let mut resources = prepare_render_resources(
+            self.artifact_io.as_ref(),
+            media,
+            workspace.path(),
+            measured,
+            finalized.duration_ms,
+        )?;
         crate::render_artifact::prepare_shape_resources(
             self.artifact_io.as_ref(),
             &finalized,
@@ -473,8 +487,7 @@ mod tests {
     use super::*;
     use crate::{
         CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaItem, MediaType,
-        PROJECT_SCHEMA_VERSION, ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType,
-        Transform,
+        ProjectSettings, SolidColorItem, TimelineItem, Track, TrackType, Transform,
         render_artifact::{ArtifactEntryKind, artifact, prepare_text_layers, publish_output},
         render_plan::seconds,
         render_process::{build_render_command, run_to_completion},
@@ -490,6 +503,79 @@ mod tests {
         },
     };
     use tempfile::tempdir;
+
+    #[test]
+    fn pinned_glyph_plans_match_across_intents_and_repeated_preparation() {
+        let root = tempdir().unwrap();
+        let core = crate::EditorCore::new(
+            crate::PathPolicy::new(
+                root.path().join("projects"),
+                [root.path()],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project(
+                "Pinned plans",
+                ProjectSettings {
+                    width: 320,
+                    height: 180,
+                    fps: 10,
+                },
+            )
+            .unwrap()
+            .project_id;
+        let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+        let operations: [crate::EditOperation; 3] = ["AV", "ffi", "אבג"].map(|text| serde_json::from_value(serde_json::json!({"operation":"add_text","trackId":track,"text":text,"fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap());
+        core.edit_batch(&id, 0, operations.into()).unwrap();
+        let project = core.get_project(&id).unwrap();
+        let dir = core.project_directory(&id).unwrap();
+        let renderer = Renderer::new("unused-ffmpeg", "unused-ffprobe", None).with_adapters(
+            Arc::new(FakeProcess {
+                readiness_error: false,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(Vec::new()),
+            }),
+            Arc::new(FileSystemArtifactIo),
+        );
+        let mut expected = None;
+        for intent in [
+            RenderIntent::Frame { at_ms: 0 },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 1000,
+                include_audio: false,
+            },
+            RenderIntent::Export,
+            RenderIntent::Frame { at_ms: 500 },
+        ] {
+            let evaluated = evaluate_project(&project, 320, 180, 10).unwrap();
+            let media =
+                prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, &dir).unwrap();
+            let built = renderer
+                .prepare_render(&evaluated, media, &dir, intent)
+                .unwrap();
+            assert!(!built.plan.filter_graph.contains("drawtext"));
+            assert!(
+                built
+                    .plan
+                    .media_inputs
+                    .windows(2)
+                    .all(|pair| pair[0].item_id < pair[1].item_id)
+            );
+            let semantic = (
+                built.plan.filter_graph.clone(),
+                built.plan.media_inputs.clone(),
+            );
+            if let Some(expected) = &expected {
+                assert_eq!(&semantic, expected);
+            } else {
+                expected = Some(semantic);
+            }
+        }
+    }
 
     #[derive(Clone, Copy, Debug)]
     enum FakeRunFailure {
@@ -777,8 +863,9 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "Project".into(),
@@ -1580,6 +1667,7 @@ mod tests {
             project.tracks[0]
                 .items
                 .push(TimelineItem::Text(crate::TextItem {
+                    font_binding: None,
                     id: "text".into(),
                     document: crate::RichTextDocument::plain("artifact adapter".into()),
                     text: "artifact adapter".into(),
@@ -1853,8 +1941,9 @@ mod tests {
             easing,
         };
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "voiceover-activity".into(),
             revision: 0,
             name: "voiceover activity".into(),
@@ -1954,8 +2043,9 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "text scale".into(),
@@ -1973,6 +2063,7 @@ mod tests {
                 audio_role: crate::AudioTrackRole::Unassigned,
                 ducking: None,
                 items: vec![TimelineItem::Text(crate::TextItem {
+                    font_binding: None,
                     id: "text".into(),
                     document: crate::RichTextDocument::plain("Styled\ntext".into()),
                     text: "Styled\ntext".into(),
@@ -2162,8 +2253,9 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "cleanup".into(),
@@ -2181,6 +2273,7 @@ mod tests {
                 audio_role: crate::AudioTrackRole::Unassigned,
                 ducking: None,
                 items: vec![TimelineItem::Text(crate::TextItem {
+                    font_binding: None,
                     id: "missing/parent".into(),
                     document: crate::RichTextDocument::plain("failure".into()),
                     text: "failure".into(),
@@ -2234,8 +2327,9 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "test".into(),
@@ -2312,8 +2406,9 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "renderer-consistency".into(),
             revision: 7,
             name: "renderer consistency".into(),
@@ -2362,6 +2457,7 @@ mod tests {
                             keyframes: vec![],
                         }),
                         TimelineItem::Text(crate::TextItem {
+                            font_binding: None,
                             id: "animated-text".into(),
                             document: crate::RichTextDocument::plain("café →\nWWWW iiii".into()),
                             text: "café →\nWWWW iiii".into(),
@@ -2563,8 +2659,9 @@ mod tests {
             ],
         };
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "unsplit".into(),
             revision: 0,
             name: "unsplit".into(),
@@ -2870,8 +2967,9 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "captions".into(),
@@ -2953,6 +3051,7 @@ mod tests {
                     .transform2d = Some(crate::Transform2D::default());
             } else {
                 project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
+                    font_binding: None,
                     id: "text".into(),
                     document: crate::RichTextDocument::plain("W".repeat(100)),
                     text: "W".repeat(100),
@@ -3117,6 +3216,7 @@ mod tests {
         );
         let mut project = visual_project();
         project.tracks[0].items = vec![TimelineItem::Text(crate::TextItem {
+            font_binding: None,
             id: "font-test".into(),
             document: crate::RichTextDocument::plain("WWiii".into()),
             text: "WWiii".into(),

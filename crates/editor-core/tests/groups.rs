@@ -192,6 +192,7 @@ fn canonical_graph_failures_are_rejected_on_open_without_publication() {
         assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), history);
         let mut legacy = state.clone();
         legacy["schemaVersion"] = json!(9);
+        clear_legacy_font_fields(&mut legacy);
         legacy["tracks"][1]["items"] = json!([]);
         let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
         let retained = serde_json::to_vec(&json!({"undo":[state],"redo":[]})).unwrap();
@@ -404,8 +405,10 @@ fn migration_preserves_every_supported_history_and_rejects_bad_graphs_atomically
         let dir = core.paths().project_dir(&id).unwrap();
         let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         state["schemaVersion"] = json!(version);
+        clear_legacy_font_fields(&mut state);
         let mut oldest = state.clone();
         oldest["schemaVersion"] = json!(1);
+        clear_legacy_font_fields(&mut oldest);
         std::fs::write(
             dir.join("project.json"),
             serde_json::to_vec(&state).unwrap(),
@@ -908,6 +911,7 @@ fn native_identity_parent_preserves_every_styled_text_anchor() {
             p.tracks[1].items=serde_json::from_value(json!([
                 {"type":"text","id":"text","text":"ANCHOR","document":{"runs":[{"text":"ANCHOR"}]},"fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"stackOrder":0,"style":{"anchor":anchor,"padding":{"left":2,"right":4,"top":2,"bottom":4},"outlineWidthPx":1,"outlineColor":"#224466"},"transform":{"positionX":160,"positionY":90,"scale":1.25,"opacity":1},"keyframes":keys}
             ])).unwrap();
+            p.schema_version = 18; // Historical unbound anchor baseline.
             let legacy = renderer.render_preview(&p, &dir, 500).unwrap();
             let expected = bounds(&dir.join(legacy.relative_path));
             p.tracks[1].items[0].visual_properties_mut().parent =
@@ -1552,3 +1556,8 @@ fn batch_alias_presence_preserves_other_operations_and_duplicate_rejection() {
         }
     }
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

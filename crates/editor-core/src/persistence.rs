@@ -21,6 +21,8 @@ pub(crate) const DRAFT_CLEANUP_FAILED: &str = "DRAFT_CLEANUP_FAILED";
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ProjectTransaction {
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub(crate) draft_updates: std::collections::BTreeMap<String, Vec<u8>>,
     pub(crate) version: u32,
     pub(crate) project: Project,
     pub(crate) history: History,
@@ -29,10 +31,13 @@ pub(crate) struct ProjectTransaction {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PersistencePhase {
+    BeforeFontPublish,
+    AfterFontPublish,
     BeforeJournal,
     AfterJournal,
     AfterProject,
     AfterHistory,
+    AfterDraftUpdates,
     AfterDraftCleanup,
     AfterJournalCleanup,
     GarbageCollection,
@@ -251,8 +256,32 @@ pub(crate) fn persist_transaction(
     history: &History,
     committed_draft_id: Option<&str>,
 ) -> Result<Vec<String>, CoreError> {
+    persist_transaction_with_drafts(
+        storage,
+        faults,
+        dir,
+        project,
+        history,
+        committed_draft_id,
+        Default::default(),
+    )
+}
+
+pub(crate) fn persist_transaction_with_drafts(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+    project: &Project,
+    history: &History,
+    committed_draft_id: Option<&str>,
+    draft_updates: std::collections::BTreeMap<String, Vec<u8>>,
+) -> Result<Vec<String>, CoreError> {
+    for id in draft_updates.keys() {
+        draft_path(dir, id)?;
+    }
     faults.checkpoint(PersistencePhase::BeforeJournal)?;
     let transaction = ProjectTransaction {
+        draft_updates,
         version: TRANSACTION_VERSION,
         project: project.clone(),
         history: history.clone(),
@@ -278,6 +307,10 @@ pub(crate) fn persist_transaction(
         return Ok(warnings);
     }
 
+    if publish_draft_updates(storage, faults, dir, &transaction).is_err() {
+        warnings.push(PERSISTENCE_RECOVERY_PENDING.into());
+        return Ok(warnings);
+    }
     if let Some(draft_id) = transaction.committed_draft_id.as_deref()
         && remove_file_if_exists(storage, &draft_path(dir, draft_id)?).is_err()
     {
@@ -376,7 +409,9 @@ fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<
                 "transaction history contains a different project identity",
             ));
         }
-        if snapshot.schema_version != PROJECT_SCHEMA_VERSION {
+        // Replay a supported older binary's committed generation before the
+        // store performs its normal atomic migration to the current schema.
+        if !(1..=PROJECT_SCHEMA_VERSION).contains(&snapshot.schema_version) {
             return Err(recovery_error(format!(
                 "transaction contains unsupported project schema version {}",
                 snapshot.schema_version
@@ -387,7 +422,24 @@ fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<
         draft_path(dir, draft_id)
             .map_err(|_| recovery_error("transaction contains an invalid draft identifier"))?;
     }
+    for id in transaction.draft_updates.keys() {
+        draft_path(dir, id).map_err(as_recovery_error)?;
+    }
     Ok(())
+}
+
+fn publish_draft_updates(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+    transaction: &ProjectTransaction,
+) -> Result<(), CoreError> {
+    for (id, bytes) in &transaction.draft_updates {
+        storage
+            .atomic_replace(&draft_path(dir, id)?, bytes)
+            .map_err(|e| CoreError::io("cannot publish migrated draft", e))?;
+    }
+    faults.checkpoint(PersistencePhase::AfterDraftUpdates)
 }
 
 fn replay_transaction(
@@ -409,6 +461,7 @@ fn replay_transaction(
     faults
         .checkpoint(PersistencePhase::AfterHistory)
         .map_err(as_recovery_error)?;
+    publish_draft_updates(storage, faults, dir, transaction).map_err(as_recovery_error)?;
     if let Some(draft_id) = transaction.committed_draft_id.as_deref() {
         remove_file_if_exists(storage, &draft_path(dir, draft_id)?).map_err(as_recovery_error)?;
     }

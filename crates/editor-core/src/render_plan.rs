@@ -922,7 +922,12 @@ fn append_affine_layer(
             let prepared = text_layers
                 .get(&layer.item_id)
                 .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing affine text"))?;
-            if let Some(runs) = &prepared.rich_runs {
+            if text.shaped.is_some() {
+                let input = input_indexes.get(layer.item_id.as_str()).ok_or_else(|| {
+                    CoreError::new(ErrorCode::InternalError, "missing shaped glyph input")
+                })?;
+                format!("[{input}:v]fps={fps},setpts=PTS-STARTPTS,format=rgba")
+            } else if let Some(runs) = &prepared.rich_runs {
                 let mut source = format!(
                     "color=c={}@{}:s={sw}x{sh}:r={fps}:d={duration},format=rgba",
                     text.style.background_color, text.style.background_opacity
@@ -1222,16 +1227,17 @@ fn precise_ducking(settings: Option<&EvaluatedDucking>, intervals: &[(f64, f64)]
 mod tests {
     use super::*;
     use crate::{
-        Asset, AudioSettings, AudioTrackRole, DuckingSettings, MediaItem, PROJECT_SCHEMA_VERSION,
-        ProjectSettings, RectangleItem, SolidColorItem, TextItem, TextStyle, Track, TrackType,
-        Transform, TransitionItem, TransitionType, evaluated_scene::evaluate_project,
+        Asset, AudioSettings, AudioTrackRole, DuckingSettings, MediaItem, ProjectSettings,
+        RectangleItem, SolidColorItem, TextItem, TextStyle, Track, TrackType, Transform,
+        TransitionItem, TransitionType, evaluated_scene::evaluate_project,
         render_artifact::media_input_requests,
     };
 
     fn empty_project() -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 0,
             name: "Project".into(),
@@ -1376,6 +1382,7 @@ mod tests {
                     keyframes: vec![],
                 }),
                 TimelineItem::Text(TextItem {
+                    font_binding: None,
                     id: "title".into(),
                     document: crate::RichTextDocument::plain("Title".into()),
                     text: "Title".into(),
@@ -1525,6 +1532,7 @@ mod tests {
                         }],
                     }),
                     TimelineItem::Text(TextItem {
+                        font_binding: None,
                         id: "title".into(),
                         document: crate::RichTextDocument::plain("Evaluated title".into()),
                         text: "Evaluated title".into(),
