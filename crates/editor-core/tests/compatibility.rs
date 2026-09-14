@@ -45,6 +45,8 @@ fn facade_and_persisted_shapes_survive_module_extraction() {
         [
             "baseRevision",
             "createdAtMs",
+            "fontCatalog",
+            "fontSteps",
             "id",
             "label",
             "operations",

@@ -39,6 +39,8 @@
     "update_draft"
   ],
   "requests": {
+    "statusLayoutCurrent": {"operation": "status", "textLayoutVersion": 2},
+    "statusLayoutUnsupported": {"operation": "status", "textLayoutVersion": 3},
     "statusDefault": {
       "operation": "status"
     },
@@ -65,6 +67,8 @@
       "ready",
       "version",
       "protocolVersion",
+      "projectSchemaVersion",
+      "textLayoutVersion",
       "capabilities",
       "subsystems"
     ],
@@ -92,7 +96,7 @@
       "shape_items",
       "svg_items",
       "grid_items"
-      ,"repeater_items", "rich_text_documents"
+      ,"repeater_items", "rich_text_documents", "content_addressed_text_layout_v2"
     ],
     "renderingCapabilities": [
       "preview",

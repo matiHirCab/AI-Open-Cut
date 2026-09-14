@@ -10,7 +10,8 @@
     "grid_rendering",
     "repeater_items",
     "repeater_rendering",
-    "rich_text_documents"
+    "rich_text_documents",
+    "content_addressed_text_layout_v2"
   ],
   "prompts": [
     "add_narration",
@@ -2372,6 +2373,48 @@
                             "exclusiveMinimum": 0,
                             "maximum": 9007199254740991,
                             "type": "integer"
+                          },
+                          "fontBinding": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "boldItalic": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "profile": {
+                                "const": "opencut-text-v2",
+                                "type": "string"
+                              },
+                              "regular": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "items": {
+                                  "maxLength": 512,
+                                  "type": "string"
+                                },
+                                "maxItems": 2,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "bold",
+                              "boldItalic",
+                              "italic",
+                              "profile",
+                              "regular",
+                              "warnings"
+                            ],
+                            "type": "object"
                           },
                           "fontFamily": {
                             "anyOf": [
@@ -11267,6 +11310,48 @@
                             "exclusiveMinimum": 0,
                             "maximum": 9007199254740991,
                             "type": "integer"
+                          },
+                          "fontBinding": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "bold": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "boldItalic": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "italic": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "profile": {
+                                "const": "opencut-text-v2",
+                                "type": "string"
+                              },
+                              "regular": {
+                                "pattern": "^[0-9a-f]{64}$",
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "items": {
+                                  "maxLength": 512,
+                                  "type": "string"
+                                },
+                                "maxItems": 2,
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "bold",
+                              "boldItalic",
+                              "italic",
+                              "profile",
+                              "regular",
+                              "warnings"
+                            ],
+                            "type": "object"
                           },
                           "fontFamily": {
                             "anyOf": [
@@ -20382,6 +20467,48 @@
                                       "maximum": 9007199254740991,
                                       "type": "integer"
                                     },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "fontFamily": {
                                       "anyOf": [
                                         {
@@ -28097,6 +28224,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -41650,6 +41819,92 @@
             "minimum": 0,
             "type": "integer"
           },
+          "fontCatalog": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "faceIndex": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "relativePath": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 16777216,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "faceIndex",
+                "relativePath",
+                "sha256",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fontSteps": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "bold": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "boldItalic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "italic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "profile": {
+                    "const": "opencut-text-v2",
+                    "type": "string"
+                  },
+                  "regular": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "warnings": {
+                    "items": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "bold",
+                  "boldItalic",
+                  "italic",
+                  "profile",
+                  "regular",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
           "id": {
             "maxLength": 128,
             "minLength": 1,
@@ -44341,6 +44596,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -52138,6 +52435,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -65793,13 +66132,15 @@
             "type": "integer"
           },
           "version": {
-            "const": 1,
+            "const": 2,
             "type": "number"
           }
         },
         "required": [
           "baseRevision",
           "createdAtMs",
+          "fontCatalog",
+          "fontSteps",
           "id",
           "label",
           "operations",
@@ -65852,6 +66193,92 @@
             "minimum": 0,
             "type": "integer"
           },
+          "fontCatalog": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "faceIndex": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "relativePath": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 16777216,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "faceIndex",
+                "relativePath",
+                "sha256",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fontSteps": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "bold": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "boldItalic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "italic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "profile": {
+                    "const": "opencut-text-v2",
+                    "type": "string"
+                  },
+                  "regular": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "warnings": {
+                    "items": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "bold",
+                  "boldItalic",
+                  "italic",
+                  "profile",
+                  "regular",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
           "id": {
             "maxLength": 128,
             "minLength": 1,
@@ -68543,6 +68970,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -76340,6 +76809,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -89995,13 +90506,15 @@
             "type": "integer"
           },
           "version": {
-            "const": 1,
+            "const": 2,
             "type": "number"
           }
         },
         "required": [
           "baseRevision",
           "createdAtMs",
+          "fontCatalog",
+          "fontSteps",
           "id",
           "label",
           "operations",
@@ -90054,6 +90567,92 @@
             "minimum": 0,
             "type": "integer"
           },
+          "fontCatalog": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "faceIndex": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "relativePath": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 16777216,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "faceIndex",
+                "relativePath",
+                "sha256",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fontSteps": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "bold": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "boldItalic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "italic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "profile": {
+                    "const": "opencut-text-v2",
+                    "type": "string"
+                  },
+                  "regular": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "warnings": {
+                    "items": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "bold",
+                  "boldItalic",
+                  "italic",
+                  "profile",
+                  "regular",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
           "id": {
             "maxLength": 128,
             "minLength": 1,
@@ -92745,6 +93344,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -100542,6 +101183,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -114197,13 +114880,15 @@
             "type": "integer"
           },
           "version": {
-            "const": 1,
+            "const": 2,
             "type": "number"
           }
         },
         "required": [
           "baseRevision",
           "createdAtMs",
+          "fontCatalog",
+          "fontSteps",
           "id",
           "label",
           "operations",
@@ -114859,6 +115544,92 @@
             "minimum": 0,
             "type": "integer"
           },
+          "fontCatalog": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "faceIndex": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "relativePath": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 16777216,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "faceIndex",
+                "relativePath",
+                "sha256",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fontSteps": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "bold": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "boldItalic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "italic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "profile": {
+                    "const": "opencut-text-v2",
+                    "type": "string"
+                  },
+                  "regular": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "warnings": {
+                    "items": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "bold",
+                  "boldItalic",
+                  "italic",
+                  "profile",
+                  "regular",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
           "id": {
             "maxLength": 128,
             "minLength": 1,
@@ -117550,6 +118321,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -125347,6 +126160,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -139002,13 +139857,15 @@
             "type": "integer"
           },
           "version": {
-            "const": 1,
+            "const": 2,
             "type": "number"
           }
         },
         "required": [
           "baseRevision",
           "createdAtMs",
+          "fontCatalog",
+          "fontSteps",
           "id",
           "label",
           "operations",
@@ -141709,6 +142566,48 @@
                                       "maximum": 9007199254740991,
                                       "type": "integer"
                                     },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "fontFamily": {
                                       "anyOf": [
                                         {
@@ -149424,6 +150323,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -162978,6 +163919,92 @@
             "minimum": 0,
             "type": "integer"
           },
+          "fontCatalog": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "faceIndex": {
+                  "const": 0,
+                  "type": "number"
+                },
+                "relativePath": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 16777216,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "faceIndex",
+                "relativePath",
+                "sha256",
+                "sizeBytes"
+              ],
+              "type": "object"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "fontSteps": {
+            "items": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "bold": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "boldItalic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "italic": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "profile": {
+                    "const": "opencut-text-v2",
+                    "type": "string"
+                  },
+                  "regular": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "warnings": {
+                    "items": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "maxItems": 2,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "bold",
+                  "boldItalic",
+                  "italic",
+                  "profile",
+                  "regular",
+                  "warnings"
+                ],
+                "type": "object"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
           "id": {
             "maxLength": 128,
             "minLength": 1,
@@ -165669,6 +166696,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -173466,6 +174535,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -187121,13 +188232,15 @@
             "type": "integer"
           },
           "version": {
-            "const": 1,
+            "const": 2,
             "type": "number"
           }
         },
         "required": [
           "baseRevision",
           "createdAtMs",
+          "fontCatalog",
+          "fontSteps",
           "id",
           "label",
           "operations",
@@ -187151,6 +188264,10 @@
         "properties": {
           "protocolVersion": {
             "const": 1,
+            "type": "number"
+          },
+          "textLayoutVersion": {
+            "const": 2,
             "type": "number"
           }
         },
@@ -187640,6 +188757,10 @@
               "projectsDirectory"
             ],
             "type": "object"
+          },
+          "projectSchemaVersion": {
+            "const": 19,
+            "type": "number"
           },
           "protocolVersion": {
             "const": 1,
@@ -188139,6 +189260,10 @@
               "transcription"
             ],
             "type": "object"
+          },
+          "textLayoutVersion": {
+            "const": 2,
+            "type": "number"
           },
           "version": {
             "type": "string"
@@ -193499,6 +194624,48 @@
                                       "maximum": 9007199254740991,
                                       "type": "integer"
                                     },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "fontFamily": {
                                       "anyOf": [
                                         {
@@ -199860,6 +201027,40 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "fonts": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "faceIndex": {
+                      "const": 0,
+                      "type": "number"
+                    },
+                    "relativePath": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 16777216,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "faceIndex",
+                    "relativePath",
+                    "sha256",
+                    "sizeBytes"
+                  ],
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
               "id": {
                 "maxLength": 128,
                 "minLength": 1,
@@ -199874,7 +201075,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 18,
+                "const": 19,
                 "type": "number"
               },
               "settings": {
@@ -200563,6 +201764,48 @@
                                 "maximum": 9007199254740991,
                                 "type": "integer"
                               },
+                              "fontBinding": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "bold": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "boldItalic": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "italic": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "profile": {
+                                    "const": "opencut-text-v2",
+                                    "type": "string"
+                                  },
+                                  "regular": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "warnings": {
+                                    "items": {
+                                      "maxLength": 512,
+                                      "type": "string"
+                                    },
+                                    "maxItems": 2,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "bold",
+                                  "boldItalic",
+                                  "italic",
+                                  "profile",
+                                  "regular",
+                                  "warnings"
+                                ],
+                                "type": "object"
+                              },
                               "fontFamily": {
                                 "anyOf": [
                                   {
@@ -201050,6 +202293,7 @@
                               "color",
                               "document",
                               "durationMs",
+                              "fontBinding",
                               "fontFamily",
                               "fontPath",
                               "fontSize",
@@ -207531,6 +208775,7 @@
               "assets",
               "components",
               "createdAtMs",
+              "fonts",
               "id",
               "name",
               "revision",
@@ -209367,6 +210612,48 @@
                                       "maximum": 9007199254740991,
                                       "type": "integer"
                                     },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "fontFamily": {
                                       "anyOf": [
                                         {
@@ -215728,6 +217015,40 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "fonts": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "faceIndex": {
+                      "const": 0,
+                      "type": "number"
+                    },
+                    "relativePath": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "pattern": "^[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 16777216,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "faceIndex",
+                    "relativePath",
+                    "sha256",
+                    "sizeBytes"
+                  ],
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
               "id": {
                 "maxLength": 128,
                 "minLength": 1,
@@ -215742,7 +217063,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 18,
+                "const": 19,
                 "type": "number"
               },
               "settings": {
@@ -216431,6 +217752,48 @@
                                 "maximum": 9007199254740991,
                                 "type": "integer"
                               },
+                              "fontBinding": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "bold": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "boldItalic": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "italic": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "profile": {
+                                    "const": "opencut-text-v2",
+                                    "type": "string"
+                                  },
+                                  "regular": {
+                                    "pattern": "^[0-9a-f]{64}$",
+                                    "type": "string"
+                                  },
+                                  "warnings": {
+                                    "items": {
+                                      "maxLength": 512,
+                                      "type": "string"
+                                    },
+                                    "maxItems": 2,
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "bold",
+                                  "boldItalic",
+                                  "italic",
+                                  "profile",
+                                  "regular",
+                                  "warnings"
+                                ],
+                                "type": "object"
+                              },
                               "fontFamily": {
                                 "anyOf": [
                                   {
@@ -216918,6 +218281,7 @@
                               "color",
                               "document",
                               "durationMs",
+                              "fontBinding",
                               "fontFamily",
                               "fontPath",
                               "fontSize",
@@ -223399,6 +224763,7 @@
               "assets",
               "components",
               "createdAtMs",
+              "fonts",
               "id",
               "name",
               "revision",
@@ -233276,6 +234641,48 @@
                                       "maximum": 9007199254740991,
                                       "type": "integer"
                                     },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "fontFamily": {
                                       "anyOf": [
                                         {
@@ -240991,6 +242398,48 @@
                                       "exclusiveMinimum": 0,
                                       "maximum": 9007199254740991,
                                       "type": "integer"
+                                    },
+                                    "fontBinding": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "bold": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "boldItalic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "italic": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "profile": {
+                                          "const": "opencut-text-v2",
+                                          "type": "string"
+                                        },
+                                        "regular": {
+                                          "pattern": "^[0-9a-f]{64}$",
+                                          "type": "string"
+                                        },
+                                        "warnings": {
+                                          "items": {
+                                            "maxLength": 512,
+                                            "type": "string"
+                                          },
+                                          "maxItems": 2,
+                                          "type": "array"
+                                        }
+                                      },
+                                      "required": [
+                                        "bold",
+                                        "boldItalic",
+                                        "italic",
+                                        "profile",
+                                        "regular",
+                                        "warnings"
+                                      ],
+                                      "type": "object"
                                     },
                                     "fontFamily": {
                                       "anyOf": [
@@ -255441,6 +256890,48 @@
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
+                    "fontBinding": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "bold": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "boldItalic": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "italic": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "profile": {
+                          "const": "opencut-text-v2",
+                          "type": "string"
+                        },
+                        "regular": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "warnings": {
+                          "items": {
+                            "maxLength": 512,
+                            "type": "string"
+                          },
+                          "maxItems": 2,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "bold",
+                        "boldItalic",
+                        "italic",
+                        "profile",
+                        "regular",
+                        "warnings"
+                      ],
+                      "type": "object"
+                    },
                     "fontFamily": {
                       "anyOf": [
                         {
@@ -255928,6 +257419,7 @@
                     "color",
                     "document",
                     "durationMs",
+                    "fontBinding",
                     "fontFamily",
                     "fontPath",
                     "fontSize",

@@ -301,6 +301,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
+      projectSchemaVersion: 19,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -315,6 +316,7 @@ describe("canonical public contracts", () => {
           ready: true,
         },
       },
+      textLayoutVersion: 2,
       version: "0.1.0",
     });
     expect(status.protocolVersion).toBe(HEADLESS_CONTRACT.version);
@@ -333,6 +335,7 @@ describe("canonical public contracts", () => {
       "repeater_items",
       "repeater_rendering",
       "rich_text_documents",
+      "content_addressed_text_layout_v2",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

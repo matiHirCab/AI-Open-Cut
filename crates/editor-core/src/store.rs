@@ -161,6 +161,7 @@ pub struct ReplaceGeneratedAssetResult {
 
 #[derive(Clone, Debug)]
 pub struct EditorCore {
+    font_config: crate::FontConfig,
     paths: PathPolicy,
     storage: Arc<dyn Storage>,
     persistence_faults: PersistenceFaults,
@@ -169,6 +170,7 @@ pub struct EditorCore {
 impl EditorCore {
     pub fn new(paths: PathPolicy) -> Self {
         Self {
+            font_config: crate::FontConfig::default(),
             paths,
             storage: Arc::new(FileSystemStorage),
             persistence_faults: PersistenceFaults::default(),
@@ -178,6 +180,7 @@ impl EditorCore {
     #[cfg(test)]
     fn with_storage(paths: PathPolicy, storage: Arc<dyn Storage>) -> Self {
         Self {
+            font_config: crate::FontConfig::default(),
             paths,
             storage,
             persistence_faults: PersistenceFaults::default(),
@@ -186,6 +189,23 @@ impl EditorCore {
 
     pub fn paths(&self) -> &PathPolicy {
         &self.paths
+    }
+
+    pub fn with_font_config(mut self, config: crate::FontConfig) -> Self {
+        self.font_config = config;
+        self
+    }
+
+    fn prepare_font_edit(&self, dir: &Path, project: &mut Project) -> Result<(), CoreError> {
+        let mut staged = crate::assets::fonts::FontBytes::new();
+        crate::assets::fonts::prepare_fonts(
+            self.storage.as_ref(),
+            dir,
+            project,
+            &self.font_config,
+            &mut staged,
+        )?;
+        crate::assets::fonts::publish_fonts(self.storage.as_ref(), dir, &staged)
     }
 
     pub fn create_project(
@@ -210,6 +230,7 @@ impl EditorCore {
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
+            fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: id.clone(),
@@ -287,8 +308,13 @@ impl EditorCore {
     pub fn get_project(&self, project_id: &str) -> Result<Project, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let (project, history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            None,
+        )?;
         let _ = collect_asset_garbage(
             self.storage.as_ref(),
             &self.persistence_faults,
@@ -368,9 +394,13 @@ impl EditorCore {
         let source = self.paths.import_path(requested_path)?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let asset_id = Uuid::new_v4().to_string();
         let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         push_undo(&mut history, &project);
@@ -421,9 +451,13 @@ impl EditorCore {
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, request.expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(request.expected_revision),
+        )?;
         let track_index = project
             .tracks
             .iter()
@@ -462,6 +496,7 @@ impl EditorCore {
                 keyframes: vec![],
             }));
         normalize_stack_order(&mut project)?;
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -497,9 +532,13 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let index = project
             .assets
             .iter()
@@ -520,6 +559,7 @@ impl EditorCore {
         }
         let previous = project.clone();
         project.assets.remove(index);
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -552,9 +592,13 @@ impl EditorCore {
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, request.expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(request.expected_revision),
+        )?;
         let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
         let asset_drafts = draft_asset_operations(&drafts);
         validate_draft_asset_references(&project, &asset_drafts)?;
@@ -617,6 +661,7 @@ impl EditorCore {
         if blocking_asset_reference(&project, &asset_drafts, &replaced_asset_id).is_none() {
             project.assets.retain(|asset| asset.id != replaced_asset_id);
         }
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -653,11 +698,16 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let previous = project.clone();
         let (changed_ids, summary) = apply_operation(&mut project, operation)?;
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -693,9 +743,13 @@ impl EditorCore {
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let previous = project.clone();
         let mut changed_ids = Vec::new();
         let mut aliases = BTreeMap::new();
@@ -730,6 +784,7 @@ impl EditorCore {
             }
             changed_ids.extend(ids);
         }
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -763,9 +818,13 @@ impl EditorCore {
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, _) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (project, _) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         validate_operations_against(&project, &operations)?;
         let drafts = draft_dir(&dir);
         self.storage
@@ -778,7 +837,9 @@ impl EditorCore {
             ));
         }
         let now = now_ms()?;
-        let draft = EditDraft {
+        let mut draft = EditDraft {
+            font_catalog: None,
+            font_steps: None,
             version: DRAFT_VERSION,
             id: Uuid::new_v4().to_string(),
             project_id: project_id.into(),
@@ -788,6 +849,17 @@ impl EditorCore {
             created_at_ms: now,
             updated_at_ms: now,
         };
+        let mut staged = crate::assets::fonts::FontBytes::new();
+        prepare_draft_fonts(
+            self.storage.as_ref(),
+            &dir,
+            &project,
+            &self.font_config,
+            &mut draft,
+            &mut staged,
+            None,
+        )?;
+        crate::assets::fonts::publish_fonts(self.storage.as_ref(), &dir, &staged)?;
         write_json_atomic(self.storage.as_ref(), &draft_path(&dir, &draft.id)?, &draft)?;
         Ok(draft)
     }
@@ -795,8 +867,13 @@ impl EditorCore {
     pub fn get_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, _) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let (project, _) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            None,
+        )?;
         let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         Ok(draft)
@@ -814,9 +891,13 @@ impl EditorCore {
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, _) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (project, _) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         if draft.base_revision != expected_revision {
             return Err(CoreError::new(
@@ -827,10 +908,31 @@ impl EditorCore {
                 ),
             ));
         }
-        validate_operations_against(&project, &operations)?;
+        // Persisted input must obey the same bound before cubic matching work.
+        validate_operations(&draft.operations)?;
+        let mut component_bindings = vec![];
+        replay_font_draft(&mut project.clone(), &draft, |state, operation| {
+            component_bindings.push(crate::assets::fonts::component_font_bindings(
+                state, operation,
+            ));
+        })?;
+        let steps =
+            crate::assets::fonts::align_draft_font_steps(&draft, &operations, component_bindings)?;
         draft.operations = operations;
+        draft.font_steps = None;
         draft.label = label;
         draft.updated_at_ms = now_ms()?;
+        let mut staged = crate::assets::fonts::FontBytes::new();
+        prepare_draft_fonts(
+            self.storage.as_ref(),
+            &dir,
+            &project,
+            &self.font_config,
+            &mut draft,
+            &mut staged,
+            Some(&steps),
+        )?;
+        crate::assets::fonts::publish_fonts(self.storage.as_ref(), &dir, &staged)?;
         write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
         Ok(draft)
     }
@@ -843,9 +945,13 @@ impl EditorCore {
     ) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, _) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (project, _) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         validate_operations_against(&project, &draft.operations)?;
@@ -862,14 +968,17 @@ impl EditorCore {
     ) -> Result<ProjectState, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, _) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let (mut project, _) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            None,
+        )?;
         let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         check_revision(&project, draft.base_revision)?;
-        for operation in draft.operations {
-            apply_operation(&mut project, operation)?;
-        }
+        materialize_font_draft(self.storage.as_ref(), &dir, &mut project, &draft)?;
         let duration_ms = project.duration_ms();
         Ok(ProjectState {
             project,
@@ -885,9 +994,13 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         if draft.base_revision != expected_revision {
@@ -900,11 +1013,9 @@ impl EditorCore {
             ));
         }
         let previous = project.clone();
-        let mut changed_ids = Vec::new();
-        for operation in draft.operations {
-            let (ids, _) = apply_operation(&mut project, operation)?;
-            changed_ids.extend(ids);
-        }
+        let changed_ids =
+            materialize_font_draft(self.storage.as_ref(), &dir, &mut project, &draft)?;
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist_transaction(
@@ -930,7 +1041,13 @@ impl EditorCore {
     pub fn discard_draft(&self, project_id: &str, draft_id: &str) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let _ = load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
+        let _ = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            None,
+        )?;
         let draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         remove_draft(self.storage.as_ref(), &dir, draft_id)?;
         Ok(draft)
@@ -974,9 +1091,13 @@ impl EditorCore {
         validate_transcription_request(&request)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, request.expected_revision)?;
+        let (mut project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(request.expected_revision),
+        )?;
         let asset = project
             .assets
             .iter()
@@ -1055,6 +1176,7 @@ impl EditorCore {
             changed_ids.push(id);
         }
         normalize_stack_order(&mut project)?;
+        self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
         let warnings = persist(
@@ -1122,9 +1244,13 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (project, mut history) =
-            load_project_data(self.storage.as_ref(), &self.persistence_faults, &dir)?;
-        check_revision(&project, expected_revision)?;
+        let (project, mut history) = load_project_data(
+            self.storage.as_ref(),
+            &self.persistence_faults,
+            &dir,
+            &self.font_config,
+            Some(expected_revision),
+        )?;
         let target = if undo {
             history.undo.pop()
         } else {
@@ -1317,11 +1443,16 @@ fn load_project_data(
     storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
+    config: &crate::FontConfig,
+    expected_revision: Option<u64>,
 ) -> Result<(Project, History), CoreError> {
     recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
     let mut project: Project = read_json(storage, &project_file)?;
+    if let Some(expected) = expected_revision {
+        check_revision(&project, expected)?;
+    }
     let mut history: History = if storage.storage_path_exists(&history_file) {
         read_json(storage, &history_file)?
     } else {
@@ -1338,10 +1469,140 @@ fn load_project_data(
     for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
         changed |= migrate_project_assets(storage, snapshot, dir)?;
     }
+    let mut staged = crate::assets::fonts::FontBytes::new();
+    for snapshot in std::iter::once(&mut project)
+        .chain(history.undo.iter_mut())
+        .chain(history.redo.iter_mut())
+    {
+        crate::assets::fonts::prepare_fonts(storage, dir, snapshot, config, &mut staged)?;
+    }
+    let mut draft_updates = BTreeMap::new();
+    for mut draft in read_all_drafts(storage, dir)? {
+        if draft.version == 1 {
+            let base = std::iter::once(&project)
+                .chain(history.undo.iter())
+                .chain(history.redo.iter())
+                .find(|p| p.revision == draft.base_revision)
+                .unwrap_or(&project);
+            prepare_draft_fonts(storage, dir, base, config, &mut draft, &mut staged, None)?;
+            draft_updates.insert(
+                draft.id.clone(),
+                serde_json::to_vec(&draft).map_err(|_| {
+                    CoreError::new(ErrorCode::InternalError, "cannot serialize migrated draft")
+                })?,
+            );
+            changed = true;
+        } else if let Some(catalog) = &draft.font_catalog {
+            crate::fonts::validate_catalog(catalog)?;
+            for step in draft.font_steps.iter().flatten() {
+                for binding in step.values() {
+                    crate::fonts::validate_binding(binding, catalog)?;
+                }
+            }
+            for face in catalog.values() {
+                crate::assets::fonts::managed_bytes(storage, dir, face)?;
+            }
+        }
+    }
     if changed {
-        let _ = persist(storage, faults, dir, &project, &history)?;
+        faults.checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+        crate::assets::fonts::publish_fonts(storage, dir, &staged)?;
+        faults.checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+        let _ = crate::persistence::persist_transaction_with_drafts(
+            storage,
+            faults,
+            dir,
+            &project,
+            &history,
+            None,
+            draft_updates,
+        )?;
     }
     Ok((project, history))
+}
+
+fn prepare_draft_fonts(
+    storage: &dyn Storage,
+    dir: &Path,
+    project: &Project,
+    config: &crate::FontConfig,
+    draft: &mut EditDraft,
+    staged: &mut crate::assets::fonts::FontBytes,
+    retained: Option<&crate::assets::fonts::DraftFontMatches>,
+) -> Result<(), CoreError> {
+    let mut candidate = project.clone();
+    let mut catalog = draft.font_catalog.clone().unwrap_or_default();
+    let mut steps = vec![];
+    for (index, operation) in draft.operations.iter().enumerate() {
+        apply_operation(&mut candidate, operation.clone())?;
+        let unresolved = candidate.clone();
+        let mut inherited = BTreeMap::new();
+        if let Some(matches) = retained {
+            let step = matches.for_step(index, &candidate, operation)?;
+            inherited = crate::assets::fonts::apply_retained_fonts(
+                &mut candidate,
+                operation,
+                &catalog,
+                &step,
+            )?;
+        } else if let Some(step) = draft.font_steps.as_ref().and_then(|s| s.get(index)) {
+            crate::assets::fonts::apply_draft_bindings(&mut candidate, &catalog, step)?;
+        }
+        crate::assets::fonts::prepare_fonts(storage, dir, &mut candidate, config, staged)?;
+        crate::assets::fonts::validate_resolved_component_fonts(&candidate, operation, &inherited)?;
+        steps.push(crate::assets::fonts::draft_binding_step(
+            &unresolved,
+            &candidate,
+        )?);
+        catalog.extend(candidate.fonts.clone());
+    }
+    crate::fonts::validate_catalog(&catalog)?;
+    draft.version = DRAFT_VERSION;
+    draft.font_catalog = Some(catalog);
+    draft.font_steps = Some(steps);
+    Ok(())
+}
+
+fn materialize_font_draft(
+    storage: &dyn Storage,
+    dir: &Path,
+    project: &mut Project,
+    draft: &EditDraft,
+) -> Result<Vec<String>, CoreError> {
+    let changed_ids = replay_font_draft(project, draft, |_, _| {})?;
+    crate::assets::fonts::verify_project_fonts(storage, dir, project)?;
+    Ok(changed_ids)
+}
+
+fn replay_font_draft(
+    project: &mut Project,
+    draft: &EditDraft,
+    mut observe: impl FnMut(&Project, &EditOperation),
+) -> Result<Vec<String>, CoreError> {
+    let catalog = draft.font_catalog.as_ref().ok_or_else(|| {
+        CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            "draft font catalog is absent",
+        )
+    })?;
+    let steps = draft
+        .font_steps
+        .as_ref()
+        .filter(|s| s.len() == draft.operations.len())
+        .ok_or_else(|| {
+            CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "draft font steps are absent",
+            )
+        })?;
+    let mut changed_ids = vec![];
+    for (operation, step) in draft.operations.iter().zip(steps) {
+        let (ids, _) = apply_operation(project, operation.clone())?;
+        crate::assets::fonts::apply_draft_bindings(project, catalog, step)?;
+        observe(project, operation);
+        changed_ids.extend(ids);
+    }
+    Ok(changed_ids)
 }
 
 fn collect_asset_garbage(
@@ -1363,6 +1624,7 @@ fn draft_asset_operations(drafts: &[EditDraft]) -> Vec<DraftAssetOperations<'_>>
     drafts
         .iter()
         .map(|draft| DraftAssetOperations {
+            font_catalog: draft.font_catalog.as_ref(),
             id: &draft.id,
             operations: &draft.operations,
         })
@@ -1373,6 +1635,7 @@ fn validate_single_draft_assets(project: &Project, draft: &EditDraft) -> Result<
     validate_draft_asset_references(
         project,
         &[DraftAssetOperations {
+            font_catalog: draft.font_catalog.as_ref(),
             id: &draft.id,
             operations: &draft.operations,
         }],
@@ -1400,6 +1663,10 @@ fn finish_persistence(
 
 #[cfg(test)]
 mod tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/font_migration.rs"
+    ));
     use super::*;
     use crate::{
         DuckingSettings, Keyframe, KeyframeProperty, KeyframeValue, TextStyle, Transform,
@@ -1777,6 +2044,135 @@ mod tests {
         core.persistence_faults.inject(phase);
     }
 
+    #[test]
+    fn font_resolution_rejects_storage_reported_symlink_escape() {
+        let (core, storage, root) = core_with_storage();
+        let id = core
+            .create_project("Font escape", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let mut project = core.get_project(&id).unwrap();
+        let operation = serde_json::from_value(serde_json::json!({"operation":"add_text","trackId":project.tracks[1].id,"text":"x","fontPath":"font.ttf","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+        apply_operation(&mut project, operation).unwrap();
+        let dir = core.project_directory(&id).unwrap();
+        storage.fail_next(StorageFailure::CanonicalEscape);
+        let error = crate::assets::fonts::prepare_fonts(
+            storage.as_ref(),
+            &dir,
+            &mut project,
+            &crate::FontConfig {
+                roots: vec![root.path().join("media")],
+                default_path: None,
+            },
+            &mut Default::default(),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathNotAllowed);
+        assert!(core.get_project(&id).unwrap().fonts.is_empty());
+    }
+
+    #[test]
+    fn pending_schema_18_journal_recovers_before_font_migration() {
+        let (core, _root) = core();
+        let id = core
+            .create_project("Old journal", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let mut old = core.get_project(&id).unwrap();
+        old.schema_version = 18;
+        old.revision = 1;
+        let dir = core.project_directory(&id).unwrap();
+        write_json_atomic(
+            &dir.join(crate::persistence::TRANSACTION_FILE),
+            &crate::persistence::ProjectTransaction {
+                draft_updates: Default::default(),
+                version: 1,
+                project: old,
+                history: History::default(),
+                committed_draft_id: None,
+            },
+        )
+        .unwrap();
+        let recovered = core.get_project(&id).unwrap();
+        assert_eq!(recovered.revision, 1);
+        assert_eq!(recovered.schema_version, 19);
+        assert!(!dir.join(crate::persistence::TRANSACTION_FILE).exists());
+    }
+
+    #[test]
+    fn font_and_legacy_draft_activation_recovers_every_publication_phase() {
+        for phase in [
+            PersistencePhase::BeforeFontPublish,
+            PersistencePhase::AfterFontPublish,
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _root) = core();
+            let id = core
+                .create_project("Font recovery", ProjectSettings::default())
+                .unwrap()
+                .project_id;
+            let base = core.get_project(&id).unwrap();
+            let operation: EditOperation = serde_json::from_value(serde_json::json!({"operation":"add_text","trackId":base.tracks[1].id,"text":"AV ffi","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+            let draft = core
+                .create_draft(&id, 0, vec![operation.clone()], None)
+                .unwrap();
+            let added = core.edit(&id, 0, operation).unwrap();
+            let dir = core.project_directory(&id).unwrap();
+            let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+            legacy["schemaVersion"] = serde_json::json!(18);
+            clear_legacy_font_fields(&mut legacy);
+            write_json_atomic(&project_path(&dir), &legacy).unwrap();
+            write_json_atomic(
+                &history_path(&dir),
+                &serde_json::json!({"undo":[],"redo":[]}),
+            )
+            .unwrap();
+            let mut old_draft = serde_json::to_value(draft).unwrap();
+            old_draft["version"] = serde_json::json!(1);
+            old_draft.as_object_mut().unwrap().remove("fontCatalog");
+            old_draft.as_object_mut().unwrap().remove("fontSteps");
+            let draft_id = old_draft["id"].as_str().unwrap();
+            let draft_file = draft_path(&dir, draft_id).unwrap();
+            write_json_atomic(&draft_file, &old_draft).unwrap();
+            let before = std::fs::read(project_path(&dir)).unwrap();
+            let before_draft = std::fs::read(&draft_file).unwrap();
+            // Force activation to publish fresh content rather than verifying
+            // the files created while arranging this historical fixture.
+            for entry in std::fs::read_dir(dir.join("fonts")).unwrap() {
+                std::fs::remove_file(entry.unwrap().path()).unwrap();
+            }
+            set_persistence_fault(&core, phase);
+            let opened = core.get_project(&id);
+            if matches!(
+                phase,
+                PersistencePhase::BeforeFontPublish
+                    | PersistencePhase::AfterFontPublish
+                    | PersistencePhase::BeforeJournal
+            ) {
+                assert!(opened.is_err(), "{phase:?}");
+                assert_eq!(std::fs::read(project_path(&dir)).unwrap(), before);
+                assert_eq!(std::fs::read(&draft_file).unwrap(), before_draft);
+            } else {
+                opened.unwrap();
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let recovered = reopened.get_project(&id).unwrap();
+            assert_eq!(recovered.revision, added.revision);
+            assert_eq!(recovered.schema_version, 19);
+            assert_eq!(recovered.fonts.len(), 4);
+            assert_eq!(reopened.get_draft(&id, draft_id).unwrap().version, 2);
+            let stable = std::fs::read(project_path(&dir)).unwrap();
+            reopened.get_project(&id).unwrap();
+            assert_eq!(std::fs::read(project_path(&dir)).unwrap(), stable);
+        }
+    }
+
     fn create_test_track() -> EditOperation {
         EditOperation::CreateTrack {
             name: "Recovery track".into(),
@@ -1926,6 +2322,7 @@ mod tests {
         let path = project_path(&dir);
         let mut legacy: serde_json::Value = read_json(&path).unwrap();
         legacy["schemaVersion"] = serde_json::json!(1);
+        clear_legacy_font_fields(&mut legacy);
         legacy["assets"] = serde_json::json!([{
             "id": "legacy-asset",
             "mediaType": "audio",
@@ -1992,6 +2389,7 @@ mod tests {
         let history_file = history_path(&dir);
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
+        clear_legacy_font_fields(&mut legacy);
         legacy["assets"] = serde_json::json!([{
             "id": "caption-asset",
             "mediaType": "audio",
@@ -2057,6 +2455,7 @@ mod tests {
         }]);
         let mut oldest = legacy.clone();
         oldest["schemaVersion"] = serde_json::json!(1);
+        clear_legacy_font_fields(&mut oldest);
         oldest["tracks"]
             .as_array_mut()
             .unwrap()
@@ -2125,6 +2524,7 @@ mod tests {
         let history_file = history_path(&dir);
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
+        clear_legacy_font_fields(&mut legacy);
         add_legacy_asset(&mut legacy, &dir);
         let mut invalid_snapshot = legacy.clone();
         invalid_snapshot["tracks"][0]["items"] = serde_json::json!([{
@@ -2171,6 +2571,7 @@ mod tests {
         let history_file = history_path(&dir);
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
+        clear_legacy_font_fields(&mut legacy);
         add_legacy_asset(&mut legacy, &dir);
         let mut invalid_snapshot = legacy.clone();
         let audio_track = invalid_snapshot["tracks"]
@@ -2224,6 +2625,7 @@ mod tests {
         let path = project_path(&dir);
         let mut future: serde_json::Value = read_json(&path).unwrap();
         future["schemaVersion"] = serde_json::json!(PROJECT_SCHEMA_VERSION + 1);
+        clear_legacy_font_fields(&mut future);
         write_json_atomic(&path, &future).unwrap();
 
         let error = core.get_project(&created.project_id).unwrap_err();
@@ -2253,14 +2655,17 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(6);
+            clear_legacy_font_fields(&mut legacy);
             add_legacy_asset(&mut legacy, &dir);
             let mut history = serde_json::json!({ "undo": [], "redo": [] });
             if retained {
                 let mut invalid_snapshot = legacy.clone();
                 invalid_snapshot["schemaVersion"] = serde_json::json!(0);
+                clear_legacy_font_fields(&mut invalid_snapshot);
                 history["undo"] = serde_json::json!([invalid_snapshot]);
             } else {
                 legacy["schemaVersion"] = serde_json::json!(0);
+                clear_legacy_font_fields(&mut legacy);
             }
             write_json_atomic(&project_file, &legacy).unwrap();
             write_json_atomic(&history_file, &history).unwrap();
@@ -2351,6 +2756,7 @@ mod tests {
         let path = project_path(&dir);
         let mut legacy: serde_json::Value = read_json(&path).unwrap();
         legacy["schemaVersion"] = serde_json::json!(4);
+        clear_legacy_font_fields(&mut legacy);
         legacy["tracks"]
             .as_array_mut()
             .unwrap()
@@ -3912,6 +4318,7 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(version);
+            clear_legacy_font_fields(&mut legacy);
             if version == 11 {
                 legacy["components"] = serde_json::json!([
                     {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[]},
@@ -3933,6 +4340,7 @@ mod tests {
             }
             let mut oldest = legacy.clone();
             oldest["schemaVersion"] = serde_json::json!(1);
+            clear_legacy_font_fields(&mut oldest);
             oldest["components"] = serde_json::json!([]);
             write_json_atomic(&project_file, &legacy).unwrap();
             write_json_atomic(
@@ -3973,6 +4381,7 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(version);
+            clear_legacy_font_fields(&mut legacy);
             write_json_atomic(&project_file, &legacy).unwrap();
             write_json_atomic(
                 &history_file,
@@ -4100,14 +4509,17 @@ mod tests {
         let history: History = read_json(&history_path(&dir)).unwrap();
         let invalid_transactions = [
             ProjectTransaction {
+                draft_updates: Default::default(),
                 version: TRANSACTION_VERSION + 1,
                 project: project.clone(),
                 history: history.clone(),
                 committed_draft_id: None,
             },
             ProjectTransaction {
+                draft_updates: Default::default(),
                 version: TRANSACTION_VERSION,
                 project: Project {
+                    fonts: Default::default(),
                     components: vec![],
                     id: "different-project".into(),
                     ..project.clone()

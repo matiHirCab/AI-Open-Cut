@@ -13,6 +13,10 @@ serde_json = { workspace = true, features = ["float_roundtrip"] }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 ttf-parser = { workspace = true }
+rustybuzz = "=0.20.1"
+unicode-bidi = "=0.3.18"
+unicode-linebreak = "=0.1.5"
+unicode-script = "=0.5.8"
 tiny-skia = { version = "=0.11.4", default-features = false, features = ["std", "simd"] }
 uuid = { workspace = true }
 

@@ -156,6 +156,7 @@ fn old_schema_cannot_smuggle_root_instances() {
     let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
     value["schemaVersion"] = json!(12);
+    clear_legacy_font_fields(&mut value);
     assert!(serde_json::from_value::<Project>(value).is_err());
 }
 
@@ -548,13 +549,11 @@ fn native_rich_text_runs_render_colors_and_missing_style_fails_cleanly() {
     );
     core.edit(&id,2,op(json!({"operation":"component_instance_update","itemId":instance,"componentId":component,"startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{"title":{"type":"rich_text","value":{"runs":[{"text":"Bold","bold":true}]}}}}))).unwrap();
     let before = files(&core, &id);
-    assert_eq!(
-        renderer
-            .render_preview(&core.get_project(&id).unwrap(), &dir, 0)
-            .unwrap_err()
-            .code,
-        ErrorCode::DependencyUnavailable
-    );
+    // All styles were retained when the component was created; a later slot
+    // substitution must not depend on styled siblings of the renderer default.
+    renderer
+        .render_preview(&core.get_project(&id).unwrap(), &dir, 0)
+        .unwrap();
     assert_eq!(files(&core, &id), before);
     assert!(std::fs::read_dir(&dir).unwrap().all(|e| {
         !e.unwrap()
@@ -573,6 +572,7 @@ fn migration_component_document(
 ) -> Value {
     let mut document = serde_json::to_value(core.get_project(id).unwrap()).unwrap();
     document["schemaVersion"] = json!(version);
+    clear_legacy_font_fields(&mut document);
     document["components"] = json!([
         {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[],"slots":[]},
         {"id":"unused","name":"Unused","width":320,"height":240,"durationMs":1000,"slots":[],"tracks":[
@@ -658,13 +658,18 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let typed: Project = serde_json::from_value(document).unwrap();
             let mut expected = serde_json::to_value(&typed).unwrap();
             expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            clear_legacy_font_fields(&mut expected);
+            expected["fonts"] = json!({});
             let mut older = expected.clone();
             older["schemaVersion"] = json!(11);
+            clear_legacy_font_fields(&mut older);
             older["components"][1]["tracks"][0]["items"][0]["transform"] =
                 json!({"positionX":0,"positionY":0,"scale":1,"opacity":1});
             let older: Project = serde_json::from_value(older).unwrap();
             let mut expected_older = serde_json::to_value(&older).unwrap();
             expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            clear_legacy_font_fields(&mut expected_older);
+            expected_older["fonts"] = json!({});
             let dir = core.paths().project_dir(&id).unwrap();
             std::fs::write(
                 dir.join("project.json"),
@@ -694,3 +699,8 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
         }
     }
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

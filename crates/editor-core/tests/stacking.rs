@@ -328,12 +328,14 @@ fn schema_nine_requires_explicit_valid_order_and_migrates_mixed_history() {
     }
     let mut old = original.clone();
     old["schemaVersion"] = json!(8);
+    clear_legacy_font_fields(&mut old);
     for item in old["tracks"][1]["items"].as_array_mut().unwrap() {
         item.as_object_mut().unwrap().remove("zIndex");
         item.as_object_mut().unwrap().remove("stackOrder");
     }
     let mut oldest = old.clone();
     oldest["schemaVersion"] = json!(1);
+    clear_legacy_font_fields(&mut oldest);
     std::fs::write(&path, serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(
         &history_path,
@@ -358,3 +360,8 @@ fn schema_nine_requires_explicit_valid_order_and_migrates_mixed_history() {
     core.redo(&id, 2).unwrap();
     assert_ordinals(&core.get_project(&id).unwrap());
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

@@ -205,8 +205,10 @@ fn migrate_every_supported_version_and_mixed_history() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         value["schemaVersion"] = json!(version);
+        clear_legacy_font_fields(&mut value);
         let mut old = value.clone();
         old["schemaVersion"] = json!(1);
+        clear_legacy_font_fields(&mut old);
         std::fs::write(
             dir.join("project.json"),
             serde_json::to_vec(&value).unwrap(),
@@ -363,6 +365,7 @@ fn invalid_transform_in_retained_history_is_never_published() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(7);
+    clear_legacy_font_fields(&mut state);
     let mut invalid = state.clone();
     invalid["tracks"][1]["items"][0]["transform2d"] = fixture()["identity"].clone();
     invalid["tracks"][1]["items"][0]["transform2d"]["scaleX"] = json!(0);
@@ -536,6 +539,7 @@ fn all_visual_sources_share_affine_preview_range_and_export() {
                 serde_json::from_value(json!({"type":"group","id":"inner","startMs":200,"durationMs":600,"stackOrder":2,"parent":{"scope":"root","id":"outer"},"transform2d":Transform2D::default()})).unwrap()
             ]);
         }
+        project.schema_version = 18; // Historical unbound affine baseline.
         let preview = renderer.render_preview(&project, &dir, 500).unwrap();
         let export = dir.join(format!("source-{index}.mp4"));
         renderer
@@ -1126,3 +1130,8 @@ fn oriented_media_preserves_extent_and_all_render_intents(image: bool) {
         assert!(rms <= 0.0001, "rotation {rotation}: RMS {rms}");
     }
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

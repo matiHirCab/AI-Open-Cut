@@ -12,15 +12,19 @@ use syn::{
 
 const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("animation", &[]),
-    ("assets", &["persistence"]),
+    ("assets", &["persistence", "fonts"]),
     ("drafts", &["persistence"]),
-    ("evaluated_scene", &["animation", "validation"]),
+    ("evaluated_scene", &["animation", "validation", "fonts"]),
     ("error", &[]),
+    ("fonts", &[]),
     ("migrations", &[]),
     ("model", &["error"]),
     ("path_policy", &[]),
     ("persistence", &[]),
-    ("render_artifact", &["evaluated_scene", "render_plan"]),
+    (
+        "render_artifact",
+        &["evaluated_scene", "render_plan", "fonts"],
+    ),
     ("render_plan", &["animation", "evaluated_scene"]),
     ("render_process", &["render_plan"]),
     (
@@ -36,6 +40,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
         "store",
         &[
             "assets",
+            "fonts",
             "drafts",
             "migrations",
             "persistence",
@@ -1492,7 +1497,12 @@ fn required_owners_are_private_modules() {
 #[test]
 fn evaluated_scene_excludes_persistence_and_renderer_details() {
     let analysis = analyze_owner("evaluated_scene").unwrap();
-    validate_owner_analysis("evaluated_scene", &["animation", "validation"], &analysis).unwrap();
+    validate_owner_analysis(
+        "evaluated_scene",
+        &["animation", "validation", "fonts"],
+        &analysis,
+    )
+    .unwrap();
 
     #[derive(Default)]
     struct FieldTypeVisitor {

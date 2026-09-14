@@ -54,3 +54,13 @@ The protocol prevents mixed logical generations caused by process termination or
 ## Schema 18 text documents
 
 Schema 18 adds a required run-based `document` to every text item and retains `text` as its exact concatenated compatibility projection. Opening supported schemas 1-17 adds one unstyled run with the original string to current state and every retained undo/redo snapshot, including hidden/unused component text, under the existing locked recoverable transaction. Existing typography, content, revisions, assets and output are preserved. Source schemas below 18 reject text-item documents; schema 18 requires matching document/text. Unknown future versions fail closed. See [rich text documents](rich-text-documents.md) for request compatibility and limits.
+
+## Schema 19 font activation
+
+Schema 19 follows the schema-18 intermediate step and adds required font catalogs
+and text bindings. Current state, history and legacy drafts migrate under one
+recoverable transaction, with immutable font files published before the journal
+can reference them. Draft version 2 retains operation bindings. IDs and revisions
+stay unchanged; text layout can change once to the pinned shaping profile.
+See [content-addressed text layout](text-layout.md) for limits, font selection,
+backup guidance and recovery of missing or corrupt font content.

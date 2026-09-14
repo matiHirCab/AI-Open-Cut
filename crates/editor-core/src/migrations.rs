@@ -102,7 +102,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=17 => {
+        9..=18 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -145,6 +145,7 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
             schema_version,
             id: "project".into(),

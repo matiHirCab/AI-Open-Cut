@@ -65,6 +65,7 @@ pub(super) fn conformance(tools: &NativeTools) {
         )
         .unwrap();
         let draft = core.create_draft(&id, project.revision, vec![serde_json::from_value(json!({"operation":"set_item_visibility","itemId":"animated-text","hidden":false})).unwrap()], None).unwrap();
+        project = core.get_project(&id).unwrap();
         let materialized = core.get_draft_state(&id, &draft.id).unwrap().project;
         assert_eq!(
             evaluate_project(&project, WIDTH, HEIGHT, FPS)
@@ -161,13 +162,8 @@ pub(super) fn conformance(tools: &NativeTools) {
     };
     text.document.runs[0].bold = Some(true);
     let missing = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(font));
-    assert_eq!(
-        missing
-            .render_preview(&project, &dir, 500)
-            .unwrap_err()
-            .code,
-        ErrorCode::DependencyUnavailable
-    );
+    // Bound styles survive a renderer default with missing styled siblings.
+    missing.render_preview(&project, &dir, 500).unwrap();
 }
 
 #[test]

@@ -3603,6 +3603,7 @@ version = "0.1.0"
 dependencies = [
  "fs2",
  "quick-xml 0.39.4",
+ "rustybuzz 0.20.1",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -3612,6 +3613,9 @@ dependencies = [
  "thiserror 2.0.19",
  "tiny-skia",
  "ttf-parser 0.25.1",
+ "unicode-bidi",
+ "unicode-linebreak",
+ "unicode-script",
  "uuid",
  "windows-sys 0.61.2",
 ]

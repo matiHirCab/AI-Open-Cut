@@ -1290,6 +1290,24 @@ describe("CI parity gate policy", () => {
     });
   }
 
+  for (const replacement of [
+    "",
+    "cargo test -p opencut-editor-core --test font_resolution || true",
+    "cargo test -p opencut-editor-core --test compatibility",
+  ]) {
+    it(`rejects missing or altered native font coverage: ${replacement}`, () => {
+      expect(() =>
+        validateCiGates(
+          replaceRequired(
+            workflow,
+            "cargo test -p opencut-editor-core --test font_resolution",
+            replacement
+          )
+        )
+      ).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+
   it("rejects a neutralized native render command", () => {
     expect(() =>
       validateCiGates(

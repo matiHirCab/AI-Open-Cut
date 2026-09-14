@@ -259,6 +259,7 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         let p = core.paths().project_dir(&id).unwrap();
         let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         state["schemaVersion"] = json!(version);
+        clear_legacy_font_fields(&mut state);
         std::fs::write(p.join("project.json"), serde_json::to_vec(&state).unwrap()).unwrap();
         std::fs::write(
             p.join("history.json"),
@@ -288,6 +289,7 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         old["schemaVersion"] = json!(13);
+        clear_legacy_font_fields(&mut old);
         if location == "current" {
             std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
         } else {
@@ -368,6 +370,7 @@ fn shape_lifecycle_drafts_and_scoped_components_preserve_semantics() {
     assert_eq!(files(&core, &id), before);
     let mut future = serde_json::to_value(p).unwrap();
     future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
+    clear_legacy_font_fields(&mut future);
     let dir = core.paths().project_dir(&id).unwrap();
     std::fs::write(
         dir.join("project.json"),
@@ -393,6 +396,7 @@ fn old_schema_and_invalid_shapes_in_unused_hidden_definitions_never_rewrite() {
         p["tracks"][1]["items"] = json!([]);
         p["components"] = json!([{"id":"unused","name":"Unused","width":160,"height":120,"durationMs":1000,"slots":[],"tracks":[{"id":"local","name":"Local","trackType":"overlay","hidden":true,"items":[shape]}]}]);
         p["schemaVersion"] = json!(version);
+        clear_legacy_font_fields(&mut p);
         let dir = core.paths().project_dir(&id).unwrap();
         std::fs::write(dir.join("project.json"), serde_json::to_vec(&p).unwrap()).unwrap();
         let before = files(&core, &id);
@@ -435,9 +439,11 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
     let (_root, core, id, _track) = setup();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(13);
+    clear_legacy_font_fields(&mut state);
     let snapshot = |version| {
         let mut v = state.clone();
         v["schemaVersion"] = json!(version);
+        clear_legacy_font_fields(&mut v);
         v
     };
     let dir = core.paths().project_dir(&id).unwrap();
@@ -554,3 +560,8 @@ fn raw_shape_nested_records_and_update_fields_stay_strict() {
         assert!(serde_json::from_str::<EditOperation>(&raw).is_err(),"{raw}");
     }
 }
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/font_migration.rs"
+));

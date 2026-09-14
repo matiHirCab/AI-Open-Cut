@@ -40,19 +40,20 @@ Root facade re-exports provide model and error types without adding an outward o
 | Owner | Allowed private-owner imports |
 | --- | --- |
 | `animation` | none |
-| `assets` | `persistence` |
+| `assets` | `persistence`, `fonts` |
 | `drafts` | `persistence` |
-| `evaluated_scene` | `animation`, `validation` |
+| `evaluated_scene` | `animation`, `validation`, `fonts` |
 | `error` | none |
+| `fonts` | none |
 | `migrations` | none |
 | `model` | `error` |
 | `path_policy` | none |
 | `persistence` | none |
-| `render_artifact` | `evaluated_scene`, `render_plan` |
+| `render_artifact` | `evaluated_scene`, `render_plan`, `fonts` |
 | `render_plan` | `animation`, `evaluated_scene` |
 | `render_process` | `render_plan` |
 | `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process` |
-| `store` | `assets`, `drafts`, `migrations`, `persistence`, `timeline`, `validation` |
+| `store` | `assets`, `drafts`, `fonts`, `migrations`, `persistence`, `timeline`, `validation` |
 | `timeline` | `animation`, `validation` |
 | `validation` | none |
 | `vector` | none |
@@ -107,3 +108,7 @@ The editor core gains more private modules and explicit adapter types, but calle
 ### Stacking validation boundary
 
 Scene evaluation calls the shared read-only ordering validator after complexity preflight and before resource preparation. Persistence uses the same validator. This edge enforces canonical ordinals for direct Renderer inputs, including hidden and nonvisual items, without duplicating rules or normalizing malformed state.
+
+### Font ownership (issue #33)
+
+The pure fonts owner validates exact font identity and the pinned text-layout profile and shapes supplied immutable bytes without filesystem, environment or renderer access. Assets owns font discovery, managed copies, integrity and collection. Store coordinates font preparation with edits, drafts and migrations; render_artifact verifies prepared resource bytes and rasterizes already-shaped glyph outlines. EvaluatedScene carries the canonical glyph result. These edges implement the approved content-addressed-font-shaping change; headless only passes immutable font configuration. The schema-19/v2 layout transition supersedes the original no-contract-change statement for this feature only.

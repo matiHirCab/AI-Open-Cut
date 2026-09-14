@@ -252,7 +252,11 @@ export type HeadlessEdit =
   | { operation: "set_item_visibility"; hidden: boolean; itemId: string };
 
 export type HeadlessRequest =
-  | { operation: "status"; protocolVersion?: 1 | undefined }
+  | {
+      operation: "status";
+      protocolVersion?: 1 | undefined;
+      textLayoutVersion?: 2 | undefined;
+    }
   | { operation: "list_projects" }
   | {
       name: string;

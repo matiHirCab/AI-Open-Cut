@@ -372,7 +372,7 @@ fn apply_operation_inner(
             width,
             height,
             duration_ms,
-            tracks,
+            mut tracks,
             slots,
         } => {
             let current = project
@@ -380,6 +380,40 @@ fn apply_operation_inner(
                 .iter_mut()
                 .find(|c| c.id == component_id)
                 .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            // Full component replacements retain trusted bindings by local
+            // identity unless the font selector actually changes. Clients need
+            // not echo persisted resource metadata in editing requests.
+            for item in tracks.iter_mut().flat_map(|track| &mut track.items) {
+                if let TimelineItem::Text(text) = item {
+                    let old = current
+                        .tracks
+                        .iter()
+                        .flat_map(|track| &track.items)
+                        .find_map(|old| {
+                            if let TimelineItem::Text(old) = old
+                                && old.id == text.id
+                            {
+                                Some(old)
+                            } else {
+                                None
+                            }
+                        });
+                    if text.font_binding.is_some()
+                        && text.font_binding.as_ref()
+                            != old.and_then(|old| old.font_binding.as_ref())
+                    {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "change font selectors rather than retained binding metadata",
+                        ));
+                    }
+                    text.font_binding = old
+                        .filter(|old| {
+                            old.font_family == text.font_family && old.font_path == text.font_path
+                        })
+                        .and_then(|old| old.font_binding.clone());
+                }
+            }
             let locked: Vec<_> = current.tracks.iter().filter(|t| t.locked).collect();
             let retained: Vec<_> = tracks
                 .iter()
@@ -657,6 +691,7 @@ fn apply_operation_inner(
             }
             let id = Uuid::new_v4().to_string();
             track.items.push(TimelineItem::Text(TextItem {
+                font_binding: None,
                 id: id.clone(),
                 text,
                 document,
@@ -1059,9 +1094,11 @@ fn apply_operation_inner(
                     ));
                 };
                 if let Some(value) = font_family {
+                    text.font_binding = None;
                     text.font_family = value;
                 }
                 if let Some(value) = font_path {
+                    text.font_binding = None;
                     text.font_path = value;
                 }
                 if let Some(value) = style {
@@ -1835,6 +1872,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,
             id: "project".into(),

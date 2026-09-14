@@ -398,8 +398,9 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        fonts: Default::default(),
         components: vec![],
-        schema_version: PROJECT_SCHEMA_VERSION,
+        schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
         id: "golden-render-fixture".into(),
         revision: 7,
         name: "Golden render fixture".into(),
@@ -448,6 +449,7 @@ pub(super) fn fixture_project() -> Project {
                         keyframes: vec![],
                     }),
                     TimelineItem::Text(TextItem {
+                        font_binding: None,
                         id: "animated-text".into(),
                         document: crate::RichTextDocument::plain("café →\nWWWW iiii".into()),
                         text: "café →\nWWWW iiii".into(),

@@ -1,6 +1,7 @@
 //! Render workspace and artifact publication owner.
 
 mod shapes;
+mod text;
 use std::{
     collections::HashMap,
     env,
@@ -32,6 +33,9 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn create_dir(&self, path: &Path) -> std::io::Result<()>;
     fn remove_dir_all(&self, path: &Path) -> std::io::Result<()>;
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>>;
+    fn read_font(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        self.read(path)
+    }
     fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
     fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>>;
     fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind>;
@@ -56,6 +60,7 @@ pub(crate) struct PreparedRenderResources {
 }
 
 pub(crate) struct PreparedMediaResources {
+    pub(crate) font_faces: std::collections::BTreeMap<String, Vec<u8>>,
     pub(crate) media_inputs: Vec<MediaInputRequest>,
     pub(crate) media_paths: Vec<PathBuf>,
 }
@@ -78,6 +83,14 @@ impl ArtifactIo for FileSystemArtifactIo {
     }
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         std::fs::read(path)
+    }
+    fn read_font(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)?
+            .take(crate::MAX_FONT_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)?;
+        Ok(bytes)
     }
     fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
         std::fs::write(path, contents)
@@ -256,6 +269,10 @@ pub(crate) fn prepare_text_layers(
 }
 
 pub(crate) struct MeasuredText {
+    pub(crate) shaped: Option<(
+        crate::fonts::shaping::ShapedText,
+        crate::evaluated_scene::EvaluatedTextStyle,
+    )>,
     pub(crate) prepared: PreparedText,
     pub(crate) content: String,
 }
@@ -265,9 +282,32 @@ pub(crate) fn prepare_render_resources(
     media: PreparedMediaResources,
     workspace: &Path,
     measured: HashMap<String, MeasuredText>,
+    duration_ms: u64,
 ) -> Result<PreparedRenderResources, CoreError> {
     let mut text_layers = HashMap::new();
+    let mut media_inputs = media.media_inputs;
+    let mut media_paths = media.media_paths;
+    let mut measured: Vec<_> = measured.into_iter().collect();
+    measured.sort_by(|(left, _), (right, _)| left.cmp(right));
     for (id, mut text) in measured {
+        if let Some((shaped, style)) = &text.shaped {
+            let path = workspace.join(format!("glyphs-{id}.pam"));
+            let bytes = text::rasterize(shaped, &media.font_faces, &text.prepared, style)?;
+            io.write(&path, &bytes)
+                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+            media_inputs.push(MediaInputRequest {
+                item_id: id.clone(),
+                asset_id: format!("glyphs-{id}"),
+                project_relative_path: PathBuf::from(format!("glyphs-{id}.pam")),
+                media_type: crate::MediaType::Image,
+                source_in_ms: 0,
+                duration_ms,
+                input_index: media_inputs.len() + 2,
+            });
+            media_paths.push(path);
+            text_layers.insert(id, text.prepared);
+            continue;
+        }
         text.prepared.file_path = workspace.join(&text.prepared.file_path);
         io.write(&text.prepared.file_path, text.content.as_bytes())
             .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
@@ -281,8 +321,8 @@ pub(crate) fn prepare_render_resources(
         text_layers.insert(id, text.prepared);
     }
     Ok(PreparedRenderResources {
-        media_inputs: media.media_inputs,
-        media_paths: media.media_paths,
+        media_inputs,
+        media_paths,
         text_layers,
     })
 }
@@ -317,7 +357,48 @@ pub(crate) fn prepare_media_resources(
             })?;
         media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
     }
+    let mut font_faces = std::collections::BTreeMap::new();
+    for catalog in std::iter::once(&evaluated.resource_bindings.retained_fonts).chain(
+        evaluated
+            .resource_bindings
+            .fonts
+            .iter()
+            .map(|b| &b.pinned_faces),
+    ) {
+        crate::fonts::validate_catalog(catalog)?;
+        for (hash, face) in catalog {
+            if font_faces.contains_key(hash) {
+                continue;
+            }
+            let path = resolve_project_asset(io, project_dir, Path::new(&face.relative_path))
+                .map_err(|error| {
+                    if error.code == ErrorCode::PathNotAllowed {
+                        error
+                    } else {
+                        CoreError::new(
+                            ErrorCode::AssetIntegrityFailed,
+                            "managed font reference is missing",
+                        )
+                    }
+                })?;
+            if io.size(&path).ok() != Some(face.size_bytes) {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "managed font size changed",
+                ));
+            }
+            let bytes = io.read_font(&path).map_err(|_| {
+                CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "managed font cannot be read",
+                )
+            })?;
+            crate::fonts::verify_bytes(face, &bytes)?;
+            font_faces.insert(hash.clone(), bytes);
+        }
+    }
     Ok(PreparedMediaResources {
+        font_faces,
         media_inputs,
         media_paths,
     })
@@ -431,12 +512,31 @@ pub(crate) fn media_input_requests(
     Ok(media_inputs)
 }
 
+#[cfg(test)]
 pub(crate) fn measure_evaluated_text_layers(
     io: &dyn ArtifactIo,
     evaluated: &EvaluatedSceneResult,
     default_font_path: Option<&Path>,
     font_roots: &[PathBuf],
     warnings: &mut Vec<String>,
+) -> Result<HashMap<String, MeasuredText>, CoreError> {
+    measure_evaluated_text_layers_with_fonts(
+        io,
+        evaluated,
+        default_font_path,
+        font_roots,
+        warnings,
+        &Default::default(),
+    )
+}
+
+pub(crate) fn measure_evaluated_text_layers_with_fonts(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+    font_faces: &std::collections::BTreeMap<String, Vec<u8>>,
 ) -> Result<HashMap<String, MeasuredText>, CoreError> {
     let font_bindings = evaluated
         .resource_bindings
@@ -445,6 +545,7 @@ pub(crate) fn measure_evaluated_text_layers(
         .map(|binding| (binding.font_resource_id.as_str(), binding))
         .collect::<HashMap<_, _>>();
     let mut result = HashMap::new();
+    let mut shaped_cache = HashMap::new();
     for layer in &evaluated.scene.visual_layers {
         if let EvaluatedVisualSource::Caption(caption) = &layer.source
             && layer.requires_affine()
@@ -456,6 +557,7 @@ pub(crate) fn measure_evaluated_text_layers(
             result.insert(
                 layer.item_id.clone(),
                 MeasuredText {
+                    shaped: None,
                     prepared: PreparedText {
                         rich_runs: None,
                         file_path: PathBuf::from(format!("text-{}.txt", layer.item_id)),
@@ -475,6 +577,43 @@ pub(crate) fn measure_evaluated_text_layers(
         let EvaluatedVisualSource::Text(text) = &layer.source else {
             continue;
         };
+        if let Some(binding) = &text.font_binding {
+            let document = crate::RichTextDocument {
+                runs: text.rich_runs.clone().ok_or_else(|| {
+                    CoreError::new(ErrorCode::InvalidArgument, "pinned text document missing")
+                })?,
+            };
+            let cache_key = serde_json::to_string(&(
+                &document,
+                binding,
+                text.font_size,
+                &text.color,
+                text.style.wrap_width_px,
+                text.style.line_spacing_px,
+            ))
+            .map_err(|_| CoreError::new(ErrorCode::InternalError, "cannot identify text layout"))?;
+            let shaped = if let Some(shaped) = shaped_cache.get(&cache_key) {
+                Clone::clone(shaped)
+            } else {
+                let shaped = crate::fonts::shaping::shape(
+                    &document,
+                    binding,
+                    font_faces,
+                    text.font_size,
+                    &text.color,
+                    text.style.wrap_width_px,
+                    text.style.line_spacing_px,
+                )?;
+                shaped_cache.insert(cache_key, shaped.clone());
+                shaped
+            };
+            result.insert(
+                layer.item_id.clone(),
+                text::measure(shaped, text, font_faces)?,
+            );
+            warnings.extend(binding.warnings.clone());
+            continue;
+        }
         let binding = text
             .font_resource_id
             .as_deref()
@@ -559,6 +698,7 @@ pub(crate) fn measure_evaluated_text_layers(
         result.insert(
             layer.item_id.clone(),
             MeasuredText {
+                shaped: None,
                 content,
                 prepared: PreparedText {
                     rich_runs: None,
@@ -1113,6 +1253,7 @@ fn measure_rich_text(
         .saturating_add(2)
         .max(1);
     Ok(MeasuredText {
+        shaped: None,
         content: text.text.clone(),
         prepared: PreparedText {
             rich_runs: Some(prepared_runs),

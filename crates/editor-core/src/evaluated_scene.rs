@@ -72,8 +72,27 @@ pub(crate) fn evaluate_project(
     fps: u32,
 ) -> Result<EvaluatedSceneResult, CoreError> {
     crate::validation::validate_recursive_graphs(project)?;
+    crate::fonts::validate_catalog(&project.fonts)?;
+    for item in project
+        .tracks
+        .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
+        .flat_map(|t| &t.items)
+    {
+        if let TimelineItem::Text(text) = item {
+            if let Some(binding) = &text.font_binding {
+                crate::fonts::validate_binding(binding, &project.fonts)?;
+            } else if project.schema_version >= 19 {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "schema-19 text has no pinned font binding",
+                ));
+            }
+        }
+    }
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps)?;
+    result.resource_bindings.retained_fonts = project.fonts.clone();
     shapes::refine_scene(&mut result.scene)?;
     Ok(result)
 }
@@ -128,6 +147,7 @@ fn evaluate_project_inner(
             voiceover_intervals: vec![],
         },
         resource_bindings: SceneResourceBindings {
+            retained_fonts: Default::default(),
             media: vec![],
             fonts: vec![],
         },
@@ -173,6 +193,7 @@ fn evaluate_project_inner(
                     voiceover_intervals: vec![],
                 },
                 resource_bindings: SceneResourceBindings {
+                    retained_fonts: Default::default(),
                     media: vec![],
                     fonts: vec![],
                 },
@@ -695,6 +716,7 @@ impl InstanceTraversal<'_> {
             settings: self.project.settings.clone(),
             assets: self.project.assets.clone(),
             tracks: tracks.to_vec(),
+            fonts: self.project.fonts.clone(),
             components: vec![],
         };
         let mut item_orders = HashMap::new();
@@ -1284,6 +1306,7 @@ pub(crate) struct EvaluatedSceneResult {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct SceneResourceBindings {
+    pub(crate) retained_fonts: std::collections::BTreeMap<String, crate::FontRecord>,
     pub(crate) media: Vec<MediaResourceBinding>,
     pub(crate) fonts: Vec<FontResourceBinding>,
 }
@@ -1296,6 +1319,7 @@ pub(crate) struct MediaResourceBinding {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FontResourceBinding {
+    pub(crate) pinned_faces: std::collections::BTreeMap<String, crate::FontRecord>,
     pub(crate) font_resource_id: String,
     pub(crate) requested_path: Option<String>,
     pub(crate) requested_family: Option<String>,
@@ -1504,6 +1528,12 @@ impl std::fmt::Debug for EvaluatedText {
         value.field("color", &self.color);
         value.field("font_resource_id", &self.font_resource_id);
         value.field("style", &self.style);
+        if let Some(binding) = &self.font_binding {
+            value.field("font_binding", binding);
+        }
+        if let Some(shaped) = &self.shaped {
+            value.field("shaped", shaped);
+        }
         if let Some(extra) = &self.rich_runs {
             value.field("rich_runs", extra);
         }
@@ -1512,6 +1542,8 @@ impl std::fmt::Debug for EvaluatedText {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedText {
+    pub(crate) font_binding: Option<crate::FontBinding>,
+    pub(crate) shaped: Option<crate::fonts::shaping::ShapedText>,
     pub(crate) rich_runs: Option<Vec<crate::RichTextRun>>,
     pub(crate) text: String,
     pub(crate) font_size: u32,
@@ -1739,10 +1771,28 @@ fn evaluate_flat_project(
                     }
                 }
                 TimelineItem::Text(text) => {
-                    let font_resource_id = (text.font_path.is_some() || text.font_family.is_some())
-                        .then(|| format!("text-font:{}", text.id));
+                    let font_resource_id = (text.font_binding.is_some()
+                        || text.font_path.is_some()
+                        || text.font_family.is_some())
+                    .then(|| format!("text-font:{}", text.id));
                     if let Some(font_resource_id) = &font_resource_id {
                         font_bindings.push(FontResourceBinding {
+                            pinned_faces: text
+                                .font_binding
+                                .as_ref()
+                                .map(|binding| {
+                                    binding
+                                        .hashes()
+                                        .into_iter()
+                                        .filter_map(|hash| {
+                                            project
+                                                .fonts
+                                                .get(hash)
+                                                .map(|face| (hash.to_owned(), face.clone()))
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
                             font_resource_id: font_resource_id.clone(),
                             requested_path: text.font_path.clone(),
                             requested_family: text.font_family.clone(),
@@ -1762,7 +1812,13 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(&text.keyframes)?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
-                            rich_runs: text.document.styled_runs(&text.color),
+                            font_binding: text.font_binding.clone(),
+                            shaped: None,
+                            rich_runs: if text.font_binding.is_some() {
+                                Some(text.document.runs.clone())
+                            } else {
+                                text.document.styled_runs(&text.color)
+                            },
                             text: text.text.clone(),
                             font_size: text.font_size,
                             color: text.color.clone(),
@@ -1956,6 +2012,7 @@ fn evaluate_flat_project(
             voiceover_intervals,
         },
         resource_bindings: SceneResourceBindings {
+            retained_fonts: Default::default(),
             media: media_bindings,
             fonts: font_bindings,
         },
@@ -2862,8 +2919,9 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            fonts: Default::default(),
             components: vec![],
-            schema_version: crate::PROJECT_SCHEMA_VERSION,
+            schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
             id: "project".into(),
             revision: 7,
             name: "Evaluated scene".into(),
@@ -2966,6 +3024,7 @@ mod tests {
                         keyframes: vec![],
                     }),
                     TimelineItem::Text(TextItem {
+                        font_binding: None,
                         id: "title".into(),
                         document: crate::RichTextDocument::plain("Title".into()),
                         text: "Title".into(),
@@ -3095,6 +3154,7 @@ mod tests {
         assert_eq!(
             first.resource_bindings.fonts,
             vec![FontResourceBinding {
+                pinned_faces: Default::default(),
                 font_resource_id: "text-font:title".into(),
                 requested_path: Some("fonts/private.ttf".into()),
                 requested_family: Some("Inter".into()),
@@ -3452,6 +3512,7 @@ mod tests {
                 "overlay",
                 TrackType::Overlay,
                 vec![TimelineItem::Text(TextItem {
+                    font_binding: None,
                     id: "animated".into(),
                     document: crate::RichTextDocument::plain("Animated".into()),
                     text: "Animated".into(),
@@ -3783,6 +3844,7 @@ mod tests {
     fn font_bindings_preserve_selection_outside_the_scene() {
         let text = |id: &str, path: Option<&str>, family: Option<&str>| {
             TimelineItem::Text(TextItem {
+                font_binding: None,
                 id: id.into(),
                 document: crate::RichTextDocument::plain(id.into()),
                 text: id.into(),
@@ -3832,16 +3894,19 @@ mod tests {
             evaluated.resource_bindings.fonts,
             vec![
                 FontResourceBinding {
+                    pinned_faces: Default::default(),
                     font_resource_id: "text-font:path".into(),
                     requested_path: Some("fonts/path.ttf".into()),
                     requested_family: None,
                 },
                 FontResourceBinding {
+                    pinned_faces: Default::default(),
                     font_resource_id: "text-font:family".into(),
                     requested_path: None,
                     requested_family: Some("Inter".into()),
                 },
                 FontResourceBinding {
+                    pinned_faces: Default::default(),
                     font_resource_id: "text-font:both".into(),
                     requested_path: Some("fonts/both.ttf".into()),
                     requested_family: Some("Source Sans".into()),
@@ -5707,7 +5772,7 @@ mod styled_root_animation_tests {
         } else {
             json!({"type":"scalar","value":0.5})
         };
-        serde_json::from_value(json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"test","revision":0,"name":"Animation","createdAtMs":0,"updatedAtMs":0,"settings":{"width":160,"height":90,"fps":10},"assets":[],"components":[],"tracks":[{"id":"overlay","name":"Overlay","trackType":"overlay","items":[{"type":"text","id":"text","text":"Text","document":{"runs":[run]},"fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"style":{"anchor":"center"},"keyframes":[{"property":property,"timeMs":0,"value":value,"easing":"linear"}]}]}]})).unwrap()
+        serde_json::from_value(json!({"schemaVersion":18,"id":"test","revision":0,"name":"Animation","createdAtMs":0,"updatedAtMs":0,"settings":{"width":160,"height":90,"fps":10},"assets":[],"components":[],"tracks":[{"id":"overlay","name":"Overlay","trackType":"overlay","items":[{"type":"text","id":"text","text":"Text","document":{"runs":[run]},"fontSize":18,"color":"#ffffff","startMs":0,"durationMs":1000,"zIndex":0,"stackOrder":0,"style":{"anchor":"center"},"keyframes":[{"property":property,"timeMs":0,"value":value,"easing":"linear"}]}]}]})).unwrap()
     }
 
     #[test]
