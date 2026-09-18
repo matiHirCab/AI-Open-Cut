@@ -1590,7 +1590,7 @@ pub(crate) struct EvaluatedTextShadow {
     pub(crate) offset_y: i32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedTextStyle {
     pub(crate) paint_layers: Option<Vec<crate::TextPaintLayer>>,
     pub(crate) alignment: EvaluatedTextAlignment,
@@ -1603,6 +1603,43 @@ pub(crate) struct EvaluatedTextStyle {
     pub(crate) background_opacity: f64,
     pub(crate) padding: EvaluatedTextPadding,
     pub(crate) anchor: EvaluatedAnchorPoint,
+}
+
+impl std::fmt::Debug for EvaluatedTextStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedTextStyle");
+        // Keep reviewed legacy semantic plans stable when new paints are absent.
+        if let Some(paints) = &self.paint_layers {
+            value.field("paint_layers", paints);
+        }
+        value.field("alignment", &self.alignment);
+        value.field("wrap_width_px", &self.wrap_width_px);
+        value.field("line_spacing_px", &self.line_spacing_px);
+        value.field("outline_color", &self.outline_color);
+        value.field("outline_width_px", &self.outline_width_px);
+        value.field("shadow", &self.shadow);
+        value.field("background_color", &self.background_color);
+        value.field("background_opacity", &self.background_opacity);
+        value.field("padding", &self.padding);
+        value.field("anchor", &self.anchor);
+        value.finish()
+    }
+}
+
+#[test]
+fn semantic_text_style_distinguishes_explicit_paints_from_legacy() {
+    let legacy = evaluate_text_style(&TextStyle::default()).unwrap();
+    assert!(!format!("{legacy:?}").contains("paint_layers"));
+    let mut explicit = legacy;
+    explicit.paint_layers = Some(vec![]);
+    assert!(format!("{explicit:?}").contains("paint_layers: []"));
+    explicit.paint_layers = Some(vec![crate::TextPaintLayer::Fill {
+        color: "#ff0000".into(),
+        opacity: 0.5,
+    }]);
+    let output = format!("{explicit:?}");
+    assert!(output.contains("paint_layers: [Fill"));
+    assert!(output.contains("#ff0000"));
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

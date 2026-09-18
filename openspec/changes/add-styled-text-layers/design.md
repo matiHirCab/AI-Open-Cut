@@ -50,4 +50,6 @@ The combined styled component/repeater fixture measured range/export SSIM 0.988 
 
 ## Approved review corrections
 
+Native golden compatibility also preserves the legacy semantic debug representation when paint layers are absent, following the existing conditional debug fields for evaluated text. Explicit empty and nonempty stacks remain observable. Original/moved rule-card plans are tested against the reviewed references without native tools; full native conformance continues to compare the unchanged reviewed visual/audio artifacts.
+
 The user approved fixing both reproduced rendering regressions. Mixed legacy segments must call the original painter, retaining shadow order, stroke joins and per-glyph stroke/fill order. Adjacent legacy glyphs coalesce across face/color changes and paint in their original visual order. Explicit segments coalesce by effective stack and face; overridden color cannot split them. Rendering and work accounting use the same grouping. These corrections implement existing legacy fallback and explicit paint precedence requirements without changing public contracts.

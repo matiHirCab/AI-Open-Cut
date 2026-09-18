@@ -301,6 +301,24 @@ fn compare(outputs: &Outputs, references: &References, moved: bool) {
     }
 }
 
+#[test]
+fn legacy_semantic_plans_match_reviewed_references_without_native_tools() {
+    let references = load();
+    let root = tempdir().unwrap();
+    let f = fixture::seed(root.path());
+    for moved in [false, true] {
+        if moved {
+            f.move_parent();
+        }
+        let actual = semantic(&f.project());
+        let expected = &references.files[if moved { "moved.plan" } else { "original.plan" }].bytes;
+        assert!(
+            actual == *expected,
+            "legacy semantic plan changed: moved={moved}"
+        );
+    }
+}
+
 pub(super) fn conformance(tools: &NativeTools) {
     let references = load();
     assert_eq!(

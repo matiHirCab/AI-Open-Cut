@@ -37,3 +37,13 @@
 - [x] 6.1 Add failing pixel-equality and work-budget regressions for invisible explicit spans and overridden colors, including mixed faces/colors and RTL.
 - [x] 6.2 Share the original legacy painter with mixed segments and group explicit stacks by effective paints and face; verify real stack replacements still change output.
 - [x] 6.3 Repeat both reproductions through native previews and refresh required verification evidence. Independent visual/CODEOWNER review and archival remain separate gates.
+
+## Unchecked-task reassessment — 2026-09-18
+
+All five unchecked tasks remain open. Task 3.3 lacks independent visual review, and the full native CI golden suite fails the rule-card semantic snapshot comparison at `renderer/golden/rule_card.rs:334` (generated plans add `paint_layers: None`). Task 4.2 lacks designated CODEOWNER review; PR #120 reports no reviews. Task 5.3 still fails the protected archive-only gate for both active changes. Task 5.4 cannot close until the newly observed golden mismatch and required review evidence are resolved. Task 5.5 has not been performed. Existing passing focused raster/native checks do not establish full native golden success.
+
+## 7. Native golden compatibility correction
+
+- [x] 7.1 Preserve legacy semantic debug plans when optional paints are absent, retain explicit paints in debug output, and test original/moved reviewed rule-card plans without FFmpeg. Run the full native golden suite and affected Rust checks. (Styled text render intent parity; approved user request to resolve archival blockers.)
+
+The rule-card mismatch recorded in the preceding reassessment is resolved by task 7.1. Full native golden conformance and the complete Rust workspace now pass. Tasks 3.3 and 4.2 still require independent visual and designated CODEOWNER review; 5.3–5.5 remain open pending review/conformance completion and protected synchronization/archival gates.

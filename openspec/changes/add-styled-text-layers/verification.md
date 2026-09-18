@@ -1,5 +1,37 @@
 # Verification: add-styled-text-layers
 
+## Native compatibility resolution — 2026-09-18
+
+This assessment supersedes the native mismatch below. Task 7.1 is complete: conditional `EvaluatedTextStyle` debug formatting omits absent paints, preserves all legacy fields/order, and retains explicit empty/nonempty paints. No reviewed semantic, image or audio reference was regenerated. A new native-independent rule-card test failed before the correction and passes afterward against both original/moved references; a separate test distinguishes absent, empty and colored stacks.
+
+Verification uses Rust 1.97.0; full native rendering uses the checked-in DejaVuSans fixture, isolated FFmpeg/ffprobe 7.1.1 and `OPENCUT_GOLDEN_REQUIRED=1`. All logs are under `%TEMP%/opencut-finalize-`:
+
+| Check | Result | Log suffix |
+| --- | --- | --- |
+| New legacy semantic regression before correction | 101, expected failure | `red.log` |
+| Focused semantic tests after correction | 0, 5 tests | `semantic.log` |
+| `cargo fmt --check --all` | 0 | `fmt.log` |
+| Strict workspace Clippy, all targets | 0 | `clippy.log` |
+| Full serial `cargo test --workspace` | 0 | `workspace.log` |
+| Exact `renderer::golden::native_golden_render_conformance` | 0, full golden suite, 535.52 seconds | `native.log` |
+| Agent-context focused tests | 0, 17 tests | `context-tests.log` |
+| Strict all-spec validation | 0, 27 items | `specs.log` |
+| Protected Moon validation | 1, only the two active changes rejected | `moon.log` |
+
+The initial new test had an unnecessary mutable binding; this was removed before final strict Clippy/workspace verification. The full native run exercises unchanged native implementation after that test-only cleanup. Earlier bridge/contract/Python evidence remains applicable: this correction affects internal semantic debug output and test coverage, with no wire, provider, rendering-pixel, schema or dependency changes.
+
+OpenSpec verification reassessment: 14/19 tasks complete; the identified code/reference mismatch is resolved, and required local implementation checks pass. Independent visual and designated CODEOWNER reviews remain unrecorded (`reviews: []`, `REVIEW_REQUIRED` on PR #120). These are separate evidence requirements; neither the user's request to finish nor passing native checks is represented as reviewer approval. Both active changes still fail the protected archive-only gate, so no synchronization or archival was performed. Remaining tasks are 3.3, 4.2, 5.3, 5.4 and 5.5.
+
+## Unchecked-task reassessment — 2026-09-18
+
+This section supersedes earlier statements that only review/archive gates remain or that all required native checks pass. The previously recorded focused raster and native rich-text results remain valid, but they did not exercise the entire native golden suite.
+
+At PR head `e86212ca`, CI run `35342116136` reports a full native rendering failure in job `105590256852`: `renderer::golden::native_golden_render_conformance` fails at `renderer/golden/rule_card.rs:334`, comparing generated semantic plan bytes with stored references. Decoded assertion data differs by nine added `paint_layers: None` lines. This mismatch requires correction and a successful full native rerun before conformance completion; it is not evidence of a pixel difference. Full log: `%TEMP%/opencut-unchecked-ci-render.log`.
+
+Fresh strict all-spec validation passes all 27 items, while the protected Moon task exits 1 because `add-styled-text-layers` and `reduce-agent-context-overhead` are both active (`%TEMP%/opencut-unchecked-specs.log`, `opencut-unchecked-moon.log`). GitHub reports no reviews and `REVIEW_REQUIRED`; independent visual review and designated CODEOWNER review are still unrecorded. The foundation CI job fails on the unsuccessful OpenSpec/render prerequisites. PR #120 is currently not draft; that state does not establish readiness.
+
+All five previously unchecked tasks remain incomplete, with the new native mismatch explicitly added to tasks 3.3/5.4. No code was changed, no approval was inferred and no specs were synchronized or archived during this reassessment.
+
 ## Status
 
 Implementation and automated verification follow the explicitly approved proposal. All required implementation suites pass on the pinned toolchain. This change is **not ready to archive or merge**: independent visual/CODEOWNER review remains unrecorded and the protected gate rejects another active change. The unrelated `reduce-agent-context-overhead` change and pre-existing working-tree edits are preserved.

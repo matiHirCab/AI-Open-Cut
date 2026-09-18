@@ -1,6 +1,26 @@
 # Verification: reduce-agent-context-overhead
 
-## Corrective revision — current assessment
+## Follow-up verification — 2026-09-18
+
+The native CI mismatch described below is now corrected locally under `add-styled-text-layers` task 7.1. The complete native golden suite passes without regenerating reviewed references. Fresh Rust 1.97.0 formatting, strict workspace Clippy and full serial workspace tests pass; fresh agent-context tests pass all 17 cases. Logs: `%TEMP%/opencut-finalize-{fmt,clippy,workspace,native,context-tests}.log`. Strict all-spec validation passes 27 items, while the protected Moon task still rejects both active changes (`opencut-finalize-specs.log`, `opencut-finalize-moon.log`). Earlier substantive local verification failures are resolved. Tasks 3.3, 4.5 and 5.7 remain open; no synchronization/archival or final gate success is claimed. Existing fresh-desktop and usage-evidence limitations remain unchanged.
+
+## Unchecked-task reassessment — 2026-09-18
+
+This section supersedes the current-status statements in earlier reports below. At commit `e86212ca`, the user requested checking incomplete tasks rather than archiving with warnings. No implementation files were changed by this reassessment.
+
+- Fresh `bun test scripts/agent-context-efficiency.test.ts`: exit 0, 17 tests and 175 assertions; `%TEMP%/opencut-unchecked-focused.log`.
+- Fresh bridge-directory `bunx --no-install biome check ../../scripts/agent-context-efficiency.test.ts`: exit 0; `%TEMP%/opencut-unchecked-biome.log`.
+- Fresh pinned change-specific and all-spec strict validation: exit 0, all 27 items valid; `%TEMP%/opencut-unchecked-change.log` and `opencut-unchecked-specs.log`.
+- Applicable later local Rust 1.97.0 evidence: formatting, strict workspace Clippy and full serial workspace tests passed, including `component_draft_bindings_use_scoped_local_identity`. Logs: `%TEMP%/opencut-styled-fix-fmt.log`, `opencut-styled-fix-clippy.log`, `opencut-styled-fix-workspace.log`. These supersede the earlier font-retention and compilation failures. The only subsequent Rust edit was native fixture directory setup, separately exercised by passing native checks.
+- Applicable later bridge/Python evidence: typecheck, lint, 394 unit tests, 11 MCP integration tests, 6 packaged smoke tests, and 10 unittest plus 5 pytest tests passed. Logs use `%TEMP%/opencut-styled-fix-` with suffixes `ts.log`, `lint.log`, `unit-retry.log`, `integration.log`, `smoke.log`, and `python.log`. Committing these existing files did not change their checked inputs. Tasks 3.4 and 5.5 can therefore be marked complete.
+
+Fresh protected Moon validation exits 1 after successful internal checks and 27 spec validations: both current active changes are rejected. Log: `%TEMP%/opencut-unchecked-moon.log`. Tasks 3.3, 4.5 and 5.7 remain incomplete.
+
+PR #120 also has a substantive full native CI failure in run `35342116136`, job `105590256852`: `native_golden_render_conformance` fails at `renderer/golden/rule_card.rs:334`. Decoding the assertion's byte arrays shows nine added `paint_layers: None` lines in generated semantic plans compared with checked-in references. The focused native rich-text conformance result does not cover this full golden failure. The foundation job fails because its required OpenSpec/render jobs failed. Logs: `%TEMP%/opencut-unchecked-ci-render.log`, `opencut-unchecked-ci-spec.log`, and `opencut-unchecked-ci-foundation.log`.
+
+GitHub currently reports no reviews and `REVIEW_REQUIRED`; PR #120 is no longer draft. No review approval or merge readiness is inferred from that UI state. Missing fresh-desktop/cross-project/re-enablement observations and unavailable usage telemetry remain limitations, as required by the approved evidence-reporting requirements. No changes are archived by this reassessment.
+
+## Corrective revision — historical assessment
 
 The user explicitly approved the revised artifacts after accepting documented remote-plugin limitations. The two review fixes are implemented: local overrides are no longer described as guaranteed desktop removal, and contributor guidance separates implementation verification from final post-archive gate success. No synthetic JavaScript merge test remains as evidence of Codex inheritance.
 
