@@ -1,5 +1,13 @@
 # Verification: reduce-agent-context-overhead
 
+## Final archival result — 2026-09-18
+
+All tasks are complete following the owner's explicit conversational visual/CODEOWNER approval and authorized coordinated archival of both changes. Accepted delta requirements are synchronized into the five affected living specs. Strict all-spec validation passed (26 living specs, exit 0), and the unchanged protected Moon gate passed (exit 0). Logs: `%TEMP%/opencut-archive-specs.log` and `%TEMP%/opencut-archive-moon.log`. There are no active change directories. No validation policy was weakened. Earlier incomplete-task/blocker statements below are historical and superseded by this result. GitHub branch-protection review requirements and remote CI remain separate from this recorded conversational approval/local completion; no GitHub approval event is fabricated.
+
+## Coordinated archival approval — 2026-09-18
+
+The user selected both active changes for archival, requested resolution of incomplete checks, and replied “Approve” after the full native and Rust correction passed and review sign-offs were requested. Both changes are now authorized as a coordinated archive batch. The pre-archive gate rejects only these selected changes; no unrelated work is included. Applicable full implementation results and the approved disclosure of unavailable desktop/usage observations satisfy conformance verification. Final protected validation remains mandatory after archival; prior historical blocker reports below are superseded by the final result.
+
 ## Follow-up verification — 2026-09-18
 
 The native CI mismatch described below is now corrected locally under `add-styled-text-layers` task 7.1. The complete native golden suite passes without regenerating reviewed references. Fresh Rust 1.97.0 formatting, strict workspace Clippy and full serial workspace tests pass; fresh agent-context tests pass all 17 cases. Logs: `%TEMP%/opencut-finalize-{fmt,clippy,workspace,native,context-tests}.log`. Strict all-spec validation passes 27 items, while the protected Moon task still rejects both active changes (`opencut-finalize-specs.log`, `opencut-finalize-moon.log`). Earlier substantive local verification failures are resolved. Tasks 3.3, 4.5 and 5.7 remain open; no synchronization/archival or final gate success is claimed. Existing fresh-desktop and usage-evidence limitations remain unchanged.

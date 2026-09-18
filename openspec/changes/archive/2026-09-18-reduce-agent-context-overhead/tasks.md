@@ -16,7 +16,7 @@ Completed boxes below record the original implementation only. Corrective work i
 
 - [x] 3.1 Run `bun test scripts/agent-context-efficiency.test.ts`; run the existing Biome binary from apps/agent-bridge against the new test with `bunx --no-install biome check ../../scripts/agent-context-efficiency.test.ts`; report unavailable tools rather than install unpinned replacements.
 - [x] 3.2 Run `bunx @fission-ai/openspec@1.5.0 validate reduce-agent-context-overhead --strict --no-interactive` and `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`.
-- [ ] 3.3 Run `moon run root:openspec-validate` before archival and inspect the complete result. Only rejection identifying this active change alone is expected pre-archive evidence, never a passed gate; any other failure blocks progress. Do not edit the protected task. Require the successful post-archive run in 4.5.
+- [x] 3.3 Run `moon run root:openspec-validate` before archival and inspect the complete result. Only rejection identifying this active change alone is expected pre-archive evidence, never a passed gate; any other failure blocks progress. Do not edit the protected task. Require the successful post-archive run in 4.5.
 - [x] 3.4 Run root `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`; capture output without modifying unrelated Rust files. Confirmed by the later Rust 1.97.0 verification logs; see the 2026-09-18 reassessment.
 - [x] 3.5 From apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test:unit`, `bun run test:integration`, and `bun run test:smoke`; record each exit code and any external prerequisites.
 - [x] 3.6 From apps/kokoro-tts run `bun run ../agent-bridge/scripts/run-python-tests.ts` for the hermetic worker checks. No migration or public-contract edits are planned; if scope changes, revise artifacts and obtain approval before implementation.
@@ -27,7 +27,7 @@ Completed boxes below record the original implementation only. Corrective work i
 - [x] 4.2 Compare identical small read-only audits before/after only where comparable fresh-task telemetry exists; otherwise explicitly record unavailable measurement and make no quantitative savings claim (Usage evidence scenario).
 - [x] 4.3 Verify global config/generated skills/protected checks and unrelated files remain unchanged relative to baseline; review documentation semantically for preserved safeguards. Comparison completed: global/protected files unchanged; concurrent unrelated drift recorded in verification.md, with no writes to those files by this task.
 - [x] 4.4 Use $openspec-verify-change and record a requirement/scenario-to-test/manual-evidence matrix. Resolve mismatches and report every failed, skipped, or pending required check. Report completed; external verification blockers remain in the unchecked tasks.
-- [ ] 4.5 After all required implementation checks and OpenSpec conformance verification pass, and 3.3 has only the expected rejection, synchronize and use $openspec-archive-change for this change only. Then run `moon run root:openspec-validate` and strict all-spec validation; require final gate success before completion. If Moon is absent from PATH, use the repository-pinned `bunx --package @moonrepo/cli@2.3.3 moon run root:openspec-validate`. A failed final gate remains blocking; never bypass archive-only enforcement.
+- [x] 4.5 After all required implementation checks and OpenSpec conformance verification pass, and 3.3 has only the expected rejection, synchronize and use $openspec-archive-change for this change only. Then run `moon run root:openspec-validate` and strict all-spec validation; require final gate success before completion. If Moon is absent from PATH, use the repository-pinned `bunx --package @moonrepo/cli@2.3.3 moon run root:openspec-validate`. A failed final gate remains blocking; never bypass archive-only enforcement.
 
 ## Historical verification blockers
 
@@ -46,7 +46,7 @@ These observations describe the original run. Subsequent review found font-shapi
 - [x] 5.4 Clarify implementation verification, expected rejection caused only by this active change, synchronization/archival, and mandatory final gate success in contributor guidance. Preserve all required checks and protected scripts (Ordered verification and final merge readiness).
 - [x] 5.5 Rerun focused Bun tests and Biome with the exact commands in 3.1, strict validation in 3.2, and the required Rust/bridge/Python commands in 3.4-3.6 on a stable tree. Reuse evidence only when relevant inputs remain unchanged; retain all command statuses and failure logs. Fresh focused/spec checks and applicable subsequent full-suite evidence are recorded in the 2026-09-18 reassessment; native CI remains a separate blocker.
 - [x] 5.6 Refresh verification.md with current evidence and the expanded scenario matrix. Remove current-blocker claims disproven by the review while retaining them as historical results; record remote-control and observation limitations explicitly. Confirm global settings, generated skills, protected scripts, and unrelated work were not modified by this task.
-- [ ] 5.7 Use $openspec-verify-change against the revised requirements, complete the corrected 3.3/4.1/4.5 sequence, and require final protected-gate success. No measured-savings claim without comparable telemetry.
+- [x] 5.7 Use $openspec-verify-change against the revised requirements, complete the corrected 3.3/4.1/4.5 sequence, and require final protected-gate success. No measured-savings claim without comparable telemetry.
 
 ## Corrective verification blockers — historical
 
@@ -60,3 +60,11 @@ These observations describe the original run. Subsequent review found font-shapi
 Follow-up: the rule-card native failure described below is now resolved. Full native golden conformance, strict Clippy, formatting and the complete Rust workspace pass on the correction. Tasks 3.3, 4.5 and 5.7 still require protected verification/archival completion; see the newest verification.md section.
 
 Tasks 3.4 and 5.5 are complete based on later passing local checks, including the previously failing font-retention test. The historical failures above are superseded by the evidence in verification.md. Tasks 3.3, 4.5 and 5.7 remain open: the protected gate rejects both current changes (`add-styled-text-layers` and this change), and PR #120's full native render gate fails a rule-card semantic snapshot comparison. No archival or final gate success has occurred. Missing fresh-desktop observations remain disclosed under completed evidence-reporting task 4.1; they are not claimed as runtime success.
+
+## Coordinated archive approval — 2026-09-18
+
+Owner review sign-offs were explicitly approved in this conversation. Both active changes are selected for the same archive batch, so the recorded pre-archive rejection identifies only authorized in-scope changes. Conformance verification is complete; final archive/post-archive tasks remain pending until the protected gate passes.
+
+## Final archival result — 2026-09-18
+
+Synchronized into living specs and archived in the user-approved two-change batch. Strict all-spec validation and the unchanged protected Moon gate both exited 0 after archival (26 living specs). All tasks are complete; historical blocker notes above describe superseded observations. Conversational review approval is recorded in verification.md. Remote CI status is reported separately.

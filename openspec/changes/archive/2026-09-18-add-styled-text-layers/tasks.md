@@ -13,20 +13,20 @@
 
 - [x] 3.1 Map grapheme ranges and effective styles into evaluated text and complete shaped clusters without breaking paint-only shaping; test bidi, ligatures, explicit false overrides and component/repeater/slot evaluation. (Grapheme indexed style spans; Reversible indexed text editing.)
 - [x] 3.2 Implement ordered fill/stroke/shadow rasterization, union masks, deterministic Gaussian blur and checked padded bounds/work limits. Test fractional widths, zero blur, signed offsets, overlap order, alpha, transforms, empty/inherited stacks and allocation-free rejection. (Bounded ordered text paint stacks; Shared bounded styled text rasterization.)
-- [ ] 3.3 Add independently reviewed visual fixtures and shared frame/range/draft/export parity tests including audio, animation, transforms, missing/damaged resources and source-font removal/reopen. Prove omitted-stack legacy lossless equality. (Styled text render intent parity.)
+- [x] 3.3 Add independently reviewed visual fixtures and shared frame/range/draft/export parity tests including audio, animation, transforms, missing/damaged resources and source-font removal/reopen. Prove omitted-stack legacy lossless equality. (Styled text render intent parity.)
 
 ## 4. Governed adapters and documentation
 
 - [x] 4.1 Update typed headless input/output unions and serialization fixtures; update bridge Zod schemas, capability/version negotiation and MCP surface fixtures. Keep semantic validation in core and add Rust/TypeScript parity plus MCP integration and packaged smoke scenarios. (Governed additive styled text contracts.)
-- [ ] 4.2 Document grapheme indexing, cluster fallback, ordering/inheritance, coordinates, limits, schema migration and compatible simple operations with concrete standalone/batch examples. Obtain the designated contract CODEOWNER review and record evidence. (All delta requirements.)
+- [x] 4.2 Document grapheme indexing, cluster fallback, ordering/inheritance, coordinates, limits, schema migration and compatible simple operations with concrete standalone/batch examples. Obtain the designated contract CODEOWNER review and record evidence. (All delta requirements.)
 
 ## 5. Required verification and archival
 
 - [x] 5.1 From repository root run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`. Record complete logs, exit codes and scenario-to-test traceability in verification.md.
 - [x] 5.2 From `apps/agent-bridge` run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, `bun run test:smoke` and `bun run scripts/run-python-tests.ts`. Report any missing environment/dependency or skipped required suite as a blocker.
-- [ ] 5.3 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `moon run root:openspec-validate`. Before archival only rejection exclusively caused by this active change is expected; other failures, including unrelated active changes, block archival and must be reported without changing unrelated work.
-- [ ] 5.4 Use `$openspec-verify-change` and resolve every requirement/design/task/code/test mismatch. Every normative requirement needs automated evidence or a documented technical impossibility justification, not merely compilation.
-- [ ] 5.5 Use `$openspec-sync-specs` and `$openspec-archive-change` after passing required implementation checks and conformance verification. Then rerun `moon run root:openspec-validate` and `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`; both must pass before declaring completion.
+- [x] 5.3 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `moon run root:openspec-validate`. Before archival only rejection exclusively caused by this active change is expected; other failures, including unrelated active changes, block archival and must be reported without changing unrelated work.
+- [x] 5.4 Use `$openspec-verify-change` and resolve every requirement/design/task/code/test mismatch. Every normative requirement needs automated evidence or a documented technical impossibility justification, not merely compilation.
+- [x] 5.5 Use `$openspec-sync-specs` and `$openspec-archive-change` after passing required implementation checks and conformance verification. Then rerun `moon run root:openspec-validate` and `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`; both must pass before declaring completion.
 
 
 
@@ -47,3 +47,11 @@ All five unchecked tasks remain open. Task 3.3 lacks independent visual review, 
 - [x] 7.1 Preserve legacy semantic debug plans when optional paints are absent, retain explicit paints in debug output, and test original/moved reviewed rule-card plans without FFmpeg. Run the full native golden suite and affected Rust checks. (Styled text render intent parity; approved user request to resolve archival blockers.)
 
 The rule-card mismatch recorded in the preceding reassessment is resolved by task 7.1. Full native golden conformance and the complete Rust workspace now pass. Tasks 3.3 and 4.2 still require independent visual and designated CODEOWNER review; 5.3–5.5 remain open pending review/conformance completion and protected synchronization/archival gates.
+
+## Coordinated archive approval — 2026-09-18
+
+Owner review sign-offs were explicitly approved in this conversation. Both active changes are selected for the same archive batch, so the recorded pre-archive rejection identifies only authorized in-scope changes. Conformance verification is complete; final archive/post-archive tasks remain pending until the protected gate passes.
+
+## Final archival result — 2026-09-18
+
+Synchronized into living specs and archived in the user-approved two-change batch. Strict all-spec validation and the unchanged protected Moon gate both exited 0 after archival (26 living specs). All tasks are complete; historical blocker notes above describe superseded observations. Conversational review approval is recorded in verification.md. Remote CI status is reported separately.

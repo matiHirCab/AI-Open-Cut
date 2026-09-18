@@ -1,5 +1,15 @@
 # Verification: add-styled-text-layers
 
+## Final archival result — 2026-09-18
+
+All tasks are complete following the owner's explicit conversational visual/CODEOWNER approval and authorized coordinated archival of both changes. Accepted delta requirements are synchronized into the five affected living specs. Strict all-spec validation passed (26 living specs, exit 0), and the unchanged protected Moon gate passed (exit 0). Logs: `%TEMP%/opencut-archive-specs.log` and `%TEMP%/opencut-archive-moon.log`. There are no active change directories. No validation policy was weakened. Earlier incomplete-task/blocker statements below are historical and superseded by this result. GitHub branch-protection review requirements and remote CI remain separate from this recorded conversational approval/local completion; no GitHub approval event is fabricated.
+
+## Review approval and coordinated archival — 2026-09-18
+
+The repository owner replied “Approve” in this task to the explicit request for independent visual and designated CODEOWNER review sign-offs for PR #120 after reviewing the completed correction and full verification results. This records conversational owner approval, not a fabricated GitHub review event. Tasks 3.3 and 4.2 are satisfied by that approval and the existing automated evidence. Conformance verification finds no remaining code/spec/test mismatch.
+
+The user selected both active changes for archival and approved proceeding after resolving their verification blockers. The last pre-archive protected check rejected only these two selected changes; no unrelated change is being archived. They are processed as one coordinated batch, followed by mandatory unchanged protected-gate and strict all-spec validation. Existing historical blocker reports below are superseded by this approval and the final archival result.
+
 ## Native compatibility resolution — 2026-09-18
 
 This assessment supersedes the native mismatch below. Task 7.1 is complete: conditional `EvaluatedTextStyle` debug formatting omits absent paints, preserves all legacy fields/order, and retains explicit empty/nonempty paints. No reviewed semantic, image or audio reference was regenerated. A new native-independent rule-card test failed before the correction and passes afterward against both original/moved references; a separate test distinguishes absent, empty and colored stacks.
