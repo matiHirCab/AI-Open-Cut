@@ -5,6 +5,7 @@ import {
   repeaterEditDescriptorSchema,
 } from "./repeaters";
 import { shapeFields, shapeGeometrySchema } from "./shape-items";
+import { textPaintLayersSchema, textSpanSchema } from "./styled-text";
 import { svgDocumentSchema } from "./svg-ingestion";
 import {
   fontBindingSchema,
@@ -134,6 +135,7 @@ export const textStyleSchema = z
       })
       .strict()
       .default({ bottom: 0, left: 0, right: 0, top: 0 }),
+    paintLayers: textPaintLayersSchema.optional(),
     shadow: z
       .object({
         color: color.default("#000000"),
@@ -230,9 +232,10 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(19).optional(),
+    projectSchemaVersion: z.literal(20).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
+    styledTextLayersVersion: z.literal(1).optional(),
     subsystems: z
       .object({
         editor: z
@@ -957,6 +960,7 @@ export const richTextDocumentSchema = closedSlotObject({
     )
     .min(1)
     .max(256),
+  spans: z.array(textSpanSchema).max(256).optional(),
 });
 
 export const slotValueSchema = closedSlotRecord(
@@ -1287,7 +1291,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(19),
+        schemaVersion: z.literal(20),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1761,6 +1765,7 @@ export const schemas = {
   editorGetStatus: z
     .object({
       protocolVersion: z.literal(1).optional(),
+      styledTextLayersVersion: z.literal(1).optional(),
       textLayoutVersion: z.literal(2).optional(),
     })
     .strict(),

@@ -856,7 +856,12 @@ fn canonical_status_requests_negotiate_protocol_version_and_capabilities() {
     let harness = Harness::new();
     let contract = headless_contract();
 
-    for request_name in ["statusDefault", "statusCurrent", "statusLayoutCurrent"] {
+    for request_name in [
+        "statusDefault",
+        "statusCurrent",
+        "statusLayoutCurrent",
+        "statusStyledCurrent",
+    ] {
         let status = result(&harness.request(contract["requests"][request_name].clone()));
         assert_eq!(status["protocolVersion"], contract["version"]);
         assert_eq!(
@@ -888,6 +893,7 @@ fn canonical_unsupported_version_and_unknown_field_are_stable_errors() {
         "statusUnsupported",
         "statusUnknownField",
         "statusLayoutUnsupported",
+        "statusStyledUnsupported",
     ] {
         let output = harness.request(contract["requests"][request_name].clone());
         assert!(!output.status.success());

@@ -5,6 +5,7 @@
 
 pub(crate) mod grid;
 pub(crate) mod repeater;
+pub(crate) mod styled_text;
 pub(crate) mod svg;
 
 use crate::{ComponentDefinition, SlotKind, SlotProperty, SlotValue, TemplateSlot};
@@ -482,7 +483,7 @@ pub(crate) fn validate_rich_text(document: &crate::RichTextDocument) -> Result<(
     {
         return Err(slot_invalid("invalid rich text document"));
     }
-    Ok(())
+    styled_text::validate_text_spans(document)
 }
 
 pub(crate) fn validate_text_document(
@@ -510,6 +511,9 @@ pub(crate) fn validate_text(text: &str, font_size: u32, color: &str) -> Result<(
 }
 
 pub(crate) fn validate_text_style(style: &TextStyle) -> Result<(), CoreError> {
+    if let Some(layers) = &style.paint_layers {
+        styled_text::validate_text_paints(layers)?;
+    }
     validate_color(&style.outline_color)?;
     validate_color(&style.shadow.color)?;
     validate_color(&style.background_color)?;

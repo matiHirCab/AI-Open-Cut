@@ -1,0 +1,33 @@
+# OpenCut-only defaults and local-marketplace overrides. Other settings remain inherited.
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "medium"
+
+# These entries do not guarantee remote/workspace-managed plugin removal.
+# Re-enable a needed local installation here, then open a fresh task.
+[plugins."canva@openai-curated"]
+enabled = false
+
+[plugins."figma@openai-curated"]
+enabled = false
+
+[plugins."vercel@openai-curated"]
+enabled = false
+
+[plugins."sites@openai-bundled"]
+enabled = false
+
+[plugins."documents@openai-primary-runtime"]
+enabled = false
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = false
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = false
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = false
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = false

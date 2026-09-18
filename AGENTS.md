@@ -23,6 +23,14 @@ Implementation MUST demonstrate conformance, not merely compile:
 
 No agent, contributor, urgency label, or user request to "just code it" overrides these gates. If approval or required specification detail is unavailable, report the work as blocked rather than modifying implementation.
 
+## Efficient context and verification
+
+- Locate applicable specs by filenames and requirement headings before reading relevant sections. Exclude `openspec/changes/archive/` from routine searches; read relevant archives when history is needed. This is a search default: validators must still inspect their full required scope.
+- Reuse already-read instructions unless they changed or are no longer in context, including after compaction. Refresh only what is needed.
+- Capture lengthy command output as full output in uncommitted local logs. Report the command, exit status, summary, relevant failures, and log location; never hide failed checks. See `docs/spec-driven-development.md` for examples.
+- Reuse passing check evidence only while relevant inputs, toolchain, and environment remain unchanged. Rerun when new evidence invalidates it or an explicit rerun is required. All required final checks remain mandatory; this does not relax any gate above or below.
+- Follow the verification order in `docs/spec-driven-development.md`: pass implementation checks and verify conformance before synchronization/archival, then require the protected gate to pass. Before archival, rejection caused only by this active change is expected, not gate success; any other failure blocks archival. Completion still requires all final checks to pass.
+
 ## Ownership boundaries
 
 ADR 0003 (`docs/adr/0003-editor-core-module-boundaries.md`) is the canonical editor-core ownership map and allowed dependency graph. Any new dependency edge requires the ADR and the editor-core architecture test to change in the same review. Headless, bridge, and desktop code must not add parallel validation for project, timeline, asset, draft, migration, or rendering semantics; submit typed input to `editor-core` and translate its result instead.

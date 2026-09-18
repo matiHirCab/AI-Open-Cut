@@ -1478,6 +1478,7 @@ fn load_project_data(
     }
     let mut draft_updates = BTreeMap::new();
     for mut draft in read_all_drafts(storage, dir)? {
+        crate::validation::styled_text::validate_draft_text(&draft.operations)?;
         if draft.version == 1 {
             let base = std::iter::once(&project)
                 .chain(history.undo.iter())
@@ -2095,81 +2096,87 @@ mod tests {
         .unwrap();
         let recovered = core.get_project(&id).unwrap();
         assert_eq!(recovered.revision, 1);
-        assert_eq!(recovered.schema_version, 19);
+        assert_eq!(recovered.schema_version, crate::PROJECT_SCHEMA_VERSION);
         assert!(!dir.join(crate::persistence::TRANSACTION_FILE).exists());
     }
 
     #[test]
     fn font_and_legacy_draft_activation_recovers_every_publication_phase() {
-        for phase in [
-            PersistencePhase::BeforeFontPublish,
-            PersistencePhase::AfterFontPublish,
-            PersistencePhase::BeforeJournal,
-            PersistencePhase::AfterJournal,
-            PersistencePhase::AfterProject,
-            PersistencePhase::AfterHistory,
-            PersistencePhase::AfterDraftUpdates,
-            PersistencePhase::AfterDraftCleanup,
-            PersistencePhase::AfterJournalCleanup,
-        ] {
-            let (core, _root) = core();
-            let id = core
-                .create_project("Font recovery", ProjectSettings::default())
-                .unwrap()
-                .project_id;
-            let base = core.get_project(&id).unwrap();
-            let operation: EditOperation = serde_json::from_value(serde_json::json!({"operation":"add_text","trackId":base.tracks[1].id,"text":"AV ffi","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
-            let draft = core
-                .create_draft(&id, 0, vec![operation.clone()], None)
+        for source_version in [18, 19] {
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let (core, _root) = core();
+                let id = core
+                    .create_project("Font recovery", ProjectSettings::default())
+                    .unwrap()
+                    .project_id;
+                let base = core.get_project(&id).unwrap();
+                let operation: EditOperation = serde_json::from_value(serde_json::json!({"operation":"add_text","trackId":base.tracks[1].id,"text":"AV ffi","fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+                let draft = core
+                    .create_draft(&id, 0, vec![operation.clone()], None)
+                    .unwrap();
+                let added = core.edit(&id, 0, operation).unwrap();
+                let dir = core.project_directory(&id).unwrap();
+                let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                legacy["schemaVersion"] = serde_json::json!(source_version);
+                clear_legacy_font_fields(&mut legacy);
+                write_json_atomic(&project_path(&dir), &legacy).unwrap();
+                write_json_atomic(
+                    &history_path(&dir),
+                    &serde_json::json!({"undo":[],"redo":[]}),
+                )
                 .unwrap();
-            let added = core.edit(&id, 0, operation).unwrap();
-            let dir = core.project_directory(&id).unwrap();
-            let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-            legacy["schemaVersion"] = serde_json::json!(18);
-            clear_legacy_font_fields(&mut legacy);
-            write_json_atomic(&project_path(&dir), &legacy).unwrap();
-            write_json_atomic(
-                &history_path(&dir),
-                &serde_json::json!({"undo":[],"redo":[]}),
-            )
-            .unwrap();
-            let mut old_draft = serde_json::to_value(draft).unwrap();
-            old_draft["version"] = serde_json::json!(1);
-            old_draft.as_object_mut().unwrap().remove("fontCatalog");
-            old_draft.as_object_mut().unwrap().remove("fontSteps");
-            let draft_id = old_draft["id"].as_str().unwrap();
-            let draft_file = draft_path(&dir, draft_id).unwrap();
-            write_json_atomic(&draft_file, &old_draft).unwrap();
-            let before = std::fs::read(project_path(&dir)).unwrap();
-            let before_draft = std::fs::read(&draft_file).unwrap();
-            // Force activation to publish fresh content rather than verifying
-            // the files created while arranging this historical fixture.
-            for entry in std::fs::read_dir(dir.join("fonts")).unwrap() {
-                std::fs::remove_file(entry.unwrap().path()).unwrap();
+                let mut old_draft = serde_json::to_value(draft).unwrap();
+                if source_version == 18 {
+                    old_draft["version"] = serde_json::json!(1);
+                    old_draft.as_object_mut().unwrap().remove("fontCatalog");
+                    old_draft.as_object_mut().unwrap().remove("fontSteps");
+                }
+                let draft_id = old_draft["id"].as_str().unwrap();
+                let draft_file = draft_path(&dir, draft_id).unwrap();
+                write_json_atomic(&draft_file, &old_draft).unwrap();
+                let before = std::fs::read(project_path(&dir)).unwrap();
+                let before_draft = std::fs::read(&draft_file).unwrap();
+                // Force activation to publish fresh content rather than verifying
+                // the files created while arranging this historical fixture.
+                if source_version == 18 {
+                    for entry in std::fs::read_dir(dir.join("fonts")).unwrap() {
+                        std::fs::remove_file(entry.unwrap().path()).unwrap();
+                    }
+                }
+                set_persistence_fault(&core, phase);
+                let opened = core.get_project(&id);
+                if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert!(opened.is_err(), "{phase:?}");
+                    assert_eq!(std::fs::read(project_path(&dir)).unwrap(), before);
+                    assert_eq!(std::fs::read(&draft_file).unwrap(), before_draft);
+                } else {
+                    opened.unwrap();
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                let recovered = reopened.get_project(&id).unwrap();
+                assert_eq!(recovered.revision, added.revision);
+                assert_eq!(recovered.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                assert_eq!(recovered.fonts.len(), 4);
+                assert_eq!(reopened.get_draft(&id, draft_id).unwrap().version, 2);
+                let stable = std::fs::read(project_path(&dir)).unwrap();
+                reopened.get_project(&id).unwrap();
+                assert_eq!(std::fs::read(project_path(&dir)).unwrap(), stable);
             }
-            set_persistence_fault(&core, phase);
-            let opened = core.get_project(&id);
-            if matches!(
-                phase,
-                PersistencePhase::BeforeFontPublish
-                    | PersistencePhase::AfterFontPublish
-                    | PersistencePhase::BeforeJournal
-            ) {
-                assert!(opened.is_err(), "{phase:?}");
-                assert_eq!(std::fs::read(project_path(&dir)).unwrap(), before);
-                assert_eq!(std::fs::read(&draft_file).unwrap(), before_draft);
-            } else {
-                opened.unwrap();
-            }
-            let reopened = EditorCore::new(core.paths().clone());
-            let recovered = reopened.get_project(&id).unwrap();
-            assert_eq!(recovered.revision, added.revision);
-            assert_eq!(recovered.schema_version, 19);
-            assert_eq!(recovered.fonts.len(), 4);
-            assert_eq!(reopened.get_draft(&id, draft_id).unwrap().version, 2);
-            let stable = std::fs::read(project_path(&dir)).unwrap();
-            reopened.get_project(&id).unwrap();
-            assert_eq!(std::fs::read(project_path(&dir)).unwrap(), stable);
         }
     }
 

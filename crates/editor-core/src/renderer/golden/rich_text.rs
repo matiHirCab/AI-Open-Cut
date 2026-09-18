@@ -10,6 +10,7 @@ fn native_rich_text_render_conformance() {
 }
 
 pub(super) fn conformance(tools: &NativeTools) {
+    paint_regression_conformance(tools);
     animation_conformance(tools);
     let root = tempdir().unwrap();
     let core = crate::EditorCore::new(
@@ -51,13 +52,53 @@ pub(super) fn conformance(tools: &NativeTools) {
         grids::decode_rgb_frame(&tools.ffmpeg, &dir.join(frame.relative_path), 0)
     );
 
-    for styled in [false, true] {
+    for mode in 0..3 {
+        let styled = mode > 0;
         if styled {
             let TimelineItem::Text(text) = &mut project.tracks[0].items[1] else {
                 unreachable!()
             };
             text.document = serde_json::from_value(json!({"runs":[{"text":"café →\n", "color":"#ff2200"},{"text":"WWWW iiii","color":"#22ff00"}]})).unwrap();
             text.text = text.document.text();
+            if mode == 2 {
+                text.style.paint_layers = Some(serde_json::from_value(json!([
+                    {"kind":"shadow","color":"#000000","opacity":0.7,"offsetXPx":-2.5,"offsetYPx":3,"blurSigmaPx":2},
+                    {"kind":"shadow","color":"#112244","opacity":0.4,"offsetXPx":2,"offsetYPx":-1,"blurSigmaPx":0},
+                    {"kind":"stroke","color":"#ffffff","opacity":0.8,"widthPx":6},
+                    {"kind":"stroke","color":"#0000ff","opacity":1,"widthPx":3.5},
+                    {"kind":"fill","color":"#22ff00","opacity":1}
+                ])).unwrap());
+                text.document.spans = Some(serde_json::from_value(json!([{"start":0,"end":4,"style":{"paintLayers":[
+                    {"kind":"shadow","color":"#000000","opacity":0.5,"offsetXPx":2,"offsetYPx":-1,"blurSigmaPx":1.5},
+                    {"kind":"stroke","color":"#ffffff","opacity":1,"widthPx":1.5},
+                    {"kind":"fill","color":"#ff2200","opacity":1}
+                ]}}])).unwrap());
+            }
+        }
+        if mode == 2 {
+            let mut title = serde_json::to_value(&project.tracks[0].items[1]).unwrap();
+            title["id"] = json!("component-title");
+            title["stackOrder"] = json!(0);
+            let document = title["document"].clone();
+            project.components.push(serde_json::from_value(json!({
+                "id":"styled-card","name":"Styled card","width":WIDTH,"height":HEIGHT,
+                "durationMs":DURATION_MS,
+                "slots":[{"id":"title","name":"Title","kind":"rich_text","required":true,
+                    "binding":{"targetLayerId":"component-title","property":"text.document"},"constraints":{}}],
+                "tracks":[{"id":"card-overlay","name":"Card","trackType":"overlay","items":[title]}]
+            })).unwrap());
+            project.tracks[0].items.push(serde_json::from_value(json!({
+                "type":"component_instance","id":"styled-instance","componentId":"styled-card",
+                "startMs":0,"durationMs":DURATION_MS,"trimStartMs":0,"timeScale":1,"stackOrder":2,
+                "slotValues":{"title":{"type":"rich_text","value":document}},
+                "transform":{"positionX":20,"positionY":20,"scale":0.5,"opacity":0.8}
+            })).unwrap());
+            project.tracks[0].items.push(serde_json::from_value(json!({
+                "type":"repeater","id":"styled-copies","startMs":0,"durationMs":DURATION_MS,"stackOrder":3,
+                "repeater":{"source":{"scope":"root","id":"styled-instance"},"copies":1,
+                    "transformOffset":{"position":{"x":40,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,
+                        "rotationDeg":10,"skewXDeg":0,"skewYDeg":0},"opacityOffset":-0.1}
+            })).unwrap());
         }
         fs::write(
             dir.join("project.json"),
@@ -91,7 +132,7 @@ pub(super) fn conformance(tools: &NativeTools) {
                 |_| {},
             )
             .unwrap();
-        let output = root.path().join(format!("rich-text-{styled}.mp4"));
+        let output = root.path().join(format!("rich-text-{mode}.mp4"));
         renderer
             .export_video(
                 &project,
@@ -106,10 +147,12 @@ pub(super) fn conformance(tools: &NativeTools) {
             )
             .unwrap();
         let rgb = grids::decode_rgb_frame(&tools.ffmpeg, &dir.join(&range.relative_path), 500);
-        assert!(
+        let similarity =
             structural_similarity(&rgb, &grids::decode_rgb_frame(&tools.ffmpeg, &output, 500))
-                .unwrap()
-                >= 0.99
+                .unwrap();
+        assert!(
+            similarity >= 0.99,
+            "range/export SSIM for mode {mode}: {similarity}"
         );
         let frame = renderer.render_preview(&project, &dir, 500).unwrap();
         let pixels = grids::decode_rgb_frame(&tools.ffmpeg, &dir.join(frame.relative_path), 0);
@@ -164,6 +207,75 @@ pub(super) fn conformance(tools: &NativeTools) {
     let missing = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(font));
     // Bound styles survive a renderer default with missing styled siblings.
     missing.render_preview(&project, &dir, 500).unwrap();
+}
+
+fn paint_regression_conformance(tools: &NativeTools) {
+    let root = tempdir().unwrap();
+    fs::create_dir(root.path().join("previews")).unwrap();
+    let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
+    for explicit in [false, true] {
+        let mut project = fixture_project();
+        project.settings.width = 400;
+        project.settings.height = 220;
+        project.assets.clear();
+        project.tracks.truncate(1);
+        project.tracks[0]
+            .items
+            .retain(|item| matches!(item, TimelineItem::Text(_)));
+        let TimelineItem::Text(text) = &mut project.tracks[0].items[0] else {
+            unreachable!()
+        };
+        text.text = if explicit { "AV" } else { "AV " }.into();
+        text.document = crate::RichTextDocument::plain(text.text.clone());
+        text.font_size = 110;
+        text.keyframes.clear();
+        text.visual_properties = crate::VisualProperties::new(
+            Transform {
+                position_x: 10.0,
+                position_y: 10.0,
+                ..Transform::default()
+            },
+            false,
+        );
+        text.style = TextStyle::default();
+        if explicit {
+            text.style.paint_layers = Some(
+                serde_json::from_value(json!([
+                    {"kind":"stroke","color":"#ff0000","opacity":1,"widthPx":60},
+                    {"kind":"fill","color":"#ffffff","opacity":1}
+                ]))
+                .unwrap(),
+            );
+        } else {
+            text.style.outline_width_px = 8;
+            text.style.outline_color = "#ff0000".into();
+            text.style.shadow.color = "#00ff00".into();
+            text.style.shadow.opacity = 0.5;
+            text.style.shadow.offset_x = 3;
+            text.style.shadow.offset_y = 3;
+        }
+        let frame = renderer.render_preview(&project, root.path(), 0).unwrap();
+        let before =
+            grids::decode_rgb_frame(&tools.ffmpeg, &root.path().join(frame.relative_path), 0);
+        let TimelineItem::Text(text) = &mut project.tracks[0].items[0] else {
+            unreachable!()
+        };
+        text.document.spans = Some(
+            serde_json::from_value(if explicit {
+                json!([{"start":1,"end":2,"style":{"color":"#00ff00"}}])
+            } else {
+                json!([{"start":2,"end":3,"style":{"paintLayers":[]}}])
+            })
+            .unwrap(),
+        );
+        let frame = renderer.render_preview(&project, root.path(), 0).unwrap();
+        let after =
+            grids::decode_rgb_frame(&tools.ffmpeg, &root.path().join(frame.relative_path), 0);
+        assert!(
+            before == after,
+            "native paint regression: explicit={explicit}"
+        );
+    }
 }
 
 #[test]

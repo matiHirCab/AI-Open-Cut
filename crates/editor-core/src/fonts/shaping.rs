@@ -10,6 +10,7 @@ use unicode_script::{Script, UnicodeScript};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ShapedGlyph {
+    pub(crate) paint_layers: Option<Vec<crate::TextPaintLayer>>,
     pub(crate) face: String,
     pub(crate) id: u16,
     pub(crate) cluster: u32,
@@ -76,7 +77,9 @@ pub(crate) fn shape(
     }
     let mut styles = vec![];
     let mut offset = 0;
-    for run in &document.runs {
+    let effective_runs = document.effective_runs()?;
+    let paint_ranges = document.paint_ranges()?;
+    for run in &effective_runs {
         styles.push((
             offset..offset + run.text.len(),
             binding.face_hash(run.bold.unwrap_or(false), run.italic.unwrap_or(false)),
@@ -235,6 +238,10 @@ pub(crate) fn shape(
                     .ok_or_else(|| invalid("glyph cluster outside document"))?;
                 let advance = f64::from(position.x_advance) * scale;
                 cluster.glyphs.push(ShapedGlyph {
+                    paint_layers: paint_ranges
+                        .iter()
+                        .find(|(range, _)| range.contains(&start))
+                        .map(|(_, paints)| paints.clone()),
                     face: segment.face.clone(),
                     id: u16::try_from(info.glyph_id).map_err(|_| invalid("glyph id overflow"))?,
                     cluster: info.cluster,
@@ -413,6 +420,32 @@ mod tests {
     }
     fn document(text: &str) -> RichTextDocument {
         serde_json::from_value(serde_json::json!({"runs":[{"text":text}]})).unwrap()
+    }
+    #[test]
+    fn span_paint_keeps_ligatures_and_false_uses_pinned_regular_face() {
+        let (binding, faces) = inputs();
+        let base = document("ffi אבג á");
+        let mut styled = base.clone();
+        styled.spans = Some(serde_json::from_value(serde_json::json!([{"start":1,"end":2,"style":{"color":"#ff0000","paintLayers":[]}}])).unwrap());
+        let plain = shape(&base, &binding, &faces, 48, "#ffffff", None, 0).unwrap();
+        let painted = shape(&styled, &binding, &faces, 48, "#ffffff", None, 0).unwrap();
+        let positions = |s: &ShapedText| {
+            s.glyphs
+                .iter()
+                .map(|g| (g.id, g.cluster, g.x, g.y, g.advance))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(positions(&plain), positions(&painted));
+        assert_eq!(painted.glyphs[0].color, "#ffffff");
+        assert_eq!(painted.glyphs[0].paint_layers, None);
+        styled.runs[0].bold = Some(true);
+        styled.spans = Some(
+            serde_json::from_value(serde_json::json!([{"start":0,"end":3,"style":{"bold":false}}]))
+                .unwrap(),
+        );
+        let shaped = shape(&styled, &binding, &faces, 48, "#ffffff", None, 0).unwrap();
+        assert_eq!(shaped.glyphs[0].face, binding.regular);
+        assert!(shaped.glyphs.iter().any(|g| g.face == binding.bold));
     }
     #[test]
     fn work_limits_and_cluster_wrapping_are_inclusive() {

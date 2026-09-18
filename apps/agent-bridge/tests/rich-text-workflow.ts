@@ -2,6 +2,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import CATALOG from "../../../contracts/rich-text-documents-v1.json";
+import STYLED from "../../../contracts/styled-text-layers-v1.json";
 import LAYOUT from "../../../contracts/text-layout-v2.json";
 import {
   editDraftSchema,
@@ -20,6 +21,7 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.capabilities).toContain(CATALOG.capability);
   expect(status.capabilities).toContain(LAYOUT.capability);
+  expect(status.capabilities).toContain(STYLED.capability);
   expect(status.textLayoutVersion).toBe(2);
   const created = await call(
     "project_create",
@@ -32,10 +34,23 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
   const trackId = state.project.tracks.find(
     (t) => t.trackType === "overlay"
   )?.id;
-  const document = CATALOG.valid[1]?.document;
-  if (!document) {
+  const baseDocument = CATALOG.valid[1]?.document;
+  if (!baseDocument) {
     throw new Error("Rich text fixture missing");
   }
+  const document = {
+    ...baseDocument,
+    spans: [
+      {
+        end: 1,
+        start: 0,
+        style: {
+          bold: false,
+          paintLayers: [{ color: "#123456", kind: "fill", opacity: 0.5 }],
+        },
+      },
+    ],
+  };
   const added = await call(
     "timeline_add_text",
     {
@@ -44,13 +59,14 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
       expectedRevision: created.revision,
       projectId,
       startMs: 0,
+      style: { paintLayers: STYLED.valid[3]?.paintLayers },
       trackId,
     },
     writeResultSchema
   );
   const [itemId] = added.changedIds;
   const saved = await read();
-  expect(saved.project.schemaVersion).toBe(19);
+  expect(saved.project.schemaVersion).toBe(20);
   expect(Object.keys(saved.project.fonts)).toHaveLength(4);
   expect(Object.keys(saved.project.fonts).sort()).toEqual(
     [
@@ -75,6 +91,12 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
     name: "timeline_batch_edit",
   });
   expect(failed.isError).toBe(true);
+  expect(await read()).toEqual(saved);
+  const stale = await client.callTool({
+    arguments: { document, expectedRevision: 0, itemId, projectId },
+    name: "timeline_update_item",
+  });
+  expect(stale.isError).toBe(true);
   expect(await read()).toEqual(saved);
   const conflict = await client.callTool({
     arguments: {
@@ -123,7 +145,7 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
     "draft_create",
     {
       expectedRevision: final.project.revision,
-      operations: [{ itemId, operation: "update_item", text: "Draft AV ffi" }],
+      operations: [{ document, itemId, operation: "update_item" }],
       projectId,
     },
     editDraftSchema

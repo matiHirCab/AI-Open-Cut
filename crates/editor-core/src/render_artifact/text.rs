@@ -7,6 +7,7 @@ use crate::{
     render_plan::PreparedText,
 };
 use std::collections::BTreeMap;
+mod layers;
 
 pub(super) fn measure(
     mut shaped: ShapedText,
@@ -37,22 +38,19 @@ pub(super) fn measure(
     }
     shaped.width = max_x - min_x;
     shaped.height = max_y - min_y;
-    let left =
-        style.padding.left + style.outline_width_px + style.shadow.offset_x.min(0).unsigned_abs();
-    let top =
-        style.padding.top + style.outline_width_px + style.shadow.offset_y.min(0).unsigned_abs();
+    let (extra_left, extra_top, extra_right, extra_bottom) = layers::margins(&shaped, style);
+    let left = style.padding.left.saturating_add(extra_left);
+    let top = style.padding.top.saturating_add(extra_top);
     let width = (shaped.width.ceil() as u32)
         .saturating_add(left)
         .saturating_add(style.padding.right)
-        .saturating_add(style.outline_width_px)
-        .saturating_add(style.shadow.offset_x.max(0) as u32)
+        .saturating_add(extra_right)
         .saturating_add(2)
         .max(1);
     let height = (shaped.height.ceil() as u32)
         .saturating_add(top)
         .saturating_add(style.padding.bottom)
-        .saturating_add(style.outline_width_px)
-        .saturating_add(style.shadow.offset_y.max(0) as u32)
+        .saturating_add(extra_bottom)
         .saturating_add(2)
         .max(1);
     if width > 16384 || height > 16384 || u64::from(width) * u64::from(height) > 16777216 {
@@ -61,6 +59,7 @@ pub(super) fn measure(
             "shaped text raster exceeds affine resource bounds",
         ));
     }
+    layers::check_work(&shaped, style, width, height)?;
     for glyph in &mut shaped.glyphs {
         glyph.x += f64::from(left) - min_x;
         glyph.y += f64::from(top) - min_y;
@@ -127,6 +126,9 @@ pub(super) fn rasterize(
     prepared: &PreparedText,
     style: &EvaluatedTextStyle,
 ) -> Result<Vec<u8>, CoreError> {
+    if layers::enabled(shaped, style) {
+        return layers::rasterize(shaped, faces, prepared, style);
+    }
     let (w, h) = (prepared.layer_width, prepared.layer_height);
     let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or_else(|| {
         CoreError::new(ErrorCode::InvalidArgument, "cannot allocate glyph raster")
@@ -135,9 +137,26 @@ pub(super) fn rasterize(
     if let tiny_skia::Shader::SolidColor(color) = background.shader {
         pixmap.fill(color);
     }
+    paint_legacy(
+        &mut pixmap,
+        shaped.glyphs.iter(),
+        shaped.font_size,
+        faces,
+        style,
+    )?;
+    Ok(encode(&pixmap))
+}
+
+fn paint_legacy<'a>(
+    pixmap: &mut tiny_skia::Pixmap,
+    glyphs: impl Iterator<Item = &'a crate::fonts::shaping::ShapedGlyph>,
+    font_size: u32,
+    faces: &BTreeMap<String, Vec<u8>>,
+    style: &EvaluatedTextStyle,
+) -> Result<(), CoreError> {
     let mut outlines = vec![];
     let mut outline_cache = BTreeMap::new();
-    for glyph in &shaped.glyphs {
+    for glyph in glyphs {
         let bytes = faces.get(&glyph.face).ok_or_else(|| {
             CoreError::new(
                 ErrorCode::AssetIntegrityFailed,
@@ -153,7 +172,7 @@ pub(super) fn rasterize(
                 outline.0.finish().map(std::sync::Arc::new)
             });
         if let Some(path) = outline {
-            let scale = shaped.font_size as f32 / f32::from(face.units_per_em());
+            let scale = font_size as f32 / f32::from(face.units_per_em());
             outlines.push((
                 std::sync::Arc::clone(path),
                 tiny_skia::Transform::from_row(
@@ -203,6 +222,11 @@ pub(super) fn rasterize(
             None,
         );
     }
+    Ok(())
+}
+
+fn encode(pixmap: &tiny_skia::Pixmap) -> Vec<u8> {
+    let (w, h) = (pixmap.width(), pixmap.height());
     let mut output =
         format!("P7\nWIDTH {w}\nHEIGHT {h}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n")
             .into_bytes();
@@ -210,5 +234,5 @@ pub(super) fn rasterize(
         let c = pixel.demultiply();
         output.extend_from_slice(&[c.red(), c.green(), c.blue(), c.alpha()]);
     }
-    Ok(output)
+    output
 }

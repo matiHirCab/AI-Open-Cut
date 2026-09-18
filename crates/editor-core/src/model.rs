@@ -5,16 +5,18 @@ mod grid;
 pub use font::*;
 mod repeater;
 mod shape;
+mod styled_text;
 mod svg;
 pub use grid::*;
 pub use repeater::*;
 use serde::{Deserialize, Deserializer, Serialize};
 pub use shape::*;
+pub use styled_text::*;
 pub use svg::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 19;
+pub const PROJECT_SCHEMA_VERSION: u32 = 20;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -89,8 +91,16 @@ impl TryFrom<ProjectDocument> for Project {
         if value.schema_version < 19 && value.fonts.is_some() {
             return Err("font catalogs require schema 19".into());
         }
-        if value.schema_version == 19 && value.fonts.as_ref().is_none_or(Option::is_none) {
+        if (19..=PROJECT_SCHEMA_VERSION).contains(&value.schema_version)
+            && value.fonts.as_ref().is_none_or(Option::is_none)
+        {
             return Err("schema 19 requires font catalog".into());
+        }
+        if value.schema_version < 20 {
+            reject_styled_text_fields(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_styled_text_fields(components)?;
+            }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
         for item in value
@@ -210,6 +220,32 @@ impl TryFrom<ProjectDocument> for Project {
 
 // Legacy preprocessing is restricted to the enclosing persisted schema. Direct
 // current-schema persisted item decoding always requires a document.
+fn reject_styled_text_fields(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if (object.get("runs").is_some_and(serde_json::Value::is_array)
+                && object.contains_key("spans"))
+                || (object.get("type").is_some_and(|v| v == "text")
+                    && object
+                        .get("style")
+                        .is_some_and(|v| v.get("paintLayers").is_some()))
+            {
+                return Err("styled text spans and paints require schema 20".into());
+            }
+            for child in object.values() {
+                reject_styled_text_fields(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_styled_text_fields(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Result<(), String> {
     for item in tracks
         .as_array_mut()
@@ -227,7 +263,9 @@ fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Resul
             if version < 19 && item.get("fontBinding").is_some() {
                 return Err("text font bindings require schema 19".into());
             }
-            if version == 19 && item.get("fontBinding").is_none_or(|v| v.is_null()) {
+            if (19..=PROJECT_SCHEMA_VERSION).contains(&version)
+                && item.get("fontBinding").is_none_or(|v| v.is_null())
+            {
                 return Err("schema 19 requires text font binding".into());
             }
         }
@@ -861,11 +899,18 @@ pub enum SlotValue {
 #[serde(deny_unknown_fields)]
 pub struct RichTextDocument {
     pub runs: Vec<RichTextRun>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub spans: Option<Box<[TextSpan]>>,
 }
 
 impl RichTextDocument {
     pub fn plain(text: String) -> Self {
         Self {
+            spans: None,
             runs: vec![RichTextRun {
                 text,
                 bold: None,
@@ -1053,6 +1098,12 @@ pub struct TextPadding {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TextStyle {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub paint_layers: Option<Vec<TextPaintLayer>>,
     #[serde(default)]
     pub alignment: TextAlignment,
     #[serde(default)]
@@ -1082,6 +1133,7 @@ fn default_black() -> String {
 impl Default for TextStyle {
     fn default() -> Self {
         Self {
+            paint_layers: None,
             alignment: TextAlignment::Left,
             wrap_width_px: None,
             line_spacing_px: 0,

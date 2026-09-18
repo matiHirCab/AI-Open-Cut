@@ -256,6 +256,7 @@ export type HeadlessRequest =
       operation: "status";
       protocolVersion?: 1 | undefined;
       textLayoutVersion?: 2 | undefined;
+      styledTextLayersVersion?: 1 | undefined;
     }
   | { operation: "list_projects" }
   | {

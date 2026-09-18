@@ -799,6 +799,7 @@ impl InstanceTraversal<'_> {
             {
                 text.text = document.runs.iter().map(|run| run.text.as_str()).collect();
                 text.rich_runs = Some(document.runs.clone());
+                text.spans = document.spans.clone();
             }
         }
         let root_has_component_instances = self
@@ -1542,6 +1543,7 @@ impl std::fmt::Debug for EvaluatedText {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedText {
+    pub(crate) spans: Option<Box<[crate::TextSpan]>>,
     pub(crate) font_binding: Option<crate::FontBinding>,
     pub(crate) shaped: Option<crate::fonts::shaping::ShapedText>,
     pub(crate) rich_runs: Option<Vec<crate::RichTextRun>>,
@@ -1588,8 +1590,9 @@ pub(crate) struct EvaluatedTextShadow {
     pub(crate) offset_y: i32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedTextStyle {
+    pub(crate) paint_layers: Option<Vec<crate::TextPaintLayer>>,
     pub(crate) alignment: EvaluatedTextAlignment,
     pub(crate) wrap_width_px: Option<u32>,
     pub(crate) line_spacing_px: i32,
@@ -1600,6 +1603,43 @@ pub(crate) struct EvaluatedTextStyle {
     pub(crate) background_opacity: f64,
     pub(crate) padding: EvaluatedTextPadding,
     pub(crate) anchor: EvaluatedAnchorPoint,
+}
+
+impl std::fmt::Debug for EvaluatedTextStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedTextStyle");
+        // Keep reviewed legacy semantic plans stable when new paints are absent.
+        if let Some(paints) = &self.paint_layers {
+            value.field("paint_layers", paints);
+        }
+        value.field("alignment", &self.alignment);
+        value.field("wrap_width_px", &self.wrap_width_px);
+        value.field("line_spacing_px", &self.line_spacing_px);
+        value.field("outline_color", &self.outline_color);
+        value.field("outline_width_px", &self.outline_width_px);
+        value.field("shadow", &self.shadow);
+        value.field("background_color", &self.background_color);
+        value.field("background_opacity", &self.background_opacity);
+        value.field("padding", &self.padding);
+        value.field("anchor", &self.anchor);
+        value.finish()
+    }
+}
+
+#[test]
+fn semantic_text_style_distinguishes_explicit_paints_from_legacy() {
+    let legacy = evaluate_text_style(&TextStyle::default()).unwrap();
+    assert!(!format!("{legacy:?}").contains("paint_layers"));
+    let mut explicit = legacy;
+    explicit.paint_layers = Some(vec![]);
+    assert!(format!("{explicit:?}").contains("paint_layers: []"));
+    explicit.paint_layers = Some(vec![crate::TextPaintLayer::Fill {
+        color: "#ff0000".into(),
+        opacity: 0.5,
+    }]);
+    let output = format!("{explicit:?}");
+    assert!(output.contains("paint_layers: [Fill"));
+    assert!(output.contains("#ff0000"));
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1812,6 +1852,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(&text.keyframes)?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
+                            spans: text.document.spans.clone(),
                             font_binding: text.font_binding.clone(),
                             shaped: None,
                             rich_runs: if text.font_binding.is_some() {
@@ -2555,11 +2596,15 @@ fn evaluate_ducking(
     }))
 }
 
-fn evaluate_text_style(style: &TextStyle) -> Result<EvaluatedTextStyle, CoreError> {
+pub(crate) fn evaluate_text_style(style: &TextStyle) -> Result<EvaluatedTextStyle, CoreError> {
+    if let Some(layers) = &style.paint_layers {
+        crate::validation::styled_text::validate_text_paints(layers)?;
+    }
     if !style.shadow.opacity.is_finite() || !style.background_opacity.is_finite() {
         return Err(invalid("evaluated text style values must be finite"));
     }
     Ok(EvaluatedTextStyle {
+        paint_layers: style.paint_layers.clone(),
         alignment: match style.alignment {
             TextAlignment::Left => EvaluatedTextAlignment::Left,
             TextAlignment::Center => EvaluatedTextAlignment::Center,
@@ -4896,7 +4941,17 @@ mod instance_tests {
         let mut second = value["tracks"][0]["items"][0].clone();
         second["id"] = json!("second");
         second["stackOrder"] = json!(1);
-        second["slotValues"] = json!({"__proto__":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}]}}});
+        second["slotValues"] = json!({"__proto__":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}],"spans":[{"start":0,"end":3,"style":{"paintLayers":[]}}]}}});
+        value["schemaVersion"] = json!(20);
+        let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());
+        value["fonts"] = serde_json::to_value(
+            records
+                .iter()
+                .map(|record| (record.sha256.clone(), record.clone()))
+                .collect::<std::collections::BTreeMap<_, _>>(),
+        )
+        .unwrap();
+        value["components"][0]["tracks"][0]["items"][0]["fontBinding"] = json!({"profile":crate::TEXT_LAYOUT_PROFILE,"regular":records[0].sha256,"bold":records[1].sha256,"italic":records[2].sha256,"boldItalic":records[3].sha256,"warnings":[]});
         value["tracks"][0]["items"]
             .as_array_mut()
             .unwrap()
@@ -4915,6 +4970,12 @@ mod instance_tests {
         assert_eq!(texts[0].text, "Default");
         assert_eq!(texts[0].rich_runs.as_ref().unwrap()[0].bold, Some(true));
         assert_eq!(texts[1].text, "RedBlue");
+        assert!(texts[0].spans.is_none());
+        assert_eq!(texts[1].spans.as_ref().unwrap()[0].end, 3);
+        assert_eq!(
+            texts[1].spans.as_ref().unwrap()[0].style.paint_layers,
+            Some(vec![])
+        );
         assert_eq!(texts[1].rich_runs.as_ref().unwrap()[0].italic, Some(true));
         assert_eq!(
             texts[1].rich_runs.as_ref().unwrap()[1].color.as_deref(),
@@ -5685,6 +5746,22 @@ mod instance_tests {
         }"##)
         .unwrap();
 
+        let mut value = serde_json::to_value(&project).unwrap();
+        value["schemaVersion"] = json!(20);
+        let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());
+        value["fonts"] = serde_json::to_value(
+            records
+                .iter()
+                .map(|r| (r.sha256.clone(), r.clone()))
+                .collect::<std::collections::BTreeMap<_, _>>(),
+        )
+        .unwrap();
+        let binding = json!({"profile":crate::TEXT_LAYOUT_PROFILE,"regular":records[0].sha256,"bold":records[1].sha256,"italic":records[2].sha256,"boldItalic":records[3].sha256,"warnings":[]});
+        value["components"][0]["tracks"][0]["items"][0]["fontBinding"] = binding.clone();
+        value["components"][1]["tracks"][0]["items"][1]["fontBinding"] = binding;
+        value["tracks"][0]["items"][0]["slotValues"]["copy"]["value"]["spans"] =
+            json!([{"start":0,"end":3,"style":{"paintLayers":[]}}]);
+        let project: Project = serde_json::from_value(value).unwrap();
         let scene = evaluate_project(&project, 100, 100, 30).unwrap().scene;
         assert_eq!(scene.visual_layers.len(), 8);
         let mut overridden = 0;
@@ -5695,6 +5772,10 @@ mod instance_tests {
             };
             if text.text == "RedBlue" {
                 overridden += 1;
+                assert_eq!(
+                    text.spans.as_ref().unwrap()[0].style.paint_layers,
+                    Some(vec![])
+                );
                 let runs = text.rich_runs.as_ref().expect("rich runs were discarded");
                 assert_eq!(runs.len(), 2);
                 assert_eq!(runs[0].italic, Some(true));
@@ -5702,9 +5783,11 @@ mod instance_tests {
                 assert_eq!(runs[1].color.as_deref(), Some("#0000ff"));
             } else {
                 nested += 1;
+                assert!(text.spans.is_none());
                 assert_eq!(text.text, "Nested");
-                assert!(
-                    text.rich_runs.is_none(),
+                assert_eq!(
+                    text.rich_runs.as_ref().unwrap(),
+                    &crate::RichTextDocument::plain("Nested".into()).runs,
                     "rich text leaked into nested scope"
                 );
             }
