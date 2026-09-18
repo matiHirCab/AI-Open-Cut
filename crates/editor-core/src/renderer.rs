@@ -1754,7 +1754,7 @@ mod tests {
         let command = build_render_command(
             Path::new("ffmpeg"),
             &RenderPlan {
-                grid_fidelity: false,
+                detail_fidelity: false,
                 filter_graph: String::new(),
                 width: 320,
                 height: 180,

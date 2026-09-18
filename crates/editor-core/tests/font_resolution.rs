@@ -52,7 +52,7 @@ fn historical_fields_and_native_missing_bindings_fail_without_rewrite() {
                     .remove("fontBinding");
             }
             2 => invalid["tracks"][1]["items"][0]["fontBinding"]["profile"] = json!("future"),
-            3 => invalid["schemaVersion"] = json!(20),
+            3 => invalid["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1),
             _ => {
                 invalid["schemaVersion"] = json!(18);
                 invalid["fonts"] = serde_json::Value::Null;
@@ -381,7 +381,10 @@ fn schema_18_migration_pins_current_and_retained_history() {
     )
     .unwrap();
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 19);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(migrated.fonts.len(), 4);
     let bytes = std::fs::read(dir.join("project.json")).unwrap();
     core.get_project(&id).unwrap();

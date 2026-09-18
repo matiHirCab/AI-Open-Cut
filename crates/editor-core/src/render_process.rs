@@ -578,13 +578,13 @@ pub(crate) fn build_render_command(
                     "-c:v",
                     "libx264",
                     "-preset",
-                    if plan.grid_fidelity {
+                    if plan.detail_fidelity {
                         "medium"
                     } else {
                         "veryfast"
                     },
                     "-crf",
-                    if plan.grid_fidelity { "23" } else { "28" },
+                    if plan.detail_fidelity { "23" } else { "28" },
                     "-pix_fmt",
                     "yuv420p",
                     "-movflags",
@@ -943,7 +943,7 @@ mod tests {
     #[test]
     fn executor_outcomes_are_injectable_and_diagnostics_are_bounded() {
         let plan = RenderPlan {
-            grid_fidelity: false,
+            detail_fidelity: false,
             filter_graph: String::new(),
             width: 1,
             height: 1,
@@ -973,7 +973,7 @@ mod tests {
     #[test]
     fn benchmark_commands_preserve_production_plan_inputs_bounds_and_graph() {
         let plan = RenderPlan {
-            grid_fidelity: false,
+            detail_fidelity: false,
             filter_graph: "[0:v]null[video];[1:a]anull[audio]".into(),
             width: 160,
             height: 90,
@@ -1051,7 +1051,7 @@ mod tests {
     #[test]
     fn grid_range_fidelity_preserves_legacy_encoding() {
         let mut plan = RenderPlan {
-            grid_fidelity: false,
+            detail_fidelity: false,
             filter_graph: String::new(),
             width: 240,
             height: 120,
@@ -1076,13 +1076,13 @@ mod tests {
         let legacy = args(&plan);
         assert!(legacy.windows(2).any(|v| v == ["-crf", "28"]));
         assert!(legacy.windows(2).any(|v| v == ["-preset", "veryfast"]));
-        plan.grid_fidelity = true;
+        plan.detail_fidelity = true;
         let grid = args(&plan);
         assert!(grid.windows(2).any(|v| v == ["-crf", "23"]));
         assert!(grid.windows(2).any(|v| v == ["-preset", "medium"]));
         plan.intent = RenderIntent::Export;
         let grid_export = args(&plan);
-        plan.grid_fidelity = false;
+        plan.detail_fidelity = false;
         assert_eq!(grid_export, args(&plan));
     }
 }

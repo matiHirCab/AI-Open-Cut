@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "contract": "styled-text-layers-v1",
+  "schemaVersion": 20,
+  "capability": "styled_text_layers_v1",
+  "activation": "runtime",
+  "unicodeVersion": "16.0.0",
+  "operations": ["add_text", "update_item"],
+  "limits": {"spans":256,"layers":16,"strokeWidthPx":200,"shadowOffsetPx":4096,"blurSigmaPx":64,"rasterDimension":16384,"rasterPixels":16777216,"paintPixelPasses":268435456},
+  "semantics": {"indices":"extended-grapheme-half-open","overlap":"reject","order":"logical-segment-then-array-source-over","clusterPaint":"lowest-logical-source-offset","stroke":"centered-round-join","shadow":"filled-glyph-union-gaussian-3-sigma","inheritance":"span-replaces-item-absent-retains-legacy"},
+  "graphemes": [
+    {"text":"áb","boundaries":[0,3,4]},
+    {"text":"🇺🇾x","boundaries":[0,8,9]},
+    {"text":"👩‍💻!","boundaries":[0,11,12]},
+    {"text":"a\r\nb","boundaries":[0,1,3,4]}
+  ],
+  "valid": [
+    {"id":"legacy","document":{"runs":[{"text":"hello"}]}},
+    {"id":"cross-run-grapheme","document":{"runs":[{"text":"a"},{"text":"́b"}],"spans":[{"start":0,"end":1,"style":{"bold":false,"color":"#ff0000"}}]}},
+    {"id":"empty-ink","document":{"runs":[{"text":"hello"}],"spans":[{"start":0,"end":5,"style":{"paintLayers":[]}}]}},
+    {"id":"ordered-paints","document":{"runs":[{"text":"hello"}]},"paintLayers":[{"kind":"shadow","color":"#000000","opacity":0.5,"offsetXPx":-2.5,"offsetYPx":4,"blurSigmaPx":3},{"kind":"stroke","color":"#ff0000","opacity":1,"widthPx":4.5},{"kind":"fill","color":"#ffffff","opacity":1}]}
+  ],
+  "invalid": [
+    {"id":"overlap","document":{"runs":[{"text":"abc"}],"spans":[{"start":0,"end":2,"style":{"bold":true}},{"start":1,"end":3,"style":{"italic":true}}]},"error":"INVALID_ARGUMENT"},
+    {"id":"empty-range","document":{"runs":[{"text":"a"}],"spans":[{"start":0,"end":0,"style":{"bold":true}}]},"error":"INVALID_ARGUMENT"},
+    {"id":"outside","document":{"runs":[{"text":"á"}],"spans":[{"start":0,"end":2,"style":{"bold":true}}]},"error":"INVALID_ARGUMENT"},
+    {"id":"empty-style","document":{"runs":[{"text":"a"}],"spans":[{"start":0,"end":1,"style":{}}]},"error":"INVALID_ARGUMENT"},
+    {"id":"zero-stroke","paintLayers":[{"kind":"stroke","color":"#000000","opacity":1,"widthPx":0}],"error":"INVALID_ARGUMENT"},
+    {"id":"excess-blur","paintLayers":[{"kind":"shadow","color":"#000000","opacity":1,"offsetXPx":0,"offsetYPx":0,"blurSigmaPx":65}],"error":"INVALID_ARGUMENT"}
+  ],
+  "migration": {"from":19,"to":20,"newFields":"absent","preserve":["ids","revisions","documents","fontBindings","history","draftOperations","media","provenance"],"downgrade":false}
+}

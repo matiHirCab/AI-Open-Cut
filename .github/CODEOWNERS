@@ -104,3 +104,16 @@
 /crates/editor-core/tests/rich_text_documents.rs @matiHirCab
 /apps/agent-bridge/tests/rich-text-documents.test.ts @matiHirCab
 /docs/rich-text-documents.md @matiHirCab
+
+# Styled text layer contract consumers.
+/crates/editor-core/src/model/styled_text.rs @matiHirCab
+/crates/editor-core/src/render_plan.rs @matiHirCab
+/crates/editor-core/src/render_process.rs @matiHirCab
+/crates/editor-core/src/validation/styled_text.rs @matiHirCab
+/crates/editor-core/src/render_artifact/text.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene.rs @matiHirCab
+/crates/editor-core/src/render_artifact/text/ @matiHirCab
+/crates/editor-core/tests/support/styled_text.rs @matiHirCab
+/apps/agent-bridge/src/styled-text.ts @matiHirCab
+/apps/agent-bridge/tests/styled-text.test.ts @matiHirCab
+/docs/styled-text.md @matiHirCab

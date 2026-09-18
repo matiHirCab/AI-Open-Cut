@@ -28,6 +28,8 @@ enum Request {
         protocol_version: Option<u32>,
         #[serde(default)]
         text_layout_version: Option<u32>,
+        #[serde(default)]
+        styled_text_layers_version: Option<u32>,
     },
     ListProjects {},
     CreateProject {
@@ -73,7 +75,7 @@ enum Request {
     Edit {
         project_id: String,
         expected_revision: u64,
-        edit: EditOperation,
+        edit: Box<EditOperation>,
     },
     EditBatch {
         project_id: String,
@@ -257,8 +259,15 @@ fn run() -> Result<(), CoreError> {
         Request::Status {
             protocol_version,
             text_layout_version,
+            styled_text_layers_version,
         } => {
             negotiate_protocol_version(protocol_version)?;
+            if styled_text_layers_version.is_some_and(|version| version != 1) {
+                return Err(CoreError::new(
+                    opencut_editor_core::ErrorCode::InvalidArgument,
+                    "unsupported styled text layers contract version",
+                ));
+            }
             if text_layout_version.is_some_and(|version| version != 2) {
                 return Err(CoreError::new(
                     opencut_editor_core::ErrorCode::InvalidArgument,
@@ -440,7 +449,7 @@ fn run() -> Result<(), CoreError> {
             project_id,
             expected_revision,
             edit,
-        } => emit_value(core.edit(&project_id, expected_revision, edit)?),
+        } => emit_value(core.edit(&project_id, expected_revision, *edit)?),
         Request::EditBatch {
             project_id,
             expected_revision,
@@ -697,6 +706,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "repeater_items",
         "rich_text_documents",
         "content_addressed_text_layout_v2",
+        "styled_text_layers_v1",
     ]
 }
 

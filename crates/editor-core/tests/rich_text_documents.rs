@@ -114,8 +114,7 @@ fn canonical_documents_and_limits_preserve_unicode_and_reject_invalid_input() {
 #[test]
 fn edits_preserve_projection_aliases_history_and_atomic_failures() {
     let (_root, core, id, track) = setup();
-    let document =
-        json!({"runs":[{"text":"Hello", "bold":true},{"text":" world", "color":"#ff0000"}]});
+    let document = json!({"runs":[{"text":"Hello", "bold":true},{"text":" world", "color":"#ff0000"}],"spans":[{"start":0,"end":5,"style":{"bold":false,"paintLayers":[{"kind":"fill","color":"#00ff00","opacity":1.0}]}}]});
     let mut request = add(&track, document.clone());
     request["resultAlias"] = json!("title");
     let batch: Vec<BatchEditOperation> = serde_json::from_value(json!([request,
@@ -305,8 +304,7 @@ fn persisted_current_and_retained_documents_fail_closed() {
 #[test]
 fn documents_survive_copy_split_move_trim_components_and_drafts() {
     let (_root, core, id, track) = setup();
-    let document =
-        json!({"runs":[{"text":"left ","bold":true},{"text":"right","color":"#123456"}]});
+    let document = json!({"runs":[{"text":"left ","bold":true},{"text":"right","color":"#123456"}],"spans":[{"start":0,"end":4,"style":{"bold":false,"paintLayers":[{"kind":"fill","color":"#abcdef","opacity":0.5}]}}]});
     let created = edit(&core, &id, add(&track, document.clone())).unwrap();
     let item_id = created.changed_ids[0].clone();
     let duplicated = edit(
@@ -457,3 +455,5 @@ include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/support/font_migration.rs"
 ));
+
+include!("support/styled_text.rs");

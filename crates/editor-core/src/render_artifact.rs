@@ -289,16 +289,19 @@ pub(crate) fn prepare_render_resources(
     let mut media_paths = media.media_paths;
     let mut measured: Vec<_> = measured.into_iter().collect();
     measured.sort_by(|(left, _), (right, _)| left.cmp(right));
-    for (id, mut text) in measured {
+    for (index, (id, mut text)) in measured.into_iter().enumerate() {
         if let Some((shaped, style)) = &text.shaped {
-            let path = workspace.join(format!("glyphs-{id}.pam"));
+            // Expanded component/repeater IDs contain scope separators that are
+            // not portable filenames. Keep identity in the plan, not the path.
+            let file_name = format!("glyphs-{index}.pam");
+            let path = workspace.join(&file_name);
             let bytes = text::rasterize(shaped, &media.font_faces, &text.prepared, style)?;
             io.write(&path, &bytes)
                 .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
             media_inputs.push(MediaInputRequest {
                 item_id: id.clone(),
                 asset_id: format!("glyphs-{id}"),
-                project_relative_path: PathBuf::from(format!("glyphs-{id}.pam")),
+                project_relative_path: PathBuf::from(file_name),
                 media_type: crate::MediaType::Image,
                 source_in_ms: 0,
                 duration_ms,
@@ -579,6 +582,7 @@ pub(crate) fn measure_evaluated_text_layers_with_fonts(
         };
         if let Some(binding) = &text.font_binding {
             let document = crate::RichTextDocument {
+                spans: text.spans.clone(),
                 runs: text.rich_runs.clone().ok_or_else(|| {
                     CoreError::new(ErrorCode::InvalidArgument, "pinned text document missing")
                 })?,
