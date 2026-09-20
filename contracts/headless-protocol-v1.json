@@ -96,7 +96,7 @@
       "shape_items",
       "svg_items",
       "grid_items"
-      ,"repeater_items", "rich_text_documents", "content_addressed_text_layout_v2", "styled_text_layers_v1"
+      ,"repeater_items", "rich_text_documents", "content_addressed_text_layout_v2", "styled_text_layers_v1", "advanced_text_layout_v1"
     ],
     "renderingCapabilities": [
       "preview",

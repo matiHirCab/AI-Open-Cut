@@ -1,6 +1,10 @@
 use serde::Serialize;
 use thiserror::Error;
 
+// Serde erases typed errors while buffering nested project and operation values.
+// Only the layout field deserializer emits this anchored internal classification.
+pub(crate) const LAYOUT_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_LAYOUT_DECODE:";
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -74,9 +78,16 @@ impl CoreError {
 
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
+        let message = error.to_string();
+        if let Some(detail) = message.strip_prefix(LAYOUT_DECODE_ERROR_PREFIX) {
+            return Self::new(
+                ErrorCode::InvalidArgument,
+                format!("invalid text layout: {detail}"),
+            );
+        }
         Self::new(
             ErrorCode::InternalError,
-            format!("invalid project data: {error}"),
+            format!("invalid project data: {message}"),
         )
     }
 }
@@ -84,6 +95,26 @@ impl From<serde_json::Error> for CoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn layout_decode_classification_requires_the_exact_anchored_marker() {
+        use serde::de::Error;
+        let classified = CoreError::from(serde_json::Error::custom(format!(
+            "{LAYOUT_DECODE_ERROR_PREFIX}invalid type"
+        )));
+        assert_eq!(classified.code, ErrorCode::InvalidArgument);
+        assert!(!classified.retryable);
+        assert_eq!(classified.message, "invalid text layout: invalid type");
+        for message in [
+            "layout: invalid type".to_owned(),
+            format!("user field {LAYOUT_DECODE_ERROR_PREFIX}invalid type"),
+            "OPENCUT_LAYOUT_DECODE: user text".to_owned(),
+        ] {
+            let error = CoreError::from(serde_json::Error::custom(&message));
+            assert_eq!(error.code, ErrorCode::InternalError);
+            assert_eq!(error.message, format!("invalid project data: {message}"));
+        }
+    }
 
     #[test]
     fn every_core_error_is_defined_by_the_shared_catalog() {

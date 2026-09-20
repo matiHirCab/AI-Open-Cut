@@ -14,7 +14,7 @@ use crate::{
     },
     render_artifact::{
         ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, MeasuredText, PreparedMediaResources,
-        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers_with_fonts,
+        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers_with_budget,
         prepare_media_resources, prepare_render_resources, publish_output_with, temporary_output,
         write_filter_script,
     },
@@ -46,6 +46,8 @@ use crate::{KeyframeProperty, KeyframeValue};
 
 #[derive(Clone, Debug)]
 pub struct Renderer {
+    #[cfg(test)]
+    text_glyph_limit: Option<usize>,
     ffmpeg_path: PathBuf,
     ffprobe_path: PathBuf,
     default_font_path: Option<PathBuf>,
@@ -73,6 +75,7 @@ pub struct PreviewRangeOptions {
 }
 
 struct PreparedRender {
+    text_layouts: Vec<crate::TextLayoutDiagnostic>,
     plan: RenderPlan,
     filter_path: PathBuf,
     _workspace: RenderWorkspace,
@@ -93,6 +96,8 @@ impl Renderer {
         default_font_path: Option<PathBuf>,
     ) -> Self {
         Self {
+            #[cfg(test)]
+            text_glyph_limit: None,
             ffmpeg_path: ffmpeg_path.into(),
             ffprobe_path: ffprobe_path.into(),
             default_font_path,
@@ -177,6 +182,10 @@ impl Renderer {
             "image/png",
             built.warnings.clone(),
         )
+        .map(|mut artifact| {
+            artifact.text_layouts = built.text_layouts.clone();
+            artifact
+        })
     }
 
     pub fn export_video(
@@ -230,6 +239,10 @@ impl Renderer {
             "video/mp4",
             built.warnings.clone(),
         )
+        .map(|mut artifact| {
+            artifact.text_layouts = built.text_layouts.clone();
+            artifact
+        })
     }
 
     pub fn render_preview_range(
@@ -288,6 +301,10 @@ impl Renderer {
             "video/mp4",
             built.warnings.clone(),
         )
+        .map(|mut artifact| {
+            artifact.text_layouts = built.text_layouts.clone();
+            artifact
+        })
     }
 
     #[cfg(test)]
@@ -311,13 +328,19 @@ impl Renderer {
         media: PreparedMediaResources,
     ) -> Result<RenderPreflight, CoreError> {
         let mut warnings = Vec::new();
-        let mut measured = measure_evaluated_text_layers_with_fonts(
+        let mut budget = crate::evaluated_scene::text_layout::GlyphBudget::default();
+        #[cfg(test)]
+        if let Some(limit) = self.text_glyph_limit {
+            budget = crate::evaluated_scene::text_layout::GlyphBudget::with_limit(limit);
+        }
+        let mut measured = measure_evaluated_text_layers_with_budget(
             self.artifact_io.as_ref(),
             evaluated,
             self.default_font_path.as_deref(),
             &self.font_roots,
             &mut warnings,
             &media.font_faces,
+            &mut budget,
         )?;
         let mut finalized = evaluated.scene.clone();
         for layer in &mut finalized.visual_layers {
@@ -449,7 +472,28 @@ impl Renderer {
         )
         .map_err(|error| map_renderer_error(error, GRAPH_BUILD_STAGE))?;
         write_filter_script(self.artifact_io.as_ref(), &filter_path, &plan.filter_graph)?;
+        let text_layouts = finalized
+            .visual_layers
+            .iter()
+            .filter_map(|layer| {
+                let EvaluatedVisualSource::Text(text) = &layer.source else {
+                    return None;
+                };
+                let shaped = text.shaped.as_ref()?;
+                let layout = shaped.layout.as_ref()?;
+                Some(crate::TextLayoutDiagnostic {
+                    item_id: layer.item_id.clone(),
+                    resolved_font_size: shaped.font_size,
+                    line_count: shaped.line_widths.len(),
+                    content_width_px: layout.content_width,
+                    content_height_px: layout.content_height,
+                    overflow_x: layout.overflow_x,
+                    overflow_y: layout.overflow_y,
+                })
+            })
+            .collect();
         Ok(PreparedRender {
+            text_layouts,
             plan,
             filter_path,
             _workspace: workspace,
@@ -1754,6 +1798,7 @@ mod tests {
         let command = build_render_command(
             Path::new("ffmpeg"),
             &RenderPlan {
+                text_layout_fidelity: false,
                 detail_fidelity: false,
                 filter_graph: String::new(),
                 width: 320,
@@ -3306,6 +3351,149 @@ mod tests {
             _: &mut dyn FnMut(RenderProgress),
         ) -> Result<(), CoreError> {
             panic!("preflight must not render")
+        }
+    }
+
+    #[test]
+    fn invalid_root_layouts_fail_before_any_render_side_effect() {
+        let root = tempdir().unwrap();
+        let mut project = visual_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let (text, faces) =
+            crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
+        for bytes in faces.values() {
+            let record = crate::fonts::record(bytes).unwrap();
+            project.fonts.insert(record.sha256.clone(), record);
+        }
+        // No managed font files: domain validation must also precede resource access.
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let process = Arc::new(FakeProcess {
+            readiness_error: true,
+            probe_error: true,
+            run_failure: Some(FakeRunFailure::Spawn),
+            executions: Mutex::new(vec![]),
+        });
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        let output = root.path().join("existing.mp4");
+        std::fs::write(&output, b"preserve").unwrap();
+        for hidden in [false, true] {
+            for style in [
+                serde_json::json!({"layout":{"trackingPx":-1}}),
+                serde_json::json!({"layout":{"trackingPx":1001}}),
+                serde_json::json!({"layout":{"fit":"fit_box"}}),
+                serde_json::json!({"layout":{"bounds":{"widthPx":15}},"padding":{"left":10,"right":10,"top":0,"bottom":0}}),
+            ] {
+                project.tracks[0].items = serde_json::from_value(serde_json::json!([{"type":"text","id":"text","text":"MMMMM","document":{"runs":[{"text":"MMMMM"}]},"fontSize":30,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"style":style,"hidden":hidden,"fontBinding":text.font_binding}])).unwrap();
+                assert_all_facades_reject_without_side_effects(
+                    &renderer,
+                    &io,
+                    &process,
+                    &project,
+                    root.path(),
+                    ErrorCode::InvalidArgument,
+                );
+                let error = renderer
+                    .export_video(
+                        &project,
+                        root.path(),
+                        ExportOptions {
+                            output: &output,
+                            width: 320,
+                            height: 180,
+                            overwrite: false,
+                        },
+                        |_| {},
+                    )
+                    .unwrap_err();
+                assert_eq!(error.code, ErrorCode::InvalidArgument);
+                assert!(!error.retryable);
+                assert_no_render_side_effects(&io, &process);
+                assert!(io.events.lock().unwrap().is_empty());
+                assert_eq!(std::fs::read(&output).unwrap(), b"preserve");
+                assert!(!root.path().join("previews").exists());
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_text_budget_rejects_before_output_inspection_or_allocation() {
+        use serde_json::json;
+        let root = tempdir().unwrap();
+        let mut project = visual_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let (text, faces) =
+            crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
+        std::fs::create_dir(root.path().join("fonts")).unwrap();
+        for (hash, bytes) in &faces {
+            let record = crate::fonts::record(bytes).unwrap();
+            std::fs::write(root.path().join(&record.relative_path), bytes).unwrap();
+            project.fonts.insert(hash.clone(), record);
+        }
+        let title = json!({"type":"text","id":"title","text":"MM","document":{"runs":[{"text":"MM"}]},"fontSize":30,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"style":{"layout":{}},"fontBinding":text.font_binding});
+        project.components = serde_json::from_value(json!([{"id":"card","name":"Card","width":320,"height":180,"durationMs":1000,"slots":[],"tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[title]}]}])).unwrap();
+        project.tracks[0].items = serde_json::from_value(json!([
+            {"type":"component_instance","id":"instance","componentId":"card","startMs":0,"trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{},"stackOrder":0},
+            {"type":"repeater","id":"copies","startMs":0,"durationMs":1000,"stackOrder":1,"repeater":{"source":{"scope":"root","id":"instance"},"copies":2,"transformOffset":{"position":{"x":10,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0},"opacityOffset":0}}
+        ])).unwrap();
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let process = Arc::new(GeometryProcess::default());
+        let mut renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process, io.clone());
+        let evaluated = evaluate_project(&project, 320, 180, 15).unwrap();
+        assert_eq!(evaluated.scene.visual_layers.len(), 3);
+        renderer.text_glyph_limit = Some(6);
+        let media = prepare_media_resources(io.as_ref(), &evaluated, root.path()).unwrap();
+        assert!(
+            renderer.preflight_render(&evaluated, media).is_ok(),
+            "six glyphs fit exactly"
+        );
+        renderer.text_glyph_limit = Some(5);
+        let output = root.path().join("existing.mp4");
+        std::fs::write(&output, b"preserve").unwrap();
+        for mode in 0..3 {
+            io.clear_events();
+            let error = match mode {
+                0 => renderer
+                    .render_preview(&project, root.path(), 0)
+                    .unwrap_err(),
+                1 => renderer
+                    .render_preview_range(
+                        &project,
+                        root.path(),
+                        PreviewRangeOptions {
+                            start_ms: 0,
+                            end_ms: 1000,
+                            width: 320,
+                            height: 180,
+                            fps: 15,
+                            include_audio: false,
+                        },
+                        |_| {},
+                    )
+                    .unwrap_err(),
+                _ => renderer
+                    .export_video(
+                        &project,
+                        root.path(),
+                        ExportOptions {
+                            output: &output,
+                            width: 320,
+                            height: 180,
+                            overwrite: false,
+                        },
+                        |_| {},
+                    )
+                    .unwrap_err(),
+            };
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(error.message.contains("candidate glyph limit"));
+            assert!(!io.events.lock().unwrap().iter().any(|event| matches!(
+                *event,
+                "exists" | "request_id" | "create_dir" | "write" | "rename" | "remove"
+            )));
+            assert_eq!(std::fs::read(&output).unwrap(), b"preserve");
+            assert!(!root.path().join("previews").exists());
         }
     }
 

@@ -130,6 +130,8 @@ impl ArtifactIo for FileSystemArtifactIo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenderArtifact {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub text_layouts: Vec<crate::TextLayoutDiagnostic>,
     pub relative_path: String,
     pub mime_type: String,
     pub size_bytes: u64,
@@ -533,6 +535,7 @@ pub(crate) fn measure_evaluated_text_layers(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn measure_evaluated_text_layers_with_fonts(
     io: &dyn ArtifactIo,
     evaluated: &EvaluatedSceneResult,
@@ -540,6 +543,26 @@ pub(crate) fn measure_evaluated_text_layers_with_fonts(
     font_roots: &[PathBuf],
     warnings: &mut Vec<String>,
     font_faces: &std::collections::BTreeMap<String, Vec<u8>>,
+) -> Result<HashMap<String, MeasuredText>, CoreError> {
+    measure_evaluated_text_layers_with_budget(
+        io,
+        evaluated,
+        default_font_path,
+        font_roots,
+        warnings,
+        font_faces,
+        &mut Default::default(),
+    )
+}
+
+pub(crate) fn measure_evaluated_text_layers_with_budget(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+    font_faces: &std::collections::BTreeMap<String, Vec<u8>>,
+    layout_work: &mut crate::evaluated_scene::text_layout::GlyphBudget,
 ) -> Result<HashMap<String, MeasuredText>, CoreError> {
     let font_bindings = evaluated
         .resource_bindings
@@ -596,7 +619,9 @@ pub(crate) fn measure_evaluated_text_layers_with_fonts(
                 text.style.line_spacing_px,
             ))
             .map_err(|_| CoreError::new(ErrorCode::InternalError, "cannot identify text layout"))?;
-            let shaped = if let Some(shaped) = shaped_cache.get(&cache_key) {
+            let shaped = if text.style.layout.is_some() {
+                crate::evaluated_scene::text_layout::resolve(text, font_faces, layout_work)?
+            } else if let Some(shaped) = shaped_cache.get(&cache_key) {
                 Clone::clone(shaped)
             } else {
                 let shaped = crate::fonts::shaping::shape(
@@ -1085,6 +1110,7 @@ pub(crate) fn artifact_with(
         return Err(CoreError::render_failure(PUBLISH_STAGE, None, None));
     }
     Ok(RenderArtifact {
+        text_layouts: vec![],
         relative_path,
         mime_type: mime_type.into(),
         size_bytes,

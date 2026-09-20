@@ -578,13 +578,19 @@ pub(crate) fn build_render_command(
                     "-c:v",
                     "libx264",
                     "-preset",
-                    if plan.detail_fidelity {
+                    if plan.detail_fidelity || plan.text_layout_fidelity {
                         "medium"
                     } else {
                         "veryfast"
                     },
                     "-crf",
-                    if plan.detail_fidelity { "23" } else { "28" },
+                    if plan.text_layout_fidelity {
+                        "18"
+                    } else if plan.detail_fidelity {
+                        "23"
+                    } else {
+                        "28"
+                    },
                     "-pix_fmt",
                     "yuv420p",
                     "-movflags",
@@ -601,6 +607,9 @@ pub(crate) fn build_render_command(
             }
         }
         RenderIntent::Export => {
+            if plan.text_layout_fidelity {
+                command.args(["-crf", "18", "-preset", "medium"]);
+            }
             command
                 .args([
                     "-map",
@@ -943,6 +952,7 @@ mod tests {
     #[test]
     fn executor_outcomes_are_injectable_and_diagnostics_are_bounded() {
         let plan = RenderPlan {
+            text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: String::new(),
             width: 1,
@@ -973,6 +983,7 @@ mod tests {
     #[test]
     fn benchmark_commands_preserve_production_plan_inputs_bounds_and_graph() {
         let plan = RenderPlan {
+            text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: "[0:v]null[video];[1:a]anull[audio]".into(),
             width: 160,
@@ -1051,6 +1062,7 @@ mod tests {
     #[test]
     fn grid_range_fidelity_preserves_legacy_encoding() {
         let mut plan = RenderPlan {
+            text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: String::new(),
             width: 240,
@@ -1084,5 +1096,19 @@ mod tests {
         let grid_export = args(&plan);
         plan.detail_fidelity = false;
         assert_eq!(grid_export, args(&plan));
+        plan.text_layout_fidelity = true;
+        for intent in [
+            RenderIntent::Export,
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 1000,
+                include_audio: true,
+            },
+        ] {
+            plan.intent = intent;
+            let advanced = args(&plan);
+            assert!(advanced.windows(2).any(|v| v == ["-crf", "18"]));
+            assert!(advanced.windows(2).any(|v| v == ["-preset", "medium"]));
+        }
     }
 }

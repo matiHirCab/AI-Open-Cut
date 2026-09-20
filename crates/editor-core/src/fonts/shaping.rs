@@ -20,8 +20,9 @@ pub(crate) struct ShapedGlyph {
     pub(crate) color: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct ShapedText {
+    pub(crate) layout: Option<ShapedLayout>,
     pub(crate) glyphs: Vec<ShapedGlyph>,
     pub(crate) line_widths: Vec<f64>,
     pub(crate) glyph_lines: Vec<usize>,
@@ -29,6 +30,59 @@ pub(crate) struct ShapedText {
     pub(crate) width: f64,
     pub(crate) height: f64,
     pub(crate) font_size: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ShapedLayout {
+    pub(crate) background: [f64; 4],
+    pub(crate) content_width: f64,
+    pub(crate) content_height: f64,
+    pub(crate) overflow_x: bool,
+    pub(crate) overflow_y: bool,
+}
+impl std::fmt::Debug for ShapedText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("ShapedText");
+        value
+            .field("glyphs", &self.glyphs)
+            .field("line_widths", &self.line_widths)
+            .field("glyph_lines", &self.glyph_lines)
+            .field("line_height", &self.line_height)
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .field("font_size", &self.font_size);
+        if let Some(layout) = &self.layout {
+            value.field("layout", layout);
+        }
+        value.finish()
+    }
+}
+/// Logical-order width arithmetic for the advanced profile only.
+#[derive(Clone, Copy, Default)]
+struct LayoutWidth {
+    width: f64,
+    clusters: usize,
+}
+impl LayoutWidth {
+    fn appended(self, advance: f64, tracking: f64) -> Self {
+        let mut width = self.width;
+        if self.clusters > 0 {
+            width += tracking;
+        }
+        width += advance;
+        Self {
+            width,
+            clusters: self.clusters + 1,
+        }
+    }
+}
+#[derive(Clone, Copy, Default)]
+pub(crate) struct LayoutOptions {
+    pub(crate) width: Option<f64>,
+    pub(crate) wrap: crate::TextWrap,
+    pub(crate) tracking: f64,
+    pub(crate) line_height: Option<f64>,
+    pub(crate) advanced: bool,
 }
 
 struct Cluster {
@@ -63,10 +117,32 @@ pub(crate) fn shape(
     wrap_width: Option<u32>,
     line_spacing: i32,
 ) -> Result<ShapedText, CoreError> {
+    shape_with_layout(
+        document,
+        binding,
+        faces,
+        font_size,
+        color,
+        line_spacing,
+        LayoutOptions {
+            width: wrap_width.map(f64::from),
+            ..Default::default()
+        },
+    )
+}
+pub(crate) fn shape_with_layout(
+    document: &RichTextDocument,
+    binding: &FontBinding,
+    faces: &BTreeMap<String, Vec<u8>>,
+    font_size: u32,
+    color: &str,
+    line_spacing: i32,
+    options: LayoutOptions,
+) -> Result<ShapedText, CoreError> {
     if binding.profile != TEXT_LAYOUT_PROFILE
         || font_size == 0
         || font_size > 1000
-        || wrap_width == Some(0)
+        || options.width.is_some_and(|w| !w.is_finite() || w <= 0.0)
     {
         return Err(invalid("invalid text shaping profile or dimensions"));
     }
@@ -87,17 +163,26 @@ pub(crate) fn shape(
         ));
         offset += run.text.len();
     }
+    let mut metrics = BTreeMap::new();
     let mut ascent = 0.0f64;
     let mut descent = 0.0f64;
     let mut line_height = 0.0f64;
     for hash in binding.hashes() {
+        if options.advanced && !styles.iter().any(|(_, selected, _)| *selected == hash) {
+            continue;
+        }
         let face = validate_face(
             faces
                 .get(hash)
                 .ok_or_else(|| invalid("prepared font face is missing"))?,
         )?;
         let scale = f64::from(font_size) / f64::from(face.units_per_em());
-        ascent = ascent.max(f64::from(face.ascender()) * scale);
+        let metric_ascent = f64::from(face.ascender()) * scale;
+        let metric_height = f64::from(
+            i32::from(face.ascender()) - i32::from(face.descender()) + i32::from(face.line_gap()),
+        ) * scale;
+        metrics.insert(hash, (metric_ascent, metric_height));
+        ascent = ascent.max(metric_ascent);
         descent = descent.max(-f64::from(face.descender()) * scale);
         line_height = line_height.max(
             f64::from(
@@ -106,8 +191,11 @@ pub(crate) fn shape(
             ) * scale,
         );
     }
-    let line_step = (line_height + f64::from(line_spacing)).max(1.0);
+    let line_step = options
+        .line_height
+        .unwrap_or((line_height + f64::from(line_spacing)).max(1.0));
     let mut result = ShapedText {
+        layout: None,
         glyphs: vec![],
         line_widths: vec![],
         glyph_lines: vec![],
@@ -147,6 +235,8 @@ pub(crate) fn shape(
     if trailing_separator {
         hard_lines.push(text.len()..text.len());
     }
+    let mut line_top = 0.0;
+    let mut first_ascent = None;
     for hard_line in hard_lines {
         let paragraph_offset = hard_line.start;
         let paragraph = &text[hard_line];
@@ -264,26 +354,70 @@ pub(crate) fn shape(
         loop {
             let mut end = start;
             let mut width = 0.0;
+            let mut logical = LayoutWidth::default();
             let mut last_break = None;
             while end < clusters.len() {
+                let candidate = logical.appended(clusters[end].width, options.tracking);
                 if end > start
-                    && wrap_width.is_some_and(|w| width + clusters[end].width > f64::from(w))
+                    && options.wrap != crate::TextWrap::None
+                    && options.width.is_some_and(|w| {
+                        if options.advanced {
+                            candidate.width > w
+                        } else {
+                            width + options.tracking + clusters[end].width > w
+                        }
+                    })
                 {
                     break;
                 }
-                width += clusters[end].width;
+                width += clusters[end].width + if end > start { options.tracking } else { 0.0 };
+                logical = candidate;
                 end += 1;
                 if opportunities.contains(&clusters[end - 1].end) {
-                    last_break = Some(end);
+                    last_break = Some((end, logical));
                 }
             }
             if end < clusters.len()
+                && options.wrap == crate::TextWrap::Word
                 && let Some(last) = last_break
             {
-                end = last;
+                (end, logical) = last;
             }
             let line = result.line_widths.len();
             check_work(result.glyphs.len(), line + 1)?;
+            let (baseline, advance_y) = if options.advanced {
+                let mut selected: BTreeSet<&str> = clusters[start..end]
+                    .iter()
+                    .flat_map(|c| c.glyphs.iter().map(|g| g.face.as_str()))
+                    .collect();
+                if selected.is_empty() {
+                    let source = paragraph_offset.min(text.len().saturating_sub(1));
+                    if let Some((_, face, _)) = styles.iter().find(|(r, _, _)| r.contains(&source))
+                    {
+                        selected.insert(face);
+                    }
+                }
+                let (a, h) = selected
+                    .into_iter()
+                    .filter_map(|face| metrics.get(face))
+                    .fold((0.0f64, 0.0f64), |(a, h), (ma, mh)| {
+                        (a.max(*ma), h.max(*mh))
+                    });
+                let baseline_ascent = *first_ascent.get_or_insert(a);
+                (
+                    line_top
+                        + if options.line_height.is_some() {
+                            baseline_ascent
+                        } else {
+                            a
+                        },
+                    options
+                        .line_height
+                        .unwrap_or((h + f64::from(line_spacing)).max(1.0)),
+                )
+            } else {
+                (ascent + line as f64 * line_step, line_step)
+            };
             let mut x = 0.0;
             let adjusted = bidi
                 .paragraphs
@@ -300,12 +434,15 @@ pub(crate) fn shape(
                 .iter()
                 .map(|c| adjusted.as_ref().map_or(c.level, |levels| levels[c.start]))
                 .collect();
-            for index in BidiInfo::reorder_visual(&levels) {
+            for (visual_index, index) in BidiInfo::reorder_visual(&levels).into_iter().enumerate() {
+                if visual_index > 0 {
+                    x += options.tracking;
+                }
                 let cluster = &clusters[start + index];
                 for glyph in &cluster.glyphs {
                     let mut glyph = glyph.clone();
                     glyph.x += x;
-                    glyph.y += ascent + line as f64 * line_step;
+                    glyph.y += baseline;
                     if !glyph.x.is_finite() || !glyph.y.is_finite() || !glyph.advance.is_finite() {
                         return Err(invalid("non-finite shaped glyph position"));
                     }
@@ -315,8 +452,10 @@ pub(crate) fn shape(
                 }
                 x += cluster.width;
             }
-            result.line_widths.push(x);
-            result.width = result.width.max(x);
+            line_top += advance_y;
+            let measured_width = if options.advanced { logical.width } else { x };
+            result.line_widths.push(measured_width);
+            result.width = result.width.max(measured_width);
             if end == clusters.len() {
                 break;
             }
@@ -325,6 +464,9 @@ pub(crate) fn shape(
     }
     result.height =
         ascent + descent + result.line_widths.len().saturating_sub(1) as f64 * line_step;
+    if options.advanced {
+        result.height = line_top;
+    }
     Ok(result)
 }
 
@@ -353,6 +495,147 @@ mod tests {
             },
             faces,
         )
+    }
+    #[test]
+    fn explicit_line_height_keeps_baseline_step_across_face_metrics() {
+        let (mut binding, mut faces) = inputs();
+        // A pinned synthetic bold face with a different ascender exposes baseline drift.
+        let mut bold = DEFAULT_FACES[1].to_vec();
+        let offset = validate_face(&bold)
+            .unwrap()
+            .raw_face()
+            .table_records
+            .into_iter()
+            .find(|record| record.tag == ttf_parser::Tag::from_bytes(b"hhea"))
+            .unwrap()
+            .offset as usize;
+        bold[offset + 4..offset + 6].copy_from_slice(&2200i16.to_be_bytes());
+        assert_eq!(validate_face(&bold).unwrap().ascender(), 2200);
+        binding.bold = record(&bold).unwrap().sha256;
+        faces.insert(binding.bold.clone(), bold);
+        let document = serde_json::from_value(serde_json::json!({"runs":[
+            {"text":"M\n"}, {"text":"M", "bold":true}
+        ]}))
+        .unwrap();
+        let shaped = shape_with_layout(
+            &document,
+            &binding,
+            &faces,
+            48,
+            "#ffffff",
+            0,
+            LayoutOptions {
+                advanced: true,
+                line_height: Some(60.5),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(shaped.glyphs[0].y, 1901.0 / 2048.0 * 48.0);
+        assert_eq!(shaped.glyphs[1].y - shaped.glyphs[0].y, 60.5);
+        assert_eq!(shaped.height, 121.0);
+    }
+
+    #[test]
+    fn advanced_tracking_preserves_clusters_and_line_boxes() {
+        let (binding, faces) = inputs();
+        for text in ["office", "a\u{301}b", "אבג abc", "👩‍👩‍👧‍👦 x"] {
+            let document = RichTextDocument::plain(text.into());
+            let base = shape(&document, &binding, &faces, 48, "#ffffff", None, 0).unwrap();
+            let advanced = shape_with_layout(
+                &document,
+                &binding,
+                &faces,
+                48,
+                "#ffffff",
+                0,
+                LayoutOptions {
+                    tracking: 2.5,
+                    advanced: true,
+                    line_height: Some(60.5),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let clusters: BTreeSet<_> = base.glyphs.iter().map(|g| g.cluster).collect();
+            assert_eq!(
+                base.glyphs
+                    .iter()
+                    .map(|g| (g.id, g.cluster))
+                    .collect::<Vec<_>>(),
+                advanced
+                    .glyphs
+                    .iter()
+                    .map(|g| (g.id, g.cluster))
+                    .collect::<Vec<_>>()
+            );
+            assert!(
+                (advanced.width - base.width - clusters.len().saturating_sub(1) as f64 * 2.5).abs()
+                    < 0.000001
+            );
+            assert_eq!(advanced.height, 60.5);
+        }
+    }
+
+    #[test]
+    fn advanced_wrap_modes_honor_hard_breaks_and_complete_clusters() {
+        let (binding, faces) = inputs();
+        for separator in [
+            "\r", "\n", "\r\n", "\u{85}", "\u{b}", "\u{c}", "\u{2028}", "\u{2029}",
+        ] {
+            for wrap in [
+                crate::TextWrap::None,
+                crate::TextWrap::Word,
+                crate::TextWrap::Cluster,
+            ] {
+                let document = RichTextDocument::plain(format!("fi{separator}"));
+                let shaped = shape_with_layout(
+                    &document,
+                    &binding,
+                    &faces,
+                    48,
+                    "#ffffff",
+                    0,
+                    LayoutOptions {
+                        width: Some(1.0),
+                        wrap,
+                        advanced: true,
+                        line_height: Some(50.0),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+                assert_eq!(shaped.line_widths.len(), 2);
+                assert_eq!(shaped.height, 100.0);
+                assert_eq!(shaped.glyphs.len(), 1, "ligature remains intact");
+            }
+        }
+        let document = RichTextDocument::plain("ab cd".into());
+        let natural = shape(&document, &binding, &faces, 48, "#ffffff", None, 0).unwrap();
+        let width = natural.glyphs[..4].iter().map(|g| g.advance).sum::<f64>();
+        let run = |wrap| {
+            shape_with_layout(
+                &document,
+                &binding,
+                &faces,
+                48,
+                "#ffffff",
+                0,
+                LayoutOptions {
+                    width: Some(width),
+                    wrap,
+                    advanced: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(run(crate::TextWrap::None).line_widths.len(), 1);
+        assert_eq!(run(crate::TextWrap::Word).glyph_lines, vec![0, 0, 0, 1, 1]);
+        assert_eq!(
+            run(crate::TextWrap::Cluster).glyph_lines,
+            vec![0, 0, 0, 0, 1]
+        );
     }
     #[test]
     fn mandatory_separators_preserve_lines_clusters_and_paragraph_direction() {

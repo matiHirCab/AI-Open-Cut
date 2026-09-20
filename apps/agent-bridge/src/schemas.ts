@@ -105,6 +105,36 @@ export const duckingSchema = z
 
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
+export const advancedTextLayoutSchema = z
+  .object({
+    backgroundCornerRadiusPx: finite.min(0).max(2160).default(0),
+    bounds: z
+      .object({
+        heightPx: finite.min(1).max(4320).optional(),
+        widthPx: finite.min(1).max(7680).optional(),
+      })
+      .strict()
+      .optional(),
+    fit: z.enum(["none", "shrink", "fit_width", "fit_box"]).default("none"),
+    lineHeightPx: finite.min(1).max(4320).optional(),
+    trackingPx: finite.min(0).max(1000).default(0),
+    verticalAlignment: z.enum(["top", "center", "bottom"]).default("top"),
+    wrap: z.enum(["none", "word", "cluster"]).default("word"),
+  })
+  .strict();
+
+export const textLayoutDiagnosticSchema = z
+  .object({
+    contentHeightPx: finite.min(0),
+    contentWidthPx: finite.min(0),
+    itemId: z.string(),
+    lineCount: z.int().min(1).max(4096),
+    overflowX: z.boolean(),
+    overflowY: z.boolean(),
+    resolvedFontSize: z.int().min(1).max(1000),
+  })
+  .strict();
+
 export const textStyleSchema = z
   .object({
     alignment: z.enum(["left", "center", "right"]).default("left"),
@@ -123,6 +153,7 @@ export const textStyleSchema = z
       .default("top_left"),
     backgroundColor: color.default("#000000"),
     backgroundOpacity: finite.min(0).max(1).default(0),
+    layout: advancedTextLayoutSchema.optional(),
     lineSpacingPx: z.int().min(-4320).max(4320).default(0),
     outlineColor: color.default("#000000"),
     outlineWidthPx: z.int().min(0).max(100).default(0),
@@ -232,7 +263,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(20).optional(),
+    projectSchemaVersion: z.literal(21).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -326,6 +357,7 @@ export const artifactSchema = z
     mimeType: z.string(),
     relativePath: z.string(),
     sizeBytes: z.int().positive(),
+    textLayouts: z.array(textLayoutDiagnosticSchema).optional(),
     warnings: z.array(z.string()).default([]),
   })
   .strict();
@@ -1291,7 +1323,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(20),
+        schemaVersion: z.literal(21),
         settings: z
           .object({
             fps: z.int().positive(),

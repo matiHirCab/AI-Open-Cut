@@ -7,16 +7,18 @@ mod repeater;
 mod shape;
 mod styled_text;
 mod svg;
+mod text_layout;
 pub use grid::*;
 pub use repeater::*;
 use serde::{Deserialize, Deserializer, Serialize};
 pub use shape::*;
 pub use styled_text::*;
 pub use svg::*;
+pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 20;
+pub const PROJECT_SCHEMA_VERSION: u32 = 21;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -260,6 +262,9 @@ fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Resul
         })
     {
         if item["type"] == "text" {
+            if version < 21 && item.get("style").is_some_and(|s| s.get("layout").is_some()) {
+                return Err("advanced text layout requires schema 21".into());
+            }
             if version < 19 && item.get("fontBinding").is_some() {
                 return Err("text font bindings require schema 19".into());
             }
@@ -1100,10 +1105,16 @@ pub struct TextPadding {
 pub struct TextStyle {
     #[serde(
         default,
+        deserialize_with = "deserialize_text_layout",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub layout: Option<Box<TextLayout>>,
+    #[serde(
+        default,
         deserialize_with = "deserialize_present",
         skip_serializing_if = "Option::is_none"
     )]
-    pub paint_layers: Option<Vec<TextPaintLayer>>,
+    pub paint_layers: Option<Box<[TextPaintLayer]>>,
     #[serde(default)]
     pub alignment: TextAlignment,
     #[serde(default)]
@@ -1133,6 +1144,7 @@ fn default_black() -> String {
 impl Default for TextStyle {
     fn default() -> Self {
         Self {
+            layout: None,
             paint_layers: None,
             alignment: TextAlignment::Left,
             wrap_width_px: None,

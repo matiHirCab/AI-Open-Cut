@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
+pub(crate) mod text_layout;
 use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
     KeyframeValue, MediaType, Project, TextAlignment, TextStyle, TimelineItem, Track, Transform,
@@ -1592,6 +1593,7 @@ pub(crate) struct EvaluatedTextShadow {
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedTextStyle {
+    pub(crate) layout: Option<Box<crate::TextLayout>>,
     pub(crate) paint_layers: Option<Vec<crate::TextPaintLayer>>,
     pub(crate) alignment: EvaluatedTextAlignment,
     pub(crate) wrap_width_px: Option<u32>,
@@ -1608,6 +1610,9 @@ pub(crate) struct EvaluatedTextStyle {
 impl std::fmt::Debug for EvaluatedTextStyle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut value = f.debug_struct("EvaluatedTextStyle");
+        if let Some(layout) = &self.layout {
+            value.field("layout", layout);
+        }
         // Keep reviewed legacy semantic plans stable when new paints are absent.
         if let Some(paints) = &self.paint_layers {
             value.field("paint_layers", paints);
@@ -2604,7 +2609,8 @@ pub(crate) fn evaluate_text_style(style: &TextStyle) -> Result<EvaluatedTextStyl
         return Err(invalid("evaluated text style values must be finite"));
     }
     Ok(EvaluatedTextStyle {
-        paint_layers: style.paint_layers.clone(),
+        layout: style.layout.clone(),
+        paint_layers: style.paint_layers.as_deref().map(Vec::from),
         alignment: match style.alignment {
             TextAlignment::Left => EvaluatedTextAlignment::Left,
             TextAlignment::Center => EvaluatedTextAlignment::Center,
@@ -3991,6 +3997,33 @@ impl EvaluatedVisualLayer {
                 )
             })
     }
+    /// Logical padding box in raster coordinates; its origin includes paint/ink margins.
+    fn text_logical_box(&self) -> Option<[f64; 4]> {
+        let EvaluatedVisualSource::Text(text) = &self.source else {
+            return None;
+        };
+        text.shaped
+            .as_ref()?
+            .layout
+            .as_ref()
+            .map(|layout| layout.background)
+    }
+    fn local_transform_matrices(
+        &self,
+        transform: crate::Transform2D,
+        source: (u32, u32),
+        canvas: (u32, u32),
+    ) -> Result<([f64; 6], [f64; 6]), CoreError> {
+        let Some([x, y, w, h]) = self.text_logical_box() else {
+            return transform_matrices(transform, source, canvas);
+        };
+        let (matrix, inverse) = transform_matrices_logical(transform, (w, h), canvas)?;
+        // Raster origin is (-x,-y) in logical coordinates. Compose before parents.
+        Ok((
+            multiply_matrix(matrix, [1.0, 0.0, 0.0, 1.0, -x, -y]),
+            multiply_matrix([1.0, 0.0, 0.0, 1.0, x, y], inverse),
+        ))
+    }
     pub(crate) fn legacy_anchor(&self, source: (u32, u32)) -> (f64, f64) {
         if let EvaluatedVisualSource::Shape(shape) = &self.source {
             return (-shape.origin.0, -shape.origin.1);
@@ -4009,7 +4042,11 @@ impl EvaluatedVisualLayer {
             BottomLeft | BottomCenter | BottomRight => 1.0,
             _ => 0.0,
         };
-        (x * f64::from(source.0), y * f64::from(source.1))
+        if let Some([bx, by, w, h]) = self.text_logical_box() {
+            (bx + x * w, by + y * h)
+        } else {
+            (x * f64::from(source.0), y * f64::from(source.1))
+        }
     }
     pub(crate) fn visible_span(&self) -> EvaluatedTimeSpan {
         self.ancestors.map_or(self.span, |parent| parent.clip)
@@ -4117,9 +4154,27 @@ fn transform_matrices(
     source: (u32, u32),
     canvas: (u32, u32),
 ) -> Result<([f64; 6], [f64; 6]), CoreError> {
-    transform.validate()?;
     if source.0 == 0 || source.1 == 0 {
+        transform.validate()?;
         return Err(invalid("Transform2D source dimensions must be positive"));
+    }
+    transform_matrices_logical(
+        transform,
+        (f64::from(source.0), f64::from(source.1)),
+        canvas,
+    )
+}
+
+fn transform_matrices_logical(
+    transform: crate::Transform2D,
+    source: (f64, f64),
+    canvas: (u32, u32),
+) -> Result<([f64; 6], [f64; 6]), CoreError> {
+    transform.validate()?;
+    if !source.0.is_finite() || !source.1.is_finite() || source.0 < 0.0 || source.1 < 0.0 {
+        return Err(invalid(
+            "Transform2D logical dimensions must be finite and nonnegative",
+        ));
     }
     let (sin, cos) = transform.rotation_deg.to_radians().sin_cos();
     let kx = transform.skew_x_deg.to_radians().tan();
@@ -4132,8 +4187,8 @@ fn transform_matrices(
         crate::PositionUnit::Pixels => (1.0, 1.0),
         crate::PositionUnit::Normalized => (f64::from(canvas.0), f64::from(canvas.1)),
     };
-    let ax = transform.anchor.x * f64::from(source.0);
-    let ay = transform.anchor.y * f64::from(source.1);
+    let ax = transform.anchor.x * source.0;
+    let ay = transform.anchor.y * source.1;
     let tx = transform.position.x * factor.0 - a * ax - c * ay;
     let ty = transform.position.y * factor.1 - b * ax - d * ay;
     let matrix = [a, b, c, d, tx, ty];
@@ -4236,17 +4291,18 @@ fn measure_layer_affine(
     }
     let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
     if ancestors.is_none() {
-        return evaluate_affine(
-            layer
-                .transform2d
-                .ok_or_else(|| invalid("missing local affine transform"))?,
-            source,
-            canvas,
-        );
+        let transform = layer
+            .transform2d
+            .ok_or_else(|| invalid("missing local affine transform"))?;
+        if layer.text_logical_box().is_none() {
+            return evaluate_affine(transform, source, canvas);
+        }
+        let (matrix, inverse) = layer.local_transform_matrices(transform, source, canvas)?;
+        return affine_from_matrices(matrix, inverse, source, transform.opacity);
     }
     let parent = ancestors.unwrap();
     let (local, inverse, opacity) = if let Some(transform) = layer.transform2d {
-        let (matrix, inverse) = transform_matrices(transform, source, canvas)?;
+        let (matrix, inverse) = layer.local_transform_matrices(transform, source, canvas)?;
         (matrix, inverse, transform.opacity)
     } else {
         let mut x = layer.transform.position_x;
