@@ -542,7 +542,9 @@ fn logical_box_pixel_conformance(tools: &NativeTools) {
         let frame = renderer.render_preview(&project, &dir, 0).unwrap();
         let pixels = grids::decode_rgb_frame(&tools.ffmpeg, &dir.join(frame.relative_path), 0);
         let red: Vec<_> = pixels
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .enumerate()
             .filter(|(_, p)| p[0] > 240 && p[1] < 10 && p[2] < 10)
             .map(|(i, _)| (i % 320, i / 320))
