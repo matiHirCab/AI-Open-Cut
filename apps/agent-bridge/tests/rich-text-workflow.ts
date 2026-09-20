@@ -1,6 +1,9 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
+import ADVANCED from "../../../contracts/advanced-text-layout-v1.json";
 import CATALOG from "../../../contracts/rich-text-documents-v1.json";
 import STYLED from "../../../contracts/styled-text-layers-v1.json";
 import LAYOUT from "../../../contracts/text-layout-v2.json";
@@ -17,11 +20,16 @@ type Call = <Output>(
   schema: ZodType<Output>
 ) => Promise<Output>;
 
-export async function verifyRichTextWorkflow(client: Client, call: Call) {
+export async function verifyRichTextWorkflow(
+  client: Client,
+  call: Call,
+  projects: string
+) {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.capabilities).toContain(CATALOG.capability);
   expect(status.capabilities).toContain(LAYOUT.capability);
   expect(status.capabilities).toContain(STYLED.capability);
+  expect(status.capabilities).toContain(ADVANCED.capability);
   expect(status.textLayoutVersion).toBe(2);
   const created = await call(
     "project_create",
@@ -59,14 +67,17 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
       expectedRevision: created.revision,
       projectId,
       startMs: 0,
-      style: { paintLayers: STYLED.valid[3]?.paintLayers },
+      style: {
+        layout: ADVANCED.valid[1]?.layout,
+        paintLayers: STYLED.valid[3]?.paintLayers,
+      },
       trackId,
     },
     writeResultSchema
   );
   const [itemId] = added.changedIds;
   const saved = await read();
-  expect(saved.project.schemaVersion).toBe(20);
+  expect(saved.project.schemaVersion).toBe(21);
   expect(Object.keys(saved.project.fonts)).toHaveLength(4);
   expect(Object.keys(saved.project.fonts).sort()).toEqual(
     [
@@ -78,7 +89,25 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
   );
   expect(
     saved.project.tracks.flatMap((t) => t.items).find((i) => i.id === itemId)
-  ).toMatchObject({ document, text: CATALOG.valid[1]?.text });
+  ).toMatchObject({
+    document,
+    style: { layout: ADVANCED.valid[1]?.layout },
+    text: CATALOG.valid[1]?.text,
+  });
+  const invalidLayout = await client.callTool({
+    arguments: {
+      expectedRevision: added.revision,
+      itemId,
+      projectId,
+      style: {
+        layout: { bounds: { widthPx: 15 } },
+        padding: { bottom: 0, left: 10, right: 10, top: 0 },
+      },
+    },
+    name: "timeline_update_item",
+  });
+  expect(invalidLayout.isError).toBe(true);
+  expect(await read()).toEqual(saved);
   const failed = await client.callTool({
     arguments: {
       expectedRevision: added.revision,
@@ -126,7 +155,12 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
           trackId,
           transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
         },
-        { itemId: "@title", operation: "update_item", text: "plain" },
+        {
+          itemId: "@title",
+          operation: "update_item",
+          style: { layout: ADVANCED.valid[1]?.layout },
+          text: "plain",
+        },
       ],
       projectId,
     },
@@ -164,4 +198,77 @@ export async function verifyRichTextWorkflow(client: Client, call: Call) {
     writeResultSchema
   );
   expect((await read()).project.fonts).toEqual(final.project.fonts);
+  const current = (await read()).project;
+  const projectPath = join(projects, projectId, "project.json");
+  const historyPath = join(projects, projectId, "history.json");
+  const originalProject = readFileSync(projectPath);
+  const originalHistory = readFileSync(historyPath);
+  const invalidRoot = (layout: unknown) => ({
+    ...current,
+    tracks: current.tracks.map((track) => ({
+      ...track,
+      items: track.items.map((item) =>
+        item.type === "text"
+          ? { ...item, style: { ...item.style, layout } }
+          : item
+      ),
+    })),
+  });
+  const expectPersistedError = async (code: string) => {
+    const result = await client.callTool({
+      arguments: { projectId },
+      name: "project_open",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      error: { code, retryable: false },
+    });
+    expect(JSON.stringify(result)).not.toContain("OPENCUT_LAYOUT_DECODE");
+  };
+  const verifyPersistedProject = async (project: unknown, code: string) => {
+    const bytes = Buffer.from(JSON.stringify(project));
+    try {
+      writeFileSync(projectPath, bytes);
+      await expectPersistedError(code);
+      expect(readFileSync(projectPath)).toEqual(bytes);
+      expect(readFileSync(historyPath)).toEqual(originalHistory);
+    } finally {
+      writeFileSync(projectPath, originalProject);
+    }
+  };
+  await verifyPersistedProject(
+    invalidRoot({ trackingPx: -1 }),
+    "INVALID_ARGUMENT"
+  );
+  await verifyPersistedProject(invalidRoot(null), "INVALID_ARGUMENT");
+  await verifyPersistedProject({ ...current, name: 42 }, "INTERNAL_ERROR");
+  const retained = await call(
+    "draft_create",
+    {
+      expectedRevision: current.revision,
+      operations: [{ itemId, operation: "update_item", style: { layout: {} } }],
+      projectId,
+    },
+    editDraftSchema
+  );
+  const draftPath = join(projects, projectId, "drafts", `${retained.id}.json`);
+  const originalDraft = readFileSync(draftPath);
+  const malformedDraft = Buffer.from(
+    JSON.stringify({
+      ...retained,
+      operations: [
+        { itemId, operation: "update_item", style: { layout: null } },
+      ],
+    })
+  );
+  try {
+    writeFileSync(draftPath, malformedDraft);
+    await expectPersistedError("INVALID_ARGUMENT");
+    expect(readFileSync(draftPath)).toEqual(malformedDraft);
+    expect(readFileSync(projectPath)).toEqual(originalProject);
+    expect(readFileSync(historyPath)).toEqual(originalHistory);
+  } finally {
+    writeFileSync(draftPath, originalDraft);
+  }
+  expect((await read()).project).toEqual(current);
 }

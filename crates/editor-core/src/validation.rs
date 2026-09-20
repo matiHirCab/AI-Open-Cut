@@ -7,6 +7,7 @@ pub(crate) mod grid;
 pub(crate) mod repeater;
 pub(crate) mod styled_text;
 pub(crate) mod svg;
+mod text_layout;
 
 use crate::{ComponentDefinition, SlotKind, SlotProperty, SlotValue, TemplateSlot};
 use std::collections::BTreeMap;
@@ -274,6 +275,9 @@ fn validate_scope(
         for item in &track.items {
             if let TimelineItem::Text(text) = item {
                 validate_text_document(&text.document, &text.text)?;
+                if text.style.layout.is_some() {
+                    validate_text_style(&text.style)?;
+                }
             }
             if index.insert(item.id(), item).is_some() {
                 return Err(invalid("duplicate timeline item ID"));
@@ -511,6 +515,7 @@ pub(crate) fn validate_text(text: &str, font_size: u32, color: &str) -> Result<(
 }
 
 pub(crate) fn validate_text_style(style: &TextStyle) -> Result<(), CoreError> {
+    text_layout::validate(style)?;
     if let Some(layers) = &style.paint_layers {
         styled_text::validate_text_paints(layers)?;
     }

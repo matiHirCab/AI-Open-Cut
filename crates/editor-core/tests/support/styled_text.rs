@@ -70,7 +70,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
     let draft_before =
         std::fs::read(dir.join("drafts").join(format!("{}.json", draft.id))).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-    old["schemaVersion"] = json!(20);
+    old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     assert_eq!(migrated, old);
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();

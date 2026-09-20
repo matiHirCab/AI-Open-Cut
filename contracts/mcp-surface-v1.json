@@ -12,7 +12,8 @@
     "repeater_rendering",
     "rich_text_documents",
     "content_addressed_text_layout_v2",
-    "styled_text_layers_v1"
+    "styled_text_layers_v1",
+    "advanced_text_layout_v1"
   ],
   "prompts": [
     "add_narration",
@@ -3239,6 +3240,73 @@
                                 "maximum": 1,
                                 "minimum": 0,
                                 "type": "number"
+                              },
+                              "layout": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "backgroundCornerRadiusPx": {
+                                    "default": 0,
+                                    "maximum": 2160,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "bounds": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "heightPx": {
+                                        "maximum": 4320,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      },
+                                      "widthPx": {
+                                        "maximum": 7680,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "fit": {
+                                    "default": "none",
+                                    "enum": [
+                                      "none",
+                                      "shrink",
+                                      "fit_width",
+                                      "fit_box"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "lineHeightPx": {
+                                    "maximum": 4320,
+                                    "minimum": 1,
+                                    "type": "number"
+                                  },
+                                  "trackingPx": {
+                                    "default": 0,
+                                    "maximum": 1000,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "verticalAlignment": {
+                                    "default": "top",
+                                    "enum": [
+                                      "top",
+                                      "center",
+                                      "bottom"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "wrap": {
+                                    "default": "word",
+                                    "enum": [
+                                      "none",
+                                      "word",
+                                      "cluster"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object"
                               },
                               "lineSpacingPx": {
                                 "default": 0,
@@ -13150,6 +13218,73 @@
                                 "maximum": 1,
                                 "minimum": 0,
                                 "type": "number"
+                              },
+                              "layout": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "backgroundCornerRadiusPx": {
+                                    "default": 0,
+                                    "maximum": 2160,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "bounds": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "heightPx": {
+                                        "maximum": 4320,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      },
+                                      "widthPx": {
+                                        "maximum": 7680,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "fit": {
+                                    "default": "none",
+                                    "enum": [
+                                      "none",
+                                      "shrink",
+                                      "fit_width",
+                                      "fit_box"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "lineHeightPx": {
+                                    "maximum": 4320,
+                                    "minimum": 1,
+                                    "type": "number"
+                                  },
+                                  "trackingPx": {
+                                    "default": 0,
+                                    "maximum": 1000,
+                                    "minimum": 0,
+                                    "type": "number"
+                                  },
+                                  "verticalAlignment": {
+                                    "default": "top",
+                                    "enum": [
+                                      "top",
+                                      "center",
+                                      "bottom"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "wrap": {
+                                    "default": "word",
+                                    "enum": [
+                                      "none",
+                                      "word",
+                                      "cluster"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object"
                               },
                               "lineSpacingPx": {
                                 "default": 0,
@@ -23426,6 +23561,73 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -31723,6 +31925,73 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -38436,6 +38705,73 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -44595,6 +44931,73 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -49711,6 +50114,80 @@
                                           "maximum": 1,
                                           "minimum": 0,
                                           "type": "number"
+                                        },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
                                         },
                                         "lineSpacingPx": {
                                           "default": 0,
@@ -58090,6 +58567,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -64871,6 +65422,80 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -71054,6 +71679,80 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -76242,6 +76941,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -84620,6 +85393,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -91402,6 +92249,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -97584,6 +98505,80 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -102772,6 +103767,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -111150,6 +112219,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -117932,6 +119075,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -124115,6 +125332,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -125233,6 +126524,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -129905,6 +131241,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -138283,6 +139693,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -145065,6 +146549,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -151247,6 +152805,80 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -156305,6 +157937,73 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -164602,6 +166301,73 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -171316,6 +173082,73 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -177473,6 +179306,73 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -182592,6 +184492,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -190970,6 +192944,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -197752,6 +199800,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -203935,6 +206057,80 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -205514,7 +207710,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 20,
+            "const": 21,
             "type": "number"
           },
           "protocolVersion": {
@@ -206474,6 +208670,51 @@
                 "maximum": 9007199254740991,
                 "type": "integer"
               },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
               "warnings": {
                 "default": [],
                 "items": {
@@ -207058,6 +209299,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -207655,6 +209941,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -208289,6 +210620,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -208999,6 +211375,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -212102,6 +214523,80 @@
                                           "maximum": 1,
                                           "minimum": 0,
                                           "type": "number"
+                                        },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
                                         },
                                         "lineSpacingPx": {
                                           "default": 0,
@@ -218373,7 +220868,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 20,
+                "const": 21,
                 "type": "number"
               },
               "settings": {
@@ -219465,6 +221960,80 @@
                                     "maximum": 1,
                                     "minimum": 0,
                                     "type": "number"
+                                  },
+                                  "layout": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "backgroundCornerRadiusPx": {
+                                        "default": 0,
+                                        "maximum": 2160,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "bounds": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "heightPx": {
+                                            "maximum": 4320,
+                                            "minimum": 1,
+                                            "type": "number"
+                                          },
+                                          "widthPx": {
+                                            "maximum": 7680,
+                                            "minimum": 1,
+                                            "type": "number"
+                                          }
+                                        },
+                                        "type": "object"
+                                      },
+                                      "fit": {
+                                        "default": "none",
+                                        "enum": [
+                                          "none",
+                                          "shrink",
+                                          "fit_width",
+                                          "fit_box"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "lineHeightPx": {
+                                        "maximum": 4320,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      },
+                                      "trackingPx": {
+                                        "default": 0,
+                                        "maximum": 1000,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "verticalAlignment": {
+                                        "default": "top",
+                                        "enum": [
+                                          "top",
+                                          "center",
+                                          "bottom"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "wrap": {
+                                        "default": "word",
+                                        "enum": [
+                                          "none",
+                                          "word",
+                                          "cluster"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "backgroundCornerRadiusPx",
+                                      "fit",
+                                      "trackingPx",
+                                      "verticalAlignment",
+                                      "wrap"
+                                    ],
+                                    "type": "object"
                                   },
                                   "lineSpacingPx": {
                                     "default": 0,
@@ -229024,6 +231593,80 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "backgroundCornerRadiusPx",
+                                            "fit",
+                                            "trackingPx",
+                                            "verticalAlignment",
+                                            "wrap"
+                                          ],
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -235294,7 +237937,7 @@
                 "type": "integer"
               },
               "schemaVersion": {
-                "const": 20,
+                "const": 21,
                 "type": "number"
               },
               "settings": {
@@ -236386,6 +239029,80 @@
                                     "maximum": 1,
                                     "minimum": 0,
                                     "type": "number"
+                                  },
+                                  "layout": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "backgroundCornerRadiusPx": {
+                                        "default": 0,
+                                        "maximum": 2160,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "bounds": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "heightPx": {
+                                            "maximum": 4320,
+                                            "minimum": 1,
+                                            "type": "number"
+                                          },
+                                          "widthPx": {
+                                            "maximum": 7680,
+                                            "minimum": 1,
+                                            "type": "number"
+                                          }
+                                        },
+                                        "type": "object"
+                                      },
+                                      "fit": {
+                                        "default": "none",
+                                        "enum": [
+                                          "none",
+                                          "shrink",
+                                          "fit_width",
+                                          "fit_box"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "lineHeightPx": {
+                                        "maximum": 4320,
+                                        "minimum": 1,
+                                        "type": "number"
+                                      },
+                                      "trackingPx": {
+                                        "default": 0,
+                                        "maximum": 1000,
+                                        "minimum": 0,
+                                        "type": "number"
+                                      },
+                                      "verticalAlignment": {
+                                        "default": "top",
+                                        "enum": [
+                                          "top",
+                                          "center",
+                                          "bottom"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "wrap": {
+                                        "default": "word",
+                                        "enum": [
+                                          "none",
+                                          "word",
+                                          "cluster"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "backgroundCornerRadiusPx",
+                                      "fit",
+                                      "trackingPx",
+                                      "verticalAlignment",
+                                      "wrap"
+                                    ],
+                                    "type": "object"
                                   },
                                   "lineSpacingPx": {
                                     "default": 0,
@@ -244367,6 +247084,51 @@
                 "maximum": 9007199254740991,
                 "type": "integer"
               },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
               "warnings": {
                 "default": [],
                 "items": {
@@ -245222,6 +247984,51 @@
                 "maximum": 9007199254740991,
                 "type": "integer"
               },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
               "warnings": {
                 "default": [],
                 "items": {
@@ -245889,6 +248696,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],
@@ -250398,6 +253250,73 @@
                 "minimum": 0,
                 "type": "number"
               },
+              "layout": {
+                "additionalProperties": false,
+                "properties": {
+                  "backgroundCornerRadiusPx": {
+                    "default": 0,
+                    "maximum": 2160,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "bounds": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "heightPx": {
+                        "maximum": 4320,
+                        "minimum": 1,
+                        "type": "number"
+                      },
+                      "widthPx": {
+                        "maximum": 7680,
+                        "minimum": 1,
+                        "type": "number"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "fit": {
+                    "default": "none",
+                    "enum": [
+                      "none",
+                      "shrink",
+                      "fit_width",
+                      "fit_box"
+                    ],
+                    "type": "string"
+                  },
+                  "lineHeightPx": {
+                    "maximum": 4320,
+                    "minimum": 1,
+                    "type": "number"
+                  },
+                  "trackingPx": {
+                    "default": 0,
+                    "maximum": 1000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "verticalAlignment": {
+                    "default": "top",
+                    "enum": [
+                      "top",
+                      "center",
+                      "bottom"
+                    ],
+                    "type": "string"
+                  },
+                  "wrap": {
+                    "default": "word",
+                    "enum": [
+                      "none",
+                      "word",
+                      "cluster"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
               "lineSpacingPx": {
                 "default": 0,
                 "maximum": 4320,
@@ -254814,6 +257733,73 @@
                                           "maximum": 1,
                                           "minimum": 0,
                                           "type": "number"
+                                        },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
                                         },
                                         "lineSpacingPx": {
                                           "default": 0,
@@ -263112,6 +266098,73 @@
                                           "minimum": 0,
                                           "type": "number"
                                         },
+                                        "layout": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "backgroundCornerRadiusPx": {
+                                              "default": 0,
+                                              "maximum": 2160,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "bounds": {
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "heightPx": {
+                                                  "maximum": 4320,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                },
+                                                "widthPx": {
+                                                  "maximum": 7680,
+                                                  "minimum": 1,
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "fit": {
+                                              "default": "none",
+                                              "enum": [
+                                                "none",
+                                                "shrink",
+                                                "fit_width",
+                                                "fit_box"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "lineHeightPx": {
+                                              "maximum": 4320,
+                                              "minimum": 1,
+                                              "type": "number"
+                                            },
+                                            "trackingPx": {
+                                              "default": 0,
+                                              "maximum": 1000,
+                                              "minimum": 0,
+                                              "type": "number"
+                                            },
+                                            "verticalAlignment": {
+                                              "default": "top",
+                                              "enum": [
+                                                "top",
+                                                "center",
+                                                "bottom"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "wrap": {
+                                              "default": "word",
+                                              "enum": [
+                                                "none",
+                                                "word",
+                                                "cluster"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        },
                                         "lineSpacingPx": {
                                           "default": 0,
                                           "maximum": 4320,
@@ -269826,6 +272879,73 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -275984,6 +279104,73 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "lineSpacingPx": {
                           "default": 0,
                           "maximum": 4320,
@@ -278323,6 +281510,80 @@
                           "maximum": 1,
                           "minimum": 0,
                           "type": "number"
+                        },
+                        "layout": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backgroundCornerRadiusPx": {
+                              "default": 0,
+                              "maximum": 2160,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "bounds": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "heightPx": {
+                                  "maximum": 4320,
+                                  "minimum": 1,
+                                  "type": "number"
+                                },
+                                "widthPx": {
+                                  "maximum": 7680,
+                                  "minimum": 1,
+                                  "type": "number"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "fit": {
+                              "default": "none",
+                              "enum": [
+                                "none",
+                                "shrink",
+                                "fit_width",
+                                "fit_box"
+                              ],
+                              "type": "string"
+                            },
+                            "lineHeightPx": {
+                              "maximum": 4320,
+                              "minimum": 1,
+                              "type": "number"
+                            },
+                            "trackingPx": {
+                              "default": 0,
+                              "maximum": 1000,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "verticalAlignment": {
+                              "default": "top",
+                              "enum": [
+                                "top",
+                                "center",
+                                "bottom"
+                              ],
+                              "type": "string"
+                            },
+                            "wrap": {
+                              "default": "word",
+                              "enum": [
+                                "none",
+                                "word",
+                                "cluster"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "backgroundCornerRadiusPx",
+                            "fit",
+                            "trackingPx",
+                            "verticalAlignment",
+                            "wrap"
+                          ],
+                          "type": "object"
                         },
                         "lineSpacingPx": {
                           "default": 0,
@@ -288779,6 +292040,73 @@
                 "minimum": 0,
                 "type": "number"
               },
+              "layout": {
+                "additionalProperties": false,
+                "properties": {
+                  "backgroundCornerRadiusPx": {
+                    "default": 0,
+                    "maximum": 2160,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "bounds": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "heightPx": {
+                        "maximum": 4320,
+                        "minimum": 1,
+                        "type": "number"
+                      },
+                      "widthPx": {
+                        "maximum": 7680,
+                        "minimum": 1,
+                        "type": "number"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "fit": {
+                    "default": "none",
+                    "enum": [
+                      "none",
+                      "shrink",
+                      "fit_width",
+                      "fit_box"
+                    ],
+                    "type": "string"
+                  },
+                  "lineHeightPx": {
+                    "maximum": 4320,
+                    "minimum": 1,
+                    "type": "number"
+                  },
+                  "trackingPx": {
+                    "default": 0,
+                    "maximum": 1000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "verticalAlignment": {
+                    "default": "top",
+                    "enum": [
+                      "top",
+                      "center",
+                      "bottom"
+                    ],
+                    "type": "string"
+                  },
+                  "wrap": {
+                    "default": "word",
+                    "enum": [
+                      "none",
+                      "word",
+                      "cluster"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
               "lineSpacingPx": {
                 "default": 0,
                 "maximum": 4320,
@@ -290144,6 +293472,51 @@
                 "maximum": 9007199254740991,
                 "type": "integer"
               },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
               "warnings": {
                 "default": [],
                 "items": {
@@ -290921,6 +294294,51 @@
                 "exclusiveMinimum": 0,
                 "maximum": 9007199254740991,
                 "type": "integer"
+              },
+              "textLayouts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentHeightPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "contentWidthPx": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "itemId": {
+                      "type": "string"
+                    },
+                    "lineCount": {
+                      "maximum": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "overflowX": {
+                      "type": "boolean"
+                    },
+                    "overflowY": {
+                      "type": "boolean"
+                    },
+                    "resolvedFontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "contentHeightPx",
+                    "contentWidthPx",
+                    "itemId",
+                    "lineCount",
+                    "overflowX",
+                    "overflowY",
+                    "resolvedFontSize"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
               "warnings": {
                 "default": [],

@@ -11,6 +11,23 @@ fn invalid() -> CoreError {
 }
 /// Validate retained typed draft payloads before migration publishes any changes.
 pub(crate) fn validate_draft_text(operations: &[crate::EditOperation]) -> Result<(), CoreError> {
+    for operation in operations {
+        match operation {
+            crate::EditOperation::AddText { style, .. } => super::validate_text_style(style)?,
+            crate::EditOperation::UpdateItem {
+                style: Some(style), ..
+            } => super::validate_text_style(style)?,
+            crate::EditOperation::ComponentCreate { tracks, .. }
+            | crate::EditOperation::ComponentUpdate { tracks, .. } => {
+                for item in tracks.iter().flat_map(|track| &track.items) {
+                    if let crate::TimelineItem::Text(text) = item {
+                        super::validate_text_style(&text.style)?;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
     fn visit(value: &serde_json::Value) -> Result<(), CoreError> {
         match value {
             serde_json::Value::Object(object) => {

@@ -75,6 +75,7 @@ pub(crate) struct FilterContext<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderPlan {
+    pub(crate) text_layout_fidelity: bool,
     /// Fine procedural marks and styled text need export-quality range encoding for parity.
     pub(crate) detail_fidelity: bool,
     pub(crate) filter_graph: String,
@@ -363,6 +364,7 @@ pub(crate) fn build_render_plan(
         audio_labels.len()
     ));
     Ok(RenderPlan {
+        text_layout_fidelity: scene.visual_layers.iter().any(|layer| matches!(&layer.source, EvaluatedVisualSource::Text(text) if text.style.layout.is_some())),
         detail_fidelity: scene.visual_layers.iter().any(|layer| {
             matches!(&layer.source, EvaluatedVisualSource::Shape(shape) if shape.grid_descriptor.is_some())
                 || matches!(&layer.source, EvaluatedVisualSource::Text(text)

@@ -13,6 +13,7 @@ import type {
   generatedAssetOriginSchema,
   richTextDocumentSchema,
   templateSlotSchema,
+  textStyleSchema,
   transform2dSchema,
 } from "./schemas";
 import type { ShapeGeometry } from "./shape-items";
@@ -110,7 +111,7 @@ export type HeadlessEdit =
       startMs: number;
       text?: string | undefined;
       document?: z.infer<typeof richTextDocumentSchema> | undefined;
-      style: Record<string, unknown>;
+      style: z.input<typeof textStyleSchema>;
       trackId: string;
       transform: {
         opacity: number;
@@ -165,7 +166,7 @@ export type HeadlessEdit =
       height?: number | undefined;
       text?: string | undefined;
       document?: z.infer<typeof richTextDocumentSchema> | undefined;
-      style?: Record<string, unknown> | undefined;
+      style?: z.input<typeof textStyleSchema> | undefined;
       transform?:
         | {
             opacity: number;

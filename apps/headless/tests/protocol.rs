@@ -12,6 +12,55 @@ fn error_catalog() -> Value {
 }
 
 #[test]
+fn persisted_layout_errors_keep_exact_headless_codes_and_files() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Persisted layouts"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let added = result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_text","trackId":track,"text":"M","startMs":0,"durationMs":1000,"fontSize":30,"color":"#ffffff","style":{"layout":{}},"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let path = dir.join("project.json");
+    let original = std::fs::read(&path).unwrap();
+    for layout in [
+        json!({"trackingPx":-1}),
+        json!(null),
+        json!({"bounds":{"heightPx":null}}),
+    ] {
+        let mut project: Value = serde_json::from_slice(&original).unwrap();
+        project["tracks"][1]["items"][0]["style"]["layout"] = layout;
+        let bytes = serde_json::to_vec(&project).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        let failure = event(&h.request(json!({"operation":"open_project","projectId":id})));
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(failure["error"]["retryable"], false);
+        assert!(!failure.to_string().contains("OPENCUT_LAYOUT_DECODE"));
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+    std::fs::write(&path, &original).unwrap();
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"update_item","itemId":added["changedIds"][0],"style":{"layout":{}}}]})));
+    let draft_path = dir
+        .join("drafts")
+        .join(format!("{}.json", draft["id"].as_str().unwrap()));
+    let mut draft: Value = serde_json::from_slice(&std::fs::read(&draft_path).unwrap()).unwrap();
+    draft["operations"][0]["style"]["layout"] = Value::Null;
+    let bytes = serde_json::to_vec(&draft).unwrap();
+    std::fs::write(&draft_path, &bytes).unwrap();
+    let failure = event(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+    assert_eq!(failure["error"]["retryable"], false);
+    assert!(!failure.to_string().contains("OPENCUT_LAYOUT_DECODE"));
+    assert_eq!(std::fs::read(&draft_path).unwrap(), bytes);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    let mut unrelated: Value = serde_json::from_slice(&original).unwrap();
+    unrelated["name"] = json!(42);
+    std::fs::write(&path, serde_json::to_vec(&unrelated).unwrap()).unwrap();
+    assert_eq!(
+        event(&h.request(json!({"operation":"open_project","projectId":id})))["error"]["code"],
+        "INTERNAL_ERROR"
+    );
+}
+
+#[test]
 fn rich_text_documents_roundtrip_batches_drafts_and_failures() {
     let h = Harness::new();
     let catalog: Value = serde_json::from_str(include_str!(

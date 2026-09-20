@@ -305,7 +305,10 @@ fn persisted_current_and_retained_documents_fail_closed() {
 fn documents_survive_copy_split_move_trim_components_and_drafts() {
     let (_root, core, id, track) = setup();
     let document = json!({"runs":[{"text":"left ","bold":true},{"text":"right","color":"#123456"}],"spans":[{"start":0,"end":4,"style":{"bold":false,"paintLayers":[{"kind":"fill","color":"#abcdef","opacity":0.5}]}}]});
-    let created = edit(&core, &id, add(&track, document.clone())).unwrap();
+    let layout = json!({"trackingPx":1.5,"wrap":"word","fit":"none","verticalAlignment":"top","backgroundCornerRadiusPx":0.0});
+    let mut request = add(&track, document.clone());
+    request["style"] = json!({"layout":layout});
+    let created = edit(&core, &id, request).unwrap();
     let item_id = created.changed_ids[0].clone();
     let duplicated = edit(
         &core,
@@ -315,6 +318,7 @@ fn documents_survive_copy_split_move_trim_components_and_drafts() {
     .unwrap();
     for copied in &duplicated.changed_ids {
         assert_eq!(item(&core, &id, copied)["document"], document);
+        assert_eq!(item(&core, &id, copied)["style"]["layout"], layout);
     }
     let split = edit(
         &core,
@@ -324,6 +328,7 @@ fn documents_survive_copy_split_move_trim_components_and_drafts() {
     .unwrap();
     for split_id in &split.changed_ids {
         assert_eq!(item(&core, &id, split_id)["document"], document);
+        assert_eq!(item(&core, &id, split_id)["style"]["layout"], layout);
     }
     edit(
         &core,
@@ -348,6 +353,13 @@ fn documents_survive_copy_split_move_trim_components_and_drafts() {
     let before = bytes(&core, &id);
     assert_eq!(
         edit(&core, &id, invalid).unwrap_err().code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(bytes(&core, &id), before);
+    let mut invalid_layout = component.clone();
+    invalid_layout["tracks"][0]["items"][0]["style"]["layout"]["trackingPx"] = json!(-1);
+    assert_eq!(
+        edit(&core, &id, invalid_layout).unwrap_err().code,
         ErrorCode::InvalidArgument
     );
     assert_eq!(bytes(&core, &id), before);
@@ -457,3 +469,8 @@ include!(concat!(
 ));
 
 include!("support/styled_text.rs");
+
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/advanced_text_layout.rs"
+));

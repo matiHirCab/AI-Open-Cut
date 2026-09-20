@@ -249,12 +249,7 @@ fn run() -> Result<(), CoreError> {
             error.to_string(),
         )
     })?;
-    let request: Request = serde_json::from_str(input.trim()).map_err(|error| {
-        CoreError::new(
-            opencut_editor_core::ErrorCode::InvalidArgument,
-            format!("invalid headless request: {error}"),
-        )
-    })?;
+    let request = parse_request(input.trim())?;
     match request {
         Request::Status {
             protocol_version,
@@ -707,6 +702,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "rich_text_documents",
         "content_addressed_text_layout_v2",
         "styled_text_layers_v1",
+        "advanced_text_layout_v1",
     ]
 }
 
@@ -778,6 +774,18 @@ fn status(renderer: &Renderer) -> Status {
     }
 }
 
+fn parse_request(input: &str) -> Result<Request, CoreError> {
+    serde_json::from_str(input).map_err(|error| {
+        let message = format!("invalid headless request: {error}");
+        let classified = CoreError::from(error);
+        if classified.code == opencut_editor_core::ErrorCode::InvalidArgument {
+            classified
+        } else {
+            CoreError::new(opencut_editor_core::ErrorCode::InvalidArgument, message)
+        }
+    })
+}
+
 fn emit_value(value: impl Serialize) -> Result<(), CoreError> {
     emit(Event::Result { result: value })
 }
@@ -820,6 +828,24 @@ mod tests {
     enum RenamedRequestProbe {
         #[serde(rename = "serde_wire_name")]
         DerivedName {},
+    }
+
+    #[test]
+    fn layout_request_errors_expose_core_classification_without_private_markers() {
+        for layout in [
+            serde_json::json!(null),
+            serde_json::json!({"bounds":{"widthPx":null}}),
+            serde_json::json!({"fit":"auto"}),
+        ] {
+            let request = serde_json::json!({"operation":"edit","projectId":"p","expectedRevision":0,"edit":{"operation":"update_item","itemId":"t","style":{"layout":layout}}});
+            let error = parse_request(&request.to_string()).unwrap_err();
+            assert_eq!(error.code, opencut_editor_core::ErrorCode::InvalidArgument);
+            assert!(!error.retryable);
+            assert!(!error.message.contains("OPENCUT_LAYOUT_DECODE"));
+            assert!(error.message.starts_with("invalid text layout:"));
+        }
+        let error = parse_request(r#"{"operation":"OPENCUT_LAYOUT_DECODE:user"}"#).unwrap_err();
+        assert!(error.message.starts_with("invalid headless request:"));
     }
 
     #[test]

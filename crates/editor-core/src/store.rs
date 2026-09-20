@@ -4309,7 +4309,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -4325,7 +4325,9 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(version);
-            clear_legacy_font_fields(&mut legacy);
+            if version < 19 {
+                clear_legacy_font_fields(&mut legacy);
+            }
             if version == 11 {
                 legacy["components"] = serde_json::json!([
                     {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[]},
@@ -4378,7 +4380,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13, 16, 17] {
+        for version in [9, 13, 16, 17, 20] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())
@@ -4388,7 +4390,9 @@ mod tests {
             let history_file = history_path(&dir);
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(version);
-            clear_legacy_font_fields(&mut legacy);
+            if version < 19 {
+                clear_legacy_font_fields(&mut legacy);
+            }
             write_json_atomic(&project_file, &legacy).unwrap();
             write_json_atomic(
                 &history_file,

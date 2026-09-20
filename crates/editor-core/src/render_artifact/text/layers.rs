@@ -228,11 +228,7 @@ pub(super) fn rasterize(
         )
     };
     let mut output = tiny_skia::Pixmap::new(w, h).ok_or_else(allocation_error)?;
-    if let tiny_skia::Shader::SolidColor(color) =
-        paint(&style.background_color, style.background_opacity)?.shader
-    {
-        output.fill(color);
-    }
+    super::paint_background(&mut output, shaped, style)?;
     let mut outlines = Vec::with_capacity(shaped.glyphs.len());
     for glyph in &shaped.glyphs {
         let bytes = faces.get(&glyph.face).ok_or_else(|| {

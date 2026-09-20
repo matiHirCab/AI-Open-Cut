@@ -1044,5 +1044,5 @@ it("exercises all shape contracts, atomic batches and retained history", async (
 });
 
 it("preserves rich text documents through MCP standalone and alias batches", async () => {
-  await verifyRichTextWorkflow(client, call);
+  await verifyRichTextWorkflow(client, call, projects);
 });

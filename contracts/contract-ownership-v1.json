@@ -319,6 +319,24 @@
         "apps/agent-bridge/tests/styled-text.test.ts",
         "docs/styled-text.md"
       ]
+    },
+    "advancedTextLayout": {
+      "canonical": "contracts/advanced-text-layout-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/text_layout.rs",
+        "crates/editor-core/src/render_plan.rs",
+        "crates/editor-core/src/render_process.rs",
+        "crates/editor-core/src/validation/text_layout.rs",
+        "crates/editor-core/src/fonts/shaping.rs",
+        "crates/editor-core/src/evaluated_scene/text_layout.rs",
+        "crates/editor-core/src/render_artifact/text.rs",
+        "crates/editor-core/src/renderer.rs",
+        "crates/editor-core/src/migrations.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/advanced-text-layout.test.ts",
+        "docs/advanced-text-layout.md"
+      ]
     }
   }
 }

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "contract": "advanced-text-layout-v1",
+  "schemaVersion": 21,
+  "capability": "advanced_text_layout_v1",
+  "operations": ["add_text", "update_item"],
+  "fields": ["trackingPx", "lineHeightPx", "bounds", "wrap", "verticalAlignment", "fit", "backgroundCornerRadiusPx"],
+  "diagnosticFields": ["itemId", "resolvedFontSize", "lineCount", "contentWidthPx", "contentHeightPx", "overflowX", "overflowY"],
+  "limits": {"trackingPx": 1000, "lineHeightPx": 4320, "widthPx": 7680, "heightPx": 4320, "backgroundCornerRadiusPx": 2160, "fontSize": 1000, "candidates": 1000, "sceneCandidateGlyphs": 16777216},
+  "valid": [
+    {"id": "defaults", "layout": {}},
+    {"id": "fractional", "layout": {"trackingPx": 0.5, "lineHeightPx": 24.5, "bounds": {"widthPx": 200.5, "heightPx": 100.5}, "wrap": "cluster", "verticalAlignment": "center", "fit": "fit_box", "backgroundCornerRadiusPx": 4.5}},
+    {"id": "inclusive", "layout": {"trackingPx": 1000, "lineHeightPx": 4320, "bounds": {"widthPx": 7680, "heightPx": 4320}, "backgroundCornerRadiusPx": 2160}},
+    {"id": "minimum", "layout": {"trackingPx": 0, "lineHeightPx": 1, "bounds": {"widthPx": 1, "heightPx": 1}, "fit": "shrink"}}
+  ],
+  "invalid": [
+    {"id": "negative-tracking", "layout": {"trackingPx": -0.1}},
+    {"id": "excess-tracking", "layout": {"trackingPx": 1000.1}},
+    {"id": "zero-height", "layout": {"lineHeightPx": 0}},
+    {"id": "excess-height", "layout": {"lineHeightPx": 4320.1}},
+    {"id": "zero-width", "layout": {"bounds": {"widthPx": 0}}},
+    {"id": "excess-width", "layout": {"bounds": {"widthPx": 7680.1}}},
+    {"id": "excess-bound-height", "layout": {"bounds": {"heightPx": 4320.1}}},
+    {"id": "excess-radius", "layout": {"backgroundCornerRadiusPx": 2160.1}},
+    {"id": "unknown", "layout": {"expression": "1+1"}},
+    {"id": "null", "layout": null},
+    {"id": "null-bounds", "layout": {"bounds": null}},
+    {"id": "null-height", "layout": {"lineHeightPx": null}},
+    {"id": "null-width", "layout": {"bounds": {"widthPx": null}}},
+    {"id": "unknown-wrap", "layout": {"wrap": "ellipsis"}},
+    {"id": "unknown-fit", "layout": {"fit": "auto"}}
+  ],
+  "invalidDomain": [
+    {"id": "empty-bounds", "layout": {"bounds": {}}},
+    {"id": "height-required", "layout": {"verticalAlignment": "bottom"}},
+    {"id": "width-required", "layout": {"fit": "fit_width"}},
+    {"id": "box-required", "layout": {"fit": "fit_box", "bounds": {"widthPx": 100}}},
+    {"id": "shrink-required", "layout": {"fit": "shrink"}}
+  ],
+  "migration": {"from": 20, "to": 21, "layout": "absent", "preserve": ["current", "undo", "redo", "drafts", "fonts", "media", "provenance"], "downgrade": false}
+}
