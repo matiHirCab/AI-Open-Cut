@@ -107,6 +107,9 @@ jobs:
         with:
           auto-install: true
           auto-setup: true
+      - name: Install render bridge dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
       - name: Native audiovisual and lifecycle parity
         env:
           OPENCUT_FFMPEG_PATH: ffmpeg
@@ -120,6 +123,20 @@ jobs:
           cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact
           cargo test -p opencut-editor-core --test transform2d
           cargo test -p opencut-editor-core --test font_resolution
+      - name: Native raster-cache parity
+        env:
+          OPENCUT_FFMPEG_PATH: ffmpeg
+          OPENCUT_FFPROBE_PATH: ffprobe
+          OPENCUT_GOLDEN_REQUIRED: '1'
+          OPENCUT_TEST_FONT_PATH: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          OPENCUT_RASTER_CACHE_TESTS_REQUIRED: '1'
+        run: |
+          cargo test -p opencut-editor-core --lib raster_cach
+          cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker
+          cargo build -p opencut-headless --features raster-cache-test-hooks
+          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/render-worker-native.test.ts
+          cargo build -p opencut-headless
+          cargo test -p opencut-headless
       - name: Validate Linux render baseline schema
         env:
           OPENCUT_GOLDEN_REPORT_PATH: ${{ github.workspace }}/target/render-baseline-linux.json

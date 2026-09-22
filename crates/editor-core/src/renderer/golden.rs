@@ -47,6 +47,7 @@ const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod grids;
+mod raster_caching;
 mod repeaters;
 mod rich_text;
 mod rule_card;

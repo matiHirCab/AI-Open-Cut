@@ -1,5 +1,8 @@
 //! Render workspace and artifact publication owner.
 
+pub(crate) mod raster_cache;
+mod request_scope;
+pub(crate) use request_scope::with_request_id;
 mod shapes;
 mod text;
 use std::{
@@ -284,7 +287,8 @@ pub(crate) fn prepare_render_resources(
     media: PreparedMediaResources,
     workspace: &Path,
     measured: HashMap<String, MeasuredText>,
-    duration_ms: u64,
+    scene: &crate::evaluated_scene::EvaluatedScene,
+    cache: (&raster_cache::RasterCache, [u8; 32]),
 ) -> Result<PreparedRenderResources, CoreError> {
     let mut text_layers = HashMap::new();
     let mut media_inputs = media.media_inputs;
@@ -297,7 +301,25 @@ pub(crate) fn prepare_render_resources(
             // not portable filenames. Keep identity in the plan, not the path.
             let file_name = format!("glyphs-{index}.pam");
             let path = workspace.join(&file_name);
-            let bytes = text::rasterize(shaped, &media.font_faces, &text.prepared, style)?;
+            let source = scene
+                .visual_layers
+                .iter()
+                .find_map(|layer| {
+                    if layer.item_id == id
+                        && let EvaluatedVisualSource::Text(source) = &layer.source
+                    {
+                        Some(source)
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::InternalError, "missing evaluated text raster")
+                })?;
+            let key = raster_cache::text_key(cache.1, source, shaped, &text.prepared)?;
+            let bytes = cache.0.raster(key, || {
+                text::rasterize(shaped, &media.font_faces, &text.prepared, style)
+            })?;
             io.write(&path, &bytes)
                 .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
             media_inputs.push(MediaInputRequest {
@@ -306,7 +328,7 @@ pub(crate) fn prepare_render_resources(
                 project_relative_path: PathBuf::from(file_name),
                 media_type: crate::MediaType::Image,
                 source_in_ms: 0,
-                duration_ms,
+                duration_ms: scene.duration_ms,
                 input_index: media_inputs.len() + 2,
             });
             media_paths.push(path);
@@ -1305,11 +1327,13 @@ pub(crate) fn prepare_shape_resources(
     scene: &crate::evaluated_scene::EvaluatedScene,
     workspace: &Path,
     resources: &mut PreparedRenderResources,
+    cache: (&raster_cache::RasterCache, [u8; 32]),
 ) -> Result<(), CoreError> {
     for (index, layer) in scene.visual_layers.iter().enumerate() {
         if let EvaluatedVisualSource::Shape(shape) = &layer.source {
             let path = workspace.join(format!("shape-{index}.pam"));
-            let bytes = shapes::rasterize(shape)?;
+            let key = raster_cache::shape_key(cache.1, shape)?;
+            let bytes = cache.0.raster(key, || shapes::rasterize(shape))?;
             io.write(&path, &bytes)
                 .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
             resources.media_inputs.push(MediaInputRequest {

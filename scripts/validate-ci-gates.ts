@@ -56,6 +56,13 @@ cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_r
 cargo test -p opencut-editor-core --test transform2d
 cargo test -p opencut-editor-core --test font_resolution`;
 
+const NATIVE_CACHE_COMMAND = `cargo test -p opencut-editor-core --lib raster_cach
+cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker
+cargo build -p opencut-headless --features raster-cache-test-hooks
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/render-worker-native.test.ts
+cargo build -p opencut-headless
+cargo test -p opencut-headless`;
+
 const FOUNDATION_COMMAND = `echo "OpenSpec validation: $OPENSPEC_RESULT"
 echo "OpenSpec policy attested: $OPENSPEC_POLICY_VALIDATED"
 echo "Contract parity: $CONTRACT_PARITY_RESULT"
@@ -625,7 +632,9 @@ function validateRenderJob(job: UnknownRecord): void {
       undefined,
       "Install deterministic rendering dependencies",
       "Setup pinned toolchain",
+      "Install render bridge dependencies",
       "Native audiovisual and lifecycle parity",
+      "Native raster-cache parity",
       "Validate Linux render baseline schema",
       "Upload report-only Linux render baseline",
     ],
@@ -638,6 +647,8 @@ function validateRenderJob(job: UnknownRecord): void {
     "render-parity"
   );
   const toolchainIndex = validatePinnedToolchain(jobSteps, "render-parity");
+  const install = requiredStep(jobSteps, "Install render bridge dependencies", "render-parity");
+  const cache = requiredStep(jobSteps, "Native raster-cache parity", "render-parity");
   const native = requiredStep(jobSteps, "Native audiovisual and lifecycle parity", "render-parity");
   const validation = requiredStep(jobSteps, "Validate Linux render baseline schema", "render-parity");
   const upload = requiredStep(jobSteps, "Upload report-only Linux render baseline", "render-parity");
@@ -648,6 +659,15 @@ function validateRenderJob(job: UnknownRecord): void {
     "render-parity dependency step"
   );
   validateCriticalStep(native.step, NATIVE_PARITY_COMMAND, "render-parity native step");
+  validateCriticalStep(install.step, "bun install --frozen-lockfile", "render-parity install step");
+  requireWorkingDirectory(install.step, AGENT_BRIDGE_DIRECTORY, "render-parity install step");
+  requireExactKeys(
+    install.step,
+    ["name", "run", "working-directory"],
+    "render-parity install step"
+  );
+  validateCriticalStep(cache.step, NATIVE_CACHE_COMMAND, "render-parity cache step");
+  requireExactKeys(cache.step, ["env", "name", "run"], "render-parity cache step");
   validateCriticalStep(
     validation.step,
     "cargo test -p opencut-editor-core renderer::golden::validate_external_performance_report -- --ignored --exact",
@@ -661,6 +681,7 @@ function validateRenderJob(job: UnknownRecord): void {
   for (const [step, label] of [
     [dependencies.step, "render-parity dependency step"],
     [native.step, "render-parity native step"],
+    [cache.step, "render-parity cache step"],
     [validation.step, "render-parity report-validation step"],
   ] as const) {
     requireWorkingDirectory(step, undefined, label);
@@ -690,6 +711,17 @@ function validateRenderJob(job: UnknownRecord): void {
     "render-parity native env"
   );
   requireExactEnvironment(
+    cache.step.env,
+    {
+      OPENCUT_FFMPEG_PATH: "ffmpeg",
+      OPENCUT_FFPROBE_PATH: "ffprobe",
+      OPENCUT_GOLDEN_REQUIRED: "1",
+      OPENCUT_TEST_FONT_PATH: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      OPENCUT_RASTER_CACHE_TESTS_REQUIRED: "1",
+    },
+    "render-parity cache env"
+  );
+  requireExactEnvironment(
     validation.step.env,
     { OPENCUT_GOLDEN_REPORT_PATH: ABSOLUTE_REPORT_PATH },
     "render-parity report-validation env"
@@ -706,8 +738,10 @@ function validateRenderJob(job: UnknownRecord): void {
   if (
     !(
       dependencies.index < toolchainIndex &&
-      toolchainIndex < native.index &&
-      native.index < validation.index &&
+      toolchainIndex < install.index &&
+      install.index < native.index &&
+      native.index < cache.index &&
+      cache.index < validation.index &&
       validation.index < upload.index
     )
   ) {

@@ -202,7 +202,9 @@ Every started benchmark process-tree sampler MUST signal and join its worker exa
 - **THEN** RAII cleanup stops and joins the worker before unwinding continues without replacing the original failure
 
 ### Requirement: Independently visible render-parity gate
-Continuous integration MUST publish a dedicated required Linux render-parity status that configures explicit FFmpeg, FFprobe, deterministic font, required-gate, and absolute report-path dependencies; executes production preview, audiovisual range, export, and lifecycle conformance with fail-closed critical steps against the selected immutable golden generation; strictly validates the report captured at the declared absolute workspace path; and only then uploads that exact validated observation. The gate MUST contain only its exact reviewed checkout, dependency, toolchain, native-conformance, report-validation, and upload steps in that order. Workflow-level and render-job-level environment maps MUST be absent; required CI MUST use only exact approved step environments, reject inherited execution defaults and job containers, and reject `OPENCUT_UPDATE_GOLDENS` or `OPENCUT_CAPTURE_GOLDENS_TO` from every effective configuration path so reviewed references remain immutable. Critical conformance, validation, and publication steps MUST NOT ignore failures or contain incompatible command alterations.
+Continuous integration MUST publish a dedicated required Linux render-parity status that configures explicit FFmpeg, FFprobe, deterministic font, required-gate, and absolute report-path dependencies; executes production preview, audiovisual range, export, and lifecycle conformance with fail-closed critical steps against the selected immutable golden generation; strictly validates the report captured at the declared absolute workspace path; and only then uploads that exact validated observation. The gate MUST contain only its exact reviewed checkout, deterministic rendering dependency installation, pinned toolchain, locked bridge dependency installation, existing native conformance, native raster-cache conformance, report-validation, and upload steps in that order. Workflow-level and render-job-level environment maps MUST be absent; required CI MUST use only exact approved step environments, reject inherited execution defaults and job containers, and reject `OPENCUT_UPDATE_GOLDENS` or `OPENCUT_CAPTURE_GOLDENS_TO` from every effective configuration path so reviewed references remain immutable. Critical conformance, validation, and publication steps MUST NOT ignore failures or contain incompatible command alterations.
+
+The native raster-cache step MUST execute core cold/warm/fresh audiovisual cache conformance, instrumented native worker reuse, and actual bridge-to-native avoided-raster-work checks with explicit FFmpeg, FFprobe and deterministic font configuration and both required-mode flags enabled. It MUST rebuild the default headless binary after instrumented tests and verify default transport compatibility before report validation and upload. Existing native suites, public contracts, golden references and tolerances MUST remain unchanged.
 
 #### Scenario: Accept reviewed deterministic output
 - **WHEN** production preview, audiovisual range preview, final export, and edit/undo/redo/reopen lifecycle behavior match the reviewed fixture under the exact declared Linux sequence and step-scoped environment
@@ -235,6 +237,18 @@ Continuous integration MUST publish a dedicated required Linux render-parity sta
 #### Scenario: Preserve renderer semantics and report-only budgets
 - **WHEN** the dedicated gate's closed verification-only sequence and isolated environment are enforced
 - **THEN** golden references, render semantics, conformance tolerances, local deliberate update workflows, and application output remain unchanged and timing or memory observations do not become universal pass/fail budgets
+
+#### Scenario: C1 Require native cache evidence
+- **WHEN** the required Render parity job executes
+- **THEN** core cache conformance, feature-enabled worker reuse and actual bridge reuse assertions execute with required dependencies, and any failure fails the leaf and existing foundation aggregate
+
+#### Scenario: C2 Fail closed on absent native prerequisites
+- **WHEN** required tools, font configuration or instrumented cache diagnostics are unavailable
+- **THEN** the dedicated native cache run fails rather than silently returning or marking its tests skipped
+
+#### Scenario: C3 Restore default compatibility evidence
+- **WHEN** instrumented bridge/native cache verification succeeds
+- **THEN** CI rebuilds headless without test hooks and executes default transport tests before publishing the validated report
 
 ### Requirement: Reusable slotted rule-card lifecycle fixture
 The suite MUST include a deterministic local rule-card fixture using one shared definition with at least six visual child layers and exactly three root instances with different text, displayed rule numbers and managed icon assets. It MUST use existing typed slot contracts: displayed numbers are text content, with a separate numeric opacity slot exercising the number kind. A shared root parent MUST permit one transform edit to move all three cards; each instance MUST retain independent overrides and the definition MUST remain unchanged. Synthetic assets, font identity, dimensions, timing, sample timestamps and expected transforms/order MUST be recorded reproducibly. The fixture MUST exercise existing standalone operations and an atomic batch with creation aliases, without adding transport or persisted fields.

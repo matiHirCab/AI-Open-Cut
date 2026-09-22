@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "maxLineBytes": 16777216,
+  "startupTimeoutMs": 5000,
+  "ready": { "type": "ready", "protocolVersion": 1 },
+  "operations": ["render_preview", "render_preview_range", "render_draft_preview", "export_video"],
+  "requests": [
+    {"requestId":"frame-1","request":{"operation":"render_preview","projectId":"project","expectedRevision":1,"timeMs":0}},
+    {"requestId":"range-1","request":{"operation":"render_preview_range","projectId":"project","expectedRevision":1,"startMs":0,"endMs":1000,"width":160,"height":90,"fps":10,"includeAudio":true}},
+    {"requestId":"draft-1","request":{"operation":"render_draft_preview","projectId":"project","draftId":"draft","timeMs":0}},
+    {"requestId":"export-1","request":{"operation":"export_video","projectId":"project","expectedRevision":1,"relativePath":"out.mp4","width":160,"height":90,"overwrite":false}}
+  ],
+  "events": [
+    {"requestId":"frame-1","event":{"type":"progress","progress":0.5}},
+    {"requestId":"frame-1","event":{"type":"result","result":{"relativePath":"previews/frame.png","mimeType":"image/png","sizeBytes":1,"warnings":[]}}},
+    {"requestId":"frame-1","event":{"type":"error","error":{"code":"REVISION_CONFLICT","message":"revision conflict","retryable":true,"failedStage":null,"ffmpegExitCode":null,"ffmpegStderrExcerpt":null}}}
+  ],
+  "invalidEnvelopes": [
+    {"requestId":"x","request":{"operation":"status"},"extra":true},
+    {"request":{"operation":"status"}},
+    {"requestId":null,"request":{"operation":"status"}},
+    {"requestId":"x","request":{"operation":"render_preview","projectId":"project","expectedRevision":1,"timeMs":0,"unknown":true}}
+  ],
+  "rejectedOperation": {"requestId":"mutation-1","request":{"operation":"create_project","name":"Must not exist","settings":null}},
+  "rejectedOperationError": {"code":"INVALID_ARGUMENT","retryable":false}
+}

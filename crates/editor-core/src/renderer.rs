@@ -46,6 +46,7 @@ use crate::{KeyframeProperty, KeyframeValue};
 
 #[derive(Clone, Debug)]
 pub struct Renderer {
+    raster_cache: Arc<crate::render_artifact::raster_cache::RasterCache>,
     #[cfg(test)]
     text_glyph_limit: Option<usize>,
     ffmpeg_path: PathBuf,
@@ -83,6 +84,7 @@ struct PreparedRender {
 }
 
 struct RenderPreflight {
+    raster_scope: [u8; 32],
     scene: EvaluatedScene,
     media: PreparedMediaResources,
     measured: HashMap<String, MeasuredText>,
@@ -90,12 +92,29 @@ struct RenderPreflight {
 }
 
 impl Renderer {
+    /// Scope temporary artifacts to one request while retaining shared raster bytes.
+    pub fn with_request_id(mut self, request_id: &str) -> Result<Self, CoreError> {
+        self.artifact_io = crate::render_artifact::with_request_id(self.artifact_io, request_id)?;
+        Ok(self)
+    }
+
+    /// Instrumented-build evidence only; never part of the rendering wire contract.
+    #[cfg(feature = "raster-cache-test-hooks")]
+    pub fn raster_cache_test_counts(&self) -> (usize, usize) {
+        use std::sync::atomic::Ordering;
+        (
+            self.raster_cache.hits.load(Ordering::Relaxed),
+            self.raster_cache.misses.load(Ordering::Relaxed),
+        )
+    }
+
     pub fn new(
         ffmpeg_path: impl Into<PathBuf>,
         ffprobe_path: impl Into<PathBuf>,
         default_font_path: Option<PathBuf>,
     ) -> Self {
         Self {
+            raster_cache: Arc::default(),
             #[cfg(test)]
             text_glyph_limit: None,
             ffmpeg_path: ffmpeg_path.into(),
@@ -427,6 +446,7 @@ impl Renderer {
             self.readiness()?;
         }
         Ok(RenderPreflight {
+            raster_scope: crate::render_artifact::raster_cache::scope(evaluated)?,
             scene: finalized,
             media,
             measured,
@@ -441,6 +461,7 @@ impl Renderer {
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
         let RenderPreflight {
+            raster_scope,
             scene: finalized,
             media,
             measured,
@@ -452,13 +473,15 @@ impl Renderer {
             media,
             workspace.path(),
             measured,
-            finalized.duration_ms,
+            &finalized,
+            (&self.raster_cache, raster_scope),
         )?;
         crate::render_artifact::prepare_shape_resources(
             self.artifact_io.as_ref(),
             &finalized,
             workspace.path(),
             &mut resources,
+            (&self.raster_cache, raster_scope),
         )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
@@ -528,6 +551,7 @@ mod golden;
 
 #[cfg(test)]
 mod tests {
+    mod raster_caching;
     use super::*;
     use crate::{
         CaptionItem, CaptionSource, CaptionStyle, Easing, Keyframe, MediaItem, MediaType,
@@ -3541,6 +3565,7 @@ mod tests {
                             .all(|v| v.source_size == Some((20, 40)))
                     );
                     let RenderPreflight {
+                        raster_scope,
                         scene,
                         media,
                         measured,
@@ -3550,6 +3575,7 @@ mod tests {
                     renderer
                         .materialize_render(
                             RenderPreflight {
+                                raster_scope,
                                 scene,
                                 media,
                                 measured,

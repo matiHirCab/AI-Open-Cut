@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  client?.close();
+  await client?.close();
   await rm(root, {
     force: true,
     maxRetries: 5,

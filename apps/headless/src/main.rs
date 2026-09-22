@@ -12,6 +12,8 @@ use opencut_editor_core::{
 };
 use serde::{Deserialize, Serialize};
 
+mod worker;
+
 const HEADLESS_PROTOCOL_VERSION: u32 = 1;
 
 #[derive(Debug, Deserialize, strum::VariantNames)]
@@ -235,6 +237,9 @@ fn main() {
 
 fn run() -> Result<(), CoreError> {
     let (core, renderer) = configured_services()?;
+    if env::args().any(|argument| argument == "--render-worker") {
+        return worker::run(&core, &renderer);
+    }
     if env::args().any(|argument| argument == "--health") {
         emit(Event::Result {
             result: status(&renderer),
@@ -250,6 +255,25 @@ fn run() -> Result<(), CoreError> {
         )
     })?;
     let request = parse_request(input.trim())?;
+    dispatch(&core, &renderer, request, &mut EventSink(&mut emit))
+}
+
+struct EventSink<'a>(&'a mut dyn FnMut(serde_json::Value) -> Result<(), CoreError>);
+impl EventSink<'_> {
+    fn value(&mut self, value: impl Serialize) -> Result<(), CoreError> {
+        self.event(Event::Result { result: value })
+    }
+    fn event(&mut self, event: impl Serialize) -> Result<(), CoreError> {
+        (self.0)(serde_json::to_value(event)?)
+    }
+}
+
+fn dispatch(
+    core: &EditorCore,
+    renderer: &Renderer,
+    request: Request,
+    sink: &mut EventSink<'_>,
+) -> Result<(), CoreError> {
     match request {
         Request::Status {
             protocol_version,
@@ -269,13 +293,13 @@ fn run() -> Result<(), CoreError> {
                     "unsupported text layout contract version",
                 ));
             }
-            emit_value(status(&renderer))
+            sink.value(status(renderer))
         }
-        Request::ListProjects {} => emit_value(core.list_projects()?),
+        Request::ListProjects {} => sink.value(core.list_projects()?),
         Request::CreateProject { name, settings } => {
-            emit_value(core.create_project(&name, settings.unwrap_or_default())?)
+            sink.value(core.create_project(&name, settings.unwrap_or_default())?)
         }
-        Request::OpenProject { project_id } => emit_value(core.get_state(&project_id, None)?),
+        Request::OpenProject { project_id } => sink.value(core.get_state(&project_id, None)?),
         Request::GetState {
             project_id,
             start_ms,
@@ -291,7 +315,7 @@ fn run() -> Result<(), CoreError> {
                     ));
                 }
             };
-            emit_value(core.get_state(&project_id, range)?)
+            sink.value(core.get_state(&project_id, range)?)
         }
         Request::ImportAsset {
             project_id,
@@ -322,7 +346,7 @@ fn run() -> Result<(), CoreError> {
                 }
                 _ => {}
             }
-            emit_value(core.import_asset(
+            sink.value(core.import_asset(
                 &project_id,
                 expected_revision,
                 resolved,
@@ -345,7 +369,7 @@ fn run() -> Result<(), CoreError> {
             project_id,
             expected_revision,
             asset_id,
-        } => emit_value(core.delete_asset(&project_id, expected_revision, &asset_id)?),
+        } => sink.value(core.delete_asset(&project_id, expected_revision, &asset_id)?),
         Request::CommitGeneratedAsset {
             project_id,
             expected_revision,
@@ -372,7 +396,7 @@ fn run() -> Result<(), CoreError> {
                         "generated speech has no positive duration",
                     )
                 })?;
-            emit_value(core.commit_generated_asset(CommitGeneratedAssetRequest {
+            sink.value(core.commit_generated_asset(CommitGeneratedAssetRequest {
                 project_id,
                 expected_revision,
                 path: resolved,
@@ -419,7 +443,7 @@ fn run() -> Result<(), CoreError> {
                         "generated speech has no positive duration",
                     )
                 })?;
-            emit_value(core.replace_generated_asset(ReplaceGeneratedAssetRequest {
+            sink.value(core.replace_generated_asset(ReplaceGeneratedAssetRequest {
                 project_id,
                 expected_revision,
                 path: resolved,
@@ -444,29 +468,29 @@ fn run() -> Result<(), CoreError> {
             project_id,
             expected_revision,
             edit,
-        } => emit_value(core.edit(&project_id, expected_revision, *edit)?),
+        } => sink.value(core.edit(&project_id, expected_revision, *edit)?),
         Request::EditBatch {
             project_id,
             expected_revision,
             operations,
-        } => emit_value(core.edit_batch(&project_id, expected_revision, operations)?),
+        } => sink.value(core.edit_batch(&project_id, expected_revision, operations)?),
         Request::CreateDraft {
             project_id,
             expected_revision,
             operations,
             label,
-        } => emit_value(core.create_draft(&project_id, expected_revision, operations, label)?),
+        } => sink.value(core.create_draft(&project_id, expected_revision, operations, label)?),
         Request::GetDraft {
             project_id,
             draft_id,
-        } => emit_value(core.get_draft(&project_id, &draft_id)?),
+        } => sink.value(core.get_draft(&project_id, &draft_id)?),
         Request::UpdateDraft {
             project_id,
             draft_id,
             expected_revision,
             operations,
             label,
-        } => emit_value(core.update_draft(
+        } => sink.value(core.update_draft(
             &project_id,
             &draft_id,
             expected_revision,
@@ -477,20 +501,20 @@ fn run() -> Result<(), CoreError> {
             project_id,
             draft_id,
             expected_revision,
-        } => emit_value(core.rebase_draft(&project_id, &draft_id, expected_revision)?),
+        } => sink.value(core.rebase_draft(&project_id, &draft_id, expected_revision)?),
         Request::GetDraftState {
             project_id,
             draft_id,
-        } => emit_value(core.get_draft_state(&project_id, &draft_id)?),
+        } => sink.value(core.get_draft_state(&project_id, &draft_id)?),
         Request::CommitDraft {
             project_id,
             draft_id,
             expected_revision,
-        } => emit_value(core.commit_draft(&project_id, &draft_id, expected_revision)?),
+        } => sink.value(core.commit_draft(&project_id, &draft_id, expected_revision)?),
         Request::DiscardDraft {
             project_id,
             draft_id,
-        } => emit_value(core.discard_draft(&project_id, &draft_id)?),
+        } => sink.value(core.discard_draft(&project_id, &draft_id)?),
         Request::RenderDraftPreview {
             project_id,
             draft_id,
@@ -498,12 +522,12 @@ fn run() -> Result<(), CoreError> {
         } => {
             let state = core.get_draft_state(&project_id, &draft_id)?;
             let dir = core.project_directory(&project_id)?;
-            emit_value(renderer.render_preview(&state.project, &dir, time_ms)?)
+            sink.value(renderer.render_preview(&state.project, &dir, time_ms)?)
         }
         Request::ResolveAssetInput {
             project_id,
             asset_id,
-        } => emit_value(core.resolve_asset_input(&project_id, &asset_id)?),
+        } => sink.value(core.resolve_asset_input(&project_id, &asset_id)?),
         Request::CommitTranscription {
             project_id,
             expected_revision,
@@ -516,7 +540,7 @@ fn run() -> Result<(), CoreError> {
             generated_at_ms,
             segments,
             style,
-        } => emit_value(core.commit_transcription(CommitTranscriptionRequest {
+        } => sink.value(core.commit_transcription(CommitTranscriptionRequest {
             project_id,
             expected_revision,
             asset_id,
@@ -532,11 +556,11 @@ fn run() -> Result<(), CoreError> {
         Request::Undo {
             project_id,
             expected_revision,
-        } => emit_value(core.undo(&project_id, expected_revision)?),
+        } => sink.value(core.undo(&project_id, expected_revision)?),
         Request::Redo {
             project_id,
             expected_revision,
-        } => emit_value(core.redo(&project_id, expected_revision)?),
+        } => sink.value(core.redo(&project_id, expected_revision)?),
         Request::RenderPreview {
             project_id,
             expected_revision,
@@ -544,7 +568,7 @@ fn run() -> Result<(), CoreError> {
         } => {
             let project = core.validate_revision(&project_id, expected_revision)?;
             let project_dir = core.paths().project_dir(&project_id)?;
-            emit_value(renderer.render_preview(&project, &project_dir, time_ms)?)
+            sink.value(renderer.render_preview(&project, &project_dir, time_ms)?)
         }
         Request::RenderPreviewRange {
             project_id,
@@ -558,7 +582,7 @@ fn run() -> Result<(), CoreError> {
         } => {
             let project = core.validate_revision(&project_id, expected_revision)?;
             let project_dir = core.paths().project_dir(&project_id)?;
-            emit_value(renderer.render_preview_range(
+            let result = renderer.render_preview_range(
                 &project,
                 &project_dir,
                 PreviewRangeOptions {
@@ -570,11 +594,12 @@ fn run() -> Result<(), CoreError> {
                     include_audio,
                 },
                 |progress| {
-                    let _ = emit(Event::<serde_json::Value>::Progress {
+                    let _ = sink.event(Event::<serde_json::Value>::Progress {
                         progress: progress.progress,
                     });
                 },
-            )?)
+            )?;
+            sink.value(result)
         }
         Request::ExportVideo {
             project_id,
@@ -597,7 +622,7 @@ fn run() -> Result<(), CoreError> {
                     overwrite,
                 },
                 |progress| {
-                    let _ = emit(Event::<serde_json::Value>::Progress {
+                    let _ = sink.event(Event::<serde_json::Value>::Progress {
                         progress: progress.progress,
                     });
                 },
@@ -607,7 +632,7 @@ fn run() -> Result<(), CoreError> {
                 .unwrap_or(Path::new("export.mp4"))
                 .to_string_lossy()
                 .replace('\\', "/");
-            emit_value(opencut_editor_core::RenderArtifact {
+            sink.value(opencut_editor_core::RenderArtifact {
                 relative_path: relative,
                 ..result
             })
@@ -784,10 +809,6 @@ fn parse_request(input: &str) -> Result<Request, CoreError> {
             CoreError::new(opencut_editor_core::ErrorCode::InvalidArgument, message)
         }
     })
-}
-
-fn emit_value(value: impl Serialize) -> Result<(), CoreError> {
-    emit(Event::Result { result: value })
 }
 
 fn emit(event: impl Serialize) -> Result<(), CoreError> {
