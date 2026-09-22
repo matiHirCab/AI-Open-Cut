@@ -117,3 +117,9 @@
 /apps/agent-bridge/src/styled-text.ts @matiHirCab
 /apps/agent-bridge/tests/styled-text.test.ts @matiHirCab
 /docs/styled-text.md @matiHirCab
+
+# Render worker contract consumers.
+/apps/headless/src/worker.rs @matiHirCab
+/apps/headless/tests/render_worker.rs @matiHirCab
+/apps/agent-bridge/src/render-worker.ts @matiHirCab
+/apps/agent-bridge/tests/render-worker.test.ts @matiHirCab

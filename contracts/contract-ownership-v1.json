@@ -3,6 +3,15 @@
   "strategy": "fixture-governed-manual-synchronization",
   "reviewer": "@matiHirCab",
   "categories": {
+    "renderWorker": {
+      "canonical": "contracts/render-worker-v1.json",
+      "consumers": [
+        "apps/headless/src/worker.rs",
+        "apps/headless/tests/render_worker.rs",
+        "apps/agent-bridge/src/render-worker.ts",
+        "apps/agent-bridge/tests/render-worker.test.ts"
+      ]
+    },
     "vectorPrimitives": {
       "canonical": "contracts/vector-primitives-v1.json",
       "consumers": [

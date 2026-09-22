@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+raster-cache-test-hooks = []
+
 [dependencies]
 quick-xml = { version = "=0.39.4", default-features = false }
 fs2 = { workspace = true }

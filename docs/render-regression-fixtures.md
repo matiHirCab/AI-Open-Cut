@@ -20,6 +20,35 @@ The fixture is regression evidence, not a public or persisted contract. It adds 
 
 ## Checked-in evidence
 
+### Text and vector raster reuse
+
+Each core Renderer owns a disposable cache shared by its clones. It retains at most
+128 entries and 64 MiB of key and PAM payload bytes, evicting the least recently
+used entries. Larger valid rasters render without retention. Separate renderers
+start cold; cache data is never persisted into projects, history, or drafts.
+
+Keys include project identity/revision, requested output dimensions, effective
+text or vector content and style, verified font identities and shaping profile,
+local raster geometry/sampling density, and a raster implementation version.
+Changing a revision misses conservatively; different drafts at the same revision
+cannot alias changed effective content. Equal component/repeater occurrences can
+reuse local pixels while retaining separate composition plans. Shapes and SVG use
+their canonical composed sampling density; text keeps its existing local raster
+resolution. Coordinates, anchors, ordering, timing, fallback and output tolerances
+are unchanged.
+
+Every render still performs canonical evaluation, resource/path and font-integrity
+checks, and memory/work validation before cache lookup. Hits write the same owned
+workspace files and obey existing output publication and cleanup rules. Cache
+failures fall back to uncached work; render errors are never cached. There is no
+new public operation, capability, schema version or migration.
+
+The `raster_cach` core test filter covers key invalidation, retention boundaries,
+concurrency, warm-cache failure paths, drafts/history, expanded occurrences and
+native cold/warm frame/range/export equivalence. Native evidence requires the same
+three configured tool/font variables as the other golden tests; raster-call
+counters prove reuse without making timing-dependent performance claims.
+
 `CURRENT` is a closed version-1 pointer to one immutable directory under `generations/<digest>`. The digest is the lowercase SHA-256 of that generation's exact `manifest.json` bytes. The revision-2 manifest fixes the canvas, frame rate, duration, sample timestamps, audio representation, tolerances, reference environment, font hash, and SHA-256 hash of every retained file. Unknown fields and versions, malformed generation digests, incomplete or duplicate references, mismatched hashes, non-finite or out-of-range tolerances, and unsafe paths fail before rendering.
 
 Reference paths must contain only normal fixture-relative components. Before filesystem interpretation, the validator rejects any RFC 3986-style scheme prefix: an ASCII letter followed by letters, digits, `+`, `-`, or `.`, then `:`. This rejects opaque forms such as `file:frame.rgb` and `data:text/plain,...` as well as URL forms. Absolute paths, traversal, and canonical or symlink escapes are also rejected.
@@ -88,3 +117,50 @@ Before accepting an update:
 8. Treat performance changes as comparable only when all environment, sampling, scope, and aggregation identity fields match; establish a budget in a separately approved change.
 
 Invalid timing and missing assets are tested with executables that must never run and must leave the project and filesystem unchanged. The native headless lifecycle test separately proves stale-revision rejection before output plus successful render, undo, redo, draft isolation, and deterministic process-per-request reopen behavior.
+
+## Bridge render worker and issue-36 follow-up
+
+Each bridge `HeadlessClient` reserves one lazy `--render-worker` for frame,
+range, materialized draft and export requests. It retains only core services and
+one renderer cache, loading current project/draft snapshots on every request.
+Non-render operations and renders overlapping a busy/starting/retiring worker
+use independent one-shot processes. There is no render queue or worker pool.
+Legacy EOF-delimited CLI input and health output remain compatible.
+
+`contracts/render-worker-v1.json` owns the additive wire protocol. Worker startup
+emits `{"type":"ready","protocolVersion":1}`. Requests wrap an existing render
+request in `{requestId, request}`; events wrap the existing event in
+`{requestId, event}`. Envelopes are closed. Each newline-delimited UTF-8 line has
+an inclusive 16 MiB bound excluding its newline. Readiness has a five-second
+deadline within the request deadline. Protocol failure, cancellation or timeout
+retires the process; requests are never replayed. A normal typed core failure
+leaves a healthy worker reusable. Client shutdown closes idle/active workers.
+
+Request identity is validated in editor-core through an immutable Renderer
+adapter; the worker never changes environment identity between calls. Process
+tree termination precedes temporary cleanup. Windows workers establish a private
+kill-on-close Job Object before readiness, so renderer children also terminate
+on abrupt worker death; POSIX retirement terminates the process group even if
+its leader has exited. Failure to establish Windows containment fails startup.
+The per-process job handle is non-inheritable and closes during OS teardown.
+See [Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
+ If termination cannot be confirmed,
+the slot remains retired and owned files remain until exit is observed. Final
+published artifacts are not cleanup targets. Overflow processes have their own
+request lifetimes and start with cold caches.
+
+The 128-entry / 64 MiB bound measures retained keys and immutable payloads in
+one renderer cache. It does not bound in-flight rasterization, shared bytes held
+by active render calls, FFmpeg memory, or independent overflow processes. Font
+integrity checks, evaluation, shaping and key hashing still execute on warm
+requests; no latency speedup is claimed from raster call counts alone.
+
+Native cache evidence requires FFmpeg/FFprobe 7.1.1 and the reviewed fixture
+font, with `OPENCUT_GOLDEN_REQUIRED=1`. Build headless with
+`--features raster-cache-test-hooks` for the dedicated bridge check and set
+`OPENCUT_RASTER_CACHE_TESTS_REQUIRED=1` when running
+`tests/render-worker-native.test.ts`. The opt-in feature emits per-request
+hit/miss diagnostics on stderr only. Rebuild without the feature before ordinary
+MCP integration and packaged smoke checks. The native bridge test is explicitly
+skipped in an ordinary unit run; its separate required run is recorded in the
+follow-up change's verification index. The required Linux Render parity job now also executes core cache conformance, feature-enabled native worker tests and the real bridge reuse test with both required flags. It restores the default headless build and runs default transport tests before report validation/upload; the policy guard protects that exact sequence. See [mandatory native CI reproduction](ci-parity-gates.md#mandatory-native-raster-cache-evidence). Local Windows logs do not prove remote Linux execution. No golden references are regenerated.

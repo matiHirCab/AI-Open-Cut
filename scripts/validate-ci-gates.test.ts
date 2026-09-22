@@ -778,7 +778,7 @@ describe("CI parity gate policy", () => {
         "      - name: Validate Linux render baseline schema\n",
         "      - name: Removed render validation step\n"
       ),
-      "render-parity.steps[4] must be",
+      "render-parity.steps[6] must be",
     ],
     [
       "replaced contract install step",
@@ -792,7 +792,7 @@ describe("CI parity gate policy", () => {
     [
       "reordered render steps",
       moveUploadBeforeValidation(workflow),
-      "render-parity.steps[4] must be",
+      "render-parity.steps[6] must be",
     ],
   ] as const) {
     it(`rejects a ${description}`, () => {
@@ -1380,7 +1380,7 @@ describe("CI parity gate policy", () => {
 
   it("rejects report upload before strict validation", () => {
     expect(() => validateCiGates(moveUploadBeforeValidation(workflow))).toThrow(
-      "render-parity.steps[4] must be"
+      "render-parity.steps[6] must be"
     );
   });
 
@@ -1409,5 +1409,101 @@ describe("CI parity gate policy", () => {
     expect(() =>
       assertFoundationParityResults("success", "success", "success", "")
     ).toThrow("policy_validated=");
+  });
+});
+
+describe("mandatory native raster-cache CI evidence", () => {
+  const start = workflow.indexOf("      - name: Native raster-cache parity\n");
+  const end = workflow.indexOf("      - name: Validate Linux render baseline schema\n", start);
+  const cacheStep = workflow.slice(start, end);
+  const mutateCache = (needle: string, replacement: string) =>
+    replaceRequired(workflow, cacheStep, replaceRequired(cacheStep, needle, replacement));
+  const commands = [
+    "cargo test -p opencut-editor-core --lib raster_cach",
+    "cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker",
+    "cargo build -p opencut-headless --features raster-cache-test-hooks",
+    "bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/render-worker-native.test.ts",
+    "cargo build -p opencut-headless",
+    "cargo test -p opencut-headless",
+  ];
+
+  it("accepts the complete required cache sequence", () => {
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    expect(() => validateCiGates(workflow)).not.toThrow();
+  });
+
+  for (const command of commands) {
+    for (const replacement of ["", "echo skipped", `${command} || true`]) {
+      it(`rejects altered cache command ${command}: ${replacement}`, () => {
+        expect(() => validateCiGates(mutateCache(
+          `          ${command}\n`, `          ${replacement}\n`
+        ))).toThrow("render-parity cache step must use the exact fail-closed command body");
+      });
+    }
+  }
+
+  for (const [key, value] of [
+    ["OPENCUT_FFMPEG_PATH", "ffmpeg"],
+    ["OPENCUT_FFPROBE_PATH", "ffprobe"],
+    ["OPENCUT_TEST_FONT_PATH", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+    ["OPENCUT_GOLDEN_REQUIRED", "'1'"],
+    ["OPENCUT_RASTER_CACHE_TESTS_REQUIRED", "'1'"],
+  ]) {
+    for (const replacement of ["", `          ${key}: disabled\n`]) {
+      it(`rejects missing or weakened cache configuration ${key}: ${replacement}`, () => {
+        expect(() => validateCiGates(mutateCache(
+          `          ${key}: ${value}\n`, replacement
+        ))).toThrow("render-parity cache env");
+      });
+    }
+  }
+
+  for (const command of commands.slice(1, 3)) {
+    it(`rejects omitted instrumentation in ${command}`, () => {
+      expect(() => validateCiGates(mutateCache(command,
+        command.replace(" --features raster-cache-test-hooks", "")
+      ))).toThrow("render-parity cache step must use the exact fail-closed command body");
+    });
+  }
+
+  it("rejects default restoration after compatibility checks", () => {
+    expect(() => validateCiGates(mutateCache(
+      "          cargo build -p opencut-headless\n          cargo test -p opencut-headless\n",
+      "          cargo test -p opencut-headless\n          cargo build -p opencut-headless\n"
+    ))).toThrow("render-parity cache step must use the exact fail-closed command body");
+  });
+
+  it("rejects a bridge command using the wrong workspace", () => {
+    expect(() => validateCiGates(mutateCache("--cwd apps/agent-bridge", "--cwd .")))
+      .toThrow("render-parity cache step must use the exact fail-closed command body");
+  });
+
+  for (const property of ["if: false", "continue-on-error: true", "shell: bash", "working-directory: apps/agent-bridge"]) {
+    it(`rejects cache step override ${property}`, () => {
+      expect(() => validateCiGates(addStepProperty(workflow, "Native raster-cache parity", property))).toThrow();
+    });
+  }
+
+  for (const variable of ["OPENCUT_UPDATE_GOLDENS", "OPENCUT_CAPTURE_GOLDENS_TO", "NODE_OPTIONS"]) {
+    it(`rejects extra cache environment ${variable}`, () => {
+      expect(() => validateCiGates(mutateCache("        env:\n", `        env:\n          ${variable}: forbidden\n`))).toThrow();
+    });
+  }
+
+  const install = "      - name: Install render bridge dependencies\n        working-directory: apps/agent-bridge\n        run: bun install --frozen-lockfile\n";
+  for (const replacement of ["", install.replace("apps/agent-bridge", "."), install.replace(" --frozen-lockfile", ""), install.replace("bun install --frozen-lockfile", "bun install --frozen-lockfile || true")]) {
+    it(`rejects missing or weakened render bridge installation: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, install, replacement))).toThrow();
+    });
+  }
+  for (const property of ["if: false", "continue-on-error: true", "shell: bash", "env: {}"] ) {
+    it(`rejects render install override ${property}`, () => {
+      expect(() => validateCiGates(addStepProperty(workflow, "Install render bridge dependencies", property))).toThrow();
+    });
+  }
+  it("rejects missing cache step", () => {
+    expect(() => validateCiGates(replaceRequired(workflow, cacheStep, "")))
+      .toThrow("render-parity must contain exactly its approved step sequence");
   });
 });

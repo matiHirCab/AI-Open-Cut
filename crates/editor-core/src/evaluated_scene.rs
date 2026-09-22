@@ -137,6 +137,8 @@ fn evaluate_project_inner(
     crate::validation::validate_project_visual_properties(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
     let mut result = EvaluatedSceneResult {
+        project_id: project.id.clone(),
+        revision: project.revision,
         scene: EvaluatedScene {
             instance_voiceover_intervals: Some(vec![]),
             voiceover_activity_range_count: 0,
@@ -179,6 +181,8 @@ fn evaluate_project_inner(
             let effective =
                 crate::validation::resolve_component_slots(project, component, None, &definitions)?;
             let mut domain = EvaluatedSceneResult {
+                project_id: project.id.clone(),
+                revision: project.revision,
                 scene: EvaluatedScene {
                     instance_voiceover_intervals: Some(vec![]),
                     voiceover_activity_range_count: 0,
@@ -1302,6 +1306,8 @@ impl InstanceTraversal<'_> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EvaluatedSceneResult {
+    pub(crate) project_id: String,
+    pub(crate) revision: u64,
     pub(crate) scene: EvaluatedScene,
     pub(crate) resource_bindings: SceneResourceBindings,
 }
@@ -2047,6 +2053,8 @@ fn evaluate_flat_project(
     }
     sort_visual_layers(project, &mut visual_layers);
     Ok(EvaluatedSceneResult {
+        project_id: project.id.clone(),
+        revision: project.revision,
         scene: EvaluatedScene {
             instance_voiceover_intervals: None,
             voiceover_activity_range_count: preflight.voiceover_activity_range_count,

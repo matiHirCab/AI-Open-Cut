@@ -6,58 +6,18 @@ import { dirname, join } from "node:path";
 import { z } from "zod/v4";
 
 import type { BridgeConfig } from "./config";
-import { retryableFor } from "./errors";
+import { BridgeError, eventSchema } from "./headless-events";
+import { RenderWorker } from "./render-worker";
+
+// biome-ignore lint/performance/noBarrelFile: Preserve the existing error import API for all bridge consumers.
+export { BridgeError } from "./headless-events";
+
 import type { HeadlessRequest } from "./headless-contract";
 import { type Logger, NOOP_LOGGER } from "./logger";
 
 const NEWLINE_PATTERN = /\r?\n/;
 
-const errorSchema = z
-  .object({
-    code: z.string(),
-    failedStage: z.string().nullable().default(null),
-    ffmpegExitCode: z.number().int().nullable().default(null),
-    ffmpegStderrExcerpt: z.string().nullable().default(null),
-    message: z.string(),
-    retryable: z.boolean(),
-  })
-  .strict();
-
-const eventSchema = z.discriminatedUnion("type", [
-  z.object({ progress: z.number(), type: z.literal("progress") }).strict(),
-  z.object({ result: z.unknown(), type: z.literal("result") }).strict(),
-  z.object({ error: errorSchema, type: z.literal("error") }).strict(),
-]);
-
-export class BridgeError extends Error {
-  readonly code: string;
-  readonly retryable: boolean;
-  readonly failedStage: string | null;
-  readonly ffmpegExitCode: number | null;
-  readonly ffmpegStderrExcerpt: string | null;
-
-  constructor(
-    code: string,
-    message: string,
-    _retryable = retryableFor(code),
-    options?: ErrorOptions,
-    details: {
-      failedStage?: string | null;
-      ffmpegExitCode?: number | null;
-      ffmpegStderrExcerpt?: string | null;
-    } = {}
-  ) {
-    super(message, options);
-    this.name = "BridgeError";
-    this.code = code;
-    this.retryable = _retryable;
-    this.failedStage = details.failedStage ?? null;
-    this.ffmpegExitCode = details.ffmpegExitCode ?? null;
-    this.ffmpegStderrExcerpt = details.ffmpegStderrExcerpt ?? null;
-  }
-}
-
-interface HeadlessCallOptions {
+export interface HeadlessCallOptions {
   onProgress?: (progress: number) => void;
   requestId?: string;
   signal?: AbortSignal;
@@ -69,6 +29,7 @@ export class HeadlessClient {
   readonly #config: BridgeConfig;
   readonly #logger: Logger;
   #closed = false;
+  #worker: RenderWorker | undefined;
 
   constructor(config: BridgeConfig, logger: Logger = NOOP_LOGGER) {
     this.#config = config;
@@ -80,7 +41,6 @@ export class HeadlessClient {
     schema: z.ZodType<Output>,
     options: HeadlessCallOptions = {}
   ) {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state changes across calls.
     if (this.#isClosed()) {
       throw new BridgeError(
         "BRIDGE_SHUTTING_DOWN",
@@ -97,13 +57,37 @@ export class HeadlessClient {
     });
     const forwardAbort = () => controller.abort();
     options.signal?.addEventListener("abort", forwardAbort, { once: true });
+    if (options.signal?.aborted) {
+      controller.abort();
+    }
     this.#active.add(controller);
     try {
-      const result = await callHeadless(this.#config, request, schema, {
-        ...options,
-        requestId,
-        signal: controller.signal,
-      });
+      const callOptions = { ...options, requestId, signal: controller.signal };
+      let result: Output;
+      if (
+        RenderWorker.accepts(request) &&
+        (!this.#worker ||
+          (!this.#worker.busy &&
+            (this.#worker.terminated || !this.#worker.retired)))
+      ) {
+        if (!this.#worker || this.#worker.terminated) {
+          this.#worker = new RenderWorker(
+            this.#config,
+            async (ownedRequest, id) => {
+              await Promise.all(
+                ownedTemporaryPaths(this.#config, ownedRequest, id).map(
+                  async (path) => {
+                    await rm(path, { force: true, recursive: true });
+                  }
+                )
+              );
+            }
+          );
+        }
+        result = await this.#worker.call(request, schema, callOptions);
+      } else {
+        result = await callHeadless(this.#config, request, schema, callOptions);
+      }
       this.#logger.info("headless.request.completed", {
         durationMs: Math.round(performance.now() - startedAt),
         operation: request.operation,
@@ -127,18 +111,19 @@ export class HeadlessClient {
   }
 
   close() {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: close is intentionally idempotent.
     if (this.#isClosed()) {
       return;
     }
     this.#closed = true;
+    const workerClosed = this.#worker?.close();
     for (const controller of this.#active) {
       controller.abort();
     }
     this.#active.clear();
+    return workerClosed;
   }
 
-  #isClosed() {
+  #isClosed(): boolean {
     return this.#closed;
   }
 }
@@ -297,7 +282,8 @@ const ownedTemporaryPaths = (
 ) => {
   if (
     (request.operation === "render_preview" ||
-      request.operation === "render_preview_range") &&
+      request.operation === "render_preview_range" ||
+      request.operation === "render_draft_preview") &&
     typeof request.projectId === "string" &&
     config.projectsDirectory
   ) {
