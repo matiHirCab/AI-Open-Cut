@@ -1,0 +1,1059 @@
+{
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 10
+  },
+  "durationMs": 1000,
+  "timestampsMs": [
+    0,
+    500,
+    900
+  ],
+  "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+  "syntheticAudio": {
+    "sampleRateHz": 48000,
+    "frequencyHz": 440,
+    "channels": 1
+  },
+  "operations": [
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "background",
+      "geometry": {
+        "type": "rectangle",
+        "width": 1920,
+        "height": 1080
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.06274509803921569,
+          "g": 0.09803921568627451,
+          "b": 0.1450980392156863,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_grid",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "grid",
+      "transform2d": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "grid": {
+        "width": 1920,
+        "height": 1080,
+        "pattern": {
+          "type": "diagonal",
+          "spacing": 72,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 0.43137254901960786,
+                "g": 0.5529411764705883,
+                "b": 0.6509803921568628,
+                "a": 0.2
+              }
+            },
+            "width": 2,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "card1",
+      "geometry": {
+        "type": "roundedRectangle",
+        "width": 500,
+        "height": 270,
+        "radii": {
+          "topLeft": 18,
+          "topRight": 18,
+          "bottomRight": 18,
+          "bottomLeft": 18
+        }
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.09803921568627451,
+          "g": 0.16862745098039217,
+          "b": 0.23529411764705882,
+          "a": 0.84
+        }
+      },
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.8627450980392157,
+            "g": 0.9137254901960784,
+            "b": 0.9490196078431372,
+            "a": 1
+          }
+        },
+        "width": 5,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 96,
+          "y": 84,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "accent1",
+      "geometry": {
+        "type": "rectangle",
+        "width": 14,
+        "height": 188
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.27450980392156865,
+          "g": 0.8313725490196079,
+          "b": 0.8,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 126,
+          "y": 126,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "card2",
+      "geometry": {
+        "type": "roundedRectangle",
+        "width": 500,
+        "height": 270,
+        "radii": {
+          "topLeft": 18,
+          "topRight": 18,
+          "bottomRight": 18,
+          "bottomLeft": 18
+        }
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.09803921568627451,
+          "g": 0.16862745098039217,
+          "b": 0.23529411764705882,
+          "a": 0.84
+        }
+      },
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.8627450980392157,
+            "g": 0.9137254901960784,
+            "b": 0.9490196078431372,
+            "a": 1
+          }
+        },
+        "width": 5,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 710,
+          "y": 84,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "accent2",
+      "geometry": {
+        "type": "rectangle",
+        "width": 14,
+        "height": 188
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.9647058823529412,
+          "g": 0.7333333333333333,
+          "b": 0.3607843137254902,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 740,
+          "y": 126,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "card3",
+      "geometry": {
+        "type": "roundedRectangle",
+        "width": 500,
+        "height": 270,
+        "radii": {
+          "topLeft": 18,
+          "topRight": 18,
+          "bottomRight": 18,
+          "bottomLeft": 18
+        }
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.09803921568627451,
+          "g": 0.16862745098039217,
+          "b": 0.23529411764705882,
+          "a": 0.84
+        }
+      },
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.8627450980392157,
+            "g": 0.9137254901960784,
+            "b": 0.9490196078431372,
+            "a": 1
+          }
+        },
+        "width": 5,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 1324,
+          "y": 84,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "accent3",
+      "geometry": {
+        "type": "rectangle",
+        "width": 14,
+        "height": 188
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.27450980392156865,
+          "g": 0.8313725490196079,
+          "b": 0.8,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 1354,
+          "y": 126,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "brackets",
+      "geometry": {
+        "type": "path",
+        "path": {
+          "fillRule": "nonzero",
+          "commands": [
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 42,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 0,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 532,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 490,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 532,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 532,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 42,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 0,
+                "y": 260
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 532,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 490,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 532,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 532,
+                "y": 260
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 614,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 656,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 614,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 614,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1146,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1104,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1146,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1146,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 614,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 656,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 614,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 614,
+                "y": 260
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1146,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1104,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1146,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1146,
+                "y": 260
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1228,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1270,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1228,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1228,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1760,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1718,
+                "y": 0
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1760,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1760,
+                "y": 42
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1228,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1270,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1228,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1228,
+                "y": 260
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1760,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1718,
+                "y": 302
+              }
+            },
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 1760,
+                "y": 302
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 1760,
+                "y": 260
+              }
+            }
+          ]
+        }
+      },
+      "fill": null,
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.27450980392156865,
+            "g": 0.8313725490196079,
+            "b": 0.8,
+            "a": 1
+          }
+        },
+        "width": 6,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 80,
+          "y": 68,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "circle1",
+      "geometry": {
+        "type": "ellipse",
+        "width": 440,
+        "height": 440
+      },
+      "fill": null,
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.27450980392156865,
+            "g": 0.8313725490196079,
+            "b": 0.8,
+            "a": 0.7
+          }
+        },
+        "width": 4,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 1450,
+          "y": 545,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "circle2",
+      "geometry": {
+        "type": "ellipse",
+        "width": 320,
+        "height": 320
+      },
+      "fill": null,
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.8627450980392157,
+            "g": 0.9137254901960784,
+            "b": 0.9490196078431372,
+            "a": 0.7
+          }
+        },
+        "width": 4,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 1510,
+          "y": 605,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "circle3",
+      "geometry": {
+        "type": "ellipse",
+        "width": 200,
+        "height": 200
+      },
+      "fill": null,
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0.8627450980392157,
+            "g": 0.9137254901960784,
+            "b": 0.9490196078431372,
+            "a": 0.7
+          }
+        },
+        "width": 4,
+        "dash": [],
+        "dashOffset": 0,
+        "lineCap": "butt",
+        "lineJoin": "miter",
+        "miterLimit": 4
+      },
+      "transform2d": {
+        "position": {
+          "x": 1570,
+          "y": 665,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word1_shadow",
+      "text": "EVERY.",
+      "fontSize": 128,
+      "color": "#235767",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 115,
+        "positionY": 484,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word1_face",
+      "text": "EVERY.",
+      "fontSize": 128,
+      "color": "#FFFFFF",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 105,
+        "positionY": 475,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word2_shadow",
+      "text": "SINGLE.",
+      "fontSize": 128,
+      "color": "#235767",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 115,
+        "positionY": 654,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word2_face",
+      "text": "SINGLE.",
+      "fontSize": 128,
+      "color": "#FFFFFF",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 105,
+        "positionY": 645,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word3_shadow",
+      "text": "ONE.",
+      "fontSize": 128,
+      "color": "#235767",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 115,
+        "positionY": 824,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$overlay",
+      "startMs": 0,
+      "durationMs": 1000,
+      "resultAlias": "word3_face",
+      "text": "ONE.",
+      "fontSize": 128,
+      "color": "#FFFFFF",
+      "fontFamily": null,
+      "fontPath": null,
+      "transform": {
+        "positionX": 105,
+        "positionY": 815,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@word1_face",
+      "fontSize": 132
+    },
+    {
+      "operation": "add_media",
+      "trackId": "$audio",
+      "assetId": "$tone",
+      "startMs": 0,
+      "durationMs": 1000,
+      "sourceInMs": 0,
+      "resultAlias": "tone"
+    }
+  ]
+}

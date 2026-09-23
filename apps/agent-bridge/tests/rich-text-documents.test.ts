@@ -7,6 +7,39 @@ import {
 } from "../src/schemas";
 
 describe("canonical rich text documents", () => {
+  it("accepts the governed additive font-size edit in standalone and batch schemas", () => {
+    const fixture = CATALOG.fontSizeUpdate;
+    expect(fixture.field).toBe("fontSize");
+    for (const fontSize of [fixture.minimum, fixture.maximum]) {
+      const edit = { fontSize, itemId: "title", operation: "update_item" };
+      expect(headlessEditSchema.parse(edit)).toMatchObject(edit);
+      expect(
+        schemas.timelineUpdateItem.parse({
+          expectedRevision: 1,
+          fontSize,
+          itemId: "title",
+          projectId: "project",
+        })
+      ).toMatchObject({ fontSize });
+    }
+    for (const fontSize of [null, 0, 1001, 1.5]) {
+      expect(
+        headlessEditSchema.safeParse({
+          fontSize,
+          itemId: "title",
+          operation: "update_item",
+        }).success
+      ).toBe(false);
+      expect(
+        schemas.timelineUpdateItem.safeParse({
+          expectedRevision: 1,
+          fontSize,
+          itemId: "title",
+          projectId: "project",
+        }).success
+      ).toBe(false);
+    }
+  });
   it("preserves every run through standalone, batch and draft inputs", () => {
     for (const fixture of CATALOG.valid) {
       const edit = {

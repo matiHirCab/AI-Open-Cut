@@ -42652,6 +42652,11 @@
                         }
                       ]
                     },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
                     "geometry": {
                       "oneOf": [
                         {
@@ -69400,6 +69405,11 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
                     },
                     "geometry": {
                       "oneOf": [
@@ -96227,6 +96237,11 @@
                         }
                       ]
                     },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
                     "geometry": {
                       "oneOf": [
                         {
@@ -123052,6 +123067,11 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
                     },
                     "geometry": {
                       "oneOf": [
@@ -150527,6 +150547,11 @@
                         }
                       ]
                     },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
                     "geometry": {
                       "oneOf": [
                         {
@@ -177027,6 +177052,11 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
                     },
                     "geometry": {
                       "oneOf": [
@@ -203777,6 +203807,11 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
                     },
                     "geometry": {
                       "oneOf": [
@@ -276825,6 +276860,11 @@
                         }
                       ]
                     },
+                    "fontSize": {
+                      "maximum": 1000,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
                     "geometry": {
                       "oneOf": [
                         {
@@ -289759,6 +289799,11 @@
                 "type": "null"
               }
             ]
+          },
+          "fontSize": {
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
           },
           "geometry": {
             "oneOf": [

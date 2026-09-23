@@ -571,6 +571,8 @@ Each leaf issue contains Problem, Intended outcome, Implementation requirements,
 | MG-M2-10 | Add text and vector raster caches | [#36](https://github.com/matiHirCab/AI-Open-Cut/issues/36) |
 | MG-M2-11 | Add vector/text inspectors and the static rules-screen fixture | [#37](https://github.com/matiHirCab/AI-Open-Cut/issues/37) |
 
+The MG-M2-11 implementation uses the approved `add-vector-text-inspectors-rules-screen` OpenSpec change. Root shape, grid and text inspector controls submit typed core edits at the displayed revision; component occurrences remain read-only. Its deterministic native rules-screen recipe and additive `fontSize` text update are documented in [desktop hierarchy](desktop-hierarchy.md), [render regression fixtures](render-regression-fixtures.md) and [rich text documents](rich-text-documents.md). The change's tasks record the remaining verification gates before this milestone is accepted.
+
 #### M3 — Animation
 
 | Key | Deliverable | GitHub issue |

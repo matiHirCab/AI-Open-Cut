@@ -725,6 +725,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "grid_items",
         "repeater_items",
         "rich_text_documents",
+        "text_font_size_update_v1",
         "content_addressed_text_layout_v2",
         "styled_text_layers_v1",
         "advanced_text_layout_v1",

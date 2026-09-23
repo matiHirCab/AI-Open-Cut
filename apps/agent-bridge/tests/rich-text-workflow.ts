@@ -27,6 +27,7 @@ export async function verifyRichTextWorkflow(
 ) {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.capabilities).toContain(CATALOG.capability);
+  expect(status.capabilities).toContain(CATALOG.fontSizeUpdate.capability);
   expect(status.capabilities).toContain(LAYOUT.capability);
   expect(status.capabilities).toContain(STYLED.capability);
   expect(status.capabilities).toContain(ADVANCED.capability);
@@ -271,4 +272,112 @@ export async function verifyRichTextWorkflow(
     writeFileSync(draftPath, originalDraft);
   }
   expect((await read()).project).toEqual(current);
+
+  const originalItem = current.tracks
+    .flatMap((t) => t.items)
+    .find((i) => i.id === itemId);
+  const resized = await call(
+    "timeline_update_item",
+    {
+      expectedRevision: current.revision,
+      fontSize: 72,
+      itemId,
+      projectId,
+    },
+    writeResultSchema
+  );
+  const resizedState = await read();
+  expect(
+    resizedState.project.tracks
+      .flatMap((t) => t.items)
+      .find((i) => i.id === itemId)
+  ).toEqual({ ...originalItem, fontSize: 72 });
+  const failedSizes = await Promise.all(
+    [
+      { fontSize: 0, itemId },
+      { fontSize: 1001, itemId },
+      { fontSize: 80, itemId: "missing" },
+    ].map((sizeInput) =>
+      client.callTool({
+        arguments: {
+          expectedRevision: resized.revision,
+          projectId,
+          ...sizeInput,
+        },
+        name: "timeline_update_item",
+      })
+    )
+  );
+  for (const failedSize of failedSizes) {
+    expect(failedSize.isError).toBe(true);
+  }
+  expect(await read()).toEqual(resizedState);
+  const staleSize = await client.callTool({
+    arguments: {
+      expectedRevision: current.revision,
+      fontSize: 80,
+      itemId,
+      projectId,
+    },
+    name: "timeline_update_item",
+  });
+  expect(staleSize.isError).toBe(true);
+  expect(await read()).toEqual(resizedState);
+  const failedSizeBatch = await client.callTool({
+    arguments: {
+      expectedRevision: resized.revision,
+      operations: [
+        { fontSize: 80, itemId, operation: "update_item" },
+        { itemId: "missing", operation: "delete_item" },
+      ],
+      projectId,
+    },
+    name: "timeline_batch_edit",
+  });
+  expect(failedSizeBatch.isError).toBe(true);
+  expect(await read()).toEqual(resizedState);
+  const aliased = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: resized.revision,
+      operations: [
+        {
+          color: "#ffffff",
+          durationMs: 1000,
+          fontSize: 48,
+          operation: "add_text",
+          resultAlias: "resized",
+          startMs: 0,
+          text: "Sizing",
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+        },
+        { fontSize: 96, itemId: "@resized", operation: "update_item" },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const aliasedState = await read();
+  expect(aliasedState.project.tracks.flatMap((t) => t.items)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ fontSize: 96, text: "Sizing" }),
+    ])
+  );
+  const undone = await call(
+    "project_undo",
+    { expectedRevision: aliased.revision, projectId },
+    writeResultSchema
+  );
+  expect((await read()).project.tracks.flatMap((t) => t.items)).not.toEqual(
+    expect.arrayContaining([expect.objectContaining({ text: "Sizing" })])
+  );
+  await call(
+    "project_redo",
+    { expectedRevision: undone.revision, projectId },
+    writeResultSchema
+  );
+  expect((await read()).project.tracks.flatMap((t) => t.items)).toEqual(
+    aliasedState.project.tracks.flatMap((t) => t.items)
+  );
 }
