@@ -1,6 +1,6 @@
 ## 1. Contract and persistence foundation
 
-- [ ] 1.1 Update the canonical channel/value, schema-version, operation, MCP, and capability fixtures and contract ownership/parity expectations for active numeric bounds and inactive deferred bounds with prospective targets; classify the additions under ADR 0002 and obtain the designated CODEOWNER review. (motion-graphics-contracts)
+- [x] 1.1 Update the canonical channel/value, schema-version, operation, MCP, and capability fixtures and contract ownership/parity expectations for active numeric bounds and inactive deferred bounds with prospective targets; classify the additions under ADR 0002 and obtain the designated CODEOWNER review. (motion-graphics-contracts)
 - [x] 1.2 Add schema-22 channel storage and deterministic locked migration for current, undo, and redo documents, including malformed-history, future-schema, interrupted-commit, and reopen tests. (project-persistence)
 
 ## 2. Editor-core behavior
@@ -22,6 +22,6 @@
 
 - [x] 4.1 Run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` on the repaired tree; record full logs and exit codes.
 - [x] 4.2 From `apps/agent-bridge`, run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`; run the hermetic Python worker tests and record full logs and exit codes.
-- [ ] 4.3 Add the native channel output suite to render-parity CI with required FFmpeg/FFprobe settings and update the exact CI policy command/environment expectations and regression tests; rerun Windows correctness and render parity, then run pinned strict all-spec validation and the pre-archive `moon run root:openspec-validate` gate; record the expected rejection only if it names this active change and no other failure.
-- [ ] 4.4 Run `$openspec-verify-change`, resolve all requirement/design/task/test mismatches, then `$openspec-sync-specs` and `$openspec-archive-change`.
-- [ ] 4.5 Rerun `moon run root:openspec-validate` and pinned strict all-spec validation after archival; require both to pass before claiming completion.
+- [x] 4.3 Add the native channel output suite to render-parity CI with required FFmpeg/FFprobe settings and update the exact CI policy command/environment expectations and regression tests; rerun Windows correctness and render parity, then run pinned strict all-spec validation and the pre-archive `moon run root:openspec-validate` gate; record the expected rejection only if it names this active change and no other failure.
+- [x] 4.4 Run `$openspec-verify-change`, resolve all requirement/design/task/test mismatches, then `$openspec-sync-specs` and `$openspec-archive-change`.
+- [x] 4.5 Rerun `moon run root:openspec-validate` and pinned strict all-spec validation after archival; require both to pass before claiming completion.
