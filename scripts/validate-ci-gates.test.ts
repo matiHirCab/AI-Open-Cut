@@ -1200,6 +1200,19 @@ describe("CI parity gate policy", () => {
     ).toThrow("render-parity native env must contain exactly the approved environment keys");
   });
 
+  for (const [replacement, expected] of [
+    ["", "render-parity native env must contain exactly the approved environment keys"],
+    ["          OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED: disabled\n", "render-parity native env OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED must equal"],
+  ] as const) {
+    it(`rejects missing or weakened required channel rendering: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(
+        workflow,
+        "          OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED: '1'\n",
+        replacement
+      ))).toThrow(expected);
+    });
+  }
+
   it("rejects an additional report-validation environment key", () => {
     expect(() =>
       validateCiGates(
@@ -1287,6 +1300,20 @@ describe("CI parity gate policy", () => {
           )
         )
       ).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+
+  for (const replacement of [
+    "",
+    "cargo test -p opencut-editor-core --test animation_channels || true",
+    "cargo test -p opencut-editor-core --test compatibility",
+  ]) {
+    it(`rejects missing or altered native channel coverage: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(
+        workflow,
+        "cargo test -p opencut-editor-core --test animation_channels",
+        replacement
+      ))).toThrow("render-parity native step must use the exact fail-closed command body");
     });
   }
 

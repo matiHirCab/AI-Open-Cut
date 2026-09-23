@@ -451,6 +451,81 @@ fn audio_gain_endpoints_are_inclusive_and_first_outside_values_are_rejected() {
     }
 }
 
+#[test]
+fn every_active_property_rejects_malformed_persisted_values_before_render() {
+    let (root, core, id, visual_track) = setup();
+    core.edit(
+        &id,
+        0,
+        operation(json!({
+            "operation":"add_rectangle","trackId":visual_track,"startMs":0,"durationMs":1000,
+        "width":10,"height":10,"color":"#ff0000",
+        "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+        })),
+    )
+    .unwrap();
+    let source = root.path().join("media/audio.wav");
+    std::fs::write(&source, b"audio fixture").unwrap();
+    let asset = core
+        .import_asset(
+            &id,
+            1,
+            &source,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let audio_track = core.get_project(&id).unwrap().tracks[2].id.clone();
+    core.edit(
+        &id,
+        2,
+        operation(json!({
+            "operation":"add_media","trackId":audio_track,"assetId":asset,
+            "startMs":0,"sourceInMs":0,"durationMs":1000
+        })),
+    )
+    .unwrap();
+    let baseline = core.get_project(&id).unwrap();
+    let dir = core.paths().project_dir(&id).unwrap();
+    let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);
+    let preview_count = std::fs::read_dir(dir.join("previews")).unwrap().count();
+    for property in [
+        "transform.position_x",
+        "transform.position_y",
+        "transform.scale_x",
+        "transform.scale_y",
+        "transform.opacity",
+        "audio.gain_db",
+    ] {
+        let mut altered = baseline.clone();
+        let index = if property == "audio.gain_db" { 2 } else { 1 };
+        altered.tracks[index].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(json!([{
+            "property":property,"keyframes":[{
+                "timeMs":0,"value":{"type":"point","x":1,"y":2},"curve":"hold"
+            }]
+        }]))
+        .unwrap();
+        assert_eq!(
+            renderer.render_preview(&altered, &dir, 0).unwrap_err().code,
+            ErrorCode::InvalidArgument,
+            "{property}"
+        );
+        assert_eq!(
+            std::fs::read_dir(dir.join("previews")).unwrap().count(),
+            preview_count,
+            "{property} wrote an artifact"
+        );
+    }
+}
+
 fn rgb_at(
     ffmpeg: &std::path::Path,
     file: &std::path::Path,
@@ -557,6 +632,18 @@ fn native_each_visual_channel_changes_output_and_static_values_survive() {
     );
     let restored = render(None);
     assert!(red_at(&ffmpeg, &restored, None, 5));
+    project.tracks[1].items[0]
+        .visual_properties_mut()
+        .transform
+        .position_y = 4.0;
+    project.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels =
+        serde_json::from_value(json!([channel("transform.position_x", 20.0, 20.0)])).unwrap();
+    let fallback = renderer.render_preview(&project, &dir, 500).unwrap();
+    let fallback_path = dir.join(fallback.relative_path);
+    assert!(rgb_at(&ffmpeg, &fallback_path, None, 25, 9)[0] > 180);
+    assert!(rgb_at(&ffmpeg, &fallback_path, None, 25, 15)[0] < 60);
 }
 
 #[test]

@@ -54,6 +54,7 @@ const NATIVE_PARITY_COMMAND = `mkdir -p "$(dirname "$OPENCUT_GOLDEN_REPORT_PATH"
 cargo test -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact
 cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact
 cargo test -p opencut-editor-core --test transform2d
+cargo test -p opencut-editor-core --test animation_channels
 cargo test -p opencut-editor-core --test font_resolution`;
 
 const NATIVE_CACHE_COMMAND = `cargo test -p opencut-editor-core --lib raster_cach
@@ -701,6 +702,7 @@ function validateRenderJob(job: UnknownRecord): void {
   const expectedEnvironment: UnknownRecord = {
     OPENCUT_FFMPEG_PATH: "ffmpeg",
     OPENCUT_FFPROBE_PATH: "ffprobe",
+    OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED: "1",
     OPENCUT_GOLDEN_REPORT_PATH: ABSOLUTE_REPORT_PATH,
     OPENCUT_GOLDEN_REQUIRED: "1",
     OPENCUT_TEST_FONT_PATH: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
