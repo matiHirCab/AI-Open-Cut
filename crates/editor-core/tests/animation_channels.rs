@@ -261,6 +261,67 @@ fn later_transform_and_legacy_edits_cannot_conflict_with_channels() {
     );
 }
 
+#[test]
+fn incompatible_audio_target_and_persisted_inactive_channel_fail_before_render() {
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({"operation":"add_rectangle","trackId":track_id,
+                "startMs":0,"durationMs":1000,"width":20,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let before = serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap();
+    assert_eq!(
+        core.edit(
+            &project_id,
+            1,
+            operation(
+                json!({"operation":"set_animation_channels","itemId":item_id,
+                "animationChannels":[channel("audio.gain_db", -6.0, 0.0)]})
+            ),
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(
+        serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap(),
+        before
+    );
+
+    let mut externally_edited = core.get_project(&project_id).unwrap();
+    externally_edited.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels =
+        serde_json::from_value(json!([channel("transform.rotation_deg", 0.0, 90.0)])).unwrap();
+    let project_dir = core.paths().project_dir(&project_id).unwrap();
+    let preview_count = std::fs::read_dir(project_dir.join("previews"))
+        .unwrap()
+        .count();
+    let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);
+    assert_eq!(
+        renderer
+            .render_preview(&externally_edited, &project_dir, 0)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(
+        std::fs::read_dir(project_dir.join("previews"))
+            .unwrap()
+            .count(),
+        preview_count
+    );
+    assert_eq!(
+        serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap(),
+        before
+    );
+}
+
 fn red_at(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>, x: usize) -> bool {
     let mut command = std::process::Command::new(ffmpeg);
     command.args(["-v", "error"]);
