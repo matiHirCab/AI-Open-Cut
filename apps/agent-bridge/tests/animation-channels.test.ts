@@ -58,6 +58,11 @@ describe("governed animation channels", () => {
     for (const bad of [
       { ...value, unknown: true },
       { ...value, keyframes: [{ ...value.keyframes[0], curve: "spring" }] },
+      { ...value, keyframes: [{ ...value.keyframes[0], timeMs: "@marker" }] },
+      {
+        ...value,
+        keyframes: [{ ...value.keyframes[0], loop: { count: 2 } }],
+      },
       {
         ...value,
         keyframes: [
