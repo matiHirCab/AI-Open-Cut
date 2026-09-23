@@ -189,6 +189,11 @@ export type HeadlessEdit =
   | { operation: "delete_item"; itemId: string }
   | { operation: "set_keyframes"; itemId: string; keyframes: unknown[] }
   | {
+      operation: "set_animation_channels";
+      itemId: string;
+      animationChannels: unknown[];
+    }
+  | {
       operation: "add_transition";
       durationMs: number;
       fromItemId: string;

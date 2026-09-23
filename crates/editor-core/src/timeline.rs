@@ -164,6 +164,7 @@ pub(crate) fn resolve_operation_aliases(
         | EditOperation::TrimItem { item_id, .. }
         | EditOperation::DeleteItem { item_id }
         | EditOperation::SetKeyframes { item_id, .. }
+        | EditOperation::SetAnimationChannels { item_id, .. }
         | EditOperation::SetAudio { item_id, .. }
         | EditOperation::SplitItem { item_id, .. }
         | EditOperation::SetItemVisibility { item_id, .. } => resolve_alias(item_id, aliases)?,
@@ -203,12 +204,12 @@ pub(crate) fn apply_operation(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     let (mut ids, summary) = apply_operation_inner(project, operation)?;
-    crate::validation::validate_parent_graph(project)?;
     for id in normalize_stack_order(project)? {
         if !ids.contains(&id) {
             ids.push(id);
         }
     }
+    crate::validation::validate_project_visual_properties(project)?;
     Ok((ids, summary))
 }
 
@@ -262,6 +263,7 @@ fn apply_operation_inner(
                 ));
             }
             let visual_properties = crate::VisualProperties {
+                animation_channels: Vec::new(),
                 transform,
                 transform2d,
                 hidden,
@@ -1243,6 +1245,10 @@ fn apply_operation_inner(
         EditOperation::SetKeyframes { item_id, keyframes } => {
             validate_keyframes(&keyframes)?;
             let item = find_editable_item_mut(project, &item_id)?;
+            crate::animation_channels::validate_legacy_collision(
+                &item.visual_properties().animation_channels,
+                &keyframes,
+            )?;
             if matches!(
                 item,
                 TimelineItem::Group(_)
@@ -1283,6 +1289,24 @@ fn apply_operation_inner(
             })?;
             *destination = keyframes;
             Ok((vec![item_id], "Set item keyframes"))
+        }
+        EditOperation::SetAnimationChannels {
+            item_id,
+            animation_channels,
+        } => {
+            let (track_index, item_index) = find_item_location(project, &item_id)?;
+            if project.tracks[track_index].locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            crate::animation_channels::validate_channels(
+                &animation_channels,
+                &project.tracks[track_index].items[item_index],
+                project,
+            )?;
+            project.tracks[track_index].items[item_index]
+                .visual_properties_mut()
+                .animation_channels = animation_channels;
+            Ok((vec![item_id], "Set item animation channels"))
         }
         EditOperation::AddTransition {
             track_id,

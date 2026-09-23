@@ -12,6 +12,56 @@ fn error_catalog() -> Value {
 }
 
 #[test]
+fn typed_animation_channels_roundtrip_alias_and_failures() {
+    let h = Harness::new();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"Animated"})))["projectId"]
+            .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let channels = json!([{"property":"transform.position_x","keyframes":[
+        {"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},
+        {"timeMs":500,"value":{"type":"scalar","value":40.0},"curve":"hold"}
+    ]}]);
+    let written = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":30,"height":20,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"box"},
+        {"operation":"set_animation_channels","itemId":"@box","animationChannels":channels}
+    ]})));
+    assert_eq!(written["revision"], 1);
+    let item = written["aliases"]["box"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["animationChannels"],
+        channels
+    );
+    assert_eq!(state["project"]["schemaVersion"], 22);
+    for (revision, edit, code) in [
+        (
+            0,
+            json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[]}),
+            "REVISION_CONFLICT",
+        ),
+        (
+            1,
+            json!({"operation":"set_animation_channels","itemId":"missing","animationChannels":[]}),
+            "ITEM_NOT_FOUND",
+        ),
+        (
+            1,
+            json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.rotation_deg","keyframes":[]}]}),
+            "INVALID_ARGUMENT",
+        ),
+    ] {
+        let response = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(response["error"]["code"], code);
+    }
+    let reopened = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(reopened["project"]["revision"], 1);
+}
+
+#[test]
 fn persisted_layout_errors_keep_exact_headless_codes_and_files() {
     let h = Harness::new();
     let id = result(&h.request(json!({"operation":"create_project","name":"Persisted layouts"})))["projectId"].clone();

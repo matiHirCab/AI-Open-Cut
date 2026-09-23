@@ -687,6 +687,29 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_set_animation_channels",
+    {
+      annotations: WRITE,
+      description: "Replace typed animation channels on a timeline item.",
+      inputSchema: schemas.timelineSetAnimationChannels,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "set_animation_channels",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_add_transition",
     {
       annotations: WRITE,

@@ -398,7 +398,20 @@ fn append_audio_layer(
     let label = format!("audio{}", audio_labels.len());
     let automation =
         evaluated_scalar_expression(&audio.volume_keyframes, EvaluatedProperty::Volume, 1.0, 0);
-    let volume = format!("({})*({automation})", format_number(audio.volume));
+    let volume = if audio
+        .volume_keyframes
+        .iter()
+        .any(|key| key.property == EvaluatedProperty::GainDb)
+    {
+        let gain =
+            evaluated_scalar_expression(&audio.volume_keyframes, EvaluatedProperty::GainDb, 0.0, 0);
+        format!(
+            "({})*({automation})*pow(10,({gain})/20)",
+            format_number(audio.volume)
+        )
+    } else {
+        format!("({})*({automation})", format_number(audio.volume))
+    };
     let ducking = if let Some(intervals) = precise_intervals {
         precise_ducking(audio.ducking.as_ref(), intervals)
     } else {
@@ -1059,6 +1072,24 @@ fn append_affine_samples(
     // source never requires a square pad enclosing both source and destination.
     let (x, y) = if let Some(parent) = layer.ancestors.filter(|_| layer.has_animated_geometry()) {
         let position = |x_axis, default| {
+            let typed_property = if x_axis {
+                EvaluatedProperty::PositionX
+            } else {
+                EvaluatedProperty::PositionY
+            };
+            if layer
+                .keyframes
+                .iter()
+                .any(|key| key.property == typed_property)
+            {
+                return evaluated_scalar_expression_for(
+                    &layer.keyframes,
+                    typed_property,
+                    default,
+                    layer.span.start_ms,
+                    &local_time,
+                );
+            }
             let values = layer
                 .keyframes
                 .iter()
@@ -1073,13 +1104,26 @@ fn append_affine_samples(
         };
         let px = position(true, layer.transform.position_x);
         let py = position(false, layer.transform.position_y);
-        let scale = evaluated_scalar_expression_for(
-            &layer.keyframes,
-            EvaluatedProperty::Scale,
-            layer.transform.scale,
-            layer.span.start_ms,
-            &local_time,
-        );
+        let scale_axis = |typed_property| {
+            let property = if layer
+                .keyframes
+                .iter()
+                .any(|key| key.property == typed_property)
+            {
+                typed_property
+            } else {
+                EvaluatedProperty::Scale
+            };
+            evaluated_scalar_expression_for(
+                &layer.keyframes,
+                property,
+                layer.transform.scale,
+                layer.span.start_ms,
+                &local_time,
+            )
+        };
+        let scale_x = scale_axis(EvaluatedProperty::ScaleX);
+        let scale_y = scale_axis(EvaluatedProperty::ScaleY);
         let [a, b, c, d, tx, ty] = parent.inverse;
         let (anchor_x, anchor_y) = layer.legacy_anchor((sw, sh));
         let density = match &layer.source {
@@ -1088,11 +1132,11 @@ fn append_affine_samples(
         };
         (
             format!(
-                "((({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-({px}))/({scale})+{anchor_x:.17})*{density:.17}-0.5)",
+                "((({a:.17}*(X+{:.17}+0.5)+{c:.17}*(Y+{:.17}+0.5)+{tx:.17}-({px}))/({scale_x})+{anchor_x:.17})*{density:.17}-0.5)",
                 affine.left, affine.top
             ),
             format!(
-                "((({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-({py}))/({scale})+{anchor_y:.17})*{density:.17}-0.5)",
+                "((({b:.17}*(X+{:.17}+0.5)+{d:.17}*(Y+{:.17}+0.5)+{ty:.17}-({py}))/({scale_y})+{anchor_y:.17})*{density:.17}-0.5)",
                 affine.left, affine.top
             ),
         )
@@ -1648,6 +1692,26 @@ mod tests {
                 item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
             }
         }
+        project.tracks[0].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(serde_json::json!([{
+            "property": "transform.position_x",
+            "keyframes": [
+                {"timeMs": 0, "value": {"type": "scalar", "value": 0}, "curve": "linear"},
+                {"timeMs": 1000, "value": {"type": "scalar", "value": 100}, "curve": "hold"}
+            ]
+        }]))
+        .unwrap();
+        project.tracks[1].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(serde_json::json!([{
+            "property": "audio.gain_db",
+            "keyframes": [
+                {"timeMs": 0, "value": {"type": "scalar", "value": -6}, "curve": "linear"},
+                {"timeMs": 500, "value": {"type": "scalar", "value": 0}, "curve": "hold"}
+            ]
+        }]))
+        .unwrap();
         let evaluated = evaluate_project(&project, 640, 360, 24).unwrap();
         assert_eq!(evaluated.resource_bindings.media.len(), 3);
         assert_eq!(evaluated.resource_bindings.fonts.len(), 1);
@@ -1710,6 +1774,8 @@ mod tests {
             plan.intent = RenderIntent::Export;
         }
         assert!(plans.windows(2).all(|pair| pair[0] == pair[1]));
+        assert!(plans[0].filter_graph.contains("pow(10"));
+        assert!(plans[0].filter_graph.contains("100"));
     }
 
     #[test]

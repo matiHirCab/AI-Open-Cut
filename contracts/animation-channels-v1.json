@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 22,
+  "limits": {
+    "maxChannelsPerItem": 64,
+    "maxKeyframesPerChannel": 1000,
+    "maxPathPoints": 4096,
+    "maxGradientStops": 32
+  },
+  "active": {
+    "transform.position_x": { "valueType": "scalar", "target": "visual_legacy", "minimum": -1000000, "maximum": 1000000 },
+    "transform.position_y": { "valueType": "scalar", "target": "visual_legacy", "minimum": -1000000, "maximum": 1000000 },
+    "transform.scale_x": { "valueType": "scalar", "target": "visual_legacy", "minimumExclusive": 0, "maximum": 100 },
+    "transform.scale_y": { "valueType": "scalar", "target": "visual_legacy", "minimumExclusive": 0, "maximum": 100 },
+    "transform.opacity": { "valueType": "scalar", "target": "visual_legacy", "minimum": 0, "maximum": 1 },
+    "audio.gain_db": { "valueType": "scalar", "target": "media_audio", "minimum": -96, "maximum": 12 }
+  },
+  "inactive": {
+    "transform.rotation_deg": "scalar",
+    "transform.skew_x_deg": "scalar",
+    "transform.skew_y_deg": "scalar",
+    "transform.anchor_x": "scalar",
+    "transform.anchor_y": "scalar",
+    "media.crop_x": "scalar",
+    "media.crop_y": "scalar",
+    "media.crop_width": "scalar",
+    "media.crop_height": "scalar",
+    "media.source_position_ms": "scalar",
+    "media.playback_rate": "scalar",
+    "graphic.path_points": "path_points",
+    "graphic.path_trim": "scalar",
+    "graphic.fill_color": "rgba",
+    "graphic.stroke_color": "rgba",
+    "graphic.stroke_width": "scalar",
+    "graphic.gradient_stops": "gradient_stops",
+    "effect.blur_radius": "scalar",
+    "effect.glow_radius": "scalar",
+    "effect.tint_color": "rgba",
+    "effect.vignette_amount": "scalar",
+    "effect.particle_amount": "scalar",
+    "audio.pan": "scalar"
+  },
+  "curves": ["hold", "linear"],
+  "timeUnit": "item_local_milliseconds",
+  "operation": "set_animation_channels",
+  "mcpTool": "timeline_set_animation_channels",
+  "capability": "typed_animation_channels_v1"
+}

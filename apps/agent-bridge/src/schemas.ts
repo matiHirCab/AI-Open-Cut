@@ -218,6 +218,91 @@ export const keyframeSchema = z.discriminatedUnion("property", [
   scalarKeyframe,
 ]);
 
+export const animationChannelPropertySchema = z.enum([
+  "transform.position_x",
+  "transform.position_y",
+  "transform.scale_x",
+  "transform.scale_y",
+  "transform.rotation_deg",
+  "transform.skew_x_deg",
+  "transform.skew_y_deg",
+  "transform.anchor_x",
+  "transform.anchor_y",
+  "transform.opacity",
+  "media.crop_x",
+  "media.crop_y",
+  "media.crop_width",
+  "media.crop_height",
+  "media.source_position_ms",
+  "media.playback_rate",
+  "graphic.path_points",
+  "graphic.path_trim",
+  "graphic.fill_color",
+  "graphic.stroke_color",
+  "graphic.stroke_width",
+  "graphic.gradient_stops",
+  "effect.blur_radius",
+  "effect.glow_radius",
+  "effect.tint_color",
+  "effect.vignette_amount",
+  "effect.particle_amount",
+  "audio.gain_db",
+  "audio.pan",
+]);
+
+export const animationChannelValueSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("scalar"), value: finite }).strict(),
+  z.object({ type: z.literal("point"), x: finite, y: finite }).strict(),
+  z
+    .object({
+      a: finite,
+      b: finite,
+      g: finite,
+      r: finite,
+      type: z.literal("rgba"),
+    })
+    .strict(),
+  z
+    .object({
+      points: z.array(z.object({ x: finite, y: finite }).strict()).max(4096),
+      type: z.literal("path_points"),
+    })
+    .strict(),
+  z
+    .object({
+      stops: z
+        .array(
+          z
+            .object({
+              color: z.tuple([finite, finite, finite, finite]),
+              offset: finite,
+            })
+            .strict()
+        )
+        .max(32),
+      type: z.literal("gradient_stops"),
+    })
+    .strict(),
+]);
+
+export const animationChannelSchema = z
+  .object({
+    keyframes: z
+      .array(
+        z
+          .object({
+            curve: z.enum(["hold", "linear"]),
+            timeMs: milliseconds,
+            value: animationChannelValueSchema,
+          })
+          .strict()
+      )
+      .max(1000),
+    property: animationChannelPropertySchema,
+    target: parentReferenceSchema.optional(),
+  })
+  .strict();
+
 export const writeResultSchema = z
   .object({
     aliases: z.record(z.string(), id).default({}),
@@ -263,7 +348,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(21).optional(),
+    projectSchemaVersion: z.literal(22).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -720,6 +805,7 @@ export const transcriptionEstimateSchema = z
 
 const mediaItemSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     assetId: id,
     audio: audioSchema,
     durationMs: positiveMilliseconds,
@@ -739,6 +825,7 @@ const mediaItemSchema = z
 
 const textItemSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     color: z.string(),
     document: z.lazy(() => richTextDocumentSchema),
     durationMs: positiveMilliseconds,
@@ -763,6 +850,7 @@ const textItemSchema = z
 
 const solidColorItemSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     color,
     durationMs: positiveMilliseconds,
     hidden: z.boolean(),
@@ -817,6 +905,7 @@ export const addGridSchema = z.strictObject({
   transform2d: transform2dSchema.nullable().optional(),
 });
 const repeaterItemSchema = z.strictObject({
+  animationChannels: z.array(animationChannelSchema).max(64).optional(),
   durationMs: positiveMilliseconds,
   hidden: z.boolean(),
   id,
@@ -855,6 +944,7 @@ const captionWordSchema = z
 
 const captionItemSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     durationMs: positiveMilliseconds,
     hidden: z.boolean(),
     id,
@@ -892,6 +982,7 @@ const captionItemSchema = z
 
 const transitionItemSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     durationMs: positiveMilliseconds,
     fromItemId: id,
     hidden: z.boolean(),
@@ -911,6 +1002,7 @@ const transitionItemSchema = z
 const baseTimelineItemSchema = z.discriminatedUnion("type", [
   z
     .object({
+      animationChannels: z.array(animationChannelSchema).max(64).optional(),
       durationMs: positiveMilliseconds,
       hidden: z.boolean(),
       id,
@@ -1093,6 +1185,7 @@ const slotValuesSchema = z
 
 export const componentInstanceSchema = z
   .object({
+    animationChannels: z.array(animationChannelSchema).max(64).optional(),
     componentId: id,
     durationMs: positiveMilliseconds,
     hidden: z.boolean(),
@@ -1323,7 +1416,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(21),
+        schemaVersion: z.literal(22),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1627,6 +1720,13 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       itemId: id,
       keyframes: z.array(keyframeSchema).max(1000),
       operation: z.literal("set_keyframes"),
+    })
+    .strict(),
+  z
+    .object({
+      animationChannels: z.array(animationChannelSchema).max(64),
+      itemId: id,
+      operation: z.literal("set_animation_channels"),
     })
     .strict(),
   z
@@ -2014,6 +2114,12 @@ export const schemas = {
     .strict(),
   timelineMoveItem: projectRevisionSchema
     .extend({ itemId: id, startMs: milliseconds, trackId: id })
+    .strict(),
+  timelineSetAnimationChannels: projectRevisionSchema
+    .extend({
+      animationChannels: z.array(animationChannelSchema).max(64),
+      itemId: id,
+    })
     .strict(),
   timelineSetAudio: projectRevisionSchema
     .extend({ audio: audioSchema, itemId: id })

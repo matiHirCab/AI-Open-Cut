@@ -16,9 +16,10 @@ pub use styled_text::*;
 pub use svg::*;
 pub use text_layout::*;
 
+use crate::AnimationChannel;
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 21;
+pub const PROJECT_SCHEMA_VERSION: u32 = 22;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -102,6 +103,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_styled_text_fields(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_styled_text_fields(components)?;
+            }
+        }
+        if value.schema_version < 22 {
+            reject_animation_channels(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_animation_channels(components)?;
             }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
@@ -241,6 +248,26 @@ fn reject_styled_text_fields(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_styled_text_fields(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn reject_animation_channels(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.contains_key("animationChannels") {
+                return Err("animation channels require schema 22".into());
+            }
+            for child in object.values() {
+                reject_animation_channels(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_animation_channels(child)?;
             }
         }
         _ => {}
@@ -734,6 +761,8 @@ impl TimelineItem {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub animation_channels: Vec<AnimationChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<ParentReference>,
     #[serde(default)]
@@ -751,6 +780,7 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            animation_channels: Vec::new(),
             parent: None,
             transform,
             hidden,
@@ -1732,6 +1762,10 @@ pub enum EditOperation {
         item_id: String,
         keyframes: Vec<Keyframe>,
     },
+    SetAnimationChannels {
+        item_id: String,
+        animation_channels: Vec<AnimationChannel>,
+    },
     AddTransition {
         track_id: String,
         transition_type: TransitionType,
@@ -2066,6 +2100,10 @@ enum EditOperationDef {
     SetKeyframes {
         item_id: String,
         keyframes: Vec<Keyframe>,
+    },
+    SetAnimationChannels {
+        item_id: String,
+        animation_channels: Vec<AnimationChannel>,
     },
     AddTransition {
         track_id: String,
