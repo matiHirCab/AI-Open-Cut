@@ -167,7 +167,46 @@ fn semantic(f: &fixture::Fixture) -> String {
     {
         plan = plan.replace(item.id(), &format!("item-{index}"));
     }
-    hash_bytes(plan.as_bytes())
+    hash_bytes(canonicalize_debug_floats(&plan).as_bytes())
+}
+
+// The shape evaluator uses platform libm for curves. Its subpixel results can
+// differ in the last few digits even though the reviewed frame is unchanged.
+fn canonicalize_debug_floats(plan: &str) -> String {
+    let chars: Vec<char> = plan.chars().collect();
+    let mut stable = String::with_capacity(plan.len());
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index].is_ascii_digit()
+            || (chars[index] == '-' && chars.get(index + 1).is_some_and(char::is_ascii_digit))
+        {
+            let mut end = index + 1;
+            while end < chars.len() && matches!(chars[end], '0'..='9' | '.' | 'e' | 'E' | '+' | '-')
+            {
+                end += 1;
+            }
+            let token: String = chars[index..end].iter().collect();
+            if token.contains('.')
+                && let Ok(value) = token.parse::<f64>()
+                && value.is_finite()
+            {
+                stable.push_str(&format!("{value:.6}"));
+                index = end;
+                continue;
+            }
+        }
+        stable.push(chars[index]);
+        index += 1;
+    }
+    stable
+}
+
+#[test]
+fn rules_screen_semantic_reference_ignores_subpixel_libm_differences() {
+    assert_eq!(
+        canonicalize_debug_floats("x: 0.1234567000001, item-1, text: \"EVERY.\""),
+        canonicalize_debug_floats("x: 0.1234566999999, item-1, text: \"EVERY.\"")
+    );
 }
 
 #[test]
@@ -446,6 +485,34 @@ fn capture_rules_screen_references() {
         files,
         plans,
     };
+    validate(&references).unwrap();
+    let mut file = tempfile::NamedTempFile::new_in(reference_path().parent().unwrap()).unwrap();
+    file.write_all(&serde_json::to_vec(&references).unwrap())
+        .unwrap();
+    file.as_file().sync_all().unwrap();
+    file.persist(reference_path()).unwrap();
+}
+
+#[test]
+#[ignore = "Explicit review-only portable semantic reference refresh"]
+fn refresh_rules_screen_semantic_references() {
+    let mut references = load();
+    for (width, height) in SIZES {
+        let root = tempdir().unwrap();
+        let f = if width == 1920 {
+            fixture::seed(root.path())
+        } else {
+            fixture::seed_at(root.path(), width, height)
+        };
+        for edited in [false, true] {
+            if edited {
+                f.resize_impact_word();
+            }
+            references
+                .plans
+                .insert(key(edited, width, height), semantic(&f));
+        }
+    }
     validate(&references).unwrap();
     let mut file = tempfile::NamedTempFile::new_in(reference_path().parent().unwrap()).unwrap();
     file.write_all(&serde_json::to_vec(&references).unwrap())
