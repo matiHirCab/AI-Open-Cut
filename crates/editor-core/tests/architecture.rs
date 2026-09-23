@@ -1495,6 +1495,27 @@ fn required_owners_are_private_modules() {
 }
 
 #[test]
+fn every_top_level_private_module_has_an_owner_matrix_entry() {
+    let file = syn::parse_file(&read_source("lib.rs")).unwrap();
+    let declared = file
+        .items
+        .into_iter()
+        .filter_map(|item| match item {
+            Item::Mod(module) => Some(module.ident.to_string()),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let reviewed = OWNER_MATRIX
+        .iter()
+        .map(|(owner, _)| (*owner).to_owned())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        declared, reviewed,
+        "update ADR 0003 and the owner matrix for every new top-level module"
+    );
+}
+
+#[test]
 fn evaluated_scene_excludes_persistence_and_renderer_details() {
     let analysis = analyze_owner("evaluated_scene").unwrap();
     validate_owner_analysis(

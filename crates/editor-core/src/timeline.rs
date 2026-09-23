@@ -1245,7 +1245,7 @@ fn apply_operation_inner(
         EditOperation::SetKeyframes { item_id, keyframes } => {
             validate_keyframes(&keyframes)?;
             let item = find_editable_item_mut(project, &item_id)?;
-            crate::animation_channels::validate_legacy_collision(
+            crate::validation::animation_channels::validate_legacy_collision(
                 &item.visual_properties().animation_channels,
                 &keyframes,
             )?;
@@ -1298,7 +1298,7 @@ fn apply_operation_inner(
             if project.tracks[track_index].locked {
                 return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
             }
-            crate::animation_channels::validate_channels(
+            crate::validation::animation_channels::validate_channels(
                 &animation_channels,
                 &project.tracks[track_index].items[item_index],
                 project,

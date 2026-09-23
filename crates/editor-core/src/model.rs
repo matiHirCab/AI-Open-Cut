@@ -1,5 +1,7 @@
 mod buffered;
 use buffered::BufferedValue;
+mod animation_channels;
+pub use animation_channels::*;
 mod font;
 mod grid;
 pub use font::*;
@@ -16,7 +18,6 @@ pub use styled_text::*;
 pub use svg::*;
 pub use text_layout::*;
 
-use crate::AnimationChannel;
 use crate::error::{CoreError, ErrorCode};
 
 pub const PROJECT_SCHEMA_VERSION: u32 = 22;

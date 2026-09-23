@@ -331,11 +331,25 @@ fn crashed_worker_terminates_renderer_descendants() {
     let mut worker = Worker::start_with_ffmpeg(root.path(), Some(&tool));
     writeln!(worker.child.stdin.as_mut().unwrap(),"{}",json!({"requestId":"crash","request":{"operation":"render_preview","projectId":id,"expectedRevision":0,"timeMs":0}})).unwrap();
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    while !pid_file.exists() && std::time::Instant::now() < deadline {
+    let pid_text = loop {
+        match std::fs::read_to_string(&pid_file) {
+            Ok(contents) if contents.ends_with('\n') => break contents,
+            Ok(_) => {}
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
+                ) || error.raw_os_error() == Some(32) => {}
+            Err(error) => panic!("{error}; {}", worker.diagnostics.lock().unwrap()),
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "renderer PID record never became readable; {}",
+            worker.diagnostics.lock().unwrap()
+        );
         std::thread::sleep(Duration::from_millis(10));
-    }
-    let pid: u32 = std::fs::read_to_string(&pid_file)
-        .unwrap_or_else(|error| panic!("{error}; {}", worker.diagnostics.lock().unwrap()))
+    };
+    let pid: u32 = pid_text
         .trim()
         .trim_start_matches('\u{feff}')
         .parse()

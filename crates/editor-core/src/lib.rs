@@ -1,5 +1,4 @@
 mod animation;
-mod animation_channels;
 mod assets;
 mod drafts;
 mod error;
@@ -20,10 +19,6 @@ mod vector;
 
 pub use vector::*;
 
-pub use animation_channels::{
-    AnimationChannel, AnimationChannelKeyframe, AnimationChannelProperty, AnimationChannelValue,
-    AnimationCurve,
-};
 pub use assets::fonts::FontConfig;
 pub use drafts::EditDraft;
 pub use error::{CoreError, ErrorCode};

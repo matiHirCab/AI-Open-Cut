@@ -3,6 +3,7 @@
 //! Transports, persistence, rendering infrastructure, and presentation code call
 //! these rules rather than maintaining parallel validation implementations.
 
+pub(crate) mod animation_channels;
 pub(crate) mod grid;
 pub(crate) mod repeater;
 pub(crate) mod styled_text;
@@ -110,7 +111,7 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
 
 pub(crate) fn validate_root_animation_channels(project: &Project) -> Result<(), CoreError> {
     for item in project.tracks.iter().flat_map(|track| &track.items) {
-        crate::animation_channels::validate_channels(
+        animation_channels::validate_channels(
             &item.visual_properties().animation_channels,
             item,
             project,
@@ -874,7 +875,7 @@ fn validate_component_content(
                 return Err(invalid("component keyframe limit exceeded"));
             }
             validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
-            crate::animation_channels::validate_channels(
+            animation_channels::validate_channels(
                 &item.visual_properties().animation_channels,
                 item,
                 project,

@@ -1,7 +1,7 @@
 use opencut_editor_core::{
-    AnimationChannelProperty, BatchEditOperation, EditOperation, EditorCore, ErrorCode,
-    ExportOptions, PROJECT_SCHEMA_VERSION, PathPolicy, PreviewRangeOptions, ProjectSettings,
-    Renderer,
+    AnimationChannel, AnimationChannelProperty, AudioTrackRole, BatchEditOperation,
+    DuckingSettings, EditOperation, EditorCore, ErrorCode, ExportOptions, MediaProbeFacts,
+    MediaType, PROJECT_SCHEMA_VERSION, PathPolicy, PreviewRangeOptions, ProjectSettings, Renderer,
 };
 use serde_json::{Value, json};
 
@@ -52,12 +52,77 @@ fn canonical_names_and_limits_match_rust_types() {
         for name in contract[category].as_object().unwrap().keys() {
             let property: AnimationChannelProperty = serde_json::from_value(json!(name)).unwrap();
             assert_eq!(serde_json::to_value(property).unwrap(), json!(name));
+            let metadata = &contract[category][name];
+            if category == "active" {
+                let expected = match property {
+                    AnimationChannelProperty::PositionX | AnimationChannelProperty::PositionY => {
+                        json!({"valueType":"scalar","target":"visual_legacy","activation":"active","minimum":-1_000_000,"maximum":1_000_000})
+                    }
+                    AnimationChannelProperty::ScaleX | AnimationChannelProperty::ScaleY => {
+                        json!({"valueType":"scalar","target":"visual_legacy","activation":"active","minimumExclusive":0,"maximum":100})
+                    }
+                    AnimationChannelProperty::Opacity => {
+                        json!({"valueType":"scalar","target":"visual_legacy","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::GainDb => {
+                        json!({"valueType":"scalar","target":"media_audio","activation":"active","minimum":-96,"maximum":12})
+                    }
+                    _ => panic!("catalog activated an unsupported property: {name}"),
+                };
+                assert_eq!(*metadata, expected, "active catalog metadata for {name}");
+            } else {
+                let (value_type, target) = match property {
+                    AnimationChannelProperty::RotationDeg
+                    | AnimationChannelProperty::SkewXDeg
+                    | AnimationChannelProperty::SkewYDeg
+                    | AnimationChannelProperty::AnchorX
+                    | AnimationChannelProperty::AnchorY => ("scalar", "visual"),
+                    AnimationChannelProperty::CropX
+                    | AnimationChannelProperty::CropY
+                    | AnimationChannelProperty::CropWidth
+                    | AnimationChannelProperty::CropHeight => ("scalar", "media_visual"),
+                    AnimationChannelProperty::SourcePositionMs
+                    | AnimationChannelProperty::PlaybackRate => ("scalar", "media_source"),
+                    AnimationChannelProperty::PathPoints => ("path_points", "graphic_scoped"),
+                    AnimationChannelProperty::GradientStops => ("gradient_stops", "graphic_scoped"),
+                    AnimationChannelProperty::FillColor | AnimationChannelProperty::StrokeColor => {
+                        ("rgba", "graphic_scoped")
+                    }
+                    AnimationChannelProperty::PathTrim | AnimationChannelProperty::StrokeWidth => {
+                        ("scalar", "graphic_scoped")
+                    }
+                    AnimationChannelProperty::TintColor => ("rgba", "effect_scoped"),
+                    AnimationChannelProperty::BlurRadius
+                    | AnimationChannelProperty::GlowRadius
+                    | AnimationChannelProperty::VignetteAmount
+                    | AnimationChannelProperty::ParticleAmount => ("scalar", "effect_scoped"),
+                    AnimationChannelProperty::Pan => ("scalar", "media_audio"),
+                    _ => panic!("active property listed as inactive: {name}"),
+                };
+                assert_eq!(
+                    *metadata,
+                    json!({"valueType":value_type,"target":target,"activation":"inactive","bounds":"deferred"}),
+                    "inactive catalog metadata for {name}"
+                );
+            }
         }
     }
     assert_eq!(
         contract["active"].as_object().unwrap().len()
             + contract["inactive"].as_object().unwrap().len(),
         29
+    );
+    assert!(
+        serde_json::from_value::<AnimationChannel>(contract["examples"]["validChannel"].clone())
+            .is_ok()
+    );
+    assert!(
+        serde_json::from_value::<AnimationChannel>(contract["examples"]["invalidChannel"].clone())
+            .is_err()
+    );
+    assert!(
+        serde_json::from_value::<AnimationChannel>(contract["examples"]["inactiveChannel"].clone())
+            .is_ok()
     );
 }
 
@@ -322,7 +387,77 @@ fn incompatible_audio_target_and_persisted_inactive_channel_fail_before_render()
     );
 }
 
-fn red_at(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>, x: usize) -> bool {
+#[test]
+fn audio_gain_endpoints_are_inclusive_and_first_outside_values_are_rejected() {
+    let (root, core, id, _) = setup();
+    let source = root.path().join("media/tone.wav");
+    std::fs::write(&source, b"audio fixture").unwrap();
+    let asset = core
+        .import_asset(
+            &id,
+            0,
+            &source,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let track_id = core.get_project(&id).unwrap().tracks[2].id.clone();
+    let item_id = core
+        .edit(
+            &id,
+            1,
+            operation(json!({
+                "operation":"add_media","trackId":track_id,"assetId":asset,
+                "startMs":0,"sourceInMs":0,"durationMs":1000
+            })),
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    for (revision, value) in [(2, -96.0), (3, 12.0)] {
+        core.edit(
+            &id,
+            revision,
+            operation(json!({
+                "operation":"set_animation_channels","itemId":item_id,
+                "animationChannels":[channel("audio.gain_db", value, value)]
+            })),
+        )
+        .unwrap();
+    }
+    let before = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+    for value in [-96.0001, 12.0001] {
+        let error = core
+            .edit(
+                &id,
+                4,
+                operation(json!({
+                    "operation":"set_animation_channels","itemId":item_id,
+                    "animationChannels":[channel("audio.gain_db", value, value)]
+                })),
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert_eq!(
+            serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
+            before
+        );
+    }
+}
+
+fn rgb_at(
+    ffmpeg: &std::path::Path,
+    file: &std::path::Path,
+    seek: Option<&str>,
+    x: usize,
+    y: usize,
+) -> [u8; 3] {
     let mut command = std::process::Command::new(ffmpeg);
     command.args(["-v", "error"]);
     if let Some(time) = seek {
@@ -339,20 +474,290 @@ fn red_at(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>, 
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let at = (5 * 64 + x) * 3;
-    output.stdout[at] > 180 && output.stdout[at + 1] < 60 && output.stdout[at + 2] < 60
+    let at = (y * 64 + x) * 3;
+    output.stdout[at..at + 3].try_into().unwrap()
+}
+
+fn red_at(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>, x: usize) -> bool {
+    let pixel = rgb_at(ffmpeg, file, seek, x, 5);
+    pixel[0] > 180 && pixel[1] < 60 && pixel[2] < 60
+}
+
+fn native_tools() -> Option<(std::path::PathBuf, std::path::PathBuf)> {
+    match (
+        std::env::var_os("OPENCUT_FFMPEG_PATH"),
+        std::env::var_os("OPENCUT_FFPROBE_PATH"),
+    ) {
+        (Some(ffmpeg), Some(ffprobe)) => Some((ffmpeg.into(), ffprobe.into())),
+        _ => {
+            assert_ne!(
+                std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+                Ok("1"),
+                "native animation-channel rendering requires FFmpeg and FFprobe"
+            );
+            None
+        }
+    }
+}
+
+#[test]
+fn native_each_visual_channel_changes_output_and_static_values_survive() {
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
+        return;
+    };
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,
+                "width":10,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    let _item_id = &added.changed_ids[0];
+    let mut project = core.get_project(&project_id).unwrap();
+    project.settings.width = 64;
+    project.settings.height = 64;
+    let dir = core.paths().project_dir(&project_id).unwrap();
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    let mut render = |property: Option<(&str, f64)>| {
+        project.tracks[1].items[0]
+            .visual_properties_mut()
+            .animation_channels = property
+            .map(|(name, value)| {
+                serde_json::from_value(json!([channel(name, value, value)])).unwrap()
+            })
+            .unwrap_or_default();
+        let result = renderer.render_preview(&project, &dir, 500).unwrap();
+        dir.join(result.relative_path)
+    };
+    let baseline = render(None);
+    assert!(red_at(&ffmpeg, &baseline, None, 5));
+    assert!(!red_at(&ffmpeg, &baseline, None, 15));
+    let position_x = render(Some(("transform.position_x", 20.0)));
+    assert!(red_at(&ffmpeg, &position_x, None, 25));
+    assert!(!red_at(&ffmpeg, &position_x, None, 5));
+    let position_y = render(Some(("transform.position_y", 20.0)));
+    assert!(rgb_at(&ffmpeg, &position_y, None, 5, 25)[0] > 180);
+    assert!(rgb_at(&ffmpeg, &position_y, None, 5, 5)[0] < 60);
+    let scale_x = render(Some(("transform.scale_x", 2.0)));
+    assert!(red_at(&ffmpeg, &scale_x, None, 15));
+    assert!(rgb_at(&ffmpeg, &scale_x, None, 5, 15)[0] < 60);
+    let scale_y = render(Some(("transform.scale_y", 2.0)));
+    assert!(rgb_at(&ffmpeg, &scale_y, None, 5, 15)[0] > 180);
+    assert!(!red_at(&ffmpeg, &scale_y, None, 15));
+    let opacity = render(Some(("transform.opacity", 0.5)));
+    let half = rgb_at(&ffmpeg, &opacity, None, 5, 5)[0];
+    assert!(
+        (70..180).contains(&half),
+        "half-opacity red component {half}"
+    );
+    let restored = render(None);
+    assert!(red_at(&ffmpeg, &restored, None, 5));
+}
+
+#[test]
+fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
+        return;
+    };
+    let (root, core, id, _) = setup();
+    let source = root.path().join("media/tone.wav");
+    let generated = std::process::Command::new(&ffmpeg)
+        .args([
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=1",
+        ])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(
+        generated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&generated.stderr)
+    );
+    let asset = core
+        .import_asset(
+            &id,
+            0,
+            &source,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                audio_sample_rate_hz: Some(48000),
+                audio_channels: Some(1),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let track_id = core.get_project(&id).unwrap().tracks[2].id.clone();
+    let _item_id = core
+        .edit(
+            &id,
+            1,
+            operation(json!({
+                "operation":"add_media", "trackId":track_id, "assetId":asset,
+                "startMs":0,"sourceInMs":0,"durationMs":1000
+            })),
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let silence_source = root.path().join("media/silence.wav");
+    let generated_silence = std::process::Command::new(&ffmpeg)
+        .args([
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=48000:cl=mono",
+            "-t",
+            "1",
+        ])
+        .arg(&silence_source)
+        .output()
+        .unwrap();
+    assert!(generated_silence.status.success());
+    let silence_asset = core
+        .import_asset(
+            &id,
+            2,
+            &silence_source,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                audio_sample_rate_hz: Some(48000),
+                audio_channels: Some(1),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let mut project = core.get_project(&id).unwrap();
+    project.settings.width = 64;
+    project.settings.height = 64;
+    project.tracks[2].audio_role = AudioTrackRole::Music;
+    let dir = core.paths().project_dir(&id).unwrap();
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    let render = |project: &opencut_editor_core::Project| {
+        let output = renderer
+            .render_preview_range(
+                project,
+                &dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1000,
+                    width: 64,
+                    height: 64,
+                    fps: 10,
+                    include_audio: true,
+                },
+                |_| {},
+            )
+            .unwrap();
+        let decoded = std::process::Command::new(&ffmpeg)
+            .args(["-v", "error", "-i"])
+            .arg(dir.join(output.relative_path))
+            .args(["-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"])
+            .output()
+            .unwrap();
+        assert!(
+            decoded.status.success(),
+            "{}",
+            String::from_utf8_lossy(&decoded.stderr)
+        );
+        decoded
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| f32::from_le_bytes(*bytes) as f64)
+            .collect::<Vec<_>>()
+    };
+    let rms = |samples: &[f64], start_ms: usize, end_ms: usize| {
+        let samples = &samples[start_ms * 48..end_ms * 48];
+        (samples.iter().map(|sample| sample * sample).sum::<f64>() / samples.len() as f64).sqrt()
+    };
+    let baseline = render(&project);
+    let baseline_rms = rms(&baseline, 100, 200);
+    assert!(baseline_rms > 0.01);
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels =
+        serde_json::from_value(json!([channel("audio.gain_db", -6.0, -6.0)])).unwrap();
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut project.tracks[2].items[0] {
+        item.audio.volume = 0.5;
+    }
+    let gained = render(&project);
+    let expected = 0.5 * 10_f64.powf(-6.0 / 20.0);
+    let actual = rms(&gained, 100, 200) / baseline_rms;
+    assert!(
+        (actual - expected).abs() < 0.04,
+        "gain times base volume: {actual} vs {expected}"
+    );
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut project.tracks[2].items[0] {
+        item.audio.fade_in_ms = 200;
+        item.audio.fade_out_ms = 200;
+    }
+    let faded = render(&project);
+    assert!(rms(&faded, 0, 50) < rms(&faded, 300, 400) * 0.4);
+    assert!(rms(&faded, 950, 1000) < rms(&faded, 600, 700) * 0.4);
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut project.tracks[2].items[0] {
+        item.audio.muted = true;
+    }
+    let muted = render(&project);
+    assert!(rms(&muted, 300, 400) < 0.001);
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut project.tracks[2].items[0] {
+        item.audio.muted = false;
+        item.audio.fade_in_ms = 0;
+        item.audio.fade_out_ms = 0;
+    }
+    project.tracks[2].ducking = Some(DuckingSettings {
+        enabled: true,
+        gain: 0.25,
+        attack_ms: 0,
+        release_ms: 0,
+    });
+    let mut voice = project.tracks[2].clone();
+    voice.id = "silent-voice".into();
+    voice.audio_role = AudioTrackRole::Voiceover;
+    voice.ducking = None;
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut voice.items[0] {
+        item.id = "voice-trigger".into();
+        item.start_ms = 300;
+        item.duration_ms = 400;
+        item.asset_id = silence_asset;
+        item.audio.volume = 1.0;
+        item.visual_properties.animation_channels.clear();
+    }
+    project.tracks.push(voice);
+    let ducked = render(&project);
+    let before_duck = rms(&ducked, 100, 200);
+    let during_duck = rms(&ducked, 400, 500);
+    assert!(
+        (during_duck / before_duck - 0.25).abs() < 0.05,
+        "ducking should multiply gain-adjusted volume: {during_duck} / {before_duck}"
+    );
 }
 
 #[test]
 fn native_draft_still_range_and_export_sample_the_same_channel() {
-    let (Some(ffmpeg), Some(ffprobe)) = (
-        std::env::var_os("OPENCUT_FFMPEG_PATH"),
-        std::env::var_os("OPENCUT_FFPROBE_PATH"),
-    ) else {
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
         return;
     };
-    let ffmpeg = std::path::PathBuf::from(ffmpeg);
-    let ffprobe = std::path::PathBuf::from(ffprobe);
     let (root, core, project_id, track_id) = setup();
     let added = core
         .edit(
