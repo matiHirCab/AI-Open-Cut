@@ -4,6 +4,8 @@ Schema 18 text items store `document: {runs: [{text, bold?, italic?, color?}]}` 
 
 `timeline_add_text` accepts either `text` or `document`; `timeline_update_item` accepts at most one. Both fields together and explicit null are invalid. Simple text creates/replaces the document with one unstyled run. A style-only update retains all runs. Existing component-create/update requests with plain text-item records may omit `document`; core constructs the same one-run document while schema-18 persisted items still require it. Document edits also work in `timeline_batch_edit`, with normal aliases, revision checks, rollback, undo/redo and durable drafts.
 
+`timeline_update_item` and aliased batch or draft edits can now set optional integer `fontSize` from 1 through 1000 on an existing text item. This keeps its ID, document, pinned font and other fields, and follows normal revision, history and rollback rules. Omission keeps the current size. Null, fractions, out-of-range values and non-text targets fail with INVALID_ARGUMENT. Headless status advertises `text_font_size_update_v1`; older requests remain valid.
+
 ```json
 {"document":{"runs":[{"text":"Hello ","bold":true},{"text":"world","color":"#ff8800"}]}}
 ```

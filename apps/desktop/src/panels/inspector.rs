@@ -1,5 +1,6 @@
 use crate::{
     hierarchy::{editable, kind},
+    inspector_edit,
     shell::{Shell, button},
     theme::ActiveTheme,
 };
@@ -69,12 +70,102 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
             )));
         }
     }
+    match item {
+        TimelineItem::Shape(shape) => {
+            panel = panel.child(div().text_xs().child(format!(
+                "Geometry: {}",
+                serde_json::to_string(&shape.geometry).unwrap()
+            )));
+            if shape.fill.is_none() {
+                panel = panel.child("Fill: none");
+            }
+            if shape.stroke.is_none() {
+                panel = panel.child("Stroke: none");
+            }
+        }
+        TimelineItem::Grid(grid) => {
+            panel = panel.child(div().text_xs().child(format!(
+                "Grid: {}",
+                serde_json::to_string(&grid.grid).unwrap()
+            )));
+        }
+        TimelineItem::Text(text) => {
+            panel = panel.child(div().text_xs().child(format!(
+                "Font: {}",
+                text.font_family.as_deref().unwrap_or("resolved default")
+            )));
+            panel = panel.child(div().text_xs().child(format!(
+                    "Font binding: {}",
+                    text.font_binding
+                        .as_ref()
+                        .map(|binding| serde_json::to_string(binding).unwrap())
+                        .unwrap_or_else(|| "none".into())
+                )));
+            panel = panel.child(div().text_xs().child(format!(
+                "Document: {}",
+                serde_json::to_string(&text.document).unwrap()
+            )));
+        }
+        _ => {}
+    }
     if !editable(project, selection) {
         return panel.child(if selection.instance_path.is_empty() {
             "No parent/z-index controls for this item kind."
         } else {
             "Component-local content · read-only"
         });
+    }
+    let fields = inspector_edit::fields(item);
+    if !fields.is_empty() {
+        panel = panel.child(
+            div()
+                .py_2()
+                .text_sm()
+                .child("Vector and text fields · select one to edit"),
+        );
+        for (index, field) in fields.iter().enumerate() {
+            let label = format!("{}: {}", field.label, field.value);
+            panel = panel.child(
+                button(("inspector-field", index), label).on_click(cx.listener(
+                    move |this, _, window, cx| {
+                        this.choose_inspector_field(index, cx);
+                        this.inspector_focus.focus(window);
+                    },
+                )),
+            );
+        }
+        if shell.inspector_field.is_some() {
+            panel = panel
+                .child(
+                    div()
+                        .py_2()
+                        .child("Edit selected value · Enter to apply, Esc to reset"),
+                )
+                .child(
+                    div()
+                        .id("inspector-input")
+                        .track_focus(&shell.inspector_focus)
+                        .border_1()
+                        .p_2()
+                        .child(format!("{} ▏", shell.inspector_text))
+                        .on_click(
+                            cx.listener(|this, _, window, _| this.inspector_focus.focus(window)),
+                        )
+                        .on_key_down(cx.listener(Shell::inspector_key)),
+                )
+                .child(
+                    button("inspector-apply", "Apply field")
+                        .on_click(cx.listener(|this, _, _, cx| this.apply_inspector(cx))),
+                )
+                .child(
+                    button("inspector-reset", "Reset field").on_click(cx.listener(
+                        |this, _, _, cx| {
+                            this.reset_inspector();
+                            cx.notify();
+                        },
+                    )),
+                );
+        }
     }
     panel = panel
         .child(

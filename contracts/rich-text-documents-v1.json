@@ -5,6 +5,13 @@
   "activation": "runtime",
   "capability": "rich_text_documents",
   "operations": ["add_text", "update_item"],
+  "fontSizeUpdate": {
+    "field": "fontSize",
+    "operation": "update_item",
+    "minimum": 1,
+    "maximum": 1000,
+    "capability": "text_font_size_update_v1"
+  },
   "documentFields": ["runs"],
   "runFields": ["text", "bold", "italic", "color"],
   "limits": {"minRuns": 1, "maxRuns": 256, "minTextBytes": 1, "maxTextBytes": 4096},

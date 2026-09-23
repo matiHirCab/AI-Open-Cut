@@ -51,6 +51,7 @@ mod raster_caching;
 mod repeaters;
 mod rich_text;
 mod rule_card;
+mod rules_screen;
 mod shapes;
 mod svg;
 
@@ -2418,6 +2419,7 @@ fn native_golden_render_conformance() {
         return;
     };
     rule_card::conformance(&tools);
+    rules_screen::conformance(&tools);
     shapes::conformance(&tools);
     svg::conformance(&tools);
     grids::conformance(&tools);

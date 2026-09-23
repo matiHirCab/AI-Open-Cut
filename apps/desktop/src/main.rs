@@ -5,6 +5,7 @@ use gpui::{
 
 mod components;
 mod hierarchy;
+mod inspector_edit;
 mod panels;
 mod session;
 mod shell;

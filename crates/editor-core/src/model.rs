@@ -1688,6 +1688,12 @@ pub enum EditOperation {
         document: Option<RichTextDocument>,
         #[serde(skip_serializing_if = "Option::is_none")]
         color: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        font_size: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         width: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -2017,6 +2023,12 @@ enum EditOperationDef {
         document: Option<RichTextDocument>,
         #[serde(skip_serializing_if = "Option::is_none")]
         color: Option<String>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        font_size: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         width: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]

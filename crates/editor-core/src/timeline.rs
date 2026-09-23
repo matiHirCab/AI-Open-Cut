@@ -900,6 +900,7 @@ fn apply_operation_inner(
             text,
             document,
             color,
+            font_size,
             width,
             height,
             font_family,
@@ -1085,6 +1086,21 @@ fn apply_operation_inner(
                 validate_dimensions(width, height)?;
                 rectangle.width = width;
                 rectangle.height = height;
+            }
+            if let Some(value) = font_size {
+                let TimelineItem::Text(text) = item else {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "font size updates require a text item",
+                    ));
+                };
+                if !(1..=1_000).contains(&value) {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "font size must be in [1,1000]",
+                    ));
+                }
+                text.font_size = value;
             }
             if font_family.is_some() || font_path.is_some() || style.is_some() {
                 let TimelineItem::Text(text) = item else {

@@ -3,6 +3,7 @@ use opencut_editor_core::{EditOperation, ParentReference};
 
 use crate::{
     hierarchy::{Selection, editable},
+    inspector_edit::{self, Field},
     panels::{self, Preview},
     session::{Command, Session, Startup, parse_z_index},
     theme::ActiveTheme,
@@ -13,6 +14,10 @@ pub(crate) struct Shell {
     pub session: Session,
     pub z_text: String,
     pub z_focus: FocusHandle,
+    pub inspector_focus: FocusHandle,
+    pub inspector_field: Option<usize>,
+    pub inspector_text: String,
+    inspector_source: Option<(Selection, u64)>,
     preview: Entity<Preview>,
 }
 
@@ -23,6 +28,10 @@ impl Shell {
             session: Session::default(),
             z_text: String::new(),
             z_focus: cx.focus_handle(),
+            inspector_focus: cx.focus_handle(),
+            inspector_field: None,
+            inspector_text: String::new(),
+            inspector_source: None,
             preview: cx.new(|_| Preview),
         };
         shell.dispatch(Command::Refresh, cx);
@@ -42,8 +51,12 @@ impl Shell {
         cx.spawn(async move |this, cx| {
             let result = work.await;
             let _ = this.update(cx, |this, cx| {
+                let succeeded = result.is_ok();
                 this.session.finish(generation, result);
                 this.reset_z_text();
+                if succeeded {
+                    this.reset_inspector();
+                }
                 cx.notify();
             });
         })
@@ -54,6 +67,7 @@ impl Shell {
     pub fn select(&mut self, selection: Selection, cx: &mut Context<Self>) {
         self.session.selected = Some(selection);
         self.reset_z_text();
+        self.reset_inspector();
         cx.notify();
     }
 
@@ -65,6 +79,98 @@ impl Shell {
             .and_then(|p| self.session.selected.as_ref()?.resolve(p))
             .map(|(_, i)| i.visual_properties().z_index.to_string())
             .unwrap_or_default();
+    }
+
+    pub fn reset_inspector(&mut self) {
+        self.inspector_field = None;
+        self.inspector_text.clear();
+        self.inspector_source = None;
+    }
+
+    pub fn choose_inspector_field(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(project) = &self.session.project else {
+            return;
+        };
+        let Some(selection) = &self.session.selected else {
+            return;
+        };
+        if !selection.instance_path.is_empty() {
+            return;
+        }
+        let Some((_, item)) = selection.resolve(project) else {
+            return;
+        };
+        let Some(field) = inspector_edit::fields(item).get(index).cloned() else {
+            return;
+        };
+        self.inspector_source = Some((selection.clone(), project.revision));
+        self.inspector_field = Some(index);
+        self.inspector_text = field.value;
+        cx.notify();
+    }
+
+    fn active_inspector_field(&self) -> Option<(&opencut_editor_core::TimelineItem, Field)> {
+        let (selection, revision) = self.inspector_source.as_ref()?;
+        let project = self.session.project.as_ref()?;
+        if project.revision != *revision || self.session.selected.as_ref()? != selection {
+            return None;
+        }
+        let (_, item) = selection.resolve(project)?;
+        let field = inspector_edit::fields(item)
+            .get(self.inspector_field?)?
+            .clone();
+        Some((item, field))
+    }
+
+    pub fn apply_inspector(&mut self, cx: &mut Context<Self>) {
+        if self.session.busy {
+            return;
+        }
+        let Some((item, field)) = self.active_inspector_field() else {
+            self.session.error = Some("Inspector draft is stale. Select a field again.".into());
+            cx.notify();
+            return;
+        };
+        match inspector_edit::build(item, &field, &self.inspector_text) {
+            Ok(edit) => {
+                let revision = self.session.project.as_ref().unwrap().revision;
+                self.dispatch(Command::Edit(revision, Box::new(edit)), cx);
+            }
+            Err(error) => {
+                self.session.error = Some(error);
+                cx.notify();
+            }
+        }
+    }
+
+    pub fn inspector_key(
+        &mut self,
+        event: &KeyDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.session.busy || self.active_inspector_field().is_none() {
+            return;
+        }
+        match event.keystroke.key.as_str() {
+            "enter" if event.keystroke.modifiers.shift => self.inspector_text.push('\n'),
+            "enter" => self.apply_inspector(cx),
+            "escape" => self.reset_inspector(),
+            "backspace" => {
+                self.inspector_text.pop();
+            }
+            "a" if event.keystroke.modifiers.control || event.keystroke.modifiers.platform => {
+                self.inspector_text.clear()
+            }
+            _ => {
+                if let Some(text) = &event.keystroke.key_char
+                    && self.inspector_text.len() + text.len() <= 4096
+                {
+                    self.inspector_text.push_str(text);
+                }
+            }
+        }
+        cx.notify();
     }
 
     pub fn set_parent(&mut self, parent: Option<String>, cx: &mut Context<Self>) {

@@ -161,6 +161,7 @@ export type HeadlessEdit =
       transform2d?: z.infer<typeof transform2dSchema> | null | undefined;
       itemId: string;
       color?: string | undefined;
+      fontSize?: number | undefined;
       fontFamily?: string | null | undefined;
       fontPath?: string | null | undefined;
       height?: number | undefined;
