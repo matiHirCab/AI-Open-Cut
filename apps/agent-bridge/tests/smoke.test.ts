@@ -1025,6 +1025,11 @@ it("edits typed animation channels through MCP standalone and alias batches", as
       [
         [0, [channel(50)], "REVISION_CONFLICT"],
         [2, [channel(1_000_001)], "INVALID_ARGUMENT"],
+        [
+          2,
+          [{ ...channel(10), property: "transform.rotation_deg" }],
+          "INVALID_ARGUMENT",
+        ],
       ] as const
     ).map(async ([expectedRevision, animationChannels, code]) => {
       const rejected = await client.callTool({

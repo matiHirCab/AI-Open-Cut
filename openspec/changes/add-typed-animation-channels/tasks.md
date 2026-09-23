@@ -18,8 +18,8 @@
 
 ## 4. Verification and archival
 
-- [ ] 4.1 Run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`; record full logs and exit codes.
+- [x] 4.1 Run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`; record full logs and exit codes.
 - [x] 4.2 From `apps/agent-bridge`, run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`; record full logs and exit codes. Run hermetic Python worker tests if any worker surface changes; none are planned.
-- [ ] 4.3 Run pinned strict all-spec validation, then the pre-archive `moon run root:openspec-validate` gate; record the expected rejection only if it names this active change and no other failure.
+- [x] 4.3 Run pinned strict all-spec validation, then the pre-archive `moon run root:openspec-validate` gate; record the expected rejection only if it names this active change and no other failure.
 - [ ] 4.4 Run `$openspec-verify-change`, resolve all requirement/design/task/test mismatches, then `$openspec-sync-specs` and `$openspec-archive-change`.
 - [ ] 4.5 Rerun `moon run root:openspec-validate` and pinned strict all-spec validation after archival; require both to pass before claiming completion.

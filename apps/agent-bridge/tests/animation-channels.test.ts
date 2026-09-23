@@ -35,6 +35,12 @@ describe("governed animation channels", () => {
     const value = channel("transform.position_x", 10);
     expect(animationChannelSchema.parse(value)).toEqual(value);
     expect(
+      animationChannelSchema.parse(channel("transform.rotation_deg", 10))
+    ).toEqual(channel("transform.rotation_deg", 10));
+    expect(
+      animationChannelSchema.parse(channel("transform.rotation_deg", 10))
+    ).toEqual(channel("transform.rotation_deg", 10));
+    expect(
       schemas.timelineSetAnimationChannels.safeParse({
         animationChannels: [value],
         expectedRevision: 1,
