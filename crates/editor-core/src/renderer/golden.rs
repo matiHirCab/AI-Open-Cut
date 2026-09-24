@@ -14,7 +14,7 @@ use std::{
     fs::OpenOptions,
     io::Write,
     path::{Component, Path, PathBuf},
-    process::Command,
+    process::{Child, Command, ExitStatus},
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -3763,24 +3763,152 @@ fn process_tree_sampler_observes_a_child_allocation() {
     assert!(status.success());
 }
 
-#[test]
-#[ignore = "isolates sampler baseline from parallel test helper processes"]
-fn process_tree_sampler_isolated_helper() {
+const SAMPLER_CHILD_HANDSHAKE_ENV: &str = "OPENCUT_SAMPLER_CHILD_HANDSHAKE_DIR";
+const SAMPLER_CHILD_MODE_ENV: &str = "OPENCUT_SAMPLER_CHILD_TEST_MODE";
+const SAMPLER_CHILD_READY_TIMEOUT: Duration = Duration::from_secs(10);
+const SAMPLER_CHILD_OBSERVATION_TIMEOUT: Duration = Duration::from_secs(10);
+const SAMPLER_CHILD_REAP_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn reap_sampler_test_child(child: &mut Child) -> Result<ExitStatus, String> {
+    let deadline = Instant::now() + SAMPLER_CHILD_REAP_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) if Instant::now() < deadline => thread::sleep(MEMORY_SAMPLE_INTERVAL),
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("sampler test child did not exit after release".to_owned());
+            }
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("cannot poll sampler test child: {error}"));
+            }
+        }
+    }
+}
+
+fn observe_sampler_test_child_allocation(
+    required_increase: u64,
+    observation_timeout: Duration,
+) -> Result<(), String> {
+    observe_sampler_test_child_allocation_with_mode(
+        required_increase,
+        observation_timeout,
+        SAMPLER_CHILD_READY_TIMEOUT,
+        "hold",
+    )
+}
+
+fn observe_sampler_test_child_allocation_with_mode(
+    required_increase: u64,
+    observation_timeout: Duration,
+    ready_timeout: Duration,
+    child_mode: &str,
+) -> Result<(), String> {
     let baseline_sampler = ProcessTreeSampler::start();
     thread::sleep(Duration::from_millis(100));
     let baseline = baseline_sampler.finish();
     let sampler = ProcessTreeSampler::start();
-    let status = Command::new(env::current_exe().unwrap())
+    let handshake = tempdir().map_err(|error| format!("cannot create handshake: {error}"))?;
+    let ready = handshake.path().join("ready");
+    let release = handshake.path().join("release");
+    let mut child = Command::new(env::current_exe().unwrap())
         .args([
             "--ignored",
             "--exact",
             "renderer::golden::process_tree_memory_child_helper",
         ])
-        .status()
+        .env(SAMPLER_CHILD_HANDSHAKE_ENV, handshake.path())
+        .env(SAMPLER_CHILD_MODE_ENV, child_mode)
+        .spawn()
+        .map_err(|error| format!("cannot start sampler test child: {error}"))?;
+
+    let target = baseline.saturating_add(required_increase);
+    let observation = (|| {
+        let ready_deadline = Instant::now() + ready_timeout;
+        while fs::read(&ready).ok().as_deref() != Some(b"ready") {
+            if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+                return Err(format!("sampler test child exited before ready: {status}"));
+            }
+            if Instant::now() >= ready_deadline {
+                return Err("sampler test child did not become ready".to_owned());
+            }
+            thread::sleep(MEMORY_SAMPLE_INTERVAL);
+        }
+
+        let observation_deadline = Instant::now() + observation_timeout;
+        while sampler.peak.load(Ordering::Relaxed) < target {
+            if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+                return Err(format!(
+                    "sampler test child exited before observation: {status}"
+                ));
+            }
+            if Instant::now() >= observation_deadline {
+                return Err(format!(
+                    "sampler did not observe child allocation: baseline={baseline}, peak={}, target={target}",
+                    sampler.peak.load(Ordering::Relaxed)
+                ));
+            }
+            thread::sleep(MEMORY_SAMPLE_INTERVAL);
+        }
+        Ok(())
+    })();
+
+    let release_result = fs::write(&release, b"release");
+    let child_result = reap_sampler_test_child(&mut child);
+    let peak = sampler.finish();
+    observation?;
+    release_result.map_err(|error| format!("cannot release sampler test child: {error}"))?;
+    let status = child_result?;
+    if !status.success() {
+        return Err(format!("sampler test child failed: {status}"));
+    }
+    if peak < target {
+        return Err(format!(
+            "sampler did not retain child allocation: baseline={baseline}, peak={peak}, target={target}"
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "isolates sampler baseline from parallel test helper processes"]
+fn process_tree_sampler_isolated_helper() {
+    observe_sampler_test_child_allocation(32 * 1024 * 1024, SAMPLER_CHILD_OBSERVATION_TIMEOUT)
         .unwrap();
-    assert!(status.success());
-    let with_child = sampler.finish();
-    assert!(with_child >= baseline.saturating_add(32 * 1024 * 1024));
+}
+
+#[test]
+fn process_tree_sampler_observation_timeout_reaps_child() {
+    let error = observe_sampler_test_child_allocation(u64::MAX, Duration::from_millis(100))
+        .expect_err("an impossible memory target must time out");
+    assert!(
+        error.contains("sampler did not observe child allocation"),
+        "{error}"
+    );
+}
+
+#[test]
+fn process_tree_sampler_child_exit_and_readiness_timeout_are_bounded() {
+    let exited = observe_sampler_test_child_allocation_with_mode(
+        32 * 1024 * 1024,
+        Duration::from_millis(100),
+        Duration::from_secs(2),
+        "exit-before-ready",
+    )
+    .expect_err("an early child exit must fail");
+    assert!(exited.contains("exited before ready"), "{exited}");
+
+    let unready = observe_sampler_test_child_allocation_with_mode(
+        32 * 1024 * 1024,
+        Duration::from_millis(100),
+        Duration::from_millis(100),
+        "never-ready",
+    )
+    .expect_err("a missing readiness marker must fail");
+    assert!(unready.contains("did not become ready"), "{unready}");
 }
 
 #[test]
@@ -3828,9 +3956,27 @@ fn process_tree_sampler_drop_signals_and_joins_during_unwind() {
 #[test]
 #[ignore = "helper process for process_tree_sampler_observes_a_child_allocation"]
 fn process_tree_memory_child_helper() {
+    let Some(handshake) = env::var_os(SAMPLER_CHILD_HANDSHAKE_ENV).map(PathBuf::from) else {
+        return;
+    };
+    let mode = env::var(SAMPLER_CHILD_MODE_ENV).unwrap_or_default();
+    if mode == "exit-before-ready" {
+        return;
+    }
     let allocation = vec![0x5a_u8; 64 * 1024 * 1024];
     std::hint::black_box(&allocation);
-    thread::sleep(Duration::from_millis(300));
+    if mode != "never-ready" {
+        fs::write(handshake.join("ready"), b"ready").unwrap();
+    }
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while fs::read(handshake.join("release")).ok().as_deref() != Some(b"release") {
+        assert!(
+            Instant::now() < deadline,
+            "sampler test child release timed out"
+        );
+        thread::sleep(MEMORY_SAMPLE_INTERVAL);
+    }
+    std::hint::black_box(&allocation);
 }
 
 #[test]
