@@ -2418,13 +2418,23 @@ fn native_golden_render_conformance() {
     let Some(tools) = configured_native_tools() else {
         return;
     };
-    rule_card::conformance(&tools);
-    rules_screen::conformance(&tools);
-    shapes::conformance(&tools);
-    svg::conformance(&tools);
-    grids::conformance(&tools);
-    repeaters::conformance(&tools);
-    rich_text::conformance(&tools);
+    let suites = [
+        ("rule_card", rule_card::conformance as fn(&NativeTools)),
+        ("rules_screen", rules_screen::conformance),
+        ("shapes", shapes::conformance),
+        ("svg", svg::conformance),
+        ("grids", grids::conformance),
+        ("repeaters", repeaters::conformance),
+        ("rich_text", rich_text::conformance),
+    ];
+    for (name, run) in suites {
+        let started = Instant::now();
+        run(&tools);
+        eprintln!(
+            "golden conformance {name}: {:.3}s",
+            started.elapsed().as_secs_f64()
+        );
+    }
     let update_requested = env::var("OPENCUT_UPDATE_GOLDENS").as_deref() == Ok("1");
     let fixture_container = fixture_container_root();
     let _fixture_lock = GoldenFixtureLock::exclusive(&fixture_container)
@@ -2450,12 +2460,22 @@ fn native_golden_render_conformance() {
     let sampled_requested = update_requested
         || env::var_os("OPENCUT_CAPTURE_GOLDENS_TO").is_some()
         || env::var_os("OPENCUT_GOLDEN_REPORT_PATH").is_some();
+    let capture_started = Instant::now();
     let (capture, performance) = if sampled_requested {
         let (capture, performance) = sampled_capture(&tools);
         (capture, Some(performance))
     } else {
         (capture(&tools, CaptureMode::Conformance), None)
     };
+    eprintln!(
+        "golden conformance {}: {:.3}s",
+        if sampled_requested {
+            "sampled_capture"
+        } else {
+            "capture"
+        },
+        capture_started.elapsed().as_secs_f64()
+    );
     if update_requested {
         update_golden_set(
             &tools,

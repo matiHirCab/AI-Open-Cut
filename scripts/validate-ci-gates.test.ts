@@ -1335,16 +1335,32 @@ describe("CI parity gate policy", () => {
     });
   }
 
-  it("rejects a neutralized native render command", () => {
+  const goldenCommand =
+    "cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture";
+  for (const [label, replacement] of [
+    ["missing", ""],
+    ["debug profile", goldenCommand.replace(" --release", "")],
+    ["hidden successful output", goldenCommand.replace(" --nocapture", "")],
+    ["neutralized failure", `${goldenCommand} || true`],
+  ] as const) {
+    it(`rejects a ${label} native golden command`, () => {
+      expect(() =>
+        validateCiGates(replaceRequired(workflow, goldenCommand, replacement))
+      ).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+
+  it("rejects a golden command moved outside the protected native step", () => {
+    const moved = replaceRequired(workflow, goldenCommand, ":");
     expect(() =>
       validateCiGates(
-        replaceRequired(
-          workflow,
-          "cargo test -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact",
-          "cargo test -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact || true"
+        insertStepBefore(
+          moved,
+          "Native audiovisual and lifecycle parity",
+          `      - name: Unprotected golden command\n        run: ${goldenCommand}\n`
         )
       )
-    ).toThrow("render-parity native step must use the exact fail-closed command body");
+    ).toThrow("render-parity must contain exactly its approved step sequence");
   });
 
   for (const stepName of [

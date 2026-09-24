@@ -51,7 +51,7 @@ const FORBIDDEN_GOLDEN_MODES = [
 ] as const;
 
 const NATIVE_PARITY_COMMAND = `mkdir -p "$(dirname "$OPENCUT_GOLDEN_REPORT_PATH")"
-cargo test -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact
+cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture
 cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact
 cargo test -p opencut-editor-core --test transform2d
 cargo test -p opencut-editor-core --test animation_channels
