@@ -29,3 +29,9 @@ No public or persisted contract, schema, migration, dependency, secret, network 
 ## Verification Plan
 
 Run Rust formatting, focused golden and policy tests, strict Clippy and affected workspace tests, and the repository's protected OpenSpec checks. Run Render parity on the reviewed Linux runner with required FFmpeg, FFprobe, and font settings. Confirm the same golden assertions and report validation pass, inspect named suite durations, and compare total job/test time with the 345-minute run before marking the performance task complete. Complete OpenSpec conformance verification, synchronization, archival, and the final protected gate in repository order.
+
+## Measured Result
+
+The [optimized Linux run](https://github.com/matiHirCab/AI-Open-Cut/actions/runs/35994612911) passed every required render and report step. Total Render parity time fell from 345 minutes 30 seconds to 205 minutes 1 second (41% shorter). The native golden test fell from 20,448.18 to 11,815.27 seconds (42% shorter), despite release compilation taking 4 minutes 8 seconds rather than 50 seconds. The new log attributed 11,526.743 seconds to `rules_screen`; the other six suites and sampled capture totaled under five minutes. All eight named timings appeared. The baseline report retained the same fixture and environment identity, sampling policy, intent order, and work counters. The remaining multi-hour rules-screen cost is outside this approved profile-only optimization and needs a separately reviewed performance change if a minutes-scale gate is required.
+
+The local Windows native attempt compiled in release mode but could not reach golden assertions: the installed FFmpeg 9 lacks `filter_complex_script`, whereas required Linux CI used FFmpeg 6.1. This environment limitation is resolved for conformance by the passing protected Linux run, not by claiming a local native pass.
