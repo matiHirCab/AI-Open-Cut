@@ -531,6 +531,7 @@ pub(super) fn conformance(tools: &NativeTools) {
         tools.font_sha256, FONT_HASH,
         "rules-screen requires the reviewed font"
     );
+    let memory_sampler = ProcessTreeSampler::start();
     let parallel = thread::available_parallelism().is_ok_and(|workers| workers.get() >= 2);
     let counts = run_resolution_groups(parallel, |size| {
         conformance_for_size(tools, &references, size)
@@ -552,6 +553,10 @@ pub(super) fn conformance(tools: &NativeTools) {
             ranges: 15,
             exports: 15,
         }
+    );
+    eprintln!(
+        "rules_screen peak_process_tree_bytes={}",
+        memory_sampler.finish()
     );
 }
 
