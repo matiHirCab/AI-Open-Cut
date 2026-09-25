@@ -8,9 +8,11 @@
 
 - [x] 2.1 Run the focused sampler test repeatedly on Windows, `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`; capture logs and exits.
 - [x] 2.2 From `apps/agent-bridge`, run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`; from the root run `bun run apps/agent-bridge/scripts/run-python-tests.ts`. Capture logs and exits.
-- [ ] 2.3 Run pinned strict all-spec validation and pre-archive `moon run root:openspec-validate`, requiring the only expected rejection to identify this active change. Push the fix and require Windows correctness and Render parity CI to pass without weakening any gate.
+- [x] 2.3 Run pinned strict all-spec validation and pre-archive `moon run root:openspec-validate`, requiring the only expected rejection to identify this active change. Push the fix and require Windows correctness and Render parity CI to pass without weakening any gate.
 
 ## 3. Completion
 
-- [ ] 3.1 Run `$openspec-verify-change`, resolve mismatches, and synchronize and archive the change with `$openspec-sync-specs` and `$openspec-archive-change`.
-- [ ] 3.2 Rerun `moon run root:openspec-validate` and pinned strict all-spec validation after archival, and require the final protected CI gate to pass before declaring PR #124 ready.
+- [x] 3.1 Run `$openspec-verify-change`, resolve mismatches, and synchronize and archive the change with `$openspec-sync-specs` and `$openspec-archive-change`.
+- [x] 3.2 Rerun `moon run root:openspec-validate` and pinned strict all-spec validation after archival.
+
+The final protected CI gate must pass on the archived commit before declaring PR #124 ready.
