@@ -12,6 +12,26 @@ mod fixture {
 
 const FONT_HASH: &str = "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280";
 const SIZES: [(u32, u32); 3] = [(960, 540), (1280, 720), (1920, 1080)];
+const STATES: [&str; 5] = ["original", "edited", "undone", "redone", "reopened"];
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct RenderCounts {
+    states: usize,
+    previews: usize,
+    ranges: usize,
+    exports: usize,
+}
+
+fn timed<T>(width: u32, height: u32, state: usize, operation: &str, work: impl FnOnce() -> T) -> T {
+    let started = Instant::now();
+    let result = work();
+    eprintln!(
+        "rules_screen timing size={width}x{height} state={} operation={operation} elapsed_ms={}",
+        STATES[state],
+        started.elapsed().as_millis()
+    );
+    result
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -257,16 +277,26 @@ struct Outputs {
     export_audio: Vec<f32>,
 }
 
-fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
+fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> (Outputs, RenderCounts) {
     let project = f.project();
     let project_dir = f.core.paths().project_dir(&f.id).unwrap();
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     renderer.readiness().unwrap();
+    let mut counts = RenderCounts::default();
     let mut frames = Vec::new();
     for time in SAMPLE_TIMESTAMPS_MS {
-        let preview = renderer
-            .render_preview(&project, &project_dir, time)
-            .unwrap();
+        let preview = timed(
+            f.width,
+            f.height,
+            state,
+            &format!("preview@{time}ms"),
+            || {
+                renderer
+                    .render_preview(&project, &project_dir, time)
+                    .unwrap()
+            },
+        );
+        counts.previews += 1;
         let path = project_dir.join(preview.relative_path);
         frames.push(decode_sized_rgb_frame(
             &tools.ffmpeg,
@@ -276,40 +306,46 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
             f.height,
         ));
     }
-    let range = renderer
-        .render_preview_range(
-            &project,
-            &project_dir,
-            PreviewRangeOptions {
-                start_ms: 0,
-                end_ms: DURATION_MS,
-                width: f.width,
-                height: f.height,
-                fps: FPS,
-                include_audio: true,
-            },
-            |_| {},
-        )
-        .unwrap();
+    let range = timed(f.width, f.height, state, "range_preview", || {
+        renderer
+            .render_preview_range(
+                &project,
+                &project_dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: DURATION_MS,
+                    width: f.width,
+                    height: f.height,
+                    fps: FPS,
+                    include_audio: true,
+                },
+                |_| {},
+            )
+            .unwrap()
+    });
+    counts.ranges += 1;
     let range_path = project_dir.join(range.relative_path);
     let export_path = f
         .core
         .paths()
         .exports_root()
         .join(format!("rules-{state}-{}x{}.mp4", f.width, f.height));
-    renderer
-        .export_video(
-            &project,
-            &project_dir,
-            ExportOptions {
-                output: &export_path,
-                width: f.width,
-                height: f.height,
-                overwrite: false,
-            },
-            |_| {},
-        )
-        .unwrap();
+    timed(f.width, f.height, state, "final_export", || {
+        renderer
+            .export_video(
+                &project,
+                &project_dir,
+                ExportOptions {
+                    output: &export_path,
+                    width: f.width,
+                    height: f.height,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap()
+    });
+    counts.exports += 1;
     for path in [&range_path, &export_path] {
         assert!(
             renderer
@@ -321,7 +357,7 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
                 <= DURATION_MS / u64::from(FPS)
         );
     }
-    Outputs {
+    let outputs = Outputs {
         frames,
         range_frames: SAMPLE_TIMESTAMPS_MS
             .into_iter()
@@ -335,7 +371,8 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
             .collect(),
         audio: decode_mono_f32(&tools.ffmpeg, &range_path),
         export_audio: decode_mono_f32(&tools.ffmpeg, &export_path),
-    }
+    };
+    (outputs, counts)
 }
 
 fn compare(
@@ -374,41 +411,148 @@ fn compare(
     }
 }
 
+fn run_resolution_groups<T, F>(parallel: bool, run: F) -> Vec<T>
+where
+    T: Send,
+    F: Fn((u32, u32)) -> T + Sync,
+{
+    if parallel {
+        thread::scope(|scope| {
+            let high = scope.spawn(|| run(SIZES[2]));
+            let low = run(SIZES[0]);
+            let medium = run(SIZES[1]);
+            vec![
+                low,
+                medium,
+                high.join().expect("rules-screen resolution worker"),
+            ]
+        })
+    } else {
+        SIZES.into_iter().map(&run).collect()
+    }
+}
+
+#[test]
+fn resolution_schedule_preserves_cases_and_propagates_worker_failure() {
+    for parallel in [false, true] {
+        let visits = std::sync::Mutex::new(Vec::new());
+        let sizes = run_resolution_groups(parallel, |size| {
+            for state in 0..5 {
+                visits.lock().unwrap().push((size, state));
+            }
+            size
+        });
+        assert_eq!(sizes, SIZES);
+        let visits = visits.into_inner().unwrap();
+        assert_eq!(visits.len(), 15);
+        for size in SIZES {
+            assert_eq!(
+                visits
+                    .iter()
+                    .filter_map(|(seen_size, state)| (*seen_size == size).then_some(*state))
+                    .collect::<Vec<_>>(),
+                [0, 1, 2, 3, 4]
+            );
+        }
+    }
+    assert!(
+        std::panic::catch_unwind(|| {
+            run_resolution_groups(true, |size| {
+                assert_ne!(size, SIZES[2], "injected resolution failure");
+            });
+        })
+        .is_err()
+    );
+}
+
+fn conformance_for_size(
+    tools: &NativeTools,
+    references: &References,
+    (width, height): (u32, u32),
+) -> RenderCounts {
+    let started = Instant::now();
+    let root = tempdir().unwrap();
+    let mut f = if width == 1920 {
+        fixture::seed(root.path())
+    } else {
+        fixture::seed_at(root.path(), width, height)
+    };
+    let mut counts = RenderCounts::default();
+    for (state, state_name) in STATES.iter().enumerate() {
+        let state_started = Instant::now();
+        match state {
+            1 => f.resize_impact_word(),
+            2 => {
+                f.core.undo(&f.id, f.project().revision).unwrap();
+            }
+            3 => {
+                f.core.redo(&f.id, f.project().revision).unwrap();
+            }
+            4 => {
+                f.core = crate::EditorCore::new(f.core.paths().clone());
+            }
+            _ => {}
+        }
+        let edited = matches!(state, 1 | 3 | 4);
+        assert_eq!(semantic(&f), references.plans[&key(edited, width, height)]);
+        let before = serde_json::to_vec(&f.project()).unwrap();
+        let (outputs, rendered) = render(tools, &f, state);
+        compare(tools, &outputs, references, edited, width, height);
+        assert_eq!(serde_json::to_vec(&f.project()).unwrap(), before);
+        counts.states += 1;
+        counts.previews += rendered.previews;
+        counts.ranges += rendered.ranges;
+        counts.exports += rendered.exports;
+        eprintln!(
+            "rules_screen timing size={width}x{height} state={} operation=state_total elapsed_ms={}",
+            state_name,
+            state_started.elapsed().as_millis()
+        );
+    }
+    assert_eq!(
+        counts,
+        RenderCounts {
+            states: 5,
+            previews: 15,
+            ranges: 5,
+            exports: 5,
+        }
+    );
+    eprintln!(
+        "rules_screen timing size={width}x{height} operation=resolution_total elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
+    counts
+}
+
 pub(super) fn conformance(tools: &NativeTools) {
     let references = load();
     assert_eq!(
         tools.font_sha256, FONT_HASH,
         "rules-screen requires the reviewed font"
     );
-    for (width, height) in SIZES {
-        let root = tempdir().unwrap();
-        let mut f = if width == 1920 {
-            fixture::seed(root.path())
-        } else {
-            fixture::seed_at(root.path(), width, height)
-        };
-        for state in 0..5 {
-            match state {
-                1 => f.resize_impact_word(),
-                2 => {
-                    f.core.undo(&f.id, f.project().revision).unwrap();
-                }
-                3 => {
-                    f.core.redo(&f.id, f.project().revision).unwrap();
-                }
-                4 => {
-                    f.core = crate::EditorCore::new(f.core.paths().clone());
-                }
-                _ => {}
-            }
-            let edited = matches!(state, 1 | 3 | 4);
-            assert_eq!(semantic(&f), references.plans[&key(edited, width, height)]);
-            let before = serde_json::to_vec(&f.project()).unwrap();
-            let outputs = render(tools, &f, state);
-            compare(tools, &outputs, &references, edited, width, height);
-            assert_eq!(serde_json::to_vec(&f.project()).unwrap(), before);
+    let parallel = thread::available_parallelism().is_ok_and(|workers| workers.get() >= 2);
+    let counts = run_resolution_groups(parallel, |size| {
+        conformance_for_size(tools, &references, size)
+    });
+    assert_eq!(counts.len(), SIZES.len());
+    assert_eq!(
+        counts
+            .into_iter()
+            .fold(RenderCounts::default(), |mut total, item| {
+                total.states += item.states;
+                total.previews += item.previews;
+                total.ranges += item.ranges;
+                total.exports += item.exports;
+                total
+            }),
+        RenderCounts {
+            states: 15,
+            previews: 45,
+            ranges: 15,
+            exports: 15,
         }
-    }
+    );
 }
 
 #[test]
