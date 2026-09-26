@@ -191,7 +191,7 @@ The golden harness MUST accept migration only from the exact immediately precedi
 - **THEN** the harness fails before rendering or replacement and does not classify the generation as removable cleanup data
 
 ### Requirement: Bounded process-tree sampler lifecycle
-Every started benchmark process-tree sampler MUST signal and join its worker exactly once on explicit completion and on every early return or panic after startup. Explicit completion MUST surface a worker panic; cleanup during unwinding MUST never panic. Sampler shutdown MUST complete after the worker's current refresh and at most one declared sampling interval, and MUST NOT leave a detached worker that can consume resources or perturb later benchmark observations.
+Every started benchmark process-tree sampler MUST signal and join its worker exactly once on explicit completion and on every early return or panic after startup. Explicit completion MUST surface a worker panic; cleanup during unwinding MUST never panic. Sampler shutdown MUST complete after the worker's current refresh and at most one declared sampling interval, and MUST NOT leave a detached worker that can consume resources or perturb later benchmark observations. The cross-platform child-allocation regression fixture MUST keep its allocated child alive until the sampler has observed the required process-tree memory increase or a bounded observation deadline expires; the fixture MUST release and reap the child in either outcome and MUST continue to fail when the required increase is not observed.
 
 #### Scenario: Finish a measured capture
 - **WHEN** benchmark capture completes normally
@@ -200,6 +200,14 @@ Every started benchmark process-tree sampler MUST signal and join its worker exa
 #### Scenario: Unwind after benchmark failure
 - **WHEN** encoding, decode, composition, or later conformance work fails after the sampler starts
 - **THEN** RAII cleanup stops and joins the worker before unwinding continues without replacing the original failure
+
+#### Scenario: Observe a held child allocation
+- **WHEN** the regression fixture starts a child that allocates the declared memory and signals readiness on Windows, Linux, or macOS
+- **THEN** the child remains alive while the sampler observes the required increase, after which the fixture releases and reaps it and passes the same memory-delta assertion
+
+#### Scenario: Observation or child readiness fails
+- **WHEN** the child exits early, fails to become ready, or the sampler does not observe the required increase within the declared deadline
+- **THEN** the fixture terminates within a bounded time, releases and reaps the child if it is still running, and fails with the relevant condition rather than passing or hanging
 
 ### Requirement: Independently visible render-parity gate
 Continuous integration MUST publish a dedicated required Linux render-parity status that configures explicit FFmpeg, FFprobe, deterministic font, required-gate, and absolute report-path dependencies; executes production preview, audiovisual range, export, and lifecycle conformance with fail-closed critical steps against the selected immutable golden generation; strictly validates the report captured at the declared absolute workspace path; and only then uploads that exact validated observation. The gate MUST contain only its exact reviewed checkout, deterministic rendering dependency installation, pinned toolchain, locked bridge dependency installation, existing native conformance, native raster-cache conformance, report-validation, and upload steps in that order. Workflow-level and render-job-level environment maps MUST be absent; required CI MUST use only exact approved step environments, reject inherited execution defaults and job containers, and reject `OPENCUT_UPDATE_GOLDENS` or `OPENCUT_CAPTURE_GOLDENS_TO` from every effective configuration path so reviewed references remain immutable. Critical conformance, validation, and publication steps MUST NOT ignore failures or contain incompatible command alterations.
@@ -307,13 +315,43 @@ The suite MUST include a separate reproducible static rules-screen fixture conta
 - **WHEN** vector/text edits undergo undo, redo and fresh-core reopen, or invalid values, missing references, locked targets, stale revisions and a failing later batch operation are submitted
 - **THEN** successful lifecycle states retain exact applicable authored values and failures return established typed errors with unchanged authoritative files, revision and history
 
-### Requirement: Multiresolution rules-screen render conformance
-Frame preview, audiovisual range preview and final export MUST render the rules-screen through the production EvaluatedScene at 1920x1080, 1280x720 and 960x540. Original, edited, undone, redone and reopened states MUST match independent scene expectations and reviewed visual references at the recipe timestamps. SSIM MUST be at least 0.99, aligned decoded float-PCM RMS error at most 0.0001 and timing deviation at most one output frame. Repeated and cold/warm-cache evaluations MUST preserve semantic plans and decoded visuals. Native dependency/font failures MUST fail the required gate rather than skip. References MUST be independently reviewed, hash-recorded and changed only deliberately; existing golden baselines/tolerances MUST remain intact.
+### Requirement: Bounded and attributable rules-screen conformance execution
+The protected native rules-screen matrix MUST execute every existing resolution/state/render combination: 960x540, 1280x720, and 1920x1080; original, edited, undone, redone, and reopened in that order per resolution; and 0/500/900 ms frame previews, audiovisual range preview, and final export per state. Each resolution MUST execute in one independent required Linux CI job, with no more than three resolution jobs running concurrently. Every job MUST apply all existing semantic-plan, reviewed-reference, visual, audio, timing, font/dependency, and project-integrity assertions. A missing, invalid, duplicated, skipped, or zero-test resolution job or a render/comparison failure MUST fail the protected foundation gate. Successful required runs MUST report non-negative elapsed times identified by resolution, state, and operation for all 45 frame previews, 15 range previews, and 15 exports, plus each state and resolution total. Long-running process-tree memory observations MUST be diagnostic and MUST NOT change render acceptance thresholds or report schema.
 
-#### Scenario: F3 Compare scales intents and lifecycle states
-- **WHEN** the native suite renders every specified resolution, intent, timestamp and lifecycle state
+#### Scenario: Complete the independent resolution jobs
+- **WHEN** required native rules-screen parity runs in CI
+- **THEN** three isolated jobs each execute exactly five lifecycle states in order and 25 render calls, for 15 states and 75 calls in aggregate, with unchanged assertions and reviewed references
+
+#### Scenario: Attribute costs and resource use
+- **WHEN** all three jobs succeed
+- **THEN** their logs identify each of the 75 render calls by resolution, lifecycle state, and operation, and report diagnostic elapsed and process-tree peak memory values without a universal performance pass/fail budget
+
+#### Scenario: Fail closed on omitted or broken evidence
+- **WHEN** a matrix entry or native test is missing, duplicated, skipped, selects no tests, has missing or invalid native tools/font, or a render or comparison fails
+- **THEN** the corresponding job or policy validator fails and the foundation gate cannot report success or publish invalid rules-screen evidence
+
+### Requirement: Multiresolution rules-screen render conformance
+Frame preview, audiovisual range preview and final export MUST render the rules-screen through the production EvaluatedScene at 1920x1080, 1280x720 and 960x540. Original, edited, undone, redone and reopened states MUST match independent scene expectations and reviewed visual references at the recipe timestamps. The three resolutions MAY run in separate required native jobs, but all five states and every render intent MUST execute in order within each resolution's fixture. SSIM MUST be at least 0.99, aligned decoded float-PCM RMS error at most 0.0001 and timing deviation at most one output frame. Repeated and cold/warm-cache evaluations MUST preserve semantic plans and decoded visuals. Native dependency/font failures MUST fail the required gate rather than skip. References MUST be independently reviewed, hash-recorded and changed only deliberately; existing golden baselines/tolerances MUST remain intact.
+
+#### Scenario: F3 Compare scales intents and lifecycle states across required jobs
+- **WHEN** the three required native resolution jobs render every specified intent, timestamp, and lifecycle state
 - **THEN** every named motif remains visible at its expected location/order and visual/audio/timing results meet the stated tolerances
 
 #### Scenario: F4 Detect shared drift and missing dependencies
 - **WHEN** all render intents share an incorrect motif/style/order or required renderer/font dependencies are absent
 - **THEN** independent expectations or dependency checks fail conformance without refreshing references or silently accepting reduced coverage
+
+### Requirement: Optimized golden conformance without reduced evidence
+The protected native render gates collectively MUST execute the existing reviewed frame, audiovisual range, export, lifecycle, reference, cache, and report checks in an optimized Rust test profile where required. The original Render parity job MUST retain the non-rules-screen golden suites, native cache evidence, strict report validation, and report publication; the three required rules-screen jobs MUST retain the full rules-screen matrix. All jobs MUST retain the same fixtures, assertions, tolerances, immutable references, fail-closed native dependencies, and report-only performance policy. Successful required runs MUST expose elapsed time for each named golden conformance suite, rules-screen resolution, and sampled capture in CI logs; these observations MUST NOT be universal pass/fail budgets.
+
+#### Scenario: Complete reviewed evidence across jobs
+- **WHEN** all required native render jobs run with approved dependencies and reviewed golden generations
+- **THEN** every existing native golden assertion executes, the original report is strictly validated before publication, and each job's required timing records appear in its log
+
+#### Scenario: Reject drift in any required job
+- **WHEN** optimized execution in any job produces a frame, audio, timing, semantic-plan, filter-graph, cache, or report result outside existing reviewed acceptance criteria
+- **THEN** that leaf and the protected foundation status fail, and no invalid report is published
+
+#### Scenario: Preserve measurement boundaries
+- **WHEN** conformance succeeds on runners with different execution times
+- **THEN** elapsed-time observations remain diagnostic and do not change golden pass/fail outcomes

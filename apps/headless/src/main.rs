@@ -708,6 +708,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "solid_color",
         "rectangle",
         "keyframes",
+        "typed_animation_channels_v1",
         "transitions",
         "audio",
         "audio_roles",

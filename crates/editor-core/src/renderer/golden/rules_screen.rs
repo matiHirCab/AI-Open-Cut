@@ -12,6 +12,26 @@ mod fixture {
 
 const FONT_HASH: &str = "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280";
 const SIZES: [(u32, u32); 3] = [(960, 540), (1280, 720), (1920, 1080)];
+const STATES: [&str; 5] = ["original", "edited", "undone", "redone", "reopened"];
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct RenderCounts {
+    states: usize,
+    previews: usize,
+    ranges: usize,
+    exports: usize,
+}
+
+fn timed<T>(width: u32, height: u32, state: usize, operation: &str, work: impl FnOnce() -> T) -> T {
+    let started = Instant::now();
+    let result = work();
+    eprintln!(
+        "rules_screen timing size={width}x{height} state={} operation={operation} elapsed_ms={}",
+        STATES[state],
+        started.elapsed().as_millis()
+    );
+    result
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -257,16 +277,26 @@ struct Outputs {
     export_audio: Vec<f32>,
 }
 
-fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
+fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> (Outputs, RenderCounts) {
     let project = f.project();
     let project_dir = f.core.paths().project_dir(&f.id).unwrap();
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     renderer.readiness().unwrap();
+    let mut counts = RenderCounts::default();
     let mut frames = Vec::new();
     for time in SAMPLE_TIMESTAMPS_MS {
-        let preview = renderer
-            .render_preview(&project, &project_dir, time)
-            .unwrap();
+        let preview = timed(
+            f.width,
+            f.height,
+            state,
+            &format!("preview@{time}ms"),
+            || {
+                renderer
+                    .render_preview(&project, &project_dir, time)
+                    .unwrap()
+            },
+        );
+        counts.previews += 1;
         let path = project_dir.join(preview.relative_path);
         frames.push(decode_sized_rgb_frame(
             &tools.ffmpeg,
@@ -276,40 +306,46 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
             f.height,
         ));
     }
-    let range = renderer
-        .render_preview_range(
-            &project,
-            &project_dir,
-            PreviewRangeOptions {
-                start_ms: 0,
-                end_ms: DURATION_MS,
-                width: f.width,
-                height: f.height,
-                fps: FPS,
-                include_audio: true,
-            },
-            |_| {},
-        )
-        .unwrap();
+    let range = timed(f.width, f.height, state, "range_preview", || {
+        renderer
+            .render_preview_range(
+                &project,
+                &project_dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: DURATION_MS,
+                    width: f.width,
+                    height: f.height,
+                    fps: FPS,
+                    include_audio: true,
+                },
+                |_| {},
+            )
+            .unwrap()
+    });
+    counts.ranges += 1;
     let range_path = project_dir.join(range.relative_path);
     let export_path = f
         .core
         .paths()
         .exports_root()
         .join(format!("rules-{state}-{}x{}.mp4", f.width, f.height));
-    renderer
-        .export_video(
-            &project,
-            &project_dir,
-            ExportOptions {
-                output: &export_path,
-                width: f.width,
-                height: f.height,
-                overwrite: false,
-            },
-            |_| {},
-        )
-        .unwrap();
+    timed(f.width, f.height, state, "final_export", || {
+        renderer
+            .export_video(
+                &project,
+                &project_dir,
+                ExportOptions {
+                    output: &export_path,
+                    width: f.width,
+                    height: f.height,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap()
+    });
+    counts.exports += 1;
     for path in [&range_path, &export_path] {
         assert!(
             renderer
@@ -321,7 +357,7 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
                 <= DURATION_MS / u64::from(FPS)
         );
     }
-    Outputs {
+    let outputs = Outputs {
         frames,
         range_frames: SAMPLE_TIMESTAMPS_MS
             .into_iter()
@@ -335,7 +371,8 @@ fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> Outputs {
             .collect(),
         audio: decode_mono_f32(&tools.ffmpeg, &range_path),
         export_audio: decode_mono_f32(&tools.ffmpeg, &export_path),
-    }
+    };
+    (outputs, counts)
 }
 
 fn compare(
@@ -374,41 +411,131 @@ fn compare(
     }
 }
 
-pub(super) fn conformance(tools: &NativeTools) {
+fn conformance_for_size(
+    tools: &NativeTools,
+    references: &References,
+    (width, height): (u32, u32),
+) -> RenderCounts {
+    let started = Instant::now();
+    let root = tempdir().unwrap();
+    let mut f = if width == 1920 {
+        fixture::seed(root.path())
+    } else {
+        fixture::seed_at(root.path(), width, height)
+    };
+    let mut counts = RenderCounts::default();
+    for (state, state_name) in STATES.iter().enumerate() {
+        let state_started = Instant::now();
+        match state {
+            1 => f.resize_impact_word(),
+            2 => {
+                f.core.undo(&f.id, f.project().revision).unwrap();
+            }
+            3 => {
+                f.core.redo(&f.id, f.project().revision).unwrap();
+            }
+            4 => {
+                f.core = crate::EditorCore::new(f.core.paths().clone());
+            }
+            _ => {}
+        }
+        let edited = matches!(state, 1 | 3 | 4);
+        assert_eq!(semantic(&f), references.plans[&key(edited, width, height)]);
+        let before = serde_json::to_vec(&f.project()).unwrap();
+        let (outputs, rendered) = render(tools, &f, state);
+        compare(tools, &outputs, references, edited, width, height);
+        assert_eq!(serde_json::to_vec(&f.project()).unwrap(), before);
+        counts.states += 1;
+        counts.previews += rendered.previews;
+        counts.ranges += rendered.ranges;
+        counts.exports += rendered.exports;
+        eprintln!(
+            "rules_screen timing size={width}x{height} state={} operation=state_total elapsed_ms={}",
+            state_name,
+            state_started.elapsed().as_millis()
+        );
+    }
+    assert_eq!(
+        counts,
+        RenderCounts {
+            states: 5,
+            previews: 15,
+            ranges: 5,
+            exports: 5,
+        }
+    );
+    eprintln!(
+        "rules_screen timing size={width}x{height} operation=resolution_total elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
+    counts
+}
+
+fn selected_resolution(value: Option<&str>, required: bool) -> Option<(u32, u32)> {
+    match value {
+        Some("960x540") => Some(SIZES[0]),
+        Some("1280x720") => Some(SIZES[1]),
+        Some("1920x1080") => Some(SIZES[2]),
+        Some(other) => panic!("unsupported required rules-screen resolution: {other}"),
+        None if required => panic!("OPENCUT_RULES_SCREEN_RESOLUTION is required"),
+        None => None,
+    }
+}
+
+#[test]
+fn resolution_selection_requires_exact_supported_values() {
+    for (value, expected) in [
+        ("960x540", SIZES[0]),
+        ("1280x720", SIZES[1]),
+        ("1920x1080", SIZES[2]),
+    ] {
+        assert_eq!(selected_resolution(Some(value), true), Some(expected));
+    }
+    assert_eq!(selected_resolution(None, false), None);
+    assert!(std::panic::catch_unwind(|| selected_resolution(None, true)).is_err());
+    for invalid in ["", "960X540", "960x541", "1920x1080,1280x720"] {
+        assert!(std::panic::catch_unwind(|| selected_resolution(Some(invalid), true)).is_err());
+    }
+    assert_eq!(STATES.len() * (SAMPLE_TIMESTAMPS_MS.len() + 2), 25);
+}
+
+#[test]
+fn native_rules_screen_resolution_conformance() {
+    let required = env::var("OPENCUT_GOLDEN_REQUIRED").as_deref() == Ok("1");
+    let value = match env::var("OPENCUT_RULES_SCREEN_RESOLUTION") {
+        Ok(value) => Some(value),
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            panic!("OPENCUT_RULES_SCREEN_RESOLUTION must be valid UTF-8")
+        }
+    };
+    let size = selected_resolution(value.as_deref(), required);
+    let Some(size) = size else {
+        return;
+    };
+    let tools = configured_native_tools().expect("rules-screen resolution requires native tools");
     let references = load();
     assert_eq!(
         tools.font_sha256, FONT_HASH,
         "rules-screen requires the reviewed font"
     );
-    for (width, height) in SIZES {
-        let root = tempdir().unwrap();
-        let mut f = if width == 1920 {
-            fixture::seed(root.path())
-        } else {
-            fixture::seed_at(root.path(), width, height)
-        };
-        for state in 0..5 {
-            match state {
-                1 => f.resize_impact_word(),
-                2 => {
-                    f.core.undo(&f.id, f.project().revision).unwrap();
-                }
-                3 => {
-                    f.core.redo(&f.id, f.project().revision).unwrap();
-                }
-                4 => {
-                    f.core = crate::EditorCore::new(f.core.paths().clone());
-                }
-                _ => {}
-            }
-            let edited = matches!(state, 1 | 3 | 4);
-            assert_eq!(semantic(&f), references.plans[&key(edited, width, height)]);
-            let before = serde_json::to_vec(&f.project()).unwrap();
-            let outputs = render(tools, &f, state);
-            compare(tools, &outputs, &references, edited, width, height);
-            assert_eq!(serde_json::to_vec(&f.project()).unwrap(), before);
+    let memory_sampler = ProcessTreeSampler::start_with_interval(Duration::from_millis(250));
+    let counts = conformance_for_size(&tools, &references, size);
+    assert_eq!(
+        counts,
+        RenderCounts {
+            states: 5,
+            previews: 15,
+            ranges: 5,
+            exports: 5,
         }
-    }
+    );
+    eprintln!(
+        "rules_screen size={}x{} peak_process_tree_bytes={}",
+        size.0,
+        size.1,
+        memory_sampler.finish()
+    );
 }
 
 #[test]

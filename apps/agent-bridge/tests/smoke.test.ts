@@ -956,6 +956,112 @@ it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () 
   ).toBeUndefined();
 });
 
+it("edits typed animation channels through MCP standalone and alias batches", async () => {
+  const created = await call(
+    "project_create",
+    { name: "Animation channels smoke" },
+    writeResultSchema
+  );
+  const { projectId } = created;
+  const initial = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  const trackId = initial.project.tracks[1]?.id;
+  if (!trackId) {
+    throw new Error("overlay track missing");
+  }
+  const channel = (value: number) => ({
+    keyframes: [
+      {
+        curve: "linear",
+        timeMs: 0,
+        value: { type: "scalar", value },
+      },
+    ],
+    property: "transform.position_x",
+  });
+  const added = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: 0,
+      operations: [
+        {
+          color: "#ff0000",
+          durationMs: 1000,
+          height: 20,
+          operation: "add_rectangle",
+          resultAlias: "animated",
+          startMs: 0,
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          width: 30,
+        },
+        {
+          animationChannels: [channel(20)],
+          itemId: "@animated",
+          operation: "set_animation_channels",
+        },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const itemId = added.aliases.animated;
+  const edited = await call(
+    "timeline_set_animation_channels",
+    {
+      animationChannels: [channel(40)],
+      expectedRevision: 1,
+      itemId,
+      projectId,
+    },
+    writeResultSchema
+  );
+  expect(edited.revision).toBe(2);
+  await Promise.all(
+    (
+      [
+        [0, [channel(50)], "REVISION_CONFLICT"],
+        [2, [channel(1_000_001)], "INVALID_ARGUMENT"],
+        [
+          2,
+          [{ ...channel(10), property: "transform.rotation_deg" }],
+          "INVALID_ARGUMENT",
+        ],
+      ] as const
+    ).map(async ([expectedRevision, animationChannels, code]) => {
+      const rejected = await client.callTool({
+        arguments: { animationChannels, expectedRevision, itemId, projectId },
+        name: "timeline_set_animation_channels",
+      });
+      expect(rejected.structuredContent).toMatchObject({ error: { code } });
+    })
+  );
+  const reopened = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(reopened.project.tracks[1]?.items[0]?.animationChannels).toEqual([
+    channel(40),
+  ]);
+  await call(
+    "project_undo",
+    { expectedRevision: 2, projectId },
+    writeResultSchema
+  );
+  const undone = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  expect(undone.project.tracks[1]?.items[0]?.animationChannels).toEqual([
+    channel(20),
+  ]);
+});
+
 it("persists explicit stacking through standalone and alias batch tools", async () => {
   const created = await call(
     "project_create",

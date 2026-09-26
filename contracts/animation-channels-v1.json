@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 22,
+  "limits": {
+    "maxChannelsPerItem": 64,
+    "maxKeyframesPerChannel": 1000,
+    "maxPathPoints": 4096,
+    "maxGradientStops": 32
+  },
+  "active": {
+    "transform.position_x": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
+    "transform.position_y": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
+    "transform.scale_x": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimumExclusive": 0, "maximum": 100 },
+    "transform.scale_y": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimumExclusive": 0, "maximum": 100 },
+    "transform.opacity": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": 0, "maximum": 1 },
+    "audio.gain_db": { "valueType": "scalar", "target": "media_audio", "activation": "active", "minimum": -96, "maximum": 12 }
+  },
+  "inactive": {
+    "transform.rotation_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.skew_x_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.skew_y_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.anchor_x": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.anchor_y": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "media.crop_x": { "valueType": "scalar", "target": "media_visual", "activation": "inactive", "bounds": "deferred" },
+    "media.crop_y": { "valueType": "scalar", "target": "media_visual", "activation": "inactive", "bounds": "deferred" },
+    "media.crop_width": { "valueType": "scalar", "target": "media_visual", "activation": "inactive", "bounds": "deferred" },
+    "media.crop_height": { "valueType": "scalar", "target": "media_visual", "activation": "inactive", "bounds": "deferred" },
+    "media.source_position_ms": { "valueType": "scalar", "target": "media_source", "activation": "inactive", "bounds": "deferred" },
+    "media.playback_rate": { "valueType": "scalar", "target": "media_source", "activation": "inactive", "bounds": "deferred" },
+    "graphic.path_points": { "valueType": "path_points", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.path_trim": { "valueType": "scalar", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.fill_color": { "valueType": "rgba", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.stroke_color": { "valueType": "rgba", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.stroke_width": { "valueType": "scalar", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.gradient_stops": { "valueType": "gradient_stops", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.blur_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.glow_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.tint_color": { "valueType": "rgba", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.vignette_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.particle_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "audio.pan": { "valueType": "scalar", "target": "media_audio", "activation": "inactive", "bounds": "deferred" }
+  },
+  "curves": ["hold", "linear"],
+  "timeUnit": "item_local_milliseconds",
+  "examples": {
+    "validChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "linear" }] },
+    "invalidChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "expression", "value": "t" }, "curve": "linear" }] },
+    "inactiveChannel": { "property": "transform.rotation_deg", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "hold" }] }
+  },
+  "operation": "set_animation_channels",
+  "mcpTool": "timeline_set_animation_channels",
+  "capability": "typed_animation_channels_v1"
+}

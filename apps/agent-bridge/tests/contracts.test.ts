@@ -301,7 +301,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 21,
+      projectSchemaVersion: 22,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -338,6 +338,7 @@ describe("canonical public contracts", () => {
       "content_addressed_text_layout_v2",
       "styled_text_layers_v1",
       "advanced_text_layout_v1",
+      "typed_animation_channels_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

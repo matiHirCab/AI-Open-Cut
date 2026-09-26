@@ -4309,7 +4309,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -4380,7 +4380,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13, 16, 17, 20] {
+        for version in [9, 13, 16, 17, 20, 21] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())
@@ -4422,6 +4422,38 @@ mod tests {
             );
             assert_no_managed_transaction_files(&dir);
         }
+    }
+
+    #[test]
+    fn schema_21_rejects_channel_data_in_retained_history_without_rewrite() {
+        let (core, _) = core();
+        let created = core
+            .create_project("channel migration guard", ProjectSettings::default())
+            .unwrap();
+        let dir = core.paths().project_dir(&created.project_id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(21);
+        let mut invalid_snapshot = legacy.clone();
+        invalid_snapshot["tracks"][1]["items"] = serde_json::json!([{
+            "type":"rectangle", "id":"rect", "color":"#ffffff", "width":10,
+            "height":10, "startMs":0, "durationMs":1000, "keyframes":[],
+            "stackOrder":0, "animationChannels":[]
+        }]);
+        write_json_atomic(&project_file, &legacy).unwrap();
+        write_json_atomic(
+            &history_file,
+            &serde_json::json!({
+                "undo":[legacy], "redo":[invalid_snapshot]
+            }),
+        )
+        .unwrap();
+        let project_before = std::fs::read(&project_file).unwrap();
+        let history_before = std::fs::read(&history_file).unwrap();
+        assert!(core.get_project(&created.project_id).is_err());
+        assert_eq!(std::fs::read(&project_file).unwrap(), project_before);
+        assert_eq!(std::fs::read(&history_file).unwrap(), history_before);
     }
 
     #[test]

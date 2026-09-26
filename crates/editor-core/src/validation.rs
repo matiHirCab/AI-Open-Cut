@@ -3,6 +3,7 @@
 //! Transports, persistence, rendering infrastructure, and presentation code call
 //! these rules rather than maintaining parallel validation implementations.
 
+pub(crate) mod animation_channels;
 pub(crate) mod grid;
 pub(crate) mod repeater;
 pub(crate) mod styled_text;
@@ -86,6 +87,7 @@ pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreErr
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
     validate_project_stacking(project)?;
     validate_parent_graph(project)?;
+    validate_root_animation_channels(project)?;
     for item in project.tracks.iter().flat_map(|track| &track.items) {
         validate_transform(&item.visual_properties().transform)?;
         if let Some(value) = &item.visual_properties().transform2d {
@@ -103,6 +105,17 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
                 ));
             }
         }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_root_animation_channels(project: &Project) -> Result<(), CoreError> {
+    for item in project.tracks.iter().flat_map(|track| &track.items) {
+        animation_channels::validate_channels(
+            &item.visual_properties().animation_channels,
+            item,
+            project,
+        )?;
     }
     Ok(())
 }
@@ -862,6 +875,11 @@ fn validate_component_content(
                 return Err(invalid("component keyframe limit exceeded"));
             }
             validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
+            animation_channels::validate_channels(
+                &item.visual_properties().animation_channels,
+                item,
+                project,
+            )?;
             if item.keyframes().iter().any(|key| {
                 key.time_ms > safe_time
                     || (key.property == KeyframeProperty::Volume

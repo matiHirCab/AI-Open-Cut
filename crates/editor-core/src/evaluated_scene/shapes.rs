@@ -798,7 +798,8 @@ fn affine_with_ancestors(
     if layer.has_animated_geometry() {
         let mut xs = vec![layer.transform.position_x];
         let mut ys = vec![layer.transform.position_y];
-        let mut scales = vec![layer.transform.scale];
+        let mut scales_x = vec![layer.transform.scale];
+        let mut scales_y = vec![layer.transform.scale];
         for k in &layer.keyframes {
             match (k.property, k.value) {
                 (EvaluatedProperty::Position, EvaluatedKeyframeValue::Position { x, y }) => {
@@ -806,7 +807,20 @@ fn affine_with_ancestors(
                     ys.push(y);
                 }
                 (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) => {
-                    scales.push(value)
+                    scales_x.push(value);
+                    scales_y.push(value);
+                }
+                (EvaluatedProperty::PositionX, EvaluatedKeyframeValue::Scalar { value }) => {
+                    xs.push(value)
+                }
+                (EvaluatedProperty::PositionY, EvaluatedKeyframeValue::Scalar { value }) => {
+                    ys.push(value)
+                }
+                (EvaluatedProperty::ScaleX, EvaluatedKeyframeValue::Scalar { value }) => {
+                    scales_x.push(value)
+                }
+                (EvaluatedProperty::ScaleY, EvaluatedKeyframeValue::Scalar { value }) => {
+                    scales_y.push(value)
                 }
                 _ => {}
             }
@@ -823,19 +837,45 @@ fn affine_with_ancestors(
             f64::NEG_INFINITY,
             f64::NEG_INFINITY,
         ];
-        let mut sample = layer.clone();
-        sample.keyframes.clear();
         for x in extremes(xs) {
             for y in extremes(ys.clone()) {
-                for scale in extremes(scales.clone()) {
-                    sample.transform.position_x = x;
-                    sample.transform.position_y = y;
-                    sample.transform.scale = scale;
-                    let a = affine_with_ancestors(&sample, shape, output_canvas, ancestors)?;
-                    bounds[0] = bounds[0].min(a.left);
-                    bounds[1] = bounds[1].min(a.top);
-                    bounds[2] = bounds[2].max(a.left + f64::from(a.width));
-                    bounds[3] = bounds[3].max(a.top + f64::from(a.height));
+                for scale_x in extremes(scales_x.clone()) {
+                    for scale_y in extremes(scales_y.clone()) {
+                        if scale_x <= 0.0 || scale_y <= 0.0 {
+                            return Err(invalid("invalid animated shape scale"));
+                        }
+                        let matrix = multiply_matrix(
+                            parent,
+                            [
+                                scale_x / shape.density,
+                                0.0,
+                                0.0,
+                                scale_y / shape.density,
+                                x + scale_x * shape.origin.0,
+                                y + scale_y * shape.origin.1,
+                            ],
+                        );
+                        let [a, b, c, d, tx, ty] = matrix;
+                        let det = a * d - b * c;
+                        let inverse = [
+                            d / det,
+                            -b / det,
+                            -c / det,
+                            a / det,
+                            (c * ty - d * tx) / det,
+                            (b * tx - a * ty) / det,
+                        ];
+                        let result = affine_from_matrices(
+                            matrix,
+                            inverse,
+                            shape.size,
+                            opacity * ancestors.map_or(1.0, |p| p.opacity),
+                        )?;
+                        bounds[0] = bounds[0].min(result.left);
+                        bounds[1] = bounds[1].min(result.top);
+                        bounds[2] = bounds[2].max(result.left + f64::from(result.width));
+                        bounds[3] = bounds[3].max(result.top + f64::from(result.height));
+                    }
                 }
             }
         }
@@ -1094,8 +1134,10 @@ fn measure_layer_shape(
     let mut scale = base_scale;
     if layer.transform2d.is_none() {
         for keyframe in &layer.keyframes {
-            if let (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) =
-                (keyframe.property, keyframe.value)
+            if let (
+                EvaluatedProperty::Scale | EvaluatedProperty::ScaleX | EvaluatedProperty::ScaleY,
+                EvaluatedKeyframeValue::Scalar { value },
+            ) = (keyframe.property, keyframe.value)
             {
                 scale = scale.max(base_scale / layer.transform.scale * value);
             }

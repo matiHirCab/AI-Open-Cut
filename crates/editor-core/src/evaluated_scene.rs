@@ -1404,9 +1404,14 @@ pub(crate) struct EvaluatedTransform {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EvaluatedProperty {
     Position,
+    PositionX,
+    PositionY,
     Scale,
+    ScaleX,
+    ScaleY,
     Opacity,
     Volume,
+    GainDb,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1736,6 +1741,7 @@ fn evaluate_flat_project(
     let preflight = preflight_project(project, &asset_by_id, shape_budget, retained)?;
     validate_project_stacking(project)?;
     crate::validation::validate_parent_graph(project)?;
+    crate::validation::validate_root_animation_channels(project)?;
     let duration_ms = checked_project_duration(project)?.max(1);
     let transition_index = index_transitions(project, &preflight.visual_item_ids)?;
     let voiceover_intervals = audible_voiceover_intervals(
@@ -1773,11 +1779,19 @@ fn evaluate_flat_project(
                         &mut media_bindings,
                         &mut resource_indexes,
                     );
-                    let keyframes = evaluate_keyframes(&media.keyframes)?;
+                    let keyframes = evaluate_keyframes(
+                        &media.keyframes,
+                        &media.visual_properties.animation_channels,
+                    )?;
                     let volume_keyframes = keyframes
                         .iter()
                         .copied()
-                        .filter(|keyframe| keyframe.property == EvaluatedProperty::Volume)
+                        .filter(|keyframe| {
+                            matches!(
+                                keyframe.property,
+                                EvaluatedProperty::Volume | EvaluatedProperty::GainDb
+                            )
+                        })
                         .collect();
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
@@ -1860,7 +1874,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(text.start_ms, text.duration_ms)?,
                         transform: evaluate_transform(&text.transform)?,
-                        keyframes: evaluate_keyframes(&text.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &text.keyframes,
+                            &text.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
                             spans: text.document.spans.clone(),
@@ -1891,7 +1908,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(color.start_ms, color.duration_ms)?,
                         transform: evaluate_transform(&color.transform)?,
-                        keyframes: evaluate_keyframes(&color.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &color.keyframes,
+                            &color.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&color.id, &transition_index),
                         source: EvaluatedVisualSource::SolidColor {
                             color: color.color.clone(),
@@ -1910,7 +1930,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
                         transform: evaluate_transform(&rectangle.transform)?,
-                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &rectangle.keyframes,
+                            &rectangle.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Rectangle {
                             color: rectangle.color.clone(),
@@ -1931,7 +1954,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
                         transform: evaluate_transform(&rectangle.transform)?,
-                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &rectangle.keyframes,
+                            &rectangle.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
                             shapes::EvaluatedShape::new(
@@ -1955,7 +1981,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
                         transform: evaluate_transform(&rectangle.transform)?,
-                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &rectangle.keyframes,
+                            &rectangle.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
                             shapes::EvaluatedShape::pending_svg(rectangle.document.clone()),
@@ -1974,7 +2003,10 @@ fn evaluate_flat_project(
                         order,
                         span: checked_span(rectangle.start_ms, rectangle.duration_ms)?,
                         transform: evaluate_transform(&rectangle.transform)?,
-                        keyframes: evaluate_keyframes(&rectangle.keyframes)?,
+                        keyframes: evaluate_keyframes(
+                            &rectangle.keyframes,
+                            &rectangle.visual_properties.animation_channels,
+                        )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
                             shapes::EvaluatedShape::pending_grid(rectangle.grid.clone()),
@@ -2019,7 +2051,9 @@ fn evaluate_flat_project(
 
     apply_ancestors(project, &mut visual_layers, (width, height), retained)?;
     for layer in &mut visual_layers {
-        if matches!(layer.source, EvaluatedVisualSource::Shape(_)) && layer.ancestors.is_none() {
+        if (matches!(layer.source, EvaluatedVisualSource::Shape(_)) || layer.has_typed_geometry())
+            && layer.ancestors.is_none()
+        {
             layer.ancestors = Some(EvaluatedAncestors {
                 matrix: IDENTITY_MATRIX,
                 inverse: IDENTITY_MATRIX,
@@ -2485,7 +2519,10 @@ fn evaluate_transform(transform: &Transform) -> Result<EvaluatedTransform, CoreE
     })
 }
 
-fn evaluate_keyframes(keyframes: &[Keyframe]) -> Result<Vec<EvaluatedKeyframe>, CoreError> {
+fn evaluate_keyframes(
+    keyframes: &[Keyframe],
+    channels: &[crate::AnimationChannel],
+) -> Result<Vec<EvaluatedKeyframe>, CoreError> {
     validate_keyframe_limit(keyframes)?;
     let mut evaluated = Vec::with_capacity(keyframes.len());
     for keyframe in keyframes {
@@ -2504,6 +2541,34 @@ fn evaluate_keyframes(keyframes: &[Keyframe]) -> Result<Vec<EvaluatedKeyframe>, 
             value,
             easing: evaluate_easing(keyframe.easing),
         });
+    }
+    for channel in channels {
+        let property = match channel.property {
+            crate::AnimationChannelProperty::PositionX => EvaluatedProperty::PositionX,
+            crate::AnimationChannelProperty::PositionY => EvaluatedProperty::PositionY,
+            crate::AnimationChannelProperty::ScaleX => EvaluatedProperty::ScaleX,
+            crate::AnimationChannelProperty::ScaleY => EvaluatedProperty::ScaleY,
+            crate::AnimationChannelProperty::Opacity => EvaluatedProperty::Opacity,
+            crate::AnimationChannelProperty::GainDb => EvaluatedProperty::GainDb,
+            _ => return Err(invalid("inactive animation channel in evaluated scene")),
+        };
+        for keyframe in &channel.keyframes {
+            let crate::AnimationChannelValue::Scalar { value } = keyframe.value else {
+                return Err(invalid("active animation channel requires scalar value"));
+            };
+            if !value.is_finite() {
+                return Err(invalid("non-finite animation channel value"));
+            }
+            evaluated.push(EvaluatedKeyframe {
+                property,
+                time_ms: keyframe.time_ms,
+                value: EvaluatedKeyframeValue::Scalar { value },
+                easing: match keyframe.curve {
+                    crate::AnimationCurve::Hold => EvaluatedEasing::Hold,
+                    crate::AnimationCurve::Linear => EvaluatedEasing::Linear,
+                },
+            });
+        }
     }
     Ok(evaluated)
 }
@@ -2715,6 +2780,66 @@ mod tests {
         AudioSettings, DuckingSettings, MediaItem, ProjectSettings, RectangleItem, SolidColorItem,
         TextItem, TextStyle, TrackType, TransitionItem,
     };
+
+    #[test]
+    fn typed_channels_reach_shared_visual_and_audio_scene() {
+        let mut visual_project = project();
+        visual_project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let rectangle: TimelineItem = serde_json::from_value(serde_json::json!({
+            "type":"rectangle", "id":"animated", "color":"#ff0000",
+            "width":20, "height":10, "startMs":0, "durationMs":1000,
+            "keyframes":[], "animationChannels":[
+                {"property":"transform.position_x","keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                    {"timeMs":500,"value":{"type":"scalar","value":60},"curve":"hold"}]},
+                {"property":"transform.scale_y","keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":1},"curve":"linear"},
+                    {"timeMs":500,"value":{"type":"scalar","value":2},"curve":"hold"}]}
+            ]
+        }))
+        .unwrap();
+        visual_project.tracks = vec![track("overlay", TrackType::Overlay, vec![rectangle])];
+        let mut scene = evaluate_project(&visual_project, 160, 90, 30)
+            .unwrap()
+            .scene;
+        assert!(scene.visual_layers[0].requires_affine());
+        assert!(scene.visual_layers[0].has_animated_geometry());
+        assert!(
+            scene.visual_layers[0]
+                .keyframes
+                .iter()
+                .any(|key| key.property == EvaluatedProperty::PositionX)
+        );
+        assert!(
+            scene.visual_layers[0]
+                .keyframes
+                .iter()
+                .any(|key| key.property == EvaluatedProperty::ScaleY)
+        );
+        finalize_affine_geometry(&mut scene, &HashMap::new()).unwrap();
+        assert!(scene.visual_layers[0].affine.is_some());
+
+        let mut audio_project = project();
+        audio_project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        audio_project.assets = vec![asset("sound", MediaType::Audio, true)];
+        let mut sound = media("sound-item", "sound", 0);
+        sound.visual_properties_mut().animation_channels =
+            serde_json::from_value(serde_json::json!([
+                {"property":"audio.gain_db","keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":-12},"curve":"linear"},
+                    {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}]}
+            ]))
+            .unwrap();
+        audio_project.tracks = vec![track("audio", TrackType::Audio, vec![sound])];
+        let scene = evaluate_project(&audio_project, 160, 90, 30).unwrap().scene;
+        assert_eq!(scene.audio_layers.len(), 1);
+        assert!(
+            scene.audio_layers[0]
+                .volume_keyframes
+                .iter()
+                .any(|key| key.property == EvaluatedProperty::GainDb)
+        );
+    }
 
     #[test]
     fn explicit_stacking_respects_tracks_z_index_array_ties_and_hidden_sources() {
@@ -3990,20 +4115,39 @@ impl EvaluatedVisualLayer {
     pub(crate) fn requires_affine(&self) -> bool {
         self.transform2d.is_some()
             || self.ancestors.is_some()
+            || self.has_typed_geometry()
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
             || matches!(&self.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some())
     }
     pub(crate) fn has_animated_geometry(&self) -> bool {
-        (self.ancestors.is_some()
+        (self.has_typed_geometry()
+            || self.ancestors.is_some()
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
             || matches!(&self.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some()))
             && self.transform2d.is_none()
             && self.keyframes.iter().any(|key| {
                 matches!(
                     key.property,
-                    EvaluatedProperty::Position | EvaluatedProperty::Scale
+                    EvaluatedProperty::Position
+                        | EvaluatedProperty::PositionX
+                        | EvaluatedProperty::PositionY
+                        | EvaluatedProperty::Scale
+                        | EvaluatedProperty::ScaleX
+                        | EvaluatedProperty::ScaleY
                 )
             })
+    }
+
+    fn has_typed_geometry(&self) -> bool {
+        self.keyframes.iter().any(|key| {
+            matches!(
+                key.property,
+                EvaluatedProperty::PositionX
+                    | EvaluatedProperty::PositionY
+                    | EvaluatedProperty::ScaleX
+                    | EvaluatedProperty::ScaleY
+            )
+        })
     }
     /// Logical padding box in raster coordinates; its origin includes paint/ink margins.
     fn text_logical_box(&self) -> Option<[f64; 4]> {
@@ -4339,7 +4483,8 @@ fn measure_layer_affine(
     if layer.has_animated_geometry() {
         let mut xs = Vec::new();
         let mut ys = Vec::new();
-        let mut scales = Vec::new();
+        let mut scales_x = Vec::new();
+        let mut scales_y = Vec::new();
         for key in &layer.keyframes {
             match (key.property, key.value) {
                 (EvaluatedProperty::Position, EvaluatedKeyframeValue::Position { x, y }) => {
@@ -4347,7 +4492,20 @@ fn measure_layer_affine(
                     ys.push(y);
                 }
                 (EvaluatedProperty::Scale, EvaluatedKeyframeValue::Scalar { value }) => {
-                    scales.push(value)
+                    scales_x.push(value);
+                    scales_y.push(value);
+                }
+                (EvaluatedProperty::PositionX, EvaluatedKeyframeValue::Scalar { value }) => {
+                    xs.push(value)
+                }
+                (EvaluatedProperty::PositionY, EvaluatedKeyframeValue::Scalar { value }) => {
+                    ys.push(value)
+                }
+                (EvaluatedProperty::ScaleX, EvaluatedKeyframeValue::Scalar { value }) => {
+                    scales_x.push(value)
+                }
+                (EvaluatedProperty::ScaleY, EvaluatedKeyframeValue::Scalar { value }) => {
+                    scales_y.push(value)
                 }
                 _ => {}
             }
@@ -4370,24 +4528,42 @@ fn measure_layer_affine(
         // bounds all combinations without expanding animation into per-frame facts.
         for x in extremes(&xs, layer.transform.position_x) {
             for y in extremes(&ys, layer.transform.position_y) {
-                for scale in extremes(&scales, layer.transform.scale) {
-                    if !scale.is_finite() || scale <= 0.0 {
-                        return Err(invalid("invalid animated scale"));
+                for scale_x in extremes(&scales_x, layer.transform.scale) {
+                    for scale_y in extremes(&scales_y, layer.transform.scale) {
+                        if !scale_x.is_finite()
+                            || scale_x <= 0.0
+                            || !scale_y.is_finite()
+                            || scale_y <= 0.0
+                        {
+                            return Err(invalid("invalid animated scale"));
+                        }
+                        let (ax, ay) = layer.legacy_anchor(source);
+                        let x = x - scale_x * ax;
+                        let y = y - scale_y * ay;
+                        let matrix =
+                            multiply_matrix(parent.matrix, [scale_x, 0.0, 0.0, scale_y, x, y]);
+                        let inverse = multiply_matrix(
+                            [
+                                1.0 / scale_x,
+                                0.0,
+                                0.0,
+                                1.0 / scale_y,
+                                -x / scale_x,
+                                -y / scale_y,
+                            ],
+                            parent.inverse,
+                        );
+                        let bounds = affine_from_matrices(
+                            matrix,
+                            inverse,
+                            source,
+                            opacity * parent.opacity,
+                        )?;
+                        left = left.min(bounds.left);
+                        top = top.min(bounds.top);
+                        right = right.max(bounds.left + f64::from(bounds.width));
+                        bottom = bottom.max(bounds.top + f64::from(bounds.height));
                     }
-                    let (ax, ay) = layer.legacy_anchor(source);
-                    let x = x - scale * ax;
-                    let y = y - scale * ay;
-                    let matrix = multiply_matrix(parent.matrix, [scale, 0.0, 0.0, scale, x, y]);
-                    let inverse = multiply_matrix(
-                        [1.0 / scale, 0.0, 0.0, 1.0 / scale, -x / scale, -y / scale],
-                        parent.inverse,
-                    );
-                    let bounds =
-                        affine_from_matrices(matrix, inverse, source, opacity * parent.opacity)?;
-                    left = left.min(bounds.left);
-                    top = top.min(bounds.top);
-                    right = right.max(bounds.left + f64::from(bounds.width));
-                    bottom = bottom.max(bounds.top + f64::from(bounds.height));
                 }
             }
         }

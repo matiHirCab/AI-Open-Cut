@@ -7,6 +7,7 @@ import type {
   addRepeaterSchema,
   addShapeSchema,
   addSvgSchema,
+  animationChannelSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
@@ -188,6 +189,11 @@ export type HeadlessEdit =
     }
   | { operation: "delete_item"; itemId: string }
   | { operation: "set_keyframes"; itemId: string; keyframes: unknown[] }
+  | {
+      operation: "set_animation_channels";
+      itemId: string;
+      animationChannels: z.input<typeof animationChannelSchema>[];
+    }
   | {
       operation: "add_transition";
       durationMs: number;

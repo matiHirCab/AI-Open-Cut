@@ -78,7 +78,7 @@ export async function verifyRichTextWorkflow(
   );
   const [itemId] = added.changedIds;
   const saved = await read();
-  expect(saved.project.schemaVersion).toBe(21);
+  expect(saved.project.schemaVersion).toBe(22);
   expect(Object.keys(saved.project.fonts)).toHaveLength(4);
   expect(Object.keys(saved.project.fonts).sort()).toEqual(
     [
