@@ -23,19 +23,23 @@ Repository validation MUST preserve the existing application, public contract, p
 - **THEN** no application runtime, public or persisted contract, migration, test selection, or required CI job is removed or changed
 
 ### Requirement: Stable motion-graphics foundation status
-Repository validation MUST publish one stable aggregate foundation status that waits for the dedicated OpenSpec policy, contract-parity, and render-parity statuses; executes after every terminal prerequisite outcome; reports all three results and the OpenSpec completion attestation; and succeeds only when all three results are exactly `success` and the policy attestation is exactly `true`. The reviewed bootstrap MUST emit the attestation only after it validates the complete workflow, Moon, and proto boundary and the shell-free protected Moon task exits successfully; neither the workflow command nor the Moon child may emit or fabricate it directly. A failed, cancelled, skipped, neutralized, masked, or ignored-failure prerequisite MUST produce a non-successful aggregate status suitable as the single branch-protection target.
+Repository validation MUST publish one stable aggregate foundation status that waits for dedicated OpenSpec policy, contract-parity, render-parity, and rules-screen-parity statuses; executes after every terminal prerequisite outcome; reports all four results and the OpenSpec completion attestation; and succeeds only when all four results are exactly `success` and the attestation is exactly `true`. The reviewed bootstrap MUST emit attestation only after validating the complete workflow, Moon, and proto boundary and successful shell-free protected Moon execution; neither the workflow command nor the Moon child may emit or fabricate it directly. A failed, cancelled, skipped, neutralized, masked, or ignored-failure prerequisite MUST produce a non-successful aggregate status suitable as the single branch-protection target.
 
-#### Scenario: All required boundaries complete successfully
-- **WHEN** the complete reviewed Moon policy task succeeds, the bootstrap emits `true`, and policy, contract, and render all report `success`
-- **THEN** the aggregate logs the attestation and all three results, succeeds, and is available as the single branch-protection target
+#### Scenario: All four required boundaries complete successfully
+- **WHEN** the complete reviewed Moon policy task succeeds, the bootstrap emits `true`, and policy, contract, original render, and three-resolution rules-screen parity all report `success`
+- **THEN** the aggregate logs the attestation and all four results, succeeds, and is available as the single branch-protection target
+
+#### Scenario: Any rules-screen shard fails or is omitted
+- **WHEN** any required rules-screen resolution job fails, is cancelled, skipped, duplicated, or absent
+- **THEN** policy validation or the unconditional foundation assertion fails even if the original Render parity job succeeds
 
 #### Scenario: Policy validation fails
-- **WHEN** structural policy validation reports `failure` while both functional parity statuses report `success`
+- **WHEN** structural policy validation reports `failure` while all three functional parity statuses report `success`
 - **THEN** the aggregate still executes, logs its inputs, and fails
 
 #### Scenario: Moon failure cannot forge policy success
 - **WHEN** the protected Moon process fails to start or exits nonzero
-- **THEN** the bootstrap emits no completion marker and the aggregate fails even when both functional parity statuses report `success`
+- **THEN** the bootstrap emits no completion marker and the aggregate fails even when all three functional parity statuses report `success`
 
 #### Scenario: Policy execution is skipped or neutralized
 - **WHEN** preflight rejects the reviewed boundary or the Moon task does not execute to successful completion
@@ -50,7 +54,19 @@ Repository validation MUST publish one stable aggregate foundation status that w
 - **THEN** the aggregate still executes, logs its inputs, and fails regardless of the attestation value
 
 ### Requirement: Automated CI gate policy validation
-The repository's pinned validation workflow MUST structurally verify the stable OpenSpec policy and parity job identities, dependency relationship, unconditional aggregate execution, explicit prerequisite-result and policy-attestation assertions, exact closed OpenSpec, contract, and render step sequences, exact approved properties and environments for every protected step, declared working directories, absence of workflow-level and protected-job-level environment maps, absence of golden mutation or alternate-capture modes, absence of protected-job command defaults and containers, default failure propagation, strict report validation before publication, publication of the exact validated report path, and the complete effective Bun, Moon, and proto policy execution boundary. Before repository-controlled Bun or Moon configuration is interpreted, the OpenSpec job MUST install explicit reviewed bootstrap versions and invoke Bun with an empty trusted configuration and automatic dotenv loading disabled. The bootstrap MUST validate every protected workflow, Bun, Moon, and proto source and refuse to launch Moon on any invalid input. The bootstrap MUST invoke only the explicitly qualified root Moon task without a shell, MUST withhold the GitHub output channel from the Moon child, and MUST emit the exact completion attestation only after the child exits successfully. The root project MUST reject inherited tasks and project-wide execution overrides; its canonical Bun configuration, workspace mapping, pinned toolchain, and `.prototools` versions MUST remain stable. Every protected Bun command in the Moon task MUST explicitly use the validated Bun configuration with automatic dotenv loading disabled, and the task MUST execute the real-Moon startup-hook regression on its supported CI platform. Global task configurations MAY serve other projects but MUST NOT inject global environment, implicit execution settings, or external extensions. Environment maps on unrelated GitHub jobs, ignored local dotenv files outside protected execution, and project-local Moon configuration outside the root project MUST remain permitted.
+The repository's pinned validation workflow MUST structurally verify the stable OpenSpec policy and parity job identities, dependency relationship, unconditional aggregate execution, explicit prerequisite-result and policy-attestation assertions, exact closed OpenSpec, contract, original render, and rules-screen step sequences, exact approved properties and environments for every protected step, declared working directories, absence of workflow-level and protected-job-level environment maps, absence of golden mutation or alternate-capture modes, absence of protected-job command defaults and containers, default failure propagation, strict report validation before publication, publication of the exact validated report path, and the complete effective Bun, Moon, and proto policy execution boundary. The rules-screen matrix MUST contain exactly 960x540, 1280x720, and 1920x1080, use at most three concurrent Linux jobs without short-circuiting failure collection, discover and execute the exact native test in an optimized profile, require step-local tools/font/resolution inputs, and fail if selection matches zero tests. Foundation parity MUST directly require and check all four prerequisite results and the OpenSpec attestation. The original Render parity job MUST retain native cache evidence and strict report validation before its unchanged publication. Before repository-controlled Bun or Moon configuration is interpreted, the OpenSpec job MUST install explicit reviewed bootstrap versions and invoke Bun with an empty trusted configuration and automatic dotenv loading disabled. The bootstrap MUST validate every protected workflow, Bun, Moon, and proto source and refuse to launch Moon on any invalid input. The bootstrap MUST invoke only the explicitly qualified root Moon task without a shell, MUST withhold the GitHub output channel from the Moon child, and MUST emit the exact completion attestation only after the child exits successfully. The root project MUST reject inherited tasks and project-wide execution overrides; its canonical Bun configuration, workspace mapping, pinned toolchain, and `.prototools` versions MUST remain stable. Every protected Bun command in the Moon task MUST explicitly use the validated Bun configuration with automatic dotenv loading disabled, and the task MUST execute the real-Moon startup-hook regression on its supported CI platform. Global task configurations MAY serve other projects but MUST NOT inject global environment, implicit execution settings, or external extensions. Environment maps on unrelated GitHub jobs, ignored local dotenv files outside protected execution, and project-local Moon configuration outside the root project MUST remain permitted.
+
+#### Scenario: Accept all three required resolution shards
+- **WHEN** the workflow lists exactly 960x540, 1280x720, and 1920x1080 with at most three parallel Linux jobs, the approved tool/font environment, exact test-discovery and test-execution commands, default failure propagation, and a four-result foundation assertion
+- **THEN** policy validation accepts the distributed rules-screen evidence while preserving the original report and all existing gates
+
+#### Scenario: Reject missing, duplicated, or zero-test evidence
+- **WHEN** a resolution is missing or duplicated, the matrix or test selector changes, the exact test cannot be discovered, a shard becomes optional, or its command/environment is neutralized
+- **THEN** policy validation or the shard fails before the foundation gate can succeed
+
+#### Scenario: Reject weakened aggregate or report ownership
+- **WHEN** the foundation gate omits either render result or accepts failure/skipping, or the original Render parity report validation/publication order or path changes
+- **THEN** policy validation rejects the workflow
 
 #### Scenario: Validate the isolated Bun and Moon policy boundary
 - **WHEN** workflow, canonical Bun configuration, root project, workspace, toolchain, proto pins, and global tasks match the reviewed policy
@@ -209,12 +225,12 @@ Repository policy MUST enforce the reviewed render-parity sequence including loc
 - **THEN** policy validation rejects the workflow without relaxing the existing protected sequence or golden/report guarantees
 
 ### Requirement: Protected optimized golden command
-Repository policy MUST pin the exact optimized native golden command inside the existing required Render parity step and MUST keep all other protected step commands, approved environments, dependency ordering, failure propagation, strict report validation, and report publication guarantees unchanged.
+Repository policy MUST pin the exact optimized native golden command for non-rules-screen suites inside the existing required Render parity step and exact optimized native test discovery and execution commands inside every rules-screen matrix job. All other approved Render parity commands, environments, cache and report ordering, failure propagation, and publication guarantees MUST remain unchanged. A test selector that matches zero tests MUST fail rather than silently count as a successful shard.
 
-#### Scenario: Accept the reviewed optimized command
-- **WHEN** the Render parity workflow contains the approved optimized golden command and otherwise matches the protected policy
+#### Scenario: Accept reviewed split optimized commands
+- **WHEN** both render jobs contain their exact approved optimized commands and protected environments
 - **THEN** CI policy validation accepts the workflow without weakening the required render or foundation gates
 
-#### Scenario: Reject altered render evidence
-- **WHEN** the golden command is removed, made optional, changed to an unapproved profile or target, or moved outside the protected step
-- **THEN** CI policy validation rejects the workflow before it can satisfy the protected gate
+#### Scenario: Reject altered or empty render selection
+- **WHEN** a native command is removed, made optional, selects zero tests, changes profile or target, or moves outside its protected step
+- **THEN** CI policy validation or explicit discovery fails before the protected foundation gate can succeed

@@ -13,9 +13,10 @@
 ## 3. Verification
 
 - [x] 3.1 Run focused native, CI-policy, formatting, strict Clippy, workspace, TypeScript, contract parity, MCP integration, packaged smoke, Python worker, and pinned strict OpenSpec checks; capture full logs and exits.
-- [ ] 3.2 Run the pre-archive protected Moon gate, allowing only rejection of this active change. Push the candidate and require all three rules-screen shards, original Render parity, Windows/Ubuntu/macOS correctness, and contract/smoke checks to pass. Verify 45 preview, 15 range, 15 export records, per-resolution peak memory, unchanged report schema/reference checks, and protected workflow wall time below 120 minutes.
+- [x] 3.2 Run the pre-archive protected Moon gate, allowing only rejection of this active change. Candidate run 36244746913 passed all three rules-screen shards, original Render parity, Windows/Ubuntu/macOS correctness, and contract/smoke checks. Its three shard logs contain 45 preview, 15 range, and 15 export records; each has five ordered state totals and a process-tree peak (842,682,368 / 1,203,777,536 / 2,105,208,832 bytes). The original report passed strict schema/reference validation and upload. Protected wall time was 2h03m39s, improving on 205m01s and 336m50s by 81m22s and 3h33m11s. The reviewer explicitly accepted this measured result after the original under-two-hour target was missed by 3m39s.
 
 ## 4. Completion
 
-- [ ] 4.1 Run `$openspec-verify-change`, resolve mismatches, synchronize both deltas, and archive only after candidate checks and time target pass. If 1920x1080 prevents the target, stop and seek separately approved renderer optimization without reducing evidence.
-- [ ] 4.2 Run post-archive protected Moon and pinned strict all-spec validation; require final protected workflow and foundation gate to pass below 120 minutes before declaring PR #124 ready.
+- [x] 4.1 Run `$openspec-verify-change`, resolve mismatches, synchronize both deltas after the reviewer-accepted candidate result, and strictly validate the synced specs. Archive once all tasks are checked.
+
+After archival, run protected Moon and pinned strict all-spec validation, then push and require the final protected workflow and foundation gate to pass before declaring PR #124 ready. Record the final wall time against the 2h03m39s candidate and older 205m01s/336m50s baselines; timing remains report-only, while every output criterion and gate remains mandatory.
