@@ -17,7 +17,7 @@ const FOUNDATION_CONDITION = "${{ always() }}";
 const OPENSPEC_COMMAND =
   "bun --config=/dev/null --no-env-file run scripts/run-ci-policy.ts --attest-github-output";
 const OPENSPEC_TASK_COMMAND = `bun --config=bunfig.toml --no-env-file run scripts/normalize-openspec-workflows.ts --check &&
-bun --config=bunfig.toml --no-env-file test scripts/validate-ci-gates.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts &&
+bun --config=bunfig.toml --no-env-file test scripts/ci-duration.test.ts scripts/validate-ci-gates.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts &&
 bun --config=bunfig.toml --no-env-file x @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive &&
 bun --config=bunfig.toml --no-env-file run scripts/validate-ci-gates.ts`;
 const OPENSPEC_TASK_INPUTS = [
@@ -27,6 +27,8 @@ const OPENSPEC_TASK_INPUTS = [
   "scripts/normalize-openspec-workflows.ts",
   "scripts/validate-ci-gates.ts",
   "scripts/validate-ci-gates.test.ts",
+  "scripts/ci-duration.ts",
+  "scripts/ci-duration.test.ts",
   "scripts/run-ci-policy.ts",
   "scripts/run-ci-policy.test.ts",
   "scripts/run-ci-policy.integration.test.ts",
@@ -73,10 +75,32 @@ echo "OpenSpec policy attested: $OPENSPEC_POLICY_VALIDATED"
 echo "Contract parity: $CONTRACT_PARITY_RESULT"
 echo "Render parity: $RENDER_PARITY_RESULT"
 echo "Rules-screen parity: $RULES_SCREEN_PARITY_RESULT"
-if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ] || [ "$RULES_SCREEN_PARITY_RESULT" != "success" ]; then
-  echo "Foundation parity requires attested policy validation and all three leaf gates to succeed." >&2
+echo "Correctness: $CORRECTNESS_RESULT"
+echo "Packaged smoke: $PACKAGED_SMOKE_RESULT"
+if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ] || [ "$RULES_SCREEN_PARITY_RESULT" != "success" ] || [ "$CORRECTNESS_RESULT" != "success" ] || [ "$PACKAGED_SMOKE_RESULT" != "success" ]; then
+  echo "Foundation parity requires attested policy validation and every required job to succeed." >&2
   exit 1
 fi`;
+const DURATION_COMMAND = "bun --config=/dev/null --no-env-file run scripts/ci-duration.ts";
+const DURATION_ENVIRONMENT: UnknownRecord = {
+  GH_TOKEN: "${{ github.token }}",
+  GITHUB_REPOSITORY: "${{ github.repository }}",
+  GITHUB_RUN_ID: "${{ github.run_id }}",
+  CI_DURATION_OWNER: "@matiHirCab",
+  CI_DURATION_REASON:
+    "Measured 1920x1080 rules-screen renderer cost; preserve all 75 renders while optimizing separately",
+  CI_DURATION_BASELINE_MINUTES: "123.65",
+  CI_DURATION_EVIDENCE_URL:
+    "https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36244746913",
+  CI_DURATION_EXPIRES_ON: "2026-10-26",
+  CI_DURATION_CAP_MINUTES: "135",
+};
+
+function requireTimeout(job: UnknownRecord, label: string, expected: number): void {
+  if (job["timeout-minutes"] !== expected) {
+    throw new Error(`${label}.timeout-minutes must be ${expected}`);
+  }
+}
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -346,10 +370,11 @@ function validateOpenSpecJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, "jobs.openspec.env");
   rejectRunDefaults(job.defaults, "jobs.openspec.defaults");
   rejectLeafContainer(job, "jobs.openspec");
+  requireTimeout(job, "jobs.openspec", 135);
   if (job.if !== undefined) {
     throw new Error("jobs.openspec must not be conditionally skipped");
   }
-  requireExactKeys(job, ["name", "outputs", "runs-on", "steps"], "jobs.openspec");
+  requireExactKeys(job, ["name", "outputs", "runs-on", "steps", "timeout-minutes"], "jobs.openspec");
   const outputs = record(job.outputs, "jobs.openspec.outputs");
   requireExactKeys(outputs, ["policy_validated"], "jobs.openspec.outputs");
   if (outputs.policy_validated !== "${{ steps.policy.outputs.validated }}") {
@@ -585,6 +610,7 @@ function validateContractJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, "jobs.contract-parity.env");
   rejectRunDefaults(job.defaults, "jobs.contract-parity.defaults");
   rejectLeafContainer(job, "jobs.contract-parity");
+  requireTimeout(job, "jobs.contract-parity", 135);
   const jobSteps = steps(job, "jobs.contract-parity");
   requireExactStepSequence(
     jobSteps,
@@ -631,6 +657,7 @@ function validateRenderJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, "jobs.render-parity.env");
   rejectRunDefaults(job.defaults, "jobs.render-parity.defaults");
   rejectLeafContainer(job, "jobs.render-parity");
+  requireTimeout(job, "jobs.render-parity", 135);
   const jobSteps = steps(job, "jobs.render-parity");
   requireExactStepSequence(
     jobSteps,
@@ -769,7 +796,8 @@ function validateRulesScreenJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, `${label}.env`);
   rejectRunDefaults(job.defaults, `${label}.defaults`);
   rejectLeafContainer(job, label);
-  requireExactKeys(job, ["name", "runs-on", "steps", "strategy"], label);
+  requireTimeout(job, label, 135);
+  requireExactKeys(job, ["name", "runs-on", "steps", "strategy", "timeout-minutes"], label);
 
   const strategy = record(job.strategy, `${label}.strategy`);
   requireExactKeys(strategy, ["fail-fast", "matrix", "max-parallel"], `${label}.strategy`);
@@ -822,22 +850,118 @@ function validateRulesScreenJob(job: UnknownRecord): void {
   requireWorkingDirectory(native, undefined, "rules-screen-parity native step");
 }
 
+function validateCorrectnessJob(job: UnknownRecord): void {
+  const label = "jobs.correctness";
+  requireTimeout(job, label, 135);
+  rejectIgnoredFailures(job, label);
+  rejectInheritedEnvironment(job.env, `${label}.env`);
+  rejectRunDefaults(job.defaults, `${label}.defaults`);
+  rejectLeafContainer(job, label);
+  requireExactKeys(job, ["name", "runs-on", "steps", "strategy", "timeout-minutes"], label);
+  if (job.name !== "Correctness (${{ matrix.os }})" || job["runs-on"] !== "${{ matrix.os }}") {
+    throw new Error(`${label} must retain the three-platform matrix identity`);
+  }
+  const strategy = record(job.strategy, `${label}.strategy`);
+  requireExactKeys(strategy, ["fail-fast", "matrix"], `${label}.strategy`);
+  if (strategy["fail-fast"] !== false) throw new Error(`${label} must collect every platform result`);
+  const matrix = record(strategy.matrix, `${label}.strategy.matrix`);
+  requireExactKeys(matrix, ["os"], `${label}.strategy.matrix`);
+  requireExactStringArray(
+    matrix.os,
+    ["ubuntu-latest", "windows-latest", "macos-latest"],
+    `${label}.strategy.matrix.os`
+  );
+  const jobSteps = steps(job, label);
+  requireExactStepSequence(
+    jobSteps,
+    [undefined, undefined, "Install Linux desktop dependencies", "Setup pinned toolchain", "Install JavaScript dependencies", "Rust formatting", "Strict workspace Clippy", "Rust tests", "TypeScript typecheck", "TypeScript lint", "Hermetic TypeScript unit tests", "Minimal Python worker tests"],
+    label
+  );
+  validateCheckout(jobSteps[0]!, `${label} checkout`);
+  const python = jobSteps[1]!;
+  requireExactKeys(python, ["uses", "with"], `${label} Python setup`);
+  if (python.uses !== "actions/setup-python@v5") throw new Error(`${label} Python setup must be pinned`);
+  requireExactEnvironment(python.with, { "python-version": "3.11" }, `${label} Python setup with`);
+  const linux = jobSteps[2]!;
+  requireExactKeys(linux, ["name", "if", "run"], `${label} Linux dependencies`);
+  if (linux.if !== "runner.os == 'Linux'") throw new Error(`${label} Linux dependency condition changed`);
+  requireExactCommand(linux, "sudo apt-get update\nsudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev", `${label} Linux dependencies`);
+  validatePinnedToolchain(jobSteps, label);
+  const commands: readonly [number, string, string | undefined][] = [
+    [4, "bun install --frozen-lockfile", AGENT_BRIDGE_DIRECTORY],
+    [5, "cargo fmt --check --all", undefined],
+    [6, "cargo clippy --workspace --all-targets -- -D warnings", undefined],
+    [7, "cargo test --workspace", undefined],
+    [8, "bun run typecheck", AGENT_BRIDGE_DIRECTORY],
+    [9, "bun run lint", AGENT_BRIDGE_DIRECTORY],
+    [10, "bun run test", AGENT_BRIDGE_DIRECTORY],
+    [11, "bun run apps/agent-bridge/scripts/run-python-tests.ts", undefined],
+  ];
+  for (const [index, command, directory] of commands) {
+    const step = jobSteps[index]!;
+    rejectIgnoredFailures(step, `${label}.steps[${index}]`);
+    if (step.if !== undefined) throw new Error(`${label}.steps[${index}] must not be skipped`);
+    requireExactKeys(step, directory ? ["name", "run", "working-directory"] : ["name", "run"], `${label}.steps[${index}]`);
+    requireExactCommand(step, command, `${label}.steps[${index}]`);
+    requireWorkingDirectory(step, directory, `${label}.steps[${index}]`);
+  }
+}
+
+function validatePackagedSmokeJob(job: UnknownRecord): void {
+  const label = "jobs.packaged-smoke";
+  requireTimeout(job, label, 135);
+  rejectIgnoredFailures(job, label);
+  rejectInheritedEnvironment(job.env, `${label}.env`);
+  rejectRunDefaults(job.defaults, `${label}.defaults`);
+  rejectLeafContainer(job, label);
+  requireExactKeys(job, ["name", "runs-on", "steps", "timeout-minutes"], label);
+  if (job.name !== "Packaged fake-provider integration and smoke" || job["runs-on"] !== "ubuntu-latest") {
+    throw new Error(`${label} must retain packaged smoke identity`);
+  }
+  const jobSteps = steps(job, label);
+  requireExactStepSequence(
+    jobSteps,
+    [undefined, "Setup pinned toolchain", "Install JavaScript dependencies", "Build debug headless", "Fake-provider MCP integration", "Isolated packaged smoke"],
+    label
+  );
+  validateCheckout(jobSteps[0]!, `${label} checkout`);
+  validatePinnedToolchain(jobSteps, label);
+  const commands: readonly [number, string, string | undefined][] = [
+    [2, "bun install --frozen-lockfile", AGENT_BRIDGE_DIRECTORY],
+    [3, "cargo build -p opencut-headless", undefined],
+    [4, "bun run test:integration", AGENT_BRIDGE_DIRECTORY],
+    [5, "bun run test:smoke", AGENT_BRIDGE_DIRECTORY],
+  ];
+  for (const [index, command, directory] of commands) {
+    const step = jobSteps[index]!;
+    rejectIgnoredFailures(step, `${label}.steps[${index}]`);
+    if (step.if !== undefined) throw new Error(`${label}.steps[${index}] must not be skipped`);
+    requireExactKeys(step, directory ? ["name", "run", "working-directory"] : ["name", "run"], `${label}.steps[${index}]`);
+    requireExactCommand(step, command, `${label}.steps[${index}]`);
+    requireWorkingDirectory(step, directory, `${label}.steps[${index}]`);
+  }
+}
+
 export function assertFoundationParityResults(
   openspecResult: string,
   contractResult: string,
   renderResult: string,
   rulesScreenResult: string,
-  policyValidated: string
+  policyValidated: string,
+  correctnessResult: string,
+  packagedSmokeResult: string
 ): void {
   if (
     openspecResult !== "success" ||
     contractResult !== "success" ||
     renderResult !== "success" ||
     rulesScreenResult !== "success" ||
+    correctnessResult !== "success" ||
+    packagedSmokeResult !== "success" ||
     policyValidated !== "true"
   ) {
     throw new Error(
-      `foundation parity requires success results and policy attestation; openspec=${openspecResult}, contract=${contractResult}, render=${renderResult}, rules_screen=${rulesScreenResult}, policy_validated=${policyValidated}`
+      `foundation parity requires success results and policy attestation; openspec=${openspecResult}, contract=${contractResult}, render=${renderResult}, rules_screen=${rulesScreenResult}, correctness=${correctnessResult}, packaged_smoke=${packagedSmokeResult}, policy_validated=${policyValidated}`
     );
   }
 }
@@ -853,26 +977,42 @@ function validateFoundationJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, "jobs.foundation-parity.env");
   rejectRunDefaults(job.defaults, "jobs.foundation-parity.defaults");
   rejectLeafContainer(job, "jobs.foundation-parity");
+  requireTimeout(job, "jobs.foundation-parity", 10);
+  requireExactKeys(
+    job,
+    ["name", "runs-on", "steps", "needs", "if", "timeout-minutes", "permissions"],
+    "jobs.foundation-parity"
+  );
+  requireExactEnvironment(job.permissions, { actions: "read", contents: "read" }, "jobs.foundation-parity.permissions");
   const needs = job.needs;
   if (
     !Array.isArray(needs) ||
-    needs.length !== 4 ||
+    needs.length !== 6 ||
     !needs.includes("openspec") ||
     !needs.includes("contract-parity") ||
     !needs.includes("render-parity") ||
-    !needs.includes("rules-screen-parity")
+    !needs.includes("rules-screen-parity") ||
+    !needs.includes("correctness") ||
+    !needs.includes("packaged-smoke")
   ) {
     throw new Error(
-      "jobs.foundation-parity.needs must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity"
+      "jobs.foundation-parity.needs must contain exactly openspec, contract-parity, render-parity, rules-screen-parity, correctness, and packaged-smoke"
     );
   }
   if (job.if !== FOUNDATION_CONDITION) {
     throw new Error(`jobs.foundation-parity.if must equal ${JSON.stringify(FOUNDATION_CONDITION)}`);
   }
   const jobSteps = steps(job, "jobs.foundation-parity");
-  if (jobSteps.length !== 1) {
-    throw new Error("jobs.foundation-parity must contain exactly one assertion step");
-  }
+  requireExactStepSequence(
+    jobSteps,
+    ["Setup duration-audit Bun", undefined, "Confirm foundation parity gates", "Enforce protected CI duration"],
+    "foundation-parity"
+  );
+  const setup = jobSteps[0]!;
+  requireExactKeys(setup, ["name", "uses", "with"], "foundation-parity Bun setup step");
+  if (setup.uses !== "oven-sh/setup-bun@v2") throw new Error("foundation-parity Bun setup must be pinned");
+  requireExactEnvironment(setup.with, { "bun-version": "1.4.0" }, "foundation-parity Bun setup with");
+  validateCheckout(jobSteps[1]!, "foundation-parity checkout step");
   const assertion = requiredStep(jobSteps, "Confirm foundation parity gates", "foundation-parity");
   validateCriticalStep(assertion.step, FOUNDATION_COMMAND, "foundation-parity assertion step");
   requireExactKeys(
@@ -890,6 +1030,8 @@ function validateFoundationJob(job: UnknownRecord): void {
         "CONTRACT_PARITY_RESULT",
         "RENDER_PARITY_RESULT",
         "RULES_SCREEN_PARITY_RESULT",
+        "CORRECTNESS_RESULT",
+        "PACKAGED_SMOKE_RESULT",
       ],
       "foundation-parity assertion env"
     );
@@ -916,6 +1058,20 @@ function validateFoundationJob(job: UnknownRecord): void {
   if (environment.RULES_SCREEN_PARITY_RESULT !== "${{ needs.rules-screen-parity.result }}") {
     throw new Error("foundation-parity must expose the rules-screen-parity result");
   }
+  if (environment.CORRECTNESS_RESULT !== "${{ needs.correctness.result }}") {
+    throw new Error("foundation-parity must expose the correctness result");
+  }
+  if (environment.PACKAGED_SMOKE_RESULT !== "${{ needs.packaged-smoke.result }}") {
+    throw new Error("foundation-parity must expose the packaged-smoke result");
+  }
+  const audit = jobSteps[3]!;
+  rejectIgnoredFailures(audit, "foundation-parity duration step");
+  requireExactKeys(audit, ["name", "if", "env", "run"], "foundation-parity duration step");
+  if (audit.if !== FOUNDATION_CONDITION) {
+    throw new Error("foundation-parity duration step must always run");
+  }
+  requireExactCommand(audit, DURATION_COMMAND, "foundation-parity duration step");
+  requireExactEnvironment(audit.env, DURATION_ENVIRONMENT, "foundation-parity duration env");
 }
 
 export function validateCiGates(source: string): void {
@@ -928,7 +1084,15 @@ export function validateCiGates(source: string): void {
   validateContractJob(requiredJob(jobs, "contract-parity"));
   validateRenderJob(requiredJob(jobs, "render-parity"));
   validateRulesScreenJob(requiredJob(jobs, "rules-screen-parity"));
+  validateCorrectnessJob(requiredJob(jobs, "correctness"));
+  validatePackagedSmokeJob(requiredJob(jobs, "packaged-smoke"));
   validateFoundationJob(requiredJob(jobs, "foundation-parity"));
+  for (const key of Object.keys(DURATION_ENVIRONMENT)) {
+    const declarations = source.match(new RegExp(`^\\s+${key}:`, "gm")) ?? [];
+    if (declarations.length !== 1) {
+      throw new Error(`duration exception ${key} must be declared exactly once`);
+    }
+  }
 }
 
 export function validateCiPolicy(

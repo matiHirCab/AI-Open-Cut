@@ -8,7 +8,7 @@ tasks:
   openspec-validate:
     script: |
       bun --config=bunfig.toml --no-env-file run scripts/normalize-openspec-workflows.ts --check &&
-      bun --config=bunfig.toml --no-env-file test scripts/validate-ci-gates.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts &&
+      bun --config=bunfig.toml --no-env-file test scripts/ci-duration.test.ts scripts/validate-ci-gates.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts &&
       bun --config=bunfig.toml --no-env-file x @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive &&
       bun --config=bunfig.toml --no-env-file run scripts/validate-ci-gates.ts
     inputs:
@@ -18,6 +18,8 @@ tasks:
       - 'scripts/normalize-openspec-workflows.ts'
       - 'scripts/validate-ci-gates.ts'
       - 'scripts/validate-ci-gates.test.ts'
+      - 'scripts/ci-duration.ts'
+      - 'scripts/ci-duration.test.ts'
       - 'scripts/run-ci-policy.ts'
       - 'scripts/run-ci-policy.test.ts'
       - 'scripts/run-ci-policy.integration.test.ts'
