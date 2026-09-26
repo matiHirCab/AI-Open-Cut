@@ -64,12 +64,17 @@ bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/render-wor
 cargo build -p opencut-headless
 cargo test -p opencut-headless`;
 
+const RULES_SCREEN_COMMAND = `set -euo pipefail
+cargo test --release -p opencut-editor-core --lib -- --list | grep -Fx 'renderer::golden::rules_screen::native_rules_screen_resolution_conformance: test'
+cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture`;
+
 const FOUNDATION_COMMAND = `echo "OpenSpec validation: $OPENSPEC_RESULT"
 echo "OpenSpec policy attested: $OPENSPEC_POLICY_VALIDATED"
 echo "Contract parity: $CONTRACT_PARITY_RESULT"
 echo "Render parity: $RENDER_PARITY_RESULT"
-if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ]; then
-  echo "Foundation parity requires attested policy validation and both leaf gates to succeed." >&2
+echo "Rules-screen parity: $RULES_SCREEN_PARITY_RESULT"
+if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ] || [ "$RULES_SCREEN_PARITY_RESULT" != "success" ]; then
+  echo "Foundation parity requires attested policy validation and all three leaf gates to succeed." >&2
   exit 1
 fi`;
 
@@ -751,20 +756,88 @@ function validateRenderJob(job: UnknownRecord): void {
   }
 }
 
+function validateRulesScreenJob(job: UnknownRecord): void {
+  const label = "jobs.rules-screen-parity";
+  if (job.name !== "Rules-screen parity (${{ matrix.resolution }})") {
+    throw new Error(`${label}.name must identify each required resolution`);
+  }
+  if (job["runs-on"] !== "ubuntu-latest") {
+    throw new Error(`${label}.runs-on must be ubuntu-latest`);
+  }
+  rejectIgnoredFailures(job, label);
+  rejectGoldenModeEnvironment(job.env, `${label}.env`);
+  rejectInheritedEnvironment(job.env, `${label}.env`);
+  rejectRunDefaults(job.defaults, `${label}.defaults`);
+  rejectLeafContainer(job, label);
+  requireExactKeys(job, ["name", "runs-on", "steps", "strategy"], label);
+
+  const strategy = record(job.strategy, `${label}.strategy`);
+  requireExactKeys(strategy, ["fail-fast", "matrix", "max-parallel"], `${label}.strategy`);
+  if (strategy["fail-fast"] !== false || strategy["max-parallel"] !== 3) {
+    throw new Error(`${label}.strategy must retain bounded complete matrix execution`);
+  }
+  const matrix = record(strategy.matrix, `${label}.strategy.matrix`);
+  requireExactKeys(matrix, ["resolution"], `${label}.strategy.matrix`);
+  requireExactStringArray(
+    matrix.resolution,
+    ["960x540", "1280x720", "1920x1080"],
+    `${label}.strategy.matrix.resolution`
+  );
+
+  const jobSteps = steps(job, label);
+  requireExactStepSequence(
+    jobSteps,
+    [
+      undefined,
+      "Install deterministic rendering dependencies",
+      "Setup pinned toolchain",
+      "Native rules-screen resolution parity",
+    ],
+    "rules-screen-parity"
+  );
+  validateCheckout(jobSteps[0]!, "rules-screen-parity checkout step");
+  const dependencies = jobSteps[1]!;
+  validateCriticalStep(
+    dependencies,
+    "sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core",
+    "rules-screen-parity dependency step"
+  );
+  requireExactKeys(dependencies, ["name", "run"], "rules-screen-parity dependency step");
+  validatePinnedToolchain(jobSteps, "rules-screen-parity");
+  const native = jobSteps[3]!;
+  validateCriticalStep(native, RULES_SCREEN_COMMAND, "rules-screen-parity native step");
+  requireExactKeys(native, ["env", "name", "run"], "rules-screen-parity native step");
+  requireExactEnvironment(
+    native.env,
+    {
+      OPENCUT_FFMPEG_PATH: "ffmpeg",
+      OPENCUT_FFPROBE_PATH: "ffprobe",
+      OPENCUT_GOLDEN_REQUIRED: "1",
+      OPENCUT_TEST_FONT_PATH: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      OPENCUT_RULES_SCREEN_RESOLUTION: "${{ matrix.resolution }}",
+    },
+    "rules-screen-parity native env"
+  );
+  requireWorkingDirectory(dependencies, undefined, "rules-screen-parity dependency step");
+  requireWorkingDirectory(native, undefined, "rules-screen-parity native step");
+}
+
 export function assertFoundationParityResults(
   openspecResult: string,
   contractResult: string,
   renderResult: string,
+  rulesScreenResult: string,
   policyValidated: string
 ): void {
   if (
     openspecResult !== "success" ||
     contractResult !== "success" ||
     renderResult !== "success" ||
+    rulesScreenResult !== "success" ||
     policyValidated !== "true"
   ) {
     throw new Error(
-      `foundation parity requires success results and policy attestation; openspec=${openspecResult}, contract=${contractResult}, render=${renderResult}, policy_validated=${policyValidated}`
+      `foundation parity requires success results and policy attestation; openspec=${openspecResult}, contract=${contractResult}, render=${renderResult}, rules_screen=${rulesScreenResult}, policy_validated=${policyValidated}`
     );
   }
 }
@@ -783,13 +856,14 @@ function validateFoundationJob(job: UnknownRecord): void {
   const needs = job.needs;
   if (
     !Array.isArray(needs) ||
-    needs.length !== 3 ||
+    needs.length !== 4 ||
     !needs.includes("openspec") ||
     !needs.includes("contract-parity") ||
-    !needs.includes("render-parity")
+    !needs.includes("render-parity") ||
+    !needs.includes("rules-screen-parity")
   ) {
     throw new Error(
-      "jobs.foundation-parity.needs must contain exactly openspec, contract-parity, and render-parity"
+      "jobs.foundation-parity.needs must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity"
     );
   }
   if (job.if !== FOUNDATION_CONDITION) {
@@ -815,6 +889,7 @@ function validateFoundationJob(job: UnknownRecord): void {
         "OPENSPEC_POLICY_VALIDATED",
         "CONTRACT_PARITY_RESULT",
         "RENDER_PARITY_RESULT",
+        "RULES_SCREEN_PARITY_RESULT",
       ],
       "foundation-parity assertion env"
     );
@@ -838,6 +913,9 @@ function validateFoundationJob(job: UnknownRecord): void {
   if (environment.RENDER_PARITY_RESULT !== "${{ needs.render-parity.result }}") {
     throw new Error("foundation-parity must expose the render-parity result");
   }
+  if (environment.RULES_SCREEN_PARITY_RESULT !== "${{ needs.rules-screen-parity.result }}") {
+    throw new Error("foundation-parity must expose the rules-screen-parity result");
+  }
 }
 
 export function validateCiGates(source: string): void {
@@ -849,6 +927,7 @@ export function validateCiGates(source: string): void {
   validateOpenSpecJob(requiredJob(jobs, "openspec"));
   validateContractJob(requiredJob(jobs, "contract-parity"));
   validateRenderJob(requiredJob(jobs, "render-parity"));
+  validateRulesScreenJob(requiredJob(jobs, "rules-screen-parity"));
   validateFoundationJob(requiredJob(jobs, "foundation-parity"));
 }
 

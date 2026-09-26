@@ -411,60 +411,6 @@ fn compare(
     }
 }
 
-fn run_resolution_groups<T, F>(parallel: bool, run: F) -> Vec<T>
-where
-    T: Send,
-    F: Fn((u32, u32)) -> T + Sync,
-{
-    if parallel {
-        thread::scope(|scope| {
-            let high = scope.spawn(|| run(SIZES[2]));
-            let low = run(SIZES[0]);
-            let medium = run(SIZES[1]);
-            vec![
-                low,
-                medium,
-                high.join().expect("rules-screen resolution worker"),
-            ]
-        })
-    } else {
-        SIZES.into_iter().map(&run).collect()
-    }
-}
-
-#[test]
-fn resolution_schedule_preserves_cases_and_propagates_worker_failure() {
-    for parallel in [false, true] {
-        let visits = std::sync::Mutex::new(Vec::new());
-        let sizes = run_resolution_groups(parallel, |size| {
-            for state in 0..5 {
-                visits.lock().unwrap().push((size, state));
-            }
-            size
-        });
-        assert_eq!(sizes, SIZES);
-        let visits = visits.into_inner().unwrap();
-        assert_eq!(visits.len(), 15);
-        for size in SIZES {
-            assert_eq!(
-                visits
-                    .iter()
-                    .filter_map(|(seen_size, state)| (*seen_size == size).then_some(*state))
-                    .collect::<Vec<_>>(),
-                [0, 1, 2, 3, 4]
-            );
-        }
-    }
-    assert!(
-        std::panic::catch_unwind(|| {
-            run_resolution_groups(true, |size| {
-                assert_ne!(size, SIZES[2], "injected resolution failure");
-            });
-        })
-        .is_err()
-    );
-}
-
 fn conformance_for_size(
     tools: &NativeTools,
     references: &References,
@@ -525,37 +471,69 @@ fn conformance_for_size(
     counts
 }
 
-pub(super) fn conformance(tools: &NativeTools) {
+fn selected_resolution(value: Option<&str>, required: bool) -> Option<(u32, u32)> {
+    match value {
+        Some("960x540") => Some(SIZES[0]),
+        Some("1280x720") => Some(SIZES[1]),
+        Some("1920x1080") => Some(SIZES[2]),
+        Some(other) => panic!("unsupported required rules-screen resolution: {other}"),
+        None if required => panic!("OPENCUT_RULES_SCREEN_RESOLUTION is required"),
+        None => None,
+    }
+}
+
+#[test]
+fn resolution_selection_requires_exact_supported_values() {
+    for (value, expected) in [
+        ("960x540", SIZES[0]),
+        ("1280x720", SIZES[1]),
+        ("1920x1080", SIZES[2]),
+    ] {
+        assert_eq!(selected_resolution(Some(value), true), Some(expected));
+    }
+    assert_eq!(selected_resolution(None, false), None);
+    assert!(std::panic::catch_unwind(|| selected_resolution(None, true)).is_err());
+    for invalid in ["", "960X540", "960x541", "1920x1080,1280x720"] {
+        assert!(std::panic::catch_unwind(|| selected_resolution(Some(invalid), true)).is_err());
+    }
+    assert_eq!(STATES.len() * (SAMPLE_TIMESTAMPS_MS.len() + 2), 25);
+}
+
+#[test]
+fn native_rules_screen_resolution_conformance() {
+    let required = env::var("OPENCUT_GOLDEN_REQUIRED").as_deref() == Ok("1");
+    let value = match env::var("OPENCUT_RULES_SCREEN_RESOLUTION") {
+        Ok(value) => Some(value),
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            panic!("OPENCUT_RULES_SCREEN_RESOLUTION must be valid UTF-8")
+        }
+    };
+    let size = selected_resolution(value.as_deref(), required);
+    let Some(size) = size else {
+        return;
+    };
+    let tools = configured_native_tools().expect("rules-screen resolution requires native tools");
     let references = load();
     assert_eq!(
         tools.font_sha256, FONT_HASH,
         "rules-screen requires the reviewed font"
     );
-    let memory_sampler = ProcessTreeSampler::start();
-    let parallel = thread::available_parallelism().is_ok_and(|workers| workers.get() >= 2);
-    let counts = run_resolution_groups(parallel, |size| {
-        conformance_for_size(tools, &references, size)
-    });
-    assert_eq!(counts.len(), SIZES.len());
+    let memory_sampler = ProcessTreeSampler::start_with_interval(Duration::from_millis(250));
+    let counts = conformance_for_size(&tools, &references, size);
     assert_eq!(
-        counts
-            .into_iter()
-            .fold(RenderCounts::default(), |mut total, item| {
-                total.states += item.states;
-                total.previews += item.previews;
-                total.ranges += item.ranges;
-                total.exports += item.exports;
-                total
-            }),
+        counts,
         RenderCounts {
-            states: 15,
-            previews: 45,
-            ranges: 15,
-            exports: 15,
+            states: 5,
+            previews: 15,
+            ranges: 5,
+            exports: 5,
         }
     );
     eprintln!(
-        "rules_screen peak_process_tree_bytes={}",
+        "rules_screen size={}x{} peak_process_tree_bytes={}",
+        size.0,
+        size.1,
         memory_sampler.finish()
     );
 }

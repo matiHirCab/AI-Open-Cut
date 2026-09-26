@@ -111,7 +111,7 @@ function addEnvironmentVariable(
 function moveUploadBeforeValidation(source: string): string {
   const validationStart = source.indexOf("      - name: Validate Linux render baseline schema\n");
   const uploadStart = source.indexOf("      - name: Upload report-only Linux render baseline\n");
-  const foundationStart = source.indexOf("\n  foundation-parity:", uploadStart);
+  const foundationStart = source.indexOf("\n  rules-screen-parity:", uploadStart);
   expect(validationStart).toBeGreaterThan(-1);
   expect(uploadStart).toBeGreaterThan(validationStart);
   expect(foundationStart).toBeGreaterThan(uploadStart);
@@ -143,36 +143,41 @@ function moveOpenSpecValidationBeforeToolchain(source: string): string {
 }
 
 describe("foundation parity result assertion", () => {
-  it("accepts only three successful prerequisite results with a true policy attestation", () => {
+  it("accepts only four successful prerequisite results with a true policy attestation", () => {
     const results = ["success", "failure", "cancelled", "skipped"];
     const attestations = ["true", "", "false", "unexpected"];
     for (const openspecResult of results) {
       for (const contractResult of results) {
         for (const renderResult of results) {
-          for (const policyValidated of attestations) {
-            if (
-              openspecResult === "success" &&
-              contractResult === "success" &&
-              renderResult === "success" &&
-              policyValidated === "true"
-            ) {
-              expect(() =>
-                assertFoundationParityResults(
-                  openspecResult,
-                  contractResult,
-                  renderResult,
-                  policyValidated
-                )
-              ).not.toThrow();
-            } else {
-              expect(() =>
-                assertFoundationParityResults(
-                  openspecResult,
-                  contractResult,
-                  renderResult,
-                  policyValidated
-                )
-              ).toThrow("foundation parity requires success results and policy attestation");
+          for (const rulesScreenResult of results) {
+            for (const policyValidated of attestations) {
+              if (
+                openspecResult === "success" &&
+                contractResult === "success" &&
+                renderResult === "success" &&
+                rulesScreenResult === "success" &&
+                policyValidated === "true"
+              ) {
+                expect(() =>
+                  assertFoundationParityResults(
+                    openspecResult,
+                    contractResult,
+                    renderResult,
+                    rulesScreenResult,
+                    policyValidated
+                  )
+                ).not.toThrow();
+              } else {
+                expect(() =>
+                  assertFoundationParityResults(
+                    openspecResult,
+                    contractResult,
+                    renderResult,
+                    rulesScreenResult,
+                    policyValidated
+                  )
+                ).toThrow("foundation parity requires success results and policy attestation");
+              }
             }
           }
         }
@@ -180,15 +185,15 @@ describe("foundation parity result assertion", () => {
     }
   });
 
-  it("rejects a failed policy result even when both parity leaves succeed", () => {
+  it("rejects a failed policy result even when all parity leaves succeed", () => {
     expect(() =>
-      assertFoundationParityResults("failure", "success", "success", "true")
-    ).toThrow("openspec=failure, contract=success, render=success");
+      assertFoundationParityResults("failure", "success", "success", "success", "true")
+    ).toThrow("openspec=failure, contract=success, render=success, rules_screen=success");
   });
 
   it("rejects a masked policy failure when the job result is success but attestation is absent", () => {
     expect(() =>
-      assertFoundationParityResults("success", "success", "success", "")
+      assertFoundationParityResults("success", "success", "success", "success", "")
     ).toThrow("policy_validated=");
   });
 });
@@ -677,6 +682,7 @@ describe("CI parity gate policy", () => {
         "openspec",
         "contract-parity",
         "render-parity",
+        "rules-screen-parity",
         "foundation-parity",
       ]) {
         it(`rejects ${jobId} ${variable} with value ${value}`, () => {
@@ -704,6 +710,7 @@ describe("CI parity gate policy", () => {
     "openspec",
     "contract-parity",
     "render-parity",
+    "rules-screen-parity",
     "foundation-parity",
   ]) {
     it(`rejects an empty ${jobId} environment map`, () => {
@@ -1240,11 +1247,11 @@ describe("CI parity gate policy", () => {
       validateCiGates(
         replaceRequired(
           workflow,
-          "needs: [openspec, contract-parity, render-parity]",
-          "needs: [contract-parity, render-parity]"
+          "needs: [openspec, contract-parity, render-parity, rules-screen-parity]",
+          "needs: [contract-parity, render-parity, rules-screen-parity]"
         )
       )
-    ).toThrow("must contain exactly openspec, contract-parity, and render-parity");
+    ).toThrow("must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity");
   });
 
   it("rejects an altered unconditional aggregate condition", () => {
@@ -1259,6 +1266,7 @@ describe("CI parity gate policy", () => {
     ["OPENSPEC_RESULT", "openspec"],
     ["CONTRACT_PARITY_RESULT", "contract-parity"],
     ["RENDER_PARITY_RESULT", "render-parity"],
+    ["RULES_SCREEN_PARITY_RESULT", "rules-screen-parity"],
   ]) {
     it(`rejects a missing ${jobId} aggregate result`, () => {
       expect(() =>
@@ -1382,6 +1390,7 @@ describe("CI parity gate policy", () => {
     "openspec",
     "contract-parity",
     "render-parity",
+    "rules-screen-parity",
     "foundation-parity",
   ]) {
     it(`rejects job-level continue-on-error on ${jobId}`, () => {
@@ -1437,7 +1446,7 @@ describe("CI parity gate policy", () => {
       "render-parity must contain exactly its approved step sequence"
     );
     expect(() =>
-      assertFoundationParityResults("failure", "success", "success", "")
+      assertFoundationParityResults("failure", "success", "success", "success", "")
     ).toThrow("foundation parity requires success results");
   });
 
@@ -1450,8 +1459,160 @@ describe("CI parity gate policy", () => {
       "must not ignore failures with continue-on-error"
     );
     expect(() =>
-      assertFoundationParityResults("success", "success", "success", "")
+      assertFoundationParityResults("success", "success", "success", "success", "")
     ).toThrow("policy_validated=");
+  });
+});
+
+describe("required rules-screen resolution shards", () => {
+  const resolutions = "resolution: ['960x540', '1280x720', '1920x1080']";
+  const mutateShard = (needle: string, replacement: string): string => {
+    const start = workflow.indexOf("  rules-screen-parity:");
+    const end = workflow.indexOf("  foundation-parity:", start);
+    const section = workflow.slice(start, end);
+    return (
+      workflow.slice(0, start) +
+      replaceRequired(section, needle, replacement) +
+      workflow.slice(end)
+    );
+  };
+
+  it("accepts the complete three-resolution matrix", () => {
+    expect(() => validateCiGates(workflow)).not.toThrow();
+  });
+
+  for (const replacement of [
+    "resolution: ['960x540', '1280x720']",
+    "resolution: ['960x540', '1280x720', '1280x720']",
+    "resolution: ['960x540', '1280x720', '3840x2160']",
+    "resolution: ['1280x720', '960x540', '1920x1080']",
+  ]) {
+    it(`rejects incomplete or altered matrix ${replacement}`, () => {
+      expect(() =>
+        validateCiGates(replaceRequired(workflow, resolutions, replacement)),
+      ).toThrow(
+        "jobs.rules-screen-parity.strategy.matrix.resolution must contain exactly the approved ordered values",
+      );
+    });
+  }
+
+  for (const [needle, replacement] of [
+    ["fail-fast: false", "fail-fast: true"],
+    ["max-parallel: 3", "max-parallel: 1"],
+  ] as const) {
+    it(`rejects altered matrix execution ${needle}`, () => {
+      expect(() => validateCiGates(mutateShard(needle, replacement))).toThrow(
+        "jobs.rules-screen-parity.strategy must retain bounded complete matrix execution",
+      );
+    });
+  }
+
+  const listGuard =
+    "cargo test --release -p opencut-editor-core --lib -- --list | grep -Fx 'renderer::golden::rules_screen::native_rules_screen_resolution_conformance: test'";
+  const exactTest =
+    "cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture";
+  for (const [needle, replacement] of [
+    [listGuard, "echo no tests selected"],
+    [
+      exactTest,
+      "cargo test --release -p opencut-editor-core --lib nonexistent_test -- --exact",
+    ],
+    [exactTest, `${exactTest} || true`],
+  ] as const) {
+    it(`rejects zero-test or ignored native command ${replacement}`, () => {
+      expect(() =>
+        validateCiGates(replaceRequired(workflow, needle, replacement)),
+      ).toThrow(
+        "rules-screen-parity native step must use the exact fail-closed command body",
+      );
+    });
+  }
+
+  for (const [needle, replacement] of [
+    ["OPENCUT_GOLDEN_REQUIRED: '1'", "OPENCUT_GOLDEN_REQUIRED: '0'"],
+    [
+      "OPENCUT_RULES_SCREEN_RESOLUTION: ${{ matrix.resolution }}",
+      "OPENCUT_RULES_SCREEN_RESOLUTION: 960x540",
+    ],
+    [
+      "OPENCUT_TEST_FONT_PATH: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      "OPENCUT_TEST_FONT_PATH: missing.ttf",
+    ],
+  ] as const) {
+    it(`rejects altered shard environment ${needle}`, () => {
+      expect(() => validateCiGates(mutateShard(needle, replacement))).toThrow(
+        "rules-screen-parity native env",
+      );
+    });
+  }
+
+  it("rejects missing native dependencies", () => {
+    expect(() =>
+      validateCiGates(
+        mutateShard(
+          "sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core",
+          "sudo apt-get update && sudo apt-get install -y ffmpeg",
+        ),
+      ),
+    ).toThrow(
+      "rules-screen-parity dependency step must use the exact fail-closed command body",
+    );
+  });
+
+  it("rejects an omitted rules-screen foundation dependency", () => {
+    expect(() =>
+      validateCiGates(
+        replaceRequired(
+          workflow,
+          "needs: [openspec, contract-parity, render-parity, rules-screen-parity]",
+          "needs: [openspec, contract-parity, render-parity]",
+        ),
+      ),
+    ).toThrow(
+      "must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity",
+    );
+  });
+
+  it("rejects ignored shard failures", () => {
+    expect(() =>
+      validateCiGates(
+        addContinueOnError(workflow, "Native rules-screen resolution parity"),
+      ),
+    ).toThrow("must not ignore failures with continue-on-error");
+    expect(() =>
+      validateCiGates(
+        addJobConfiguration(
+          workflow,
+          "rules-screen-parity",
+          "    continue-on-error: true\n",
+        ),
+      ),
+    ).toThrow("must not ignore failures with continue-on-error");
+  });
+
+  it("rejects extra steps and conditional execution", () => {
+    expect(() =>
+      validateCiGates(
+        insertStepBefore(
+          workflow,
+          "Native rules-screen resolution parity",
+          "      - name: Skip a resolution\n        run: echo skipped\n",
+        ),
+      ),
+    ).toThrow(
+      "rules-screen-parity must contain exactly its approved step sequence",
+    );
+    expect(() =>
+      validateCiGates(
+        addStepProperty(
+          workflow,
+          "Native rules-screen resolution parity",
+          "if: false",
+        ),
+      ),
+    ).toThrow(
+      "rules-screen-parity native step must not be conditionally skipped",
+    );
   });
 });
 

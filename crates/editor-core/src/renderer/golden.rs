@@ -983,7 +983,15 @@ impl ProcessTreeSampler {
         Self::start_with_exit_signal(None)
     }
 
+    fn start_with_interval(interval: Duration) -> Self {
+        Self::start_with_configuration(None, interval)
+    }
+
     fn start_with_exit_signal(exit_signal: Option<Arc<AtomicBool>>) -> Self {
+        Self::start_with_configuration(exit_signal, MEMORY_SAMPLE_INTERVAL)
+    }
+
+    fn start_with_configuration(exit_signal: Option<Arc<AtomicBool>>, interval: Duration) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
         let peak = Arc::new(AtomicU64::new(0));
         let sampler_stop = Arc::clone(&stop);
@@ -1019,7 +1027,7 @@ impl ProcessTreeSampler {
                 if sampler_stop.load(Ordering::Acquire) {
                     break;
                 }
-                thread::sleep(MEMORY_SAMPLE_INTERVAL);
+                thread::sleep(interval);
             }
             if let Some(exit_signal) = exit_signal {
                 exit_signal.store(true, Ordering::Release);
@@ -2420,7 +2428,6 @@ fn native_golden_render_conformance() {
     };
     let suites = [
         ("rule_card", rule_card::conformance as fn(&NativeTools)),
-        ("rules_screen", rules_screen::conformance),
         ("shapes", shapes::conformance),
         ("svg", svg::conformance),
         ("grids", grids::conformance),
