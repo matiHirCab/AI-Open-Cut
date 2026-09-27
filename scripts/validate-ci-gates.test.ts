@@ -143,7 +143,7 @@ function moveOpenSpecValidationBeforeToolchain(source: string): string {
 }
 
 describe("foundation parity result assertion", () => {
-  it("accepts only four successful prerequisite results with a true policy attestation", () => {
+  it("accepts only six successful prerequisite results with a true policy attestation", () => {
     const results = ["success", "failure", "cancelled", "skipped"];
     const attestations = ["true", "", "false", "unexpected"];
     for (const openspecResult of results) {
@@ -164,7 +164,9 @@ describe("foundation parity result assertion", () => {
                     contractResult,
                     renderResult,
                     rulesScreenResult,
-                    policyValidated
+                    policyValidated,
+                    "success",
+                    "success"
                   )
                 ).not.toThrow();
               } else {
@@ -174,7 +176,9 @@ describe("foundation parity result assertion", () => {
                     contractResult,
                     renderResult,
                     rulesScreenResult,
-                    policyValidated
+                    policyValidated,
+                    "success",
+                    "success"
                   )
                 ).toThrow("foundation parity requires success results and policy attestation");
               }
@@ -187,14 +191,23 @@ describe("foundation parity result assertion", () => {
 
   it("rejects a failed policy result even when all parity leaves succeed", () => {
     expect(() =>
-      assertFoundationParityResults("failure", "success", "success", "success", "true")
+      assertFoundationParityResults("failure", "success", "success", "success", "true", "success", "success")
     ).toThrow("openspec=failure, contract=success, render=success, rules_screen=success");
   });
 
   it("rejects a masked policy failure when the job result is success but attestation is absent", () => {
     expect(() =>
-      assertFoundationParityResults("success", "success", "success", "success", "")
+      assertFoundationParityResults("success", "success", "success", "success", "", "success", "success")
     ).toThrow("policy_validated=");
+  });
+
+  it("rejects failed correctness and packaged smoke even with passing parity", () => {
+    expect(() =>
+      assertFoundationParityResults("success", "success", "success", "success", "true", "failure", "success")
+    ).toThrow("correctness=failure");
+    expect(() =>
+      assertFoundationParityResults("success", "success", "success", "success", "true", "success", "skipped")
+    ).toThrow("packaged_smoke=skipped");
   });
 });
 
@@ -655,10 +668,14 @@ describe("CI parity gate policy", () => {
     expect(() => validateCiGates(workflow)).not.toThrow();
   });
 
-  it("accepts environment configuration on a non-parity job", () => {
+  it("accepts environment configuration on an unrelated optional job", () => {
     expect(() =>
       validateCiGates(
-        addJobConfiguration(workflow, "correctness", "    env:\n      CI_LOG_LEVEL: info\n")
+        replaceRequired(
+          workflow,
+          "\n  packaged-smoke:\n",
+          "\n  optional-metadata:\n    name: Optional metadata\n    runs-on: ubuntu-latest\n    env:\n      CI_LOG_LEVEL: info\n    steps:\n      - run: echo optional\n\n  packaged-smoke:\n"
+        )
       )
     ).not.toThrow();
   });
@@ -1247,11 +1264,11 @@ describe("CI parity gate policy", () => {
       validateCiGates(
         replaceRequired(
           workflow,
-          "needs: [openspec, contract-parity, render-parity, rules-screen-parity]",
-          "needs: [contract-parity, render-parity, rules-screen-parity]"
+          "needs: [openspec, contract-parity, render-parity, rules-screen-parity, correctness, packaged-smoke]",
+          "needs: [contract-parity, render-parity, rules-screen-parity, correctness, packaged-smoke]"
         )
       )
-    ).toThrow("must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity");
+    ).toThrow("must contain exactly openspec, contract-parity, render-parity, rules-screen-parity, correctness, and packaged-smoke");
   });
 
   it("rejects an altered unconditional aggregate condition", () => {
@@ -1446,7 +1463,7 @@ describe("CI parity gate policy", () => {
       "render-parity must contain exactly its approved step sequence"
     );
     expect(() =>
-      assertFoundationParityResults("failure", "success", "success", "success", "")
+      assertFoundationParityResults("failure", "success", "success", "success", "", "success", "success")
     ).toThrow("foundation parity requires success results");
   });
 
@@ -1459,7 +1476,7 @@ describe("CI parity gate policy", () => {
       "must not ignore failures with continue-on-error"
     );
     expect(() =>
-      assertFoundationParityResults("success", "success", "success", "success", "")
+      assertFoundationParityResults("success", "success", "success", "success", "", "success", "success")
     ).toThrow("policy_validated=");
   });
 });
@@ -1564,12 +1581,12 @@ describe("required rules-screen resolution shards", () => {
       validateCiGates(
         replaceRequired(
           workflow,
-          "needs: [openspec, contract-parity, render-parity, rules-screen-parity]",
-          "needs: [openspec, contract-parity, render-parity]",
+          "needs: [openspec, contract-parity, render-parity, rules-screen-parity, correctness, packaged-smoke]",
+          "needs: [openspec, contract-parity, render-parity, correctness, packaged-smoke]",
         ),
       ),
     ).toThrow(
-      "must contain exactly openspec, contract-parity, render-parity, and rules-screen-parity",
+      "must contain exactly openspec, contract-parity, render-parity, rules-screen-parity, correctness, and packaged-smoke",
     );
   });
 
@@ -1710,4 +1727,85 @@ describe("mandatory native raster-cache CI evidence", () => {
     expect(() => validateCiGates(replaceRequired(workflow, cacheStep, "")))
       .toThrow("render-parity must contain exactly its approved step sequence");
   });
+});
+
+describe("protected CI duration governance", () => {
+  it("accepts the reviewed duration gate", () => {
+    expect(() => validateCiGates(workflow)).not.toThrow();
+  });
+
+  for (const [job, step] of [
+    ["correctness", "Rust tests"],
+    ["packaged-smoke", "Isolated packaged smoke"],
+  ]) {
+    it(`rejects masked ${job} failure`, () => {
+      expect(() => validateCiGates(addContinueOnError(workflow, step!))).toThrow("must not ignore failures");
+      expect(() => validateCiGates(addJobConfiguration(workflow, job!, "    continue-on-error: true\n"))).toThrow("must not ignore failures");
+    });
+  }
+
+  for (const job of ["correctness", "packaged-smoke"]) {
+    it(`rejects inherited ${job} environment`, () => {
+      expect(() => validateCiGates(addJobConfiguration(workflow, job, "    env:\n      CI_LOG_LEVEL: info\n")))
+        .toThrow(`jobs.${job}.env must be absent`);
+    });
+  }
+
+  for (const omitted of ["correctness", "packaged-smoke"]) {
+    it(`rejects an omitted ${omitted} prerequisite`, () => {
+      const complete =
+        "needs: [openspec, contract-parity, render-parity, rules-screen-parity, correctness, packaged-smoke]";
+      expect(() =>
+        validateCiGates(replaceRequired(workflow, complete, complete.replace(`${omitted}, `, "").replace(`, ${omitted}`, "")))
+      ).toThrow("jobs.foundation-parity.needs must contain exactly");
+    });
+  }
+
+  for (const property of ["if: ${{ false }}", "continue-on-error: true", "shell: bash"]) {
+    it(`rejects duration step override ${property}`, () => {
+      const mutated = property.startsWith("if:")
+        ? replaceRequired(workflow, "      - name: Enforce protected CI duration\n        if: ${{ always() }}", `      - name: Enforce protected CI duration\n        ${property}`)
+        : addStepProperty(workflow, "Enforce protected CI duration", property);
+      expect(() => validateCiGates(mutated)).toThrow();
+    });
+  }
+
+  it("rejects a missing duration assertion", () => {
+    expect(() => validateCiGates(workflow.replace(/      - name: Enforce protected CI duration[\s\S]*?(?=\n  packaged-smoke:)/, "")))
+      .toThrow("foundation-parity must contain exactly its approved step sequence");
+  });
+
+  it("rejects a changed API-backed audit command", () => {
+    expect(() => validateCiGates(replaceRequired(workflow, "run: bun --config=/dev/null --no-env-file run scripts/ci-duration.ts", "run: echo duration-ok")))
+      .toThrow("foundation-parity duration step must use the exact fail-closed command body");
+  });
+
+  for (const [field, replacement] of [
+    ["CI_DURATION_OWNER: '@matiHirCab'", "CI_DURATION_OWNER: ''"],
+    ["CI_DURATION_EXPIRES_ON: '2026-10-26'", "CI_DURATION_EXPIRES_ON: '2026-01-01'"],
+    ["CI_DURATION_CAP_MINUTES: '135'", "CI_DURATION_CAP_MINUTES: '360'"],
+  ]) {
+    it(`rejects altered exception field ${field}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, field!, replacement!))).toThrow();
+    });
+  }
+
+  it("rejects a duplicate exception field", () => {
+    expect(() =>
+      validateCiGates(
+        replaceRequired(workflow, "          CI_DURATION_OWNER: '@matiHirCab'", "          CI_DURATION_OWNER: '@matiHirCab'\n          CI_DURATION_OWNER: '@matiHirCab'")
+      )
+    ).toThrow();
+  });
+
+  for (const job of ["openspec", "contract-parity", "correctness", "render-parity", "rules-screen-parity", "packaged-smoke"]) {
+    it(`rejects missing ${job} timeout`, () => {
+      const declaration = `  ${job}:\n`;
+      const start = workflow.indexOf(declaration);
+      const timeout = "    timeout-minutes: 135\n";
+      const timeoutAt = workflow.indexOf(timeout, start);
+      expect(timeoutAt).toBeGreaterThan(start);
+      expect(() => validateCiGates(workflow.slice(0, timeoutAt) + workflow.slice(timeoutAt + timeout.length))).toThrow();
+    });
+  }
 });

@@ -14,6 +14,7 @@ jobs:
   openspec:
     name: OpenSpec validation
     runs-on: ubuntu-latest
+    timeout-minutes: 135
     outputs:
       policy_validated: ${{ steps.policy.outputs.validated }}
     steps:
@@ -38,6 +39,7 @@ jobs:
   contract-parity:
     name: Contract parity
     runs-on: ubuntu-latest
+    timeout-minutes: 135
     steps:
       - uses: actions/checkout@v4
       - name: Setup pinned toolchain
@@ -55,6 +57,7 @@ jobs:
   correctness:
     name: Correctness (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 135
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +101,7 @@ jobs:
   render-parity:
     name: Render parity
     runs-on: ubuntu-latest
+    timeout-minutes: 135
     steps:
       - uses: actions/checkout@v4
       - name: Install deterministic rendering dependencies
@@ -152,6 +156,7 @@ jobs:
   rules-screen-parity:
     name: Rules-screen parity (${{ matrix.resolution }})
     runs-on: ubuntu-latest
+    timeout-minutes: 135
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -181,9 +186,18 @@ jobs:
   foundation-parity:
     name: Motion-graphics foundation parity
     runs-on: ubuntu-latest
-    needs: [openspec, contract-parity, render-parity, rules-screen-parity]
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    needs: [openspec, contract-parity, render-parity, rules-screen-parity, correctness, packaged-smoke]
     if: ${{ always() }}
     steps:
+      - name: Setup duration-audit Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - uses: actions/checkout@v4
       - name: Confirm foundation parity gates
         env:
           OPENSPEC_RESULT: ${{ needs.openspec.result }}
@@ -191,20 +205,38 @@ jobs:
           CONTRACT_PARITY_RESULT: ${{ needs.contract-parity.result }}
           RENDER_PARITY_RESULT: ${{ needs.render-parity.result }}
           RULES_SCREEN_PARITY_RESULT: ${{ needs.rules-screen-parity.result }}
+          CORRECTNESS_RESULT: ${{ needs.correctness.result }}
+          PACKAGED_SMOKE_RESULT: ${{ needs.packaged-smoke.result }}
         run: |
           echo "OpenSpec validation: $OPENSPEC_RESULT"
           echo "OpenSpec policy attested: $OPENSPEC_POLICY_VALIDATED"
           echo "Contract parity: $CONTRACT_PARITY_RESULT"
           echo "Render parity: $RENDER_PARITY_RESULT"
           echo "Rules-screen parity: $RULES_SCREEN_PARITY_RESULT"
-          if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ] || [ "$RULES_SCREEN_PARITY_RESULT" != "success" ]; then
-            echo "Foundation parity requires attested policy validation and all three leaf gates to succeed." >&2
+          echo "Correctness: $CORRECTNESS_RESULT"
+          echo "Packaged smoke: $PACKAGED_SMOKE_RESULT"
+          if [ "$OPENSPEC_RESULT" != "success" ] || [ "$OPENSPEC_POLICY_VALIDATED" != "true" ] || [ "$CONTRACT_PARITY_RESULT" != "success" ] || [ "$RENDER_PARITY_RESULT" != "success" ] || [ "$RULES_SCREEN_PARITY_RESULT" != "success" ] || [ "$CORRECTNESS_RESULT" != "success" ] || [ "$PACKAGED_SMOKE_RESULT" != "success" ]; then
+            echo "Foundation parity requires attested policy validation and every required job to succeed." >&2
             exit 1
           fi
+      - name: Enforce protected CI duration
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          CI_DURATION_OWNER: '@matiHirCab'
+          CI_DURATION_REASON: 'Measured 1920x1080 rules-screen renderer cost; preserve all 75 renders while optimizing separately'
+          CI_DURATION_BASELINE_MINUTES: '123.65'
+          CI_DURATION_EVIDENCE_URL: 'https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36244746913'
+          CI_DURATION_EXPIRES_ON: '2026-10-26'
+          CI_DURATION_CAP_MINUTES: '135'
+        run: bun --config=/dev/null --no-env-file run scripts/ci-duration.ts
 
   packaged-smoke:
     name: Packaged fake-provider integration and smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 135
     steps:
       - uses: actions/checkout@v4
       - name: Setup pinned toolchain

@@ -50,7 +50,8 @@ for line in sys.stdin:
         result = VOICES
     elif request.get("operation") == "generate":
         if request["text"] == "hang":
-            time.sleep(10)
+            while True:
+                time.sleep(1)
         elif request["text"] == "delay":
             time.sleep(0.25)
         elif request["text"] == "malformed":

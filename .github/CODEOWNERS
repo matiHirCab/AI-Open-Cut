@@ -40,6 +40,8 @@
 /.moon/tasks/ @matiHirCab
 /scripts/validate-ci-gates.ts @matiHirCab
 /scripts/validate-ci-gates.test.ts @matiHirCab
+/scripts/ci-duration.ts @matiHirCab
+/scripts/ci-duration.test.ts @matiHirCab
 /scripts/run-ci-policy.ts @matiHirCab
 /scripts/run-ci-policy.test.ts @matiHirCab
 /scripts/run-ci-policy.integration.test.ts @matiHirCab
