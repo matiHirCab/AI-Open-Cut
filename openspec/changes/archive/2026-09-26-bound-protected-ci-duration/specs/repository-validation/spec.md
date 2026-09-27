@@ -1,26 +1,4 @@
-# Repository Validation Specification
-
-## Purpose
-
-Define reliable repository validation behavior for canonical branch resolution and required gates.
-## Requirements
-### Requirement: Canonical default-branch validation
-Repository validation MUST use the repository's canonical `main` branch as the VCS comparison base and MUST execute required gates in a clean default-branch checkout without referencing an absent legacy branch.
-
-#### Scenario: Validate a push checkout on the default branch
-- **WHEN** continuous integration checks out a push commit on `main` and invokes the required Moon OpenSpec task
-- **THEN** Moon constructs the task graph using `main` as its default VCS revision and runs the pinned normalization and strict OpenSpec validators without attempting to resolve `master`
-
-#### Scenario: Validate a pull-request checkout
-- **WHEN** continuous integration checks out a pull request targeting `main` and invokes the same Moon task
-- **THEN** the task uses a valid repository revision context and runs the identical pinned validators
-
-### Requirement: Validation configuration compatibility
-Repository validation MUST preserve the existing application, public contract, persisted data, and required CI job behavior while correcting default-branch resolution.
-
-#### Scenario: Apply the branch-resolution correction
-- **WHEN** the canonical VCS default branch is configured for repository validation
-- **THEN** no application runtime, public or persisted contract, migration, test selection, or required CI job is removed or changed
+## ADDED Requirements
 
 ### Requirement: Protected CI elapsed-time budget
 The required OpenCut workflow MUST measure elapsed time from the workflow run's recorded start to its final protected foundation assertion after all required validation jobs reach terminal states. Its default budget MUST be 120 minutes. The foundation status MUST fail when the measured duration exceeds the effective budget, when timing evidence cannot be obtained or parsed, or when any required validation result is unsuccessful. A time-budget failure MUST NOT omit or weaken any existing correctness, contract, render, rules-screen, smoke, or OpenSpec assertion.
@@ -42,7 +20,7 @@ The required OpenCut workflow MUST measure elapsed time from the workflow run's 
 - **THEN** the protected foundation fails even if elapsed time is inside the effective budget
 
 ### Requirement: Bounded and justified CI duration exception
-An exception to the default CI budget MUST name an accountable owner, cause, measured baseline, evidence link, expiration date, and a positive hard cap no greater than 180 minutes. The protected foundation MUST display the reason and effective cap when the exception applies. An exception MUST be inactive after its expiration date and MUST NOT bypass required test selection, assertions, or failure propagation. The reviewed workflow policy MUST reject missing, duplicated, malformed, unbounded, or unreviewed duration controls. Only the rules-screen parity matrix job MAY use the 180-minute job limit; other required leaf jobs MUST retain their reviewed 135-minute limits and the foundation job MUST retain its 10-minute limit.
+An exception to the default CI budget MUST name an accountable owner, cause, measured baseline, evidence link, expiration date, and a positive hard cap no greater than 135 minutes. The protected foundation MUST display the reason and effective cap when the exception applies. An exception MUST be inactive after its expiration date and MUST NOT bypass required test selection, assertions, or failure propagation. The reviewed workflow policy MUST reject missing, duplicated, malformed, unbounded, or unreviewed duration controls.
 
 #### Scenario: Reviewed exception covers a measured overrun
 - **WHEN** a complete, unexpired exception applies and successful required validation finishes above 120 minutes but no later than its hard cap
@@ -53,16 +31,14 @@ An exception to the default CI budget MUST name an accountable owner, cause, mea
 - **THEN** the protected foundation fails and reports the hard-cap overrun
 
 #### Scenario: Exception is invalid or expired
-- **WHEN** an exception is incomplete, duplicated, malformed, has a cap above 180 minutes, or is past its expiration date
+- **WHEN** an exception is incomplete, duplicated, malformed, has a cap above 135 minutes, or is past its expiration date
 - **THEN** workflow policy validation or the foundation rejects it; the exception cannot authorize an overrun
 
 #### Scenario: Duration control is weakened
 - **WHEN** the duration assertion is removed, skipped, masked, detached from the protected foundation, or any required prerequisite is dropped
 - **THEN** the repository's CI policy validator rejects the workflow before it can pass the protected gate
 
-#### Scenario: Keep other required jobs bounded
-- **WHEN** the rules-screen matrix job is allowed 180 minutes and any other required leaf or foundation job exceeds its reviewed job timeout
-- **THEN** repository policy validation rejects the workflow
+## MODIFIED Requirements
 
 ### Requirement: Stable motion-graphics foundation status
 Repository validation MUST publish one stable aggregate foundation status that waits for dedicated OpenSpec policy, contract-parity, render-parity, rules-screen-parity, correctness, and packaged-smoke statuses; executes after every terminal prerequisite outcome; reports all six results and the OpenSpec completion attestation; and succeeds only when all six results are exactly `success`, the attestation is exactly `true`, and the duration assertion passes. The reviewed bootstrap MUST emit attestation only after validating the complete workflow, Moon, and proto boundary and successful shell-free protected Moon execution; neither the workflow command nor the Moon child may emit or fabricate it directly. A failed, cancelled, skipped, neutralized, masked, or ignored-failure prerequisite MUST produce a non-successful aggregate status suitable as the single branch-protection target.
@@ -209,99 +185,3 @@ The repository's pinned validation workflow MUST structurally verify the stable 
 #### Scenario: Detect a reordered report publication
 - **WHEN** the validated report upload occurs before strict external-report validation
 - **THEN** the CI gate policy check fails before the workflow change can be accepted
-
-### Requirement: Attributed Bun bootstrap regression evidence
-Repository validation MUST exercise the hardened bootstrap with a malicious checkout-controlled `bunfig.toml` while every other required workflow, Moon, and proto source is valid. The regression MUST distinguish the canonical Bun-configuration preflight rejection from unrelated missing-source or process failures and MUST prove that the preload, Moon child, and policy attestation remain unreachable. Its independent real-Moon reproduction MUST isolate inherited parent Moon/proto metadata and stores and MUST have a bounded execution budget sufficient for nested startup on the protected Ubuntu runner.
-
-#### Scenario: Reject the malicious Bun configuration for the intended reason
-- **WHEN** the real hardened Bun invocation receives a valid reviewed workflow and otherwise-canonical Moon and proto boundary with only `bunfig.toml` altered to preload forgery code
-- **THEN** it exits nonzero with the canonical Bun-configuration rejection, creates no preload sentinel, launches no Moon child, and writes no policy attestation
-
-### Requirement: Archive-only OpenSpec merge readiness
-The protected repository policy MUST reject every unarchived entry under `openspec/changes` and MUST emit no completion attestation until the directory contains only the canonical `archive` directory. The changes root and archive path MUST be ordinary directories; files, directories, symbolic links, malformed entries, and multiple concurrent entries outside `archive` MUST all fail closed before Moon launches. Active changes MAY exist during local authoring, but they MUST be completed, synchronized, verified, and archived before the protected merge-ready gate can succeed.
-
-#### Scenario: Accept an archive-only repository
-- **WHEN** `openspec/changes` and `openspec/changes/archive` are ordinary directories and no other direct entry exists
-- **THEN** repository policy continues to the protected Moon task
-
-#### Scenario: Reject an unarchived change
-- **WHEN** any file, directory, or symbolic link other than `archive` exists directly under `openspec/changes`
-- **THEN** preflight reports every unarchived entry, launches no Moon child, and emits no policy attestation
-
-#### Scenario: Reject an invalid archive boundary
-- **WHEN** the changes root or canonical archive path is missing, is not a directory, or is a symbolic link
-- **THEN** preflight fails before Moon launch and emits no policy attestation
-
-### Requirement: Portable Transform2D correctness and required native coverage
-Font-metric unit tests MUST use checked-in licensed fixtures without host font dependencies. Native Transform2D tests MUST use explicitly configured FFmpeg, FFprobe, and font paths for every subprocess; absent optional configuration SHALL skip only native cases, while partial configuration and missing required dependencies MUST fail. The protected Linux native parity job MUST execute the Transform2D integration target alongside existing golden and headless lifecycle tests, with matching policy validation.
-
-#### Scenario: Run ordinary correctness on each platform
-- **WHEN** Windows, Linux, or macOS correctness runs without native configuration
-- **THEN** font and non-native tests run without installed rendering tools or system fonts
-
-#### Scenario: Honor explicit native configuration
-- **WHEN** valid absolute tools are configured but unavailable on PATH
-- **THEN** native Transform2D tests execute successfully using those paths
-
-#### Scenario: Reject incomplete required execution
-- **WHEN** native configuration is partial or required mode lacks usable dependencies
-- **THEN** the suite fails rather than silently skipping
-
-#### Scenario: Protect native coverage
-- **WHEN** the required Transform2D CI command is missing, altered, or neutralized
-- **THEN** repository policy validation fails
-
-### Requirement: Protected mandatory raster-cache CI evidence
-Repository policy MUST enforce the reviewed render-parity sequence including locked bridge dependency installation, configured native core raster-cache conformance, instrumented native worker and bridge reuse checks, and default headless restoration before default transport verification. The policy MUST validate exact commands, feature selection, working directories and step-local required-mode environment. Existing isolated execution, immutable goldens, failure propagation, report validation/upload ordering and foundation aggregation MUST remain enforced.
-
-#### Scenario: P1 Accept complete cache verification
-- **WHEN** the reviewed workflow installs locked bridge dependencies, executes all three configured cache suites, restores the default build and verifies default transport before validating and uploading the existing report
-- **THEN** policy validation accepts the expanded sequence and preserves every existing required gate
-
-#### Scenario: P2 Reject removed or disabled native evidence
-- **WHEN** any new native command, feature selection, required-mode flag, dependency setup or declared working directory is removed, substituted or weakened
-- **THEN** policy validation fails before the altered workflow can be accepted
-
-#### Scenario: P3 Reject instrumented compatibility checks or masked failures
-- **WHEN** default restoration is removed or reordered after compatibility checks, or a new critical step is conditional, ignores errors or changes its approved command/environment
-- **THEN** policy validation rejects the workflow without relaxing the existing protected sequence or golden/report guarantees
-
-### Requirement: Protected optimized golden command
-Repository policy MUST pin the exact optimized native golden command for non-rules-screen suites inside the existing required Render parity step and exact optimized native test discovery and execution commands inside every rules-screen matrix job. All other approved Render parity commands, environments, cache and report ordering, failure propagation, and publication guarantees MUST remain unchanged. A test selector that matches zero tests MUST fail rather than silently count as a successful shard.
-
-#### Scenario: Accept reviewed split optimized commands
-- **WHEN** both render jobs contain their exact approved optimized commands and protected environments
-- **THEN** CI policy validation accepts the workflow without weakening the required render or foundation gates
-
-#### Scenario: Reject altered or empty render selection
-- **WHEN** a native command is removed, made optional, selects zero tests, changes profile or target, or moves outside its protected step
-- **THEN** CI policy validation or explicit discovery fails before the protected foundation gate can succeed
-
-### Requirement: Bounded fake speech-provider worker tests
-The repository's bridge unit suite MUST exercise the fake speech provider through its real child-process boundary on Windows, macOS, and Ubuntu. Every test in that real-child fixture, including status, voices, generation, readiness, cancellation, timeout, queueing, and failure cleanup, MUST have a bounded runner deadline longer than the provider's configured control-request deadline, without changing the provider deadline or weakening any semantic assertion. The correctness job MUST fail when those tests report a wrong result, an unexpected provider timeout, or an unhandled runner deadline.
-
-#### Scenario: Worker starts within its provider deadline on a loaded runner
-- **WHEN** a supported correctness runner exercises any real-child fake-provider operation within the provider's own deadlines
-- **THEN** the assertions complete without the test runner timing out first, and the test verifies the same provider metadata, generated artifact, path readiness, cancellation, timeout, queueing, and cleanup behavior as before
-
-#### Scenario: Unexpected worker stall or incorrect result
-- **WHEN** an ordinary status, voice, or generation request unexpectedly exceeds its provider deadline, or its returned result violates an existing assertion
-- **THEN** the test fails within its bounded runner deadline and the correctness job fails without ignoring or retrying the failure
-
-#### Scenario: Cancellation of a fake hanging generation under delayed scheduling
-- **WHEN** a cancellation or synthesis-timeout test submits the fake worker's hanging generation and scheduling delays the parent callback
-- **THEN** the fake generation remains pending until the provider terminates it, and the test observes the expected retryable cancellation or timeout with owned cleanup instead of a successful generation
-
-### Requirement: Bounded rules-screen CI execution
-
-The required rules-screen parity matrix job MUST give each resolution shard an explicit 180-minute job timeout. Repository policy validation MUST accept that exact value and MUST reject a missing, shorter, longer, or nonnumeric value while preserving the required shard and aggregate result checks.
-
-#### Scenario: Accept the approved render budget
-
-- **WHEN** the three required rules-screen resolution shards each inherit the matrix job's 180-minute timeout and all other protected workflow properties match the reviewed policy
-- **THEN** structural CI policy validation accepts the workflow and the shards retain their required test execution and failure propagation
-
-#### Scenario: Reject an altered render budget
-
-- **WHEN** the rules-screen matrix job omits its timeout or declares a value other than numeric 180 minutes
-- **THEN** structural CI policy validation rejects the workflow before the protected policy task can attest success
