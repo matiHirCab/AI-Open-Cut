@@ -1482,6 +1482,19 @@ describe("required rules-screen resolution shards", () => {
   });
 
   for (const replacement of [
+    "",
+    "timeout-minutes: 120",
+    "timeout-minutes: 240",
+    "timeout-minutes: '180'",
+  ]) {
+    it(`rejects an unapproved rules-screen job timeout ${replacement || "(missing)"}`, () => {
+      expect(() =>
+        validateCiGates(mutateShard("timeout-minutes: 180", replacement)),
+      ).toThrow("jobs.rules-screen-parity.timeout-minutes must be numeric 180");
+    });
+  }
+
+  for (const replacement of [
     "resolution: ['960x540', '1280x720']",
     "resolution: ['960x540', '1280x720', '1280x720']",
     "resolution: ['960x540', '1280x720', '3840x2160']",

@@ -764,12 +764,15 @@ function validateRulesScreenJob(job: UnknownRecord): void {
   if (job["runs-on"] !== "ubuntu-latest") {
     throw new Error(`${label}.runs-on must be ubuntu-latest`);
   }
+  if (job["timeout-minutes"] !== 180) {
+    throw new Error(`${label}.timeout-minutes must be numeric 180`);
+  }
   rejectIgnoredFailures(job, label);
   rejectGoldenModeEnvironment(job.env, `${label}.env`);
   rejectInheritedEnvironment(job.env, `${label}.env`);
   rejectRunDefaults(job.defaults, `${label}.defaults`);
   rejectLeafContainer(job, label);
-  requireExactKeys(job, ["name", "runs-on", "steps", "strategy"], label);
+  requireExactKeys(job, ["name", "runs-on", "steps", "strategy", "timeout-minutes"], label);
 
   const strategy = record(job.strategy, `${label}.strategy`);
   requireExactKeys(strategy, ["fail-fast", "matrix", "max-parallel"], `${label}.strategy`);
