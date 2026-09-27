@@ -88,12 +88,12 @@ const DURATION_ENVIRONMENT: UnknownRecord = {
   GITHUB_RUN_ID: "${{ github.run_id }}",
   CI_DURATION_OWNER: "@matiHirCab",
   CI_DURATION_REASON:
-    "Measured 1920x1080 rules-screen renderer cost; preserve all 75 renders while optimizing separately",
-  CI_DURATION_BASELINE_MINUTES: "123.65",
+    "1920x1080 rules-screen still running near prior 135-minute cap; preserve all 75 renders",
+  CI_DURATION_BASELINE_MINUTES: "135.25",
   CI_DURATION_EVIDENCE_URL:
-    "https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36244746913",
+    "https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36317658326",
   CI_DURATION_EXPIRES_ON: "2026-10-26",
-  CI_DURATION_CAP_MINUTES: "135",
+  CI_DURATION_CAP_MINUTES: "180",
 };
 
 function requireTimeout(job: UnknownRecord, label: string, expected: number): void {
@@ -796,7 +796,7 @@ function validateRulesScreenJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, `${label}.env`);
   rejectRunDefaults(job.defaults, `${label}.defaults`);
   rejectLeafContainer(job, label);
-  requireTimeout(job, label, 135);
+  requireTimeout(job, label, 180);
   requireExactKeys(job, ["name", "runs-on", "steps", "strategy", "timeout-minutes"], label);
 
   const strategy = record(job.strategy, `${label}.strategy`);

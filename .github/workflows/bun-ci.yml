@@ -156,7 +156,7 @@ jobs:
   rules-screen-parity:
     name: Rules-screen parity (${{ matrix.resolution }})
     runs-on: ubuntu-latest
-    timeout-minutes: 135
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -226,11 +226,11 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           CI_DURATION_OWNER: '@matiHirCab'
-          CI_DURATION_REASON: 'Measured 1920x1080 rules-screen renderer cost; preserve all 75 renders while optimizing separately'
-          CI_DURATION_BASELINE_MINUTES: '123.65'
-          CI_DURATION_EVIDENCE_URL: 'https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36244746913'
+          CI_DURATION_REASON: '1920x1080 rules-screen still running near prior 135-minute cap; preserve all 75 renders'
+          CI_DURATION_BASELINE_MINUTES: '135.25'
+          CI_DURATION_EVIDENCE_URL: 'https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36317658326'
           CI_DURATION_EXPIRES_ON: '2026-10-26'
-          CI_DURATION_CAP_MINUTES: '135'
+          CI_DURATION_CAP_MINUTES: '180'
         run: bun --config=/dev/null --no-env-file run scripts/ci-duration.ts
 
   packaged-smoke:

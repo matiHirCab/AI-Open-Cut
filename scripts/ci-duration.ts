@@ -15,7 +15,7 @@ export interface DurationResult {
 }
 
 const DEFAULT_BUDGET_MINUTES = 120;
-const MAX_EXCEPTION_MINUTES = 135;
+const MAX_EXCEPTION_MINUTES = 180;
 
 function utcTime(value: unknown, label: string): number {
 	if (

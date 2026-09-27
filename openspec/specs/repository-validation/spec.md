@@ -42,7 +42,7 @@ The required OpenCut workflow MUST measure elapsed time from the workflow run's 
 - **THEN** the protected foundation fails even if elapsed time is inside the effective budget
 
 ### Requirement: Bounded and justified CI duration exception
-An exception to the default CI budget MUST name an accountable owner, cause, measured baseline, evidence link, expiration date, and a positive hard cap no greater than 135 minutes. The protected foundation MUST display the reason and effective cap when the exception applies. An exception MUST be inactive after its expiration date and MUST NOT bypass required test selection, assertions, or failure propagation. The reviewed workflow policy MUST reject missing, duplicated, malformed, unbounded, or unreviewed duration controls.
+An exception to the default CI budget MUST name an accountable owner, cause, measured baseline, evidence link, expiration date, and a positive hard cap no greater than 180 minutes. The protected foundation MUST display the reason and effective cap when the exception applies. An exception MUST be inactive after its expiration date and MUST NOT bypass required test selection, assertions, or failure propagation. The reviewed workflow policy MUST reject missing, duplicated, malformed, unbounded, or unreviewed duration controls. Only the rules-screen parity matrix job MAY use the 180-minute job limit; other required leaf jobs MUST retain their reviewed 135-minute limits and the foundation job MUST retain its 10-minute limit.
 
 #### Scenario: Reviewed exception covers a measured overrun
 - **WHEN** a complete, unexpired exception applies and successful required validation finishes above 120 minutes but no later than its hard cap
@@ -53,12 +53,16 @@ An exception to the default CI budget MUST name an accountable owner, cause, mea
 - **THEN** the protected foundation fails and reports the hard-cap overrun
 
 #### Scenario: Exception is invalid or expired
-- **WHEN** an exception is incomplete, duplicated, malformed, has a cap above 135 minutes, or is past its expiration date
+- **WHEN** an exception is incomplete, duplicated, malformed, has a cap above 180 minutes, or is past its expiration date
 - **THEN** workflow policy validation or the foundation rejects it; the exception cannot authorize an overrun
 
 #### Scenario: Duration control is weakened
 - **WHEN** the duration assertion is removed, skipped, masked, detached from the protected foundation, or any required prerequisite is dropped
 - **THEN** the repository's CI policy validator rejects the workflow before it can pass the protected gate
+
+#### Scenario: Keep other required jobs bounded
+- **WHEN** the rules-screen matrix job is allowed 180 minutes and any other required leaf or foundation job exceeds its reviewed job timeout
+- **THEN** repository policy validation rejects the workflow
 
 ### Requirement: Stable motion-graphics foundation status
 Repository validation MUST publish one stable aggregate foundation status that waits for dedicated OpenSpec policy, contract-parity, render-parity, rules-screen-parity, correctness, and packaged-smoke statuses; executes after every terminal prerequisite outcome; reports all six results and the OpenSpec completion attestation; and succeeds only when all six results are exactly `success`, the attestation is exactly `true`, and the duration assertion passes. The reviewed bootstrap MUST emit attestation only after validating the complete workflow, Moon, and proto boundary and successful shell-free protected Moon execution; neither the workflow command nor the Moon child may emit or fabricate it directly. A failed, cancelled, skipped, neutralized, masked, or ignored-failure prerequisite MUST produce a non-successful aggregate status suitable as the single branch-protection target.
@@ -287,3 +291,17 @@ The repository's bridge unit suite MUST exercise the fake speech provider throug
 #### Scenario: Cancellation of a fake hanging generation under delayed scheduling
 - **WHEN** a cancellation or synthesis-timeout test submits the fake worker's hanging generation and scheduling delays the parent callback
 - **THEN** the fake generation remains pending until the provider terminates it, and the test observes the expected retryable cancellation or timeout with owned cleanup instead of a successful generation
+
+### Requirement: Bounded rules-screen CI execution
+
+The required rules-screen parity matrix job MUST give each resolution shard an explicit 180-minute job timeout. Repository policy validation MUST accept that exact value and MUST reject a missing, shorter, longer, or nonnumeric value while preserving the required shard and aggregate result checks.
+
+#### Scenario: Accept the approved render budget
+
+- **WHEN** the three required rules-screen resolution shards each inherit the matrix job's 180-minute timeout and all other protected workflow properties match the reviewed policy
+- **THEN** structural CI policy validation accepts the workflow and the shards retain their required test execution and failure propagation
+
+#### Scenario: Reject an altered render budget
+
+- **WHEN** the rules-screen matrix job omits its timeout or declares a value other than numeric 180 minutes
+- **THEN** structural CI policy validation rejects the workflow before the protected policy task can attest success

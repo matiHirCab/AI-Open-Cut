@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "workers-best-practices": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workers-best-practices/SKILL.md",
+      "computedHash": "7764ccc81dca3f9b4289817879464608eb1bd73cd607347d43ab5c1697a4b707"
+    }
+  }
+}

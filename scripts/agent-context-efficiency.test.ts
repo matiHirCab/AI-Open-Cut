@@ -18,7 +18,6 @@ const pluginIds = [
 
 function assertConfig(source: string) {
   expect(TOML.parse(source)).toEqual({
-    model: "gpt-6-astra",
     model_reasoning_effort: "medium",
     plan_mode_reasoning_effort: "medium",
     plugins: Object.fromEntries(
@@ -133,8 +132,14 @@ function assertVerificationOrder(source: string) {
 }
 
 describe("project agent context policy", () => {
-  test("sets only approved local model and plugin overrides", () => {
+  test("inherits the model and sets only approved local effort and plugin overrides", () => {
     assertConfig(read(".codex/config.toml"));
+  });
+
+  test("rejects a project-local model pin", () => {
+    expect(() =>
+      assertConfig(`model = "gpt-6-sol"\n${read(".codex/config.toml")}`)
+    ).toThrow();
   });
 
   test.each([

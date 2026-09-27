@@ -1499,6 +1499,19 @@ describe("required rules-screen resolution shards", () => {
   });
 
   for (const replacement of [
+    "",
+    "timeout-minutes: 120",
+    "timeout-minutes: 240",
+    "timeout-minutes: '180'",
+  ]) {
+    it(`rejects an unapproved rules-screen job timeout ${replacement || "(missing)"}`, () => {
+      expect(() =>
+        validateCiGates(mutateShard("timeout-minutes: 180", replacement)),
+      ).toThrow("jobs.rules-screen-parity.timeout-minutes must be 180");
+    });
+  }
+
+  for (const replacement of [
     "resolution: ['960x540', '1280x720']",
     "resolution: ['960x540', '1280x720', '1280x720']",
     "resolution: ['960x540', '1280x720', '3840x2160']",
@@ -1783,7 +1796,8 @@ describe("protected CI duration governance", () => {
   for (const [field, replacement] of [
     ["CI_DURATION_OWNER: '@matiHirCab'", "CI_DURATION_OWNER: ''"],
     ["CI_DURATION_EXPIRES_ON: '2026-10-26'", "CI_DURATION_EXPIRES_ON: '2026-01-01'"],
-    ["CI_DURATION_CAP_MINUTES: '135'", "CI_DURATION_CAP_MINUTES: '360'"],
+    ["CI_DURATION_CAP_MINUTES: '180'", "CI_DURATION_CAP_MINUTES: '135'"],
+    ["CI_DURATION_CAP_MINUTES: '180'", "CI_DURATION_CAP_MINUTES: '360'"],
   ]) {
     it(`rejects altered exception field ${field}`, () => {
       expect(() => validateCiGates(replaceRequired(workflow, field!, replacement!))).toThrow();
@@ -1802,10 +1816,22 @@ describe("protected CI duration governance", () => {
     it(`rejects missing ${job} timeout`, () => {
       const declaration = `  ${job}:\n`;
       const start = workflow.indexOf(declaration);
-      const timeout = "    timeout-minutes: 135\n";
+      const timeout = `    timeout-minutes: ${job === "rules-screen-parity" ? 180 : 135}\n`;
       const timeoutAt = workflow.indexOf(timeout, start);
       expect(timeoutAt).toBeGreaterThan(start);
       expect(() => validateCiGates(workflow.slice(0, timeoutAt) + workflow.slice(timeoutAt + timeout.length))).toThrow();
+    });
+  }
+
+  for (const job of ["openspec", "contract-parity", "correctness", "render-parity", "packaged-smoke"]) {
+    it(`rejects an extended ${job} timeout`, () => {
+      const start = workflow.indexOf(`  ${job}:\n`);
+      const timeout = "    timeout-minutes: 135\n";
+      const timeoutAt = workflow.indexOf(timeout, start);
+      expect(timeoutAt).toBeGreaterThan(start);
+      expect(() =>
+        validateCiGates(workflow.slice(0, timeoutAt) + "    timeout-minutes: 180\n" + workflow.slice(timeoutAt + timeout.length)),
+      ).toThrow();
     });
   }
 });
