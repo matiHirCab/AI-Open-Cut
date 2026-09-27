@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { ResourceTemplate } from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
@@ -10,7 +12,7 @@ import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
-import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
+import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import STACKING from "../../../contracts/stacking-v1.json";
@@ -45,10 +47,15 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import {
   assertMalformedPayloadRegressions,
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
+
+const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
+const MCP_BASELINE_DIGEST =
+  "2b5c1a5d6c0f74ca80f2c2e813612c7a3d8edcd7bd31ed186c968d3131b40752";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -96,7 +103,7 @@ it("matches canonical component item structural acceptance independently of core
 
 class ContractHarness {
   readonly prompts = new Set<string>();
-  readonly resources = new Set<string>();
+  readonly resources = new Map<string, string>();
   readonly tools = new Set<string>();
   readonly toolDefinitions = new Map<string, ToolDefinition>();
 
@@ -104,8 +111,11 @@ class ContractHarness {
     this.prompts.add(name);
   }
 
-  registerResource(name: string) {
-    this.resources.add(name);
+  registerResource(name: string, uri: string | ResourceTemplate) {
+    this.resources.set(
+      name,
+      typeof uri === "string" ? uri : uri.uriTemplate.toString()
+    );
   }
 
   registerTool(name: string, definition: ToolDefinition) {
@@ -183,6 +193,37 @@ const mismatchedToolDefinitions = (
       (name) => JSON.stringify(actual[name]) !== JSON.stringify(expected[name])
     );
 
+const mismatchedSupportingSurfaces = (
+  actual: typeof MCP_SURFACE,
+  expected: typeof MCP_SURFACE
+) =>
+  (["capabilityIdentifiers", "prompts", "resources", "tools"] as const).filter(
+    (key) => JSON.stringify(actual[key]) !== JSON.stringify(expected[key])
+  );
+
+interface MutableMcpSource {
+  $defs: Record<string, Record<string, unknown>>;
+  toolDefinitions: Record<
+    string,
+    {
+      annotations: Record<string, unknown>;
+      inputSchema: Record<string, unknown>;
+      outputSchema: Record<string, unknown>;
+    }
+  >;
+}
+
+const mutableMcpSource = () =>
+  structuredClone(MCP_SURFACE_SOURCE) as unknown as MutableMcpSource;
+
+const mutableTool = (source: MutableMcpSource, name: string) => {
+  const tool = source.toolDefinitions[name];
+  if (!tool) {
+    throw new Error(`Missing test tool: ${name}`);
+  }
+  return tool;
+};
+
 const dependencies = {
   config: {},
   headless: {},
@@ -193,6 +234,105 @@ const dependencies = {
 } as unknown as ServerDependencies;
 
 describe("canonical public contracts", () => {
+  it("expands the compact MCP catalog deterministically to the legacy catalog", () => {
+    const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
+    const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
+    expect(first).toEqual(second);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(72);
+    expect(
+      createHash("sha256").update(JSON.stringify(first)).digest("hex")
+    ).toBe(MCP_BASELINE_DIGEST);
+  });
+
+  it("rejects missing, cyclic, malformed, non-local, and unused MCP definitions", () => {
+    const missing = mutableMcpSource();
+    mutableTool(missing, "asset_delete").inputSchema = {
+      $ref: "#/$defs/MissingDefinition",
+    };
+    expect(() => expandMcpSurfaceCatalog(missing)).toThrow(
+      "Missing MCP definition: MissingDefinition"
+    );
+
+    const cyclic = mutableMcpSource();
+    cyclic.$defs.LoopA = { $ref: "#/$defs/LoopB" };
+    cyclic.$defs.LoopB = { $ref: "#/$defs/LoopA" };
+    mutableTool(cyclic, "asset_delete").inputSchema = {
+      $ref: "#/$defs/LoopA",
+    };
+    expect(() => expandMcpSurfaceCatalog(cyclic)).toThrow(
+      "Cyclic MCP definition"
+    );
+
+    for (const invalid of [
+      { $ref: "https://example.com/schema" },
+      { $ref: "#/$defs/Unknown/child" },
+      { $ref: 42 },
+    ]) {
+      const source = mutableMcpSource();
+      mutableTool(source, "asset_delete").inputSchema = invalid;
+      expect(() => expandMcpSurfaceCatalog(source)).toThrow(
+        "Malformed or non-local MCP reference"
+      );
+    }
+
+    const sibling = mutableMcpSource();
+    mutableTool(sibling, "asset_delete").inputSchema = {
+      ...mutableTool(sibling, "asset_delete").inputSchema,
+      $ref: "#/$defs/DraftCreateOutput",
+    };
+    expect(() => expandMcpSurfaceCatalog(sibling)).toThrow(
+      "MCP reference must have no sibling fields"
+    );
+
+    const unused = mutableMcpSource();
+    unused.$defs.UnusedSchema = { type: "object" };
+    expect(() => expandMcpSurfaceCatalog(unused)).toThrow(
+      "Unused MCP definitions: UnusedSchema"
+    );
+  });
+
+  it("detects shared-definition and supporting-surface drift", () => {
+    const source = mutableMcpSource();
+    source.$defs.DraftCreateOutput = {
+      ...source.$defs.DraftCreateOutput,
+      title: "drift",
+    };
+    const drifted = expandMcpSurfaceCatalog(source);
+    expect(
+      mismatchedToolDefinitions(
+        drifted.toolDefinitions,
+        MCP_SURFACE.toolDefinitions
+      )
+    ).toEqual([
+      "draft_create",
+      "draft_discard",
+      "draft_get",
+      "draft_rebase",
+      "draft_update",
+    ]);
+
+    for (const key of [
+      "capabilityIdentifiers",
+      "prompts",
+      "resources",
+      "tools",
+    ] as const) {
+      const changed = structuredClone(MCP_SURFACE);
+      changed[key] = [];
+      expect(mismatchedSupportingSurfaces(changed, MCP_SURFACE)).toEqual([key]);
+    }
+    const resourceMappingDrift = structuredClone(MCP_SURFACE);
+    resourceMappingDrift.resources = resourceMappingDrift.resources.map(
+      (resource, index) => ({
+        ...resource,
+        uriTemplate: index === 0 ? "opencut://wrong" : resource.uriTemplate,
+      })
+    );
+    expect(
+      mismatchedSupportingSurfaces(resourceMappingDrift, MCP_SURFACE)
+    ).toEqual(["resources"]);
+  });
+
   it("validates canonical component operations standalone and in batches", () => {
     for (const fixture of COMPONENTS.semanticFixtures) {
       for (const definition of fixture.components) {
@@ -388,9 +528,14 @@ describe("canonical public contracts", () => {
       )
     ).toEqual([]);
     expect(registeredDefinitions).toEqual(MCP_SURFACE.toolDefinitions);
-    expect([...harness.resources].sort()).toEqual(
-      MCP_SURFACE.resources.map((resource) => resource.name)
-    );
+    expect(
+      [...harness.resources]
+        .map(([name, uriTemplate]) => ({
+          name,
+          uriTemplate,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name))
+    ).toEqual(MCP_SURFACE.resources);
     expect([...harness.prompts].sort()).toEqual(MCP_SURFACE.prompts);
     expect(Object.values(MCP_RESOURCE_URIS).sort()).toEqual(
       MCP_SURFACE.resources.map((resource) => resource.uriTemplate).sort()
@@ -402,6 +547,9 @@ describe("canonical public contracts", () => {
     const catalog = structuredClone(MCP_SURFACE.toolDefinitions);
     const toolName = "asset_delete";
     const definition = catalog[toolName];
+    if (!definition) {
+      throw new Error(`Missing canonical tool: ${toolName}`);
+    }
 
     const inputDrift = {
       ...catalog,
