@@ -400,6 +400,7 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        markers: Vec::new(),
         fonts: Default::default(),
         components: vec![],
         schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.

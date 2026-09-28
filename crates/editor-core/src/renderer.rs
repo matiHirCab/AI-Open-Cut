@@ -931,6 +931,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2011,6 +2012,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2113,6 +2115,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2323,6 +2326,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2397,6 +2401,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2476,6 +2481,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -2729,6 +2735,7 @@ mod tests {
             ],
         };
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
@@ -3037,6 +3044,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.

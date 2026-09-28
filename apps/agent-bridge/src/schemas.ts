@@ -18,6 +18,30 @@ const id = z.string().min(1).max(128);
 const milliseconds = z.int().nonnegative();
 const positiveMilliseconds = z.int().positive();
 const finite = z.number().finite();
+const markerIdentifier = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/);
+const markerScope = z
+  .string()
+  .regex(/^(?:root|component:[A-Za-z0-9_-]{1,128})$/);
+const safeMilliseconds = z.int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const markerTimeExpressionSchema = z.strictObject({
+  markerName: markerIdentifier,
+  offsetMs: z.int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
+  type: z.literal("marker"),
+});
+export const timeExpressionSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("milliseconds"),
+    valueMs: safeMilliseconds,
+  }),
+  markerTimeExpressionSchema,
+]);
+export const markerSchema = z.strictObject({
+  id: markerIdentifier,
+  kind: z.literal("cue"),
+  name: markerIdentifier,
+  scope: markerScope,
+  timeMs: safeMilliseconds,
+});
 
 export const parentReferenceSchema = z
   .object({ id, scope: z.string() })
@@ -370,7 +394,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(23).optional(),
+    projectSchemaVersion: z.literal(24).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -838,6 +862,7 @@ const mediaItemSchema = z
     sourceInMs: milliseconds,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("media"),
@@ -861,6 +886,7 @@ const textItemSchema = z
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     style: textStyleSchema,
     text: z.string(),
     transform: transformSchema,
@@ -881,6 +907,7 @@ const solidColorItemSchema = z
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
     type: z.literal("solid_color"),
@@ -935,6 +962,7 @@ const repeaterItemSchema = z.strictObject({
   repeater: repeaterDescriptorSchema,
   stackOrder: z.int().nonnegative().max(4_294_967_295),
   startMs: milliseconds,
+  startTime: markerTimeExpressionSchema.optional(),
   transform: transformSchema,
   transform2d: transform2dSchema.nullable().optional(),
   type: z.literal("repeater"),
@@ -986,6 +1014,7 @@ const captionItemSchema = z
       .strict(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     style: z
       .object({
         backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -1012,6 +1041,7 @@ const transitionItemSchema = z
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     toItemId: id.nullable(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
@@ -1031,6 +1061,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
       startMs: milliseconds,
+      startTime: markerTimeExpressionSchema.optional(),
       transform: transformSchema,
       transform2d: transform2dSchema.nullable().optional(),
       type: z.literal("group"),
@@ -1216,6 +1247,7 @@ export const componentInstanceSchema = z
     slotValues: slotValuesSchema,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
+    startTime: markerTimeExpressionSchema.optional(),
     timeScale: finite.positive(),
     transform: transformSchema,
     transform2d: transform2dSchema.nullable().optional(),
@@ -1348,6 +1380,7 @@ export const componentFieldsSchema = z
 export const componentDefinitionSchema = componentFieldsSchema
   .extend({
     id,
+    markers: z.array(markerSchema).max(4096),
     slots: z.array(templateSlotSchema).max(128),
     tracks: z
       .array(
@@ -1436,9 +1469,10 @@ export const projectStateSchema = z
         createdAtMs: milliseconds,
         fonts: fontCatalogSchema,
         id,
+        markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(23),
+        schemaVersion: z.literal(24),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1526,6 +1560,36 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    kind: z.literal("cue"),
+    name: markerIdentifier,
+    operation: z.literal("marker_create"),
+    resultAlias: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+      .optional(),
+    scope: markerScope,
+    timeMs: safeMilliseconds,
+  }),
+  z.strictObject({
+    kind: z.literal("cue"),
+    markerId: id,
+    name: markerIdentifier,
+    operation: z.literal("marker_update"),
+    scope: markerScope,
+    timeMs: safeMilliseconds,
+  }),
+  z.strictObject({
+    markerId: id,
+    operation: z.literal("marker_delete"),
+    scope: markerScope,
+  }),
+  z.strictObject({
+    itemId: id,
+    operation: z.literal("set_item_start_time"),
+    scope: markerScope,
+    time: timeExpressionSchema,
+  }),
   addComponentInstanceSchema
     .extend({
       operation: z.literal("add_component_instance"),
@@ -1939,6 +2003,29 @@ export const schemas = {
     .strict(),
   jobCancel: z.object({ jobId: id }).strict(),
   jobGetStatus: z.object({ jobId: id }).strict(),
+  markerCreate: projectRevisionSchema
+    .extend({
+      kind: z.literal("cue"),
+      name: markerIdentifier,
+      scope: markerScope,
+      timeMs: safeMilliseconds,
+    })
+    .strict(),
+  markerDelete: projectRevisionSchema
+    .extend({
+      markerId: id,
+      scope: markerScope,
+    })
+    .strict(),
+  markerUpdate: projectRevisionSchema
+    .extend({
+      kind: z.literal("cue"),
+      markerId: id,
+      name: markerIdentifier,
+      scope: markerScope,
+      timeMs: safeMilliseconds,
+    })
+    .strict(),
   previewRenderFrame: projectRevisionSchema
     .extend({ timeMs: milliseconds })
     .strict(),
@@ -1984,6 +2071,13 @@ export const schemas = {
   projectOpen: z.object({ projectId: id }).strict(),
   projectRedo: projectRevisionSchema,
   projectUndo: projectRevisionSchema,
+  setItemStartTime: projectRevisionSchema
+    .extend({
+      itemId: id,
+      scope: markerScope,
+      time: timeExpressionSchema,
+    })
+    .strict(),
   speechCommitPreview: projectRevisionSchema
     .extend({
       placement: z.discriminatedUnion("type", [

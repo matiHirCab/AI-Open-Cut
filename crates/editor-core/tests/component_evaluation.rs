@@ -658,6 +658,7 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let typed: Project = serde_json::from_value(document).unwrap();
             let mut expected = serde_json::to_value(&typed).unwrap();
             expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected);
             expected["fonts"] = json!({});
             let mut older = expected.clone();
@@ -668,6 +669,7 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let older: Project = serde_json::from_value(older).unwrap();
             let mut expected_older = serde_json::to_value(&older).unwrap();
             expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected_older["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected_older);
             expected_older["fonts"] = json!({});
             let dir = core.paths().project_dir(&id).unwrap();

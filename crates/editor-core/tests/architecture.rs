@@ -14,9 +14,13 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("animation", &[]),
     ("assets", &["persistence", "fonts"]),
     ("drafts", &["persistence"]),
-    ("evaluated_scene", &["animation", "validation", "fonts"]),
+    (
+        "evaluated_scene",
+        &["animation", "validation", "fonts", "markers"],
+    ),
     ("error", &[]),
     ("fonts", &[]),
+    ("markers", &[]),
     ("migrations", &[]),
     ("model", &["error"]),
     ("path_policy", &[]),
@@ -48,8 +52,8 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
             "validation",
         ],
     ),
-    ("timeline", &["animation", "validation"]),
-    ("validation", &[]),
+    ("timeline", &["animation", "markers", "validation"]),
+    ("validation", &["markers"]),
     ("vector", &[]),
 ];
 
@@ -1520,7 +1524,7 @@ fn evaluated_scene_excludes_persistence_and_renderer_details() {
     let analysis = analyze_owner("evaluated_scene").unwrap();
     validate_owner_analysis(
         "evaluated_scene",
-        &["animation", "validation", "fonts"],
+        &["animation", "validation", "fonts", "markers"],
         &analysis,
     )
     .unwrap();

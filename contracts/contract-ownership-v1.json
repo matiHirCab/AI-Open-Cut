@@ -117,6 +117,23 @@
         "docs/motion-graphics-contract-fixtures.md"
       ]
     },
+    "markerRelativeTiming": {
+      "canonical": "contracts/motion-graphics-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/markers.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/tests/markers.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/marker-relative-timing.md"
+      ]
+    },
     "transform2d": {
       "canonical": "contracts/transform2d-v1.json",
       "consumers": [

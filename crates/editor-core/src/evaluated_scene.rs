@@ -72,6 +72,7 @@ pub(crate) fn evaluate_project(
     height: u32,
     fps: u32,
 ) -> Result<EvaluatedSceneResult, CoreError> {
+    crate::markers::validate_project(project)?;
     crate::validation::validate_recursive_graphs(project)?;
     crate::fonts::validate_catalog(&project.fonts)?;
     for item in project
@@ -712,6 +713,7 @@ impl InstanceTraversal<'_> {
         }
         let scope_first_layer = projection.len();
         let mut local = Project {
+            markers: Vec::new(),
             schema_version: self.project.schema_version,
             id: self.project.id.clone(),
             revision: self.project.revision,
@@ -3145,6 +3147,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.

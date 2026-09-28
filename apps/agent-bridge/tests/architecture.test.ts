@@ -67,13 +67,64 @@ describe("capability registrar architecture", () => {
         "asset_delete",
         "editor_get_status",
         "job_cancel",
+        "marker_create",
+        "marker_update",
+        "marker_delete",
         "preview_render_frame",
         "project_create",
         "project_export_video",
         "timeline_add_media",
+        "set_item_start_time",
         "tts_generate_and_insert",
       ])
     );
+  });
+
+  it("passes marker edits through the injected headless boundary", async () => {
+    const harness = new RegistrationHarness();
+    const requests: unknown[] = [];
+    const injected = dependencies();
+    injected.headless.call = (request) => {
+      requests.push(request);
+      return Promise.resolve({
+        aliases: {},
+        changedIds: ["marker1"],
+        projectId: "project1",
+        revision: 1,
+        summary: "Updated marker",
+        warnings: [],
+      } as never);
+    };
+    registerTimelineTools(harness as unknown as Server, injected);
+
+    const result = await harness.handlers.get("marker_update")?.({
+      expectedRevision: 0,
+      kind: "cue",
+      markerId: "marker1",
+      name: "impact",
+      projectId: "project1",
+      scope: "root",
+      timeMs: 500,
+    });
+    expect(
+      (result as { structuredContent: { revision: number } }).structuredContent
+        .revision
+    ).toBe(1);
+    expect(requests).toEqual([
+      {
+        edit: {
+          kind: "cue",
+          markerId: "marker1",
+          name: "impact",
+          operation: "marker_update",
+          scope: "root",
+          timeMs: 500,
+        },
+        expectedRevision: 0,
+        operation: "edit",
+        projectId: "project1",
+      },
+    ]);
   });
 
   it("keeps overall editor health ready when optional subsystems are degraded", async () => {

@@ -26,6 +26,7 @@ import {
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
@@ -1185,4 +1186,8 @@ it("exercises all shape contracts, atomic batches and retained history", async (
 
 it("preserves rich text documents through MCP standalone and alias batches", async () => {
   await verifyRichTextWorkflow(client, call, projects);
+});
+
+it("edits scoped markers and live item starts through MCP", async () => {
+  await verifyMarkerWorkflow(client, call);
 });

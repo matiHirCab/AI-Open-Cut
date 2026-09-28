@@ -500,6 +500,14 @@ fn load_definitions(
     let dir = core.paths().project_dir(id).unwrap();
     let mut project: Value =
         serde_json::from_slice(&std::fs::read(dir.join("project.json")).unwrap()).unwrap();
+    let mut definitions = definitions;
+    if let Some(components) = definitions.as_array_mut() {
+        for component in components {
+            if let Some(fields) = component.as_object_mut() {
+                fields.entry("markers").or_insert_with(|| json!([]));
+            }
+        }
+    }
     project["components"] = definitions;
     std::fs::write(
         dir.join("project.json"),

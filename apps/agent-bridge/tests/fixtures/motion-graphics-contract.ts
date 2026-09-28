@@ -1,7 +1,8 @@
 import { z } from "zod/v4";
 
 const ID = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
-const SCOPE = /^(?:project|root|component:[A-Za-z][A-Za-z0-9_-]{0,127})$/;
+const SCOPE =
+  /^(?:project|root|component:(?:[A-Za-z][A-Za-z0-9_-]{0,127}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))$/;
 const COLOR = /^#[0-9A-Fa-f]{8}$/;
 const EVENT_HANDLER = /\son[a-z]+\s*=/;
 const SAFE_INTEGER = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -203,6 +204,7 @@ const catalogSchema = z.strictObject({
   managedResources: z.array(managedAssetSchema),
   semantics: z.strictObject({
     activeCurveContract: z.literal("animation-channels-v1"),
+    activeMarkerContract: z.literal("marker-relative-timing-v1"),
     alphaMode: z.literal("premultiplied"),
     compositingLight: z.literal("linear"),
     coordinateSystem: z.strictObject({
