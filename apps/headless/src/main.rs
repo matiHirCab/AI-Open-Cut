@@ -700,6 +700,7 @@ fn required_path(name: &str) -> Result<PathBuf, CoreError> {
 
 fn editor_capabilities() -> Vec<&'static str> {
     vec![
+        "marker_relative_timing",
         "projects",
         "assets",
         "timeline",

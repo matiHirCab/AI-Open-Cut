@@ -644,6 +644,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,

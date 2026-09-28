@@ -41,6 +41,99 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "marker_create",
+    {
+      annotations: WRITE,
+      description: "Create a scoped cue marker.",
+      inputSchema: schemas.markerCreate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "marker_create",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "marker_update",
+    {
+      annotations: WRITE,
+      description: "Update a scoped cue marker.",
+      inputSchema: schemas.markerUpdate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "marker_update",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "marker_delete",
+    {
+      annotations: DESTRUCTIVE,
+      description: "Delete a scoped cue marker.",
+      inputSchema: schemas.markerDelete,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "marker_delete",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "set_item_start_time",
+    {
+      annotations: WRITE,
+      description:
+        "Set an item start using absolute milliseconds or a scoped marker.",
+      inputSchema: schemas.setItemStartTime,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "set_item_start_time",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "add_component_instance",
     {
       annotations: WRITE,

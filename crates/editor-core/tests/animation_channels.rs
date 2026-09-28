@@ -457,7 +457,7 @@ fn alias_batch_history_reopen_and_atomic_failures() {
         3
     );
     // The core instance reopens the durable project on every read.
-    assert_eq!(read().schema_version, 23);
+    assert_eq!(read().schema_version, 24);
 
     core.edit(
         &project_id,

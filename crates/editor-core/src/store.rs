@@ -230,6 +230,7 @@ impl EditorCore {
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,

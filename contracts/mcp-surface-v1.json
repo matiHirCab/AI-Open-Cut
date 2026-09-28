@@ -1,5 +1,6 @@
 {
   "capabilityIdentifiers": [
+    "marker_relative_timing",
     "component_lifecycle",
     "evaluated_scene_rendering",
     "shape_items",
@@ -2198,7 +2199,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 23,
+            "const": 24,
             "type": "number"
           },
           "protocolVersion": {
@@ -3170,6 +3171,314 @@
         "$ref": "#/$defs/DraftPreviewFrameOutput"
       }
     },
+    "marker_create": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "const": "cue",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "timeMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "kind",
+          "name",
+          "scope",
+          "timeMs"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "marker_delete": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "markerId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "markerId",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "marker_update": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "const": "cue",
+            "type": "string"
+          },
+          "markerId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "timeMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "kind",
+          "markerId",
+          "name",
+          "scope",
+          "timeMs"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
     "preview_render_frame": {
       "annotations": {
         "destructiveHint": false,
@@ -3614,6 +3923,148 @@
         "required": [
           "expectedRevision",
           "projectId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "set_item_start_time": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "time": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "milliseconds",
+                    "type": "string"
+                  },
+                  "valueMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "type",
+                  "valueMs"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "markerName": {
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                    "type": "string"
+                  },
+                  "offsetMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": {
+                    "const": "marker",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "markerName",
+                  "offsetMs",
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "itemId",
+          "scope",
+          "time"
         ],
         "type": "object"
       },
@@ -9670,6 +10121,9 @@
     "item_set_z_index",
     "job_cancel",
     "job_get_status",
+    "marker_create",
+    "marker_delete",
+    "marker_update",
     "preview_render_frame",
     "preview_render_range",
     "project_create",
@@ -9678,6 +10132,7 @@
     "project_open",
     "project_redo",
     "project_undo",
+    "set_item_start_time",
     "speech_commit_preview",
     "speech_discard_preview",
     "speech_estimate",
@@ -10527,6 +10982,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "additionalProperties": false,
         "properties": {
@@ -11303,6 +11761,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "$ref": "#/$defs/ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextPropertiesStyle"
       },
@@ -11866,7 +12327,10 @@
             "curve": {
               "anyOf": [
                 {
-                  "enum": ["hold", "linear"],
+                  "enum": [
+                    "hold",
+                    "linear"
+                  ],
                   "type": "string"
                 },
                 {
@@ -11874,25 +12338,75 @@
                     {
                       "additionalProperties": false,
                       "properties": {
-                        "type": { "const": "cubic_bezier", "type": "string" },
-                        "x1": { "maximum": 1, "minimum": 0, "type": "number" },
-                        "x2": { "maximum": 1, "minimum": 0, "type": "number" },
-                        "y1": { "maximum": 1, "minimum": 0, "type": "number" },
-                        "y2": { "maximum": 1, "minimum": 0, "type": "number" }
+                        "type": {
+                          "const": "cubic_bezier",
+                          "type": "string"
+                        },
+                        "x1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "x2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        }
                       },
-                      "required": ["type", "x1", "x2", "y1", "y2"],
+                      "required": [
+                        "type",
+                        "x1",
+                        "x2",
+                        "y1",
+                        "y2"
+                      ],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
-                        "damping": { "maximum": 1000, "minimum": 0.01, "type": "number" },
-                        "initialVelocity": { "maximum": 100, "minimum": -100, "type": "number" },
-                        "mass": { "maximum": 100, "minimum": 0.01, "type": "number" },
-                        "stiffness": { "maximum": 10000, "minimum": 0.01, "type": "number" },
-                        "type": { "const": "spring", "type": "string" }
+                        "damping": {
+                          "maximum": 1000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "initialVelocity": {
+                          "maximum": 100,
+                          "minimum": -100,
+                          "type": "number"
+                        },
+                        "mass": {
+                          "maximum": 100,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "stiffness": {
+                          "maximum": 10000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "type": {
+                          "const": "spring",
+                          "type": "string"
+                        }
                       },
-                      "required": ["damping", "initialVelocity", "mass", "stiffness", "type"],
+                      "required": [
+                        "damping",
+                        "initialVelocity",
+                        "mass",
+                        "stiffness",
+                        "type"
+                      ],
                       "type": "object"
                     }
                   ]
@@ -12343,6 +12857,180 @@
     },
     "DraftCreateInputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_create",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "operation",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "markerId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_update",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "markerId",
+            "name",
+            "operation",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "markerId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_delete",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "markerId",
+            "operation",
+            "scope"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "set_item_start_time",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "time": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "milliseconds",
+                      "type": "string"
+                    },
+                    "valueMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "valueMs"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "markerName": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "type": {
+                      "const": "marker",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "markerName",
+                    "offsetMs",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "required": [
+            "itemId",
+            "operation",
+            "scope",
+            "time"
+          ],
+          "type": "object"
+        },
         {
           "$ref": "#/$defs/OperationsItemsOneOfAddComponentInstance"
         },
@@ -13934,6 +14622,180 @@
     },
     "DraftCreateOutputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_create",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "operation",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "markerId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_update",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "markerId",
+            "name",
+            "operation",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "markerId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "marker_delete",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "markerId",
+            "operation",
+            "scope"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "itemId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "set_item_start_time",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "time": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "milliseconds",
+                      "type": "string"
+                    },
+                    "valueMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "valueMs"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "markerName": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "type": {
+                      "const": "marker",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "markerName",
+                    "offsetMs",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "required": [
+            "itemId",
+            "operation",
+            "scope",
+            "time"
+          ],
+          "type": "object"
+        },
         {
           "$ref": "#/$defs/OperationsItemsOneOfAddComponentInstance"
         },
@@ -17103,6 +17965,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "additionalProperties": false,
         "properties": {
@@ -17355,6 +18220,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "timeScale": {
         "exclusiveMinimum": 0,
@@ -17690,6 +18558,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "default": {
@@ -17898,6 +18769,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -18263,6 +19137,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "default": {
@@ -18595,6 +19472,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -18931,6 +19811,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "stroke": {
         "$ref": "#/$defs/ShapePropertiesStroke"
       },
@@ -19260,6 +20143,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "default": {
@@ -19584,6 +20470,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -20163,6 +21052,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "$ref": "#/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextPropertiesStyle"
       },
@@ -20723,6 +21615,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "toItemId": {
         "anyOf": [
           {
@@ -20967,6 +21862,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "timeScale": {
         "exclusiveMinimum": 0,
@@ -23139,6 +24037,7 @@
         "createdAtMs",
         "fonts",
         "id",
+        "markers",
         "name",
         "revision",
         "schemaVersion",
@@ -23199,6 +24098,44 @@
         "minLength": 1,
         "type": "string"
       },
+      "markers": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "name",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        "maxItems": 4096,
+        "type": "array"
+      },
       "name": {
         "type": "string"
       },
@@ -23208,7 +24145,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 23,
+        "const": 24,
         "type": "number"
       },
       "settings": {
@@ -23613,7 +24550,8 @@
         "slots",
         "tracks",
         "width",
-        "id"
+        "id",
+        "markers"
       ],
       "type": "object"
     },
@@ -23632,6 +24570,44 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "markers": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "kind": {
+              "const": "cue",
+              "type": "string"
+            },
+            "name": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "timeMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "name",
+            "scope",
+            "timeMs"
+          ],
+          "type": "object"
+        },
+        "maxItems": 4096,
+        "type": "array"
       },
       "name": {
         "maxLength": 4096,
@@ -23976,6 +24952,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "additionalProperties": false,
         "properties": {
@@ -24224,6 +25203,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "timeScale": {
         "exclusiveMinimum": 0,
@@ -24554,6 +25536,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "properties": {
@@ -24757,6 +25742,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -25117,6 +26105,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "properties": {
@@ -25444,6 +26435,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -25775,6 +26769,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "stroke": {
         "$ref": "#/$defs/ShapePropertiesStroke"
       },
@@ -26099,6 +27096,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "properties": {
@@ -26418,6 +27418,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "transform": {
         "additionalProperties": false,
@@ -26995,6 +27998,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "style": {
         "$ref": "#/$defs/OutputPropertiesOperationsItemsOneOfUpdateItemPropertiesStyle"
       },
@@ -27212,6 +28218,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
       },
       "toItemId": {
         "anyOf": [
@@ -28540,6 +29549,9 @@
         "minimum": 0,
         "type": "integer"
       },
+      "startTime": {
+        "$ref": "#/$defs/MarkerStartTime"
+      },
       "transform": {
         "additionalProperties": false,
         "properties": {
@@ -28674,6 +29686,30 @@
         "minimum": -2147483648,
         "type": "integer"
       }
+    },
+    "MarkerStartTime": {
+      "additionalProperties": false,
+      "properties": {
+        "markerName": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+          "type": "string"
+        },
+        "offsetMs": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        "type": {
+          "const": "marker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "markerName",
+        "offsetMs",
+        "type"
+      ],
+      "type": "object"
     }
   }
 }

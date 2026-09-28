@@ -45,7 +45,7 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(dir.join("history.json"), serde_json::to_vec(&json!({"undo":[old],"redo":[old]})).unwrap()).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-    old["schemaVersion"] = json!(23);
+    old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     assert_eq!(migrated, old);
     let history: Value = serde_json::from_slice(&bytes(&core, &id).1).unwrap();
     assert_eq!(history, json!({"undo":[old],"redo":[old]}));
@@ -216,12 +216,12 @@ fn valid_stale_layout_draft_survives_migration_without_replay() {
         for name in ["project.json","history.json"] {
             let path=dir.join(name);
             let raw=std::fs::read_to_string(&path).unwrap()
-                .replace("\"schemaVersion\":23", &format!("\"schemaVersion\":{version}"))
-                .replace("\"schemaVersion\": 23", &format!("\"schemaVersion\": {version}"));
+                .replace(&format!("\"schemaVersion\":{PROJECT_SCHEMA_VERSION}"), &format!("\"schemaVersion\":{version}"))
+                .replace(&format!("\"schemaVersion\": {PROJECT_SCHEMA_VERSION}"), &format!("\"schemaVersion\": {version}"));
             std::fs::write(path,raw).unwrap();
         }
         let project = core.get_project(&id).unwrap();
-        assert_eq!(project.schema_version,23);
+        assert_eq!(project.schema_version,PROJECT_SCHEMA_VERSION);
         assert_eq!(project.revision,2);
         assert_eq!(item(&core,&id,&created.changed_ids[0])["text"],"current");
         assert!(item(&core,&id,&created.changed_ids[0])["style"].get("layout").is_none());

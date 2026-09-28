@@ -499,7 +499,7 @@ fn hidden_unused_component_repeaters_are_version_gated() {
     let mut items = state["tracks"][1]["items"].take();
     items[1]["repeater"]["source"]["scope"] = json!("component:hidden");
     state["tracks"][1]["items"] = json!([]);
-    state["components"] = json!([{"id":"hidden","name":"Hidden","width":100,"height":100,"durationMs":1000,"slots":[],
+    state["components"] = json!([{"id":"hidden","name":"Hidden","width":100,"height":100,"durationMs":1000,"slots":[],"markers":[],
         "tracks":[{"id":"local","name":"Local","trackType":"overlay","hidden":true,"items":items}]}]);
     std::fs::write(
         dir.join("project.json"),

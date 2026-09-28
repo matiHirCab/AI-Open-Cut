@@ -24,6 +24,29 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 24
+        && (!project.markers.is_empty()
+            || project
+                .components
+                .iter()
+                .any(|component| !component.markers.is_empty())
+            || project
+                .tracks
+                .iter()
+                .chain(
+                    project
+                        .components
+                        .iter()
+                        .flat_map(|component| &component.tracks),
+                )
+                .flat_map(|track| &track.items)
+                .any(|item| item.visual_properties().start_time.is_some()))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "markers and relative timing require schema 24",
+        ));
+    }
     if project.schema_version < 23
         && project
             .tracks
@@ -122,7 +145,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=22 => {
+        9..=23 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -165,6 +188,7 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version,

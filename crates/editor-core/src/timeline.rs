@@ -8,10 +8,11 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, MediaItem,
-    MediaType, Project, RectangleItem, SolidColorItem, TextItem, TimelineItem, Track, TrackType,
-    TransitionItem,
+    AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, Marker,
+    MediaItem, MediaType, Project, RectangleItem, SolidColorItem, TextItem, TimeExpression,
+    TimelineItem, Track, TrackType, TransitionItem,
     animation::split_keyframes,
+    markers::set_item_start,
     validation::{
         validate_audio, validate_color, validate_dimensions, validate_duration,
         validate_item_track, validate_keyframes, validate_text, validate_text_style,
@@ -43,7 +44,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::ComponentCreate { .. }
+        EditOperation::MarkerCreate { .. }
+            | EditOperation::ComponentCreate { .. }
             | EditOperation::AddComponentInstance { .. }
             | EditOperation::ComponentInstanceDuplicate { .. }
             | EditOperation::AddGroup { .. }
@@ -81,6 +83,18 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::MarkerCreate { scope, .. } => resolve_scope_alias(scope, aliases)?,
+        EditOperation::MarkerUpdate {
+            scope, marker_id, ..
+        }
+        | EditOperation::MarkerDelete { scope, marker_id } => {
+            resolve_scope_alias(scope, aliases)?;
+            resolve_alias(marker_id, aliases)?;
+        }
+        EditOperation::SetItemStartTime { scope, item_id, .. } => {
+            resolve_scope_alias(scope, aliases)?;
+            resolve_alias(item_id, aliases)?;
+        }
         EditOperation::AddComponentInstance {
             track_id,
             component_id,
@@ -199,11 +213,24 @@ pub(crate) fn resolve_operation_aliases(
     Ok(())
 }
 
+fn resolve_scope_alias(
+    scope: &mut String,
+    aliases: &BTreeMap<String, String>,
+) -> Result<(), CoreError> {
+    if let Some(component) = scope.strip_prefix("component:") {
+        let mut component = component.to_owned();
+        resolve_alias(&mut component, aliases)?;
+        *scope = format!("component:{component}");
+    }
+    Ok(())
+}
+
 pub(crate) fn apply_operation(
     project: &mut Project,
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     let (mut ids, summary) = apply_operation_inner(project, operation)?;
+    crate::markers::reconcile_project(project)?;
     for id in normalize_stack_order(project)? {
         if !ids.contains(&id) {
             ids.push(id);
@@ -234,6 +261,105 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::MarkerCreate {
+            scope,
+            name,
+            time_ms,
+            kind,
+        } => {
+            let id = format!("m_{}", Uuid::new_v4());
+            let marker = Marker {
+                id: id.clone(),
+                name,
+                scope: scope.clone(),
+                time_ms,
+                kind,
+            };
+            crate::markers::validate_marker(&marker, &scope)?;
+            let markers = crate::markers::markers_for_scope_mut(project, &scope)?;
+            markers.push(marker);
+            Ok((vec![id], "Created marker"))
+        }
+        EditOperation::MarkerUpdate {
+            scope,
+            marker_id,
+            name,
+            time_ms,
+            kind,
+        } => {
+            let marker = crate::markers::markers_for_scope_mut(project, &scope)?
+                .iter_mut()
+                .find(|marker| marker.id == marker_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "marker not found"))?;
+            marker.name = name;
+            marker.time_ms = time_ms;
+            marker.kind = kind;
+            crate::markers::validate_marker(marker, &scope)?;
+            Ok((vec![marker_id], "Updated marker"))
+        }
+        EditOperation::MarkerDelete { scope, marker_id } => {
+            let markers = crate::markers::markers_for_scope_mut(project, &scope)?;
+            let index = markers
+                .iter()
+                .position(|marker| marker.id == marker_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "marker not found"))?;
+            markers.remove(index);
+            Ok((vec![marker_id], "Deleted marker"))
+        }
+        EditOperation::SetItemStartTime {
+            scope,
+            item_id,
+            time,
+        } => {
+            crate::markers::markers_for_scope(project, &scope)?;
+            let item = if scope == "root" {
+                find_editable_item_mut(project, &item_id)?
+            } else {
+                let component_id = scope.strip_prefix("component:").expect("validated scope");
+                let component = project
+                    .components
+                    .iter_mut()
+                    .find(|component| component.id == component_id)
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "component not found")
+                    })?;
+                let track = component
+                    .tracks
+                    .iter_mut()
+                    .find(|track| track.items.iter().any(|item| item.id() == item_id))
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "timeline item not found")
+                    })?;
+                if track.locked {
+                    return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+                }
+                track
+                    .items
+                    .iter_mut()
+                    .find(|item| item.id() == item_id)
+                    .expect("found item")
+            };
+            match time {
+                TimeExpression::Milliseconds { value_ms } => {
+                    if value_ms > crate::markers::MAX_SAFE
+                        || value_ms
+                            .checked_add(item.duration_ms())
+                            .is_none_or(|end| end > crate::markers::MAX_SAFE)
+                    {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "absolute item start exceeds safe integer bounds",
+                        ));
+                    }
+                    set_item_start(item, value_ms);
+                    item.visual_properties_mut().start_time = None;
+                }
+                expression @ TimeExpression::Marker { .. } => {
+                    item.visual_properties_mut().start_time = Some(expression);
+                }
+            }
+            Ok((vec![item_id], "Updated item start time"))
+        }
         EditOperation::AddComponentInstance {
             track_id,
             component_id,
@@ -263,6 +389,7 @@ fn apply_operation_inner(
                 ));
             }
             let visual_properties = crate::VisualProperties {
+                start_time: None,
                 animation_channels: Vec::new(),
                 transform,
                 transform2d,
@@ -302,6 +429,19 @@ fn apply_operation_inner(
                 ));
             };
             let mut copy = source.clone();
+            if let Some(TimeExpression::Marker {
+                offset_ms: current, ..
+            }) = copy.visual_properties.start_time.as_mut()
+            {
+                let next = i128::from(*current) + i128::from(offset_ms);
+                if !(-9_007_199_254_740_991_i128..=9_007_199_254_740_991_i128).contains(&next) {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "duplicate marker offset exceeds safe integer bounds",
+                    ));
+                }
+                *current = next as i64;
+            }
             copy.start_ms = copy
                 .start_ms
                 .checked_add(offset_ms)
@@ -339,6 +479,9 @@ fn apply_operation_inner(
                 ));
             };
             instance.component_id = component_id;
+            if instance.start_ms != start_ms {
+                instance.visual_properties.start_time = None;
+            }
             instance.start_ms = start_ms;
             instance.trim_start_ms = trim_start_ms;
             instance.duration_ms = duration_ms;
@@ -365,6 +508,7 @@ fn apply_operation_inner(
                 duration_ms,
                 tracks,
                 slots: slots.unwrap_or_default(),
+                markers: Vec::new(),
             });
             Ok((vec![id], "created component"))
         }
@@ -437,6 +581,7 @@ fn apply_operation_inner(
                 duration_ms,
                 tracks,
                 slots,
+                markers: current.markers.clone(),
             };
             Ok((vec![component_id], "updated component"))
         }
@@ -1134,6 +1279,7 @@ fn apply_operation_inner(
             ensure_item_track_unlocked(project, &item_id)?;
             let mut item = remove_item(project, &item_id)?;
             set_item_start(&mut item, start_ms);
+            item.visual_properties_mut().start_time = None;
             let track = editable_track_mut(project, &track_id)?;
             validate_item_track(&item, track.track_type)?;
             track.items.push(item);
@@ -1147,6 +1293,10 @@ fn apply_operation_inner(
         } => {
             validate_duration(duration_ms)?;
             let item = find_editable_item_mut(project, &item_id)?;
+            let previous_start = item.start_ms();
+            if previous_start != start_ms {
+                item.visual_properties_mut().start_time = None;
+            }
             match item {
                 TimelineItem::Media(media) => {
                     media.start_ms = start_ms;
@@ -1418,7 +1568,7 @@ fn apply_operation_inner(
             let right_id = Uuid::new_v4().to_string();
             let right_duration = item.end_ms() - split_ms;
             let left_duration = split_ms - item.start_ms();
-            let right = match item {
+            let mut right = match item {
                 TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
                         ErrorCode::InvalidArgument,
@@ -1533,6 +1683,8 @@ fn apply_operation_inner(
                     ));
                 }
             };
+            item.visual_properties_mut().start_time = None;
+            right.visual_properties_mut().start_time = None;
             project.tracks[track_index]
                 .items
                 .insert(item_index + 1, right);
@@ -1567,6 +1719,7 @@ fn apply_operation_inner(
                 let new_id = Uuid::new_v4().to_string();
                 set_item_id(&mut copy, new_id.clone());
                 set_item_start(&mut copy, new_start);
+                crate::markers::shift_expression(&mut copy, offset_ms)?;
                 copies.push((track_index, copy, new_id));
             }
             let mut changed_ids = Vec::with_capacity(copies.len());
@@ -1793,23 +1946,6 @@ pub(crate) fn remove_item(project: &mut Project, item_id: &str) -> Result<Timeli
     ))
 }
 
-pub(crate) fn set_item_start(item: &mut TimelineItem, start_ms: u64) {
-    match item {
-        TimelineItem::Group(group) => group.start_ms = start_ms,
-        TimelineItem::ComponentInstance(item) => item.start_ms = start_ms,
-        TimelineItem::Media(media) => media.start_ms = start_ms,
-        TimelineItem::Text(text) => text.start_ms = start_ms,
-        TimelineItem::SolidColor(shape) => shape.start_ms = start_ms,
-        TimelineItem::Rectangle(shape) => shape.start_ms = start_ms,
-        TimelineItem::Shape(shape) => shape.start_ms = start_ms,
-        TimelineItem::Svg(shape) => shape.start_ms = start_ms,
-        TimelineItem::Grid(shape) => shape.start_ms = start_ms,
-        TimelineItem::Repeater(item) => item.start_ms = start_ms,
-        TimelineItem::Caption(caption) => caption.start_ms = start_ms,
-        TimelineItem::Transition(transition) => transition.start_ms = start_ms,
-    }
-}
-
 pub(crate) fn set_item_id(item: &mut TimelineItem, id: String) {
     match item {
         TimelineItem::Group(group) => group.id = id,
@@ -1912,6 +2048,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,

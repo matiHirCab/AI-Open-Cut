@@ -673,7 +673,10 @@ fn valid_id(value: &str) -> bool {
 }
 
 fn validate_scope(scope: &str) -> Result<(), String> {
-    if matches!(scope, "project" | "root") || scope.strip_prefix("component:").is_some_and(valid_id)
+    if matches!(scope, "project" | "root")
+        || scope.strip_prefix("component:").is_some_and(|id| {
+            valid_id(id) || uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id)
+        })
     {
         Ok(())
     } else {
@@ -2433,6 +2436,9 @@ pub fn validate_catalog(catalog: &Value) -> Result<(), String> {
         || root.get("status").and_then(Value::as_str) != Some("fixture_only")
     {
         return Err("motion-graphics catalog version/status differs".into());
+    }
+    if root["semantics"]["activeMarkerContract"] != "marker-relative-timing-v1" {
+        return Err("active marker contract differs".into());
     }
     let limits: LimitsEnvelope = serde_json::from_value(root["limits"].clone())
         .map_err(|error| format!("limits: {error}"))?;

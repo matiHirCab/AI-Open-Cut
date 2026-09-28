@@ -55,7 +55,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "119dfeda3eba32ef9c2b171c89bd06f4e818bdb2cc73d7465d0cb3ec015202a7";
+  "b9c11db8a8f3893dd99843b4cb172a3a65f26530260ae45d636e18016578d674";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -238,7 +238,7 @@ describe("canonical public contracts", () => {
     const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     expect(first).toEqual(second);
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(72);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(76);
     expect(
       createHash("sha256").update(JSON.stringify(first)).digest("hex")
     ).toBe(MCP_BASELINE_DIGEST);
@@ -336,9 +336,10 @@ describe("canonical public contracts", () => {
   it("validates canonical component operations standalone and in batches", () => {
     for (const fixture of COMPONENTS.semanticFixtures) {
       for (const definition of fixture.components) {
-        expect(componentDefinitionSchema.safeParse(definition).success).toBe(
-          true
-        );
+        expect(
+          componentDefinitionSchema.safeParse({ ...definition, markers: [] })
+            .success
+        ).toBe(true);
       }
     }
     for (const value of COMPONENTS.validOperations) {
@@ -441,7 +442,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 23,
+      projectSchemaVersion: 24,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -464,6 +465,7 @@ describe("canonical public contracts", () => {
       EVALUATED_SCENE_RENDERING_CAPABILITY
     );
     expect(MCP_SURFACE.capabilityIdentifiers).toEqual([
+      "marker_relative_timing",
       LIFECYCLE.capability,
       EVALUATED_SCENE_RENDERING_CAPABILITY,
       "shape_items",
@@ -790,6 +792,7 @@ it("requires slot fields on schema-12 responses while retaining request defaults
   ).toBe(true);
   const complete = {
     ...definition,
+    markers: [],
     tracks: definition.tracks.map((track) => ({
       ...track,
       items: track.items.map((item) => ({ ...item, slotValues: {} })),

@@ -20,7 +20,36 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 23;
+pub const PROJECT_SCHEMA_VERSION: u32 = 24;
+
+pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Marker {
+    pub id: String,
+    pub name: String,
+    pub scope: String,
+    pub time_ms: u64,
+    pub kind: MarkerKind,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MarkerKind {
+    Cue,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(
+    tag = "type",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum TimeExpression {
+    Milliseconds { value_ms: u64 },
+    Marker { marker_name: String, offset_ms: i64 },
+}
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -45,13 +74,22 @@ pub struct Project {
     pub assets: Vec<Asset>,
     pub tracks: Vec<Track>,
     pub components: Vec<ComponentDefinition>,
+    pub markers: Vec<Marker>,
 }
 
 impl Serialize for Project {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let mut state = serializer
-            .serialize_struct("Project", if self.schema_version >= 19 { 11 } else { 10 })?;
+        let mut state = serializer.serialize_struct(
+            "Project",
+            if self.schema_version >= 24 {
+                12
+            } else if self.schema_version >= 19 {
+                11
+            } else {
+                10
+            },
+        )?;
         if self.schema_version >= 19 {
             state.serialize_field("fonts", &self.fonts)?;
         }
@@ -65,6 +103,9 @@ impl Serialize for Project {
         state.serialize_field("assets", &self.assets)?;
         state.serialize_field("tracks", &self.tracks)?;
         state.serialize_field("components", &self.components)?;
+        if self.schema_version >= 24 {
+            state.serialize_field("markers", &self.markers)?;
+        }
         state.end()
     }
 }
@@ -86,12 +127,31 @@ struct ProjectDocument {
     tracks: BufferedValue,
     #[serde(default)]
     components: Option<BufferedValue>,
+    #[serde(default)]
+    markers: Option<Vec<Marker>>,
 }
 
 impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 24
+            && value
+                .markers
+                .as_ref()
+                .is_some_and(|markers| !markers.is_empty())
+        {
+            return Err("markers require schema 24".into());
+        }
+        if value.schema_version == 24 && value.markers.is_none() {
+            return Err("schema 24 requires markers".into());
+        }
+        if value.schema_version < 24 {
+            reject_marker_start_times(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_marker_start_times(components)?;
+            }
+        }
         if value.schema_version < 19 && value.fonts.is_some() {
             return Err("font catalogs require schema 19".into());
         }
@@ -179,6 +239,16 @@ impl TryFrom<ProjectDocument> for Project {
                 } else if !fields.contains_key("slots") {
                     return Err("schema 12 requires slots".into());
                 }
+                if value.schema_version < 24 {
+                    if fields.get("markers").is_some_and(|markers| {
+                        markers.as_array().is_none_or(|markers| !markers.is_empty())
+                    }) {
+                        return Err("component markers require schema 24".into());
+                    }
+                    fields.insert("markers".into(), serde_json::json!([]));
+                } else if !fields.contains_key("markers") {
+                    return Err("schema 24 requires component markers".into());
+                }
                 if let Some(tracks) = fields.get_mut("tracks") {
                     prepare_text_documents(tracks, value.schema_version)?;
                 }
@@ -229,6 +299,7 @@ impl TryFrom<ProjectDocument> for Project {
             updated_at_ms: value.updated_at_ms,
             settings: value.settings,
             assets: value.assets,
+            markers: value.markers.unwrap_or_default(),
             tracks: value.tracks.decode().map_err(|error| error.to_string())?,
         })
     }
@@ -310,6 +381,26 @@ fn reject_parameterized_curves(value: &serde_json::Value) -> Result<(), String> 
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_parameterized_curves(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn reject_marker_start_times(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.contains_key("startTime") {
+                return Err("marker-relative start times require schema 24".into());
+            }
+            for child in object.values() {
+                reject_marker_start_times(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_marker_start_times(child)?;
             }
         }
         _ => {}
@@ -803,6 +894,8 @@ impl TimelineItem {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub animation_channels: Vec<AnimationChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -822,6 +915,7 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            start_time: None,
             animation_channels: Vec::new(),
             parent: None,
             transform,
@@ -850,6 +944,8 @@ pub struct ComponentDefinition {
     pub duration_ms: u64,
     pub tracks: Vec<Track>,
     pub slots: Vec<TemplateSlot>,
+    #[serde(default)]
+    pub markers: Vec<Marker>,
 }
 
 fn deserialize_present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
@@ -1538,6 +1634,28 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    MarkerCreate {
+        scope: String,
+        name: String,
+        time_ms: u64,
+        kind: MarkerKind,
+    },
+    MarkerUpdate {
+        scope: String,
+        marker_id: String,
+        name: String,
+        time_ms: u64,
+        kind: MarkerKind,
+    },
+    MarkerDelete {
+        scope: String,
+        marker_id: String,
+    },
+    SetItemStartTime {
+        scope: String,
+        item_id: String,
+        time: TimeExpression,
+    },
     AddComponentInstance {
         track_id: String,
         component_id: String,
@@ -1877,6 +1995,28 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    MarkerCreate {
+        scope: String,
+        name: String,
+        time_ms: u64,
+        kind: MarkerKind,
+    },
+    MarkerUpdate {
+        scope: String,
+        marker_id: String,
+        name: String,
+        time_ms: u64,
+        kind: MarkerKind,
+    },
+    MarkerDelete {
+        scope: String,
+        marker_id: String,
+    },
+    SetItemStartTime {
+        scope: String,
+        item_id: String,
+        time: TimeExpression,
+    },
     AddComponentInstance {
         track_id: String,
         component_id: String,
@@ -2215,6 +2355,19 @@ impl<'de> Deserialize<'de> for EditOperation {
             value["operation"].as_str(),
             Some("component_create" | "component_update")
         ) {
+            // A schema-24 component snapshot carries an empty marker collection.
+            // Accept that unchanged default when callers derive an update from
+            // the snapshot; replacement retains the component's actual markers.
+            if value["operation"] == "component_update"
+                && value
+                    .get("markers")
+                    .is_some_and(|markers| markers == &serde_json::json!([]))
+            {
+                value
+                    .as_object_mut()
+                    .expect("edit object")
+                    .remove("markers");
+            }
             for item in value
                 .get_mut("tracks")
                 .and_then(serde_json::Value::as_array_mut)
@@ -2539,6 +2692,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: PROJECT_SCHEMA_VERSION,

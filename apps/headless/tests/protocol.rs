@@ -12,6 +12,32 @@ fn error_catalog() -> Value {
 }
 
 #[test]
+fn scoped_markers_roundtrip_batch_alias_and_conflict() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Marker protocol"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let written = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"marker_create","scope":"root","name":"impact","timeMs":300,"kind":"cue","resultAlias":"cue"},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":100,"width":20,"height":20,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"box"},
+        {"operation":"set_item_start_time","scope":"root","itemId":"@box","time":{"type":"marker","markerName":"impact","offsetMs":-50}}
+    ]})));
+    assert_eq!(written["revision"], 1);
+    let item_id = written["aliases"]["box"].clone();
+    let marker_id = written["aliases"]["cue"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(state["project"]["markers"][0]["id"], marker_id);
+    assert_eq!(state["project"]["tracks"][1]["items"][0]["startMs"], 250);
+    let conflict = event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"marker_delete","scope":"root","markerId":marker_id}})));
+    assert_eq!(conflict["error"]["code"], "REVISION_CONFLICT");
+    let changed = result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"marker_update","scope":"root","markerId":marker_id,"name":"impact","timeMs":500,"kind":"cue"}})));
+    assert_eq!(changed["revision"], 2);
+    let reopened = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(reopened["project"]["tracks"][1]["items"][0]["startMs"], 450);
+    assert_eq!(reopened["project"]["tracks"][1]["items"][0]["id"], item_id);
+}
+
+#[test]
 fn typed_animation_channels_roundtrip_alias_and_failures() {
     let h = Harness::new();
     let id =
@@ -34,7 +60,7 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
         state["project"]["tracks"][1]["items"][0]["animationChannels"],
         channels
     );
-    assert_eq!(state["project"]["schemaVersion"], 23);
+    assert_eq!(state["project"]["schemaVersion"], 24);
     for (revision, edit, code) in [
         (
             0,

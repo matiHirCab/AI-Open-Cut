@@ -85,6 +85,7 @@ pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreErr
 }
 
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
+    crate::markers::validate_project(project)?;
     validate_project_stacking(project)?;
     validate_parent_graph(project)?;
     validate_root_animation_channels(project)?;

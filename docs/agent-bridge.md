@@ -1,5 +1,7 @@
 # OpenCut Agent Bridge
 
+The typed marker CRUD and marker-relative item-start workflow is documented in [Marker-relative timing](marker-relative-timing.md).
+
 ## Architecture status and decision
 
 This repository is the in-progress OpenCut rewrite. At the start of this work, the GPUI desktop contained layout placeholders, the web editor said “Coming soon,” and the API exposed only health and echo routes. There was no project model, timeline command layer, renderer, export pipeline, plugin API, headless API, or MCP server to reuse. The release changelogs describe the archived classic implementation and do not correspond to code in this branch.

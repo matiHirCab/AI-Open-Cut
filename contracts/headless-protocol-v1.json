@@ -72,7 +72,8 @@
       "capabilities",
       "subsystems"
     ],
-    "editorCapabilities": [
+  "editorCapabilities": [
+    "marker_relative_timing",
       "projects",
       "assets",
       "timeline",

@@ -15,6 +15,7 @@ import type {
   richTextDocumentSchema,
   templateSlotSchema,
   textStyleSchema,
+  timeExpressionSchema,
   transform2dSchema,
 } from "./schemas";
 import type { ShapeGeometry } from "./shape-items";
@@ -39,6 +40,29 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | {
+      operation: "marker_create";
+      scope: string;
+      name: string;
+      timeMs: number;
+      kind: "cue";
+      resultAlias?: string | undefined;
+    }
+  | {
+      operation: "marker_update";
+      scope: string;
+      markerId: string;
+      name: string;
+      timeMs: number;
+      kind: "cue";
+    }
+  | { operation: "marker_delete"; scope: string; markerId: string }
+  | {
+      operation: "set_item_start_time";
+      scope: string;
+      itemId: string;
+      time: z.infer<typeof timeExpressionSchema>;
+    }
   | ({ operation: "add_svg"; resultAlias?: string | undefined } & z.infer<
       typeof addSvgSchema
     >)

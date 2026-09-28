@@ -25,10 +25,10 @@ store facade ─> assets ─> persistence
      ├─────────> drafts ─> persistence
      ├─────────> migrations
      ├─────────> persistence
-     ├─────────> timeline ─> animation/validation
-     └─────────> validation
+     ├─────────> timeline ─> animation/markers/validation
+     └─────────> validation ─> markers
 
-renderer facade ─> evaluated_scene ─> animation/validation
+renderer facade ─> evaluated_scene ─> animation/validation/markers
         ├────────> render_artifact ─> evaluated_scene
         │                  └───────> render_plan ─> evaluated_scene/animation
         ├────────> render_plan
@@ -42,9 +42,10 @@ Root facade re-exports provide model and error types without adding an outward o
 | `animation` | none |
 | `assets` | `persistence`, `fonts` |
 | `drafts` | `persistence` |
-| `evaluated_scene` | `animation`, `validation`, `fonts` |
+| `evaluated_scene` | `animation`, `validation`, `fonts`, `markers` |
 | `error` | none |
 | `fonts` | none |
+| `markers` | none |
 | `migrations` | none |
 | `model` | `error` |
 | `path_policy` | none |
@@ -54,8 +55,8 @@ Root facade re-exports provide model and error types without adding an outward o
 | `render_process` | `render_plan` |
 | `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process` |
 | `store` | `assets`, `drafts`, `fonts`, `migrations`, `persistence`, `timeline`, `validation` |
-| `timeline` | `animation`, `validation` |
-| `validation` | none |
+| `timeline` | `animation`, `markers`, `validation` |
+| `validation` | `markers` |
 | `vector` | none |
 
 Animation channel DTOs are nested under `model`; channel compatibility, bounds, target, and legacy-collision rules are nested under `validation`. Timeline edits call that validation owner, and scene evaluation consumes the model types. The architecture test compares the complete top-level private module inventory with this matrix, so an unlisted owner cannot bypass dependency review.
@@ -66,6 +67,7 @@ Animation channel DTOs are nested under `model`; channel compatibility, bounds, 
 | --- | --- | --- |
 | Serialized editor model | `model` | I/O, process execution, transport schemas |
 | Domain validation | `validation` | Persistence, FFmpeg, presentation validation copies |
+| Scoped marker lookup and item-start resolution | `markers` | Transport, persistence, rendering, process concerns |
 | Reference-free vector primitive models and pure validation | `vector` | Persisted timeline activation, resource I/O, rasterization, transport orchestration |
 | Timeline operations and history transitions | `timeline` | Filesystem and transport behavior |
 | Asset references, integrity, and managed-content policy | `assets` | Transport/provider behavior |

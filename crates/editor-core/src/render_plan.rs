@@ -1662,6 +1662,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
             schema_version: 18, // Historical layout baseline; schema-19 fonts have dedicated fixtures.
