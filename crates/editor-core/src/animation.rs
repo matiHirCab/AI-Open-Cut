@@ -1,4 +1,226 @@
-use crate::{Easing, Keyframe, KeyframeProperty, KeyframeValue};
+use crate::{
+    AnimationChannel, AnimationChannelValue, AnimationCurve, Easing, Keyframe, KeyframeProperty,
+    KeyframeValue, ParameterizedAnimationCurve, SimpleAnimationCurve,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum SpringCoefficients {
+    Underdamped {
+        decay: f64,
+        frequency: f64,
+        sine: f64,
+    },
+    Critical {
+        decay: f64,
+        linear: f64,
+    },
+    Overdamped {
+        slow_root: f64,
+        fast_root: f64,
+        slow: f64,
+        fast: f64,
+    },
+}
+
+pub(crate) fn spring_coefficients(
+    mass: f64,
+    stiffness: f64,
+    damping: f64,
+    initial_velocity: f64,
+) -> SpringCoefficients {
+    let decay = damping / (2.0 * mass);
+    let natural_squared = stiffness / mass;
+    let discriminant = decay * decay - natural_squared;
+    if discriminant < 0.0 {
+        let frequency = (-discriminant).sqrt();
+        SpringCoefficients::Underdamped {
+            decay,
+            frequency,
+            sine: (initial_velocity - decay) / frequency,
+        }
+    } else if discriminant == 0.0 {
+        SpringCoefficients::Critical {
+            decay,
+            linear: initial_velocity - decay,
+        }
+    } else {
+        let root = discriminant.sqrt();
+        let slow_root = -decay + root;
+        let fast_root = -decay - root;
+        let slow = (initial_velocity + fast_root) / (slow_root - fast_root);
+        SpringCoefficients::Overdamped {
+            slow_root,
+            fast_root,
+            slow,
+            fast: -1.0 - slow,
+        }
+    }
+}
+
+pub(crate) fn parameterized_curve_progress(
+    curve: ParameterizedAnimationCurve,
+    progress: f64,
+) -> f64 {
+    let progress = progress.clamp(0.0, 1.0);
+    if progress == 0.0 || progress == 1.0 {
+        return progress;
+    }
+    match curve {
+        ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 } => {
+            let mut low = 0.0;
+            let mut high = 1.0;
+            for _ in 0..40 {
+                let midpoint = (low + high) / 2.0;
+                let x = cubic_bezier(midpoint, x1, x2);
+                if x <= progress {
+                    low = midpoint;
+                } else {
+                    high = midpoint;
+                }
+            }
+            cubic_bezier((low + high) / 2.0, y1, y2)
+        }
+        ParameterizedAnimationCurve::Spring {
+            mass,
+            stiffness,
+            damping,
+            initial_velocity,
+        } => {
+            let displacement = match spring_coefficients(mass, stiffness, damping, initial_velocity)
+            {
+                SpringCoefficients::Underdamped {
+                    decay,
+                    frequency,
+                    sine,
+                } => {
+                    (-decay * progress).exp()
+                        * (-(frequency * progress).cos() + sine * (frequency * progress).sin())
+                }
+                SpringCoefficients::Critical { decay, linear } => {
+                    (-decay * progress).exp() * (-1.0 + linear * progress)
+                }
+                SpringCoefficients::Overdamped {
+                    slow_root,
+                    fast_root,
+                    slow,
+                    fast,
+                } => slow * (slow_root * progress).exp() + fast * (fast_root * progress).exp(),
+            };
+            1.0 + displacement
+        }
+    }
+}
+
+fn cubic_bezier(time: f64, first: f64, second: f64) -> f64 {
+    let inverse = 1.0 - time;
+    3.0 * inverse * inverse * time * first
+        + 3.0 * inverse * time * time * second
+        + time * time * time
+}
+
+pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) -> Option<f64> {
+    let first = channel.keyframes.first()?;
+    let scalar = |value: &AnimationChannelValue| match value {
+        AnimationChannelValue::Scalar { value } => Some(*value),
+        _ => None,
+    };
+    if time_ms <= first.time_ms {
+        return scalar(&first.value);
+    }
+    for pair in channel.keyframes.windows(2) {
+        let start = &pair[0];
+        let end = &pair[1];
+        if time_ms == end.time_ms {
+            return scalar(&end.value);
+        }
+        if time_ms < end.time_ms {
+            let start_value = scalar(&start.value)?;
+            let end_value = scalar(&end.value)?;
+            let progress = (time_ms - start.time_ms) as f64 / (end.time_ms - start.time_ms) as f64;
+            let eased = match start.curve {
+                AnimationCurve::Simple(SimpleAnimationCurve::Hold) => 0.0,
+                AnimationCurve::Simple(SimpleAnimationCurve::Linear) => progress,
+                AnimationCurve::Parameterized(curve) => {
+                    parameterized_curve_progress(curve, progress)
+                }
+            };
+            let value = start_value + (end_value - start_value) * eased;
+            let value = if matches!(start.curve, AnimationCurve::Parameterized(_)) {
+                match channel.property {
+                    crate::AnimationChannelProperty::PositionX
+                    | crate::AnimationChannelProperty::PositionY => {
+                        value.clamp(-1_000_000.0, 1_000_000.0)
+                    }
+                    crate::AnimationChannelProperty::ScaleX
+                    | crate::AnimationChannelProperty::ScaleY => value.clamp(0.000_001, 100.0),
+                    crate::AnimationChannelProperty::Opacity => value.clamp(0.0, 1.0),
+                    crate::AnimationChannelProperty::GainDb => value.clamp(-96.0, 12.0),
+                    _ => value,
+                }
+            } else {
+                value
+            };
+            return value.is_finite().then_some(value);
+        }
+    }
+    scalar(&channel.keyframes.last()?.value)
+}
+
+#[cfg(test)]
+mod curve_tests {
+    use super::*;
+    use crate::AnimationChannelProperty;
+    use serde_json::json;
+
+    fn channel(curve: serde_json::Value, first: f64, last: f64) -> AnimationChannel {
+        serde_json::from_value(json!({
+            "property":"transform.position_x",
+            "keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":first},"curve":curve},
+                {"timeMs":1000,"value":{"type":"scalar","value":last},"curve":"hold"}
+            ]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn bezier_fixed_samples_and_exact_boundaries() {
+        let value = channel(
+            json!({"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1}),
+            0.0,
+            100.0,
+        );
+        assert_eq!(value.property, AnimationChannelProperty::PositionX);
+        assert_eq!(sample_scalar_channel(&value, 0), Some(0.0));
+        assert_eq!(sample_scalar_channel(&value, 1000), Some(100.0));
+        assert!((sample_scalar_channel(&value, 250).unwrap() - 40.851_059_135_527_1).abs() < 1e-9);
+        assert!((sample_scalar_channel(&value, 500).unwrap() - 80.240_338_758_508_51).abs() < 1e-9);
+    }
+
+    #[test]
+    fn spring_regimes_have_fixed_scalar_results() {
+        for (damping, expected) in [
+            (10.0, 107.459_056_659_503_33),
+            (20.0, 95.957_231_800_548_71),
+            (30.0, 82.659_534_975_953_59),
+        ] {
+            let value = channel(
+                json!({"type":"spring","mass":1,"stiffness":100,"damping":damping,"initialVelocity":0}),
+                0.0,
+                100.0,
+            );
+            assert_eq!(sample_scalar_channel(&value, 0), Some(0.0));
+            assert_eq!(sample_scalar_channel(&value, 1000), Some(100.0));
+            assert!((sample_scalar_channel(&value, 500).unwrap() - expected).abs() < 1e-9);
+        }
+        let value = channel(
+            json!({"type":"spring","mass":1,"stiffness":100,"damping":1,"initialVelocity":0}),
+            0.0,
+            100.0,
+        );
+        assert!(sample_scalar_channel(&value, 300).unwrap() > 100.0);
+    }
+}
 
 pub(crate) fn easing_progress(easing: Easing, progress: f64) -> f64 {
     let progress = progress.clamp(0.0, 1.0);

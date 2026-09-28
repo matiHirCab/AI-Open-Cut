@@ -554,6 +554,9 @@ pub(crate) fn build_render_command(
 ) -> Command {
     let mut command = Command::new(ffmpeg_path);
     append_render_inputs(&mut command, plan);
+    if plan.serial_bezier_filters {
+        command.args(["-filter_complex_threads", "1"]);
+    }
     command.arg("-filter_complex_script").arg(filter_path);
     match plan.intent {
         RenderIntent::Frame { at_ms } => {
@@ -708,6 +711,9 @@ pub(crate) fn build_composite_benchmark_command(
 ) -> Command {
     let mut command = Command::new(ffmpeg_path);
     append_render_inputs(&mut command, plan);
+    if plan.serial_bezier_filters {
+        command.args(["-filter_complex_threads", "1"]);
+    }
     command.arg("-filter_complex_script").arg(filter_path);
     match plan.intent {
         RenderIntent::Frame { at_ms } => {
@@ -952,6 +958,7 @@ mod tests {
     #[test]
     fn executor_outcomes_are_injectable_and_diagnostics_are_bounded() {
         let plan = RenderPlan {
+            serial_bezier_filters: false,
             text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: String::new(),
@@ -983,6 +990,7 @@ mod tests {
     #[test]
     fn benchmark_commands_preserve_production_plan_inputs_bounds_and_graph() {
         let plan = RenderPlan {
+            serial_bezier_filters: false,
             text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: "[0:v]null[video];[1:a]anull[audio]".into(),
@@ -1062,6 +1070,7 @@ mod tests {
     #[test]
     fn grid_range_fidelity_preserves_legacy_encoding() {
         let mut plan = RenderPlan {
+            serial_bezier_filters: false,
             text_layout_fidelity: false,
             detail_fidelity: false,
             filter_graph: String::new(),
@@ -1086,6 +1095,30 @@ mod tests {
             ))
         };
         let legacy = args(&plan);
+        assert!(!legacy.contains(&"-filter_complex_threads".to_owned()));
+        for intent in [
+            RenderIntent::Frame { at_ms: 250 },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 1000,
+                include_audio: true,
+            },
+            RenderIntent::Export,
+        ] {
+            plan.intent = intent;
+            plan.serial_bezier_filters = true;
+            assert!(
+                args(&plan)
+                    .windows(2)
+                    .any(|pair| pair == ["-filter_complex_threads", "1"])
+            );
+        }
+        plan.serial_bezier_filters = false;
+        plan.intent = RenderIntent::Range {
+            start_ms: 0,
+            end_ms: 1000,
+            include_audio: true,
+        };
         assert!(legacy.windows(2).any(|v| v == ["-crf", "28"]));
         assert!(legacy.windows(2).any(|v| v == ["-preset", "veryfast"]));
         plan.detail_fidelity = true;

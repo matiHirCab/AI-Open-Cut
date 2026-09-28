@@ -14,7 +14,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(22);
+    expect(contract.projectSchemaVersion).toBe(23);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),
@@ -112,6 +112,54 @@ describe("governed animation channels", () => {
     expect(
       animationChannelSchema.safeParse(contract.examples.validChannel).success
     ).toBe(true);
+    expect(contract.curves).toEqual([
+      "hold",
+      "linear",
+      "cubic_bezier",
+      "spring",
+    ]);
+    expect(contract.curveParameters).toEqual({
+      cubic_bezier: {
+        iterations: 40,
+        x1: [0, 1],
+        x1AtMostX2: true,
+        x2: [0, 1],
+        y1: [0, 1],
+        y2: [0, 1],
+      },
+      spring: {
+        damping: [0.01, 1000],
+        initialVelocity: [-100, 100],
+        mass: [0.01, 100],
+        stiffness: [0.01, 10_000],
+      },
+    });
+    for (const testCase of contract.curveCases) {
+      const value = {
+        keyframes: [
+          {
+            curve: testCase.curve,
+            timeMs: 0,
+            value: { type: "scalar", value: 0 },
+          },
+          { curve: "hold", timeMs: 500, value: { type: "scalar", value: 100 } },
+        ],
+        property: "transform.position_x",
+      };
+      expect(
+        animationChannelSchema.safeParse(value).success,
+        testCase.name
+      ).toBe(testCase.accepted);
+    }
+    expect(
+      animationChannelSchema.safeParse(contract.examples.validBezier).success
+    ).toBe(true);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.validSpring).success
+    ).toBe(true);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.invalidSpring).success
+    ).toBe(false);
     expect(
       animationChannelSchema.safeParse(contract.examples.invalidChannel).success
     ).toBe(false);
@@ -145,6 +193,21 @@ describe("governed animation channels", () => {
     for (const bad of [
       { ...value, unknown: true },
       { ...value, keyframes: [{ ...value.keyframes[0], curve: "spring" }] },
+      {
+        ...value,
+        keyframes: [
+          {
+            ...value.keyframes[0],
+            curve: {
+              damping: 26,
+              initialVelocity: 0,
+              mass: 0,
+              stiffness: 170,
+              type: "spring",
+            },
+          },
+        ],
+      },
       { ...value, keyframes: [{ ...value.keyframes[0], timeMs: "@marker" }] },
       {
         ...value,

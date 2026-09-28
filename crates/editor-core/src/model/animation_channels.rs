@@ -82,11 +82,36 @@ impl AnimationChannelProperty {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum AnimationCurve {
+    Simple(SimpleAnimationCurve),
+    Parameterized(ParameterizedAnimationCurve),
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AnimationCurve {
+pub enum SimpleAnimationCurve {
     Hold,
     Linear,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ParameterizedAnimationCurve {
+    CubicBezier {
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+    },
+    Spring {
+        mass: f64,
+        stiffness: f64,
+        damping: f64,
+        #[serde(rename = "initialVelocity")]
+        initial_velocity: f64,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

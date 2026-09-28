@@ -20,7 +20,7 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
     let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
     let track = state["project"]["tracks"][1]["id"].clone();
     let channels = json!([{"property":"transform.position_x","keyframes":[
-        {"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},
+        {"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":{"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1.0}},
         {"timeMs":500,"value":{"type":"scalar","value":40.0},"curve":"hold"}
     ]}]);
     let written = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
@@ -34,7 +34,7 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
         state["project"]["tracks"][1]["items"][0]["animationChannels"],
         channels
     );
-    assert_eq!(state["project"]["schemaVersion"], 22);
+    assert_eq!(state["project"]["schemaVersion"], 23);
     for (revision, edit, code) in [
         (
             0,
@@ -51,14 +51,33 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
             json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.rotation_deg","keyframes":[]}]}),
             "INVALID_ARGUMENT",
         ),
+        (
+            1,
+            json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"spring","mass":0,"stiffness":100,"damping":20,"initialVelocity":0}},{"timeMs":500,"value":{"type":"scalar","value":40},"curve":"hold"}]}]}),
+            "INVALID_ARGUMENT",
+        ),
     ] {
         let response = event(&h.request(
             json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
         ));
         assert_eq!(response["error"]["code"], code);
     }
+    let spring = json!([{"property":"transform.position_x","keyframes":[
+        {"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":{"type":"spring","mass":1.0,"stiffness":100.0,"damping":20.0,"initialVelocity":0.0}},
+        {"timeMs":500,"value":{"type":"scalar","value":40.0},"curve":"hold"}
+    ]}]);
+    let replaced = result(&h.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{
+            "operation":"set_animation_channels","itemId":item,"animationChannels":spring
+        }}),
+    ));
+    assert_eq!(replaced["revision"], 2);
     let reopened = result(&h.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(reopened["project"]["revision"], 1);
+    assert_eq!(reopened["project"]["revision"], 2);
+    assert_eq!(
+        reopened["project"]["tracks"][1]["items"][0]["animationChannels"],
+        spring
+    );
 }
 
 #[test]

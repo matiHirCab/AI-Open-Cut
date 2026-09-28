@@ -76,6 +76,8 @@ pub(crate) struct FilterContext<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderPlan {
     pub(crate) text_layout_fidelity: bool,
+    /// FFmpeg 6 evaluates Bézier expression registers across filter threads.
+    pub(crate) serial_bezier_filters: bool,
     /// Fine procedural marks and styled text need export-quality range encoding for parity.
     pub(crate) detail_fidelity: bool,
     pub(crate) filter_graph: String,
@@ -364,6 +366,15 @@ pub(crate) fn build_render_plan(
         audio_labels.len()
     ));
     Ok(RenderPlan {
+        serial_bezier_filters: scene.visual_layers.iter().any(|layer| {
+            layer.keyframes.iter().any(|keyframe| {
+                matches!(keyframe.easing, EvaluatedEasing::CubicBezier { .. })
+            })
+        }) || scene.audio_layers.iter().any(|layer| {
+            layer.volume_keyframes.iter().any(|keyframe| {
+                matches!(keyframe.easing, EvaluatedEasing::CubicBezier { .. })
+            })
+        }),
         text_layout_fidelity: scene.visual_layers.iter().any(|layer| matches!(&layer.source, EvaluatedVisualSource::Text(text) if text.style.layout.is_some())),
         detail_fidelity: scene.visual_layers.iter().any(|layer| {
             matches!(&layer.source, EvaluatedVisualSource::Shape(shape) if shape.grid_descriptor.is_some())
@@ -493,7 +504,16 @@ fn evaluated_scalar_expression_for(
             _ => None,
         })
         .collect::<Vec<_>>();
-    evaluated_piecewise_expression_for(&values, default, item_start_ms, time_variable)
+    let bounds = match property {
+        EvaluatedProperty::PositionX | EvaluatedProperty::PositionY => {
+            Some((-1_000_000.0, 1_000_000.0))
+        }
+        EvaluatedProperty::ScaleX | EvaluatedProperty::ScaleY => Some((0.000_001, 100.0)),
+        EvaluatedProperty::Opacity => Some((0.0, 1.0)),
+        EvaluatedProperty::GainDb => Some((-96.0, 12.0)),
+        _ => None,
+    };
+    evaluated_piecewise_expression_for(&values, default, item_start_ms, time_variable, bounds)
 }
 
 fn evaluated_position_expression(
@@ -513,7 +533,7 @@ fn evaluated_position_expression(
             _ => None,
         })
         .collect::<Vec<_>>();
-    evaluated_piecewise_expression_for(&values, default, item_start_ms, "t")
+    evaluated_piecewise_expression_for(&values, default, item_start_ms, "t", None)
 }
 
 fn evaluated_piecewise_expression_for(
@@ -521,11 +541,17 @@ fn evaluated_piecewise_expression_for(
     default: f64,
     item_start_ms: u64,
     time_variable: &str,
+    bounds: Option<(f64, f64)>,
 ) -> String {
     if values.is_empty() {
         return format_number(default);
     }
-    let mut expression = format_number(values.last().map_or(default, |value| value.1));
+    let last = values.last().expect("nonempty keyframes");
+    let mut expression = if values.len() > 1 && parameterized_easing(values[values.len() - 2].2) {
+        format_curve_number(last.1)
+    } else {
+        format_number(last.1)
+    };
     for pair in values.windows(2).rev() {
         let (start_time, start_value, easing) = pair[0];
         let (end_time, end_value, _) = pair[1];
@@ -534,19 +560,53 @@ fn evaluated_piecewise_expression_for(
         let span = seconds(end_time.saturating_sub(start_time).max(1));
         let progress = format!("(({time_variable})-({global_start}))/({span})");
         let eased = evaluated_easing_expression(&progress, easing);
-        let interpolated = format!(
+        let format_value: fn(f64) -> String = if parameterized_easing(easing) {
+            format_curve_number
+        } else {
+            format_number
+        };
+        let mut interpolated = format!(
             "({})+(({})-({}))*({eased})",
-            format_number(start_value),
-            format_number(end_value),
-            format_number(start_value)
+            format_value(start_value),
+            format_value(end_value),
+            format_value(start_value)
         );
+        if matches!(
+            easing,
+            EvaluatedEasing::CubicBezier { .. } | EvaluatedEasing::Spring { .. }
+        ) && let Some((minimum, maximum)) = bounds
+        {
+            interpolated = format!(
+                "if(eq(({time_variable}),({global_start})),{},max({},min({},({interpolated}))))",
+                format_value(start_value),
+                format_number(minimum),
+                format_number(maximum)
+            );
+        }
+        if parameterized_easing(easing) {
+            expression = format!(
+                "if(eq(({time_variable}),({global_end})),{},({expression}))",
+                format_curve_number(end_value)
+            );
+        }
         expression =
             format!("if(lt(({time_variable}),({global_end})),{interpolated},{expression})");
     }
     let first_time = seconds(item_start_ms.saturating_add(values[0].0));
     format!(
         "if(lt(({time_variable}),({first_time})),({}),{expression})",
-        format_number(values[0].1)
+        if parameterized_easing(values[0].2) {
+            format_curve_number(values[0].1)
+        } else {
+            format_number(values[0].1)
+        }
+    )
+}
+
+fn parameterized_easing(easing: EvaluatedEasing) -> bool {
+    matches!(
+        easing,
+        EvaluatedEasing::CubicBezier { .. } | EvaluatedEasing::Spring { .. }
     )
 }
 
@@ -559,7 +619,64 @@ fn evaluated_easing_expression(progress: &str, easing: EvaluatedEasing) -> Strin
         EvaluatedEasing::EaseInOut => format!(
             "if(lt(({progress}),0.5),2*({progress})*({progress}),1-pow(-2*({progress})+2,2)/2)"
         ),
+        EvaluatedEasing::CubicBezier { x1, y1, x2, y2 } => {
+            let midpoint = "(ld(0)+ld(1))/2";
+            let x = cubic_bezier_expression("ld(2)", x1, x2);
+            let y = cubic_bezier_expression(midpoint, y1, y2);
+            let steps = format!(
+                "st(0,0);st(1,1);st(3,0);while(lt(ld(3),40),st(2,{midpoint})+0*if(lte(({x}),({progress})),st(0,ld(2)),st(1,ld(2)))+st(3,ld(3)+1));{y}"
+            );
+            format!("if(lte(({progress}),0),0,if(gte(({progress}),1),1,({steps})))")
+        }
+        EvaluatedEasing::Spring {
+            mass,
+            stiffness,
+            damping,
+            initial_velocity,
+        } => {
+            use crate::animation::{SpringCoefficients, spring_coefficients};
+            let displacement = match spring_coefficients(mass, stiffness, damping, initial_velocity)
+            {
+                SpringCoefficients::Underdamped {
+                    decay,
+                    frequency,
+                    sine,
+                } => format!(
+                    "exp(-{}*({progress}))*(-cos({}*({progress}))+{}*sin({}*({progress})))",
+                    format_curve_number(decay),
+                    format_curve_number(frequency),
+                    format_curve_number(sine),
+                    format_curve_number(frequency)
+                ),
+                SpringCoefficients::Critical { decay, linear } => format!(
+                    "exp(-{}*({progress}))*(-1+{}*({progress}))",
+                    format_curve_number(decay),
+                    format_curve_number(linear)
+                ),
+                SpringCoefficients::Overdamped {
+                    slow_root,
+                    fast_root,
+                    slow,
+                    fast,
+                } => format!(
+                    "{}*exp({}*({progress}))+{}*exp({}*({progress}))",
+                    format_curve_number(slow),
+                    format_curve_number(slow_root),
+                    format_curve_number(fast),
+                    format_curve_number(fast_root)
+                ),
+            };
+            format!("if(lte(({progress}),0),0,if(gte(({progress}),1),1,1+({displacement})))")
+        }
     }
+}
+
+fn cubic_bezier_expression(time: &str, first: f64, second: f64) -> String {
+    let first = format_curve_number(first);
+    let second = format_curve_number(second);
+    format!(
+        "3*(1-({time}))*(1-({time}))*({time})*{first}+3*(1-({time}))*({time})*({time})*{second}+({time})*({time})*({time})"
+    )
 }
 
 fn evaluated_ducking_expression(
@@ -894,6 +1011,10 @@ pub(crate) fn format_number(value: f64) -> String {
     format!("{value:.6}")
 }
 
+fn format_curve_number(value: f64) -> String {
+    format!("{value:.17}")
+}
+
 fn append_affine_layer(
     filters: &mut Vec<String>,
     layer: &crate::evaluated_scene::EvaluatedVisualLayer,
@@ -1100,7 +1221,13 @@ fn append_affine_samples(
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            evaluated_piecewise_expression_for(&values, default, layer.span.start_ms, &local_time)
+            evaluated_piecewise_expression_for(
+                &values,
+                default,
+                layer.span.start_ms,
+                &local_time,
+                None,
+            )
         };
         let px = position(true, layer.transform.position_x);
         let py = position(false, layer.transform.position_y);
@@ -1275,11 +1402,263 @@ fn precise_ducking(settings: Option<&EvaluatedDucking>, intervals: &[(f64, f64)]
 mod tests {
     use super::*;
     use crate::{
-        Asset, AudioSettings, AudioTrackRole, DuckingSettings, MediaItem, ProjectSettings,
-        RectangleItem, SolidColorItem, TextItem, TextStyle, Track, TrackType, Transform,
-        TransitionItem, TransitionType, evaluated_scene::evaluate_project,
-        render_artifact::media_input_requests,
+        Asset, AudioSettings, AudioTrackRole, DuckingSettings, MediaItem,
+        ParameterizedAnimationCurve, ProjectSettings, RectangleItem, SolidColorItem, TextItem,
+        TextStyle, Track, TrackType, Transform, TransitionItem, TransitionType,
+        evaluated_scene::evaluate_project, render_artifact::media_input_requests,
     };
+
+    #[test]
+    fn native_curve_scalar_expressions_match_core_at_f64_precision() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+                Ok("1"),
+                "native curve comparison requires OPENCUT_FFMPEG_PATH"
+            );
+            return;
+        };
+        let curves = [
+            ParameterizedAnimationCurve::CubicBezier {
+                x1: 0.25,
+                y1: 0.1,
+                x2: 0.25,
+                y2: 1.0,
+            },
+            ParameterizedAnimationCurve::CubicBezier {
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 1.0,
+            },
+            ParameterizedAnimationCurve::Spring {
+                mass: 1.0,
+                stiffness: 100.0,
+                damping: 8.0,
+                initial_velocity: 0.0,
+            },
+            ParameterizedAnimationCurve::Spring {
+                mass: 1.0,
+                stiffness: 100.0,
+                damping: 20.0,
+                initial_velocity: 0.0,
+            },
+            ParameterizedAnimationCurve::Spring {
+                mass: 1.0,
+                stiffness: 100.0,
+                damping: 30.0,
+                initial_velocity: 0.0,
+            },
+            ParameterizedAnimationCurve::Spring {
+                mass: 1.0,
+                stiffness: 100.0,
+                damping: 19.99999999999999,
+                initial_velocity: 0.0,
+            },
+            ParameterizedAnimationCurve::Spring {
+                mass: 1.0,
+                stiffness: 100.0,
+                damping: 20.00000000000001,
+                initial_velocity: 0.0,
+            },
+        ];
+        for curve in curves {
+            let easing = match curve {
+                ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 } => {
+                    EvaluatedEasing::CubicBezier { x1, y1, x2, y2 }
+                }
+                ParameterizedAnimationCurve::Spring {
+                    mass,
+                    stiffness,
+                    damping,
+                    initial_velocity,
+                } => EvaluatedEasing::Spring {
+                    mass,
+                    stiffness,
+                    damping,
+                    initial_velocity,
+                },
+            };
+            for progress in [0.0, 0.25, 0.5, 0.75, 1.0] {
+                let expression =
+                    evaluated_easing_expression(&format_curve_number(progress), easing);
+                let source = format!("aevalsrc=exprs='{expression}':s=8000:d=0.001");
+                let output = std::process::Command::new(&ffmpeg)
+                    .args([
+                        "-hide_banner",
+                        "-loglevel",
+                        "error",
+                        "-filter_threads",
+                        "1",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        &source,
+                        "-frames:a",
+                        "1",
+                        "-ac",
+                        "1",
+                        "-c:a",
+                        "pcm_f64le",
+                        "-f",
+                        "f64le",
+                        "-",
+                    ])
+                    .output()
+                    .expect("FFmpeg numeric comparison should start");
+                assert!(
+                    output.status.success(),
+                    "{curve:?} at {progress}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let sample =
+                    f64::from_le_bytes(output.stdout[..8].try_into().expect("one f64 sample"));
+                let expected = crate::animation::parameterized_curve_progress(curve, progress);
+                assert!(
+                    (sample - expected).abs() <= 1e-9,
+                    "{curve:?} at {progress}: core={expected:.17}, ffmpeg={sample:.17}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn native_parameterized_segment_values_keep_precision_and_bounds() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+                Ok("1"),
+                "native curve comparison requires OPENCUT_FFMPEG_PATH"
+            );
+            return;
+        };
+        let start = 0.123_456_789_012_345_66;
+        let end = 0.987_654_321_098_765_4;
+        let curve = ParameterizedAnimationCurve::Spring {
+            mass: 1.0,
+            stiffness: 100.0,
+            damping: 19.999_999_999_999_99,
+            initial_velocity: 0.0,
+        };
+        let easing = EvaluatedEasing::Spring {
+            mass: 1.0,
+            stiffness: 100.0,
+            damping: 19.999_999_999_999_99,
+            initial_velocity: 0.0,
+        };
+        let values = [(0, start, easing), (1000, end, EvaluatedEasing::Hold)];
+        for progress in [0.0, 0.5, 1.0] {
+            let expression = evaluated_piecewise_expression_for(
+                &values,
+                0.0,
+                0,
+                &format_curve_number(progress),
+                Some((0.0, 1.0)),
+            );
+            let source = format!("aevalsrc=exprs='{expression}':s=8000:d=0.001");
+            let output = std::process::Command::new(&ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-filter_threads",
+                    "1",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    &source,
+                    "-frames:a",
+                    "1",
+                    "-ac",
+                    "1",
+                    "-c:a",
+                    "pcm_f64le",
+                    "-f",
+                    "f64le",
+                    "-",
+                ])
+                .output()
+                .expect("FFmpeg numeric comparison should start");
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let sample = f64::from_le_bytes(output.stdout[..8].try_into().expect("one f64 sample"));
+            let expected = if progress == 1.0 {
+                end
+            } else if progress == 0.0 {
+                start
+            } else {
+                (start
+                    + (end - start)
+                        * crate::animation::parameterized_curve_progress(curve, progress))
+                .clamp(0.0, 1.0)
+            };
+            assert!(
+                (sample - expected).abs() <= 1e-9,
+                "at {progress}: core={expected:.17}, ffmpeg={sample:.17}"
+            );
+        }
+        let mixed = [
+            (0, start, easing),
+            (1000, end, EvaluatedEasing::Linear),
+            (2000, 0.5, EvaluatedEasing::Hold),
+        ];
+        let boundary = evaluated_piecewise_expression_for(
+            &mixed,
+            0.0,
+            0,
+            "1.00000000000000000",
+            Some((0.0, 1.0)),
+        );
+        let source = format!("aevalsrc=exprs='{boundary}':s=8000:d=0.001");
+        let output = std::process::Command::new(&ffmpeg)
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-filter_threads",
+                "1",
+                "-f",
+                "lavfi",
+                "-i",
+                &source,
+                "-frames:a",
+                "1",
+                "-ac",
+                "1",
+                "-c:a",
+                "pcm_f64le",
+                "-f",
+                "f64le",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let sample = f64::from_le_bytes(output.stdout[..8].try_into().unwrap());
+        assert!(
+            (sample - end).abs() <= 1e-9,
+            "mixed-curve boundary rounded: {sample:.17} vs {end:.17}"
+        );
+        let legacy = evaluated_piecewise_expression_for(
+            &[
+                (0, start, EvaluatedEasing::Linear),
+                (1000, end, EvaluatedEasing::Hold),
+            ],
+            0.0,
+            0,
+            "t",
+            None,
+        );
+        assert!(legacy.contains("0.123457"));
+        assert!(!legacy.contains("0.12345678901234566"));
+    }
 
     fn empty_project() -> Project {
         Project {
@@ -1776,6 +2155,45 @@ mod tests {
         assert!(plans.windows(2).all(|pair| pair[0] == pair[1]));
         assert!(plans[0].filter_graph.contains("pow(10"));
         assert!(plans[0].filter_graph.contains("100"));
+        assert!(!plans[0].serial_bezier_filters);
+
+        let curve_channel = |curve: serde_json::Value| {
+            serde_json::from_value(serde_json::json!([{
+                "property": "transform.position_x", "keyframes": [
+                    {"timeMs": 0, "value": {"type": "scalar", "value": 0}, "curve": curve},
+                    {"timeMs": 1000, "value": {"type": "scalar", "value": 100}, "curve": "hold"}
+                ]
+            }]))
+            .unwrap()
+        };
+        for (curve, expected) in [
+            (
+                serde_json::json!({"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1}),
+                true,
+            ),
+            (
+                serde_json::json!({"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}),
+                false,
+            ),
+            (serde_json::json!("linear"), false),
+        ] {
+            project.tracks[0].items[0]
+                .visual_properties_mut()
+                .animation_channels = curve_channel(curve);
+            let curve_scene = evaluate_project(&project, 640, 360, 24).unwrap();
+            let mut warnings = Vec::new();
+            let plan = build_render_plan(
+                &curve_scene.scene,
+                &text,
+                media_inputs.clone(),
+                media_paths.clone(),
+                Some(Path::new("/fonts/deterministic.ttf")),
+                RenderIntent::Export,
+                &mut warnings,
+            )
+            .unwrap();
+            assert_eq!(plan.serial_bezier_filters, expected);
+        }
     }
 
     #[test]

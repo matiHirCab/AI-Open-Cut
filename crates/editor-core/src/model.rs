@@ -20,7 +20,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 22;
+pub const PROJECT_SCHEMA_VERSION: u32 = 23;
 
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
@@ -110,6 +110,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_animation_channels(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_animation_channels(components)?;
+            }
+        }
+        if value.schema_version < 23 {
+            reject_parameterized_curves(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_parameterized_curves(components)?;
             }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
@@ -269,6 +275,41 @@ fn reject_animation_channels(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_animation_channels(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn reject_parameterized_curves(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if let Some(channels) = object
+                .get("animationChannels")
+                .and_then(serde_json::Value::as_array)
+            {
+                for channel in channels {
+                    if let Some(keyframes) = channel
+                        .get("keyframes")
+                        .and_then(serde_json::Value::as_array)
+                        && keyframes.iter().any(|keyframe| {
+                            keyframe
+                                .get("curve")
+                                .is_some_and(serde_json::Value::is_object)
+                        })
+                    {
+                        return Err("parameterized animation curves require schema 23".into());
+                    }
+                }
+            }
+            for child in object.values() {
+                reject_parameterized_curves(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_parameterized_curves(child)?;
             }
         }
         _ => {}

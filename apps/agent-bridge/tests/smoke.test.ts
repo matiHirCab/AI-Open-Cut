@@ -982,6 +982,27 @@ it("edits typed animation channels through MCP standalone and alias batches", as
     ],
     property: "transform.position_x",
   });
+  const curveChannel = (curve: Record<string, number | string>) => ({
+    keyframes: [
+      { curve, timeMs: 0, value: { type: "scalar", value: 0 } },
+      { curve: "hold", timeMs: 500, value: { type: "scalar", value: 40 } },
+    ],
+    property: "transform.position_x",
+  });
+  const bezier = curveChannel({
+    type: "cubic_bezier",
+    x1: 0.25,
+    x2: 0.25,
+    y1: 0.1,
+    y2: 1,
+  });
+  const spring = curveChannel({
+    damping: 20,
+    initialVelocity: 0,
+    mass: 1,
+    stiffness: 100,
+    type: "spring",
+  });
   const added = await call(
     "timeline_batch_edit",
     {
@@ -999,7 +1020,7 @@ it("edits typed animation channels through MCP standalone and alias batches", as
           width: 30,
         },
         {
-          animationChannels: [channel(20)],
+          animationChannels: [bezier],
           itemId: "@animated",
           operation: "set_animation_channels",
         },
@@ -1012,7 +1033,7 @@ it("edits typed animation channels through MCP standalone and alias batches", as
   const edited = await call(
     "timeline_set_animation_channels",
     {
-      animationChannels: [channel(40)],
+      animationChannels: [spring],
       expectedRevision: 1,
       itemId,
       projectId,
@@ -1025,6 +1046,19 @@ it("edits typed animation channels through MCP standalone and alias batches", as
       [
         [0, [channel(50)], "REVISION_CONFLICT"],
         [2, [channel(1_000_001)], "INVALID_ARGUMENT"],
+        [
+          2,
+          [
+            curveChannel({
+              type: "cubic_bezier",
+              x1: 0.8,
+              x2: 0.2,
+              y1: 0,
+              y2: 1,
+            }),
+          ],
+          "INVALID_ARGUMENT",
+        ],
         [
           2,
           [{ ...channel(10), property: "transform.rotation_deg" }],
@@ -1045,7 +1079,7 @@ it("edits typed animation channels through MCP standalone and alias batches", as
     projectStateSchema
   );
   expect(reopened.project.tracks[1]?.items[0]?.animationChannels).toEqual([
-    channel(40),
+    spring,
   ]);
   await call(
     "project_undo",
@@ -1058,7 +1092,7 @@ it("edits typed animation channels through MCP standalone and alias batches", as
     projectStateSchema
   );
   expect(undone.project.tracks[1]?.items[0]?.animationChannels).toEqual([
-    channel(20),
+    bezier,
   ]);
 });
 

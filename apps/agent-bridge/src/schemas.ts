@@ -291,7 +291,29 @@ export const animationChannelSchema = z
       .array(
         z
           .object({
-            curve: z.enum(["hold", "linear"]),
+            curve: z.union([
+              z.enum(["hold", "linear"]),
+              z.discriminatedUnion("type", [
+                z
+                  .object({
+                    type: z.literal("cubic_bezier"),
+                    x1: finite.min(0).max(1),
+                    x2: finite.min(0).max(1),
+                    y1: finite.min(0).max(1),
+                    y2: finite.min(0).max(1),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    damping: finite.min(0.01).max(1000),
+                    initialVelocity: finite.min(-100).max(100),
+                    mass: finite.min(0.01).max(100),
+                    stiffness: finite.min(0.01).max(10_000),
+                    type: z.literal("spring"),
+                  })
+                  .strict(),
+              ]),
+            ]),
             timeMs: milliseconds,
             value: animationChannelValueSchema,
           })
@@ -348,7 +370,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(22).optional(),
+    projectSchemaVersion: z.literal(23).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1416,7 +1438,7 @@ export const projectStateSchema = z
         id,
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(22),
+        schemaVersion: z.literal(23),
         settings: z
           .object({
             fps: z.int().positive(),
