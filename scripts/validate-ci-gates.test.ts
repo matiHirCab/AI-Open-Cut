@@ -8,12 +8,17 @@ import {
   type MoonPolicySources,
   validateCiGates,
   validateCiPolicy,
+  validateScheduledRulesScreen,
   validateMoonPolicyBoundary,
   validateOpenSpecTask,
 } from "./validate-ci-gates";
 
 const workflow = readFileSync(
   resolve(import.meta.dir, "..", ".github", "workflows", "bun-ci.yml"),
+  "utf8"
+);
+const scheduledWorkflow = readFileSync(
+  resolve(import.meta.dir, "..", ".github", "workflows", "rules-screen-full.yml"),
   "utf8"
 );
 const moonConfig = readFileSync(resolve(import.meta.dir, "..", "moon.yml"), "utf8");
@@ -1502,12 +1507,12 @@ describe("required rules-screen resolution shards", () => {
     "",
     "timeout-minutes: 120",
     "timeout-minutes: 240",
-    "timeout-minutes: '180'",
+    "timeout-minutes: '135'",
   ]) {
     it(`rejects an unapproved rules-screen job timeout ${replacement || "(missing)"}`, () => {
       expect(() =>
-        validateCiGates(mutateShard("timeout-minutes: 180", replacement)),
-      ).toThrow("jobs.rules-screen-parity.timeout-minutes must be 180");
+        validateCiGates(mutateShard("timeout-minutes: 135", replacement)),
+      ).toThrow("jobs.rules-screen-parity.timeout-minutes must be 135");
     });
   }
 
@@ -1560,6 +1565,7 @@ describe("required rules-screen resolution shards", () => {
 
   for (const [needle, replacement] of [
     ["OPENCUT_GOLDEN_REQUIRED: '1'", "OPENCUT_GOLDEN_REQUIRED: '0'"],
+    ["OPENCUT_RULES_SCREEN_SCOPE: pr", "OPENCUT_RULES_SCREEN_SCOPE: full"],
     [
       "OPENCUT_RULES_SCREEN_RESOLUTION: ${{ matrix.resolution }}",
       "OPENCUT_RULES_SCREEN_RESOLUTION: 960x540",
@@ -1644,6 +1650,45 @@ describe("required rules-screen resolution shards", () => {
       "rules-screen-parity native step must not be conditionally skipped",
     );
   });
+});
+
+describe("weekly full rules-screen evidence", () => {
+  it("accepts the reviewed weekly and manual full-resolution workflow", () => {
+    expect(() => validateScheduledRulesScreen(scheduledWorkflow)).not.toThrow();
+    expect(() => validateCiPolicy(workflow, moonPolicySources(), scheduledWorkflow)).not.toThrow();
+  });
+
+  it("rejects a missing scheduled workflow before policy attestation", () => {
+    expect(() => validateCiPolicy(workflow, moonPolicySources(), "")).toThrow();
+  });
+
+  for (const [needle, replacement] of [
+    ["17 3 * * 1", "0 3 * * 1"],
+    ["  workflow_dispatch:\n", ""],
+    ["timeout-minutes: 240", "timeout-minutes: 180"],
+    ["contents: read", "contents: write"],
+    ["OPENCUT_RULES_SCREEN_SCOPE: full", "OPENCUT_RULES_SCREEN_SCOPE: pr"],
+    ["OPENCUT_RULES_SCREEN_RESOLUTION: 1920x1080", "OPENCUT_RULES_SCREEN_RESOLUTION: 1280x720"],
+    ["OPENCUT_GOLDEN_REQUIRED: '1'", "OPENCUT_GOLDEN_REQUIRED: '0'"],
+    ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "missing.ttf"],
+    ["sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core", "sudo apt-get update && sudo apt-get install -y ffmpeg"],
+    ["cargo test --release -p opencut-editor-core --lib -- --list | grep -Fx 'renderer::golden::rules_screen::native_rules_screen_resolution_conformance: test'", "echo no tests selected"],
+    ["cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture", "cargo test --release -p opencut-editor-core --lib nonexistent_test -- --exact"],
+  ] as const) {
+    it(`rejects weakened scheduled evidence: ${needle}`, () => {
+      expect(() => validateScheduledRulesScreen(replaceRequired(scheduledWorkflow, needle, replacement))).toThrow();
+    });
+  }
+
+  for (const mutation of [
+    addContinueOnError(scheduledWorkflow, "Native full rules-screen resolution parity"),
+    addStepProperty(scheduledWorkflow, "Native full rules-screen resolution parity", "if: false"),
+    addJobConfiguration(scheduledWorkflow, "full-rules-screen-parity", "    continue-on-error: true\n"),
+  ]) {
+    it("rejects masked or skipped scheduled failures", () => {
+      expect(() => validateScheduledRulesScreen(mutation)).toThrow();
+    });
+  }
 });
 
 describe("mandatory native raster-cache CI evidence", () => {
@@ -1793,21 +1838,10 @@ describe("protected CI duration governance", () => {
       .toThrow("foundation-parity duration step must use the exact fail-closed command body");
   });
 
-  for (const [field, replacement] of [
-    ["CI_DURATION_OWNER: '@matiHirCab'", "CI_DURATION_OWNER: ''"],
-    ["CI_DURATION_EXPIRES_ON: '2026-10-26'", "CI_DURATION_EXPIRES_ON: '2026-01-01'"],
-    ["CI_DURATION_CAP_MINUTES: '180'", "CI_DURATION_CAP_MINUTES: '135'"],
-    ["CI_DURATION_CAP_MINUTES: '180'", "CI_DURATION_CAP_MINUTES: '360'"],
-  ]) {
-    it(`rejects altered exception field ${field}`, () => {
-      expect(() => validateCiGates(replaceRequired(workflow, field!, replacement!))).toThrow();
-    });
-  }
-
-  it("rejects a duplicate exception field", () => {
+  it("rejects a restored duration exception field", () => {
     expect(() =>
       validateCiGates(
-        replaceRequired(workflow, "          CI_DURATION_OWNER: '@matiHirCab'", "          CI_DURATION_OWNER: '@matiHirCab'\n          CI_DURATION_OWNER: '@matiHirCab'")
+        replaceRequired(workflow, "          GITHUB_RUN_ID: ${{ github.run_id }}", "          GITHUB_RUN_ID: ${{ github.run_id }}\n          CI_DURATION_OWNER: '@matiHirCab'")
       )
     ).toThrow();
   });
@@ -1816,7 +1850,7 @@ describe("protected CI duration governance", () => {
     it(`rejects missing ${job} timeout`, () => {
       const declaration = `  ${job}:\n`;
       const start = workflow.indexOf(declaration);
-      const timeout = `    timeout-minutes: ${job === "rules-screen-parity" ? 180 : 135}\n`;
+      const timeout = "    timeout-minutes: 135\n";
       const timeoutAt = workflow.indexOf(timeout, start);
       expect(timeoutAt).toBeGreaterThan(start);
       expect(() => validateCiGates(workflow.slice(0, timeoutAt) + workflow.slice(timeoutAt + timeout.length))).toThrow();

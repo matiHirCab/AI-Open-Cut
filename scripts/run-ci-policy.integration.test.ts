@@ -28,7 +28,12 @@ it("keeps Bun preload and dotenv files outside the policy bootstrap", async () =
 	);
 	const nullConfig = process.platform === "win32" ? "NUL" : "/dev/null";
 	mkdirSync(join(directory, ".moon"));
+	mkdirSync(join(directory, ".github", "workflows"), { recursive: true });
 	mkdirSync(join(directory, "openspec", "changes", "archive"), { recursive: true });
+	writeFileSync(
+		join(directory, ".github", "workflows", "rules-screen-full.yml"),
+		readFileSync(join(repositoryRoot, ".github", "workflows", "rules-screen-full.yml")),
+	);
 	for (const policyPath of [
 		"moon.yml",
 		".prototools",

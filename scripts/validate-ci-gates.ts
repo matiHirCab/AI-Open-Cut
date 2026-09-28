@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 
 const DEFAULT_WORKFLOW = ".github/workflows/bun-ci.yml";
+const SCHEDULED_RULES_SCREEN_WORKFLOW = ".github/workflows/rules-screen-full.yml";
 const DEFAULT_BUN_CONFIG = "bunfig.toml";
 const DEFAULT_MOON_CONFIG = "moon.yml";
 const DEFAULT_MOON_WORKSPACE_CONFIG = ".moon/workspace.yml";
@@ -33,6 +34,7 @@ const OPENSPEC_TASK_INPUTS = [
   "scripts/run-ci-policy.test.ts",
   "scripts/run-ci-policy.integration.test.ts",
   ".github/workflows/bun-ci.yml",
+  ".github/workflows/rules-screen-full.yml",
   "bunfig.toml",
   ".prototools",
   "moon.*",
@@ -86,15 +88,15 @@ const DURATION_ENVIRONMENT: UnknownRecord = {
   GH_TOKEN: "${{ github.token }}",
   GITHUB_REPOSITORY: "${{ github.repository }}",
   GITHUB_RUN_ID: "${{ github.run_id }}",
-  CI_DURATION_OWNER: "@matiHirCab",
-  CI_DURATION_REASON:
-    "1920x1080 rules-screen still running near prior 135-minute cap; preserve all 75 renders",
-  CI_DURATION_BASELINE_MINUTES: "135.25",
-  CI_DURATION_EVIDENCE_URL:
-    "https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36317658326",
-  CI_DURATION_EXPIRES_ON: "2026-10-26",
-  CI_DURATION_CAP_MINUTES: "180",
 };
+const DURATION_EXCEPTION_FIELDS = [
+  "CI_DURATION_OWNER",
+  "CI_DURATION_REASON",
+  "CI_DURATION_BASELINE_MINUTES",
+  "CI_DURATION_EVIDENCE_URL",
+  "CI_DURATION_EXPIRES_ON",
+  "CI_DURATION_CAP_MINUTES",
+] as const;
 
 function requireTimeout(job: UnknownRecord, label: string, expected: number): void {
   if (job["timeout-minutes"] !== expected) {
@@ -796,7 +798,7 @@ function validateRulesScreenJob(job: UnknownRecord): void {
   rejectInheritedEnvironment(job.env, `${label}.env`);
   rejectRunDefaults(job.defaults, `${label}.defaults`);
   rejectLeafContainer(job, label);
-  requireTimeout(job, label, 180);
+  requireTimeout(job, label, 135);
   requireExactKeys(job, ["name", "runs-on", "steps", "strategy", "timeout-minutes"], label);
 
   const strategy = record(job.strategy, `${label}.strategy`);
@@ -843,6 +845,7 @@ function validateRulesScreenJob(job: UnknownRecord): void {
       OPENCUT_GOLDEN_REQUIRED: "1",
       OPENCUT_TEST_FONT_PATH: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
       OPENCUT_RULES_SCREEN_RESOLUTION: "${{ matrix.resolution }}",
+      OPENCUT_RULES_SCREEN_SCOPE: "pr",
     },
     "rules-screen-parity native env"
   );
@@ -1090,17 +1093,91 @@ export function validateCiGates(source: string): void {
   for (const key of Object.keys(DURATION_ENVIRONMENT)) {
     const declarations = source.match(new RegExp(`^\\s+${key}:`, "gm")) ?? [];
     if (declarations.length !== 1) {
-      throw new Error(`duration exception ${key} must be declared exactly once`);
+      throw new Error(`duration input ${key} must be declared exactly once`);
+    }
+  }
+  for (const key of DURATION_EXCEPTION_FIELDS) {
+    const declarations = source.match(new RegExp(`^\\s+${key}:`, "gm")) ?? [];
+    if (declarations.length !== 0) {
+      throw new Error(`inactive duration exception ${key} must be absent`);
     }
   }
 }
 
+export function validateScheduledRulesScreen(source: string): void {
+  const workflow = record(Bun.YAML.parse(source), "scheduled rules-screen workflow");
+  requireExactKeys(workflow, ["name", "on", "permissions", "jobs"], "scheduled rules-screen workflow");
+  if (workflow.name !== "Full 1920x1080 rules-screen parity") {
+    throw new Error("scheduled rules-screen workflow name must identify full parity");
+  }
+  const triggers = record(workflow.on, "scheduled rules-screen triggers");
+  requireExactKeys(triggers, ["schedule", "workflow_dispatch"], "scheduled rules-screen triggers");
+  if (triggers.workflow_dispatch !== null) {
+    throw new Error("scheduled rules-screen manual trigger must be enabled without conditions");
+  }
+  if (!Array.isArray(triggers.schedule) || triggers.schedule.length !== 1) {
+    throw new Error("scheduled rules-screen must run weekly exactly once");
+  }
+  const schedule = record(triggers.schedule[0], "scheduled rules-screen schedule");
+  requireExactKeys(schedule, ["cron"], "scheduled rules-screen schedule");
+  if (schedule.cron !== "17 3 * * 1") {
+    throw new Error("scheduled rules-screen must run Monday at 03:17 UTC");
+  }
+  const permissions = record(workflow.permissions, "scheduled rules-screen permissions");
+  requireExactKeys(permissions, ["contents"], "scheduled rules-screen permissions");
+  if (permissions.contents !== "read") {
+    throw new Error("scheduled rules-screen permissions must be read-only");
+  }
+  const jobs = record(workflow.jobs, "scheduled rules-screen jobs");
+  requireExactKeys(jobs, ["full-rules-screen-parity"], "scheduled rules-screen jobs");
+  const job = record(jobs["full-rules-screen-parity"], "scheduled rules-screen job");
+  requireExactKeys(job, ["name", "runs-on", "timeout-minutes", "steps"], "scheduled rules-screen job");
+  if (job.name !== "Full 1920x1080 rules-screen parity" || job["runs-on"] !== "ubuntu-latest") {
+    throw new Error("scheduled rules-screen job must use reviewed identity and Linux runner");
+  }
+  requireTimeout(job, "scheduled rules-screen job", 240);
+  const jobSteps = steps(job, "scheduled rules-screen job");
+  requireExactStepSequence(
+    jobSteps,
+    [undefined, "Install deterministic rendering dependencies", "Setup pinned toolchain", "Native full rules-screen resolution parity"],
+    "scheduled rules-screen job"
+  );
+  validateCheckout(jobSteps[0]!, "scheduled rules-screen checkout step");
+  const dependencies = jobSteps[1]!;
+  validateCriticalStep(
+    dependencies,
+    "sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core",
+    "scheduled rules-screen dependency step"
+  );
+  requireExactKeys(dependencies, ["name", "run"], "scheduled rules-screen dependency step");
+  validatePinnedToolchain(jobSteps, "scheduled rules-screen job");
+  const native = jobSteps[3]!;
+  validateCriticalStep(native, RULES_SCREEN_COMMAND, "scheduled rules-screen native step");
+  requireExactKeys(native, ["name", "env", "run"], "scheduled rules-screen native step");
+  requireExactEnvironment(
+    native.env,
+    {
+      OPENCUT_FFMPEG_PATH: "ffmpeg",
+      OPENCUT_FFPROBE_PATH: "ffprobe",
+      OPENCUT_GOLDEN_REQUIRED: "1",
+      OPENCUT_TEST_FONT_PATH: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      OPENCUT_RULES_SCREEN_RESOLUTION: "1920x1080",
+      OPENCUT_RULES_SCREEN_SCOPE: "full",
+    },
+    "scheduled rules-screen native env"
+  );
+  requireWorkingDirectory(dependencies, undefined, "scheduled rules-screen dependency step");
+  requireWorkingDirectory(native, undefined, "scheduled rules-screen native step");
+}
+
 export function validateCiPolicy(
   workflowSource: string,
-  moonSources: MoonPolicySources
+  moonSources: MoonPolicySources,
+  scheduledRulesScreenSource = readRequiredPolicyConfiguration(SCHEDULED_RULES_SCREEN_WORKFLOW)
 ): void {
   validateMoonPolicyBoundary(moonSources);
   validateCiGates(workflowSource);
+  validateScheduledRulesScreen(scheduledRulesScreenSource);
 }
 
 function discoverGlobalTaskConfigurations(

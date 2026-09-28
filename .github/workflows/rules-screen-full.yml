@@ -1,0 +1,36 @@
+name: Full 1920x1080 rules-screen parity
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-rules-screen-parity:
+    name: Full 1920x1080 rules-screen parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deterministic rendering dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+      - name: Native full rules-screen resolution parity
+        env:
+          OPENCUT_FFMPEG_PATH: ffmpeg
+          OPENCUT_FFPROBE_PATH: ffprobe
+          OPENCUT_GOLDEN_REQUIRED: '1'
+          OPENCUT_TEST_FONT_PATH: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          OPENCUT_RULES_SCREEN_RESOLUTION: 1920x1080
+          OPENCUT_RULES_SCREEN_SCOPE: full
+        run: |
+          set -euo pipefail
+          cargo test --release -p opencut-editor-core --lib -- --list | grep -Fx 'renderer::golden::rules_screen::native_rules_screen_resolution_conformance: test'
+          cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture

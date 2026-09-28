@@ -24,6 +24,7 @@ tasks:
       - 'scripts/run-ci-policy.test.ts'
       - 'scripts/run-ci-policy.integration.test.ts'
       - '.github/workflows/bun-ci.yml'
+      - '.github/workflows/rules-screen-full.yml'
       - 'bunfig.toml'
       - '.prototools'
       - 'moon.*'
