@@ -1414,13 +1414,25 @@ pub(crate) enum EvaluatedProperty {
     GainDb,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum EvaluatedEasing {
     Hold,
     Linear,
     EaseIn,
     EaseOut,
     EaseInOut,
+    CubicBezier {
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+    },
+    Spring {
+        mass: f64,
+        stiffness: f64,
+        damping: f64,
+        initial_velocity: f64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -2543,6 +2555,16 @@ fn evaluate_keyframes(
         });
     }
     for channel in channels {
+        for pair in channel.keyframes.windows(2) {
+            if matches!(pair[0].curve, crate::AnimationCurve::Parameterized(_)) {
+                let midpoint = pair[0].time_ms + (pair[1].time_ms - pair[0].time_ms) / 2;
+                if crate::animation::sample_scalar_channel(channel, midpoint).is_none() {
+                    return Err(invalid(
+                        "parameterized animation produced a non-finite sample",
+                    ));
+                }
+            }
+        }
         let property = match channel.property {
             crate::AnimationChannelProperty::PositionX => EvaluatedProperty::PositionX,
             crate::AnimationChannelProperty::PositionY => EvaluatedProperty::PositionY,
@@ -2564,8 +2586,28 @@ fn evaluate_keyframes(
                 time_ms: keyframe.time_ms,
                 value: EvaluatedKeyframeValue::Scalar { value },
                 easing: match keyframe.curve {
-                    crate::AnimationCurve::Hold => EvaluatedEasing::Hold,
-                    crate::AnimationCurve::Linear => EvaluatedEasing::Linear,
+                    crate::AnimationCurve::Simple(crate::SimpleAnimationCurve::Hold) => {
+                        EvaluatedEasing::Hold
+                    }
+                    crate::AnimationCurve::Simple(crate::SimpleAnimationCurve::Linear) => {
+                        EvaluatedEasing::Linear
+                    }
+                    crate::AnimationCurve::Parameterized(
+                        crate::ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 },
+                    ) => EvaluatedEasing::CubicBezier { x1, y1, x2, y2 },
+                    crate::AnimationCurve::Parameterized(
+                        crate::ParameterizedAnimationCurve::Spring {
+                            mass,
+                            stiffness,
+                            damping,
+                            initial_velocity,
+                        },
+                    ) => EvaluatedEasing::Spring {
+                        mass,
+                        stiffness,
+                        damping,
+                        initial_velocity,
+                    },
                 },
             });
         }

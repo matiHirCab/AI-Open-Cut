@@ -46,6 +46,18 @@ fn channel(property: &str, first: f64, last: f64) -> Value {
 fn canonical_names_and_limits_match_rust_types() {
     let contract = fixture();
     assert_eq!(contract["projectSchemaVersion"], PROJECT_SCHEMA_VERSION);
+    assert_eq!(
+        contract["curves"],
+        json!(["hold", "linear", "cubic_bezier", "spring"])
+    );
+    assert_eq!(
+        contract["curveParameters"]["cubic_bezier"]["iterations"],
+        40
+    );
+    assert_eq!(
+        contract["curveParameters"]["spring"]["mass"],
+        json!([0.01, 100])
+    );
     assert_eq!(contract["limits"]["maxChannelsPerItem"], 64);
     assert_eq!(contract["limits"]["maxKeyframesPerChannel"], 1000);
     for category in ["active", "inactive"] {
@@ -124,6 +136,222 @@ fn canonical_names_and_limits_match_rust_types() {
         serde_json::from_value::<AnimationChannel>(contract["examples"]["inactiveChannel"].clone())
             .is_ok()
     );
+    for name in [
+        "validBezier",
+        "validSpring",
+        "invalidBezier",
+        "invalidSpring",
+    ] {
+        assert!(
+            serde_json::from_value::<AnimationChannel>(contract["examples"][name].clone()).is_ok()
+        );
+    }
+}
+
+#[test]
+fn parameterized_curves_validate_transactionally_and_survive_history() {
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,
+                "width":20,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let contract = fixture();
+    let valid = contract["examples"]["validBezier"].clone();
+    core.edit(
+        &project_id,
+        1,
+        operation(json!({
+            "operation":"set_animation_channels","itemId":item_id,"animationChannels":[valid]
+        })),
+    )
+    .unwrap();
+    let read = || core.get_project(&project_id).unwrap();
+    let stored = serde_json::to_value(read()).unwrap();
+    assert_eq!(
+        stored["tracks"][1]["items"][0]["animationChannels"][0]["keyframes"][0]["curve"]["type"],
+        "cubic_bezier"
+    );
+    for invalid in [
+        contract["examples"]["invalidBezier"].clone(),
+        contract["examples"]["invalidSpring"].clone(),
+        json!({"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}}]}),
+    ] {
+        let error = core.edit(&project_id, 2, operation(json!({
+            "operation":"set_animation_channels","itemId":item_id,"animationChannels":[invalid]
+        }))).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert_eq!(serde_json::to_value(read()).unwrap(), stored);
+    }
+    assert_eq!(
+        core.edit(
+            &project_id,
+            1,
+            operation(json!({
+                "operation":"set_animation_channels","itemId":item_id,"animationChannels":[]
+            }))
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::RevisionConflict
+    );
+    assert_eq!(
+        core.edit(
+            &project_id,
+            2,
+            operation(json!({
+                "operation":"set_animation_channels","itemId":"missing","animationChannels":[]
+            }))
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::ItemNotFound
+    );
+    core.undo(&project_id, 2).unwrap();
+    assert!(
+        read()
+            .find_item(item_id)
+            .unwrap()
+            .visual_properties()
+            .animation_channels
+            .is_empty()
+    );
+    core.redo(&project_id, 3).unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            read()
+                .find_item(item_id)
+                .unwrap()
+                .visual_properties()
+                .animation_channels[0]
+                .clone()
+        )
+        .unwrap()["keyframes"][0]["curve"]["type"],
+        "cubic_bezier"
+    );
+}
+
+#[test]
+fn parameterized_curve_bounds_and_shapes_are_enforced() {
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,
+            "width":20,"height":10,"color":"#ff0000",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let base = |curve: Value| {
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":curve},
+            {"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}
+        ]})
+    };
+    let mut revision = 1;
+    for curve in [
+        json!("hold"),
+        json!("linear"),
+        json!({"type":"cubic_bezier","x1":0,"y1":0,"x2":1,"y2":1}),
+        json!({"type":"cubic_bezier","x1":1,"y1":1,"x2":1,"y2":1}),
+        json!({"type":"spring","mass":0.01,"stiffness":0.01,"damping":0.01,"initialVelocity":-100}),
+        json!({"type":"spring","mass":100,"stiffness":10000,"damping":1000,"initialVelocity":100}),
+    ] {
+        core.edit(&project_id, revision, operation(json!({
+            "operation":"set_animation_channels","itemId":item_id,"animationChannels":[base(curve)]
+        }))).unwrap();
+        revision += 1;
+    }
+    let unchanged = serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap();
+    for curve in [
+        json!({"type":"cubic_bezier","x1":-0.001,"y1":0,"x2":1,"y2":1}),
+        json!({"type":"cubic_bezier","x1":0,"y1":1.001,"x2":1,"y2":1}),
+        json!({"type":"cubic_bezier","x1":0,"y1":0,"x2":1.001,"y2":1}),
+        json!({"type":"cubic_bezier","x1":0,"y1":0,"x2":1,"y2":-0.001}),
+        json!({"type":"cubic_bezier","x1":0.8,"y1":0,"x2":0.2,"y2":1}),
+        json!({"type":"spring","mass":0.009,"stiffness":100,"damping":20,"initialVelocity":0}),
+        json!({"type":"spring","mass":100.001,"stiffness":100,"damping":20,"initialVelocity":0}),
+        json!({"type":"spring","mass":1,"stiffness":0.009,"damping":20,"initialVelocity":0}),
+        json!({"type":"spring","mass":1,"stiffness":10000.001,"damping":20,"initialVelocity":0}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":0.009,"initialVelocity":0}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":1000.001,"initialVelocity":0}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":-100.001}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":100.001}),
+    ] {
+        assert_eq!(core.edit(&project_id, revision, operation(json!({
+            "operation":"set_animation_channels","itemId":item_id,"animationChannels":[base(curve.clone())]
+        }))).unwrap_err().code, ErrorCode::InvalidArgument, "{curve}");
+        assert_eq!(
+            serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap(),
+            unchanged
+        );
+    }
+    for curve in [
+        json!({"type":"unknown"}),
+        json!({"type":"cubic_bezier","x1":0,"y1":0,"x2":1,"y2":1,"extra":1}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0,"extra":1}),
+        json!({"type":"spring","mass":1,"stiffness":100,"damping":20}),
+    ] {
+        assert!(
+            serde_json::from_value::<AnimationChannel>(base(curve.clone())).is_err(),
+            "{curve}"
+        );
+    }
+}
+
+#[test]
+fn canonical_curve_cases_match_core_acceptance() {
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,
+                "width":20,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let mut revision = 1;
+    for case in fixture()["curveCases"].as_array().unwrap() {
+        let channel = json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":case["curve"]},
+            {"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}
+        ]});
+        let accepted = serde_json::from_value::<AnimationChannel>(channel.clone()).is_ok()
+            && core
+                .edit(
+                    &project_id,
+                    revision,
+                    operation(json!({
+                        "operation":"set_animation_channels","itemId":item_id,
+                        "animationChannels":[channel]
+                    })),
+                )
+                .is_ok();
+        assert_eq!(
+            accepted,
+            case["accepted"].as_bool().unwrap(),
+            "{}",
+            case["name"]
+        );
+        if accepted {
+            revision += 1;
+        }
+    }
 }
 
 #[test]
@@ -229,7 +457,7 @@ fn alias_batch_history_reopen_and_atomic_failures() {
         3
     );
     // The core instance reopens the durable project on every read.
-    assert_eq!(read().schema_version, 22);
+    assert_eq!(read().schema_version, 23);
 
     core.edit(
         &project_id,
@@ -526,13 +754,91 @@ fn every_active_property_rejects_malformed_persisted_values_before_render() {
     }
 }
 
-fn rgb_at(
-    ffmpeg: &std::path::Path,
-    file: &std::path::Path,
-    seek: Option<&str>,
-    x: usize,
-    y: usize,
-) -> [u8; 3] {
+#[test]
+fn invalid_persisted_curve_preflights_all_render_intents_before_artifacts() {
+    let (root, core, id, visual_track) = setup();
+    core.edit(
+        &id,
+        0,
+        operation(json!({
+            "operation":"add_rectangle","trackId":visual_track,"startMs":0,"durationMs":1000,
+            "width":10,"height":10,"color":"#ff0000",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+        })),
+    )
+    .unwrap();
+    let dir = core.paths().project_dir(&id).unwrap();
+    let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);
+    let output = root.path().join("exports/existing.mp4");
+    std::fs::create_dir_all(output.parent().unwrap()).unwrap();
+    std::fs::write(&output, b"existing export").unwrap();
+    let preview_count = std::fs::read_dir(dir.join("previews")).unwrap().count();
+    for curve in [
+        json!({"type":"cubic_bezier","x1":0.8,"y1":0,"x2":0.2,"y2":1}),
+        json!({"type":"spring","mass":0,"stiffness":100,"damping":20,"initialVelocity":0}),
+    ] {
+        let mut invalid = core.get_project(&id).unwrap();
+        invalid.tracks[1].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(json!([{
+            "property":"transform.position_x","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
+            ]
+        }]))
+        .unwrap();
+        assert_eq!(
+            renderer
+                .render_preview(&invalid, &dir, 250)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(
+            renderer
+                .render_preview_range(
+                    &invalid,
+                    &dir,
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 1000,
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                        include_audio: false
+                    },
+                    |_| {}
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(
+            renderer
+                .export_video(
+                    &invalid,
+                    &dir,
+                    ExportOptions {
+                        output: &output,
+                        width: 64,
+                        height: 64,
+                        overwrite: false
+                    },
+                    |_| {}
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(std::fs::read(&output).unwrap(), b"existing export");
+        assert_eq!(
+            std::fs::read_dir(dir.join("previews")).unwrap().count(),
+            preview_count
+        );
+    }
+}
+
+fn rgb_frame(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>) -> Vec<u8> {
     let mut command = std::process::Command::new(ffmpeg);
     command.args(["-v", "error"]);
     if let Some(time) = seek {
@@ -549,13 +855,66 @@ fn rgb_at(
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    output.stdout
+}
+
+fn rgb_at(
+    ffmpeg: &std::path::Path,
+    file: &std::path::Path,
+    seek: Option<&str>,
+    x: usize,
+    y: usize,
+) -> [u8; 3] {
+    let frame = rgb_frame(ffmpeg, file, seek);
     let at = (y * 64 + x) * 3;
-    output.stdout[at..at + 3].try_into().unwrap()
+    frame[at..at + 3].try_into().unwrap()
 }
 
 fn red_at(ffmpeg: &std::path::Path, file: &std::path::Path, seek: Option<&str>, x: usize) -> bool {
     let pixel = rgb_at(ffmpeg, file, seek, x, 5);
     pixel[0] > 180 && pixel[1] < 60 && pixel[2] < 60
+}
+
+fn red_signature(
+    ffmpeg: &std::path::Path,
+    file: &std::path::Path,
+    seek: Option<&str>,
+) -> (f64, f64, f64) {
+    let frame = rgb_frame(ffmpeg, file, seek);
+    assert_eq!(frame.len(), 64 * 64 * 3);
+    let mut mass = 0.0;
+    let mut x_mass = 0.0;
+    let mut y_mass = 0.0;
+    for (index, pixel) in frame.as_chunks::<3>().0.iter().enumerate() {
+        let red = f64::from(pixel[0].saturating_sub(pixel[1].max(pixel[2])));
+        mass += red;
+        x_mass += red * (index % 64) as f64;
+        y_mass += red * (index / 64) as f64;
+    }
+    assert!(
+        mass > 1000.0,
+        "expected a visible red layer in {}",
+        file.display()
+    );
+    (mass, x_mass / mass, y_mass / mass)
+}
+
+fn assert_red_parity(
+    ffmpeg: &std::path::Path,
+    reference: &std::path::Path,
+    candidate: &std::path::Path,
+    seek: Option<&str>,
+) {
+    let (reference_mass, reference_x, reference_y) = red_signature(ffmpeg, reference, None);
+    let (mass, x, y) = red_signature(ffmpeg, candidate, seek);
+    assert!(
+        (x - reference_x).abs() < 0.75 && (y - reference_y).abs() < 0.75,
+        "visual position differs: reference=({reference_x},{reference_y}), candidate=({x},{y})"
+    );
+    assert!(
+        (mass / reference_mass - 1.0).abs() < 0.08,
+        "visual red mass differs: reference={reference_mass}, candidate={mass}"
+    );
 }
 
 fn native_tools() -> Option<(std::path::PathBuf, std::path::PathBuf)> {
@@ -632,6 +991,24 @@ fn native_each_visual_channel_changes_output_and_static_values_survive() {
     );
     let restored = render(None);
     assert!(red_at(&ffmpeg, &restored, None, 5));
+    let bezier = json!({"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1});
+    for (property, first, last, x, y, strong_red) in [
+        ("transform.position_y", 0.0, 20.0, 5, 20, true),
+        ("transform.scale_x", 1.0, 2.0, 15, 5, true),
+        ("transform.scale_y", 1.0, 2.0, 5, 15, true),
+        ("transform.opacity", 1.0, 0.0, 5, 5, false),
+    ] {
+        project.tracks[1].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(json!([{"property":property,"keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":first},"curve":bezier},
+            {"timeMs":500,"value":{"type":"scalar","value":last},"curve":"hold"}
+        ]}]))
+        .unwrap();
+        let frame = renderer.render_preview(&project, &dir, 250).unwrap();
+        let red = rgb_at(&ffmpeg, &dir.join(frame.relative_path), None, x, y)[0];
+        assert_eq!(red > 150, strong_red, "{property}: red component {red}");
+    }
     project.tracks[1].items[0]
         .visual_properties_mut()
         .transform
@@ -688,7 +1065,7 @@ fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
         .changed_ids[0]
         .clone();
     let track_id = core.get_project(&id).unwrap().tracks[2].id.clone();
-    let _item_id = core
+    let audio_item_id = core
         .edit(
             &id,
             1,
@@ -733,9 +1110,24 @@ fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
         .unwrap()
         .changed_ids[0]
         .clone();
+    let visual_track_id = core.get_project(&id).unwrap().tracks[1].id.clone();
+    let visual_item_id = core
+        .edit(
+            &id,
+            3,
+            operation(json!({
+                "operation":"add_rectangle", "trackId":visual_track_id,
+                "startMs":0, "durationMs":1000, "width":10, "height":10,
+                "color":"#ff0000", "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
     let mut project = core.get_project(&id).unwrap();
     project.settings.width = 64;
     project.settings.height = 64;
+    project.settings.fps = 20;
     project.tracks[2].audio_role = AudioTrackRole::Music;
     let dir = core.paths().project_dir(&id).unwrap();
     let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
@@ -749,7 +1141,7 @@ fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
                     end_ms: 1000,
                     width: 64,
                     height: 64,
-                    fps: 10,
+                    fps: 20,
                     include_audio: true,
                 },
                 |_| {},
@@ -795,6 +1187,114 @@ fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
         (actual - expected).abs() < 0.04,
         "gain times base volume: {actual} vs {expected}"
     );
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels = serde_json::from_value(json!([{
+            "property":"audio.gain_db","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":-12},"curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}},
+                {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}
+            ]
+        }])).unwrap();
+    let spring_visual = json!([{"property":"transform.position_x","keyframes":[
+        {"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}},
+        {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
+    ]}]);
+    project.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels = serde_json::from_value(spring_visual.clone()).unwrap();
+    let spring_gain = render(&project);
+    assert!(rms(&spring_gain, 400, 500) > rms(&spring_gain, 100, 200) * 1.2);
+    let draft = core.create_draft(&id, 4, vec![operation(json!({
+        "operation":"set_animation_channels", "itemId":audio_item_id,
+        "animationChannels":[{"property":"audio.gain_db","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":-12},"curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}},
+            {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}
+        ]}]
+    })), operation(json!({
+        "operation":"set_animation_channels", "itemId":visual_item_id,
+        "animationChannels":spring_visual
+    }))], None).unwrap();
+    let mut draft_project = core.get_draft_state(&id, &draft.id).unwrap().project;
+    draft_project.settings.width = 64;
+    draft_project.settings.height = 64;
+    draft_project.settings.fps = 20;
+    if let opencut_editor_core::TimelineItem::Media(item) = &mut draft_project.tracks[2].items[0] {
+        item.audio.volume = 0.5;
+    }
+    let draft_gain = render(&draft_project);
+    for (start, end) in [(100, 200), (400, 500)] {
+        assert!((rms(&draft_gain, start, end) / rms(&spring_gain, start, end) - 1.0).abs() < 0.04);
+    }
+    let draft_frame = renderer.render_preview(&draft_project, &dir, 250).unwrap();
+    let frame = renderer.render_preview(&project, &dir, 250).unwrap();
+    let visual_range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 0,
+                end_ms: 1000,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: true,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let frame_path = dir.join(&frame.relative_path);
+    assert_red_parity(
+        &ffmpeg,
+        &frame_path,
+        &dir.join(&draft_frame.relative_path),
+        None,
+    );
+    assert_red_parity(
+        &ffmpeg,
+        &frame_path,
+        &dir.join(&visual_range.relative_path),
+        Some("0.25"),
+    );
+    let export = root.path().join("exports/spring-gain.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &export,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert_red_parity(&ffmpeg, &frame_path, &export, Some("0.25"));
+    let decoded_export = std::process::Command::new(&ffmpeg)
+        .args(["-v", "error", "-i"])
+        .arg(&export)
+        .args(["-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"])
+        .output()
+        .unwrap();
+    assert!(
+        decoded_export.status.success(),
+        "{}",
+        String::from_utf8_lossy(&decoded_export.stderr)
+    );
+    let export_gain = decoded_export
+        .stdout
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|bytes| f32::from_le_bytes(*bytes) as f64)
+        .collect::<Vec<_>>();
+    for (start, end) in [(100, 200), (400, 500)] {
+        assert!((rms(&export_gain, start, end) / rms(&spring_gain, start, end) - 1.0).abs() < 0.04);
+    }
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels =
+        serde_json::from_value(json!([channel("audio.gain_db", -6.0, -6.0)])).unwrap();
     if let opencut_editor_core::TimelineItem::Media(item) = &mut project.tracks[2].items[0] {
         item.audio.fade_in_ms = 200;
         item.audio.fade_out_ms = 200;
@@ -945,4 +1445,212 @@ fn native_draft_still_range_and_export_sample_the_same_channel() {
         )
         .unwrap();
     assert!(red_at(&ffmpeg, &export, Some("0.5"), 25));
+}
+
+#[test]
+fn native_bezier_draft_frame_range_and_export_agree() {
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
+        return;
+    };
+    let (root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,
+                "width":10,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let curve_channels = |curve: serde_json::Value| {
+        json!([
+            {"property":"transform.position_x","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}]},
+            {"property":"transform.position_y","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":4},"curve":"hold"}]},
+            {"property":"transform.scale_x","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":1},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":1.5},"curve":"hold"}]},
+            {"property":"transform.scale_y","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":1},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":1.4},"curve":"hold"}]},
+            {"property":"transform.opacity","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":1},"curve":curve},
+                {"timeMs":500,"value":{"type":"scalar","value":0.8},"curve":"hold"}]}
+        ])
+    };
+    let channels =
+        curve_channels(json!({"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1}));
+    let draft = core
+        .create_draft(
+            &project_id,
+            1,
+            vec![operation(json!({
+                "operation":"set_animation_channels","itemId":item_id,"animationChannels":channels
+            }))],
+            None,
+        )
+        .unwrap();
+    let configure = |mut project: opencut_editor_core::Project| {
+        project.settings.width = 64;
+        project.settings.height = 64;
+        project.settings.fps = 20;
+        project
+    };
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    renderer.readiness().unwrap();
+    let dir = core.paths().project_dir(&project_id).unwrap();
+    let draft_project = configure(
+        core.get_draft_state(&project_id, &draft.id)
+            .unwrap()
+            .project,
+    );
+    let draft_frame = renderer.render_preview(&draft_project, &dir, 250).unwrap();
+    assert!(red_at(
+        &ffmpeg,
+        &dir.join(&draft_frame.relative_path),
+        None,
+        20
+    ));
+    core.commit_draft(&project_id, &draft.id, 1).unwrap();
+    let mut project = configure(core.get_project(&project_id).unwrap());
+    let frame = renderer.render_preview(&project, &dir, 250).unwrap();
+    assert!(red_at(&ffmpeg, &dir.join(&frame.relative_path), None, 20));
+    let range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 0,
+                end_ms: 1000,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert!(red_at(
+        &ffmpeg,
+        &dir.join(&range.relative_path),
+        Some("0.25"),
+        20
+    ));
+    let output = root.path().join("exports/bezier.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &output,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert!(red_at(&ffmpeg, &output, Some("0.25"), 20));
+    let frame_path = dir.join(&frame.relative_path);
+    assert_red_parity(
+        &ffmpeg,
+        &frame_path,
+        &dir.join(&draft_frame.relative_path),
+        None,
+    );
+    assert_red_parity(
+        &ffmpeg,
+        &frame_path,
+        &dir.join(&range.relative_path),
+        Some("0.25"),
+    );
+    assert_red_parity(&ffmpeg, &frame_path, &output, Some("0.25"));
+    let spring_channels = curve_channels(json!({
+        "type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0
+    }));
+    project.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels = serde_json::from_value(spring_channels.clone()).unwrap();
+    let spring_draft = core
+        .create_draft(
+            &project_id,
+            2,
+            vec![operation(json!({
+                "operation":"set_animation_channels", "itemId":item_id,
+                "animationChannels":spring_channels
+            }))],
+            None,
+        )
+        .unwrap();
+    let spring_draft_project = configure(
+        core.get_draft_state(&project_id, &spring_draft.id)
+            .unwrap()
+            .project,
+    );
+    let spring_draft_frame = renderer
+        .render_preview(&spring_draft_project, &dir, 250)
+        .unwrap();
+    let spring_frame = renderer.render_preview(&project, &dir, 250).unwrap();
+    assert!(red_at(
+        &ffmpeg,
+        &dir.join(&spring_frame.relative_path),
+        None,
+        27
+    ));
+    let spring_range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 0,
+                end_ms: 1000,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert!(red_at(
+        &ffmpeg,
+        &dir.join(&spring_range.relative_path),
+        Some("0.25"),
+        27
+    ));
+    let spring_output = root.path().join("exports/spring.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &spring_output,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert!(red_at(&ffmpeg, &spring_output, Some("0.25"), 27));
+    let spring_frame_path = dir.join(&spring_frame.relative_path);
+    assert_red_parity(
+        &ffmpeg,
+        &spring_frame_path,
+        &dir.join(&spring_draft_frame.relative_path),
+        None,
+    );
+    assert_red_parity(
+        &ffmpeg,
+        &spring_frame_path,
+        &dir.join(&spring_range.relative_path),
+        Some("0.25"),
+    );
+    assert_red_parity(&ffmpeg, &spring_frame_path, &spring_output, Some("0.25"));
 }

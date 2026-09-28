@@ -13,6 +13,13 @@ mod fixture {
 const FONT_HASH: &str = "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280";
 const SIZES: [(u32, u32); 3] = [(960, 540), (1280, 720), (1920, 1080)];
 const STATES: [&str; 5] = ["original", "edited", "undone", "redone", "reopened"];
+const PR_PREVIEW_TIMES_MS: [u64; 1] = [500];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ConformanceScope {
+    Pr,
+    Full,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct RenderCounts {
@@ -277,14 +284,19 @@ struct Outputs {
     export_audio: Vec<f32>,
 }
 
-fn render(tools: &NativeTools, f: &fixture::Fixture, state: usize) -> (Outputs, RenderCounts) {
+fn render(
+    tools: &NativeTools,
+    f: &fixture::Fixture,
+    state: usize,
+    preview_times_ms: &[u64],
+) -> (Outputs, RenderCounts) {
     let project = f.project();
     let project_dir = f.core.paths().project_dir(&f.id).unwrap();
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     renderer.readiness().unwrap();
     let mut counts = RenderCounts::default();
     let mut frames = Vec::new();
-    for time in SAMPLE_TIMESTAMPS_MS {
+    for &time in preview_times_ms {
         let preview = timed(
             f.width,
             f.height,
@@ -415,6 +427,7 @@ fn conformance_for_size(
     tools: &NativeTools,
     references: &References,
     (width, height): (u32, u32),
+    scope: ConformanceScope,
 ) -> RenderCounts {
     let started = Instant::now();
     let root = tempdir().unwrap();
@@ -442,32 +455,68 @@ fn conformance_for_size(
         let edited = matches!(state, 1 | 3 | 4);
         assert_eq!(semantic(&f), references.plans[&key(edited, width, height)]);
         let before = serde_json::to_vec(&f.project()).unwrap();
-        let (outputs, rendered) = render(tools, &f, state);
-        compare(tools, &outputs, references, edited, width, height);
+        if let Some(preview_times_ms) = selected_previews(scope, (width, height), state) {
+            let (outputs, rendered) = render(tools, &f, state, preview_times_ms);
+            compare(tools, &outputs, references, edited, width, height);
+            counts.previews += rendered.previews;
+            counts.ranges += rendered.ranges;
+            counts.exports += rendered.exports;
+        }
         assert_eq!(serde_json::to_vec(&f.project()).unwrap(), before);
         counts.states += 1;
-        counts.previews += rendered.previews;
-        counts.ranges += rendered.ranges;
-        counts.exports += rendered.exports;
         eprintln!(
             "rules_screen timing size={width}x{height} state={} operation=state_total elapsed_ms={}",
             state_name,
             state_started.elapsed().as_millis()
         );
     }
-    assert_eq!(
-        counts,
-        RenderCounts {
-            states: 5,
-            previews: 15,
-            ranges: 5,
-            exports: 5,
-        }
-    );
+    assert_eq!(counts, expected_counts(scope, (width, height)));
     eprintln!(
         "rules_screen timing size={width}x{height} operation=resolution_total elapsed_ms={}",
         started.elapsed().as_millis()
     );
+    counts
+}
+
+fn selected_scope(value: Option<&str>, required: bool) -> ConformanceScope {
+    match value {
+        Some("pr") => ConformanceScope::Pr,
+        Some("full") => ConformanceScope::Full,
+        Some(other) => panic!("unsupported required rules-screen scope: {other}"),
+        None if required => panic!("OPENCUT_RULES_SCREEN_SCOPE is required"),
+        None => ConformanceScope::Full,
+    }
+}
+
+fn selected_previews(
+    scope: ConformanceScope,
+    (width, height): (u32, u32),
+    state: usize,
+) -> Option<&'static [u64]> {
+    assert!(state < STATES.len());
+    if scope == ConformanceScope::Pr && (width, height) == (1920, 1080) {
+        if state <= 1 {
+            Some(&PR_PREVIEW_TIMES_MS)
+        } else {
+            None
+        }
+    } else {
+        Some(&SAMPLE_TIMESTAMPS_MS)
+    }
+}
+
+fn expected_counts(scope: ConformanceScope, size: (u32, u32)) -> RenderCounts {
+    let mut counts = RenderCounts {
+        states: STATES.len(),
+        ..RenderCounts::default()
+    };
+    for state in 0..STATES.len() {
+        if let Some(times) = selected_previews(scope, size, state) {
+            counts.previews += times.len();
+            counts.ranges += 1;
+            counts.exports += 1;
+        }
+    }
     counts
 }
 
@@ -500,8 +549,71 @@ fn resolution_selection_requires_exact_supported_values() {
 }
 
 #[test]
+fn rules_screen_scope_selects_exact_pr_and_full_render_counts() {
+    assert_eq!(selected_scope(Some("pr"), true), ConformanceScope::Pr);
+    assert_eq!(selected_scope(Some("full"), true), ConformanceScope::Full);
+    assert_eq!(selected_scope(None, false), ConformanceScope::Full);
+    assert!(std::panic::catch_unwind(|| selected_scope(None, true)).is_err());
+    for invalid in ["", "PR", "sample", "full,pr"] {
+        assert!(std::panic::catch_unwind(|| selected_scope(Some(invalid), true)).is_err());
+    }
+    for size in SIZES {
+        for scope in [ConformanceScope::Pr, ConformanceScope::Full] {
+            let reduced = size == (1920, 1080) && scope == ConformanceScope::Pr;
+            let states = (0..STATES.len())
+                .filter(|&state| selected_previews(scope, size, state).is_some())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                states,
+                if reduced {
+                    vec![0, 1]
+                } else {
+                    vec![0, 1, 2, 3, 4]
+                }
+            );
+            assert_eq!(
+                expected_counts(scope, size),
+                if reduced {
+                    RenderCounts {
+                        states: 5,
+                        previews: 2,
+                        ranges: 2,
+                        exports: 2,
+                    }
+                } else {
+                    RenderCounts {
+                        states: 5,
+                        previews: 15,
+                        ranges: 5,
+                        exports: 5,
+                    }
+                }
+            );
+            for state in states {
+                assert_eq!(
+                    selected_previews(scope, size, state),
+                    Some(if reduced {
+                        PR_PREVIEW_TIMES_MS.as_slice()
+                    } else {
+                        SAMPLE_TIMESTAMPS_MS.as_slice()
+                    })
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn native_rules_screen_resolution_conformance() {
     let required = env::var("OPENCUT_GOLDEN_REQUIRED").as_deref() == Ok("1");
+    let scope_value = match env::var("OPENCUT_RULES_SCREEN_SCOPE") {
+        Ok(value) => Some(value),
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            panic!("OPENCUT_RULES_SCREEN_SCOPE must be valid UTF-8")
+        }
+    };
+    let scope = selected_scope(scope_value.as_deref(), required);
     let value = match env::var("OPENCUT_RULES_SCREEN_RESOLUTION") {
         Ok(value) => Some(value),
         Err(env::VarError::NotPresent) => None,
@@ -520,16 +632,8 @@ fn native_rules_screen_resolution_conformance() {
         "rules-screen requires the reviewed font"
     );
     let memory_sampler = ProcessTreeSampler::start_with_interval(Duration::from_millis(250));
-    let counts = conformance_for_size(&tools, &references, size);
-    assert_eq!(
-        counts,
-        RenderCounts {
-            states: 5,
-            previews: 15,
-            ranges: 5,
-            exports: 5,
-        }
-    );
+    let counts = conformance_for_size(&tools, &references, size, scope);
+    assert_eq!(counts, expected_counts(scope, size));
     eprintln!(
         "rules_screen size={}x{} peak_process_tree_bytes={}",
         size.0,

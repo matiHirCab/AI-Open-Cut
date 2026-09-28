@@ -432,3 +432,82 @@ it("exercises all shape contracts, atomic batches and retained history", async (
 it("preserves rich text documents through MCP standalone and alias batches", async () => {
   await verifyRichTextWorkflow(client, call, directories.projects);
 });
+
+it("preserves parameterized animation curves through packaged MCP edits", async () => {
+  const created = await call(
+    "project_create",
+    { name: "Packaged curves" },
+    writeResultSchema
+  );
+  const { projectId } = created;
+  const state = await call(
+    "project_get_state",
+    { projectId },
+    projectStateSchema
+  );
+  const trackId = state.project.tracks[1]?.id;
+  if (!trackId) {
+    throw new Error("overlay track missing");
+  }
+  const channel = (curve: Record<string, number | string>) => ({
+    keyframes: [
+      { curve, timeMs: 0, value: { type: "scalar", value: 0 } },
+      { curve: "hold", timeMs: 500, value: { type: "scalar", value: 20 } },
+    ],
+    property: "transform.position_x",
+  });
+  const bezier = channel({
+    type: "cubic_bezier",
+    x1: 0.25,
+    x2: 0.25,
+    y1: 0.1,
+    y2: 1,
+  });
+  const spring = channel({
+    damping: 20,
+    initialVelocity: 0,
+    mass: 1,
+    stiffness: 100,
+    type: "spring",
+  });
+  const added = await call(
+    "timeline_batch_edit",
+    {
+      expectedRevision: 0,
+      operations: [
+        {
+          color: "#ff0000",
+          durationMs: 1000,
+          height: 10,
+          operation: "add_rectangle",
+          resultAlias: "box",
+          startMs: 0,
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          width: 20,
+        },
+        {
+          animationChannels: [bezier],
+          itemId: "@box",
+          operation: "set_animation_channels",
+        },
+      ],
+      projectId,
+    },
+    writeResultSchema
+  );
+  const itemId = added.aliases.box;
+  await call(
+    "timeline_set_animation_channels",
+    { animationChannels: [spring], expectedRevision: 1, itemId, projectId },
+    writeResultSchema
+  );
+  const reopened = await call(
+    "project_open",
+    { projectId },
+    projectStateSchema
+  );
+  expect(reopened.project.tracks[1]?.items[0]?.animationChannels).toEqual([
+    spring,
+  ]);
+});

@@ -14,7 +14,8 @@
     "content_addressed_text_layout_v2",
     "styled_text_layers_v1",
     "advanced_text_layout_v1",
-    "typed_animation_channels_v1"
+    "typed_animation_channels_v1",
+    "deterministic_animation_curves_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2197,7 +2198,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 22,
+            "const": 23,
             "type": "number"
           },
           "protocolVersion": {
@@ -11863,11 +11864,40 @@
           "additionalProperties": false,
           "properties": {
             "curve": {
-              "enum": [
-                "hold",
-                "linear"
-              ],
-              "type": "string"
+              "anyOf": [
+                {
+                  "enum": ["hold", "linear"],
+                  "type": "string"
+                },
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": { "const": "cubic_bezier", "type": "string" },
+                        "x1": { "maximum": 1, "minimum": 0, "type": "number" },
+                        "x2": { "maximum": 1, "minimum": 0, "type": "number" },
+                        "y1": { "maximum": 1, "minimum": 0, "type": "number" },
+                        "y2": { "maximum": 1, "minimum": 0, "type": "number" }
+                      },
+                      "required": ["type", "x1", "x2", "y1", "y2"],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "damping": { "maximum": 1000, "minimum": 0.01, "type": "number" },
+                        "initialVelocity": { "maximum": 100, "minimum": -100, "type": "number" },
+                        "mass": { "maximum": 100, "minimum": 0.01, "type": "number" },
+                        "stiffness": { "maximum": 10000, "minimum": 0.01, "type": "number" },
+                        "type": { "const": "spring", "type": "string" }
+                      },
+                      "required": ["damping", "initialVelocity", "mass", "stiffness", "type"],
+                      "type": "object"
+                    }
+                  ]
+                }
+              ]
             },
             "timeMs": {
               "maximum": 9007199254740991,
@@ -23178,7 +23208,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 22,
+        "const": 23,
         "type": "number"
       },
       "settings": {

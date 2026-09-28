@@ -1,0 +1,19 @@
+## 1. Editor-core conformance selection
+
+- [x] 1.1 Add an exact, fail-closed PR/full scope selector to the existing rules-screen native test. Keep the full five-state, 25-render path for 960x540 and 1280x720 in PR scope and for 1920x1080 in full scope; select exactly six 1920x1080 PR renders while checking all five semantic lifecycle states. Preserve the existing fixture, references, comparison thresholds, native dependency handling, and project-integrity checks. (render-regression-fixtures)
+- [x] 1.2 Add automated selector/count tests for valid and invalid scopes, every resolution, ordered lifecycle states, six PR renders, and 25 full renders; ensure no selected test can pass by silently skipping native work. (render-regression-fixtures)
+
+## 2. GitHub workflow and policy ownership
+
+- [x] 2.1 Update the protected PR rules-screen matrix to use explicit PR scope, all three resolutions, exact optimized native test discovery/execution, and a 135-minute job limit. Keep the six-result protected foundation and all unrelated gates unchanged. (repository-validation)
+- [x] 2.2 Add a weekly Monday 03:17 UTC and `workflow_dispatch` workflow for full 1920x1080 conformance on the default branch, with reviewed FFmpeg/font/toolchain setup, exact optimized test discovery/execution, explicit full scope, read-only permissions, normal failure propagation, and a 240-minute job limit. (repository-validation; render-regression-fixtures)
+- [x] 2.3 Remove the temporary 180-minute PR duration exception and enforce the default 120-minute budget. Keep complete future exceptions valid and reject partial exception configuration. (repository-validation)
+- [x] 2.4 Extend CI policy validation and mutation tests to reject a missing, disabled, weakened, or zero-test weekly workflow; altered PR scope, resolution matrix, native command, dependencies, or timeouts; and masked or misreported results. Keep the scheduled result outside the PR aggregate. (repository-validation)
+
+## 3. Documentation and verification
+
+- [x] 3.1 Update CI parity documentation with the 56-render PR matrix, weekly 25-render full workflow, manual dispatch, failure visibility, default 120-minute PR budget, and delayed/default-branch schedule limitations. Do not change golden references or public/persisted contracts. (both capabilities)
+- [x] 3.2 Run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and the native rules-screen test with required FFmpeg/font variables for all three PR resolutions. Run selector/count tests for full mode and record available full-resolution hosted evidence without treating an unrun schedule as passing. Preserve full logs and exact exit statuses. (render-regression-fixtures)
+- [x] 3.3 Run `bun test scripts/validate-ci-gates.test.ts scripts/ci-duration.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts`, `bun run scripts/validate-ci-gates.ts`, and from `apps/agent-bridge` run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, and `bun run test:smoke`. Provider-worker Python tests are unaffected because no worker code or protocol changes. Preserve full logs and exact exit statuses. (repository-validation and compatibility)
+- [x] 3.4 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and the protected `moon run root:openspec-validate` before archival; record that active-change rejection alone is expected. Use `$openspec-verify-change`, resolve mismatches, sync and archive the change, then rerun both validators and require the protected gate to pass. (both capabilities)
+- [x] 3.5 Push the approved change to PR #127, require the new protected PR workflow to pass, and report that the first real weekly or manual full run cannot occur until the workflow is on the default branch. (repository-validation)

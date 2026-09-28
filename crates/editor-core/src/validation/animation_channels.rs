@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    AnimationChannel, AnimationChannelProperty, AnimationChannelValue, CoreError, ErrorCode,
-    Keyframe, KeyframeProperty, MediaType, Project, TimelineItem,
+    AnimationChannel, AnimationChannelProperty, AnimationChannelValue, AnimationCurve, CoreError,
+    ErrorCode, Keyframe, KeyframeProperty, MediaType, ParameterizedAnimationCurve, Project,
+    TimelineItem,
 };
 
 fn invalid(message: &str) -> CoreError {
@@ -103,7 +104,7 @@ pub(crate) fn validate_channels(
             return Err(invalid("maxKeyframesPerChannel exceeded"));
         }
         let mut previous = None;
-        for keyframe in &channel.keyframes {
+        for (index, keyframe) in channel.keyframes.iter().enumerate() {
             if keyframe.time_ms >= item.duration_ms()
                 || previous.is_some_and(|time| keyframe.time_ms <= time)
             {
@@ -112,6 +113,40 @@ pub(crate) fn validate_channels(
                 ));
             }
             previous = Some(keyframe.time_ms);
+            match keyframe.curve {
+                AnimationCurve::Simple(_) => {}
+                AnimationCurve::Parameterized(curve) => {
+                    if index + 1 == channel.keyframes.len() {
+                        return Err(invalid("parameterized curve requires a following keyframe"));
+                    }
+                    let valid = match curve {
+                        ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 } => {
+                            [x1, y1, x2, y2]
+                                .iter()
+                                .all(|value| value.is_finite() && (0.0..=1.0).contains(value))
+                                && x1 <= x2
+                        }
+                        ParameterizedAnimationCurve::Spring {
+                            mass,
+                            stiffness,
+                            damping,
+                            initial_velocity,
+                        } => {
+                            mass.is_finite()
+                                && (0.01..=100.0).contains(&mass)
+                                && stiffness.is_finite()
+                                && (0.01..=10_000.0).contains(&stiffness)
+                                && damping.is_finite()
+                                && (0.01..=1_000.0).contains(&damping)
+                                && initial_velocity.is_finite()
+                                && (-100.0..=100.0).contains(&initial_velocity)
+                        }
+                    };
+                    if !valid {
+                        return Err(invalid("animation curve parameters exceed finite bounds"));
+                    }
+                }
+            }
             let AnimationChannelValue::Scalar { value } = keyframe.value else {
                 return Err(invalid("active animation channel requires scalar values"));
             };

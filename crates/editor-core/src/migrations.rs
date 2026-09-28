@@ -24,6 +24,26 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 23
+        && project
+            .tracks
+            .iter()
+            .chain(
+                project
+                    .components
+                    .iter()
+                    .flat_map(|component| &component.tracks),
+            )
+            .flat_map(|track| &track.items)
+            .flat_map(|item| &item.visual_properties().animation_channels)
+            .flat_map(|channel| &channel.keyframes)
+            .any(|keyframe| matches!(keyframe.curve, crate::AnimationCurve::Parameterized(_)))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "parameterized animation curves require schema 23",
+        ));
+    }
     if project.schema_version < 17
         && project
             .tracks
@@ -102,7 +122,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=21 => {
+        9..=22 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

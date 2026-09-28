@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	type DurationException,
+	durationExceptionFromEnvironment,
 	evaluateDuration,
 	fetchRunStartedAt,
 } from "./ci-duration";
@@ -19,6 +20,22 @@ const at = (minutes: number) =>
 	new Date(Date.parse(start) + minutes * 60_000).toISOString();
 
 describe("protected CI duration", () => {
+	it("uses the default budget with no exception and rejects partial configuration", () => {
+		expect(durationExceptionFromEnvironment({})).toBeNull();
+		expect(() => durationExceptionFromEnvironment({ CI_DURATION_OWNER: "@owner" })).toThrow(
+			"must be complete or absent",
+		);
+		expect(
+			durationExceptionFromEnvironment({
+				CI_DURATION_OWNER: exception.owner,
+				CI_DURATION_REASON: exception.reason,
+				CI_DURATION_BASELINE_MINUTES: String(exception.baselineMinutes),
+				CI_DURATION_EVIDENCE_URL: exception.evidenceUrl,
+				CI_DURATION_EXPIRES_ON: exception.expiresOn,
+				CI_DURATION_CAP_MINUTES: String(exception.capMinutes),
+			}),
+		).toEqual(exception);
+	});
 	it("enforces the default budget at its exact boundary", () => {
 		expect(evaluateDuration(start, at(120), null).withinBudget).toBe(true);
 		expect(evaluateDuration(start, at(120.01), null).withinBudget).toBe(false);

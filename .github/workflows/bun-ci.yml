@@ -156,7 +156,7 @@ jobs:
   rules-screen-parity:
     name: Rules-screen parity (${{ matrix.resolution }})
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 135
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -178,6 +178,7 @@ jobs:
           OPENCUT_GOLDEN_REQUIRED: '1'
           OPENCUT_TEST_FONT_PATH: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
           OPENCUT_RULES_SCREEN_RESOLUTION: ${{ matrix.resolution }}
+          OPENCUT_RULES_SCREEN_SCOPE: pr
         run: |
           set -euo pipefail
           cargo test --release -p opencut-editor-core --lib -- --list | grep -Fx 'renderer::golden::rules_screen::native_rules_screen_resolution_conformance: test'
@@ -225,12 +226,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          CI_DURATION_OWNER: '@matiHirCab'
-          CI_DURATION_REASON: '1920x1080 rules-screen still running near prior 135-minute cap; preserve all 75 renders'
-          CI_DURATION_BASELINE_MINUTES: '135.25'
-          CI_DURATION_EVIDENCE_URL: 'https://github.com/matiHirCab/AI-Open-Cut/actions/runs/36317658326'
-          CI_DURATION_EXPIRES_ON: '2026-10-26'
-          CI_DURATION_CAP_MINUTES: '180'
         run: bun --config=/dev/null --no-env-file run scripts/ci-duration.ts
 
   packaged-smoke:

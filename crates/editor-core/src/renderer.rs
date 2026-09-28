@@ -1822,6 +1822,7 @@ mod tests {
         let command = build_render_command(
             Path::new("ffmpeg"),
             &RenderPlan {
+                serial_bezier_filters: false,
                 text_layout_fidelity: false,
                 detail_fidelity: false,
                 filter_graph: String::new(),

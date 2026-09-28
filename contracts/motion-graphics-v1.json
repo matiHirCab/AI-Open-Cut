@@ -3,6 +3,7 @@
   "contract": "motion-graphics-v1",
   "status": "fixture_only",
   "semantics": {
+    "activeCurveContract": "animation-channels-v1",
     "wireFieldCase": "lower_camel_case",
     "variantCase": "lower_snake_case",
     "coordinateSystem": {

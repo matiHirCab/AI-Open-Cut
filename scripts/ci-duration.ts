@@ -114,10 +114,39 @@ export function evaluateDuration(
 	};
 }
 
-function requiredEnv(name: string): string {
-	const value = process.env[name];
+function requiredEnv(name: string, environment: Record<string, string | undefined> = process.env): string {
+	const value = environment[name];
 	if (!value) throw new Error(`${name} is required`);
 	return value;
+}
+
+export function durationExceptionFromEnvironment(
+	environment: Record<string, string | undefined>,
+): DurationException | null {
+	const exceptionFields = [
+		"CI_DURATION_OWNER",
+		"CI_DURATION_REASON",
+		"CI_DURATION_BASELINE_MINUTES",
+		"CI_DURATION_EVIDENCE_URL",
+		"CI_DURATION_EXPIRES_ON",
+		"CI_DURATION_CAP_MINUTES",
+	];
+	const configuredFields = exceptionFields.filter(
+		(name) => environment[name] !== undefined,
+	);
+	if (configuredFields.length > 0 && configuredFields.length !== exceptionFields.length) {
+		throw new Error("CI duration exception fields must be complete or absent");
+	}
+	return configuredFields.length
+		? {
+				owner: requiredEnv("CI_DURATION_OWNER", environment),
+				reason: requiredEnv("CI_DURATION_REASON", environment),
+				baselineMinutes: Number(requiredEnv("CI_DURATION_BASELINE_MINUTES", environment)),
+				evidenceUrl: requiredEnv("CI_DURATION_EVIDENCE_URL", environment),
+				expiresOn: requiredEnv("CI_DURATION_EXPIRES_ON", environment),
+				capMinutes: Number(requiredEnv("CI_DURATION_CAP_MINUTES", environment)),
+			}
+		: null;
 }
 
 export async function fetchRunStartedAt(
@@ -157,14 +186,7 @@ async function main(): Promise<void> {
 		requiredEnv("GITHUB_RUN_ID"),
 		requiredEnv("GH_TOKEN"),
 	);
-	const exception: DurationException = {
-		owner: requiredEnv("CI_DURATION_OWNER"),
-		reason: requiredEnv("CI_DURATION_REASON"),
-		baselineMinutes: Number(requiredEnv("CI_DURATION_BASELINE_MINUTES")),
-		evidenceUrl: requiredEnv("CI_DURATION_EVIDENCE_URL"),
-		expiresOn: requiredEnv("CI_DURATION_EXPIRES_ON"),
-		capMinutes: Number(requiredEnv("CI_DURATION_CAP_MINUTES")),
-	};
+	const exception = durationExceptionFromEnvironment(process.env);
 	const result = evaluateDuration(
 		runStartedAt,
 		new Date().toISOString(),
@@ -176,12 +198,14 @@ async function main(): Promise<void> {
 	console.log(
 		`Effective budget: ${result.budgetMinutes} minutes (default 120)`,
 	);
-	console.log(
-		`Exception: ${exception.reason}; owner: ${exception.owner}; expires: ${exception.expiresOn}`,
-	);
-	console.log(
-		`Baseline: ${exception.baselineMinutes} minutes; evidence: ${exception.evidenceUrl}`,
-	);
+	if (exception) {
+		console.log(
+			`Exception: ${exception.reason}; owner: ${exception.owner}; expires: ${exception.expiresOn}`,
+		);
+		console.log(
+			`Baseline: ${exception.baselineMinutes} minutes; evidence: ${exception.evidenceUrl}`,
+		);
+	}
 	if (!result.withinBudget)
 		throw new Error("protected CI duration exceeded its effective budget");
 }

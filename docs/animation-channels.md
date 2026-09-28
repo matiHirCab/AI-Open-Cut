@@ -1,6 +1,6 @@
-# Typed animation channels (schema 22)
+# Typed animation channels (schema 23)
 
-Issue #38 introduces a versioned, closed channel vocabulary. The `typed_animation_channels_v1` capability advertises the active subset. `contracts/animation-channels-v1.json` is the canonical channel and limit catalog. Existing `set_keyframes` requests and projects without `animationChannels` keep their previous meaning and render output.
+Issue #38 introduces a versioned, closed channel vocabulary. Issue #39 adds cubic Bézier and spring curves. The `typed_animation_channels_v1` capability advertises the active property subset; `deterministic_animation_curves_v1` advertises the new curves. `contracts/animation-channels-v1.json` is the canonical channel and limit catalog. Existing `set_keyframes` requests and projects without `animationChannels` keep their previous meaning and render output.
 
 ## Active channels
 
@@ -19,7 +19,11 @@ Every catalog entry declares its value tag, activation state, and prospective ta
 
 `timeline_set_animation_channels` replaces an item's entire channel collection at `expectedRevision`. The headless edit operation is `set_animation_channels` with `itemId` and `animationChannels`; it also works within `timeline_batch_edit` and resolves creation aliases. An empty array clears channels. The call is one atomic revision and undo step. A stale revision, locked track, missing item, invalid value, or failed batch leaves state and history unchanged. Legacy position, scale, opacity, and volume keyframes cannot coexist with their overlapping typed channels.
 
-Each channel has a unique `property`, optional typed target reference, and ordered `keyframes` with `{timeMs, value, curve}`. Active channels require `{type:"scalar",value:<finite number>}` and no target reference. Times are integer milliseconds relative to the item's start, strictly increasing and inside `[0,durationMs)`. The first value holds before its keyframe, the last holds afterward, and an exact timestamp uses its keyframe value. `hold` and `linear` are the only curves in this milestone; linear interpolation occurs in the channel's declared unit, including decibels. The absent channel uses its static property value. Preview and export sample the same evaluated scene.
+Each channel has a unique `property`, optional typed target reference, and ordered `keyframes` with `{timeMs, value, curve}`. Active channels require `{type:"scalar",value:<finite number>}` and no target reference. Times are integer milliseconds relative to the item's start, strictly increasing and inside `[0,durationMs)`. The first value holds before its keyframe, the last holds afterward, and an exact timestamp uses its keyframe value. A keyframe's curve controls the segment to the next keyframe. The absent channel uses its static property value. Preview and export use the same evaluated scene.
+
+`"hold"` and `"linear"` remain valid string curves. A cubic Bézier curve is `{ "type":"cubic_bezier", "x1":0.25, "y1":0.1, "x2":0.25, "y2":1 }`; all four coordinates must be finite in `[0,1]` and `x1 <= x2`. A spring curve is `{ "type":"spring", "mass":1, "stiffness":170, "damping":26, "initialVelocity":0 }`; mass is `[0.01,100]`, stiffness `[0.01,10000]`, damping `[0.01,1000]`, and initial velocity `[-100,100]`. A parameterized curve needs a following keyframe, so the terminal keyframe uses `"hold"` or `"linear"`. Unknown fields or variants fail closed with `INVALID_ARGUMENT`.
+
+Segment time is normalized from 0 to 1 in item-local milliseconds. Bézier sampling inverts the monotone X polynomial with 40 bisection iterations and evaluates Y. Spring sampling solves the damped oscillator from position 0 and the declared initial velocity; underdamped, critical, and overdamped parameters are supported. Exact keyframe timestamps return stored values. Intermediate spring overshoot is allowed for position and gain, then sampled values are constrained to the property's documented bounds; independent scale uses `0.000001` as its positive interpolation floor. Fixed scalar samples agree within `1e-9` across supported platforms. Frame, range, draft, and export output retain the documented visual/audio tolerances.
 
 Limits are 64 channels per item, 1,000 keyframes per channel, 4,096 path points, and 32 gradient stops. The latter two limits reserve bounded value shapes for inactive catalog entries. No channel accepts raw FFmpeg expressions, executable SVG, file paths, or network resources.
 
@@ -37,4 +41,4 @@ Limits are 64 channels per item, 1,000 keyframes per channel, 4,096 path points,
 }
 ```
 
-Schema-21 projects and every retained undo/redo snapshot migrate to schema 22 with empty channels under the project lock. Failed migration leaves the prior durable generation intact. Older builds reject schema 22 as a future version.
+Schema-21 projects and every retained undo/redo snapshot first migrate through schema 22 with empty channels. Schema 22 then migrates to 23 under the project lock without changing existing channel values or output. Schema 22 cannot contain parameterized curves; schema 23 validates them on reopen. Failed migration leaves the prior durable generation intact. Older builds reject schema 23 as a future version.

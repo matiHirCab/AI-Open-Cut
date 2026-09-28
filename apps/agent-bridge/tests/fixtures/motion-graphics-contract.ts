@@ -202,6 +202,7 @@ const catalogSchema = z.strictObject({
   limits: limitsSchema,
   managedResources: z.array(managedAssetSchema),
   semantics: z.strictObject({
+    activeCurveContract: z.literal("animation-channels-v1"),
     alphaMode: z.literal("premultiplied"),
     compositingLight: z.literal("linear"),
     coordinateSystem: z.strictObject({

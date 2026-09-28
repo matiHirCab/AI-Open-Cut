@@ -709,6 +709,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "rectangle",
         "keyframes",
         "typed_animation_channels_v1",
+        "deterministic_animation_curves_v1",
         "transitions",
         "audio",
         "audio_roles",
