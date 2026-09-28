@@ -885,7 +885,7 @@ fn red_signature(
     let mut mass = 0.0;
     let mut x_mass = 0.0;
     let mut y_mass = 0.0;
-    for (index, pixel) in frame.chunks_exact(3).enumerate() {
+    for (index, pixel) in frame.as_chunks::<3>().0.iter().enumerate() {
         let red = f64::from(pixel[0].saturating_sub(pixel[1].max(pixel[2])));
         mass += red;
         x_mass += red * (index % 64) as f64;
