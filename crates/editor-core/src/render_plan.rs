@@ -495,6 +495,10 @@ fn evaluated_scalar_expression_for(
     item_start_ms: u64,
     time_variable: &str,
 ) -> String {
+    let loop_spec = keyframes
+        .iter()
+        .find(|keyframe| keyframe.property == property)
+        .and_then(|keyframe| keyframe.r#loop);
     let values = keyframes
         .iter()
         .filter_map(|keyframe| match (keyframe.property, keyframe.value) {
@@ -513,7 +517,57 @@ fn evaluated_scalar_expression_for(
         EvaluatedProperty::GainDb => Some((-96.0, 12.0)),
         _ => None,
     };
-    evaluated_piecewise_expression_for(&values, default, item_start_ms, time_variable, bounds)
+    let mapped_time = loop_spec.and_then(|loop_spec| {
+        let first = values.first()?.0;
+        let last = values.last()?.0;
+        let span = last.checked_sub(first)?;
+        (span > 0)
+            .then(|| looped_time_expression(loop_spec, item_start_ms, first, span, time_variable))
+    });
+    evaluated_piecewise_expression_for(
+        &values,
+        default,
+        item_start_ms,
+        mapped_time.as_deref().unwrap_or(time_variable),
+        bounds,
+    )
+}
+
+fn looped_time_expression(
+    loop_spec: crate::AnimationLoop,
+    item_start_ms: u64,
+    first_ms: u64,
+    span_ms: u64,
+    time_variable: &str,
+) -> String {
+    let first = u128::from(item_start_ms) + u128::from(first_ms);
+    let span = u128::from(span_ms);
+    let multiplier = if loop_spec.mode == crate::AnimationLoopMode::PingPong {
+        2
+    } else {
+        1
+    };
+    let period = span * multiplier;
+    let sample_ms = format!("floor((({time_variable})*1000)+0.5)");
+    let phase = format!("mod(max(0,({sample_ms})-({first})),{period})",);
+    let offset = if loop_spec.mode == crate::AnimationLoopMode::PingPong {
+        format!("if(lte(({phase}),{span}),({phase}),({period})-({phase}))",)
+    } else {
+        phase
+    };
+    let active = format!("(({first})+({offset}))/1000");
+    let mapped = if let crate::AnimationLoopIterations::Finite(count) = loop_spec.iterations {
+        let finish = first + period * u128::from(count);
+        let endpoint = if loop_spec.mode == crate::AnimationLoopMode::PingPong {
+            first
+        } else {
+            first + span
+        };
+        format!("if(gte(({sample_ms}),{finish}),({endpoint})/1000,({active}))",)
+    } else {
+        active
+    };
+    format!("if(lt(({sample_ms}),{first}),({time_variable}),({mapped}))",)
 }
 
 fn evaluated_position_expression(
@@ -1407,6 +1461,178 @@ mod tests {
         TextStyle, Track, TrackType, Transform, TransitionItem, TransitionType,
         evaluated_scene::evaluate_project, render_artifact::media_input_requests,
     };
+
+    #[test]
+    fn native_loop_scalar_expression_matches_core_at_seams() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+                Ok("1"),
+                "native loop scalar comparison requires OPENCUT_FFMPEG_PATH"
+            );
+            return;
+        };
+        for (mode, iterations, item_start_ms, values, times) in [
+            (
+                "repeat",
+                serde_json::json!("infinite"),
+                0,
+                vec![
+                    (0, 0.0, EvaluatedEasing::Linear),
+                    (250, 20.0, EvaluatedEasing::Linear),
+                    (500, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![0, 250, 500, 750, 1000],
+            ),
+            (
+                "ping_pong",
+                serde_json::json!("infinite"),
+                0,
+                vec![
+                    (0, 0.0, EvaluatedEasing::Linear),
+                    (500, 20.0, EvaluatedEasing::Hold),
+                ],
+                vec![0, 250, 500, 750, 1000],
+            ),
+            (
+                "repeat",
+                serde_json::json!(3),
+                0,
+                vec![
+                    (3, 0.0, EvaluatedEasing::Linear),
+                    (8, 100.0, EvaluatedEasing::Hold),
+                    (13, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![12, 13, 14, 22, 23, 24, 32, 33, 34],
+            ),
+            (
+                "repeat",
+                serde_json::json!(3),
+                0,
+                vec![
+                    (100, 0.0, EvaluatedEasing::Linear),
+                    (200, 100.0, EvaluatedEasing::Hold),
+                    (300, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![99, 299, 300, 301, 499, 500, 501, 699, 700, 701],
+            ),
+            (
+                "repeat",
+                serde_json::json!("infinite"),
+                100,
+                vec![
+                    (3, 0.0, EvaluatedEasing::Linear),
+                    (8, 100.0, EvaluatedEasing::Hold),
+                    (13, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![12, 13, 14, 22, 23, 24],
+            ),
+            (
+                "ping_pong",
+                serde_json::json!(2),
+                0,
+                vec![
+                    (
+                        3,
+                        0.0,
+                        EvaluatedEasing::CubicBezier {
+                            x1: 0.2,
+                            y1: 0.1,
+                            x2: 0.8,
+                            y2: 0.9,
+                        },
+                    ),
+                    (13, 100.0, EvaluatedEasing::Hold),
+                ],
+                vec![3, 12, 13, 14, 18, 22, 23, 24, 42, 43, 44],
+            ),
+            (
+                "ping_pong",
+                serde_json::json!("infinite"),
+                0,
+                vec![
+                    (
+                        3,
+                        0.0,
+                        EvaluatedEasing::Spring {
+                            mass: 1.0,
+                            stiffness: 100.0,
+                            damping: 20.0,
+                            initial_velocity: 0.0,
+                        },
+                    ),
+                    (13, 100.0, EvaluatedEasing::Hold),
+                ],
+                vec![3, 12, 13, 14, 18, 22, 23, 24],
+            ),
+        ] {
+            let channel: crate::AnimationChannel = serde_json::from_value(serde_json::json!({
+                "property":"transform.position_x",
+                "keyframes":values.iter().map(|(time, value, easing)| serde_json::json!({
+                    "timeMs":time,"value":{"type":"scalar","value":value},
+                    "curve":match easing {
+                        EvaluatedEasing::Linear => serde_json::json!("linear"),
+                        EvaluatedEasing::Hold => serde_json::json!("hold"),
+                        EvaluatedEasing::CubicBezier {x1,y1,x2,y2} => serde_json::json!({
+                            "type":"cubic_bezier","x1":x1,"y1":y1,"x2":x2,"y2":y2
+                        }),
+                        EvaluatedEasing::Spring {mass,stiffness,damping,initial_velocity} =>
+                            serde_json::json!({"type":"spring","mass":mass,
+                                "stiffness":stiffness,"damping":damping,
+                                "initialVelocity":initial_velocity}),
+                        _ => unreachable!("test uses typed channel curves"),
+                    }
+                })).collect::<Vec<_>>(),
+                "loop":{"mode":mode,"iterations":iterations}
+            }))
+            .unwrap();
+            for time_ms in times {
+                let time = format_curve_number((item_start_ms + time_ms) as f64 / 1000.0);
+                let mapped = looped_time_expression(
+                    channel.r#loop.unwrap(),
+                    item_start_ms,
+                    values.first().unwrap().0,
+                    values.last().unwrap().0 - values.first().unwrap().0,
+                    &time,
+                );
+                let expression =
+                    evaluated_piecewise_expression_for(&values, 0.0, item_start_ms, &mapped, None);
+                let source = format!("aevalsrc=exprs='{expression}':s=8000:d=0.001");
+                let output = std::process::Command::new(&ffmpeg)
+                    .args([
+                        "-hide_banner",
+                        "-loglevel",
+                        "error",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        &source,
+                        "-frames:a",
+                        "1",
+                        "-ac",
+                        "1",
+                        "-c:a",
+                        "pcm_f64le",
+                        "-f",
+                        "f64le",
+                        "-",
+                    ])
+                    .output()
+                    .expect("FFmpeg loop scalar comparison should start");
+                assert!(
+                    output.status.success(),
+                    "{mode} at {time_ms}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let sample = f64::from_le_bytes(output.stdout[..8].try_into().unwrap());
+                let expected = crate::animation::sample_scalar_channel(&channel, time_ms).unwrap();
+                assert!(
+                    (sample - expected).abs() < 1e-9,
+                    "{mode} at {time_ms}: core={expected}, ffmpeg={sample}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn native_curve_scalar_expressions_match_core_at_f64_precision() {

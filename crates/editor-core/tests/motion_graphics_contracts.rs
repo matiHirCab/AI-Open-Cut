@@ -263,6 +263,7 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
         semantics,
         &[
             "activeCurveContract",
+            "activeLoopContract",
             "activeMarkerContract",
             "alphaMode",
             "compositingLight",
@@ -296,6 +297,7 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
     assert_closed_record(time, &["interval", "unit"], "time")?;
     let scalar_semantics = [
         ("activeCurveContract", "animation-channels-v1"),
+        ("activeLoopContract", "animation-channels-v1"),
         ("activeMarkerContract", "marker-relative-timing-v1"),
         ("wireFieldCase", "lower_camel_case"),
         ("variantCase", "lower_snake_case"),

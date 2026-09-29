@@ -14,7 +14,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(24);
+    expect(contract.projectSchemaVersion).toBe(25);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),
@@ -27,6 +27,7 @@ describe("governed animation channels", () => {
       maxChannelsPerItem: 64,
       maxGradientStops: 32,
       maxKeyframesPerChannel: 1000,
+      maxLoopIterations: 10_000,
       maxPathPoints: 4096,
     });
     expect(contract.active).toEqual({
@@ -157,6 +158,33 @@ describe("governed animation channels", () => {
     expect(
       animationChannelSchema.safeParse(contract.examples.validSpring).success
     ).toBe(true);
+    expect(contract.loop.modes).toEqual(["repeat", "ping_pong"]);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.validRepeatLoop)
+        .success
+    ).toBe(true);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.validInfinitePingPong)
+        .success
+    ).toBe(true);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.validMaxRepeatLoop)
+        .success
+    ).toBe(true);
+    expect(
+      animationChannelSchema.safeParse(
+        contract.examples.invalidLoopUnknownField
+      ).success
+    ).toBe(false);
+    expect(
+      animationChannelSchema.safeParse(contract.examples.invalidLoopCount)
+        .success
+    ).toBe(false);
+    // Endpoint equality is an editor-core semantic check, not a Zod shape rule.
+    expect(
+      animationChannelSchema.safeParse(contract.examples.invalidLoopEndpoint)
+        .success
+    ).toBe(true);
     expect(
       animationChannelSchema.safeParse(contract.examples.invalidSpring).success
     ).toBe(false);
@@ -192,6 +220,11 @@ describe("governed animation channels", () => {
     ).toBe(true);
     for (const bad of [
       { ...value, unknown: true },
+      { ...value, loop: { iterations: 0, mode: "repeat" } },
+      { ...value, loop: { iterations: 10_001, mode: "repeat" } },
+      { ...value, loop: { iterations: 1.5, mode: "repeat" } },
+      { ...value, loop: { iterations: 2, mode: "reverse" } },
+      { ...value, loop: { expression: "t", iterations: 2, mode: "repeat" } },
       { ...value, keyframes: [{ ...value.keyframes[0], curve: "spring" }] },
       {
         ...value,

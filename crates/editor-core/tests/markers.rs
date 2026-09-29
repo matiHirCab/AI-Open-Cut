@@ -1,5 +1,6 @@
 use opencut_editor_core::{
-    BatchEditOperation, EditOperation, EditorCore, ErrorCode, PathPolicy, ProjectSettings,
+    BatchEditOperation, EditOperation, EditorCore, ErrorCode, PROJECT_SCHEMA_VERSION, PathPolicy,
+    ProjectSettings,
 };
 use serde_json::{Value, json};
 
@@ -186,11 +187,11 @@ fn schema_23_migrates_current_and_history_and_rejects_backdated_markers() {
     .unwrap();
     let reopened = EditorCore::new(core.paths().clone());
     let migrated = reopened.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 24);
+    assert_eq!(migrated.schema_version, PROJECT_SCHEMA_VERSION);
     assert!(migrated.markers.is_empty());
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
-    assert_eq!(history["undo"][0]["schemaVersion"], 24);
+    assert_eq!(history["undo"][0]["schemaVersion"], PROJECT_SCHEMA_VERSION);
     assert_eq!(history["redo"][0]["markers"], json!([]));
 
     for location in ["current", "undo", "redo"] {

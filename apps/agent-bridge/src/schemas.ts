@@ -344,6 +344,16 @@ export const animationChannelSchema = z
           .strict()
       )
       .max(1000),
+    loop: z
+      .object({
+        iterations: z.union([
+          z.int().min(1).max(10_000),
+          z.literal("infinite"),
+        ]),
+        mode: z.enum(["repeat", "ping_pong"]),
+      })
+      .strict()
+      .optional(),
     property: animationChannelPropertySchema,
     target: parentReferenceSchema.optional(),
   })
@@ -394,7 +404,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(24).optional(),
+    projectSchemaVersion: z.literal(25).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1472,7 +1482,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(24),
+        schemaVersion: z.literal(25),
         settings: z
           .object({
             fps: z.int().positive(),

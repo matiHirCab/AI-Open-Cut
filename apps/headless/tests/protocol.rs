@@ -60,7 +60,10 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
         state["project"]["tracks"][1]["items"][0]["animationChannels"],
         channels
     );
-    assert_eq!(state["project"]["schemaVersion"], 24);
+    assert_eq!(
+        state["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     for (revision, edit, code) in [
         (
             0,
@@ -103,6 +106,54 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
     assert_eq!(
         reopened["project"]["tracks"][1]["items"][0]["animationChannels"],
         spring
+    );
+}
+
+#[test]
+fn typed_animation_loops_work_standalone_and_in_aliased_batch() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Loops"})))["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let looped = json!([{"property":"transform.position_x","keyframes":[
+        {"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},
+        {"timeMs":250,"value":{"type":"scalar","value":20.0},"curve":"linear"},
+        {"timeMs":500,"value":{"type":"scalar","value":0.0},"curve":"hold"}],
+        "loop":{"mode":"repeat","iterations":3}}]);
+    let written = result(&h.request(json!({"operation":"edit_batch","projectId":id,
+        "expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1200,
+            "width":10,"height":10,"color":"#ff0000",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"box"},
+        {"operation":"set_animation_channels","itemId":"@box","animationChannels":looped}
+    ]})));
+    assert_eq!(written["revision"], 1);
+    let item = written["aliases"]["box"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["animationChannels"],
+        looped
+    );
+    let bad = json!([{"property":"transform.position_x","keyframes":[
+        {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+        {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}],
+        "loop":{"mode":"repeat","iterations":2}}]);
+    let error = event(&h.request(json!({"operation":"edit","projectId":id,
+        "expectedRevision":1,"edit":{"operation":"set_animation_channels","itemId":item,
+            "animationChannels":bad}})));
+    assert_eq!(error["error"]["code"], "INVALID_ARGUMENT");
+    let replaced = result(&h.request(json!({"operation":"edit","projectId":id,
+        "expectedRevision":1,"edit":{"operation":"set_animation_channels","itemId":item,
+            "animationChannels":[{"property":"transform.position_x","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}],
+                "loop":{"mode":"ping_pong","iterations":"infinite"}}]}})));
+    assert_eq!(replaced["revision"], 2);
+    let reopened = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        reopened["project"]["tracks"][1]["items"][0]["animationChannels"][0]["loop"],
+        json!({"mode":"ping_pong","iterations":"infinite"})
     );
 }
 

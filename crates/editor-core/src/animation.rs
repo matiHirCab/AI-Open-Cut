@@ -1,6 +1,7 @@
 use crate::{
-    AnimationChannel, AnimationChannelValue, AnimationCurve, Easing, Keyframe, KeyframeProperty,
-    KeyframeValue, ParameterizedAnimationCurve, SimpleAnimationCurve,
+    AnimationChannel, AnimationChannelValue, AnimationCurve, AnimationLoopIterations,
+    AnimationLoopMode, Easing, Keyframe, KeyframeProperty, KeyframeValue,
+    ParameterizedAnimationCurve, SimpleAnimationCurve,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -120,6 +121,7 @@ fn cubic_bezier(time: f64, first: f64, second: f64) -> f64 {
 
 pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) -> Option<f64> {
     let first = channel.keyframes.first()?;
+    let time_ms = map_loop_time(channel, time_ms)?;
     let scalar = |value: &AnimationChannelValue| match value {
         AnimationChannelValue::Scalar { value } => Some(*value),
         _ => None,
@@ -164,6 +166,41 @@ pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) ->
         }
     }
     scalar(&channel.keyframes.last()?.value)
+}
+
+pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<u64> {
+    let Some(loop_spec) = channel.r#loop else {
+        return Some(time_ms);
+    };
+    let first = channel.keyframes.first()?.time_ms;
+    let last = channel.keyframes.last()?.time_ms;
+    let span = last.checked_sub(first)?;
+    if span == 0 || time_ms < first {
+        return Some(time_ms);
+    }
+    let period = u128::from(span)
+        * if loop_spec.mode == AnimationLoopMode::PingPong {
+            2
+        } else {
+            1
+        };
+    let elapsed = u128::from(time_ms - first);
+    if let AnimationLoopIterations::Finite(count) = loop_spec.iterations
+        && elapsed >= period * u128::from(count)
+    {
+        return Some(if loop_spec.mode == AnimationLoopMode::PingPong {
+            first
+        } else {
+            last
+        });
+    }
+    let phase = elapsed % period;
+    let offset = if loop_spec.mode == AnimationLoopMode::PingPong && phase > u128::from(span) {
+        period - phase
+    } else {
+        phase
+    };
+    first.checked_add(u64::try_from(offset).ok()?)
 }
 
 #[cfg(test)]
@@ -219,6 +256,82 @@ mod curve_tests {
             100.0,
         );
         assert!(sample_scalar_channel(&value, 300).unwrap() > 100.0);
+    }
+
+    #[test]
+    fn loop_phases_are_item_local_and_exact_at_seams() {
+        let repeat: AnimationChannel = serde_json::from_value(json!({
+            "property":"transform.position_x",
+            "keyframes":[
+                {"timeMs":100,"value":{"type":"scalar","value":0},"curve":"linear"},
+                {"timeMs":200,"value":{"type":"scalar","value":100},"curve":"linear"},
+                {"timeMs":300,"value":{"type":"scalar","value":0},"curve":"hold"}
+            ],
+            "loop":{"mode":"repeat","iterations":3}
+        }))
+        .unwrap();
+        assert_eq!(sample_scalar_channel(&repeat, 99), Some(0.0));
+        assert_eq!(sample_scalar_channel(&repeat, 200), Some(100.0));
+        assert_eq!(sample_scalar_channel(&repeat, 299), Some(1.0));
+        assert_eq!(sample_scalar_channel(&repeat, 300), Some(0.0));
+        assert_eq!(sample_scalar_channel(&repeat, 301), Some(1.0));
+        assert_eq!(sample_scalar_channel(&repeat, 450), Some(50.0));
+        assert_eq!(sample_scalar_channel(&repeat, 699), Some(1.0));
+        assert_eq!(sample_scalar_channel(&repeat, 700), Some(0.0));
+        let ping_pong: AnimationChannel = serde_json::from_value(json!({
+            "property":"transform.position_x",
+            "keyframes":[
+                {"timeMs":100,"value":{"type":"scalar","value":0},"curve":"linear"},
+                {"timeMs":300,"value":{"type":"scalar","value":100},"curve":"hold"}
+            ],
+            "loop":{"mode":"ping_pong","iterations":1}
+        }))
+        .unwrap();
+        assert_eq!(sample_scalar_channel(&ping_pong, 300), Some(100.0));
+        assert_eq!(sample_scalar_channel(&ping_pong, 299), Some(99.5));
+        assert_eq!(sample_scalar_channel(&ping_pong, 301), Some(99.5));
+        assert_eq!(sample_scalar_channel(&ping_pong, 400), Some(50.0));
+        assert_eq!(sample_scalar_channel(&ping_pong, 499), Some(0.5));
+        assert_eq!(sample_scalar_channel(&ping_pong, 500), Some(0.0));
+        assert_eq!(sample_scalar_channel(&ping_pong, 700), Some(0.0));
+        let spring: AnimationChannel = serde_json::from_value(json!({
+            "property":"transform.position_x",
+            "keyframes":[
+                {"timeMs":100,"value":{"type":"scalar","value":0},
+                    "curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}},
+                {"timeMs":300,"value":{"type":"scalar","value":100},"curve":"hold"}
+            ],
+            "loop":{"mode":"ping_pong","iterations":"infinite"}
+        })).unwrap();
+        assert_eq!(
+            sample_scalar_channel(&spring, 150),
+            sample_scalar_channel(&spring, 450)
+        );
+        assert_eq!(
+            sample_scalar_channel(&spring, 299),
+            sample_scalar_channel(&spring, 301)
+        );
+        assert_eq!(sample_scalar_channel(&spring, 500), Some(0.0));
+        assert_eq!(sample_scalar_channel(&spring, 900), Some(0.0));
+        assert!(
+            sample_scalar_channel(&spring, u64::MAX)
+                .unwrap()
+                .is_finite()
+        );
+        let bezier: AnimationChannel = serde_json::from_value(json!({
+            "property":"transform.position_x",
+            "keyframes":[
+                {"timeMs":100,"value":{"type":"scalar","value":0},
+                    "curve":{"type":"cubic_bezier","x1":0.2,"y1":0.1,"x2":0.8,"y2":0.9}},
+                {"timeMs":300,"value":{"type":"scalar","value":100},"curve":"hold"}
+            ],
+            "loop":{"mode":"ping_pong","iterations":"infinite"}
+        }))
+        .unwrap();
+        assert_eq!(
+            sample_scalar_channel(&bezier, 175),
+            sample_scalar_channel(&bezier, 425)
+        );
     }
 }
 

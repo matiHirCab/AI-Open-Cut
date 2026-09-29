@@ -20,7 +20,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 24;
+pub const PROJECT_SCHEMA_VERSION: u32 = 25;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -143,7 +143,7 @@ impl TryFrom<ProjectDocument> for Project {
         {
             return Err("markers require schema 24".into());
         }
-        if value.schema_version == 24 && value.markers.is_none() {
+        if value.schema_version >= 24 && value.markers.is_none() {
             return Err("schema 24 requires markers".into());
         }
         if value.schema_version < 24 {
@@ -176,6 +176,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_parameterized_curves(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_parameterized_curves(components)?;
+            }
+        }
+        if value.schema_version < 25 {
+            reject_animation_loops(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_animation_loops(components)?;
             }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
@@ -381,6 +387,32 @@ fn reject_parameterized_curves(value: &serde_json::Value) -> Result<(), String> 
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_parameterized_curves(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn reject_animation_loops(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object
+                .get("animationChannels")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|channels| {
+                    channels.iter().any(|channel| channel.get("loop").is_some())
+                })
+            {
+                return Err("animation loops require schema 25".into());
+            }
+            for child in object.values() {
+                reject_animation_loops(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_animation_loops(child)?;
             }
         }
         _ => {}

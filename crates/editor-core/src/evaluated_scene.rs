@@ -1443,12 +1443,28 @@ pub(crate) enum EvaluatedKeyframeValue {
     Scalar { value: f64 },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub(crate) struct EvaluatedKeyframe {
     pub(crate) property: EvaluatedProperty,
     pub(crate) time_ms: u64,
     pub(crate) value: EvaluatedKeyframeValue,
     pub(crate) easing: EvaluatedEasing,
+    pub(crate) r#loop: Option<crate::AnimationLoop>,
+}
+
+impl std::fmt::Debug for EvaluatedKeyframe {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = formatter.debug_struct("EvaluatedKeyframe");
+        debug
+            .field("property", &self.property)
+            .field("time_ms", &self.time_ms)
+            .field("value", &self.value)
+            .field("easing", &self.easing);
+        if self.r#loop.is_some() {
+            debug.field("loop", &self.r#loop);
+        }
+        debug.finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2554,6 +2570,7 @@ fn evaluate_keyframes(
             time_ms: keyframe.time_ms,
             value,
             easing: evaluate_easing(keyframe.easing),
+            r#loop: None,
         });
     }
     for channel in channels {
@@ -2611,6 +2628,7 @@ fn evaluate_keyframes(
                         initial_velocity,
                     },
                 },
+                r#loop: channel.r#loop,
             });
         }
     }
@@ -2824,6 +2842,30 @@ mod tests {
         AudioSettings, DuckingSettings, MediaItem, ProjectSettings, RectangleItem, SolidColorItem,
         TextItem, TextStyle, TrackType, TransitionItem,
     };
+
+    #[test]
+    fn unlooped_keyframe_preserves_golden_semantic_plan_shape() {
+        let mut keyframe = EvaluatedKeyframe {
+            property: EvaluatedProperty::Scale,
+            time_ms: 0,
+            value: EvaluatedKeyframeValue::Scalar { value: 0.8 },
+            easing: EvaluatedEasing::Linear,
+            r#loop: None,
+        };
+        let unlooped = format!("{keyframe:#?}");
+        assert!(!unlooped.contains("loop:"));
+        assert_eq!(
+            unlooped,
+            "EvaluatedKeyframe {\n    property: Scale,\n    time_ms: 0,\n    value: Scalar {\n        value: 0.8,\n    },\n    easing: Linear,\n}"
+        );
+        keyframe.r#loop = Some(
+            serde_json::from_value(serde_json::json!({
+                "mode":"ping_pong","iterations":2
+            }))
+            .unwrap(),
+        );
+        assert!(format!("{keyframe:#?}").contains("loop: Some("));
+    }
 
     #[test]
     fn typed_channels_reach_shared_visual_and_audio_scene() {

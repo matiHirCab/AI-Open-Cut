@@ -461,13 +461,16 @@ it("preserves parameterized animation curves through packaged MCP edits", async 
     ],
     property: "transform.position_x",
   });
-  const bezier = channel({
-    type: "cubic_bezier",
-    x1: 0.25,
-    x2: 0.25,
-    y1: 0.1,
-    y2: 1,
-  });
+  const bezier = {
+    ...channel({
+      type: "cubic_bezier",
+      x1: 0.25,
+      x2: 0.25,
+      y1: 0.1,
+      y2: 1,
+    }),
+    loop: { iterations: 2, mode: "ping_pong" },
+  };
   const spring = channel({
     damping: 20,
     initialVelocity: 0,
