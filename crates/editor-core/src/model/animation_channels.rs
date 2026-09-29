@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::ParentReference;
 
@@ -146,6 +146,40 @@ pub struct AnimationChannelKeyframe {
     pub curve: AnimationCurve,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnimationLoopMode {
+    Repeat,
+    PingPong,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum AnimationLoopIterations {
+    Finite(u32),
+    Infinite(AnimationInfiniteIterations),
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnimationInfiniteIterations {
+    Infinite,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnimationLoop {
+    pub mode: AnimationLoopMode,
+    pub iterations: AnimationLoopIterations,
+}
+
+fn deserialize_present_loop<'de, D>(deserializer: D) -> Result<Option<AnimationLoop>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    AnimationLoop::deserialize(deserializer).map(Some)
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AnimationChannel {
@@ -153,4 +187,10 @@ pub struct AnimationChannel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<ParentReference>,
     pub keyframes: Vec<AnimationChannelKeyframe>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_loop",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub r#loop: Option<AnimationLoop>,
 }

@@ -990,13 +990,16 @@ it("edits typed animation channels through MCP standalone and alias batches", as
     ],
     property: "transform.position_x",
   });
-  const bezier = curveChannel({
-    type: "cubic_bezier",
-    x1: 0.25,
-    x2: 0.25,
-    y1: 0.1,
-    y2: 1,
-  });
+  const bezier = {
+    ...curveChannel({
+      type: "cubic_bezier",
+      x1: 0.25,
+      x2: 0.25,
+      y1: 0.1,
+      y2: 1,
+    }),
+    loop: { iterations: 2, mode: "ping_pong" },
+  };
   const spring = curveChannel({
     damping: 20,
     initialVelocity: 0,
@@ -1063,6 +1066,11 @@ it("edits typed animation channels through MCP standalone and alias batches", as
         [
           2,
           [{ ...channel(10), property: "transform.rotation_deg" }],
+          "INVALID_ARGUMENT",
+        ],
+        [
+          2,
+          [{ ...spring, loop: { iterations: 2, mode: "repeat" } }],
           "INVALID_ARGUMENT",
         ],
       ] as const

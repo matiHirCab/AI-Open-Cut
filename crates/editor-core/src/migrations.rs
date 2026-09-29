@@ -24,6 +24,25 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 25
+        && project
+            .tracks
+            .iter()
+            .chain(
+                project
+                    .components
+                    .iter()
+                    .flat_map(|component| &component.tracks),
+            )
+            .flat_map(|track| &track.items)
+            .flat_map(|item| &item.visual_properties().animation_channels)
+            .any(|channel| channel.r#loop.is_some())
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "animation loops require schema 25",
+        ));
+    }
     if project.schema_version < 24
         && (!project.markers.is_empty()
             || project
@@ -145,7 +164,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=23 => {
+        9..=24 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -220,6 +239,53 @@ mod tests {
                 .all(|value| value.schema_version == PROJECT_SCHEMA_VERSION)
         );
         assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
+    }
+
+    #[test]
+    fn schema_24_loop_migration_rejects_retained_injection_atomically() {
+        let mut current = project(24);
+        let mut history = History {
+            undo: vec![project(24)],
+            redo: vec![project(24)],
+        };
+        assert!(migrate_project_documents(&mut current, &mut history).unwrap());
+        assert_eq!(current.schema_version, 25);
+        assert!(
+            history
+                .undo
+                .iter()
+                .chain(&history.redo)
+                .all(|snapshot| snapshot.schema_version == 25)
+        );
+        assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
+
+        let mut invalid = project(24);
+        invalid.tracks = serde_json::from_value(serde_json::json!([{
+            "id":"track","name":"Overlay","trackType":"overlay","items":[{
+                "type":"rectangle","id":"box","startMs":0,"durationMs":1000,
+                "width":10,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},
+                "keyframes":[],
+                "animationChannels":[{"property":"transform.position_x","keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                    {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],
+                    "loop":{"mode":"repeat","iterations":2}}]
+            }]
+        }]))
+        .unwrap();
+        let mut current = project(24);
+        let mut history = History {
+            undo: vec![project(24)],
+            redo: vec![invalid],
+        };
+        let before = serde_json::to_value((&current, &history)).unwrap();
+        assert_eq!(
+            migrate_project_documents(&mut current, &mut history)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(serde_json::to_value((&current, &history)).unwrap(), before);
     }
 
     #[test]

@@ -1,11 +1,12 @@
 {
   "version": 1,
-  "projectSchemaVersion": 24,
+  "projectSchemaVersion": 25,
   "limits": {
     "maxChannelsPerItem": 64,
     "maxKeyframesPerChannel": 1000,
     "maxPathPoints": 4096,
-    "maxGradientStops": 32
+    "maxGradientStops": 32,
+    "maxLoopIterations": 10000
   },
   "active": {
     "transform.position_x": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
@@ -41,6 +42,7 @@
     "audio.pan": { "valueType": "scalar", "target": "media_audio", "activation": "inactive", "bounds": "deferred" }
   },
   "curves": ["hold", "linear", "cubic_bezier", "spring"],
+  "loop": {"modes":["repeat","ping_pong"],"iterations":{"minimum":1,"maximum":10000,"infinite":"infinite"},"interval":"first_to_last_keyframe_half_open","repeatRequiresMatchingEndpoints":true,"pingPongCount":"round_trips"},
   "curveParameters": {
     "cubic_bezier": { "x1": [0, 1], "y1": [0, 1], "x2": [0, 1], "y2": [0, 1], "x1AtMostX2": true, "iterations": 40 },
     "spring": { "mass": [0.01, 100], "stiffness": [0.01, 10000], "damping": [0.01, 1000], "initialVelocity": [-100, 100] }
@@ -74,11 +76,18 @@
     "inactiveChannel": { "property": "transform.rotation_deg", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "hold" }] },
     "validBezier": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "cubic_bezier", "x1": 0.25, "y1": 0.1, "x2": 0.25, "y2": 1 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
     "validSpring": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "spring", "mass": 1, "stiffness": 170, "damping": 26, "initialVelocity": 0 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
+    "validRepeatLoop": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":3}},
+    "validMaxRepeatLoop": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":10000}},
+    "validInfinitePingPong": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"loop":{"mode":"ping_pong","iterations":"infinite"}},
+    "invalidLoopUnknownField": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":2,"expression":"t"}},
+    "invalidLoopCount": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":0}},
+    "invalidLoopEndpoint": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"loop":{"mode":"repeat","iterations":2}},
     "invalidBezier": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "cubic_bezier", "x1": 0.75, "y1": 0.1, "x2": 0.25, "y2": 1 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
     "invalidSpring": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "spring", "mass": 0, "stiffness": 170, "damping": 26, "initialVelocity": 0 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] }
   },
   "operation": "set_animation_channels",
   "mcpTool": "timeline_set_animation_channels",
   "capability": "typed_animation_channels_v1",
-  "curveCapability": "deterministic_animation_curves_v1"
+  "curveCapability": "deterministic_animation_curves_v1",
+  "loopCapability": "animation_loops_v1"
 }

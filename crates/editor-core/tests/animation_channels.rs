@@ -43,6 +43,74 @@ fn channel(property: &str, first: f64, last: f64) -> Value {
 }
 
 #[test]
+fn loop_edits_validate_and_survive_undo_redo_and_reopen() {
+    let (_root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({"operation":"add_rectangle","trackId":track_id,
+                "startMs":0,"durationMs":1200,"width":20,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})),
+        )
+        .unwrap();
+    let item_id = &added.changed_ids[0];
+    let valid = fixture()["examples"]["validRepeatLoop"].clone();
+    let edit = |revision, value: Value| {
+        core.edit(
+            &project_id,
+            revision,
+            operation(
+                json!({"operation":"set_animation_channels","itemId":item_id,
+                "animationChannels":[value]}),
+            ),
+        )
+    };
+    edit(1, valid.clone()).unwrap();
+    let read = || core.get_project(&project_id).unwrap();
+    let stored = serde_json::to_value(read()).unwrap();
+    assert_eq!(
+        stored["tracks"][1]["items"][0]["animationChannels"][0]["loop"],
+        valid["loop"]
+    );
+    for invalid in [
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"hold"}],
+            "loop":{"mode":"repeat","iterations":2}}),
+        fixture()["examples"]["invalidLoopEndpoint"].clone(),
+        fixture()["examples"]["invalidLoopCount"].clone(),
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+            {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],
+            "loop":{"mode":"repeat","iterations":10001}}),
+    ] {
+        assert_eq!(
+            edit(2, invalid).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(serde_json::to_value(read()).unwrap(), stored);
+    }
+    assert_eq!(
+        edit(1, valid).unwrap_err().code,
+        ErrorCode::RevisionConflict
+    );
+    core.undo(&project_id, 2).unwrap();
+    assert!(
+        read()
+            .find_item(item_id)
+            .unwrap()
+            .visual_properties()
+            .animation_channels
+            .is_empty()
+    );
+    core.redo(&project_id, 3).unwrap();
+    assert_eq!(
+        serde_json::to_value(read()).unwrap()["tracks"][1]["items"][0]["animationChannels"][0]["loop"],
+        stored["tracks"][1]["items"][0]["animationChannels"][0]["loop"]
+    );
+}
+
+#[test]
 fn canonical_names_and_limits_match_rust_types() {
     let contract = fixture();
     assert_eq!(contract["projectSchemaVersion"], PROJECT_SCHEMA_VERSION);
@@ -60,6 +128,8 @@ fn canonical_names_and_limits_match_rust_types() {
     );
     assert_eq!(contract["limits"]["maxChannelsPerItem"], 64);
     assert_eq!(contract["limits"]["maxKeyframesPerChannel"], 1000);
+    assert_eq!(contract["limits"]["maxLoopIterations"], 10_000);
+    assert_eq!(contract["loop"]["modes"], json!(["repeat", "ping_pong"]));
     for category in ["active", "inactive"] {
         for name in contract[category].as_object().unwrap().keys() {
             let property: AnimationChannelProperty = serde_json::from_value(json!(name)).unwrap();
@@ -139,9 +209,33 @@ fn canonical_names_and_limits_match_rust_types() {
     for name in [
         "validBezier",
         "validSpring",
+        "validRepeatLoop",
+        "validMaxRepeatLoop",
+        "validInfinitePingPong",
         "invalidBezier",
         "invalidSpring",
     ] {
+        assert!(
+            serde_json::from_value::<AnimationChannel>(contract["examples"][name].clone()).is_ok()
+        );
+    }
+    for loop_value in [
+        json!(null),
+        json!({"mode":"repeat","iterations":1.5}),
+        json!({"mode":"reverse","iterations":2}),
+        json!({"mode":"repeat","iterations":2,"expression":"t"}),
+    ] {
+        let mut channel = contract["examples"]["validRepeatLoop"].clone();
+        channel["loop"] = loop_value;
+        assert!(serde_json::from_value::<AnimationChannel>(channel).is_err());
+    }
+    assert!(
+        serde_json::from_value::<AnimationChannel>(
+            contract["examples"]["invalidLoopUnknownField"].clone()
+        )
+        .is_err()
+    );
+    for name in ["invalidLoopCount", "invalidLoopEndpoint"] {
         assert!(
             serde_json::from_value::<AnimationChannel>(contract["examples"][name].clone()).is_ok()
         );
@@ -357,8 +451,10 @@ fn canonical_curve_cases_match_core_acceptance() {
 #[test]
 fn alias_batch_history_reopen_and_atomic_failures() {
     let (_root, core, project_id, track_id) = setup();
+    let mut looped_channel = channel("transform.position_x", 0.0, 50.0);
+    looped_channel["loop"] = json!({"mode":"ping_pong","iterations":2});
     let channels = vec![
-        channel("transform.position_x", 0.0, 50.0),
+        looped_channel,
         channel("transform.scale_y", 1.0, 2.0),
         channel("transform.opacity", 1.0, 0.5),
     ];
@@ -379,8 +475,27 @@ fn alias_batch_history_reopen_and_atomic_failures() {
             .len(),
         3
     );
+    assert_eq!(
+        serde_json::to_value(read()).unwrap()["tracks"][1]["items"][0]["animationChannels"][0]["loop"],
+        json!({"mode":"ping_pong","iterations":2})
+    );
 
     let before = serde_json::to_value(read()).unwrap();
+    let invalid_batch: Vec<BatchEditOperation> = serde_json::from_value(json!([
+        {"operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1000,"width":30,"height":20,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"failed"},
+        {"operation":"set_animation_channels","itemId":"@failed","animationChannels":[{
+            "property":"transform.position_x","keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                {"timeMs":500,"value":{"type":"scalar","value":10},"curve":"hold"}],
+            "loop":{"mode":"repeat","iterations":2}}]}
+    ])).unwrap();
+    assert_eq!(
+        core.edit_batch(&project_id, 1, invalid_batch)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(serde_json::to_value(read()).unwrap(), before);
     for invalid in [
         vec![channel("transform.scale_x", 0.0, 2.0)],
         vec![channel("transform.rotation_deg", 0.0, 10.0)],
@@ -456,8 +571,12 @@ fn alias_batch_history_reopen_and_atomic_failures() {
             .len(),
         3
     );
+    assert_eq!(
+        serde_json::to_value(read()).unwrap()["tracks"][1]["items"][0]["animationChannels"][0]["loop"],
+        json!({"mode":"ping_pong","iterations":2})
+    );
     // The core instance reopens the durable project on every read.
-    assert_eq!(read().schema_version, 24);
+    assert_eq!(read().schema_version, PROJECT_SCHEMA_VERSION);
 
     core.edit(
         &project_id,
@@ -755,7 +874,7 @@ fn every_active_property_rejects_malformed_persisted_values_before_render() {
 }
 
 #[test]
-fn invalid_persisted_curve_preflights_all_render_intents_before_artifacts() {
+fn invalid_persisted_curve_or_loop_preflights_all_render_intents_before_artifacts() {
     let (root, core, id, visual_track) = setup();
     core.edit(
         &id,
@@ -773,20 +892,24 @@ fn invalid_persisted_curve_preflights_all_render_intents_before_artifacts() {
     std::fs::create_dir_all(output.parent().unwrap()).unwrap();
     std::fs::write(&output, b"existing export").unwrap();
     let preview_count = std::fs::read_dir(dir.join("previews")).unwrap().count();
-    for curve in [
-        json!({"type":"cubic_bezier","x1":0.8,"y1":0,"x2":0.2,"y2":1}),
-        json!({"type":"spring","mass":0,"stiffness":100,"damping":20,"initialVelocity":0}),
+    for channel in [
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"cubic_bezier","x1":0.8,"y1":0,"x2":0.2,"y2":1}},
+            {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
+        ]}),
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"spring","mass":0,"stiffness":100,"damping":20,"initialVelocity":0}},
+            {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
+        ]}),
+        json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+            {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
+        ],"loop":{"mode":"repeat","iterations":2}}),
     ] {
         let mut invalid = core.get_project(&id).unwrap();
         invalid.tracks[1].items[0]
             .visual_properties_mut()
-            .animation_channels = serde_json::from_value(json!([{
-            "property":"transform.position_x","keyframes":[
-                {"timeMs":0,"value":{"type":"scalar","value":0},"curve":curve},
-                {"timeMs":500,"value":{"type":"scalar","value":20},"curve":"hold"}
-            ]
-        }]))
-        .unwrap();
+            .animation_channels = serde_json::from_value(json!([channel])).unwrap();
         assert_eq!(
             renderer
                 .render_preview(&invalid, &dir, 250)
@@ -1204,6 +1327,136 @@ fn native_audio_gain_multiplies_volume_mute_fades_and_ducking() {
         .animation_channels = serde_json::from_value(spring_visual.clone()).unwrap();
     let spring_gain = render(&project);
     assert!(rms(&spring_gain, 400, 500) > rms(&spring_gain, 100, 200) * 1.2);
+    let original_audio_channels = project.tracks[2].items[0]
+        .visual_properties()
+        .animation_channels
+        .clone();
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels = serde_json::from_value(json!([{
+        "property":"audio.gain_db","keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":-12},"curve":"linear"},
+            {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}
+        ],"loop":{"mode":"ping_pong","iterations":"infinite"}
+    }]))
+    .unwrap();
+    let loop_gain = render(&project);
+    let outward = rms(&loop_gain, 100, 200) / rms(&baseline, 100, 200);
+    let reflected = rms(&loop_gain, 800, 900) / rms(&baseline, 800, 900);
+    let turn = rms(&loop_gain, 500, 600) / rms(&baseline, 500, 600);
+    assert!(
+        turn > outward * 1.4 && turn > reflected * 1.4,
+        "ping-pong audio gain should peak at the turn: {outward}, {turn}, {reflected}"
+    );
+    assert!(
+        (0.75..1.35).contains(&(reflected / outward)),
+        "outward and reflected gain should stay near the same level despite audio frame quantization: {outward} vs {reflected}"
+    );
+    let later_range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 500,
+                end_ms: 1000,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: true,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let loop_export = root.path().join("exports/loop-gain.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &loop_export,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let decode = |path: &std::path::Path| {
+        let output = std::process::Command::new(&ffmpeg)
+            .args(["-v", "error", "-i"])
+            .arg(path)
+            .args(["-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        output
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| f32::from_le_bytes(*bytes) as f64)
+            .collect::<Vec<_>>()
+    };
+    let range_samples = decode(&dir.join(later_range.relative_path));
+    let export_samples = decode(&loop_export);
+    let full_level = rms(&loop_gain, 700, 800);
+    assert!((rms(&range_samples, 200, 300) / full_level - 1.0).abs() < 0.08);
+    assert!((rms(&export_samples, 700, 800) / full_level - 1.0).abs() < 0.08);
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels = serde_json::from_value(json!([{
+        "property":"audio.gain_db","keyframes":[
+            {"timeMs":100,"value":{"type":"scalar","value":-12},"curve":"linear"},
+            {"timeMs":200,"value":{"type":"scalar","value":0},"curve":"hold"},
+            {"timeMs":300,"value":{"type":"scalar","value":-12},"curve":"hold"}
+        ],"loop":{"mode":"repeat","iterations":3}
+    }]))
+    .unwrap();
+    let finite_gain = render(&project);
+    // Compare a settled decoded window; the native scalar test covers the exact seam.
+    let exhausted_level = rms(&finite_gain, 850, 950);
+    let expected_exhausted = 0.5 * 10_f64.powf(-12.0 / 20.0);
+    assert!(
+        (exhausted_level / rms(&baseline, 850, 950) - expected_exhausted).abs() < 0.04,
+        "finite exhausted audio gain: actual={}, expected={expected_exhausted}",
+        exhausted_level / rms(&baseline, 850, 950)
+    );
+    let finite_range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 500,
+                end_ms: 1000,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: true,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let finite_export = root.path().join("exports/finite-gain.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &finite_export,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let finite_range_samples = decode(&dir.join(finite_range.relative_path));
+    let finite_export_samples = decode(&finite_export);
+    assert!((rms(&finite_range_samples, 350, 450) / exhausted_level - 1.0).abs() < 0.08);
+    assert!((rms(&finite_export_samples, 850, 950) / exhausted_level - 1.0).abs() < 0.08);
+    project.tracks[2].items[0]
+        .visual_properties_mut()
+        .animation_channels = original_audio_channels;
     let draft = core.create_draft(&id, 4, vec![operation(json!({
         "operation":"set_animation_channels", "itemId":audio_item_id,
         "animationChannels":[{"property":"audio.gain_db","keyframes":[
@@ -1653,4 +1906,148 @@ fn native_bezier_draft_frame_range_and_export_agree() {
         Some("0.25"),
     );
     assert_red_parity(&ffmpeg, &spring_frame_path, &spring_output, Some("0.25"));
+}
+
+#[test]
+fn native_later_cycle_frame_range_and_export_agree() {
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
+        return;
+    };
+    let (root, core, project_id, track_id) = setup();
+    let added = core
+        .edit(
+            &project_id,
+            0,
+            operation(json!({
+                "operation":"add_rectangle","trackId":track_id,"startMs":0,"durationMs":1200,
+                "width":10,"height":10,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            })),
+        )
+        .unwrap();
+    core.edit(
+        &project_id,
+        1,
+        operation(json!({
+            "operation":"set_animation_channels","itemId":added.changed_ids[0],
+            "animationChannels":[{"property":"transform.position_x",
+                "keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                    {"timeMs":250,"value":{"type":"scalar","value":20},"curve":"linear"},
+                    {"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],
+                "loop":{"mode":"repeat","iterations":"infinite"}}]
+        })),
+    )
+    .unwrap();
+    let mut project = core.get_project(&project_id).unwrap();
+    project.settings.width = 64;
+    project.settings.height = 64;
+    project.settings.fps = 20;
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    renderer.readiness().unwrap();
+    let dir = core.paths().project_dir(&project_id).unwrap();
+    let frame = renderer.render_preview(&project, &dir, 750).unwrap();
+    let frame_path = dir.join(&frame.relative_path);
+    assert!(red_at(&ffmpeg, &frame_path, None, 25));
+    let range = renderer
+        .render_preview_range(
+            &project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 500,
+                end_ms: 1100,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let output = root.path().join("exports/loop.mp4");
+    renderer
+        .export_video(
+            &project,
+            &dir,
+            ExportOptions {
+                output: &output,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert_red_parity(
+        &ffmpeg,
+        &frame_path,
+        &dir.join(&range.relative_path),
+        Some("0.25"),
+    );
+    assert_red_parity(&ffmpeg, &frame_path, &output, Some("0.75"));
+
+    let draft = core
+        .create_draft(
+            &project_id,
+            2,
+            vec![operation(json!({
+                "operation":"set_animation_channels","itemId":added.changed_ids[0],
+                "animationChannels":[{"property":"transform.position_x",
+                    "keyframes":[
+                        {"timeMs":100,"value":{"type":"scalar","value":0},"curve":"linear"},
+                        {"timeMs":200,"value":{"type":"scalar","value":20},"curve":"hold"},
+                        {"timeMs":300,"value":{"type":"scalar","value":0},"curve":"hold"}],
+                    "loop":{"mode":"repeat","iterations":3}}]
+            }))],
+            None,
+        )
+        .unwrap();
+    let mut draft_project = core
+        .get_draft_state(&project_id, &draft.id)
+        .unwrap()
+        .project;
+    draft_project.settings.width = 64;
+    draft_project.settings.height = 64;
+    draft_project.settings.fps = 20;
+    let exhausted_frame = renderer.render_preview(&draft_project, &dir, 700).unwrap();
+    let exhausted_path = dir.join(&exhausted_frame.relative_path);
+    assert!(red_at(&ffmpeg, &exhausted_path, None, 5));
+    assert!(!red_at(&ffmpeg, &exhausted_path, None, 25));
+    let finite_range = renderer
+        .render_preview_range(
+            &draft_project,
+            &dir,
+            PreviewRangeOptions {
+                start_ms: 500,
+                end_ms: 1100,
+                width: 64,
+                height: 64,
+                fps: 20,
+                include_audio: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let finite_output = root.path().join("exports/finite-loop.mp4");
+    renderer
+        .export_video(
+            &draft_project,
+            &dir,
+            ExportOptions {
+                output: &finite_output,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert_red_parity(
+        &ffmpeg,
+        &exhausted_path,
+        &dir.join(finite_range.relative_path),
+        Some("0.2"),
+    );
+    assert_red_parity(&ffmpeg, &exhausted_path, &finite_output, Some("0.7"));
+    assert_eq!(core.get_project(&project_id).unwrap().revision, 2);
 }

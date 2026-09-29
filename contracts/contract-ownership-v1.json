@@ -7,7 +7,11 @@
       "canonical": "contracts/animation-channels-v1.json",
       "consumers": [
         "crates/editor-core/src/model/animation_channels.rs",
+        "crates/editor-core/src/animation.rs",
         "crates/editor-core/src/validation/animation_channels.rs",
+        "crates/editor-core/src/evaluated_scene.rs",
+        "crates/editor-core/src/render_plan.rs",
+        "crates/editor-core/src/migrations.rs",
         "crates/editor-core/tests/animation_channels.rs",
         "apps/headless/src/main.rs",
         "apps/headless/tests/protocol.rs",

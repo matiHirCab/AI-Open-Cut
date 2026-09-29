@@ -268,7 +268,7 @@ The canonical contract artifacts MUST define the versioned channel names, value 
 
 #### Scenario: Discover capability
 - **WHEN** a client reads capability/version reporting
-- **THEN** it can distinguish supported typed-channel edits from later unimplemented curve, marker, loop, and rendering features
+- **THEN** it can distinguish supported typed-channel edits and loops from later unimplemented inactive-property and rendering features
 
 ### Requirement: Governed active parameterized curve contract
 Canonical checked-in channel and motion-graphics catalogs MUST describe the active `cubic_bezier` and `spring` tagged records, named finite parameter limits, existing string `hold`/`linear` compatibility, and an additive capability/version marker. The governed Rust, TypeScript/Zod, headless, and MCP consumers MUST accept and reject the same canonical valid and invalid fixtures. The existing `set_animation_channels` and batch operations MUST remain typed and additive; unknown variants and fields MUST fail without coercion. Stable error codes and retryability MUST remain unchanged.
@@ -279,7 +279,7 @@ Canonical checked-in channel and motion-graphics catalogs MUST describe the acti
 
 #### Scenario: Discover runtime support
 - **WHEN** a client reads capability and version reporting
-- **THEN** it can distinguish active Bézier/spring channels from deferred marker, loop, and inactive property behavior
+- **THEN** it can distinguish active Bézier/spring channels and loops from deferred inactive-property behavior
 
 #### Scenario: Retain old clients
 - **WHEN** a client sends a previously valid channel or legacy keyframe request
@@ -295,3 +295,14 @@ Marker and time-expression runtime fields, operations, capability, persisted sch
 #### Scenario: Preserve fixture semantics at runtime
 - **WHEN** a runtime marker or expression reaches an identifier, scope, signed-integer, duplicate-name or collection boundary represented by the canonical fixtures
 - **THEN** core accepts or rejects it with the fixture's exact semantics and both language parity suites agree
+
+### Requirement: Governed additive loop contract
+The checked-in versioned channel, persisted-project, headless, MCP, capability, and motion-graphics catalogs MUST describe the exact optional loop record, two modes, finite count bound, infinite literal, endpoint rule, schema 25, and support capability. Rust, TypeScript/Zod, headless, and MCP consumers MUST agree with canonical accepted, boundary, malformed, and legacy fixtures. Existing request/response fields, operation identifiers, protocol major 1, stable error codes, and retryability MUST remain compatible. Inactive channels MUST remain unwritable even when a loop is supplied.
+
+#### Scenario: Compare cross-language loop fixtures
+- **WHEN** each canonical valid, boundary, unknown-field, unknown-variant, invalid-count, endpoint, and legacy fixture is checked by governed consumers
+- **THEN** every consumer agrees on accepted shape, bounds, capability, and stable result
+
+#### Scenario: Discover support without changing old clients
+- **WHEN** a client reads capability/version reporting or sends an existing unlooped channel request
+- **THEN** it can distinguish active loop support and its old request retains the same result and representation

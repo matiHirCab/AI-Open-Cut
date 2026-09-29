@@ -5,6 +5,7 @@
   "semantics": {
     "activeMarkerContract": "marker-relative-timing-v1",
     "activeCurveContract": "animation-channels-v1",
+    "activeLoopContract": "animation-channels-v1",
     "wireFieldCase": "lower_camel_case",
     "variantCase": "lower_snake_case",
     "coordinateSystem": {

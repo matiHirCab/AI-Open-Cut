@@ -4426,6 +4426,118 @@ mod tests {
     }
 
     #[test]
+    fn schema_24_channels_migrate_current_and_retained_history_without_output_drift() {
+        let (core, _) = core();
+        let created = core
+            .create_project("channel history migration", ProjectSettings::default())
+            .unwrap();
+        let id = &created.project_id;
+        let track_id = core.get_project(id).unwrap().tracks[1].id.clone();
+        let added = core
+            .edit(
+                id,
+                0,
+                serde_json::from_value(serde_json::json!({
+                    "operation":"add_rectangle","trackId":track_id,"startMs":0,
+                    "durationMs":1000,"width":10,"height":10,"color":"#ff0000",
+                    "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let item_id = &added.changed_ids[0];
+        for (revision, value) in [(1, 10), (2, 20), (3, 30)] {
+            core.edit(
+                id,
+                revision,
+                serde_json::from_value(serde_json::json!({
+                    "operation":"set_animation_channels","itemId":item_id,
+                    "animationChannels":[{"property":"transform.position_x","keyframes":[
+                        {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+                        {"timeMs":500,"value":{"type":"scalar","value":value},"curve":"hold"}
+                    ]}]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        }
+        core.undo(id, 4).unwrap();
+        let dir = core.paths().project_dir(id).unwrap();
+        let project_file = project_path(&dir);
+        let history_file = history_path(&dir);
+        let mut source: serde_json::Value = read_json(&project_file).unwrap();
+        let mut history: serde_json::Value = read_json(&history_file).unwrap();
+        source["schemaVersion"] = serde_json::json!(24);
+        for name in ["undo", "redo"] {
+            for snapshot in history[name].as_array_mut().unwrap() {
+                snapshot["schemaVersion"] = serde_json::json!(24);
+            }
+        }
+        assert!(history["undo"].as_array().unwrap().iter().any(|snapshot| {
+            snapshot["tracks"][1]["items"][0]["animationChannels"]
+                .as_array()
+                .is_some_and(|channels| !channels.is_empty())
+        }));
+        assert!(
+            history["redo"][0]["tracks"][1]["items"][0]["animationChannels"]
+                .as_array()
+                .is_some_and(|channels| !channels.is_empty())
+        );
+        let source_project: Project = serde_json::from_value(source.clone()).unwrap();
+        let source_scene = crate::evaluated_scene::evaluate_project(&source_project, 64, 64, 20)
+            .unwrap()
+            .scene;
+        write_json_atomic(&project_file, &source).unwrap();
+        write_json_atomic(&history_file, &history).unwrap();
+
+        let reopened = EditorCore::new(core.paths().clone());
+        let migrated = reopened.get_project(id).unwrap();
+        assert_eq!(migrated.schema_version, PROJECT_SCHEMA_VERSION);
+        assert_eq!(
+            crate::evaluated_scene::evaluate_project(&migrated, 64, 64, 20)
+                .unwrap()
+                .scene,
+            source_scene
+        );
+        let migrated_history: serde_json::Value = read_json(&history_file).unwrap();
+        assert!(
+            migrated_history["undo"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .chain(migrated_history["redo"].as_array().unwrap().iter(),)
+                .all(|snapshot| snapshot["schemaVersion"] == PROJECT_SCHEMA_VERSION)
+        );
+        let stable_project = std::fs::read(&project_file).unwrap();
+        let stable_history = std::fs::read(&history_file).unwrap();
+        reopened.get_project(id).unwrap();
+        assert_eq!(std::fs::read(&project_file).unwrap(), stable_project);
+        assert_eq!(std::fs::read(&history_file).unwrap(), stable_history);
+        reopened.undo(id, migrated.revision).unwrap();
+        let undone = reopened.get_project(id).unwrap();
+        reopened.redo(id, undone.revision).unwrap();
+        assert_eq!(
+            reopened.get_project(id).unwrap().tracks[1].items[0]
+                .visual_properties()
+                .animation_channels,
+            migrated.tracks[1].items[0]
+                .visual_properties()
+                .animation_channels
+        );
+
+        let mut invalid_history = history.clone();
+        invalid_history["redo"][0]["tracks"][1]["items"][0]["animationChannels"][0]["loop"] =
+            serde_json::json!({"mode":"repeat","iterations":2});
+        write_json_atomic(&project_file, &source).unwrap();
+        write_json_atomic(&history_file, &invalid_history).unwrap();
+        let before_project = std::fs::read(&project_file).unwrap();
+        let before_history = std::fs::read(&history_file).unwrap();
+        assert!(reopened.get_project(id).is_err());
+        assert_eq!(std::fs::read(&project_file).unwrap(), before_project);
+        assert_eq!(std::fs::read(&history_file).unwrap(), before_history);
+    }
+
+    #[test]
     fn schema_21_rejects_channel_data_in_retained_history_without_rewrite() {
         let (core, _) = core();
         let created = core

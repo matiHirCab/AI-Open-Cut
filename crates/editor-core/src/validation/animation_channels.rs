@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    AnimationChannel, AnimationChannelProperty, AnimationChannelValue, AnimationCurve, CoreError,
-    ErrorCode, Keyframe, KeyframeProperty, MediaType, ParameterizedAnimationCurve, Project,
-    TimelineItem,
+    AnimationChannel, AnimationChannelProperty, AnimationChannelValue, AnimationCurve,
+    AnimationLoopIterations, AnimationLoopMode, CoreError, ErrorCode, Keyframe, KeyframeProperty,
+    MediaType, ParameterizedAnimationCurve, Project, TimelineItem,
 };
 
 fn invalid(message: &str) -> CoreError {
@@ -102,6 +102,23 @@ pub(crate) fn validate_channels(
         }
         if channel.keyframes.len() > 1_000 {
             return Err(invalid("maxKeyframesPerChannel exceeded"));
+        }
+        if let Some(loop_spec) = channel.r#loop {
+            if channel.keyframes.len() < 2 {
+                return Err(invalid("animation loop requires two keyframes"));
+            }
+            if matches!(
+                loop_spec.iterations,
+                AnimationLoopIterations::Finite(0 | 10_001..)
+            ) {
+                return Err(invalid("animation loop iterations exceed bounds"));
+            }
+            if loop_spec.mode == AnimationLoopMode::Repeat
+                && channel.keyframes.first().map(|keyframe| &keyframe.value)
+                    != channel.keyframes.last().map(|keyframe| &keyframe.value)
+            {
+                return Err(invalid("repeat loop endpoints must match"));
+            }
         }
         let mut previous = None;
         for (index, keyframe) in channel.keyframes.iter().enumerate() {
