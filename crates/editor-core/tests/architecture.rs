@@ -43,6 +43,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     (
         "store",
         &[
+            "evaluated_scene",
             "assets",
             "fonts",
             "drafts",

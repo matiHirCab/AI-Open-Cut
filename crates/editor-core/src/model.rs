@@ -20,7 +20,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 25;
+pub const PROJECT_SCHEMA_VERSION: u32 = 26;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -182,6 +182,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_animation_loops(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_animation_loops(components)?;
+            }
+        }
+        if value.schema_version < 26 {
+            reject_inherited_timing(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_inherited_timing(components)?;
             }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
@@ -418,6 +424,30 @@ fn reject_animation_loops(value: &serde_json::Value) -> Result<(), String> {
         _ => {}
     }
     Ok(())
+}
+
+fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.contains_key("staggerMs") || object.contains_key("timeOffsetMs") {
+                return Err("inherited animation timing requires schema 26".into());
+            }
+            for child in object.values() {
+                reject_inherited_timing(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn is_zero_u64(value: &u64) -> bool {
+    *value == 0
 }
 
 fn reject_marker_start_times(value: &serde_json::Value) -> Result<(), String> {
@@ -1190,6 +1220,8 @@ pub enum SlotAssetScope {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ComponentInstanceItem {
     pub id: String,
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub stagger_ms: u64,
     pub component_id: String,
     pub start_ms: u64,
     pub trim_start_ms: u64,
@@ -1205,6 +1237,8 @@ pub struct ComponentInstanceItem {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GroupItem {
     pub id: String,
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub stagger_ms: u64,
     pub start_ms: u64,
     pub duration_ms: u64,
     #[serde(flatten)]
@@ -1695,6 +1729,8 @@ pub enum EditOperation {
         trim_start_ms: u64,
         duration_ms: u64,
         time_scale: f64,
+        #[serde(default, skip_serializing_if = "is_zero_u64")]
+        stagger_ms: u64,
         #[serde(default)]
         slot_values: std::collections::BTreeMap<String, SlotValue>,
         #[serde(default)]
@@ -1719,6 +1755,8 @@ pub enum EditOperation {
         trim_start_ms: u64,
         duration_ms: u64,
         time_scale: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stagger_ms: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
     },
@@ -1756,6 +1794,8 @@ pub enum EditOperation {
         track_id: String,
         start_ms: u64,
         duration_ms: u64,
+        #[serde(default, skip_serializing_if = "is_zero_u64")]
+        stagger_ms: u64,
         transform2d: Option<Transform2D>,
         parent: Option<ParentReference>,
     },
@@ -1876,6 +1916,8 @@ pub enum EditOperation {
         grid: Option<Box<GridDescriptor>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         repeater: Option<Box<RepeaterDescriptor>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stagger_ms: Option<u64>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -2056,6 +2098,8 @@ enum EditOperationDef {
         trim_start_ms: u64,
         duration_ms: u64,
         time_scale: f64,
+        #[serde(default, skip_serializing_if = "is_zero_u64")]
+        stagger_ms: u64,
         #[serde(default)]
         slot_values: std::collections::BTreeMap<String, SlotValue>,
         #[serde(default)]
@@ -2080,6 +2124,8 @@ enum EditOperationDef {
         trim_start_ms: u64,
         duration_ms: u64,
         time_scale: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stagger_ms: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         slot_values: Option<std::collections::BTreeMap<String, SlotValue>>,
     },
@@ -2117,6 +2163,8 @@ enum EditOperationDef {
         track_id: String,
         start_ms: u64,
         duration_ms: u64,
+        #[serde(default, skip_serializing_if = "is_zero_u64")]
+        stagger_ms: u64,
         transform2d: Option<Transform2D>,
         parent: Option<ParentReference>,
     },
@@ -2237,6 +2285,8 @@ enum EditOperationDef {
         grid: Option<Box<GridDescriptor>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         repeater: Option<Box<RepeaterDescriptor>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stagger_ms: Option<u64>,
         #[serde(
             default,
             deserialize_with = "deserialize_double_option",
@@ -2453,6 +2503,7 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "trimStartMs",
                 "durationMs",
                 "timeScale",
+                "staggerMs",
                 "slotValues",
                 "transform",
                 "transform2d",
@@ -2471,6 +2522,7 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "trimStartMs",
                 "durationMs",
                 "timeScale",
+                "staggerMs",
                 "slotValues",
             ]),
             Some("component_create") => Some(&[
@@ -2528,6 +2580,7 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "parent",
             ]),
             Some("add_group") => Some(&[
+                "staggerMs",
                 "operation",
                 "trackId",
                 "startMs",

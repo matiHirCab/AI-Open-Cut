@@ -32,6 +32,7 @@ export const repeaterDescriptorSchema = z.strictObject({
       .regex(/^[A-Za-z0-9_-]+$/),
     scope: z.string().min(1).max(256),
   }),
+  timeOffsetMs: z.int().min(-60_000).max(60_000).optional(),
   transformOffset: repeaterTransformOffsetSchema,
 });
 

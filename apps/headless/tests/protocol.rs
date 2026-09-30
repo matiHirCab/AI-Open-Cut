@@ -1685,3 +1685,58 @@ fn repeater_replacement_aliases_reach_core_and_roll_back_across_reopen() {
         after["project"]["tracks"]
     );
 }
+
+#[test]
+fn inherited_timing_batch_round_trip_and_rollback() {
+    let h = Harness::new();
+    let id=result(&h.request(json!({"operation":"create_project","name":"Inherited timing"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let channels = json!([{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":1.0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0.5},"curve":"hold"}]}]);
+    let written=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"staggerMs":125,"resultAlias":"parent"},
+        {"operation":"update_item","itemId":"@parent","transform2d":null},
+        {"operation":"set_animation_channels","itemId":"@parent","animationChannels":channels}
+    ]})));
+    assert_eq!(written["revision"], 1);
+    let parent = written["aliases"]["parent"].clone();
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(before["project"]["tracks"][1]["items"][0]["staggerMs"], 125);
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][0]["animationChannels"],
+        channels
+    );
+    let failed = event(&h.request(
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+            {"operation":"update_item","itemId":parent,"staggerMs":250},
+            {"operation":"update_item","itemId":"missing","staggerMs":5}
+        ]}),
+    ));
+    assert_eq!(failed["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
+}
+
+#[test]
+fn inherited_bounds_batch_fails_before_transport_reports_publication() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Bounds"})))["projectId"]
+        .clone();
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = before["project"]["tracks"][1]["id"].clone();
+    let failed=event(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"resultAlias":"parent"},
+        {"operation":"update_item","itemId":"@parent","transform2d":null},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":500,"height":10,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"child"},
+        {"operation":"item_set_parent","itemId":"@child","parent":{"scope":"root","id":"@parent"}},
+        {"operation":"set_animation_channels","itemId":"@parent","animationChannels":[{"property":"transform.scale_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":1},"curve":"linear"},{"timeMs":900,"value":{"type":"scalar","value":100},"curve":"hold"}]}]}
+    ]})));
+    assert_eq!(failed["error"]["code"], "INVALID_ARGUMENT");
+    assert_eq!(failed["error"]["retryable"], false);
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
+}

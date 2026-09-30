@@ -540,6 +540,7 @@ fn group_static_edits_and_nonfinite_values_are_transactional() {
                     track_id: track.clone(),
                     start_ms: 0,
                     duration_ms: 1000,
+                    stagger_ms: 0,
                     transform2d: Some(transform),
                     parent: None
                 }

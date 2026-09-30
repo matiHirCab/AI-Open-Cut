@@ -89,6 +89,33 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
     validate_project_stacking(project)?;
     validate_parent_graph(project)?;
     validate_root_animation_channels(project)?;
+    for item in project
+        .tracks
+        .iter()
+        .chain(
+            project
+                .components
+                .iter()
+                .flat_map(|component| &component.tracks),
+        )
+        .flat_map(|track| &track.items)
+    {
+        match item {
+            TimelineItem::Group(group) if group.stagger_ms > 60_000 => {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "staggerMs exceeds bounds",
+                ));
+            }
+            TimelineItem::ComponentInstance(instance) if instance.stagger_ms > 60_000 => {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "staggerMs exceeds bounds",
+                ));
+            }
+            _ => {}
+        }
+    }
     for item in project.tracks.iter().flat_map(|track| &track.items) {
         validate_transform(&item.visual_properties().transform)?;
         if let Some(value) = &item.visual_properties().transform2d {

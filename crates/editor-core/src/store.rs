@@ -205,6 +205,7 @@ impl EditorCore {
             &self.font_config,
             &mut staged,
         )?;
+        crate::evaluated_scene::preflight_inherited_project(project)?;
         crate::assets::fonts::publish_fonts(self.storage.as_ref(), dir, &staged)
     }
 
@@ -956,6 +957,9 @@ impl EditorCore {
         let mut draft = read_draft(self.storage.as_ref(), &dir, draft_id)?;
         validate_single_draft_assets(&project, &draft)?;
         validate_operations_against(&project, &draft.operations)?;
+        let mut candidate = project.clone();
+        materialize_font_draft(self.storage.as_ref(), &dir, &mut candidate, &draft)?;
+        crate::evaluated_scene::preflight_inherited_project(&candidate)?;
         draft.base_revision = expected_revision;
         draft.updated_at_ms = now_ms()?;
         write_json_atomic(self.storage.as_ref(), &draft_path(&dir, draft_id)?, &draft)?;
@@ -980,6 +984,7 @@ impl EditorCore {
         validate_single_draft_assets(&project, &draft)?;
         check_revision(&project, draft.base_revision)?;
         materialize_font_draft(self.storage.as_ref(), &dir, &mut project, &draft)?;
+        crate::evaluated_scene::preflight_inherited_project(&project)?;
         let duration_ms = project.duration_ms();
         Ok(ProjectState {
             project,
@@ -1466,6 +1471,12 @@ fn load_project_data(
         validate_project_visual_properties(snapshot)?;
     }
     validate_retained_project_references(&project, &history)?;
+    for snapshot in std::iter::once(&project)
+        .chain(history.undo.iter())
+        .chain(history.redo.iter())
+    {
+        crate::evaluated_scene::preflight_inherited_project(snapshot)?;
+    }
     changed |= migrate_project_assets(storage, &mut project, dir)?;
     for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
         changed |= migrate_project_assets(storage, snapshot, dir)?;
@@ -1559,6 +1570,7 @@ fn prepare_draft_fonts(
         catalog.extend(candidate.fonts.clone());
     }
     crate::fonts::validate_catalog(&catalog)?;
+    crate::evaluated_scene::preflight_inherited_project(&candidate)?;
     draft.version = DRAFT_VERSION;
     draft.font_catalog = Some(catalog);
     draft.font_steps = Some(steps);
@@ -4310,7 +4322,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -4381,7 +4393,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13, 16, 17, 20, 21, 22] {
+        for version in [9, 13, 16, 17, 20, 21, 22, 25] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())

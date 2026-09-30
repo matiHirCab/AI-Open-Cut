@@ -5,12 +5,12 @@
   "activation": "runtime",
   "capabilities": ["repeater_items", "repeater_rendering"],
   "operations": ["add_repeater"],
-  "descriptorFields": ["source", "copies", "transformOffset", "opacityOffset"],
+  "descriptorFields": ["source", "copies", "transformOffset", "opacityOffset", "timeOffsetMs"],
   "sourceFields": ["scope", "id"],
   "transformOffsetFields": ["position", "scaleX", "scaleY", "rotationDeg", "skewXDeg", "skewYDeg"],
   "supportedSources": ["shape", "group", "component_instance"],
   "unsupportedSources": ["media", "text", "solid_color", "rectangle", "svg", "grid", "caption", "transition", "repeater"],
-  "limits": {"minCopies": 1, "maxCopies": 256, "maxExpandedOccurrences": 65536, "maxVisualLayers": 4096},
+  "limits": {"minCopies": 1, "maxCopies": 256, "maxExpandedOccurrences": 65536, "maxVisualLayers": 4096, "minTimeOffsetMs": -60000, "maxTimeOffsetMs": 60000},
   "valid": [
     {"id": "pixel-translation", "repeater": {"source": {"scope": "root", "id": "shape"}, "copies": 3, "transformOffset": {"position": {"x": 20, "y": -5, "unit": "pixels"}, "scaleX": 1, "scaleY": 1, "rotationDeg": 0, "skewXDeg": 0, "skewYDeg": 0}, "opacityOffset": -0.2}},
     {"id": "normalized-boundary", "repeater": {"source": {"scope": "component:badge", "id": "group"}, "copies": 256, "transformOffset": {"position": {"x": 1, "y": 0.5, "unit": "normalized"}, "scaleX": 0.5, "scaleY": 2, "rotationDeg": 15, "skewXDeg": 5, "skewYDeg": -5}, "opacityOffset": 0}}

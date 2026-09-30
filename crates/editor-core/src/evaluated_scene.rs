@@ -93,10 +93,43 @@ pub(crate) fn evaluate_project(
         }
     }
     shapes::preflight_svg_documents(project)?;
-    let mut result = evaluate_project_inner(project, width, height, fps)?;
+    let mut result = evaluate_project_inner(project, width, height, fps, true)?;
     result.resource_bindings.retained_fonts = project.fonts.clone();
     shapes::refine_scene(&mut result.scene)?;
     Ok(result)
+}
+
+/// Validate inherited retained facts without allocating generated visual copies or
+/// performing resource/backend work. Store calls this after staging the final candidate.
+pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreError> {
+    let affected = project
+        .tracks
+        .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
+        .flat_map(|track| &track.items)
+        .any(|item| {
+            matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
+                || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
+                || matches!(item, TimelineItem::Repeater(r) if r.repeater.time_offset_ms != 0)
+                || (matches!(
+                    item,
+                    TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+                ) && !item.visual_properties().animation_channels.is_empty())
+        });
+    if !affected {
+        return Ok(());
+    }
+    crate::markers::validate_project(project)?;
+    crate::validation::validate_recursive_graphs(project)?;
+    shapes::preflight_svg_documents(project)?;
+    evaluate_project_inner(
+        project,
+        project.settings.width,
+        project.settings.height,
+        project.settings.fps,
+        false,
+    )
+    .map(|_| ())
 }
 
 fn evaluate_project_inner(
@@ -104,6 +137,7 @@ fn evaluate_project_inner(
     width: u32,
     height: u32,
     fps: u32,
+    materialize: bool,
 ) -> Result<EvaluatedSceneResult, CoreError> {
     let definitions = project
         .components
@@ -117,13 +151,21 @@ fn evaluate_project_inner(
         .chain(project.components.iter().map(|c| &c.tracks))
         .flat_map(|tracks| tracks.iter())
         .flat_map(|track| &track.items)
-        .any(|item| matches!(item, TimelineItem::Repeater(_)));
+        .any(|item| {
+            matches!(item, TimelineItem::Repeater(_))
+                || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
+                || matches!(item, TimelineItem::ComponentInstance(instance) if instance.stagger_ms != 0)
+                || (matches!(item, TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
+                    && !item.visual_properties().animation_channels.is_empty())
+        });
     if !retained
         && !project.tracks.iter().flat_map(|t| &t.items).any(|i| {
             matches!(
                 i,
                 TimelineItem::ComponentInstance(_) | TimelineItem::Repeater(_)
-            )
+            ) || matches!(i, TimelineItem::Group(group) if group.stagger_ms != 0)
+                || (matches!(i, TimelineItem::Group(_))
+                    && !i.visual_properties().animation_channels.is_empty())
         })
     {
         return evaluate_flat_project(
@@ -229,6 +271,7 @@ fn evaluate_project_inner(
                 &effective.tracks,
                 InstanceScope {
                     clock: domain_clock,
+                    audio_clock: domain_clock,
                     outer: IDENTITY_MATRIX,
                     outer_inverse: IDENTITY_MATRIX,
                     opacity: 1.0,
@@ -237,19 +280,23 @@ fn evaluate_project_inner(
                     prefix: &[],
                     rich_text_overrides,
                     audio_visible: true,
+                    root_stagger_ms: 0,
+                    interval_prefix: Vec::new(),
+                    transform_prefix: Vec::new(),
                 },
                 &mut HashMap::new(),
                 &mut domain,
                 &mut HashSet::from([index]),
                 &mut projection,
             )?;
-            validate_projection(&domain, &projection)?;
+            validate_projection(project, &domain, &projection)?;
         }
     }
     let mut projection = Vec::new();
     context.expand(
         &project.tracks,
         InstanceScope {
+            audio_clock: clock,
             clock,
             outer: IDENTITY_MATRIX,
             outer_inverse: IDENTITY_MATRIX,
@@ -259,13 +306,19 @@ fn evaluate_project_inner(
             prefix: &[],
             rich_text_overrides: HashMap::new(),
             audio_visible: true,
+            root_stagger_ms: 0,
+            interval_prefix: Vec::new(),
+            transform_prefix: Vec::new(),
         },
         &mut orders,
         &mut result,
         &mut HashSet::new(),
         &mut projection,
     )?;
-    validate_projection(&result, &projection)?;
+    validate_projection(project, &result, &projection)?;
+    if !materialize {
+        return Ok(result);
+    }
     let mut published = Vec::new();
     // Clone only generated visible occurrences after every domain succeeded.
     for copy in projection
@@ -278,6 +331,7 @@ fn evaluate_project_inner(
         layer.item_id = copy.item_id.clone();
         layer.instance = Some(copy.instance);
         layer.ancestors = Some(copy.ancestors);
+        layer.ancestor_stages = copy.stages.clone();
         layer.affine = None;
         layer.sampling_tiles = None;
         orders.insert(layer.item_id.clone(), copy.order.clone());
@@ -366,6 +420,7 @@ fn evaluate_project_inner(
 thread_local! { static GENERATED_MATERIALIZATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 
 fn validate_projection(
+    project: &Project,
     result: &EvaluatedSceneResult,
     projection: &[ProjectedVisualCopy],
 ) -> Result<(), CoreError> {
@@ -385,9 +440,32 @@ fn validate_projection(
         {
             return Err(invalid("non-finite retained occurrence transform"));
         }
+        for stage in &occurrence.stages {
+            if stage
+                .matrix
+                .iter()
+                .chain(&stage.inverse)
+                .chain([stage.opacity].iter())
+                .any(|value| !value.is_finite())
+                || stage.animation.as_ref().is_some_and(|animation| {
+                    !animation.clock.rate.is_finite() || !animation.clock.offset.is_finite()
+                })
+            {
+                return Err(invalid("non-finite retained parent animation"));
+            }
+        }
         let layer = &result.scene.visual_layers[occurrence.base_index];
+        let size = layer.source_size.or_else(|| match &layer.source {
+            EvaluatedVisualSource::Media { asset_id, .. } => project
+                .assets
+                .iter()
+                .find(|asset| &asset.id == asset_id)
+                .and_then(|asset| asset.probe.as_ref())
+                .and_then(|probe| probe.video_width.zip(probe.video_height)),
+            _ => None,
+        });
         if !matches!(layer.source, EvaluatedVisualSource::Shape(_))
-            && let Some(size) = layer.source_size
+            && let Some(size) = size
         {
             measure_layer_affine(
                 layer,
@@ -658,6 +736,204 @@ fn preflight_instance_clocks(
     }
     Ok(())
 }
+#[derive(Clone, Copy)]
+struct TemporalWindow {
+    delay_ms: u64,
+    start_ms: u64,
+    end_ms: u64,
+}
+
+struct ScopeTiming<'a> {
+    index: HashMap<&'a str, &'a TimelineItem>,
+    ranks: HashMap<&'a str, usize>,
+    root_stagger_ms: u64,
+    hidden: HashMap<&'a str, bool>,
+}
+
+#[derive(Clone)]
+struct OccurrenceInterval {
+    scope: usize,
+    item_id: String,
+    start_ms: f64,
+    end_ms: f64,
+    hidden: bool,
+}
+
+impl<'a> ScopeTiming<'a> {
+    fn new(tracks: &'a [Track], assets: &[Asset], root_stagger_ms: u64) -> Self {
+        let mut indexed = tracks
+            .iter()
+            .enumerate()
+            .flat_map(|(track_index, track)| {
+                track.items.iter().map(move |item| (track_index, item))
+            })
+            .filter(|(_, item)| match item {
+                TimelineItem::Media(media) => assets.iter().any(|asset| {
+                    asset.id == media.asset_id && asset.media_type != MediaType::Audio
+                }),
+                TimelineItem::Caption(_) | TimelineItem::Transition(_) => false,
+                _ => true,
+            })
+            .collect::<Vec<_>>();
+        indexed.sort_by(|(left_track, left), (right_track, right)| {
+            (
+                left_track,
+                left.visual_properties().z_index,
+                left.visual_properties().stack_order,
+                left.id(),
+            )
+                .cmp(&(
+                    right_track,
+                    right.visual_properties().z_index,
+                    right.visual_properties().stack_order,
+                    right.id(),
+                ))
+        });
+        let mut ranks = HashMap::new();
+        let mut siblings = HashMap::<Option<&str>, usize>::new();
+        for (_, item) in indexed {
+            let parent = item
+                .visual_properties()
+                .parent
+                .as_ref()
+                .map(|parent| parent.id.as_str());
+            let rank = siblings.entry(parent).or_default();
+            ranks.insert(item.id(), *rank);
+            *rank += 1;
+        }
+        Self {
+            index: tracks
+                .iter()
+                .flat_map(|track| &track.items)
+                .map(|item| (item.id(), item))
+                .collect(),
+            ranks,
+            root_stagger_ms,
+            hidden: tracks
+                .iter()
+                .flat_map(|track| {
+                    track
+                        .items
+                        .iter()
+                        .map(move |item| (item.id(), track.hidden || item.hidden()))
+                })
+                .collect(),
+        }
+    }
+
+    fn path(&self, item_id: &str) -> Result<Vec<(&'a TimelineItem, TemporalWindow)>, CoreError> {
+        let mut chain = Vec::new();
+        let mut node = *self
+            .index
+            .get(item_id)
+            .ok_or_else(|| invalid("missing timing item"))?;
+        loop {
+            chain.push(node);
+            if let Some(parent) = &node.visual_properties().parent {
+                node = *self
+                    .index
+                    .get(parent.id.as_str())
+                    .ok_or_else(|| invalid("missing timing parent"))?;
+            } else {
+                break;
+            }
+        }
+        chain.reverse();
+        let mut delay_ms = 0u64;
+        let mut path = Vec::with_capacity(chain.len());
+        for (index, node) in chain.iter().enumerate() {
+            let stagger = if index == 0 {
+                self.root_stagger_ms
+            } else if let TimelineItem::Group(parent) = chain[index - 1] {
+                parent.stagger_ms
+            } else {
+                0
+            };
+            let rank = self.ranks.get(node.id()).copied().unwrap_or(0);
+            let added = stagger
+                .checked_mul(rank as u64)
+                .ok_or_else(|| invalid("stagger clock overflow"))?;
+            delay_ms = delay_ms
+                .checked_add(added)
+                .ok_or_else(|| invalid("stagger clock overflow"))?;
+            let node_start = node
+                .start_ms()
+                .checked_add(delay_ms)
+                .ok_or_else(|| invalid("stagger clock overflow"))?;
+            let node_end = node
+                .start_ms()
+                .checked_add(node.duration_ms())
+                .and_then(|end| end.checked_add(delay_ms))
+                .ok_or_else(|| invalid("stagger clock overflow"))?;
+            path.push((
+                *node,
+                TemporalWindow {
+                    delay_ms,
+                    start_ms: node_start,
+                    end_ms: node_end,
+                },
+            ));
+        }
+        Ok(path)
+    }
+
+    fn window(&self, item_id: &str) -> Result<TemporalWindow, CoreError> {
+        let path = self.path(item_id)?;
+        Ok(TemporalWindow {
+            delay_ms: path
+                .last()
+                .ok_or_else(|| invalid("empty timing path"))?
+                .1
+                .delay_ms,
+            start_ms: path
+                .iter()
+                .map(|(_, timing)| timing.start_ms)
+                .max()
+                .unwrap(),
+            end_ms: path.iter().map(|(_, timing)| timing.end_ms).min().unwrap(),
+        })
+    }
+
+    fn root_path(
+        &self,
+        item_id: &str,
+        clock: EvaluatedInstance,
+        scope: usize,
+    ) -> Result<Vec<OccurrenceInterval>, CoreError> {
+        self.path(item_id)?
+            .into_iter()
+            .map(|(item, timing)| {
+                let start_ms = clock.root_ms(timing.start_ms);
+                let end_ms = clock.root_ms(timing.end_ms);
+                if !start_ms.is_finite() || !end_ms.is_finite() {
+                    return Err(invalid("non-finite occurrence timing path"));
+                }
+                Ok(OccurrenceInterval {
+                    scope,
+                    item_id: item.id().to_owned(),
+                    start_ms,
+                    end_ms,
+                    hidden: self.hidden[item.id()],
+                })
+            })
+            .collect()
+    }
+}
+
+fn occurrence_window(intervals: &[OccurrenceInterval], duration_ms: u64) -> (f64, f64) {
+    let start = intervals
+        .iter()
+        .fold(0.0_f64, |start, node| start.max(node.start_ms));
+    let end = intervals
+        .iter()
+        .fold(duration_ms as f64, |end, node| end.min(node.end_ms));
+    if intervals.iter().any(|node| node.hidden) {
+        (start, start)
+    } else {
+        (start, end)
+    }
+}
+
 struct InstanceTraversal<'a> {
     project: &'a Project,
     definitions: &'a std::collections::BTreeMap<&'a str, usize>,
@@ -666,6 +942,7 @@ struct InstanceTraversal<'a> {
 
 struct InstanceScope<'a> {
     clock: EvaluatedInstance,
+    audio_clock: EvaluatedInstance,
     outer: [f64; 6],
     outer_inverse: [f64; 6],
     opacity: f64,
@@ -674,6 +951,9 @@ struct InstanceScope<'a> {
     prefix: &'a [(usize, i32, usize, String)],
     rich_text_overrides: HashMap<String, crate::RichTextDocument>,
     audio_visible: bool,
+    root_stagger_ms: u64,
+    interval_prefix: Vec<OccurrenceInterval>,
+    transform_prefix: Vec<EvaluatedAncestorStage>,
 }
 
 #[derive(Clone)]
@@ -685,9 +965,70 @@ struct ProjectedVisualCopy {
     order: InstanceOrder,
     generated: bool,
     transition_facts: usize,
+    intervals: Vec<OccurrenceInterval>,
+    stages: Vec<EvaluatedAncestorStage>,
 }
 
 impl InstanceTraversal<'_> {
+    fn stages_for(
+        &self,
+        temporal: &ScopeTiming<'_>,
+        item_id: &str,
+        clock: EvaluatedInstance,
+        scope: usize,
+        include_leaf: bool,
+    ) -> Result<Vec<EvaluatedAncestorStage>, CoreError> {
+        let mut path = temporal.path(item_id)?;
+        if !include_leaf {
+            path.pop();
+        }
+        path.into_iter()
+            .map(|(item, timing)| {
+                let source_canvas = if let TimelineItem::ComponentInstance(instance) = item {
+                    let component =
+                        &self.project.components[self.definitions[instance.component_id.as_str()]];
+                    (component.width, component.height)
+                } else {
+                    clock.canvas
+                };
+                let visual = item.visual_properties();
+                let transform = visual.transform2d.unwrap_or(crate::Transform2D {
+                    position: crate::TransformPosition {
+                        x: visual.transform.position_x,
+                        y: visual.transform.position_y,
+                        unit: crate::PositionUnit::Pixels,
+                    },
+                    scale_x: visual.transform.scale,
+                    scale_y: visual.transform.scale,
+                    opacity: visual.transform.opacity,
+                    ..Default::default()
+                });
+                let (matrix, inverse) = transform_matrices(transform, source_canvas, clock.canvas)?;
+                let animation = if visual.animation_channels.is_empty() {
+                    None
+                } else {
+                    Some(EvaluatedAncestorAnimation {
+                        clock: EvaluatedInstance {
+                            offset: clock.offset - timing.delay_ms as f64,
+                            ..clock
+                        },
+                        start_ms: item.start_ms(),
+                        transform: evaluate_transform(&visual.transform)?,
+                        keyframes: evaluate_keyframes(&[], &visual.animation_channels)?.into(),
+                    })
+                };
+                Ok(EvaluatedAncestorStage {
+                    scope,
+                    item_id: item.id().to_owned(),
+                    matrix,
+                    inverse,
+                    opacity: transform.opacity,
+                    animation,
+                })
+            })
+            .collect()
+    }
+
     fn expand(
         &self,
         tracks: &[Track],
@@ -698,6 +1039,7 @@ impl InstanceTraversal<'_> {
         projection: &mut Vec<ProjectedVisualCopy>,
     ) -> Result<(), CoreError> {
         let InstanceScope {
+            audio_clock,
             clock,
             outer,
             outer_inverse,
@@ -707,6 +1049,9 @@ impl InstanceTraversal<'_> {
             prefix,
             rich_text_overrides,
             audio_visible,
+            root_stagger_ms,
+            interval_prefix,
+            transform_prefix,
         } = scope;
         if outer.iter().chain(&outer_inverse).any(|v| !v.is_finite()) || !opacity.is_finite() {
             return Err(invalid("non-finite composed component transform"));
@@ -739,6 +1084,7 @@ impl InstanceTraversal<'_> {
                 item_orders.insert(item.id().to_owned(), order);
             }
         }
+        let temporal = ScopeTiming::new(tracks, &self.project.assets, root_stagger_ms);
         let scope_project = local.clone();
         for track in &mut local.tracks {
             track.items.retain(|item| {
@@ -836,12 +1182,15 @@ impl InstanceTraversal<'_> {
             (identity, instance_order)
         };
         for layer in &mut evaluated.scene.visual_layers {
-            let span = layer.visible_span();
+            let timing = temporal.window(&layer.item_id)?;
             let start = clock
-                .root_ms(span.start_ms)
+                .root_ms(timing.start_ms)
                 .max(clock.start_ms)
                 .max(visual_start);
-            let end = clock.root_ms(span.end_ms).min(clock.end_ms).min(visual_end);
+            let end = clock
+                .root_ms(timing.end_ms)
+                .min(clock.end_ms)
+                .min(visual_end);
             let owner_track = &local.tracks[layer.order.track_index];
             let owner = &owner_track.items[layer.order.item_index];
             let end = if owner_track.hidden || owner.hidden() {
@@ -849,6 +1198,15 @@ impl InstanceTraversal<'_> {
             } else {
                 end
             };
+            let mut stages = transform_prefix.clone();
+            stages.extend(self.stages_for(
+                &temporal,
+                &layer.item_id,
+                clock,
+                prefix.len(),
+                false,
+            )?);
+            layer.ancestor_stages = stages;
             let (id, order) = identity(layer.order, &layer.item_id);
             orders.insert(id.clone(), order);
             layer.item_id = id.clone();
@@ -862,9 +1220,13 @@ impl InstanceTraversal<'_> {
                 matrix: multiply_matrix(outer, local_parent.matrix),
                 inverse: multiply_matrix(local_parent.inverse, outer_inverse),
                 opacity: opacity * local_parent.opacity,
-                clip: local_parent.clip,
+                clip: EvaluatedTimeSpan {
+                    start_ms: timing.start_ms,
+                    end_ms: timing.end_ms,
+                },
             });
             layer.instance = Some(EvaluatedInstance {
+                offset: clock.offset - timing.delay_ms as f64,
                 start_ms: start,
                 end_ms: end,
                 ..clock
@@ -919,8 +1281,8 @@ impl InstanceTraversal<'_> {
             return Err(invalid("expanded voiceover interval limit exceeded"));
         }
         for span in &evaluated.scene.voiceover_intervals {
-            let start = clock.root_ms(span.start_ms).max(clock.start_ms);
-            let end = clock.root_ms(span.end_ms).min(clock.end_ms);
+            let start = audio_clock.root_ms(span.start_ms).max(audio_clock.start_ms);
+            let end = audio_clock.root_ms(span.end_ms).min(audio_clock.end_ms);
             if audio_visible && start < end {
                 let intervals = result.scene.instance_voiceover_intervals.as_mut().unwrap();
                 if intervals.len() >= MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES {
@@ -931,16 +1293,20 @@ impl InstanceTraversal<'_> {
         }
         for layer in &mut evaluated.scene.audio_layers {
             layer.ducking = evaluate_ducking(&local.tracks[layer.order.track_index], true)?;
-            if !(2f64.powi(-32)..=2f64.powi(32)).contains(&clock.rate) {
+            if !(2f64.powi(-32)..=2f64.powi(32)).contains(&audio_clock.rate) {
                 return Err(invalid("component media rate exceeds tempo limits"));
             }
             let (id, order) = identity(layer.order, &layer.item_id);
             orders.insert(id.clone(), order);
             layer.item_id = id;
             layer.instance = Some(EvaluatedInstance {
-                start_ms: clock.root_ms(layer.span.start_ms).max(clock.start_ms),
-                end_ms: clock.root_ms(layer.span.end_ms).min(clock.end_ms),
-                ..clock
+                start_ms: audio_clock
+                    .root_ms(layer.span.start_ms)
+                    .max(audio_clock.start_ms),
+                end_ms: audio_clock
+                    .root_ms(layer.span.end_ms)
+                    .min(audio_clock.end_ms),
+                ..audio_clock
             });
             let owner_track = &local.tracks[layer.order.track_index];
             if owner_track.hidden
@@ -1001,6 +1367,9 @@ impl InstanceTraversal<'_> {
             .fonts
             .extend(evaluated.resource_bindings.fonts);
         for (index, layer) in evaluated.scene.visual_layers.iter().enumerate() {
+            let owner = local.tracks[layer.order.track_index].items[layer.order.item_index].id();
+            let mut intervals = interval_prefix.clone();
+            intervals.extend(temporal.root_path(owner, clock, prefix.len())?);
             projection.push(ProjectedVisualCopy {
                 base_index: result.scene.visual_layers.len() + index,
                 item_id: layer.item_id.clone(),
@@ -1008,6 +1377,8 @@ impl InstanceTraversal<'_> {
                 ancestors: layer.ancestors.unwrap(),
                 order: orders[&layer.item_id].clone(),
                 generated: false,
+                intervals,
+                stages: layer.ancestor_stages.clone(),
                 transition_facts: if self.retained {
                     let owner =
                         local.tracks[layer.order.track_index].items[layer.order.item_index].id();
@@ -1044,7 +1415,17 @@ impl InstanceTraversal<'_> {
                     Some(&instance.slot_values),
                     self.definitions,
                 )?;
-                let child_clock = clock.child(instance, (component.width, component.height))?;
+                let timing = temporal.window(item.id())?;
+                let mut child_clock = clock.child(instance, (component.width, component.height))?;
+                child_clock.offset -= timing.delay_ms as f64 * child_clock.rate / clock.rate;
+                child_clock.start_ms = clock.root_ms(timing.start_ms).max(clock.start_ms);
+                child_clock.end_ms = clock.root_ms(timing.end_ms).min(clock.end_ms);
+                if [child_clock.offset, child_clock.start_ms, child_clock.end_ms]
+                    .iter()
+                    .any(|v| !v.is_finite())
+                {
+                    return Err(invalid("non-finite staggered component clock"));
+                }
                 if !self.retained && child_clock.start_ms >= child_clock.end_ms {
                     active_components.remove(&component_index);
                     continue;
@@ -1066,7 +1447,7 @@ impl InstanceTraversal<'_> {
                 let (mut matrix, mut inverse) =
                     transform_matrices(transform, child_clock.canvas, clock.canvas)?;
                 let mut child_opacity = opacity * transform.opacity;
-                let mut start = visual_start.max(child_clock.start_ms);
+                let start = visual_start.max(child_clock.start_ms);
                 let mut end = visual_end.min(child_clock.end_ms);
                 if track.hidden || item.hidden() {
                     end = start;
@@ -1082,8 +1463,6 @@ impl InstanceTraversal<'_> {
                     matrix = multiply_matrix(m, matrix);
                     inverse = multiply_matrix(inverse, inv);
                     child_opacity *= t.opacity;
-                    start = start.max(clock.root_ms(target.start_ms()));
-                    end = end.min(clock.root_ms(target.end_ms()));
                     if pt.hidden || target.hidden() {
                         end = start;
                     }
@@ -1115,10 +1494,22 @@ impl InstanceTraversal<'_> {
                         }
                     })
                     .collect();
+                let mut child_intervals = interval_prefix.clone();
+                child_intervals.extend(temporal.root_path(item.id(), clock, prefix.len())?);
+                let mut child_stages = transform_prefix.clone();
+                child_stages.extend(self.stages_for(
+                    &temporal,
+                    item.id(),
+                    clock,
+                    prefix.len(),
+                    true,
+                )?);
                 self.expand(
                     &effective.tracks,
                     InstanceScope {
                         clock: child_clock,
+                        audio_clock: audio_clock
+                            .child(instance, (component.width, component.height))?,
                         outer: multiply_matrix(outer, matrix),
                         outer_inverse: multiply_matrix(inverse, outer_inverse),
                         opacity: child_opacity,
@@ -1127,6 +1518,9 @@ impl InstanceTraversal<'_> {
                         prefix: &order,
                         rich_text_overrides,
                         audio_visible: audio_visible && !track.hidden && !item.hidden(),
+                        root_stagger_ms: instance.stagger_ms,
+                        interval_prefix: child_intervals,
+                        transform_prefix: child_stages,
                     },
                     orders,
                     result,
@@ -1199,10 +1593,7 @@ impl InstanceTraversal<'_> {
                 let mut power = IDENTITY_MATRIX;
                 let mut inverse_power = IDENTITY_MATRIX;
                 let repeater_span = checked_span(repeater.start_ms, repeater.duration_ms)?;
-                let repeater_start = clock.root_ms(repeater.start_ms).max(visual_start);
-                let repeater_end = clock
-                    .root_ms(repeater.start_ms + repeater.duration_ms)
-                    .min(visual_end);
+                let repeater_intervals = temporal.root_path(candidate.id(), clock, prefix.len())?;
                 for copy_index in 1..=usize::from(repeater.repeater.copies) {
                     power = multiply_matrix(power, step);
                     inverse_power = multiply_matrix(step_inverse, inverse_power);
@@ -1237,10 +1628,39 @@ impl InstanceTraversal<'_> {
                             visible_source_index += 1;
                         }
                         let mut instance_data = base.instance;
-                        instance_data.start_ms = instance_data.start_ms.max(repeater_start);
-                        instance_data.end_ms = instance_data.end_ms.min(repeater_end);
-                        if track.hidden || candidate.hidden() {
-                            instance_data.end_ms = instance_data.start_ms;
+                        let controller_delay = temporal.window(candidate.id())?.delay_ms;
+                        let delay = i128::from(controller_delay)
+                            .checked_add(
+                                i128::try_from(copy_index)
+                                    .map_err(|_| invalid("repeater clock overflow"))?
+                                    .checked_mul(i128::from(repeater.repeater.time_offset_ms))
+                                    .ok_or_else(|| invalid("repeater clock overflow"))?,
+                            )
+                            .ok_or_else(|| invalid("repeater clock overflow"))?;
+                        let shifted_root_ms = delay as f64 / clock.rate;
+                        instance_data.offset -= shifted_root_ms * instance_data.rate;
+                        let boundary = base
+                            .intervals
+                            .iter()
+                            .position(|node| {
+                                node.scope == prefix.len() && node.item_id == source.id()
+                            })
+                            .ok_or_else(|| invalid("missing repeater source timing boundary"))?;
+                        let mut intervals = base.intervals.clone();
+                        for node in &mut intervals[boundary..] {
+                            node.start_ms += shifted_root_ms;
+                            node.end_ms += shifted_root_ms;
+                        }
+                        intervals.splice(boundary..boundary, repeater_intervals.iter().cloned());
+                        let (start, end) = occurrence_window(&intervals, result.scene.duration_ms);
+                        instance_data.start_ms = start;
+                        instance_data.end_ms = end;
+                        if !instance_data.offset.is_finite()
+                            || intervals
+                                .iter()
+                                .any(|node| !node.start_ms.is_finite() || !node.end_ms.is_finite())
+                        {
+                            return Err(invalid("non-finite repeater copy clock"));
                         }
                         if !self.retained && instance_data.start_ms >= instance_data.end_ms {
                             continue;
@@ -1254,6 +1674,29 @@ impl InstanceTraversal<'_> {
                                 repeater.id
                             )
                         };
+                        let mut stages = base.stages.clone();
+                        let stage_boundary = stages
+                            .iter()
+                            .position(|stage| {
+                                stage.scope == prefix.len() && stage.item_id == source.id()
+                            })
+                            .unwrap_or(stages.len());
+                        for stage in &mut stages[stage_boundary..] {
+                            if let Some(animation) = &mut stage.animation {
+                                animation.clock.offset -= shifted_root_ms * animation.clock.rate;
+                            }
+                        }
+                        stages.insert(
+                            stage_boundary,
+                            EvaluatedAncestorStage {
+                                scope: prefix.len(),
+                                item_id: repeater.id.clone(),
+                                matrix: power,
+                                inverse: inverse_power,
+                                opacity: copy_opacity,
+                                animation: None,
+                            },
+                        );
                         let ancestors = base.ancestors;
                         let ancestors = EvaluatedAncestors {
                             matrix: multiply_matrix(conjugated, ancestors.matrix),
@@ -1295,6 +1738,8 @@ impl InstanceTraversal<'_> {
                             ancestors,
                             order: copy_order,
                             generated: true,
+                            intervals,
+                            stages,
                             transition_facts: base.transition_facts,
                         });
                     }
@@ -1486,6 +1931,24 @@ pub(crate) struct EvaluatedTransition {
     pub(crate) span: EvaluatedTimeSpan,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct EvaluatedAncestorAnimation {
+    pub(crate) clock: EvaluatedInstance,
+    pub(crate) start_ms: u64,
+    pub(crate) transform: EvaluatedTransform,
+    pub(crate) keyframes: std::sync::Arc<[EvaluatedKeyframe]>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct EvaluatedAncestorStage {
+    scope: usize,
+    item_id: String,
+    pub(crate) matrix: [f64; 6],
+    pub(crate) inverse: [f64; 6],
+    pub(crate) opacity: f64,
+    pub(crate) animation: Option<EvaluatedAncestorAnimation>,
+}
+
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedVisualLayer {
     pub(crate) instance: Option<EvaluatedInstance>,
@@ -1497,6 +1960,7 @@ pub(crate) struct EvaluatedVisualLayer {
     pub(crate) affine: Option<EvaluatedAffine>,
     pub(crate) sampling_tiles: Option<Vec<EvaluatedAffine>>,
     pub(crate) ancestors: Option<EvaluatedAncestors>,
+    pub(crate) ancestor_stages: Vec<EvaluatedAncestorStage>,
     pub(crate) source_size: Option<(u32, u32)>,
     pub(crate) keyframes: Vec<EvaluatedKeyframe>,
     pub(crate) transitions: Vec<EvaluatedTransition>,
@@ -1831,6 +2295,7 @@ fn evaluate_flat_project(
                             affine: None,
                             sampling_tiles: None,
                             ancestors: None,
+                            ancestor_stages: Vec::new(),
                             source_size: None,
                             item_id: media.id.clone(),
                             order,
@@ -1899,6 +2364,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: text.id.clone(),
                         order,
@@ -1933,6 +2399,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: color.id.clone(),
                         order,
@@ -1955,6 +2422,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
@@ -1979,6 +2447,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
@@ -2006,6 +2475,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
@@ -2028,6 +2498,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: rectangle.id.clone(),
                         order,
@@ -2050,6 +2521,7 @@ fn evaluate_flat_project(
                         affine: None,
                         sampling_tiles: None,
                         ancestors: None,
+                        ancestor_stages: Vec::new(),
                         source_size: None,
                         item_id: caption.id.clone(),
                         order,
@@ -2973,6 +3445,90 @@ mod tests {
             assert_eq!(synthesized[0].item_id, "a-synthesized");
         }
         assert_eq!(serde_json::to_value(&p).unwrap(), before);
+    }
+
+    #[test]
+    fn group_stagger_delays_direct_visual_children_and_keeps_hidden_ranks() {
+        let mut p = project();
+        p.schema_version = 26;
+        p.components.clear();
+        p.tracks = serde_json::from_value(serde_json::json!([{
+            "id":"overlay","name":"Overlay","trackType":"overlay","items":[
+                {"type":"group","id":"parent","startMs":0,"durationMs":1000,"staggerMs":100,"zIndex":0,"stackOrder":0},
+                {"type":"rectangle","id":"first","startMs":0,"durationMs":300,"width":10,"height":10,"color":"#ff0000","keyframes":[],"zIndex":0,"stackOrder":1,"parent":{"scope":"root","id":"parent"}},
+                {"type":"rectangle","id":"second","startMs":0,"durationMs":300,"width":10,"height":10,"color":"#00ff00","keyframes":[],"zIndex":0,"stackOrder":2,"parent":{"scope":"root","id":"parent"}}
+            ]
+        }])).unwrap();
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 2);
+        let first = scene
+            .visual_layers
+            .iter()
+            .find(|layer| layer.item_id == "first")
+            .unwrap();
+        let second = scene
+            .visual_layers
+            .iter()
+            .find(|layer| layer.item_id == "second")
+            .unwrap();
+        assert_eq!(
+            (
+                first.instance.unwrap().offset,
+                first.instance.unwrap().start_ms,
+                first.instance.unwrap().end_ms
+            ),
+            (0.0, 0.0, 300.0)
+        );
+        assert_eq!(
+            (
+                second.instance.unwrap().offset,
+                second.instance.unwrap().start_ms,
+                second.instance.unwrap().end_ms
+            ),
+            (-100.0, 100.0, 400.0)
+        );
+        p.tracks[0].items[1].set_hidden(true);
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 1);
+        assert_eq!(scene.visual_layers[0].item_id, "second");
+        assert_eq!(scene.visual_layers[0].instance.unwrap().start_ms, 100.0);
+    }
+
+    #[test]
+    fn component_stagger_uses_definition_local_clock_after_time_scale() {
+        let mut p = project();
+        p.schema_version = 26;
+        p.tracks = serde_json::from_value(serde_json::json!([{
+            "id":"root","name":"Root","trackType":"overlay","items":[
+                {"type":"component_instance","id":"instance","componentId":"leaf","startMs":0,"durationMs":500,"trimStartMs":0,"timeScale":2,"staggerMs":100,"slotValues":{},"zIndex":0,"stackOrder":0}
+            ]
+        }])).unwrap();
+        p.components = serde_json::from_value(serde_json::json!([{
+            "id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":1000,"slots":[],
+            "tracks":[{"id":"local","name":"Local","trackType":"overlay","items":[
+                {"type":"rectangle","id":"first","startMs":0,"durationMs":300,"width":10,"height":10,"color":"#ff0000","keyframes":[],"zIndex":0,"stackOrder":0},
+                {"type":"rectangle","id":"second","startMs":0,"durationMs":300,"width":10,"height":10,"color":"#00ff00","keyframes":[],"zIndex":0,"stackOrder":1}
+            ]}]
+        }])).unwrap();
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 2);
+        let first = &scene.visual_layers[0];
+        let second = &scene.visual_layers[1];
+        assert_eq!(
+            (
+                first.instance.unwrap().start_ms,
+                first.instance.unwrap().end_ms
+            ),
+            (0.0, 150.0)
+        );
+        assert_eq!(
+            (
+                second.instance.unwrap().start_ms,
+                second.instance.unwrap().end_ms
+            ),
+            (50.0, 200.0)
+        );
+        assert_eq!(second.instance.unwrap().offset, -100.0);
     }
 
     #[test]
@@ -4206,7 +4762,7 @@ impl EvaluatedVisualLayer {
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
             || matches!(&self.source, EvaluatedVisualSource::Text(text) if text.rich_runs.is_some())
     }
-    pub(crate) fn has_animated_geometry(&self) -> bool {
+    pub(crate) fn has_local_animated_geometry(&self) -> bool {
         (self.has_typed_geometry()
             || self.ancestors.is_some()
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
@@ -4223,6 +4779,113 @@ impl EvaluatedVisualLayer {
                         | EvaluatedProperty::ScaleY
                 )
             })
+    }
+
+    pub(crate) fn has_animated_ancestors(&self) -> bool {
+        self.ancestor_stages
+            .iter()
+            .any(|stage| stage.animation.is_some())
+    }
+
+    pub(crate) fn has_animated_parent_geometry(&self) -> bool {
+        self.ancestor_stages
+            .iter()
+            .filter_map(|stage| stage.animation.as_ref())
+            .any(|animation| {
+                animation.keyframes.iter().any(|key| {
+                    matches!(
+                        key.property,
+                        EvaluatedProperty::PositionX
+                            | EvaluatedProperty::PositionY
+                            | EvaluatedProperty::ScaleX
+                            | EvaluatedProperty::ScaleY
+                    )
+                })
+            })
+    }
+
+    pub(crate) fn has_animated_geometry(&self) -> bool {
+        self.has_local_animated_geometry() || self.has_animated_parent_geometry()
+    }
+
+    pub(crate) fn parent_scale_bound(&self) -> Result<f64, CoreError> {
+        let mut factor = 1.0;
+        for animation in self
+            .ancestor_stages
+            .iter()
+            .filter_map(|stage| stage.animation.as_ref())
+        {
+            let mut maximum = animation.transform.scale;
+            for property in [EvaluatedProperty::ScaleX, EvaluatedProperty::ScaleY] {
+                let keys = animation
+                    .keyframes
+                    .iter()
+                    .filter(|key| key.property == property)
+                    .collect::<Vec<_>>();
+                for key in &keys {
+                    if let EvaluatedKeyframeValue::Scalar { value } = key.value {
+                        maximum = maximum.max(value);
+                    }
+                }
+                for pair in keys.windows(2) {
+                    let (
+                        EvaluatedKeyframeValue::Scalar { value: first },
+                        EvaluatedKeyframeValue::Scalar { value: last },
+                    ) = (pair[0].value, pair[1].value)
+                    else {
+                        return Err(invalid("invalid parent scale value"));
+                    };
+                    let (low, high) = match pair[0].easing {
+                        EvaluatedEasing::CubicBezier { y1, y2, .. } => {
+                            (0.0_f64.min(y1).min(y2), 1.0_f64.max(y1).max(y2))
+                        }
+                        EvaluatedEasing::Spring {
+                            mass,
+                            stiffness,
+                            damping,
+                            initial_velocity,
+                        } => {
+                            let amplitude = match crate::animation::spring_coefficients(
+                                mass,
+                                stiffness,
+                                damping,
+                                initial_velocity,
+                            ) {
+                                crate::animation::SpringCoefficients::Underdamped {
+                                    sine, ..
+                                } => 1.0_f64.hypot(sine),
+                                crate::animation::SpringCoefficients::Critical {
+                                    decay,
+                                    linear,
+                                } => {
+                                    1.0 + linear.abs()
+                                        * if decay > 1.0 {
+                                            1.0 / (std::f64::consts::E * decay)
+                                        } else {
+                                            1.0
+                                        }
+                                }
+                                crate::animation::SpringCoefficients::Overdamped {
+                                    slow,
+                                    fast,
+                                    ..
+                                } => slow.abs() + fast.abs(),
+                            };
+                            (1.0 - amplitude, 1.0 + amplitude)
+                        }
+                        _ => (0.0, 1.0),
+                    };
+                    maximum = maximum
+                        .max((first + (last - first) * low).clamp(0.000_001, 100.0))
+                        .max((first + (last - first) * high).clamp(0.000_001, 100.0));
+                }
+            }
+            factor *= maximum / animation.transform.scale;
+            if !factor.is_finite() || factor <= 0.0 {
+                return Err(invalid("non-finite inherited animated scale"));
+            }
+        }
+        Ok(factor)
     }
 
     fn has_typed_geometry(&self) -> bool {
@@ -4294,7 +4957,7 @@ impl EvaluatedVisualLayer {
 
 const IDENTITY_MATRIX: [f64; 6] = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
 
-fn multiply_matrix(left: [f64; 6], right: [f64; 6]) -> [f64; 6] {
+pub(crate) fn multiply_matrix(left: [f64; 6], right: [f64; 6]) -> [f64; 6] {
     let [a, b, c, d, x, y] = left;
     let [e, f, g, h, u, v] = right;
     [
@@ -4528,6 +5191,7 @@ fn measure_layer_affine(
     if let EvaluatedVisualSource::Shape(shape) = &layer.source {
         return shapes::affine(layer, shape, canvas);
     }
+    let output_canvas = canvas;
     let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
     if ancestors.is_none() {
         let transform = layer
@@ -4567,7 +5231,8 @@ fn measure_layer_affine(
         return Err(invalid("non-finite composed matrix"));
     }
     let mut affine = affine_from_matrices(matrix, inverse, source, opacity * parent.opacity)?;
-    if layer.has_animated_geometry() {
+    validate_animated_parent_extent(layer, &affine)?;
+    if layer.has_local_animated_geometry() {
         let mut xs = Vec::new();
         let mut ys = Vec::new();
         let mut scales_x = Vec::new();
@@ -4646,6 +5311,7 @@ fn measure_layer_affine(
                             source,
                             opacity * parent.opacity,
                         )?;
+                        validate_animated_parent_extent(layer, &bounds)?;
                         left = left.min(bounds.left);
                         top = top.min(bounds.top);
                         right = right.max(bounds.left + f64::from(bounds.width));
@@ -4665,7 +5331,33 @@ fn measure_layer_affine(
         affine.width = (right - left).max(0.0) as u32;
         affine.height = (bottom - top).max(0.0) as u32;
     }
+    if layer.has_animated_parent_geometry() {
+        affine.left = 0.0;
+        affine.top = 0.0;
+        affine.width = output_canvas.0;
+        affine.height = output_canvas.1;
+    }
     Ok(affine)
+}
+
+pub(crate) fn validate_animated_parent_extent(
+    layer: &EvaluatedVisualLayer,
+    affine: &EvaluatedAffine,
+) -> Result<(), CoreError> {
+    let factor = layer.parent_scale_bound()?;
+    let width = f64::from(affine.width) * factor;
+    let height = f64::from(affine.height) * factor;
+    if !width.is_finite()
+        || !height.is_finite()
+        || width > 16_384.0
+        || height > 16_384.0
+        || width * height > 16_777_216.0
+    {
+        return Err(invalid(
+            "inherited animated raster bounds exceed complexity limits",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn finalize_affine_geometry(
@@ -4788,6 +5480,110 @@ mod instance_tests {
         let inner = json!({"type":"component_instance","id":"same","componentId":"leaf","startMs":20,"trimStartMs":10,"durationMs":700,"timeScale":0.5,"slotValues":{},"transform":{"positionX":10,"positionY":0,"scale":1,"opacity":0.5}});
         let root = json!({"type":"component_instance","id":"same","componentId":"outer","startMs":100,"trimStartMs":50,"durationMs":400,"timeScale":1.5,"slotValues":{},"zIndex":0,"stackOrder":0,"transform":{"positionX":20,"positionY":0,"scale":1,"opacity":0.5}});
         serde_json::from_value(json!({"schemaVersion":18,"id":"project","revision":0,"name":"Instances","createdAtMs":1,"updatedAtMs":1,"settings":{"width":100,"height":100,"fps":30},"assets":[],"tracks":[track(json!([root]))],"components":[{"id":"leaf","name":"Leaf","width":100,"height":100,"durationMs":500,"slots":[],"tracks":[track(json!([shape]))]},{"id":"outer","name":"Outer","width":100,"height":100,"durationMs":1000,"slots":[],"tracks":[track(json!([inner]))]}]})).unwrap()
+    }
+
+    #[test]
+    fn inherited_stagger_preserves_fractional_clocks_and_parent_phase() {
+        let mut p = project();
+        p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let channel = json!([{"property":"transform.position_x","loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":200,"value":{"type":"scalar","value":20.0},"curve":"hold"}]}]);
+        p.tracks[0].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(channel.clone()).unwrap();
+        let mut nested = p.components[1].tracks[0].items[0].clone();
+        nested.visual_properties_mut().parent = Some(crate::ParentReference {
+            scope: "component:outer".into(),
+            id: "group".into(),
+        });
+        nested.visual_properties_mut().animation_channels =
+            serde_json::from_value(channel.clone()).unwrap();
+        nested.visual_properties_mut().stack_order = 2;
+        if let TimelineItem::ComponentInstance(instance) = &mut nested {
+            instance.stagger_ms = 40;
+        }
+        p.components[1].tracks[0].items=serde_json::from_value(json!([
+            {"type":"group","id":"group","startMs":0,"durationMs":1000,"staggerMs":100,"zIndex":0,"stackOrder":0,"animationChannels":channel},
+            {"type":"rectangle","id":"hidden","startMs":0,"durationMs":1000,"width":1,"height":1,"color":"#ff0000","keyframes":[],"hidden":true,"parent":{"scope":"component:outer","id":"group"},"stackOrder":1,"zIndex":0}
+        ])).unwrap();
+        p.components[1].tracks[0].items.push(nested);
+        let mut first = p.components[0].tracks[0].items[0].clone();
+        if let TimelineItem::Rectangle(item) = &mut first {
+            item.id = "first".into();
+        }
+        first.visual_properties_mut().hidden = true;
+        first.visual_properties_mut().stack_order = 0;
+        p.components[0].tracks[0].items[0]
+            .visual_properties_mut()
+            .stack_order = 1;
+        p.components[0].tracks[0].items[0]
+            .visual_properties_mut()
+            .animation_channels = serde_json::from_value(channel).unwrap();
+        p.components[0].tracks[0].items.insert(0, first);
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        assert_eq!(scene.visual_layers.len(), 1);
+        let layer = &scene.visual_layers[0];
+        let clock = layer.instance.unwrap();
+        assert_eq!((clock.rate, clock.offset), (0.75, -140.0));
+        assert!((clock.start_ms - 140.0 / 0.75).abs() < 1e-10);
+        assert_eq!(clock.end_ms, 500.0);
+        let stages = &layer.ancestor_stages;
+        assert_eq!(stages.len(), 3);
+        let clocks = stages
+            .iter()
+            .map(|s| s.animation.as_ref().unwrap().clock)
+            .collect::<Vec<_>>();
+        assert_eq!((clocks[0].rate, clocks[0].offset), (1.0, 0.0));
+        assert_eq!((clocks[1].rate, clocks[1].offset), (1.5, -100.0));
+        assert_eq!((clocks[2].rate, clocks[2].offset), (1.5, -200.0));
+        // Independent affine oracle, with no rounding of the two local delays.
+        for t in [200.0, 266.5, 300.0, 499.5] {
+            let local = ((t - 100.0) * 1.5 + 50.0 - 100.0 - 20.0) * 0.5 + 10.0 - 40.0;
+            assert!((clock.rate * t + clock.offset - local).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn staggered_nested_instance_preserves_audio_clock() {
+        let mut p = project();
+        p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.assets=serde_json::from_value(json!([{"id":"sound","mediaType":"audio","fileName":"sound.wav","projectRelativePath":"assets/sound.wav","durationMs":1000,"hasAudio":true}])).unwrap();
+        p.components[0].tracks=serde_json::from_value(json!([{"id":"audio","name":"Audio","trackType":"audio","items":[{"type":"media","id":"sound","assetId":"sound","startMs":0,"durationMs":500,"sourceInMs":125,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[]}]}])).unwrap();
+        let baseline = evaluate_project(&p, 100, 100, 30)
+            .unwrap()
+            .scene
+            .audio_layers;
+        let mut hidden = p.components[1].tracks[0].items[0].clone();
+        if let TimelineItem::ComponentInstance(instance) = &mut hidden {
+            instance.id = "first".into();
+        }
+        hidden.visual_properties_mut().hidden = true;
+        hidden.visual_properties_mut().stack_order = 0;
+        p.components[1].tracks[0].items[0]
+            .visual_properties_mut()
+            .stack_order = 1;
+        p.components[1].tracks[0].items.insert(0, hidden);
+        if let TimelineItem::ComponentInstance(instance) = &mut p.tracks[0].items[0] {
+            instance.stagger_ms = 100;
+        }
+        let shifted = evaluate_project(&p, 100, 100, 30)
+            .unwrap()
+            .scene
+            .audio_layers;
+        let expected = baseline[0].instance.unwrap();
+        let actual = shifted
+            .iter()
+            .find(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms))
+            .unwrap()
+            .instance
+            .unwrap();
+        assert_eq!(actual, expected);
+        assert_eq!(
+            shifted
+                .iter()
+                .filter(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms))
+                .count(),
+            1
+        );
     }
 
     #[test]

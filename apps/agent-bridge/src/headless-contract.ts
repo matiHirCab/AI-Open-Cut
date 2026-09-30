@@ -102,6 +102,7 @@ export type HeadlessEdit =
   | { operation: "group_ungroup"; groupId: string }
   | {
       operation: "add_group";
+      staggerMs?: number | undefined;
       trackId: string;
       startMs: number;
       durationMs: number;
@@ -178,6 +179,7 @@ export type HeadlessEdit =
     }
   | {
       operation: "update_item";
+      staggerMs?: number | undefined;
       geometry?: ShapeGeometry | undefined;
       grid?: GridDescriptor | undefined;
       repeater?: RepeaterDescriptor | undefined;

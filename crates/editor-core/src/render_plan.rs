@@ -488,12 +488,76 @@ fn evaluated_scalar_expression(
     evaluated_scalar_expression_for(keyframes, property, default, item_start_ms, "t")
 }
 
+#[derive(Clone, Copy)]
+enum LoopClockPrecision {
+    IntegerMilliseconds,
+    FractionalMilliseconds,
+}
+
 fn evaluated_scalar_expression_for(
     keyframes: &[EvaluatedKeyframe],
     property: EvaluatedProperty,
     default: f64,
     item_start_ms: u64,
     time_variable: &str,
+) -> String {
+    evaluated_scalar_expression_with_precision(
+        keyframes,
+        property,
+        default,
+        item_start_ms,
+        time_variable,
+        LoopClockPrecision::IntegerMilliseconds,
+    )
+}
+
+fn evaluated_fractional_scalar_expression_for(
+    keyframes: &[EvaluatedKeyframe],
+    property: EvaluatedProperty,
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
+) -> String {
+    evaluated_scalar_expression_with_precision(
+        keyframes,
+        property,
+        default,
+        item_start_ms,
+        time_variable,
+        LoopClockPrecision::FractionalMilliseconds,
+    )
+}
+
+fn evaluated_visual_scalar_expression_for(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    keyframes: &[EvaluatedKeyframe],
+    property: EvaluatedProperty,
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
+) -> String {
+    let precision = if layer.instance.is_some() {
+        LoopClockPrecision::FractionalMilliseconds
+    } else {
+        LoopClockPrecision::IntegerMilliseconds
+    };
+    evaluated_scalar_expression_with_precision(
+        keyframes,
+        property,
+        default,
+        item_start_ms,
+        time_variable,
+        precision,
+    )
+}
+
+fn evaluated_scalar_expression_with_precision(
+    keyframes: &[EvaluatedKeyframe],
+    property: EvaluatedProperty,
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
+    precision: LoopClockPrecision,
 ) -> String {
     let loop_spec = keyframes
         .iter()
@@ -521,8 +585,16 @@ fn evaluated_scalar_expression_for(
         let first = values.first()?.0;
         let last = values.last()?.0;
         let span = last.checked_sub(first)?;
-        (span > 0)
-            .then(|| looped_time_expression(loop_spec, item_start_ms, first, span, time_variable))
+        (span > 0).then(|| {
+            looped_time_expression(
+                loop_spec,
+                item_start_ms,
+                first,
+                span,
+                time_variable,
+                precision,
+            )
+        })
     });
     evaluated_piecewise_expression_for(
         &values,
@@ -539,6 +611,7 @@ fn looped_time_expression(
     first_ms: u64,
     span_ms: u64,
     time_variable: &str,
+    precision: LoopClockPrecision,
 ) -> String {
     let first = u128::from(item_start_ms) + u128::from(first_ms);
     let span = u128::from(span_ms);
@@ -548,7 +621,12 @@ fn looped_time_expression(
         1
     };
     let period = span * multiplier;
-    let sample_ms = format!("floor((({time_variable})*1000)+0.5)");
+    // Persisted clocks and audio retain integer sampling; affine visual clocks
+    // must preserve their fractional phase through seams and finite completion.
+    let sample_ms = match precision {
+        LoopClockPrecision::IntegerMilliseconds => format!("floor((({time_variable})*1000)+0.5)"),
+        LoopClockPrecision::FractionalMilliseconds => format!("(({time_variable})*1000)"),
+    };
     let phase = format!("mod(max(0,({sample_ms})-({first})),{period})",);
     let offset = if loop_spec.mode == crate::AnimationLoopMode::PingPong {
         format!("if(lte(({phase}),{span}),({phase}),({period})-({phase}))",)
@@ -1094,8 +1172,13 @@ fn append_affine_layer(
             let start = layer.instance.map_or(layer.span.start_ms as f64, |c| {
                 c.root_ms(layer.span.start_ms)
             });
+            let sampling_rate = if layer.has_animated_ancestors() {
+                format!(",fps={fps}")
+            } else {
+                String::new()
+            };
             format!(
-                "[{input}:v]setpts=(PTS-STARTPTS)/{rate:.17}+{}/TB,format=rgba",
+                "[{input}:v]setpts=(PTS-STARTPTS)/{rate:.17}+{}/TB{sampling_rate},format=rgba",
                 precise_seconds(start)
             )
         }
@@ -1103,7 +1186,11 @@ fn append_affine_layer(
             let input = input_indexes
                 .get(layer.item_id.as_str())
                 .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing shape input"))?;
-            format!("[{input}:v]setpts=PTS-STARTPTS,format=rgba")
+            if layer.has_animated_ancestors() {
+                format!("[{input}:v]fps={fps},setpts=PTS-STARTPTS,format=rgba")
+            } else {
+                format!("[{input}:v]setpts=PTS-STARTPTS,format=rgba")
+            }
         }
         EvaluatedVisualSource::SolidColor { color }
         | EvaluatedVisualSource::Rectangle { color, .. } => format!(
@@ -1224,6 +1311,176 @@ fn append_affine_layer(
     )
 }
 
+fn animated_ancestor_coordinates(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    affine: &crate::evaluated_scene::EvaluatedAffine,
+    source: (u32, u32),
+    local_time: &str,
+) -> (String, String) {
+    // Cubic-curve evaluation uses registers 0..3. Keep coordinates in 4..7,
+    // making expression size linear even when static rotations alternate with motion.
+    let mut steps = vec![
+        format!("st(4,X+{:.17}+0.5)", affine.left),
+        format!("st(5,Y+{:.17}+0.5)", affine.top),
+    ];
+    for stage in &layer.ancestor_stages {
+        let (x, y) = if let Some(animation) = &stage.animation {
+            let time = format!(
+                "(T*{:.17}+{:.17})",
+                animation.clock.rate,
+                animation.clock.offset / 1000.0
+            );
+            let scalar = |property, default| {
+                evaluated_fractional_scalar_expression_for(
+                    &animation.keyframes,
+                    property,
+                    default,
+                    animation.start_ms,
+                    &time,
+                )
+            };
+            let px = scalar(EvaluatedProperty::PositionX, animation.transform.position_x);
+            let py = scalar(EvaluatedProperty::PositionY, animation.transform.position_y);
+            let sx = scalar(EvaluatedProperty::ScaleX, animation.transform.scale);
+            let sy = scalar(EvaluatedProperty::ScaleY, animation.transform.scale);
+            (
+                format!("(ld(4)-({px}))/({sx})"),
+                format!("(ld(5)-({py}))/({sy})"),
+            )
+        } else {
+            let [a, b, c, d, x, y] = stage.inverse;
+            (
+                format!("{a:.17}*ld(4)+{c:.17}*ld(5)+{x:.17}"),
+                format!("{b:.17}*ld(4)+{d:.17}*ld(5)+{y:.17}"),
+            )
+        };
+        steps.extend([
+            format!("st(6,{x})"),
+            format!("st(7,{y})"),
+            "st(4,ld(6))".into(),
+            "st(5,ld(7))".into(),
+        ]);
+    }
+    let (x, y) = if layer.has_local_animated_geometry() {
+        let position = |x_axis, default| {
+            let property = if x_axis {
+                EvaluatedProperty::PositionX
+            } else {
+                EvaluatedProperty::PositionY
+            };
+            if layer.keyframes.iter().any(|key| key.property == property) {
+                evaluated_fractional_scalar_expression_for(
+                    &layer.keyframes,
+                    property,
+                    default,
+                    layer.span.start_ms,
+                    local_time,
+                )
+            } else {
+                let values = layer
+                    .keyframes
+                    .iter()
+                    .filter_map(|key| match (key.property, key.value) {
+                        (
+                            EvaluatedProperty::Position,
+                            EvaluatedKeyframeValue::Position { x, y },
+                        ) => Some((key.time_ms, if x_axis { x } else { y }, key.easing)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                evaluated_piecewise_expression_for(
+                    &values,
+                    default,
+                    layer.span.start_ms,
+                    local_time,
+                    None,
+                )
+            }
+        };
+        let scale = |axis| {
+            let property = if layer.keyframes.iter().any(|key| key.property == axis) {
+                axis
+            } else {
+                EvaluatedProperty::Scale
+            };
+            evaluated_fractional_scalar_expression_for(
+                &layer.keyframes,
+                property,
+                layer.transform.scale,
+                layer.span.start_ms,
+                local_time,
+            )
+        };
+        let px = position(true, layer.transform.position_x);
+        let py = position(false, layer.transform.position_y);
+        let sx = scale(EvaluatedProperty::ScaleX);
+        let sy = scale(EvaluatedProperty::ScaleY);
+        let (ax, ay) = layer.legacy_anchor(source);
+        let density = match &layer.source {
+            EvaluatedVisualSource::Shape(shape) => shape.density,
+            _ => 1.0,
+        };
+        (
+            format!("((ld(4)-({px}))/({sx})+{ax:.17})*{density:.17}-0.5"),
+            format!("((ld(5)-({py}))/({sy})+{ay:.17})*{density:.17}-0.5"),
+        )
+    } else {
+        let parent = layer.ancestors.expect("animated ancestry has a parent");
+        let [a, b, c, d, x, y] =
+            crate::evaluated_scene::multiply_matrix(affine.inverse, parent.matrix);
+        (
+            format!("{a:.17}*ld(4)+{c:.17}*ld(5)+{x:.17}-0.5"),
+            format!("{b:.17}*ld(4)+{d:.17}*ld(5)+{y:.17}-0.5"),
+        )
+    };
+    let sequence = steps.join(";");
+    (format!("({sequence};{x})"), format!("({sequence};{y})"))
+}
+
+fn animated_ancestor_opacity(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    local_time: &str,
+) -> String {
+    let mut factors = layer
+        .ancestor_stages
+        .iter()
+        .map(|stage| {
+            if let Some(animation) = &stage.animation {
+                let time = format!(
+                    "(T*{:.17}+{:.17})",
+                    animation.clock.rate,
+                    animation.clock.offset / 1000.0
+                );
+                evaluated_fractional_scalar_expression_for(
+                    &animation.keyframes,
+                    EvaluatedProperty::Opacity,
+                    animation.transform.opacity,
+                    animation.start_ms,
+                    &time,
+                )
+            } else {
+                format!("{:.17}", stage.opacity)
+            }
+        })
+        .collect::<Vec<_>>();
+    factors.push(if let Some(transform) = layer.transform2d {
+        format!("{:.17}", transform.opacity)
+    } else {
+        evaluated_fractional_scalar_expression_for(
+            &layer.keyframes,
+            EvaluatedProperty::Opacity,
+            layer.transform.opacity,
+            layer.span.start_ms,
+            local_time,
+        )
+    });
+    factors
+        .into_iter()
+        .map(|factor| format!("({factor})"))
+        .collect::<Vec<_>>()
+        .join("*")
+}
+
 fn append_affine_samples(
     filters: &mut Vec<String>,
     layer: &crate::evaluated_scene::EvaluatedVisualLayer,
@@ -1245,7 +1502,12 @@ fn append_affine_samples(
     // Four nearest-neighbor gathers followed by separable bilinear interpolation.
     // Each map has exactly the validated output dimensions, so a rotated thin
     // source never requires a square pad enclosing both source and destination.
-    let (x, y) = if let Some(parent) = layer.ancestors.filter(|_| layer.has_animated_geometry()) {
+    let (x, y) = if layer.has_animated_ancestors() {
+        animated_ancestor_coordinates(layer, affine, (sw, sh), &local_time)
+    } else if let Some(parent) = layer
+        .ancestors
+        .filter(|_| layer.has_local_animated_geometry())
+    {
         let position = |x_axis, default| {
             let typed_property = if x_axis {
                 EvaluatedProperty::PositionX
@@ -1257,7 +1519,8 @@ fn append_affine_samples(
                 .iter()
                 .any(|key| key.property == typed_property)
             {
-                return evaluated_scalar_expression_for(
+                return evaluated_visual_scalar_expression_for(
+                    layer,
                     &layer.keyframes,
                     typed_property,
                     default,
@@ -1295,7 +1558,8 @@ fn append_affine_samples(
             } else {
                 EvaluatedProperty::Scale
             };
-            evaluated_scalar_expression_for(
+            evaluated_visual_scalar_expression_for(
+                layer,
                 &layer.keyframes,
                 property,
                 layer.transform.scale,
@@ -1355,11 +1619,14 @@ fn append_affine_samples(
     filters.push(format!(
         "[{label}p2][{label}p3]blend=all_expr='A*(1-{fx})+B*{fx}'[{label}row1]"
     ));
-    let opacity = if let Some(parent) = layer.ancestors.filter(|_| layer.transform2d.is_none()) {
+    let opacity = if layer.has_animated_ancestors() {
+        animated_ancestor_opacity(layer, &local_time)
+    } else if let Some(parent) = layer.ancestors.filter(|_| layer.transform2d.is_none()) {
         format!(
             "({:.17})*({})",
             parent.opacity,
-            evaluated_scalar_expression_for(
+            evaluated_visual_scalar_expression_for(
+                layer,
                 &layer.keyframes,
                 EvaluatedProperty::Opacity,
                 layer.transform.opacity,
@@ -1461,6 +1728,125 @@ mod tests {
         TextStyle, Track, TrackType, Transform, TransitionItem, TransitionType,
         evaluated_scene::evaluate_project, render_artifact::media_input_requests,
     };
+
+    #[test]
+    fn native_loop_fractional_expression_matches_independent_phases() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref(),
+                Ok("1"),
+                "fractional loop comparison requires FFmpeg"
+            );
+            return;
+        };
+        use crate::{
+            AnimationLoop, AnimationLoopIterations as Iterations, AnimationLoopMode as Mode,
+        };
+        for (mode, iterations, first, values, samples) in [
+            (
+                Mode::Repeat,
+                Iterations::Infinite(crate::AnimationInfiniteIterations::Infinite),
+                0,
+                vec![
+                    (0, 0.0, EvaluatedEasing::Linear),
+                    (99, 100.0, EvaluatedEasing::Linear),
+                    (100, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![
+                    (99.25, 75.0),
+                    (99.5, 50.0),
+                    (99.75, 25.0),
+                    (100.0, 0.0),
+                    (100.25, 25.0 / 99.0),
+                    (199.5, 50.0),
+                ],
+            ),
+            (
+                Mode::Repeat,
+                Iterations::Finite(1),
+                10,
+                vec![
+                    (10, 0.0, EvaluatedEasing::Linear),
+                    (109, 100.0, EvaluatedEasing::Linear),
+                    (110, 0.0, EvaluatedEasing::Hold),
+                ],
+                vec![(9.5, 0.0), (109.5, 50.0), (110.0, 0.0), (110.25, 0.0)],
+            ),
+            (
+                Mode::PingPong,
+                Iterations::Infinite(crate::AnimationInfiniteIterations::Infinite),
+                10,
+                vec![
+                    (10, 0.0, EvaluatedEasing::Linear),
+                    (110, 100.0, EvaluatedEasing::Hold),
+                ],
+                vec![
+                    (109.5, 99.5),
+                    (110.0, 100.0),
+                    (110.5, 99.5),
+                    (209.5, 0.5),
+                    (210.0, 0.0),
+                    (210.5, 0.5),
+                ],
+            ),
+            (
+                Mode::PingPong,
+                Iterations::Finite(1),
+                10,
+                vec![
+                    (10, 0.0, EvaluatedEasing::Linear),
+                    (110, 100.0, EvaluatedEasing::Hold),
+                ],
+                vec![(209.5, 0.5), (210.0, 0.0), (210.5, 0.0)],
+            ),
+        ] {
+            for (local_ms, expected) in samples {
+                // The constants are independently derived linear phases, not samples
+                // from the production Rust integer sampler.
+                let time = format!("{:.17}", local_ms / 1000.0);
+                let mapped = looped_time_expression(
+                    AnimationLoop { mode, iterations },
+                    0,
+                    first,
+                    100,
+                    &time,
+                    LoopClockPrecision::FractionalMilliseconds,
+                );
+                let expression = evaluated_piecewise_expression_for(&values, 0.0, 0, &mapped, None);
+                let source = format!("aevalsrc=exprs='{expression}':s=8000:d=0.001");
+                let output = std::process::Command::new(&ffmpeg)
+                    .args([
+                        "-v",
+                        "error",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        &source,
+                        "-frames:a",
+                        "1",
+                        "-ac",
+                        "1",
+                        "-c:a",
+                        "pcm_f64le",
+                        "-f",
+                        "f64le",
+                        "-",
+                    ])
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let actual = f64::from_le_bytes(output.stdout[..8].try_into().unwrap());
+                assert!(
+                    (actual - expected).abs() < 1e-9,
+                    "{mode:?} at {local_ms}: actual={actual}, independent={expected}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn native_loop_scalar_expression_matches_core_at_seams() {
@@ -1594,6 +1980,7 @@ mod tests {
                     values.first().unwrap().0,
                     values.last().unwrap().0 - values.first().unwrap().0,
                     &time,
+                    LoopClockPrecision::IntegerMilliseconds,
                 );
                 let expression =
                     evaluated_piecewise_expression_for(&values, 0.0, item_start_ms, &mapped, None);

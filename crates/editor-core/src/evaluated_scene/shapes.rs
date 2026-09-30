@@ -795,7 +795,8 @@ fn affine_with_ancestors(
         shape.size,
         opacity * ancestors.map_or(1.0, |p| p.opacity),
     )?;
-    if layer.has_animated_geometry() {
+    super::validate_animated_parent_extent(layer, &result)?;
+    if layer.has_local_animated_geometry() {
         let mut xs = vec![layer.transform.position_x];
         let mut ys = vec![layer.transform.position_y];
         let mut scales_x = vec![layer.transform.scale];
@@ -871,6 +872,7 @@ fn affine_with_ancestors(
                             shape.size,
                             opacity * ancestors.map_or(1.0, |p| p.opacity),
                         )?;
+                        super::validate_animated_parent_extent(layer, &result)?;
                         bounds[0] = bounds[0].min(result.left);
                         bounds[1] = bounds[1].min(result.top);
                         bounds[2] = bounds[2].max(result.left + f64::from(result.width));
@@ -885,6 +887,12 @@ fn affine_with_ancestors(
             (bounds[2].clamp(0.0, f64::from(output_canvas.0)) - result.left).max(0.0) as u32;
         result.height =
             (bounds[3].clamp(0.0, f64::from(output_canvas.1)) - result.top).max(0.0) as u32;
+    }
+    if layer.has_animated_parent_geometry() {
+        result.left = 0.0;
+        result.top = 0.0;
+        result.width = output_canvas.0;
+        result.height = output_canvas.1;
     }
     Ok(result)
 }
@@ -1143,6 +1151,7 @@ fn measure_layer_shape(
             }
         }
     }
+    scale *= layer.parent_scale_bound()?;
     let value = if let Some(grid) = &shape.grid_descriptor {
         EvaluatedShape::grid_with_budget(grid.clone(), scale, segment_budget)?
     } else if let Some(document) = &shape.svg_document {

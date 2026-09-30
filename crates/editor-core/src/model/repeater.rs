@@ -48,9 +48,15 @@ impl RepeaterTransformOffset {
     }
 }
 
+fn is_zero_i64(value: &i64) -> bool {
+    *value == 0
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RepeaterDescriptor {
+    #[serde(default, skip_serializing_if = "is_zero_i64")]
+    pub time_offset_ms: i64,
     pub source: RepeaterSourceReference,
     pub copies: u16,
     pub transform_offset: RepeaterTransformOffset,

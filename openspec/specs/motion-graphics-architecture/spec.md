@@ -302,7 +302,7 @@ EvaluatedScene MUST order visible visual instructions bottom-to-top by ascending
 - **THEN** evaluation returns its existing typed failure before sorting, rasterization, process execution, or artifact publication
 
 ### Requirement: Canonical group ancestor evaluation
-Core MUST evaluate each visual's local affine transform followed by ancestors nearest outward, yielding Mroot ... Mparent Mlocal for column vectors. Group normalized position and anchor MUST resolve against root composition dimensions; groups SHALL have no measured child bounding box. Ancestor opacity MUST multiply per descendant, without isolated group compositing. A descendant's visual interval MUST intersect all ancestor half-open intervals and its visibility MUST include all ancestor item/track visibility. Empty intersections SHALL emit no visual instruction. Child timing SHALL remain absolute root milliseconds, with no offset or retiming from a group. Audio timing/gain/visibility SHALL retain existing behavior independently of visual parents. Groups MUST NOT reorder children or create drawable instructions.
+Core MUST evaluate each visual's local affine transform followed by ancestors nearest outward, yielding Mroot ... Mparent Mlocal for column vectors. Group normalized position and anchor MUST resolve against root composition dimensions; groups SHALL have no measured child bounding box. Ancestor opacity MUST multiply per descendant, without isolated group compositing. A descendant's visual interval MUST intersect all ancestor half-open intervals and its visibility MUST include all ancestor item/track visibility. Empty intersections SHALL emit no visual instruction. With zero or absent staggerMs, child timing SHALL remain absolute containing-scope milliseconds. With staggerMs, each direct visual child branch SHALL use the ranked local-clock delay defined by inherited-animation-timing while parent interval and channel sampling remain unshifted. Audio timing/gain/visibility SHALL retain existing behavior independently of visual parents. Groups MUST NOT reorder children or create drawable instructions.
 
 #### Scenario: Evaluate nested transforms independently
 - **WHEN** asymmetric visuals use nested translation, noncentral anchors, independent scales, skew, rotation, and opacity
@@ -315,6 +315,10 @@ Core MUST evaluate each visual's local affine transform followed by ancestors ne
 #### Scenario: Preserve ordering and legacy behavior
 - **WHEN** parented visuals span tracks or unparented legacy scenes are evaluated repeatedly
 - **THEN** existing track/zIndex/stackOrder/ID order remains intact, legacy scenes remain equivalent, and evaluation never mutates project or history
+
+#### Scenario: Inherit animated ancestors and staggered clocks
+- **WHEN** a supported parent channel animates a nested group and its staggered children
+- **THEN** each child uses the sampled parent matrix and opacity with its ranked local clock, while existing stacking and parent interval clipping remain stable
 
 ### Requirement: Bounded derived group geometry
 Core MUST validate all graph and local values before resource work, and finite composed matrices/coordinates and existing 16384-pixel dimension and 16777216-pixel area limits before raster allocation, workspace writes, or renderer execution. Necessary existing bounded read-only font/media measurement SHALL remain path-safe and outside scene semantics. No paths, backend expressions, or persisted references SHALL enter EvaluatedScene. Existing missing-asset precedence SHALL remain unchanged.
@@ -351,3 +355,14 @@ Editor-core MUST own channel compatibility, validation, and evaluation. A catalo
 #### Scenario: Reject an inactive channel before side effects
 - **WHEN** a caller submits a cataloged channel whose target property is scheduled for a later milestone
 - **THEN** core rejects it before revision commit or render artifact creation
+
+### Requirement: Shared renderer-neutral publication preflight
+Editor-core MUST expose one canonical validation-only scene preflight consumed by store orchestration and render evaluation. It MUST share occurrence clock, interval, inherited transform and complexity rules with render evaluation, validate complete retained projections before generated materialization, and perform no backend execution or artifact publication. Store MUST coordinate pure candidate validation and resource staging before durable publication; scene evaluation MUST NOT own persistence or filesystem policy. The reviewed store-to-evaluated_scene dependency MUST be documented and enforced with the canonical architecture map. Transports and providers MUST NOT duplicate these domain rules.
+
+#### Scenario: Share an unsafe candidate rejection
+- **WHEN** the same candidate is evaluated for mutation publication and rendering
+- **THEN** both use the same canonical derived bounds and return matching typed domain failures, while publication preflight creates no generated copies or artifacts
+
+#### Scenario: Enforce the reviewed dependency boundary
+- **WHEN** module dependencies and preflight responsibility are checked
+- **THEN** the architecture test accepts the documented store-to-evaluated_scene edge and continues rejecting outward dependencies and transport or provider domain-validation copies

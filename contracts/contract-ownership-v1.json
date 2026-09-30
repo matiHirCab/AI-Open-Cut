@@ -3,6 +3,22 @@
   "strategy": "fixture-governed-manual-synchronization",
   "reviewer": "@matiHirCab",
   "categories": {
+    "inheritedAnimationTiming": {
+      "canonical": "contracts/inherited-animation-timing-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/model/repeater.rs",
+        "crates/editor-core/src/evaluated_scene.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/tests/inherited_animation_timing.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/inherited-animation-timing.md"
+      ]
+    },
     "animationChannels": {
       "canonical": "contracts/animation-channels-v1.json",
       "consumers": [

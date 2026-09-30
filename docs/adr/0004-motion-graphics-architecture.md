@@ -20,7 +20,7 @@ This ADR locks six cross-milestone decisions. It does not implement motion-graph
 
 A group is a transform/effect node. Children refer to it through a scoped `parent_id`; the group does not keep a second child list. Parent and component references must be typed, scoped to one composition, acyclic, and explicitly depth-bounded by `editor-core`. Slot bindings target typed stable properties rather than arbitrary JSON paths.
 
-Root time and component-local time use integer milliseconds. Component intervals are relative to their component; an instance maps them into its parent scope through typed start, trim, duration, and a finite positive time scale.
+Persisted root and component-local timestamps use integer milliseconds. Derived visual clocks preserve fractional milliseconds through affine retiming, delays, loop phase mapping and interpolation. Component intervals are relative to their component; an instance maps them into its parent scope through typed start, trim, duration, and a finite positive time scale.
 
 We rejected replacing `Project.tracks` with a universal graph because that would require a breaking root-project rewrite. We rejected duplicating full nested timelines per instance because that loses reuse, provenance, and bounded updates.
 
@@ -56,7 +56,7 @@ We rejected an FFmpeg-only implementation because it cannot safely provide the r
 
 ### 4. Normative ordering and compositing
 
-The root and every component use a top-left origin, with positive X rightward and positive Y downward. Pixel coordinates are the compatibility default. A future explicit normalized unit resolves against its containing composition dimensions. Time uses integer milliseconds and half-open intervals `[start_ms, end_ms)`.
+The root and every component use a top-left origin, with positive X rightward and positive Y downward. Pixel coordinates are the compatibility default. A future explicit normalized unit resolves against its containing composition dimensions. Persisted time uses integer milliseconds and half-open intervals `[start_ms, end_ms)`; derived visual clocks remain fractional without intermediate rounding.
 
 Within a composition, tracks render from lowest array index to highest. Within a track, visual items sort by ascending explicit `z_index`, then stable item array order, then stable item ID only as a final tie-break for synthesized or otherwise equivalent order inputs. Later entries composite above earlier entries. Duplicate IDs remain invalid. Evaluated audio order must be explicit and must not depend on map iteration.
 
