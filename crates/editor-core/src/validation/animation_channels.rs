@@ -67,6 +67,8 @@ pub(crate) fn validate_channels(
                         | TimelineItem::Shape(_)
                         | TimelineItem::Svg(_)
                         | TimelineItem::Grid(_)
+                        | TimelineItem::Group(_)
+                        | TimelineItem::ComponentInstance(_)
                 )
             {
                 return Err(invalid(

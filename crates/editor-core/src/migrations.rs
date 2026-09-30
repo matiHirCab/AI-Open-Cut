@@ -24,6 +24,29 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 26
+        && project
+            .tracks
+            .iter()
+            .chain(
+                project
+                    .components
+                    .iter()
+                    .flat_map(|component| &component.tracks),
+            )
+            .flat_map(|track| &track.items)
+            .any(|item| match item {
+                crate::TimelineItem::Group(group) => group.stagger_ms != 0,
+                crate::TimelineItem::ComponentInstance(instance) => instance.stagger_ms != 0,
+                crate::TimelineItem::Repeater(repeater) => repeater.repeater.time_offset_ms != 0,
+                _ => false,
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "inherited animation timing requires schema 26",
+        ));
+    }
     if project.schema_version < 25
         && project
             .tracks
@@ -164,7 +187,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=24 => {
+        9..=25 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -249,13 +272,13 @@ mod tests {
             redo: vec![project(24)],
         };
         assert!(migrate_project_documents(&mut current, &mut history).unwrap());
-        assert_eq!(current.schema_version, 25);
+        assert_eq!(current.schema_version, 26);
         assert!(
             history
                 .undo
                 .iter()
                 .chain(&history.redo)
-                .all(|snapshot| snapshot.schema_version == 25)
+                .all(|snapshot| snapshot.schema_version == 26)
         );
         assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
 
@@ -276,6 +299,56 @@ mod tests {
         let mut current = project(24);
         let mut history = History {
             undo: vec![project(24)],
+            redo: vec![invalid],
+        };
+        let before = serde_json::to_value((&current, &history)).unwrap();
+        assert_eq!(
+            migrate_project_documents(&mut current, &mut history)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(serde_json::to_value((&current, &history)).unwrap(), before);
+    }
+
+    #[test]
+    fn schema_26_timing_migrates_history_and_rejects_old_field_injection() {
+        let mut current = project(25);
+        let mut history = History {
+            undo: vec![project(25)],
+            redo: vec![project(25)],
+        };
+        assert!(migrate_project_documents(&mut current, &mut history).unwrap());
+        assert_eq!(current.schema_version, 26);
+        assert!(
+            history
+                .undo
+                .iter()
+                .chain(&history.redo)
+                .all(|p| p.schema_version == 26)
+        );
+        assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
+
+        let mut raw = serde_json::to_value(project(25)).unwrap();
+        raw["tracks"] = serde_json::json!([{
+            "id": "overlay", "name": "Overlay", "trackType": "overlay", "items": [{
+                "type": "group", "id": "group", "startMs": 0, "durationMs": 1000,
+                "staggerMs": 0
+            }]
+        }]);
+        assert!(serde_json::from_value::<Project>(raw).is_err());
+
+        let mut invalid = project(25);
+        invalid.tracks = serde_json::from_value(serde_json::json!([{
+            "id": "overlay", "name": "Overlay", "trackType": "overlay", "items": [{
+                "type": "group", "id": "group", "startMs": 0, "durationMs": 1000,
+                "staggerMs": 1
+            }]
+        }]))
+        .unwrap();
+        let mut current = project(25);
+        let mut history = History {
+            undo: vec![],
             redo: vec![invalid],
         };
         let before = serde_json::to_value((&current, &history)).unwrap();

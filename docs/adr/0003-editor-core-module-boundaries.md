@@ -22,6 +22,7 @@ apps/agent-bridge ─> apps/headless ─> editor-core facades
               └────────────── no domain-rule ownership
 
 store facade ─> assets ─> persistence
+     ├─────────> evaluated_scene (validation-only preflight)
      ├─────────> drafts ─> persistence
      ├─────────> migrations
      ├─────────> persistence
@@ -54,7 +55,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | `render_plan` | `animation`, `evaluated_scene` |
 | `render_process` | `render_plan` |
 | `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process` |
-| `store` | `assets`, `drafts`, `fonts`, `migrations`, `persistence`, `timeline`, `validation` |
+| `store` | `evaluated_scene`, `assets`, `drafts`, `fonts`, `migrations`, `persistence`, `timeline`, `validation` |
 | `timeline` | `animation`, `markers`, `validation` |
 | `validation` | `markers` |
 | `vector` | none |
@@ -116,3 +117,5 @@ Scene evaluation calls the shared read-only ordering validator after complexity 
 ### Font ownership (issue #33)
 
 The pure fonts owner validates exact font identity and the pinned text-layout profile and shapes supplied immutable bytes without filesystem, environment or renderer access. Assets owns font discovery, managed copies, integrity and collection. Store coordinates font preparation with edits, drafts and migrations; render_artifact verifies prepared resource bytes and rasterizes already-shaped glyph outlines. EvaluatedScene carries the canonical glyph result. These edges implement the approved content-addressed-font-shaping change; headless only passes immutable font configuration. The schema-19/v2 layout transition supersedes the original no-contract-change statement for this feature only.
+
+Store orchestration calls the renderer-neutral `evaluated_scene::preflight_inherited_project` port on affected final candidates and retained snapshots before resource or durable publication. The port shares scene projection and derived clock/geometry budgets, returns before generated-copy materialization, and performs no backend or filesystem work. Timeline retains per-operation validation; no validation-to-evaluator dependency is introduced.

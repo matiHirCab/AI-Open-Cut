@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 25,
+  "projectSchemaVersion": 26,
   "limits": {
     "maxChannelsPerItem": 64,
     "maxKeyframesPerChannel": 1000,
@@ -89,5 +89,6 @@
   "mcpTool": "timeline_set_animation_channels",
   "capability": "typed_animation_channels_v1",
   "curveCapability": "deterministic_animation_curves_v1",
-  "loopCapability": "animation_loops_v1"
+  "loopCapability": "animation_loops_v1",
+  "parentTargets": ["group", "component_instance"]
 }

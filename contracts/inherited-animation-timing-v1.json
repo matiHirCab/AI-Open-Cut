@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "contract": "inherited-animation-timing-v1",
+  "projectSchemaVersion": 26,
+  "capability": "inherited_animation_timing_v1",
+  "fields": {
+    "group.staggerMs": {"optional": true, "default": 0, "integer": true, "minimum": 0, "maximum": 60000},
+    "component_instance.staggerMs": {"optional": true, "default": 0, "integer": true, "minimum": 0, "maximum": 60000},
+    "repeater.timeOffsetMs": {"optional": true, "default": 0, "integer": true, "minimum": -60000, "maximum": 60000}
+  },
+  "parentChannels": [
+    "transform.position_x",
+    "transform.position_y",
+    "transform.scale_x",
+    "transform.scale_y",
+    "transform.opacity"
+  ],
+  "ordering": "canonical_track_zIndex_stackOrder_id_including_hidden_visual_children",
+  "staggerClock": "child_time_equals_parent_time_minus_rank_times_staggerMs",
+  "copyClock": "copy_time_equals_parent_time_minus_one_based_index_times_timeOffsetMs",
+  "compatibility": "additive_fields_absent_means_zero_older_schema_rejected_by_future_version_rule"
+}

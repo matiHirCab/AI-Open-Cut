@@ -16,8 +16,9 @@
     "styled_text_layers_v1",
     "advanced_text_layout_v1",
     "typed_animation_channels_v1",
-    "deterministic_animation_curves_v1"
-    ,"animation_loops_v1"
+    "deterministic_animation_curves_v1",
+    "animation_loops_v1",
+    "inherited_animation_timing_v1"
   ],
   "prompts": [
     "add_narration",
@@ -109,6 +110,11 @@
           },
           "slotValues": {
             "$ref": "#/$defs/AddComponentInstanceInputPropertiesSlotValues"
+          },
+          "staggerMs": {
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
           },
           "startMs": {
             "maximum": 9007199254740991,
@@ -377,6 +383,11 @@
             "maxLength": 128,
             "minLength": 1,
             "type": "string"
+          },
+          "staggerMs": {
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
           },
           "startMs": {
             "maximum": 9007199254740991,
@@ -1168,6 +1179,11 @@
           },
           "slotValues": {
             "$ref": "#/$defs/AddComponentInstanceInputPropertiesSlotValues"
+          },
+          "staggerMs": {
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
           },
           "startMs": {
             "maximum": 9007199254740991,
@@ -2200,7 +2216,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 25,
+            "const": 26,
             "type": "number"
           },
           "protocolVersion": {
@@ -5477,6 +5493,11 @@
                 ],
                 "type": "object"
               },
+              "timeOffsetMs": {
+                "maximum": 60000,
+                "minimum": -60000,
+                "type": "integer"
+              },
               "transformOffset": {
                 "additionalProperties": false,
                 "properties": {
@@ -8153,6 +8174,11 @@
                 ],
                 "type": "object"
               },
+              "timeOffsetMs": {
+                "maximum": 60000,
+                "minimum": -60000,
+                "type": "integer"
+              },
               "transformOffset": {
                 "additionalProperties": false,
                 "properties": {
@@ -8224,6 +8250,11 @@
               "transformOffset"
             ],
             "type": "object"
+          },
+          "staggerMs": {
+            "maximum": 60000,
+            "minimum": 0,
+            "type": "integer"
           },
           "stroke": {
             "$ref": "#/$defs/ShapePropertiesStroke"
@@ -13140,6 +13171,11 @@
               "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
               "type": "string"
             },
+            "staggerMs": {
+              "maximum": 60000,
+              "minimum": 0,
+              "type": "integer"
+            },
             "startMs": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -13648,6 +13684,11 @@
                     "scope"
                   ],
                   "type": "object"
+                },
+                "timeOffsetMs": {
+                  "maximum": 60000,
+                  "minimum": -60000,
+                  "type": "integer"
                 },
                 "transformOffset": {
                   "additionalProperties": false,
@@ -14905,6 +14946,11 @@
               "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
               "type": "string"
             },
+            "staggerMs": {
+              "maximum": 60000,
+              "minimum": 0,
+              "type": "integer"
+            },
             "startMs": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -15413,6 +15459,11 @@
                     "scope"
                   ],
                   "type": "object"
+                },
+                "timeOffsetMs": {
+                  "maximum": 60000,
+                  "minimum": -60000,
+                  "type": "integer"
                 },
                 "transformOffset": {
                   "additionalProperties": false,
@@ -17598,6 +17649,11 @@
             ],
             "type": "object"
           },
+          "timeOffsetMs": {
+            "maximum": 60000,
+            "minimum": -60000,
+            "type": "integer"
+          },
           "transformOffset": {
             "additionalProperties": false,
             "properties": {
@@ -17669,6 +17725,11 @@
           "transformOffset"
         ],
         "type": "object"
+      },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
       },
       "stroke": {
         "$ref": "#/$defs/ShapePropertiesStroke"
@@ -18247,6 +18308,11 @@
         "minimum": 0,
         "type": "integer"
       },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
+      },
       "startMs": {
         "maximum": 9007199254740991,
         "minimum": 0,
@@ -18793,6 +18859,11 @@
       "stackOrder": {
         "default": 0,
         "maximum": 4294967295,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "staggerMs": {
+        "maximum": 60000,
         "minimum": 0,
         "type": "integer"
       },
@@ -21889,6 +21960,11 @@
         "minimum": 0,
         "type": "integer"
       },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
+      },
       "startMs": {
         "maximum": 9007199254740991,
         "minimum": 0,
@@ -22138,6 +22214,11 @@
       },
       "slotValues": {
         "$ref": "#/$defs/AddComponentInstanceInputPropertiesSlotValues"
+      },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
       },
       "startMs": {
         "maximum": 9007199254740991,
@@ -22724,6 +22805,11 @@
       },
       "slotValues": {
         "$ref": "#/$defs/AddComponentInstanceInputPropertiesSlotValues"
+      },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
       },
       "startMs": {
         "maximum": 9007199254740991,
@@ -23433,6 +23519,11 @@
             ],
             "type": "object"
           },
+          "timeOffsetMs": {
+            "maximum": 60000,
+            "minimum": -60000,
+            "type": "integer"
+          },
           "transformOffset": {
             "additionalProperties": false,
             "properties": {
@@ -23504,6 +23595,11 @@
           "transformOffset"
         ],
         "type": "object"
+      },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
       },
       "stroke": {
         "$ref": "#/$defs/ShapePropertiesStroke"
@@ -24176,7 +24272,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 25,
+        "const": 26,
         "type": "number"
       },
       "settings": {
@@ -25230,6 +25326,11 @@
         "minimum": 0,
         "type": "integer"
       },
+      "staggerMs": {
+        "maximum": 60000,
+        "minimum": 0,
+        "type": "integer"
+      },
       "startMs": {
         "maximum": 9007199254740991,
         "minimum": 0,
@@ -25766,6 +25867,11 @@
       },
       "stackOrder": {
         "maximum": 4294967295,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "staggerMs": {
+        "maximum": 60000,
         "minimum": 0,
         "type": "integer"
       },
@@ -29497,6 +29603,11 @@
               "scope"
             ],
             "type": "object"
+          },
+          "timeOffsetMs": {
+            "maximum": 60000,
+            "minimum": -60000,
+            "type": "integer"
           },
           "transformOffset": {
             "additionalProperties": false,

@@ -148,6 +148,7 @@ impl EffectiveAudio<'_> {
 pub(crate) fn validate_descriptor(value: &RepeaterDescriptor) -> Result<(), CoreError> {
     if value.copies == 0
         || value.copies > MAX_REPEATER_COPIES
+        || !(-60_000..=60_000).contains(&value.time_offset_ms)
         || !value.opacity_offset.is_finite()
         || !(-1.0..=1.0).contains(&value.opacity_offset)
         || value.source.scope.is_empty()

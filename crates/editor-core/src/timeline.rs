@@ -367,6 +367,7 @@ fn apply_operation_inner(
             trim_start_ms,
             duration_ms,
             time_scale,
+            stagger_ms,
             slot_values,
             transform,
             transform2d,
@@ -374,6 +375,12 @@ fn apply_operation_inner(
             z_index,
             parent,
         } => {
+            if stagger_ms > 60_000 {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "staggerMs exceeds bounds",
+                ));
+            }
             if transform2d.is_some() && transform != crate::Transform::default() {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
@@ -401,6 +408,7 @@ fn apply_operation_inner(
             track.items.push(TimelineItem::ComponentInstance(
                 crate::ComponentInstanceItem {
                     id: id.clone(),
+                    stagger_ms,
                     component_id,
                     start_ms,
                     trim_start_ms,
@@ -468,8 +476,15 @@ fn apply_operation_inner(
             trim_start_ms,
             duration_ms,
             time_scale,
+            stagger_ms,
             slot_values,
         } => {
+            if stagger_ms.is_some_and(|value| value > 60_000) {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "staggerMs exceeds bounds",
+                ));
+            }
             let TimelineItem::ComponentInstance(instance) =
                 find_editable_item_mut(project, &item_id)?
             else {
@@ -486,6 +501,9 @@ fn apply_operation_inner(
             instance.trim_start_ms = trim_start_ms;
             instance.duration_ms = duration_ms;
             instance.time_scale = time_scale;
+            if let Some(value) = stagger_ms {
+                instance.stagger_ms = value;
+            }
             if let Some(values) = slot_values {
                 instance.slot_values = values;
             }
@@ -671,10 +689,17 @@ fn apply_operation_inner(
             track_id,
             start_ms,
             duration_ms,
+            stagger_ms,
             transform2d,
             parent,
         } => {
             validate_duration(duration_ms)?;
+            if stagger_ms > 60_000 {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "staggerMs exceeds bounds",
+                ));
+            }
             let transform2d = transform2d.unwrap_or_default();
             transform2d.validate()?;
             let track = editable_track_mut(project, &track_id)?;
@@ -687,6 +712,7 @@ fn apply_operation_inner(
             let id = Uuid::new_v4().to_string();
             track.items.push(TimelineItem::Group(crate::GroupItem {
                 id: id.clone(),
+                stagger_ms,
                 start_ms,
                 duration_ms,
                 visual_properties: crate::VisualProperties {
@@ -1039,6 +1065,7 @@ fn apply_operation_inner(
             item_id,
             grid,
             repeater,
+            stagger_ms,
             geometry,
             fill,
             stroke,
@@ -1070,6 +1097,24 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(value) = stagger_ms {
+                if value > 60_000 {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "staggerMs exceeds bounds",
+                    ));
+                }
+                match item {
+                    TimelineItem::Group(group) => group.stagger_ms = value,
+                    TimelineItem::ComponentInstance(instance) => instance.stagger_ms = value,
+                    _ => {
+                        return Err(CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "staggerMs requires a group or component instance",
+                        ));
+                    }
+                }
+            }
             if let Some(document) = document {
                 let TimelineItem::Text(text_item) = item else {
                     return Err(CoreError::new(

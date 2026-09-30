@@ -404,7 +404,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(25).optional(),
+    projectSchemaVersion: z.literal(26).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1070,6 +1070,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       id,
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
+      staggerMs: z.int().min(0).max(60_000).optional(),
       startMs: milliseconds,
       startTime: markerTimeExpressionSchema.optional(),
       transform: transformSchema,
@@ -1256,6 +1257,7 @@ export const componentInstanceSchema = z
     parent: parentReferenceSchema.nullable().optional(),
     slotValues: slotValuesSchema,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
+    staggerMs: z.int().min(0).max(60_000).optional(),
     startMs: milliseconds,
     startTime: markerTimeExpressionSchema.optional(),
     timeScale: finite.positive(),
@@ -1274,6 +1276,7 @@ export const instanceTimingSchema = z
   .object({
     componentId: id,
     durationMs: positiveMilliseconds,
+    staggerMs: z.int().min(0).max(60_000).optional(),
     startMs: milliseconds,
     timeScale: finite.positive(),
     trimStartMs: milliseconds,
@@ -1482,7 +1485,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(25),
+        schemaVersion: z.literal(26),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1652,6 +1655,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
         .string()
         .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
         .optional(),
+      staggerMs: z.int().min(0).max(60_000).optional(),
       startMs: milliseconds,
       trackId: id,
       transform2d: transform2dSchema.nullable().optional(),
@@ -1785,6 +1789,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       itemId: id,
       operation: z.literal("update_item"),
       repeater: repeaterEditDescriptorSchema.optional(),
+      staggerMs: z.int().min(0).max(60_000).optional(),
       stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),
@@ -1942,6 +1947,7 @@ export const schemas = {
     .extend({
       durationMs: positiveMilliseconds,
       parent: parentReferenceSchema.nullable().optional(),
+      staggerMs: z.int().min(0).max(60_000).optional(),
       startMs: milliseconds,
       trackId: id,
       transform2d: transform2dSchema.nullable().optional(),
@@ -2280,6 +2286,7 @@ export const schemas = {
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       repeater: repeaterDescriptorSchema.optional(),
+      staggerMs: z.int().min(0).max(60_000).optional(),
       stroke: strokeSchema.nullable().optional(),
       style: textStyleSchema.optional(),
       text: z.string().min(1).max(4096).optional(),

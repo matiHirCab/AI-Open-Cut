@@ -170,4 +170,118 @@ export const verifyGroupWorkflow = async (client: Client, call: Call) => {
     tools.tools.find((tool) => tool.name === "group_ungroup")?.annotations
       ?.destructiveHint
   ).toBe(true);
+  const timing = await edit("timeline_batch_edit", 10, {
+    operations: [
+      {
+        durationMs: 1000,
+        operation: "add_group",
+        resultAlias: "timed",
+        staggerMs: 125,
+        startMs: 0,
+        trackId,
+      },
+      { itemId: "@timed", operation: "update_item", transform2d: null },
+      {
+        animationChannels: [
+          {
+            keyframes: [
+              {
+                curve: "linear",
+                timeMs: 0,
+                value: { type: "scalar", value: 1 },
+              },
+              {
+                curve: "hold",
+                timeMs: 500,
+                value: { type: "scalar", value: 0.5 },
+              },
+            ],
+            property: "transform.opacity",
+          },
+        ],
+        itemId: "@timed",
+        operation: "set_animation_channels",
+      },
+    ],
+  });
+  expect(timing.revision).toBe(11);
+  const timedState = await read();
+  expect(
+    timedState.project.tracks[1]?.items.find(
+      (item) => item.id === timing.aliases.timed
+    )
+  ).toMatchObject({
+    animationChannels: [{ property: "transform.opacity" }],
+    staggerMs: 125,
+  });
+  const timingFailure = await client.callTool({
+    arguments: {
+      expectedRevision: 11,
+      operations: [
+        {
+          itemId: timing.aliases.timed,
+          operation: "update_item",
+          staggerMs: 250,
+        },
+        { itemId: "missing", operation: "update_item", staggerMs: 5 },
+      ],
+      projectId,
+    },
+    name: "timeline_batch_edit",
+  });
+  expect(timingFailure.structuredContent).toMatchObject({
+    error: { code: "ITEM_NOT_FOUND" },
+  });
+  expect(await read()).toEqual(timedState);
+  const boundsFailure = await client.callTool({
+    arguments: {
+      expectedRevision: 11,
+      operations: [
+        {
+          color: "#ff0000",
+          durationMs: 1000,
+          height: 10,
+          operation: "add_rectangle",
+          resultAlias: "wide",
+          startMs: 0,
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          width: 500,
+        },
+        {
+          itemId: "@wide",
+          operation: "item_set_parent",
+          parent: { id: timing.aliases.timed, scope: "root" },
+        },
+        {
+          animationChannels: [
+            {
+              keyframes: [
+                {
+                  curve: "linear",
+                  timeMs: 0,
+                  value: { type: "scalar", value: 1 },
+                },
+                {
+                  curve: "hold",
+                  timeMs: 900,
+                  value: { type: "scalar", value: 100 },
+                },
+              ],
+              property: "transform.scale_x",
+            },
+          ],
+          itemId: timing.aliases.timed,
+          operation: "set_animation_channels",
+        },
+      ],
+      projectId,
+    },
+    name: "timeline_batch_edit",
+  });
+  expect(boundsFailure.structuredContent).toMatchObject({
+    error: { code: "INVALID_ARGUMENT", retryable: false },
+  });
+  expect(await read()).toEqual(timedState);
+  expect(status.capabilities).toContain("inherited_animation_timing_v1");
 };
