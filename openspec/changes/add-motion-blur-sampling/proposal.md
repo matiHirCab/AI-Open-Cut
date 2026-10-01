@@ -24,3 +24,11 @@ Canonical owner: crates/editor-core model, validation, mutation, migration, Eval
 ## Non-goals
 
 No new animation channels, shutter curves, stochastic jitter, audio processing, group flattening, resources, FFmpeg expressions, network access or UI redesign. PR131 is an unmerged dependency; never merge or rewrite it. Do not publish this branch without separate user approval.
+
+## Bounded compatibility correction
+
+Required zero-shutter compatibility exposes nondeterministic FFmpeg6 inherited
+affine register evaluation on the instantaneous fallback. Extend the existing
+private expression-thread guard to inherited affine graphs that actually emit
+register expressions; preserve ordinary root graphs, sampled preparation, audio,
+all independent expectations and public/persisted semantics.

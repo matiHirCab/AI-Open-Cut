@@ -18,6 +18,8 @@
 - [x] 3.3 Reuse issue43 local crop/clip/effects/affine pipeline; average weighted premultiplied canvas rasters before stacking and preserve cache dependencies.
 - [x] 3.4 Bound cumulative sample-weighted pixel, geometry and effect work before persistence/artifact I/O; test cleanup and encoder failures.
 
+- [ ] 3.5 Extend the existing deterministic expression guard only to inherited instantaneous affine register graphs; retain ordinary/sampled selection and prove exact disabled compatibility with real tools.
+
 ## 4. Governed consumers
 
 - [x] 4.0 Execute canonical null/missing/wrong-type records through actual headless standalone and batch errors with byte rollback evidence; verify null MCP inputs preserve state.
@@ -27,7 +29,7 @@
 
 ## 5. Conformance and final review
 
-- [ ] 5.0 Recheck terminal corrected PR131 CI, preserve original issue44 commits and merge the verified corrected head locally; reconcile sampled composition and exact-frame comparisons without threshold or numeric-oracle changes.
+- [x] 5.0 Recheck terminal corrected PR131 CI, preserve original issue44 commits and merge the verified corrected head locally; reconcile sampled composition and exact-frame comparisons without threshold or numeric-oracle changes.
 
 - [ ] 5.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace.
 - [ ] 5.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run applicable documented hermetic Python worker runner.

@@ -13,3 +13,13 @@ stronger existing null/malformed/limit failure evidence. It introduces no new
 feature or contract meaning. Mandatory final checks remain pending. Original
 issue44 commits are preserved; publication and designated contract-owner
 implementation review are still separate and unapproved.
+
+2026-10-01 deterministic fallback amendment: Reviewed the complete bounded
+proposal/design/delta/tasks amendment and its native diagnostic evidence. Strict
+change validation passes. Approved under the user's issue44 OpenSpec authority:
+extend the existing private expression-thread guard to the inherited instantaneous
+affine branch, and include the unchanged final YUV420 conversion in the independent
+analytic oracle. All numeric oracles, tolerances, CI budgets and ordinary/sampled
+thread selection remain unchanged. Required verification must use the unmodified
+real executable. This approval does not authorize a further PR131 update,
+publication of issue44, or designated-owner implementation approval.

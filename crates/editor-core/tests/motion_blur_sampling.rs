@@ -1,6 +1,9 @@
 use opencut_editor_core::MotionBlur;
 use serde_json::Value;
 
+// Select exactly the requested frame on backends that evaluate filters ahead.
+const SINGLE_FRAME_SSIM: &str = "[0:v]trim=end_frame=1,setpts=PTS-STARTPTS[reference];[1:v]trim=end_frame=1,setpts=PTS-STARTPTS[actual];[reference][actual]ssim";
+
 fn contract() -> Value {
     serde_json::from_str(include_str!(
         "../../../contracts/motion-blur-sampling-v1.json"
@@ -419,8 +422,8 @@ fn native_inherited_shutter_matches_independent_pixels_and_range_export() {
     );
 
     // Independent analytic midpoint/parent-transform oracle. The final backend
-    // retains legacy YUV420 compositing, so compare after that fixed composition,
-    // rather than assuming the complete opaque frame uses linear-light blending.
+    // uses RGBA stacking and final YUV420 conversion. Apply that fixed output
+    // selection to independently computed alpha before comparing decoded RGB.
     let coverage = |local: f64| {
         if (-0.5..0.5).contains(&local) {
             local + 0.5
@@ -455,7 +458,7 @@ fn native_inherited_shutter_matches_independent_pixels_and_range_export() {
     let oracle = root.path().join("oracle.pam");
     std::fs::write(&oracle, pam).unwrap();
     let reference=std::process::Command::new(&ffmpeg).args(["-v","error","-f","lavfi","-i","color=c=black:s=64x64:r=10:d=1","-i"]).arg(&oracle)
-        .args(["-filter_complex","[0:v]format=yuv420p[base];[1:v]format=rgba[leaf];[base][leaf]overlay=x=0:y=0:eof_action=pass[out]","-map","[out]","-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","pipe:1"]).output().unwrap();
+        .args(["-filter_complex","[0:v]format=rgba[base];[1:v]format=rgba[leaf];[base][leaf]overlay=format=auto:x=0:y=0:eof_action=pass,format=yuv420p[out]","-map","[out]","-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","pipe:1"]).output().unwrap();
     assert!(
         reference.status.success(),
         "{}",
@@ -611,14 +614,31 @@ fn native_inherited_shutter_matches_independent_pixels_and_range_export() {
     }
     for (path, time) in [(dir.join(range.relative_path), 0.1), (export, 0.5)] {
         let comparison = std::process::Command::new(&ffmpeg)
+            .current_dir(root.path())
             .args(["-v", "info", "-i"])
             .arg(dir.join(&frame.relative_path))
             .args(["-ss", &format!("{time:.3}"), "-i"])
             .arg(path)
-            .args(["-lavfi", "ssim", "-frames:v", "1", "-f", "null", "-"])
+            .args([
+                "-lavfi",
+                &format!("{SINGLE_FRAME_SSIM}=stats_file=single-frame-ssim.txt"),
+                "-frames:v",
+                "1",
+                "-f",
+                "null",
+                "-",
+            ])
             .output()
             .unwrap();
         assert!(comparison.status.success());
+        assert_eq!(
+            std::fs::read_to_string(root.path().join("single-frame-ssim.txt"))
+                .unwrap()
+                .lines()
+                .count(),
+            1,
+            "comparison evaluated later animation frames"
+        );
         let log = String::from_utf8_lossy(&comparison.stderr);
         let score = log
             .split("All:")
@@ -742,6 +762,7 @@ fn native_shutter_nested_repeated_staggered_loop_and_effect_samples_share_range(
         let frame = renderer.render_preview(&project, &dir, time).unwrap();
         frames.push(std::fs::read(dir.join(&frame.relative_path)).unwrap());
         let comparison = std::process::Command::new(&ffmpeg)
+            .current_dir(_root.path())
             .args(["-v", "info", "-i"])
             .arg(dir.join(frame.relative_path))
             .args(["-ss", &format!("{:.3}", (time - 200) as f64 / 1000.0), "-i"])
@@ -750,7 +771,7 @@ fn native_shutter_nested_repeated_staggered_loop_and_effect_samples_share_range(
                 "-frames:v",
                 "1",
                 "-lavfi",
-                "ssim",
+                &format!("{SINGLE_FRAME_SSIM}=stats_file=single-frame-ssim.txt"),
                 "-f",
                 "null",
                 if cfg!(windows) { "NUL" } else { "/dev/null" },
@@ -761,6 +782,14 @@ fn native_shutter_nested_repeated_staggered_loop_and_effect_samples_share_range(
             comparison.status.success(),
             "{}",
             String::from_utf8_lossy(&comparison.stderr)
+        );
+        assert_eq!(
+            std::fs::read_to_string(_root.path().join("single-frame-ssim.txt"))
+                .unwrap()
+                .lines()
+                .count(),
+            1,
+            "comparison evaluated later animation frames"
         );
         let log = String::from_utf8_lossy(&comparison.stderr);
         let ssim = log

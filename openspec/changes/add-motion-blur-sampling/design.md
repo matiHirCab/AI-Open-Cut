@@ -1,6 +1,6 @@
 ## Context
 
-Issue44 is stacked on PR131, open and unmerged at e1010bb97174d44a5d19c61a90514bf2336845ca. Main is 08a543f62a471b704715f2fa6ae32ed93c94f517. Do not merge PR131 or alter its branch. Issue43 already owns continuous visual certification, inherited affine sampling, linear-premultiplied raster effects and bounded lossless sampled preparation in editor-core.
+Issue44 is stacked on PR131, open and unmerged at e1010bb97174d44a5d19c61a90514bf2336845ca. Main is 08a543f62a471b704715f2fa6ae32ed93c94f517. Do not merge PR131 or publish this issue44 branch. Issue43 already owns continuous visual certification, inherited affine sampling, linear-premultiplied raster effects and bounded lossless sampled preparation in editor-core.
 
 ## Goals / Non-Goals
 
@@ -33,8 +33,9 @@ None about intended semantics. Environment/verification limitations must be reco
 ## Reconciliation verification follow-up (2026-10-01)
 
 PR131's separately approved corrective update is published at
-81a6ec682bd65a3b31d84b4d2aee7eef276c0bb4. Its exact-head CI is still running;
-wait for terminal results before merging that head into this local branch. Preserve
+81a6ec682bd65a3b31d84b4d2aee7eef276c0bb4. Its exact-head CI is terminal success (run36918625589, all11 jobs).
+The aggregate confirms policy attestation and49.03min within120min. This local
+branch merges that verified head, preserving every original issue44 commit. Preserve
 the three original issue44 commits and do not publish issue44 or merge PR131.
 
 Retain enabled-shutter activity outside the center sample while adopting the
@@ -55,3 +56,25 @@ Also exercise null standalone/batch MCP inputs and unchanged project state.
 This is failure-path evidence for existing requirements, with no new behavior,
 contract meaning, tolerance, golden or CI-policy change. Re-run final mandatory
 checks after reconciliation; external designated-owner review remains required.
+
+## Deterministic disabled-exposure fallback
+
+Native captures of omitted and zero-angle settings have byte-identical graphs and
+inputs but differ in48 RGB pixels. The inherited affine coordinates use st/ld
+registers4..7; FFmpeg6 blend slices share the expression register state. Diagnostic
+single-thread execution passes the unchanged exact compatibility checks. Extend
+the existing private serial_bezier_filters command guard when a visual layer has
+animated ancestors, a finalized affine, and no sampled input. Those facts identify
+the legacy branch that emits register-based inherited coordinates. Existing
+Bézier visual/audio conditions remain unchanged. Plain root and sampled graphs
+retain their prior selection. No upstream branch update is part of this correction.
+
+The independent analytic oracle must explicitly include canonical final YUV420
+conversion after RGBA stacking, matching the renderer's unchanged output plan.
+The diagnostic reaches its MSE assertion once compatibility is deterministic;
+missing that final conversion produces MSE1.7252604166666667. Add the documented
+conversion, keeping every midpoint, coverage value and MSE<=1.0 expectation.
+
+Verification uses the unmodified actual FFmpeg executable, repeated exact disabled
+controls, all inherited/transform fixtures, native goldens and complete PR rules
+matrices. Record performance rather than changing concurrency or CI budgets.

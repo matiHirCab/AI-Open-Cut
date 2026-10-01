@@ -11,6 +11,10 @@ Core MUST accept optional motionBlur on eligible visual leaf items through exist
 - **WHEN** a setting is nonfinite, out of bounds, unknown, null, unsupported, references a missing item, or is submitted with a stale revision, including after valid earlier batch operations
 - **THEN** the existing stable error is returned without changes to revision, history, resources or authoritative bytes
 
+#### Scenario: Deterministic disabled inherited fallback
+- **WHEN** omitted, zero-angle or single-sample settings repeatedly render a leaf under inherited animated affine transforms on supported backends
+- **THEN** the instantaneous fallback is deterministic and the disabled controls retain identical decoded pixels without changing timing, audio, thresholds or reference fixtures
+
 ### Requirement: Canonical deterministic shutter interval
 Core MUST calculate midpoint samples on a centered exposure of width shutterAngleDeg / 360 times 1000 / project fps milliseconds. For N enabled samples, sample i MUST use root time t plus width times ((i+0.5)/N - 0.5), in ascending i order. Root times MUST clamp to the project interval [0,durationMs) before evaluation; integer-root sampling MUST floor once after interval construction and retain all inherited fractional mappings thereafter. Disabled settings MUST sample exactly t. Sample computation MUST remain deterministic, use no seed or random jitter, and reject unsafe arithmetic. Every sample MUST evaluate visibility, clipping, transitions, animated crop, paint, ordered effects, local transform, all parent/group/component transforms and opacity, loops, stagger and signed repeaters on their canonical clocks.
 
