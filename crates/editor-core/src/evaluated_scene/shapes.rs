@@ -725,7 +725,15 @@ pub(super) fn affine(
     shape: &EvaluatedShape,
     output_canvas: (u32, u32),
 ) -> Result<EvaluatedAffine, CoreError> {
-    affine_with_ancestors(layer, shape, output_canvas, layer.ancestors)
+    affine_with_ancestors(layer, shape, output_canvas, layer.ancestors, false)
+}
+
+pub(super) fn affine_in_legacy_basis(
+    layer: &EvaluatedVisualLayer,
+    shape: &EvaluatedShape,
+    output_canvas: (u32, u32),
+) -> Result<EvaluatedAffine, CoreError> {
+    affine_with_ancestors(layer, shape, output_canvas, layer.ancestors, true)
 }
 
 fn affine_with_ancestors(
@@ -733,6 +741,7 @@ fn affine_with_ancestors(
     shape: &EvaluatedShape,
     output_canvas: (u32, u32),
     ancestors: Option<EvaluatedAncestors>,
+    legacy_basis: bool,
 ) -> Result<EvaluatedAffine, CoreError> {
     // Local units belong to the component; sampling bounds belong to the output.
     let local_canvas = layer.instance.map_or(output_canvas, |i| i.canvas);
@@ -745,8 +754,16 @@ fn affine_with_ancestors(
                 extent
             }
         };
-        let ax = shape.bounds[0] + t.anchor.x * extent(0);
-        let ay = shape.bounds[1] + t.anchor.y * extent(1);
+        // Derived legacy extensions retain the original local zero as anchor.
+        // Keep this in affine algebra, outside authored position/anchor limits.
+        let (ax, ay) = if legacy_basis {
+            (0.0, 0.0)
+        } else {
+            (
+                shape.bounds[0] + t.anchor.x * extent(0),
+                shape.bounds[1] + t.anchor.y * extent(1),
+            )
+        };
         t.anchor = crate::TransformAnchor { x: 0.0, y: 0.0 };
         let (m, _) = transform_matrices(t, (1, 1), local_canvas)?;
         (
@@ -1152,6 +1169,11 @@ fn measure_layer_shape(
         }
     }
     scale *= layer.parent_scale_bound()?;
+    if let Some(maximum) =
+        super::extended_certification::transform_magnification(layer, output_canvas)?
+    {
+        scale = scale.max(maximum);
+    }
     let value = if let Some(grid) = &shape.grid_descriptor {
         EvaluatedShape::grid_with_budget(grid.clone(), scale, segment_budget)?
     } else if let Some(document) = &shape.svg_document {
@@ -1180,7 +1202,7 @@ pub(super) fn preflight_shape_layers<'a>(
             continue;
         };
         budget.add(&value)?;
-        affine_with_ancestors(layer, &value, output_canvas, ancestors)?;
+        affine_with_ancestors(layer, &value, output_canvas, ancestors, false)?;
     }
     Ok(())
 }

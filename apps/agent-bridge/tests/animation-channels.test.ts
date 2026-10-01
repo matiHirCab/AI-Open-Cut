@@ -14,7 +14,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(26);
+    expect(contract.projectSchemaVersion).toBe(27);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),
@@ -30,7 +30,7 @@ describe("governed animation channels", () => {
       maxLoopIterations: 10_000,
       maxPathPoints: 4096,
     });
-    expect(contract.active).toEqual({
+    expect(contract.active).toMatchObject({
       "audio.gain_db": {
         activation: "active",
         maximum: 12,

@@ -1,0 +1,35 @@
+# Extended visual animation (schema 27)
+
+`extended_visual_animation_v1` advertises the supported issue-43 subset. `contracts/extended-visual-animation-v1.json` owns limits and examples; `animation-channels-v1.json` owns activation. Existing edit names, batches, aliases, drafts and revision errors remain valid. `update_item` accepts optional `crop` and ordered `effects`; omission preserves values, explicit null is rejected, and an empty effects array clears the stack. Clearing channels restores static values.
+
+| Property | Value and target |
+| --- | --- |
+| `transform.rotation_deg` | Targetless scalar −36000…36000 degrees, absolute interpolation including multiple turns. With `transform2d`, replaces only rotation. |
+| `media.crop_x`, `media.crop_y` | Targetless scalar 0…1 on visual media. |
+| `media.crop_width`, `media.crop_height` | Targetless positive scalar ≤1 on visual media. |
+| `graphic.path_points` | `{type:"path_points",points:[{x,y},…]}` on structured paths; target `graphic_geometry`. |
+| `graphic.path_trim` | Scalar 0…1 on structured paths; target `graphic_geometry`. |
+| `graphic.gradient_stops` | `{type:"gradient_stops",stops:[{offset,color:[r,g,b,a]},…]}` on linear/radial paint; target `graphic_fill` or `graphic_stroke`. |
+| `effect.blur_radius`, `effect.glow_radius` | Scalar 0…128 local pixels on matching blur/glow effects. |
+| `effect.tint_color` | `{type:"rgba",r,g,b,a}` components 0…1 on color tint. |
+| `effect.vignette_amount` | Scalar 0…1 on vignette. |
+
+Graphic/effect targets are closed `{kind,scope,id}` records. Scope is `root` or `component:<definition-id>`; graphic IDs name the owning shape, effect IDs name an effect in that item's stack. Identity is `(property,target)`. Missing IDs return `ITEM_NOT_FOUND`; incompatible kinds, scopes, topology and bounds return non-retryable `INVALID_ARGUMENT`. Parent references retain their existing shape. Effects apply to visual media, text, solids, rectangles, shapes, SVG and grids, at most 16 effects with unique nonempty IDs of at most 128 UTF-8 bytes. Groups, instances, repeaters, captions and audio cannot own effect stacks.
+
+Crop defaults to `{x:0,y:0,width:1,height:1}` in normalized oriented-source coordinates. Dimensions are positive, `x+width ≤1` and `y+height ≤1`; destination anchor and fit are preserved. Paths retain command topology, fill rule and closure. Point order is move/line endpoints, quadratic control then endpoint, cubic two controls then endpoint, and none for close; at most 4096 points with coordinates ±1000000. Trim reveals each flattened subpath prefix before affine transforms; partial trim suppresses fill and preserves stroke. Gradient arrays retain authored count (2…32), endpoints 0 and 1 and strictly increasing offsets.
+
+Empty channels preserve static fallback, consistent with existing channels. All channels share hold, linear, Bézier, spring and loops, including component rates, stagger and signed repeater offsets. Exact timestamps and holds preserve stored values. Coordinates interpolate componentwise; colors interpolate premultiplied linear light, with zero RGB at intermediate zero alpha. Spring overshoot clamps bounded components (intermediate crop dimensions floor at 0.000001); invalid coupled crop bounds or gradient ordering are rejected without repair.
+
+Root sampling selects segments, endpoints, holds and loop seams using integer timestamps, then converts relative differences for interpolation. This preserves adjacent milliseconds beyond JavaScript's exact-integer range; inherited fractional clocks retain fractional sampling. Continuous certification includes scale envelopes for effects-only items and retained or expanded content without requiring rotation. Crop correlation is used only when interpolation clamps cannot invalidate its bound, including the positive crop-dimension floor.
+
+Extended rendering preserves the original coordinate basis of legacy-transform paths, including nonzero or negative origins. During schema adoption, legacy-only version-2 drafts with a matching retained base are validated before publication; valid stale drafts retain their revision-conflict behavior. When bounded history evicts a draft's base, core keeps project reads, edits and discard available without replaying the draft against unrelated current state; apply and preview retain their revision conflict. Structural, catalog and managed-resource checks still apply.
+
+Extended occurrences use their inherited root visibility windows and leaf clocks for transitions, including identity effects, scaled/nested components and repeated content. Transition gain is applied once during sampled preparation. Encoder failures use the existing safe diagnostic policy: typed stage/exit status, sanitized UTF-8 excerpts bounded to 4096 bytes, child reaping and temporary cleanup, with existing destinations preserved.
+
+These corrections do not change schema 27, public shapes, error codes, budgets or canonical catalogs. The first correction's evidence is preserved in the [archived correction verification](../openspec/changes/archive/2026-09-30-fix-extended-animation-review-regressions/verification.md); additional lifecycle coverage and its current check status are recorded in the [lifecycle correction verification](../openspec/changes/archive/2026-09-30-fix-extended-animation-lifecycle-regressions/verification.md).
+
+Effects run in declared order on premultiplied linear-light local paint after crop/clip and before local and ancestor transforms. Gaussian blur has sigma=radius, normalized separable kernels, support `ceil(3*radius)`, transparent exterior and zero-radius identity. Glow places blurred alpha colored by intensity and color alpha behind the source. Tint blends straight linear RGB by tint alpha, preserving source alpha. Vignette multiplies RGB by `1 − amount*clamp((u²+v²)/2,0,1)`, where u/v span −1…1 over unstroked local bounds; alpha is preserved. Padding preserves the anchor.
+
+Each expanded sample is limited to 268435456 pixel-pass units (each horizontal/vertical kernel tap counts), alongside existing 4096-layer, 16384-dimension and 16777216-pixel limits. Final edit candidates, retained definitions and drafts share 65536 interval-certification nodes in canonical occurrence order, subdividing left first. Unsafe candidates or unresolved certification at the limit fail before publication; conservative rejection of new work is allowed. Render preflight validates requested samples before destination inspection. Frame, range, draft and export share scene samples; ranges use bounded streaming lossless preparation. Native conformance requires SSIM ≥0.99, decoded PCM RMS error ≤0.0001 and timing differences of at most one frame.
+
+Schema-26 state, undo/redo and drafts migrate atomically under the project lock to schema 27, preserving IDs, provenance and revision. Omitted properties keep identity output; valid reopen does not rewrite files. Premature extended fields/channels and unknown future versions fail closed. Failed edits, batches, drafts and migrations preserve authoritative bytes and resources.

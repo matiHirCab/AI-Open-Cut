@@ -5,9 +5,12 @@
 //! separate path-bearing resource-binding sidecar.
 use std::collections::{HashMap, HashSet};
 
+pub(crate) mod extended_certification;
+pub(crate) mod extended_visual;
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
+pub(crate) mod text_bounds;
 pub(crate) mod text_layout;
 use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
@@ -102,13 +105,15 @@ pub(crate) fn evaluate_project(
 /// Validate inherited retained facts without allocating generated visual copies or
 /// performing resource/backend work. Store calls this after staging the final candidate.
 pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreError> {
+    let extended_nodes = extended_certification::certify_project(project)?;
     let affected = project
         .tracks
         .iter()
         .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|track| &track.items)
         .any(|item| {
-            matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
+            extended_visual::authored(item).is_some()
+                || matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
                 || matches!(item, TimelineItem::Repeater(r) if r.repeater.time_offset_ms != 0)
                 || (matches!(
@@ -122,6 +127,9 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
     crate::markers::validate_project(project)?;
     crate::validation::validate_recursive_graphs(project)?;
     shapes::preflight_svg_documents(project)?;
+    if extended_nodes > 0 {
+        return preflight_extended_scenes(project, None, extended_nodes);
+    }
     evaluate_project_inner(
         project,
         project.settings.width,
@@ -130,6 +138,127 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
         false,
     )
     .map(|_| ())
+}
+
+pub(crate) fn preflight_extended_fonts(
+    project: &Project,
+    faces: &std::collections::BTreeMap<String, Vec<u8>>,
+) -> Result<(), CoreError> {
+    let items = || {
+        project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+    };
+    if !items().any(|i| matches!(i, TimelineItem::Text(_)))
+        || !items().any(|i| extended_visual::authored(i).is_some())
+    {
+        return Ok(());
+    }
+    preflight_extended_scenes(
+        project,
+        Some(faces),
+        extended_certification::certify_project(project)?,
+    )
+}
+
+fn preflight_extended_scenes(
+    project: &Project,
+    faces: Option<&std::collections::BTreeMap<String, Vec<u8>>>,
+    mut nodes: usize,
+) -> Result<(), CoreError> {
+    let virtual_projects = project.components.iter().map(|component| {
+        let mut local = project.clone();
+        local.tracks = component.tracks.clone();
+        local.settings.width = component.width;
+        local.settings.height = component.height;
+        local.markers.clear();
+        for item in local.tracks.iter_mut().flat_map(|t| &mut t.items) {
+            if let Some(parent) = &mut item.visual_properties_mut().parent {
+                parent.scope = "root".to_owned();
+            }
+            for channel in &mut item.visual_properties_mut().animation_channels {
+                if let Some(target) = &mut channel.target {
+                    target.scope = "root".to_owned();
+                }
+            }
+            if let TimelineItem::Repeater(repeater) = item {
+                repeater.repeater.source.scope = "root".to_owned();
+            }
+        }
+        std::borrow::Cow::Owned(local)
+    });
+    let mut budget = text_layout::GlyphBudget::default();
+    for mut context in std::iter::once(std::borrow::Cow::Borrowed(project)).chain(virtual_projects)
+    {
+        // Retained hidden content has the same publication safety obligations.
+        // Visibility is changed only in this detached certification projection.
+        if context
+            .tracks
+            .iter()
+            .chain(context.components.iter().flat_map(|c| &c.tracks))
+            .any(|t| t.hidden || t.items.iter().any(TimelineItem::hidden))
+        {
+            let visible = context.to_mut();
+            for track in visible
+                .tracks
+                .iter_mut()
+                .chain(visible.components.iter_mut().flat_map(|c| &mut c.tracks))
+            {
+                track.hidden = false;
+                for item in &mut track.items {
+                    item.set_hidden(false);
+                }
+            }
+        }
+        let mut evaluated = evaluate_project_inner(
+            &context,
+            context.settings.width,
+            context.settings.height,
+            context.settings.fps,
+            true,
+        )?;
+        shapes::refine_scene(&mut evaluated.scene)?;
+        if let Some(faces) = faces {
+            for layer in &mut evaluated.scene.visual_layers {
+                if !extended_visual::required(layer) {
+                    continue;
+                }
+                let EvaluatedVisualSource::Text(text) = &layer.source else {
+                    continue;
+                };
+                let binding = text
+                    .font_binding
+                    .as_ref()
+                    .ok_or_else(|| invalid("extended text requires pinned font binding"))?;
+                let shaped = if text.style.layout.is_some() {
+                    text_layout::resolve(text, faces, &mut budget)?
+                } else {
+                    let document = crate::RichTextDocument {
+                        runs: text
+                            .rich_runs
+                            .clone()
+                            .ok_or_else(|| invalid("extended text document missing"))?,
+                        spans: text.spans.clone(),
+                    };
+                    crate::fonts::shaping::shape(
+                        &document,
+                        binding,
+                        faces,
+                        text.font_size,
+                        &text.color,
+                        text.style.wrap_width_px,
+                        text.style.line_spacing_px,
+                    )?
+                };
+                let measured = text_bounds::measure(shaped, text, faces)?;
+                layer.source_size = Some((measured.width, measured.height));
+            }
+        }
+        extended_certification::certify_scene(&evaluated.scene, &context, &mut nodes)?;
+    }
+    Ok(())
 }
 
 fn evaluate_project_inner(
@@ -152,7 +281,8 @@ fn evaluate_project_inner(
         .flat_map(|tracks| tracks.iter())
         .flat_map(|track| &track.items)
         .any(|item| {
-            matches!(item, TimelineItem::Repeater(_))
+            extended_visual::authored(item).is_some()
+                || matches!(item, TimelineItem::Repeater(_))
                 || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(instance) if instance.stagger_ms != 0)
                 || (matches!(item, TimelineItem::Group(_) | TimelineItem::ComponentInstance(_))
@@ -1008,6 +1138,9 @@ impl InstanceTraversal<'_> {
                     None
                 } else {
                     Some(EvaluatedAncestorAnimation {
+                        base_transform: transform,
+                        source_canvas,
+                        channels: visual.animation_channels.clone(),
                         clock: EvaluatedInstance {
                             offset: clock.offset - timing.delay_ms as f64,
                             ..clock
@@ -1097,6 +1230,11 @@ impl InstanceTraversal<'_> {
                 item.visual_properties_mut().stack_order = i as u32;
                 if let Some(parent) = &mut item.visual_properties_mut().parent {
                     parent.scope = "root".to_owned();
+                }
+                for channel in &mut item.visual_properties_mut().animation_channels {
+                    if let Some(target) = &mut channel.target {
+                        target.scope = "root".to_owned();
+                    }
                 }
                 if let TimelineItem::Repeater(repeater) = item {
                     repeater.repeater.source.scope = "root".to_owned();
@@ -1931,12 +2069,33 @@ pub(crate) struct EvaluatedTransition {
     pub(crate) span: EvaluatedTimeSpan,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedAncestorAnimation {
+    pub(crate) base_transform: crate::Transform2D,
+    pub(crate) source_canvas: (u32, u32),
+    pub(crate) channels: Vec<crate::AnimationChannel>,
     pub(crate) clock: EvaluatedInstance,
     pub(crate) start_ms: u64,
     pub(crate) transform: EvaluatedTransform,
     pub(crate) keyframes: std::sync::Arc<[EvaluatedKeyframe]>,
+}
+
+impl std::fmt::Debug for EvaluatedAncestorAnimation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = formatter.debug_struct("EvaluatedAncestorAnimation");
+        debug
+            .field("clock", &self.clock)
+            .field("start_ms", &self.start_ms)
+            .field("transform", &self.transform)
+            .field("keyframes", &self.keyframes);
+        if self.channels.iter().any(|c| c.property.extended()) {
+            debug
+                .field("base_transform", &self.base_transform)
+                .field("source_canvas", &self.source_canvas)
+                .field("channels", &self.channels);
+        }
+        debug.finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1951,6 +2110,8 @@ pub(crate) struct EvaluatedAncestorStage {
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedVisualLayer {
+    pub(crate) sampled_input: Option<(String, u64)>,
+    pub(crate) extended: Option<extended_visual::ExtendedVisual>,
     pub(crate) instance: Option<EvaluatedInstance>,
     pub(crate) item_id: String,
     pub(crate) order: EvaluatedLayerOrder,
@@ -1990,6 +2151,12 @@ impl std::fmt::Debug for EvaluatedVisualLayer {
         }
         if let Some(value) = self.source_size {
             layer.field("source_size", &value);
+        }
+        if let Some(value) = &self.extended {
+            layer.field("extended", value);
+        }
+        if let Some(value) = &self.sampled_input {
+            layer.field("sampled_input", value);
         }
         layer
             .field("keyframes", &self.keyframes)
@@ -2290,6 +2457,8 @@ fn evaluate_flat_project(
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
                         visual_layers.push(EvaluatedVisualLayer {
+                            extended: extended_visual::authored(item),
+                            sampled_input: None,
                             instance: None,
                             transform2d: item.visual_properties().transform2d,
                             affine: None,
@@ -2359,6 +2528,8 @@ fn evaluate_flat_project(
                         });
                     }
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2394,6 +2565,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::SolidColor(color) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2417,6 +2590,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Rectangle(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2442,6 +2617,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Shape(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2470,6 +2647,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Svg(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2493,6 +2672,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Grid(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -2516,6 +2697,8 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        extended: extended_visual::authored(item),
+                        sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
                         affine: None,
@@ -3046,6 +3229,9 @@ fn evaluate_keyframes(
         });
     }
     for channel in channels {
+        if channel.property.extended() {
+            continue;
+        }
         for pair in channel.keyframes.windows(2) {
             if matches!(pair[0].curve, crate::AnimationCurve::Parameterized(_)) {
                 let midpoint = pair[0].time_ms + (pair[1].time_ms - pair[0].time_ms) / 2;
@@ -4756,7 +4942,8 @@ pub(crate) struct EvaluatedAncestors {
 
 impl EvaluatedVisualLayer {
     pub(crate) fn requires_affine(&self) -> bool {
-        self.transform2d.is_some()
+        self.extended.is_some()
+            || self.transform2d.is_some()
             || self.ancestors.is_some()
             || self.has_typed_geometry()
             || matches!(self.source, EvaluatedVisualSource::Shape(_))
@@ -4952,6 +5139,38 @@ impl EvaluatedVisualLayer {
     }
     pub(crate) fn visible_span(&self) -> EvaluatedTimeSpan {
         self.ancestors.map_or(self.span, |parent| parent.clip)
+    }
+    pub(crate) fn visible_at(&self, at_ms: u64) -> bool {
+        if let Some(clock) = self.instance {
+            at_ms as f64 >= clock.start_ms && (at_ms as f64) < clock.end_ms
+        } else {
+            let span = self.visible_span();
+            at_ms >= span.start_ms && at_ms < span.end_ms
+        }
+    }
+    /// Transition spans belong to the leaf composition; retain fractional
+    /// occurrence clocks and exact integer root segment selection.
+    pub(crate) fn transition_gain(&self, at_ms: u64) -> f64 {
+        let time = crate::animation::SampleTime::local(
+            at_ms,
+            0,
+            self.instance.map(|c| (c.rate, c.offset)),
+        );
+        self.transitions.iter().fold(1.0, |gain, transition| {
+            let progress =
+                if time.compare(transition.span.start_ms) != Some(std::cmp::Ordering::Greater) {
+                    0.0
+                } else if time.compare(transition.span.end_ms) != Some(std::cmp::Ordering::Less) {
+                    1.0
+                } else {
+                    time.progress(transition.span.start_ms, transition.span.end_ms)
+                };
+            gain * if transition.role == EvaluatedTransitionRole::In {
+                progress
+            } else {
+                1.0 - progress
+            }
+        })
     }
 }
 
@@ -5193,7 +5412,7 @@ fn measure_layer_affine(
     }
     let output_canvas = canvas;
     let canvas = layer.instance.map_or(canvas, |instance| instance.canvas);
-    if ancestors.is_none() {
+    if ancestors.is_none() && layer.transform2d.is_some() {
         let transform = layer
             .transform2d
             .ok_or_else(|| invalid("missing local affine transform"))?;
@@ -5203,7 +5422,12 @@ fn measure_layer_affine(
         let (matrix, inverse) = layer.local_transform_matrices(transform, source, canvas)?;
         return affine_from_matrices(matrix, inverse, source, transform.opacity);
     }
-    let parent = ancestors.unwrap();
+    let parent = ancestors.unwrap_or(EvaluatedAncestors {
+        matrix: IDENTITY_MATRIX,
+        inverse: IDENTITY_MATRIX,
+        opacity: 1.0,
+        clip: layer.span,
+    });
     let (local, inverse, opacity) = if let Some(transform) = layer.transform2d {
         let (matrix, inverse) = layer.local_transform_matrices(transform, source, canvas)?;
         (matrix, inverse, transform.opacity)
@@ -5472,6 +5696,116 @@ mod affine_tests {
 mod instance_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sampled_transition_gain_preserves_fractional_nested_clocks_and_exact_boundaries() {
+        let mut p = project();
+        p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.components[0].tracks[0].items.push(serde_json::from_value(json!({"type":"transition","id":"fade","transitionType":"crossfade","fromItemId":"same","toItemId":"same","startMs":25,"durationMs":100,"stackOrder":1,"zIndex":0})).unwrap());
+        let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        let mut layer = scene.visual_layers[0].clone();
+        // The independently composed leaf clock is .75*root - 50; at 101 ms
+        // local time is 25.75, without rounding to an integer millisecond.
+        assert!((layer.instance.unwrap().rate - 0.75).abs() < 1e-12);
+        assert!((layer.instance.unwrap().offset + 50.0).abs() < 1e-12);
+        assert!(layer.visible_at(100));
+        assert!(!layer.visible_at(99));
+        assert!(!layer.visible_at(500));
+        assert!((layer.transition_gain(101) - 0.0075 * 0.9925).abs() < 1e-12);
+        layer.instance = Some(EvaluatedInstance {
+            rate: 0.75,
+            offset: -50.0,
+            start_ms: 100.0,
+            end_ms: 500.0,
+            canvas: (100, 100),
+        });
+        for (at, expected) in [
+            (100, 0.0),
+            (101, 0.00744375),
+            (200, 0.1875),
+            (233, 0.00249375),
+            (234, 0.0),
+        ] {
+            assert!(
+                (layer.transition_gain(at) - expected).abs() < 1e-12,
+                "at {at}"
+            );
+        }
+        // Exact integer selection above f64's integer range must still handle
+        // endpoints and the midpoint through the actual transition consumer.
+        layer.instance = None;
+        let start = 9_007_199_254_740_993;
+        for transition in &mut layer.transitions {
+            transition.span = EvaluatedTimeSpan {
+                start_ms: start,
+                end_ms: start + 4,
+            };
+        }
+        for (delta, expected) in [(0, 0.0), (1, 0.1875), (2, 0.25), (3, 0.1875), (4, 0.0)] {
+            assert_eq!(layer.transition_gain(start + delta), expected);
+        }
+    }
+
+    #[test]
+    fn sampled_preflight_uses_root_visibility_for_effect_work_before_preparation() {
+        let mut p = project();
+        p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let TimelineItem::ComponentInstance(root) = &mut p.tracks[0].items[0] else {
+            unreachable!()
+        };
+        root.start_ms = 1000;
+        let mut scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
+        let layer = &mut scene.visual_layers[0];
+        // Model the actual intrinsic measurement supplied at render preflight.
+        // It is deliberately unsafe with blur, independent of authored dimensions.
+        layer.source_size = Some((1000, 1000));
+        layer.source = EvaluatedVisualSource::Media {
+            asset_id: "measured".into(),
+            source_in_ms: 0,
+        };
+        layer.extended = Some(extended_visual::ExtendedVisual {
+            crop: None,
+            channels: vec![],
+            effects: vec![crate::VisualEffect::GaussianBlur {
+                id: "blur".into(),
+                radius_px: 128.0,
+            }],
+        });
+        assert!(!layer.visible_at(500));
+        assert!(layer.visible_at(1100));
+        assert!(extended_visual::preflight_samples(&scene, 500, 500, true).is_ok());
+        assert_eq!(
+            extended_visual::preflight_samples(&scene, 1100, 1100, true)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        let layer = &mut scene.visual_layers[0];
+        layer.source_size = Some((512, 512));
+        layer.extended.as_mut().unwrap().effects = vec![crate::VisualEffect::GaussianBlur {
+            id: "blur".into(),
+            radius_px: 16.0,
+        }];
+        let measured = layer.clone();
+        // Each layer costs 608*608*194 = 71,714,816 pixel passes.
+        // Three fit the canonical budget, while four exceed 268,435,456.
+        scene.visual_layers = (0..3)
+            .map(|index| {
+                let mut layer = measured.clone();
+                layer.item_id = format!("measured-{index}");
+                layer
+            })
+            .collect();
+        assert!(extended_visual::preflight_samples(&scene, 1100, 1100, true).is_ok());
+        scene.visual_layers.push(measured);
+        assert!(extended_visual::preflight_samples(&scene, 500, 500, true).is_ok());
+        assert_eq!(
+            extended_visual::preflight_samples(&scene, 1100, 1100, true)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+    }
 
     fn project() -> Project {
         let shape = json!({"type":"rectangle","id":"same","startMs":0,"durationMs":500,"width":10,"height":20,"color":"#ff0000","transform":{"positionX":3,"positionY":0,"scale":1,"opacity":1},"keyframes":[]});

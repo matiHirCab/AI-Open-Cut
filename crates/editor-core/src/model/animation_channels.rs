@@ -1,6 +1,21 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::ParentReference;
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnimationTargetKind {
+    GraphicGeometry,
+    GraphicFill,
+    GraphicStroke,
+    Effect,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnimationTarget {
+    pub kind: AnimationTargetKind,
+    pub scope: String,
+    pub id: String,
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum AnimationChannelProperty {
@@ -74,11 +89,34 @@ impl AnimationChannelProperty {
                 | Self::ScaleY
                 | Self::Opacity
                 | Self::GainDb
+                | Self::RotationDeg
+                | Self::CropX
+                | Self::CropY
+                | Self::CropWidth
+                | Self::CropHeight
+                | Self::PathPoints
+                | Self::PathTrim
+                | Self::GradientStops
+                | Self::BlurRadius
+                | Self::GlowRadius
+                | Self::TintColor
+                | Self::VignetteAmount
         )
     }
 
     pub(crate) fn visual(self) -> bool {
         self.active() && self != Self::GainDb
+    }
+
+    pub(crate) fn legacy_visual(self) -> bool {
+        matches!(
+            self,
+            Self::PositionX | Self::PositionY | Self::ScaleX | Self::ScaleY | Self::Opacity
+        )
+    }
+
+    pub(crate) fn extended(self) -> bool {
+        self.active() && !self.legacy_visual() && self != Self::GainDb
     }
 }
 
@@ -185,7 +223,7 @@ where
 pub struct AnimationChannel {
     pub property: AnimationChannelProperty,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target: Option<ParentReference>,
+    pub target: Option<AnimationTarget>,
     pub keyframes: Vec<AnimationChannelKeyframe>,
     #[serde(
         default,

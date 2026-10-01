@@ -1,0 +1,39 @@
+## 1. Approval and traceability
+
+- [x] 1.1 Obtain explicit user/reviewer approval of this proposal, design, three delta specs, and task list; record the actual approval without inferring it from artifact readiness.
+- [x] 1.2 Create a verification record mapping F1-F5 to the requirement/scenario/test names below and preserve the reviewed working-tree baseline and external evidence logs.
+
+## 2. Editor-core regression tests and corrections
+
+- [x] 2.1 F1: Add failing effects-only scale spring tests with analytic unsafe bounds, authoritative-byte/revision rollback, a safe control, and local/inherited hidden/retained/expanded cases; map to Bounded extended candidate certification / Reject effects-only scale overshoot and Certify scale without rotation in retained and expanded content.
+- [x] 2.2 F1: Correct canonical continuous transform certification independently of rotation presence; preserve legacy-only behavior, existing limits, traversal order, and node accounting; pass the new tests.
+- [x] 2.3 F2: Add failing evaluated-affine and native pixel tests for offset/negative-origin legacy paths, identity vignette and zero rotation, nonidentity legacy position/scale, inherited transforms, and explicit-Transform2D controls; map to Shared extended visual channel rendering / Preserve an offset legacy path under an identity effect and Preserve legacy path coordinates under zero rotation.
+- [x] 2.4 F2: Preserve legacy coordinate origins and anchors in process-local extended affines without changing persisted representation; pass frame/draft/range/export placement and existing audio/stacking comparisons.
+- [x] 2.5 F3: Add failing schema-26 current/history migration tests for a version-2 legacy-only missing-target draft, unchanged authoritative bytes, valid stale drafts, and applicable retained-base selection; map to Atomic schema-27 extended visual animation migration / Reject invalid legacy-only retained draft target and Preserve a valid stale legacy draft.
+- [x] 2.6 F3: Validate applicable retained draft candidates independently of extended fields before publication; preserve existing stale policy, font/resource handling, typed errors, fault recovery, and no-write reopen; pass new and existing migration tests.
+- [x] 2.7 F4: Add failing X/width and Y/height tiny correlated crop tests, fractional inherited samples, exact tiny endpoint/hold controls, safe correlated crops, and failed-edit/batch/draft byte rollback; map to Bounded extended candidate certification / Reject correlated crop affected by interpolation floor and Deterministic compound visual sampling / Preserve tiny exact crop endpoints and holds.
+- [x] 2.8 F4: Bound canonical interpolation clamps in coupled crop certification while retaining exact endpoints/holds, safe correlation, budgets and errors; pass new tests.
+- [x] 2.9 F5: Add failing analytic large-integer root tests through actual extended scalar/compound consumers for origin 9007199254740993, endpoints, 25/50/75 interior progress, adjacent holds, repeat/ping-pong seams, static fallbacks and near-u64-limit arithmetic; retain fractional inherited-clock controls; map to the three new integer/compound timing scenarios in Deterministic compound visual sampling.
+- [x] 2.10 F5: Preserve integer clock/segment/loop selection and relative progress through canonical extended consumers while retaining fractional inherited timing; pass new tests without changing wire timestamp types.
+
+## 3. Documentation and compatibility evidence
+
+- [x] 3.1 Document the five corrected behaviors, unchanged schema/API/error/budget surfaces and verified test mapping. Add a dated superseding correction to the original archive's verification claim, preserving its historical approvals/logs and linking this change's verification record; do not claim fixes verified before checks pass.
+- [x] 3.2 Confirm canonical catalogs, Rust/TS/headless/MCP declarations, capability reporting and CODEOWNERS remain synchronized and require no public/persisted shape change. If any such change or new stale-base policy is needed, stop and amend artifacts for approval/CODEOWNER review before implementation.
+
+## 4. Required implementation checks
+
+- [x] 4.1 Run `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` with pinned Rust 1.97.0; retain full command/exit logs outside the repository, including focused failures before fixes and passing regressions afterward.
+- [x] 4.2 From `apps/agent-bridge`, run `bunx biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false src tests`, `bun run typecheck`, `bun run lint`, `bun run test:unit`, and `bun run contracts:check`; record skips and separately cover required opt-in native cases.
+- [x] 4.3 From `apps/agent-bridge`, run `bun run test:integration` and `bun run test:smoke`; from root run `bun run apps/agent-bridge/scripts/run-python-tests.ts` for the official hermetic worker suite.
+- [x] 4.4 With compatible FFmpeg/FFprobe 7.1.1, reviewed DejaVu Sans, `OPENCUT_GOLDEN_REQUIRED=1` and `OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1`, run `cargo test -p opencut-editor-core --test animation_channels --test transform2d --test font_resolution` and `cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact`; require new F2 intent/pixel tests and all existing animation/audio/legacy comparisons to execute.
+- [x] 4.5 Run `cargo test --release -p opencut-editor-core --lib renderer::golden::native_golden_render_conformance -- --exact --nocapture` with a fresh external `OPENCUT_GOLDEN_REPORT_PATH`, then `cargo test --release -p opencut-editor-core --lib renderer::golden::validate_external_performance_report -- --ignored --exact`; never set golden-update or comparison-recapture variables.
+- [x] 4.6 For each resolution 960x540, 1280x720 and 1920x1080 with `OPENCUT_RULES_SCREEN_SCOPE=pr` and its `OPENCUT_RULES_SCREEN_RESOLUTION`, run `cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture`; retain full logs and distinguish PR from weekly full scope.
+- [x] 4.7 With native dependencies and `OPENCUT_RASTER_CACHE_TESTS_REQUIRED=1`, run `cargo test -p opencut-editor-core --lib raster_cach`, `cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker`, and `cargo build -p opencut-headless --features raster-cache-test-hooks`; from bridge run `bun run test:unit --no-file-parallelism tests/render-worker-native.test.ts`; restore with `cargo build -p opencut-headless` and verify default compatibility with `cargo test -p opencut-headless`.
+
+## 5. Conformance, synchronization and archival
+
+- [x] 5.1 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `moon run root:openspec-validate` before archival. Record rejection caused only by this active change as expected blockage, not success; resolve all other failures without weakening protected gates.
+- [x] 5.2 Use `$openspec-verify-change` on this change; resolve all requirement/design/task/test/code mismatches and record complete logs, actual CODEOWNER evidence if needed, unavailable platform evidence and justified automation limits. No required failure or unaccounted skip permits completion.
+- [x] 5.3 Use `$openspec-sync-specs` and `$openspec-archive-change` after verification; merge accepted deltas into living specs and retain truthful original-archive correction links.
+- [x] 5.4 Run final `moon run root:openspec-validate`, `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`, and the isolated policy bootstrap `bun --config=NUL --no-env-file run scripts/run-ci-policy.ts` on Windows (or `/dev/null` on Linux); require exit zero and confirm protected CI files/goldens unchanged. Report fixes, tests and platform limits without committing, pushing or opening a PR.

@@ -18,6 +18,42 @@ const id = z.string().min(1).max(128);
 const milliseconds = z.int().nonnegative();
 const positiveMilliseconds = z.int().positive();
 const finite = z.number().finite();
+export const mediaCropSchema = z.strictObject({
+  height: finite.positive().max(1),
+  width: finite.positive().max(1),
+  x: finite.min(0).max(1),
+  y: finite.min(0).max(1),
+});
+const effectColorSchema = z.strictObject({
+  a: finite.min(0).max(1),
+  b: finite.min(0).max(1),
+  g: finite.min(0).max(1),
+  r: finite.min(0).max(1),
+});
+export const visualEffectSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    id,
+    radiusPx: finite.min(0).max(128),
+    type: z.literal("gaussian_blur"),
+  }),
+  z.strictObject({
+    color: effectColorSchema,
+    id,
+    intensity: finite.min(0).max(1),
+    radiusPx: finite.min(0).max(128),
+    type: z.literal("glow"),
+  }),
+  z.strictObject({
+    color: effectColorSchema,
+    id,
+    type: z.literal("color_tint"),
+  }),
+  z.strictObject({
+    amount: finite.min(0).max(1),
+    id,
+    type: z.literal("vignette"),
+  }),
+]);
 const markerIdentifier = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/);
 const markerScope = z
   .string()
@@ -355,7 +391,19 @@ export const animationChannelSchema = z
       .strict()
       .optional(),
     property: animationChannelPropertySchema,
-    target: parentReferenceSchema.optional(),
+    target: z
+      .object({
+        id,
+        kind: z.enum([
+          "graphic_geometry",
+          "graphic_fill",
+          "graphic_stroke",
+          "effect",
+        ]),
+        scope: z.string().min(1),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -404,7 +452,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(26).optional(),
+    projectSchemaVersion: z.literal(27).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -864,7 +912,9 @@ const mediaItemSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     assetId: id,
     audio: audioSchema,
+    crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
@@ -884,8 +934,10 @@ const textItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     color: z.string(),
+    crop: mediaCropSchema.optional(),
     document: z.lazy(() => richTextDocumentSchema),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     fontBinding: fontBindingSchema,
     fontFamily: z.string().nullable(),
     fontPath: z.string().nullable(),
@@ -910,7 +962,9 @@ const solidColorItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     color,
+    crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
@@ -965,7 +1019,9 @@ export const addGridSchema = z.strictObject({
 });
 const repeaterItemSchema = z.strictObject({
   animationChannels: z.array(animationChannelSchema).max(64).optional(),
+  crop: mediaCropSchema.optional(),
   durationMs: positiveMilliseconds,
+  effects: z.array(visualEffectSchema).max(16).optional(),
   hidden: z.boolean(),
   id,
   parent: parentReferenceSchema.nullable().optional(),
@@ -1005,7 +1061,9 @@ const captionWordSchema = z
 const captionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
     parent: parentReferenceSchema.nullable().optional(),
@@ -1044,7 +1102,9 @@ const captionItemSchema = z
 const transitionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     fromItemId: id,
     hidden: z.boolean(),
     id,
@@ -1065,7 +1125,9 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   z
     .object({
       animationChannels: z.array(animationChannelSchema).max(64).optional(),
+      crop: mediaCropSchema.optional(),
       durationMs: positiveMilliseconds,
+      effects: z.array(visualEffectSchema).max(16).optional(),
       hidden: z.boolean(),
       id,
       parent: parentReferenceSchema.nullable().optional(),
@@ -1251,7 +1313,9 @@ export const componentInstanceSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     componentId: id,
+    crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
+    effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
     parent: parentReferenceSchema.nullable().optional(),
@@ -1485,7 +1549,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(26),
+        schemaVersion: z.literal(27),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1778,7 +1842,9 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
   z
     .object({
       color: color.optional(),
+      crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),
+      effects: z.array(visualEffectSchema).max(16).optional(),
       fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),
@@ -2276,7 +2342,9 @@ export const schemas = {
   timelineUpdateItem: projectRevisionSchema
     .extend({
       color: color.optional(),
+      crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),
+      effects: z.array(visualEffectSchema).max(16).optional(),
       fill: paintSchema.nullable().optional(),
       fontFamily: z.string().min(1).max(200).nullable().optional(),
       fontPath: z.string().min(1).max(1000).nullable().optional(),

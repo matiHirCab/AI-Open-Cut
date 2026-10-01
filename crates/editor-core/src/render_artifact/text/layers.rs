@@ -39,58 +39,6 @@ fn groups(shaped: &ShapedText, style: &EvaluatedTextStyle) -> Vec<Vec<usize>> {
     result
 }
 
-pub(super) fn margins(shaped: &ShapedText, style: &EvaluatedTextStyle) -> (u32, u32, u32, u32) {
-    let legacy = || {
-        (
-            style
-                .outline_width_px
-                .saturating_add(style.shadow.offset_x.min(0).unsigned_abs()),
-            style
-                .outline_width_px
-                .saturating_add(style.shadow.offset_y.min(0).unsigned_abs()),
-            style
-                .outline_width_px
-                .saturating_add(style.shadow.offset_x.max(0) as u32),
-            style
-                .outline_width_px
-                .saturating_add(style.shadow.offset_y.max(0) as u32),
-        )
-    };
-    if !enabled(shaped, style) {
-        return legacy();
-    }
-    let mut result = (0, 0, 0, 0);
-    for glyph in &shaped.glyphs {
-        let Some(layers) = paints(glyph, style) else {
-            let old = legacy();
-            result = (
-                result.0.max(old.0),
-                result.1.max(old.1),
-                result.2.max(old.2),
-                result.3.max(old.3),
-            );
-            continue;
-        };
-        for layer in layers {
-            let (x, y, radius) = match layer {
-                TextPaintLayer::Fill { .. } => (0.0, 0.0, 0.0),
-                TextPaintLayer::Stroke { width_px, .. } => (0.0, 0.0, width_px / 2.0),
-                TextPaintLayer::Shadow {
-                    offset_x_px,
-                    offset_y_px,
-                    blur_sigma_px,
-                    ..
-                } => (*offset_x_px, *offset_y_px, (3.0 * blur_sigma_px).ceil()),
-            };
-            result.0 = result.0.max((radius - x).max(0.0).ceil() as u32);
-            result.1 = result.1.max((radius - y).max(0.0).ceil() as u32);
-            result.2 = result.2.max((radius + x).max(0.0).ceil() as u32);
-            result.3 = result.3.max((radius + y).max(0.0).ceil() as u32);
-        }
-    }
-    result
-}
-
 pub(super) fn check_work(
     shaped: &ShapedText,
     style: &EvaluatedTextStyle,
@@ -554,7 +502,10 @@ mod tests {
                 width_px: 3.5,
             },
         ]);
-        assert_eq!(margins(&shaped, &text.style), (9, 2, 4, 11));
+        assert_eq!(
+            crate::evaluated_scene::text_bounds::margins(&shaped, &text.style),
+            (9, 2, 4, 11)
+        );
         text.style.paint_layers = Some(vec![
             TextPaintLayer::Fill {
                 color: "#ffffff".into(),

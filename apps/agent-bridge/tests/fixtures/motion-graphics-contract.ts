@@ -204,6 +204,7 @@ const catalogSchema = z.strictObject({
   managedResources: z.array(managedAssetSchema),
   semantics: z.strictObject({
     activeCurveContract: z.literal("animation-channels-v1"),
+    activeExtendedVisualContract: z.literal("extended-visual-animation-v1"),
     activeLoopContract: z.literal("animation-channels-v1"),
     activeMarkerContract: z.literal("marker-relative-timing-v1"),
     alphaMode: z.literal("premultiplied"),

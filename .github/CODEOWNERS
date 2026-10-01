@@ -1,5 +1,24 @@
 # Cross-language public contract owners. Keep this list synchronized with
 # contracts/contract-ownership-v1.json.
+
+# Extended visual animation contract consumers.
+/crates/editor-core/src/animation.rs @matiHirCab
+/crates/editor-core/src/model/animation_channels.rs @matiHirCab
+/crates/editor-core/src/model/visual_effects.rs @matiHirCab
+/crates/editor-core/src/validation/extended_visual.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/extended_visual.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/extended_certification.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/text_bounds.rs @matiHirCab
+/crates/editor-core/src/render_artifact/extended_visual.rs @matiHirCab
+/crates/editor-core/src/renderer.rs @matiHirCab
+/crates/editor-core/src/store.rs @matiHirCab
+/crates/editor-core/tests/animation_channels.rs @matiHirCab
+/crates/editor-core/tests/extended_visual_animation.rs @matiHirCab
+/apps/agent-bridge/tests/extended-visual-animation.test.ts @matiHirCab
+/apps/agent-bridge/tests/extended-visual-workflow.ts @matiHirCab
+/docs/animation-channels.md @matiHirCab
+/docs/extended-visual-animation.md @matiHirCab
+/docs/render-regression-fixtures.md @matiHirCab
 /contracts/ @matiHirCab
 /crates/editor-core/src/model/font.rs @matiHirCab
 /crates/editor-core/src/fonts.rs @matiHirCab

@@ -24,6 +24,26 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 27
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| {
+                i.visual_properties().crop.is_some()
+                    || !i.visual_properties().effects.is_empty()
+                    || i.visual_properties()
+                        .animation_channels
+                        .iter()
+                        .any(|c| c.property.extended())
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "extended visuals require schema 27",
+        ));
+    }
     if project.schema_version < 26
         && project
             .tracks
@@ -187,7 +207,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=25 => {
+        9..=26 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -272,13 +292,13 @@ mod tests {
             redo: vec![project(24)],
         };
         assert!(migrate_project_documents(&mut current, &mut history).unwrap());
-        assert_eq!(current.schema_version, 26);
+        assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
         assert!(
             history
                 .undo
                 .iter()
                 .chain(&history.redo)
-                .all(|snapshot| snapshot.schema_version == 26)
+                .all(|snapshot| snapshot.schema_version == PROJECT_SCHEMA_VERSION)
         );
         assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
 
@@ -319,13 +339,13 @@ mod tests {
             redo: vec![project(25)],
         };
         assert!(migrate_project_documents(&mut current, &mut history).unwrap());
-        assert_eq!(current.schema_version, 26);
+        assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
         assert!(
             history
                 .undo
                 .iter()
                 .chain(&history.redo)
-                .all(|p| p.schema_version == 26)
+                .all(|p| p.schema_version == PROJECT_SCHEMA_VERSION)
         );
         assert!(!migrate_project_documents(&mut current, &mut history).unwrap());
 

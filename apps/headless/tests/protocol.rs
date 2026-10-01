@@ -77,7 +77,7 @@ fn typed_animation_channels_roundtrip_alias_and_failures() {
         ),
         (
             1,
-            json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.rotation_deg","keyframes":[]}]}),
+            json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.skew_x_deg","keyframes":[]}]}),
             "INVALID_ARGUMENT",
         ),
         (

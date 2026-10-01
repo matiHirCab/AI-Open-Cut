@@ -206,6 +206,7 @@ impl EditorCore {
             &mut staged,
         )?;
         crate::evaluated_scene::preflight_inherited_project(project)?;
+        crate::evaluated_scene::preflight_extended_fonts(project, &staged)?;
         crate::assets::fonts::publish_fonts(self.storage.as_ref(), dir, &staged)
     }
 
@@ -1465,7 +1466,19 @@ fn load_project_data(
         History::default()
     };
 
-    let mut changed = migrate_project_documents(&mut project, &mut history)?;
+    for draft in read_all_drafts(storage, dir)? {
+        let base = std::iter::once(&project)
+            .chain(history.undo.iter())
+            .chain(history.redo.iter())
+            .find(|p| p.revision == draft.base_revision)
+            .unwrap_or(&project);
+        if base.schema_version < 27 {
+            crate::reject_extended_visual_fields(&serde_json::to_value(&draft.operations)?)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
+    }
+    let schema_migrated = migrate_project_documents(&mut project, &mut history)?;
+    let mut changed = schema_migrated;
     validate_project_visual_properties(&project)?;
     for snapshot in history.undo.iter().chain(&history.redo) {
         validate_project_visual_properties(snapshot)?;
@@ -1487,6 +1500,7 @@ fn load_project_data(
         .chain(history.redo.iter_mut())
     {
         crate::assets::fonts::prepare_fonts(storage, dir, snapshot, config, &mut staged)?;
+        crate::evaluated_scene::preflight_extended_fonts(snapshot, &staged)?;
     }
     let mut draft_updates = BTreeMap::new();
     for mut draft in read_all_drafts(storage, dir)? {
@@ -1514,6 +1528,31 @@ fn load_project_data(
             }
             for face in catalog.values() {
                 crate::assets::fonts::managed_bytes(storage, dir, face)?;
+            }
+            let base = std::iter::once(&project)
+                .chain(history.undo.iter())
+                .chain(history.redo.iter())
+                .find(|p| p.revision == draft.base_revision);
+            // A draft with an evicted base remains stale. Its structural and
+            // resource checks above still apply, but candidate replay requires
+            // the matching revision, never the unrelated current project.
+            let Some(base) = base else { continue };
+            if schema_migrated
+                || crate::reject_extended_visual_fields(&serde_json::to_value(&draft.operations)?)
+                    .is_err()
+                || crate::reject_extended_visual_fields(&serde_json::to_value(base)?).is_err()
+            {
+                let mut candidate = base.clone();
+                validate_operations_against(&candidate, &draft.operations)?;
+                materialize_font_draft(storage, dir, &mut candidate, &draft)?;
+                crate::evaluated_scene::preflight_inherited_project(&candidate)?;
+                let mut faces = staged.clone();
+                for (hash, face) in catalog {
+                    faces
+                        .entry(hash.clone())
+                        .or_insert(crate::assets::fonts::managed_bytes(storage, dir, face)?);
+                }
+                crate::evaluated_scene::preflight_extended_fonts(&candidate, &faces)?;
             }
         }
     }
@@ -1571,6 +1610,7 @@ fn prepare_draft_fonts(
     }
     crate::fonts::validate_catalog(&catalog)?;
     crate::evaluated_scene::preflight_inherited_project(&candidate)?;
+    crate::evaluated_scene::preflight_extended_fonts(&candidate, staged)?;
     draft.version = DRAFT_VERSION;
     draft.font_catalog = Some(catalog);
     draft.font_steps = Some(steps);
@@ -4322,7 +4362,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {
@@ -4393,7 +4433,7 @@ mod tests {
 
     #[test]
     fn supported_migration_before_journal_failure_preserves_generation() {
-        for version in [9, 13, 16, 17, 20, 21, 22, 25] {
+        for version in [9, 13, 16, 17, 20, 21, 22, 25, 26] {
             let (core, _) = core();
             let created = core
                 .create_project("migration pre-commit", ProjectSettings::default())

@@ -12,11 +12,13 @@ import type {
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
+  mediaCropSchema,
   richTextDocumentSchema,
   templateSlotSchema,
   textStyleSchema,
   timeExpressionSchema,
   transform2dSchema,
+  visualEffectSchema,
 } from "./schemas";
 import type { ShapeGeometry } from "./shape-items";
 import type { Paint, Stroke } from "./vector-primitives";
@@ -179,6 +181,8 @@ export type HeadlessEdit =
     }
   | {
       operation: "update_item";
+      crop?: z.infer<typeof mediaCropSchema> | undefined;
+      effects?: z.infer<typeof visualEffectSchema>[] | undefined;
       staggerMs?: number | undefined;
       geometry?: ShapeGeometry | undefined;
       grid?: GridDescriptor | undefined;

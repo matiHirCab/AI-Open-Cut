@@ -264,6 +264,7 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
         &[
             "activeCurveContract",
             "activeLoopContract",
+            "activeExtendedVisualContract",
             "activeMarkerContract",
             "alphaMode",
             "compositingLight",
@@ -298,6 +299,10 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
     let scalar_semantics = [
         ("activeCurveContract", "animation-channels-v1"),
         ("activeLoopContract", "animation-channels-v1"),
+        (
+            "activeExtendedVisualContract",
+            "extended-visual-animation-v1",
+        ),
         ("activeMarkerContract", "marker-relative-timing-v1"),
         ("wireFieldCase", "lower_camel_case"),
         ("variantCase", "lower_snake_case"),

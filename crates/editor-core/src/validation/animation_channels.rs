@@ -48,16 +48,16 @@ pub(crate) fn validate_channels(
         if !channel.property.active() {
             return Err(invalid("animation channel is not active"));
         }
-        if channel.target.is_some() {
+        if !channel.property.extended() && channel.target.is_some() {
             return Err(invalid(
                 "active animation channel does not accept a target reference",
             ));
         }
-        if !identities.insert(channel.property) {
+        if !identities.insert((channel.property, channel.target.clone())) {
             return Err(invalid("duplicate animation channel"));
         }
         if channel.property.visual() {
-            if item.visual_properties().transform2d.is_some()
+            if (channel.property.legacy_visual() && item.visual_properties().transform2d.is_some())
                 || !matches!(
                     item,
                     TimelineItem::Media(_)
@@ -101,6 +101,9 @@ pub(crate) fn validate_channels(
             if !asset.has_audio {
                 return Err(invalid("audio gain requires media with audio"));
             }
+        }
+        if channel.property.extended() {
+            super::extended_visual::validate_target(channel, item, project)?;
         }
         if channel.keyframes.len() > 1_000 {
             return Err(invalid("maxKeyframesPerChannel exceeded"));
@@ -165,6 +168,10 @@ pub(crate) fn validate_channels(
                         return Err(invalid("animation curve parameters exceed finite bounds"));
                     }
                 }
+            }
+            if channel.property.extended() {
+                super::extended_visual::validate_value(channel, item, &keyframe.value)?;
+                continue;
             }
             let AnimationChannelValue::Scalar { value } = keyframe.value else {
                 return Err(invalid("active animation channel requires scalar values"));
