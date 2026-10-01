@@ -97,6 +97,46 @@
         "seed": 1
       },
       "accepted": false
+    },
+    {
+      "name": "null-record",
+      "value": null,
+      "accepted": false
+    },
+    {
+      "name": "missing-count",
+      "value": {
+        "shutterAngleDeg": 180
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-angle",
+      "value": {
+        "sampleCount": 8
+      },
+      "accepted": false
+    },
+    {
+      "name": "string-angle",
+      "value": {
+        "shutterAngleDeg": "180",
+        "sampleCount": 8
+      },
+      "accepted": false
+    },
+    {
+      "name": "null-count",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": null
+      },
+      "accepted": false
+    },
+    {
+      "name": "primitive-record",
+      "value": 0,
+      "accepted": false
     }
   ],
   "sampleCases": [

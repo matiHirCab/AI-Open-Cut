@@ -3,7 +3,7 @@
 - [x] 1.1 Materialize isolated checkout and pin PR131 head e1010bb97174d44a5d19c61a90514bf2336845ca; inspect reviews, CI, instructions and inherited sampling code.
 - [x] 1.2 Validate complete proposal, design, delta and tasks; record bounded delegated OpenSpec approval.
 - [ ] 1.2a Obtain designated contract-owner implementation review before archival.
-- [ ] 1.3 Add canonical motion-blur catalog, accepted/rejected and independent timing/composition fixtures, ownership and capability declarations.
+- [x] 1.3 Add canonical motion-blur catalog, accepted/rejected and independent timing/composition fixtures, ownership and capability declarations.
 
 ## 2. Canonical persisted model and lifecycle
 
@@ -20,7 +20,7 @@
 
 ## 4. Governed consumers
 
-- [ ] 4.0 Execute canonical null/missing/wrong-type records through actual headless standalone and batch errors with byte rollback evidence; verify null MCP inputs preserve state.
+- [x] 4.0 Execute canonical null/missing/wrong-type records through actual headless standalone and batch errors with byte rollback evidence; verify null MCP inputs preserve state.
 
 - [x] 4.1 Synchronize headless, bridge/Zod/MCP catalogs and desktop declarations without parallel domain rules; cover standalone and batch aliases.
 - [x] 4.2 Document coordinate, timing, boundary, composition, fallback, numeric and migration semantics and performance limits.

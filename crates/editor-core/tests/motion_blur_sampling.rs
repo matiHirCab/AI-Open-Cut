@@ -10,6 +10,16 @@ fn contract() -> Value {
 
 #[test]
 fn canonical_numeric_and_closed_record_cases() {
+    assert_eq!(
+        u64::from(MotionBlur::MAX_SAMPLES),
+        contract()["limits"]["maxSampleCount"].as_u64().unwrap()
+    );
+    assert_eq!(
+        MotionBlur::MAX_PIXEL_WORK,
+        contract()["limits"]["maxPixelWorkPerOutputFrame"]
+            .as_u64()
+            .unwrap()
+    );
     for case in contract()["cases"].as_array().unwrap() {
         let accepted = serde_json::from_value::<MotionBlur>(case["value"].clone())
             .is_ok_and(|value| value.validate().is_ok());

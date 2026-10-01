@@ -1030,6 +1030,63 @@ fn native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts() 
 }
 
 #[test]
+fn rejected_shutter_records_preserve_standalone_and_batch_bytes() {
+    let h = Harness::new();
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/motion-blur-sampling-v1.json"
+    ))
+    .unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Shutter failures"})))["projectId"].clone();
+    let initial = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = initial["project"]["tracks"][1]["id"].clone();
+    let added = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":4,"height":4,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"leaf"},
+        {"operation":"update_item","itemId":"@leaf","motionBlur":{"shutterAngleDeg":180,"sampleCount":4}}
+    ]})));
+    let item = added["aliases"]["leaf"].clone();
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][0]["motionBlur"],
+        json!({"shutterAngleDeg":180.0,"sampleCount":4})
+    );
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let project_bytes = std::fs::read(dir.join("project.json")).unwrap();
+    let history_bytes = std::fs::read(dir.join("history.json")).unwrap();
+    for case in catalog["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["accepted"] == false)
+    {
+        let edit = json!({"operation":"update_item","itemId":item,"motionBlur":case["value"]});
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":edit}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+                {"operation":"update_item","itemId":item,"motionBlur":{"shutterAngleDeg":0,"sampleCount":1}},edit
+            ]}),
+        ] {
+            let output = h.request(request);
+            assert!(!output.status.success(), "{}", case["name"]);
+            let failure = event(&output);
+            assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT", "{failure}");
+            assert_eq!(failure["error"]["retryable"], false);
+            assert_eq!(
+                std::fs::read(dir.join("project.json")).unwrap(),
+                project_bytes
+            );
+            assert_eq!(
+                std::fs::read(dir.join("history.json")).unwrap(),
+                history_bytes
+            );
+        }
+    }
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id}))),
+        before
+    );
+}
+
+#[test]
 fn malformed_and_unknown_fields_are_invalid_argument_errors() {
     let harness = Harness::new();
     for request in [

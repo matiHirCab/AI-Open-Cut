@@ -118,6 +118,34 @@ export const verifyExtendedVisualWorkflow = async (
   expect(await call("project_open", { projectId }, projectStateSchema)).toEqual(
     before
   );
+  const assertRejected = async (
+    request: Parameters<typeof client.callTool>[0]
+  ) => {
+    const rejected = await client.callTool(request);
+    expect(rejected.isError).toBe(true);
+    expect(
+      await call("project_open", { projectId }, projectStateSchema)
+    ).toEqual(before);
+  };
+  await assertRejected({
+    arguments: { expectedRevision: 1, itemId, motionBlur: null, projectId },
+    name: "timeline_update_item",
+  });
+  await assertRejected({
+    arguments: {
+      expectedRevision: 1,
+      operations: [
+        {
+          itemId,
+          motionBlur: { sampleCount: 1, shutterAngleDeg: 0 },
+          operation: "update_item",
+        },
+        { itemId, motionBlur: null, operation: "update_item" },
+      ],
+      projectId,
+    },
+    name: "timeline_batch_edit",
+  });
   await call(
     "timeline_set_animation_channels",
     { animationChannels: [], expectedRevision: 1, itemId, projectId },

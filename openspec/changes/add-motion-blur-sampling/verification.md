@@ -134,3 +134,22 @@ OpenSpec plan if those fixes should proceed. Reconcile/rebase onto the corrected
 verified issue43 head without rewriting its branch or merging PR131, resolve native
 6.1 failures, finish required gates and owner review, archive, then obtain separate
 issue44 publication approval. The existing hourly readonly watch remains independent.
+
+## Independent pre-reconciliation failure evidence
+
+The approved follow-up now passes canonical Rust/Zod rejected-record checks,
+actual headless 24 standalone/batch failure requests with valid positive control
+and byte-preserving project/history rollback, and focused MCP null/state tests
+(one selected integration case; 13 others intentionally filtered). Typecheck
+and lint pass. Full final suites remain pending reconciliation.
+
+A shared Cargo target initially reused the older prerequisite headless binary;
+the new failure fixture detected acceptance of an unrecognized field. Cleaning
+only editor-core/headless generated artifacts and rebuilding fixes that tooling
+state. The positive control checks authored settings before rejection tests.
+A subsequent assertion used JSON integer180 instead of typed floating180.0;
+its exact typed expectation is corrected. Lint required sequential helper calls
+instead of awaits inside a loop. No behavior, error, threshold or timeout changed.
+Logs: /tmp/opencut-44-null-{protocol-v3,catalog-v3,mcp,type-v2,lint-v2,bridge-catalog}.log.
+Superseded failed tooling/test-draft logs are retained separately; these focused
+passes are not final native-render or full-suite evidence.
