@@ -5,6 +5,14 @@ use opencut_editor_core::{
 };
 use serde_json::{Value, json};
 
+// The protected native animation gate runs this target. Keep extended scenarios
+// in that same required boundary as well as their focused integration target.
+#[path = "extended_visual_animation.rs"]
+mod extended_visual_animation;
+
+#[path = "animation_lifecycle_regressions.rs"]
+mod animation_lifecycle_regressions;
+
 fn fixture() -> Value {
     serde_json::from_str(include_str!(
         "../../../contracts/animation-channels-v1.json"
@@ -148,6 +156,33 @@ fn canonical_names_and_limits_match_rust_types() {
                     }
                     AnimationChannelProperty::GainDb => {
                         json!({"valueType":"scalar","target":"media_audio","activation":"active","minimum":-96,"maximum":12})
+                    }
+                    AnimationChannelProperty::RotationDeg => {
+                        json!({"valueType":"scalar","target":"visual","activation":"active","minimum":-36000,"maximum":36000})
+                    }
+                    AnimationChannelProperty::CropX | AnimationChannelProperty::CropY => {
+                        json!({"valueType":"scalar","target":"media_visual","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::CropWidth | AnimationChannelProperty::CropHeight => {
+                        json!({"valueType":"scalar","target":"media_visual","activation":"active","minimumExclusive":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::PathPoints => {
+                        json!({"valueType":"path_points","target":"graphic_scoped","activation":"active","minimum":-1000000,"maximum":1000000})
+                    }
+                    AnimationChannelProperty::PathTrim => {
+                        json!({"valueType":"scalar","target":"graphic_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::GradientStops => {
+                        json!({"valueType":"gradient_stops","target":"graphic_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::BlurRadius | AnimationChannelProperty::GlowRadius => {
+                        json!({"valueType":"scalar","target":"effect_scoped","activation":"active","minimum":0,"maximum":128})
+                    }
+                    AnimationChannelProperty::TintColor => {
+                        json!({"valueType":"rgba","target":"effect_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::VignetteAmount => {
+                        json!({"valueType":"scalar","target":"effect_scoped","activation":"active","minimum":0,"maximum":1})
                     }
                     _ => panic!("catalog activated an unsupported property: {name}"),
                 };
@@ -498,7 +533,7 @@ fn alias_batch_history_reopen_and_atomic_failures() {
     assert_eq!(serde_json::to_value(read()).unwrap(), before);
     for invalid in [
         vec![channel("transform.scale_x", 0.0, 2.0)],
-        vec![channel("transform.rotation_deg", 0.0, 10.0)],
+        vec![channel("transform.skew_x_deg", 0.0, 10.0)],
         vec![
             channel("transform.position_x", 0.0, 2.0),
             channel("transform.position_x", 0.0, 3.0),
@@ -517,7 +552,7 @@ fn alias_batch_history_reopen_and_atomic_failures() {
             {"timeMs":0,"value":{"type":"scalar","value":1.1},"curve":"hold"}
         ]})],
         vec![
-            json!({"property":"transform.position_y","target":{"scope":"root","id":"missing"},"keyframes":[
+            json!({"property":"transform.position_y","target":{"kind":"graphic_geometry","scope":"root","id":"missing"},"keyframes":[
                 {"timeMs":0,"value":{"type":"scalar","value":1},"curve":"hold"}
             ]}),
         ],
@@ -709,7 +744,7 @@ fn incompatible_audio_target_and_persisted_inactive_channel_fail_before_render()
     externally_edited.tracks[1].items[0]
         .visual_properties_mut()
         .animation_channels =
-        serde_json::from_value(json!([channel("transform.rotation_deg", 0.0, 90.0)])).unwrap();
+        serde_json::from_value(json!([channel("transform.skew_x_deg", 0.0, 90.0)])).unwrap();
     let project_dir = core.paths().project_dir(&project_id).unwrap();
     let preview_count = std::fs::read_dir(project_dir.join("previews"))
         .unwrap()

@@ -65,7 +65,7 @@ fn canonical_schema_and_signed_timing_round_trip() {
 
 #[test]
 fn older_source_rejects_new_fields_even_when_zero() {
-    let mut value = project_with_timing(PROJECT_SCHEMA_VERSION - 1);
+    let mut value = project_with_timing(25);
     assert!(serde_json::from_value::<Project>(value.clone()).is_err());
     value["tracks"][0]["items"][0]["staggerMs"] = json!(0);
     value["tracks"][0]["items"][1]["repeater"]["timeOffsetMs"] = json!(0);

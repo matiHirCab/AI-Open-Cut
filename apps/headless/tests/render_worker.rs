@@ -31,6 +31,9 @@ impl Worker {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         if let Some(ffmpeg) = ffmpeg {
+            if let Some(real) = std::env::var_os("OPENCUT_FFMPEG_PATH") {
+                command.env("OPENCUT_TEST_REAL_FFMPEG_PATH", real);
+            }
             command
                 .env("OPENCUT_FFMPEG_PATH", ffmpeg)
                 .env("OPENCUT_FFPROBE_PATH", ffmpeg);
@@ -106,6 +109,92 @@ impl Drop for Worker {
 }
 fn fixture() -> Value {
     serde_json::from_str(include_str!("../../../contracts/render-worker-v1.json")).unwrap()
+}
+
+#[test]
+fn native_sampled_encoder_failure_is_safe_on_the_headless_wire() {
+    if std::env::var_os("OPENCUT_FFMPEG_PATH").is_none() {
+        assert_ne!(
+            std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+            Ok("1"),
+            "native encoder test requires FFmpeg"
+        );
+        return;
+    }
+    use opencut_editor_core::{EditorCore, PathPolicy, ProjectSettings};
+    let root = tempfile::tempdir().unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            root.path().join("projects"),
+            [root.path()],
+            root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let id = core
+        .create_project(
+            "Encoder diagnostics",
+            ProjectSettings {
+                width: 64,
+                height: 64,
+                fps: 10,
+            },
+        )
+        .unwrap()
+        .project_id;
+    let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+    let add=serde_json::from_value(json!({"operation":"add_rectangle","trackId":track,"width":8,"height":8,"color":"#ff0000","startMs":0,"durationMs":100,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+    let item = core.edit(&id, 0, add).unwrap().changed_ids[0].clone();
+    core.edit(&id,1,serde_json::from_value(json!({"operation":"update_item","itemId":item,"effects":[{"type":"vignette","id":"identity","amount":0}]})).unwrap()).unwrap();
+    let helper = root.path().join(if cfg!(windows) {
+        "encoder.exe"
+    } else {
+        "encoder"
+    });
+    let compile = Command::new("rustc")
+        .arg(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../crates/editor-core/tests/fixtures/failing_visual_encoder.rs"),
+        )
+        .arg("-o")
+        .arg(&helper)
+        .output()
+        .unwrap();
+    assert!(
+        compile.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let dir = core.project_directory(&id).unwrap();
+    let before = std::fs::read(dir.join("project.json")).unwrap();
+    let mut worker = Worker::start_with_ffmpeg(root.path(), Some(&helper));
+    let mut request = fixture()["requests"][1]["request"].clone();
+    request["projectId"] = json!(id);
+    request["expectedRevision"] = json!(2);
+    request["startMs"] = json!(0);
+    request["endMs"] = json!(100);
+    request["width"] = json!(64);
+    request["height"] = json!(64);
+    request["fps"] = json!(10);
+    request["includeAudio"] = json!(false);
+    let event = worker.request("encoder-fault", request);
+    assert_eq!(event["type"], "error", "{event}");
+    assert_eq!(event["error"]["code"], "FFMPEG_FAILED");
+    assert_eq!(event["error"]["retryable"], false);
+    assert_eq!(event["error"]["failedStage"], "visual_prepare");
+    assert_eq!(event["error"]["ffmpegExitCode"], 7);
+    let excerpt = event["error"]["ffmpegStderrExcerpt"].as_str().unwrap();
+    assert!(excerpt.len() <= 4096 && !excerpt.contains("private-review"));
+    assert!(excerpt.contains("[path]"));
+    assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before);
+    assert!(!std::fs::read_dir(&dir).unwrap().any(|e| {
+        e.unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".opencut-work-")
+    }));
+    drop(worker);
+    std::fs::remove_file(helper).unwrap();
 }
 
 #[test]

@@ -2,6 +2,8 @@ mod buffered;
 use buffered::BufferedValue;
 mod animation_channels;
 pub use animation_channels::*;
+mod visual_effects;
+pub use visual_effects::*;
 mod font;
 mod grid;
 pub use font::*;
@@ -20,7 +22,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 26;
+pub const PROJECT_SCHEMA_VERSION: u32 = 27;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -188,6 +190,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_inherited_timing(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_inherited_timing(components)?;
+            }
+        }
+        if value.schema_version < 27 {
+            reject_extended_visual_fields(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_extended_visual_fields(components)?;
             }
         }
         prepare_text_documents(&mut value.tracks, value.schema_version)?;
@@ -439,6 +447,45 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub(crate) fn reject_extended_visual_fields(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            if fields.contains_key("crop") || fields.contains_key("effects") {
+                return Err("extended visual properties require schema 27".into());
+            }
+            if let Some(property) = fields.get("property").and_then(|v| v.as_str())
+                && matches!(
+                    property,
+                    "transform.rotation_deg"
+                        | "media.crop_x"
+                        | "media.crop_y"
+                        | "media.crop_width"
+                        | "media.crop_height"
+                        | "graphic.path_points"
+                        | "graphic.path_trim"
+                        | "graphic.gradient_stops"
+                        | "effect.blur_radius"
+                        | "effect.glow_radius"
+                        | "effect.tint_color"
+                        | "effect.vignette_amount"
+                )
+            {
+                return Err("extended animation requires schema 27".into());
+            }
+            for child in fields.values() {
+                reject_extended_visual_fields(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_extended_visual_fields(child)?;
             }
         }
         _ => {}
@@ -956,6 +1003,14 @@ impl TimelineItem {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub crop: Option<MediaCrop>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<VisualEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -977,6 +1032,8 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            crop: None,
+            effects: Vec::new(),
             start_time: None,
             animation_channels: Vec::new(),
             parent: None,
@@ -1911,6 +1968,18 @@ pub enum EditOperation {
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
+        crop: Option<Box<MediaCrop>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        effects: Option<Vec<VisualEffect>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         geometry: Option<Box<ShapeGeometry>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         grid: Option<Box<GridDescriptor>>,
@@ -2275,6 +2344,18 @@ enum EditOperationDef {
     },
     UpdateItem {
         item_id: String,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        crop: Option<Box<MediaCrop>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        effects: Option<Vec<VisualEffect>>,
         #[serde(
             default,
             deserialize_with = "deserialize_present",

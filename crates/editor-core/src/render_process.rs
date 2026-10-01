@@ -2,7 +2,7 @@
 
 use std::{
     fmt::Debug,
-    io::{BufRead, BufReader, Read},
+    io::{BufRead, BufReader, Read, Write},
     path::Path,
     process::{Command, Stdio},
     thread,
@@ -482,6 +482,31 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn prepare_visual_stream(
+        &self,
+        _ffmpeg: &Path,
+        _output: &Path,
+        _fps: u32,
+        _frames: u64,
+        _produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+    ) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "lossless sampled visual preparation is unavailable",
+        ))
+    }
+    fn decode_visual_frame(
+        &self,
+        _ffmpeg_path: &Path,
+        _path: &Path,
+        _at_ms: u64,
+        _size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "sampled visual decoding is unavailable",
+        ))
+    }
     fn readiness(&self, ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), CoreError>;
     fn probe(&self, ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError>;
     fn probe_render_geometry(
@@ -510,6 +535,132 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn prepare_visual_stream(
+        &self,
+        ffmpeg: &Path,
+        output: &Path,
+        fps: u32,
+        frames: u64,
+        produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+    ) -> Result<(), CoreError> {
+        let mut child = Command::new(ffmpeg)
+            .args([
+                "-v",
+                "error",
+                "-nostdin",
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "pam",
+                "-framerate",
+                &fps.to_string(),
+                "-i",
+                "pipe:0",
+                "-an",
+                "-c:v",
+                "ffv1",
+                "-level",
+                "3",
+                "-pix_fmt",
+                "bgra",
+                "-fflags",
+                "+bitexact",
+                "-flags",
+                "+bitexact",
+                "-y",
+            ])
+            .arg(output)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|_| CoreError::render_failure("visual_prepare", None, None))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| CoreError::render_failure("visual_prepare", None, None))?;
+        let reader = thread::spawn(move || {
+            let mut tail = Vec::new();
+            let mut stream = stderr;
+            let mut block = [0; 4096];
+            while let Ok(n) = stream.read(&mut block) {
+                if n == 0 {
+                    break;
+                }
+                tail.extend_from_slice(&block[..n]);
+                if tail.len() > STDERR_TAIL_BYTES {
+                    tail.drain(..tail.len() - STDERR_TAIL_BYTES);
+                }
+            }
+            tail
+        });
+        let result: Result<(), CoreError> = (|| {
+            let mut stdin = child
+                .stdin
+                .take()
+                .ok_or_else(|| CoreError::render_failure("visual_prepare", None, None))?;
+            for frame in 0..frames {
+                stdin
+                    .write_all(&produce(frame)?)
+                    .map_err(|_| CoreError::render_failure("visual_prepare", None, None))?;
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = child.kill();
+        }
+        let status = child
+            .wait()
+            .map_err(|_| CoreError::render_failure("visual_prepare", None, None));
+        let tail = reader.join().unwrap_or_default();
+        result?;
+        let status = status?;
+        if !status.success() {
+            return Err(CoreError::render_failure(
+                "visual_prepare",
+                status.code(),
+                stderr_excerpt(&tail),
+            ));
+        }
+        Ok(())
+    }
+    fn decode_visual_frame(
+        &self,
+        ffmpeg_path: &Path,
+        path: &Path,
+        at_ms: u64,
+        size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        let expected = size.0 as usize * size.1 as usize * 4;
+        if expected > 67_108_864 {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "decoded visual raster exceeds limit",
+            ));
+        }
+        let output = Command::new(ffmpeg_path)
+            .args(["-v", "error", "-nostdin", "-ss", &seconds(at_ms), "-i"])
+            .arg(path)
+            .args([
+                "-frames:v",
+                "1",
+                "-vf",
+                &format!("scale={}:{},format=rgba", size.0, size.1),
+                "-f",
+                "rawvideo",
+                "pipe:1",
+            ])
+            .output()
+            .map_err(|_| CoreError::render_failure("visual_decode", None, None))?;
+        if !output.status.success() || output.stdout.len() != expected {
+            return Err(CoreError::render_failure(
+                "visual_decode",
+                output.status.code(),
+                None,
+            ));
+        }
+        Ok(output.stdout)
+    }
     fn probe_render_geometry(
         &self,
         ffprobe_path: &Path,
@@ -933,6 +1084,57 @@ pub(crate) fn find_absolute_path_start(value: &str) -> Option<usize> {
 mod tests {
     use super::*;
     use crate::render_plan::MediaInputRequest;
+
+    #[test]
+    fn sampled_encoder_failure_has_safe_bounded_diagnostics_and_reaped_child() {
+        let root = tempfile::tempdir().unwrap();
+        let helper = root.path().join(if cfg!(windows) {
+            "encoder.exe"
+        } else {
+            "encoder"
+        });
+        let compile = Command::new("rustc")
+            .arg(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/fixtures/failing_visual_encoder.rs"),
+            )
+            .arg("-o")
+            .arg(&helper)
+            .output()
+            .unwrap();
+        assert!(
+            compile.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        let output = root.path().join("partial.mkv");
+        let mut produced = 0;
+        let error = SystemProcessExecutor
+            .prepare_visual_stream(&helper, &output, 20, 2, &mut |_| {
+                produced += 1;
+                Ok(vec![b'x'; 128])
+            })
+            .unwrap_err();
+        assert_eq!(
+            produced, 2,
+            "fault must consume all input, not fail with BrokenPipe"
+        );
+        assert_eq!(error.failed_stage.as_deref(), Some("visual_prepare"));
+        assert_eq!(error.ffmpeg_exit_code, Some(7));
+        let excerpt = error.ffmpeg_stderr_excerpt.unwrap();
+        assert!(
+            excerpt.len() <= STDERR_EXCERPT_BYTES,
+            "{} bytes",
+            excerpt.len()
+        );
+        assert!(!excerpt.contains("private-review"), "{excerpt}");
+        assert!(excerpt.contains("[path]"));
+        assert!(excerpt.contains("é"));
+        assert!(excerpt.ends_with("injected encoder failure"));
+        // On Windows a live executable remains locked; successful removal also
+        // verifies that the child was waited/reaped before returning the error.
+        std::fs::remove_file(helper).unwrap();
+    }
 
     #[derive(Debug)]
     struct FailingExecutor;

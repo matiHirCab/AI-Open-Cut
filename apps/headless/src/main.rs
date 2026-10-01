@@ -713,6 +713,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "deterministic_animation_curves_v1",
         "animation_loops_v1",
         "inherited_animation_timing_v1",
+        "extended_visual_animation_v1",
         "transitions",
         "audio",
         "audio_roles",

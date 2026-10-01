@@ -171,6 +171,12 @@ impl Renderer {
         )?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let preflight = self.preflight_render(&evaluated, media)?;
+        crate::evaluated_scene::extended_visual::preflight_samples(
+            &preflight.scene,
+            time_ms,
+            time_ms,
+            true,
+        )?;
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -218,6 +224,12 @@ impl Renderer {
             evaluate_project(project, options.width, options.height, project.settings.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let preflight = self.preflight_render(&evaluated, media)?;
+        crate::evaluated_scene::extended_visual::preflight_samples(
+            &preflight.scene,
+            0,
+            preflight.scene.duration_ms,
+            false,
+        )?;
         if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
@@ -285,6 +297,12 @@ impl Renderer {
         let evaluated = evaluate_project(project, options.width, options.height, options.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let preflight = self.preflight_render(&evaluated, media)?;
+        crate::evaluated_scene::extended_visual::preflight_samples(
+            &preflight.scene,
+            options.start_ms,
+            options.end_ms,
+            false,
+        )?;
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -462,7 +480,7 @@ impl Renderer {
     ) -> Result<PreparedRender, CoreError> {
         let RenderPreflight {
             raster_scope,
-            scene: finalized,
+            scene: mut finalized,
             media,
             measured,
             mut warnings,
@@ -482,6 +500,26 @@ impl Renderer {
             workspace.path(),
             &mut resources,
             (&self.raster_cache, raster_scope),
+        )?;
+        crate::render_artifact::extended_visual::prepare(
+            self.artifact_io.as_ref(),
+            &mut finalized,
+            workspace.path(),
+            &mut resources,
+            intent,
+            &|path, time, size| {
+                self.process_executor
+                    .decode_visual_frame(&self.ffmpeg_path, path, time, size)
+            },
+            &|path, fps, frames, produce| {
+                self.process_executor.prepare_visual_stream(
+                    &self.ffmpeg_path,
+                    path,
+                    fps,
+                    frames,
+                    produce,
+                )
+            },
         )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(

@@ -168,6 +168,20 @@ pub(crate) fn resolve_operation_aliases(
                 resolve_alias(&mut parent.id, aliases)?;
             }
         }
+        EditOperation::SetAnimationChannels {
+            item_id,
+            animation_channels,
+        } => {
+            resolve_alias(item_id, aliases)?;
+            for channel in animation_channels {
+                if let Some(target) = &mut channel.target {
+                    resolve_scope_alias(&mut target.scope, aliases)?;
+                    if target.scope == "root" && target.kind != crate::AnimationTargetKind::Effect {
+                        resolve_alias(&mut target.id, aliases)?;
+                    }
+                }
+            }
+        }
         EditOperation::AddMedia { track_id, .. }
         | EditOperation::AddText { track_id, .. }
         | EditOperation::AddSolidColor { track_id, .. }
@@ -178,7 +192,6 @@ pub(crate) fn resolve_operation_aliases(
         | EditOperation::TrimItem { item_id, .. }
         | EditOperation::DeleteItem { item_id }
         | EditOperation::SetKeyframes { item_id, .. }
-        | EditOperation::SetAnimationChannels { item_id, .. }
         | EditOperation::SetAudio { item_id, .. }
         | EditOperation::SplitItem { item_id, .. }
         | EditOperation::SetItemVisibility { item_id, .. } => resolve_alias(item_id, aliases)?,
@@ -396,6 +409,8 @@ fn apply_operation_inner(
                 ));
             }
             let visual_properties = crate::VisualProperties {
+                crop: None,
+                effects: Vec::new(),
                 start_time: None,
                 animation_channels: Vec::new(),
                 transform,
@@ -1063,6 +1078,8 @@ fn apply_operation_inner(
         }
         EditOperation::UpdateItem {
             item_id,
+            crop,
+            effects,
             grid,
             repeater,
             stagger_ms,
@@ -1097,6 +1114,12 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(value) = crop {
+                item.visual_properties_mut().crop = Some(*value);
+            }
+            if let Some(value) = effects {
+                item.visual_properties_mut().effects = value;
+            }
             if let Some(value) = stagger_ms {
                 if value > 60_000 {
                     return Err(CoreError::new(
@@ -2052,6 +2075,11 @@ fn resolve_component_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     for item in tracks.iter_mut().flat_map(|t| &mut t.items) {
+        for channel in &mut item.visual_properties_mut().animation_channels {
+            if let Some(target) = &mut channel.target {
+                resolve_scope_alias(&mut target.scope, aliases)?;
+            }
+        }
         if let TimelineItem::ComponentInstance(instance) = item {
             resolve_alias(&mut instance.component_id, aliases)?;
         }

@@ -18,7 +18,8 @@
     "typed_animation_channels_v1",
     "deterministic_animation_curves_v1",
     "animation_loops_v1",
-    "inherited_animation_timing_v1"
+    "inherited_animation_timing_v1",
+    "extended_visual_animation_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2216,7 +2217,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 26,
+            "const": 27,
             "type": "number"
           },
           "protocolVersion": {
@@ -7900,6 +7901,9 @@
             "pattern": "^#[0-9a-fA-F]{6}$",
             "type": "string"
           },
+          "crop": {
+            "$ref": "#/$defs/ExtendedMediaCrop"
+          },
           "document": {
             "additionalProperties": false,
             "properties": {
@@ -8081,6 +8085,13 @@
               "runs"
             ],
             "type": "object"
+          },
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/ExtendedVisualEffect"
+            },
+            "maxItems": 16,
+            "type": "array"
           },
           "expectedRevision": {
             "maximum": 9007199254740991,
@@ -10854,10 +10865,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -11381,6 +11402,9 @@
       "color": {
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "additionalProperties": false,
         "properties": {
@@ -11567,6 +11591,13 @@
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fontBinding": {
         "additionalProperties": false,
@@ -12686,12 +12717,23 @@
             "minLength": 1,
             "type": "string"
           },
+          "kind": {
+            "enum": [
+              "graphic_geometry",
+              "graphic_fill",
+              "graphic_stroke",
+              "effect"
+            ],
+            "type": "string"
+          },
           "scope": {
+            "minLength": 1,
             "type": "string"
           }
         },
         "required": [
           "id",
+          "kind",
           "scope"
         ],
         "type": "object"
@@ -17381,6 +17423,9 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "additionalProperties": false,
         "properties": {
@@ -17562,6 +17607,13 @@
           "runs"
         ],
         "type": "object"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fill": {
         "$ref": "#/$defs/ShapePropertiesFill"
@@ -17900,10 +17952,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -18260,10 +18322,20 @@
         "minLength": 1,
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -18491,10 +18563,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "grid": {
         "$ref": "#/$defs/GridPropertiesGrid"
@@ -18817,10 +18899,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -19073,10 +19165,20 @@
         ],
         "type": "object"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -19409,10 +19511,20 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "height": {
         "exclusiveMinimum": 0,
@@ -19746,10 +19858,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fill": {
         "$ref": "#/$defs/ShapePropertiesFill"
@@ -20084,10 +20206,20 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -20409,6 +20541,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "$ref": "#/$defs/SvgPropertiesDocument"
       },
@@ -20416,6 +20551,13 @@
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -20742,6 +20884,9 @@
       "color": {
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "additionalProperties": false,
         "properties": {
@@ -20928,6 +21073,13 @@
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fontBinding": {
         "additionalProperties": false,
@@ -21662,10 +21814,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fromItemId": {
         "maxLength": 128,
@@ -21912,10 +22074,20 @@
         "minLength": 1,
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "default": false,
@@ -23251,6 +23423,9 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "additionalProperties": false,
         "properties": {
@@ -23432,6 +23607,13 @@
           "runs"
         ],
         "type": "object"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fill": {
         "$ref": "#/$defs/ShapePropertiesFill"
@@ -24272,7 +24454,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 26,
+        "const": 27,
         "type": "number"
       },
       "settings": {
@@ -24924,10 +25106,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -25280,10 +25472,20 @@
         "minLength": 1,
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -25506,10 +25708,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "grid": {
         "$ref": "#/$defs/GridPropertiesGrid"
@@ -25827,10 +26039,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -26078,10 +26300,20 @@
         ],
         "type": "object"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -26409,10 +26641,20 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "height": {
         "exclusiveMinimum": 0,
@@ -26741,10 +26983,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fill": {
         "$ref": "#/$defs/ShapePropertiesFill"
@@ -27074,10 +27326,20 @@
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -27394,6 +27656,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "$ref": "#/$defs/SvgPropertiesDocument"
       },
@@ -27401,6 +27666,13 @@
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -27727,6 +27999,9 @@
       "color": {
         "type": "string"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "document": {
         "additionalProperties": false,
         "properties": {
@@ -27913,6 +28188,13 @@
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fontBinding": {
         "additionalProperties": false,
@@ -28303,10 +28585,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "fromItemId": {
         "maxLength": 128,
@@ -29532,10 +29824,20 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "crop": {
+        "$ref": "#/$defs/ExtendedMediaCrop"
+      },
       "durationMs": {
         "exclusiveMinimum": 0,
         "maximum": 9007199254740991,
         "type": "integer"
+      },
+      "effects": {
+        "items": {
+          "$ref": "#/$defs/ExtendedVisualEffect"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "hidden": {
         "type": "boolean"
@@ -29852,6 +30154,208 @@
         "type"
       ],
       "type": "object"
+    },
+    "ExtendedMediaCrop": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "type": "number"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "type": "number"
+        },
+        "x": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "y": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "height",
+        "width",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ExtendedVisualEffect": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "radiusPx": {
+              "maximum": 128,
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": {
+              "const": "gaussian_blur",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "radiusPx",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "b": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "g": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "r": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "a",
+                "b",
+                "g",
+                "r"
+              ],
+              "type": "object"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "intensity": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "radiusPx": {
+              "maximum": 128,
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": {
+              "const": "glow",
+              "type": "string"
+            }
+          },
+          "required": [
+            "color",
+            "id",
+            "intensity",
+            "radiusPx",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "b": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "g": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "r": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "a",
+                "b",
+                "g",
+                "r"
+              ],
+              "type": "object"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "color_tint",
+              "type": "string"
+            }
+          },
+          "required": [
+            "color",
+            "id",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "vignette",
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "id",
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
     }
   }
 }

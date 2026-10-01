@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyComponentWorkflow } from "./component-workflow";
+import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
@@ -1065,7 +1066,7 @@ it("edits typed animation channels through MCP standalone and alias batches", as
         ],
         [
           2,
-          [{ ...channel(10), property: "transform.rotation_deg" }],
+          [{ ...channel(10), property: "transform.skew_x_deg" }],
           "INVALID_ARGUMENT",
         ],
         [
@@ -1183,6 +1184,10 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
   await verifyComponentWorkflow(client, call, media, projects);
+});
+
+it("authors extended animation through standalone and alias MCP edits", async () => {
+  await verifyExtendedVisualWorkflow(client, call);
 });
 
 it("exercises all shape contracts, atomic batches and retained history", async () => {

@@ -4,6 +4,56 @@ use crate::{
     ParameterizedAnimationCurve, SimpleAnimationCurve,
 };
 
+/// Preserve exact root clocks until segment/loop selection. Derived instance
+/// clocks retain their fractional milliseconds rather than being quantized.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum SampleTime {
+    Integer(u64),
+    Fractional(f64),
+}
+
+impl SampleTime {
+    pub(crate) fn local(at: u64, start: u64, clock: Option<(f64, f64)>) -> Self {
+        match clock {
+            None | Some((1.0, 0.0)) => Self::Integer(at.saturating_sub(start)),
+            Some((rate, offset)) => {
+                Self::Fractional((rate * at as f64 + offset - start as f64).max(0.0))
+            }
+        }
+    }
+    pub(crate) fn sample(self, channel: &AnimationChannel) -> Option<AnimationChannelValue> {
+        match self {
+            Self::Integer(time) => sample_channel(channel, time),
+            Self::Fractional(time) => sample_channel_at(channel, time),
+        }
+    }
+    pub(crate) fn scalar(self, channel: &AnimationChannel) -> Option<f64> {
+        match self.sample(channel)? {
+            AnimationChannelValue::Scalar { value } => Some(value),
+            _ => None,
+        }
+    }
+    pub(crate) fn looped(self, channel: &AnimationChannel) -> Option<Self> {
+        match self {
+            Self::Integer(time) => map_loop_time(channel, time).map(Self::Integer),
+            Self::Fractional(time) => map_loop_time_at(channel, time).map(Self::Fractional),
+        }
+    }
+    pub(crate) fn compare(self, key: u64) -> Option<std::cmp::Ordering> {
+        match self {
+            Self::Integer(time) => Some(time.cmp(&key)),
+            Self::Fractional(time) => time.partial_cmp(&(key as f64)),
+        }
+    }
+    pub(crate) fn progress(self, start: u64, end: u64) -> f64 {
+        let elapsed = match self {
+            Self::Integer(time) => (time - start) as f64,
+            Self::Fractional(time) => time - start as f64,
+        };
+        elapsed / (end - start) as f64
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum SpringCoefficients {
     Underdamped {
@@ -119,26 +169,190 @@ fn cubic_bezier(time: f64, first: f64, second: f64) -> f64 {
         + time * time * time
 }
 
+/// Closed progress envelope, including all spring stationary points. Endpoints
+/// retain the sampler's exact authored-value semantics.
+pub(crate) fn curve_bounds(curve: AnimationCurve, low: f64, high: f64) -> (f64, f64) {
+    let progress = |t| match curve {
+        AnimationCurve::Simple(SimpleAnimationCurve::Hold) => 0.0,
+        AnimationCurve::Simple(SimpleAnimationCurve::Linear) => t,
+        AnimationCurve::Parameterized(c) => parameterized_curve_progress(c, t),
+    };
+    let mut values = vec![progress(low), progress(high)];
+    if let AnimationCurve::Parameterized(ParameterizedAnimationCurve::Spring {
+        mass,
+        stiffness,
+        damping,
+        initial_velocity,
+    }) = curve
+    {
+        // Evaluate the continuous extension at endpoints as well: spring curves
+        // can jump to the exact authored final value at t=1.
+        let continuous =
+            |t: f64| match spring_coefficients(mass, stiffness, damping, initial_velocity) {
+                SpringCoefficients::Underdamped {
+                    decay,
+                    frequency,
+                    sine,
+                } => {
+                    1.0 + (-decay * t).exp()
+                        * (-(frequency * t).cos() + sine * (frequency * t).sin())
+                }
+                SpringCoefficients::Critical { decay, linear } => {
+                    1.0 + (-decay * t).exp() * (-1.0 + linear * t)
+                }
+                SpringCoefficients::Overdamped {
+                    slow_root,
+                    fast_root,
+                    slow,
+                    fast,
+                } => 1.0 + slow * (slow_root * t).exp() + fast * (fast_root * t).exp(),
+            };
+        values.extend([continuous(low), continuous(high)]);
+        let mut stationary = Vec::new();
+        match spring_coefficients(mass, stiffness, damping, initial_velocity) {
+            SpringCoefficients::Underdamped {
+                decay,
+                frequency,
+                sine,
+            } => {
+                let phase = (-(decay + sine * frequency)).atan2(frequency - decay * sine);
+                let first = ((frequency * low - phase) / std::f64::consts::PI).ceil() as i64;
+                let last = ((frequency * high - phase) / std::f64::consts::PI).floor() as i64;
+                for k in first..=last {
+                    stationary.push((phase + k as f64 * std::f64::consts::PI) / frequency);
+                }
+            }
+            SpringCoefficients::Critical { decay, linear } => {
+                if decay * linear != 0.0 {
+                    stationary.push((linear + decay) / (decay * linear));
+                }
+            }
+            SpringCoefficients::Overdamped {
+                slow_root,
+                fast_root,
+                slow,
+                fast,
+            } => {
+                let ratio = -(fast * fast_root) / (slow * slow_root);
+                if ratio > 0.0 {
+                    stationary.push(ratio.ln() / (slow_root - fast_root));
+                }
+            }
+        }
+        values.extend(
+            stationary
+                .into_iter()
+                .filter(|t| *t >= low && *t <= high)
+                .map(continuous),
+        );
+    }
+    (
+        values.iter().copied().fold(f64::INFINITY, f64::min),
+        values.into_iter().fold(f64::NEG_INFINITY, f64::max),
+    )
+}
+
+/// Looping intervals use the entire authored cycle, a conservative enclosure.
+pub(crate) fn scalar_bounds(channel: &AnimationChannel, low: u64, high: u64) -> Option<(f64, f64)> {
+    scalar_bounds_at(channel, low as f64, high as f64)
+}
+
+pub(crate) fn scalar_bounds_at(
+    channel: &AnimationChannel,
+    mut low: f64,
+    mut high: f64,
+) -> Option<(f64, f64)> {
+    let scalar = |v: &AnimationChannelValue| {
+        if let AnimationChannelValue::Scalar { value } = v {
+            Some(*value)
+        } else {
+            None
+        }
+    };
+    if low == high {
+        let value = sample_scalar_channel_at(channel, low)?;
+        return Some((value, value));
+    }
+    if channel.r#loop.is_some() {
+        low = 0.0;
+        high = channel.keyframes.last()?.time_ms as f64;
+    }
+    let mut bounds = (
+        sample_scalar_channel_at(channel, low)?,
+        sample_scalar_channel_at(channel, low)?,
+    );
+    let mut add = |value: f64| {
+        bounds.0 = bounds.0.min(value);
+        bounds.1 = bounds.1.max(value);
+    };
+    add(sample_scalar_channel_at(channel, high)?);
+    for pair in channel.keyframes.windows(2) {
+        let (a, b) = (&pair[0], &pair[1]);
+        if high < a.time_ms as f64 || low > b.time_ms as f64 {
+            continue;
+        }
+        let span = (b.time_ms - a.time_ms) as f64;
+        let (p, q) = curve_bounds(
+            a.curve,
+            ((low - a.time_ms as f64).max(0.0) / span).clamp(0.0, 1.0),
+            ((high - a.time_ms as f64).max(0.0) / span).clamp(0.0, 1.0),
+        );
+        let start = scalar(&a.value)?;
+        let end = scalar(&b.value)?;
+        let clamp = |value: f64| match channel.property {
+            crate::AnimationChannelProperty::CropWidth
+            | crate::AnimationChannelProperty::CropHeight => value.clamp(0.000001, 1.0),
+            crate::AnimationChannelProperty::CropX
+            | crate::AnimationChannelProperty::CropY
+            | crate::AnimationChannelProperty::PathTrim
+            | crate::AnimationChannelProperty::VignetteAmount => value.clamp(0.0, 1.0),
+            crate::AnimationChannelProperty::BlurRadius
+            | crate::AnimationChannelProperty::GlowRadius => value.clamp(0.0, 128.0),
+            _ => value,
+        };
+        for t in [p, q] {
+            add(clamp(start + (end - start) * t));
+        }
+        if (low..=high).contains(&(b.time_ms as f64)) {
+            add(end);
+        }
+    }
+    Some(bounds)
+}
+
 pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) -> Option<f64> {
+    match sample_channel(channel, time_ms)? {
+        AnimationChannelValue::Scalar { value } => Some(value),
+        _ => None,
+    }
+}
+
+pub(crate) fn sample_scalar_channel_at(channel: &AnimationChannel, time_ms: f64) -> Option<f64> {
     let first = channel.keyframes.first()?;
-    let time_ms = map_loop_time(channel, time_ms)?;
+    let time_ms = map_loop_time_at(channel, time_ms)?;
     let scalar = |value: &AnimationChannelValue| match value {
         AnimationChannelValue::Scalar { value } => Some(*value),
         _ => None,
     };
-    if time_ms <= first.time_ms {
+    if time_ms <= first.time_ms as f64 {
         return scalar(&first.value);
     }
     for pair in channel.keyframes.windows(2) {
         let start = &pair[0];
         let end = &pair[1];
-        if time_ms == end.time_ms {
+        if time_ms == end.time_ms as f64 {
             return scalar(&end.value);
         }
-        if time_ms < end.time_ms {
+        if time_ms < end.time_ms as f64 {
+            if matches!(
+                start.curve,
+                AnimationCurve::Simple(SimpleAnimationCurve::Hold)
+            ) {
+                return scalar(&start.value);
+            }
             let start_value = scalar(&start.value)?;
             let end_value = scalar(&end.value)?;
-            let progress = (time_ms - start.time_ms) as f64 / (end.time_ms - start.time_ms) as f64;
+            let progress = (time_ms - start.time_ms as f64) / (end.time_ms - start.time_ms) as f64;
             let eased = match start.curve {
                 AnimationCurve::Simple(SimpleAnimationCurve::Hold) => 0.0,
                 AnimationCurve::Simple(SimpleAnimationCurve::Linear) => progress,
@@ -147,7 +361,12 @@ pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) ->
                 }
             };
             let value = start_value + (end_value - start_value) * eased;
-            let value = if matches!(start.curve, AnimationCurve::Parameterized(_)) {
+            let value = if matches!(start.curve, AnimationCurve::Parameterized(_))
+                || matches!(
+                    channel.property,
+                    crate::AnimationChannelProperty::CropWidth
+                        | crate::AnimationChannelProperty::CropHeight
+                ) {
                 match channel.property {
                     crate::AnimationChannelProperty::PositionX
                     | crate::AnimationChannelProperty::PositionY => {
@@ -157,6 +376,15 @@ pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) ->
                     | crate::AnimationChannelProperty::ScaleY => value.clamp(0.000_001, 100.0),
                     crate::AnimationChannelProperty::Opacity => value.clamp(0.0, 1.0),
                     crate::AnimationChannelProperty::GainDb => value.clamp(-96.0, 12.0),
+                    crate::AnimationChannelProperty::RotationDeg => value.clamp(-36000.0, 36000.0),
+                    crate::AnimationChannelProperty::CropWidth
+                    | crate::AnimationChannelProperty::CropHeight => value.clamp(0.000_001, 1.0),
+                    crate::AnimationChannelProperty::CropX
+                    | crate::AnimationChannelProperty::CropY
+                    | crate::AnimationChannelProperty::PathTrim
+                    | crate::AnimationChannelProperty::VignetteAmount => value.clamp(0.0, 1.0),
+                    crate::AnimationChannelProperty::BlurRadius
+                    | crate::AnimationChannelProperty::GlowRadius => value.clamp(0.0, 128.0),
                     _ => value,
                 }
             } else {
@@ -203,11 +431,223 @@ pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<
     first.checked_add(u64::try_from(offset).ok()?)
 }
 
+pub(crate) fn map_loop_time_at(channel: &AnimationChannel, time_ms: f64) -> Option<f64> {
+    if !time_ms.is_finite() || time_ms < 0.0 {
+        return None;
+    }
+    if time_ms.fract() == 0.0 && time_ms < u64::MAX as f64 {
+        return map_loop_time(channel, time_ms as u64).map(|t| t as f64);
+    }
+    let Some(spec) = channel.r#loop else {
+        return Some(time_ms);
+    };
+    let first = channel.keyframes.first()?.time_ms as f64;
+    let last = channel.keyframes.last()?.time_ms as f64;
+    let span = last - first;
+    if span <= 0.0 || time_ms < first {
+        return Some(time_ms);
+    }
+    let period = span
+        * if spec.mode == AnimationLoopMode::PingPong {
+            2.0
+        } else {
+            1.0
+        };
+    let elapsed = time_ms - first;
+    if let AnimationLoopIterations::Finite(count) = spec.iterations
+        && elapsed >= period * f64::from(count)
+    {
+        return Some(if spec.mode == AnimationLoopMode::PingPong {
+            first
+        } else {
+            last
+        });
+    }
+    let phase = elapsed.rem_euclid(period);
+    Some(
+        first
+            + if spec.mode == AnimationLoopMode::PingPong && phase > span {
+                period - phase
+            } else {
+                phase
+            },
+    )
+}
+
+/// The same bounded sampler supplies compound scene facts for every output intent.
+pub(crate) fn sample_channel(
+    channel: &AnimationChannel,
+    time_ms: u64,
+) -> Option<AnimationChannelValue> {
+    let time = map_loop_time(channel, time_ms)?;
+    let first = channel.keyframes.first()?;
+    if time <= first.time_ms {
+        return Some(first.value.clone());
+    }
+    for pair in channel.keyframes.windows(2) {
+        if time == pair[1].time_ms {
+            return Some(pair[1].value.clone());
+        }
+        if time < pair[1].time_ms {
+            if matches!(
+                pair[0].curve,
+                AnimationCurve::Simple(SimpleAnimationCurve::Hold)
+            ) {
+                return Some(pair[0].value.clone());
+            }
+            // Rebase only the selected segment. All scalar/compound interpolation
+            // and clamps still come from the canonical fractional sampler.
+            let origin = pair[0].time_ms;
+            let mut start = pair[0].clone();
+            let mut end = pair[1].clone();
+            start.time_ms = 0;
+            end.time_ms -= origin;
+            let relative = AnimationChannel {
+                property: channel.property,
+                target: channel.target.clone(),
+                keyframes: vec![start, end],
+                r#loop: None,
+            };
+            return sample_channel_at(&relative, (time - origin) as f64);
+        }
+    }
+    Some(channel.keyframes.last()?.value.clone())
+}
+
+pub(crate) fn sample_channel_at(
+    channel: &AnimationChannel,
+    time_ms: f64,
+) -> Option<AnimationChannelValue> {
+    if matches!(
+        channel.keyframes.first()?.value,
+        AnimationChannelValue::Scalar { .. }
+    ) {
+        return sample_scalar_channel_at(channel, time_ms)
+            .map(|value| AnimationChannelValue::Scalar { value });
+    }
+    let time = map_loop_time_at(channel, time_ms)?;
+    let first = channel.keyframes.first()?;
+    if time <= first.time_ms as f64 {
+        return Some(first.value.clone());
+    }
+    for pair in channel.keyframes.windows(2) {
+        let (start, end) = (&pair[0], &pair[1]);
+        if time == end.time_ms as f64 {
+            return Some(end.value.clone());
+        }
+        if time < end.time_ms as f64 {
+            let progress = (time - start.time_ms as f64) / (end.time_ms - start.time_ms) as f64;
+            let t = match start.curve {
+                AnimationCurve::Simple(SimpleAnimationCurve::Hold) => {
+                    return Some(start.value.clone());
+                }
+                AnimationCurve::Simple(SimpleAnimationCurve::Linear) => progress,
+                AnimationCurve::Parameterized(curve) => {
+                    parameterized_curve_progress(curve, progress)
+                }
+            };
+            let mix = |a: f64, b: f64, low: f64, high: f64| (a + (b - a) * t).clamp(low, high);
+            return match (&start.value, &end.value) {
+                (
+                    AnimationChannelValue::Rgba {
+                        r: ar,
+                        g: ag,
+                        b: ab,
+                        a: aa,
+                    },
+                    AnimationChannelValue::Rgba {
+                        r: br,
+                        g: bg,
+                        b: bb,
+                        a: ba,
+                    },
+                ) => {
+                    let [r, g, b, a] =
+                        interpolate_rgba([*ar, *ag, *ab, *aa], [*br, *bg, *bb, *ba], t);
+                    Some(AnimationChannelValue::Rgba { r, g, b, a })
+                }
+                (
+                    AnimationChannelValue::PathPoints { points: a },
+                    AnimationChannelValue::PathPoints { points: b },
+                ) if a.len() == b.len() => Some(AnimationChannelValue::PathPoints {
+                    points: a
+                        .iter()
+                        .zip(b)
+                        .map(|(a, b)| crate::AnimationPoint {
+                            x: mix(a.x, b.x, -1_000_000.0, 1_000_000.0),
+                            y: mix(a.y, b.y, -1_000_000.0, 1_000_000.0),
+                        })
+                        .collect(),
+                }),
+                (
+                    AnimationChannelValue::GradientStops { stops: a },
+                    AnimationChannelValue::GradientStops { stops: b },
+                ) if a.len() == b.len() => Some(AnimationChannelValue::GradientStops {
+                    stops: a
+                        .iter()
+                        .zip(b)
+                        .map(|(a, b)| crate::AnimationGradientStop {
+                            offset: mix(a.offset, b.offset, 0.0, 1.0),
+                            color: interpolate_rgba(a.color, b.color, t),
+                        })
+                        .collect(),
+                }),
+                _ => None,
+            };
+        }
+    }
+    Some(channel.keyframes.last()?.value.clone())
+}
+
+fn interpolate_rgba(a: [f64; 4], b: [f64; 4], t: f64) -> [f64; 4] {
+    let linear = |v: f64| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let srgb = |v: f64| {
+        if v <= 0.0031308 {
+            12.92 * v
+        } else {
+            1.055 * v.powf(1.0 / 2.4) - 0.055
+        }
+    };
+    let alpha = (a[3] + (b[3] - a[3]) * t).clamp(0.0, 1.0);
+    if alpha == 0.0 {
+        return [0.0; 4];
+    }
+    let mut result = [0.0; 4];
+    for i in 0..3 {
+        let left = linear(a[i]) * a[3];
+        let right = linear(b[i]) * b[3];
+        result[i] = srgb(((left + (right - left) * t) / alpha).clamp(0.0, 1.0)).clamp(0.0, 1.0);
+    }
+    result[3] = alpha;
+    result
+}
+
 #[cfg(test)]
 mod curve_tests {
     use super::*;
     use crate::AnimationChannelProperty;
     use serde_json::json;
+
+    #[test]
+    fn legacy_integer_keyframes_above_f64_precision_keep_exact_selection() {
+        let mut value = channel(json!("linear"), 0.0, 100.0);
+        let origin = 9_007_199_254_740_993;
+        value.keyframes[0].time_ms = origin;
+        value.keyframes[1].time_ms = origin + 4;
+        assert_eq!(sample_scalar_channel(&value, origin), Some(0.0));
+        assert_eq!(sample_scalar_channel(&value, origin + 1), Some(25.0));
+        assert_eq!(sample_scalar_channel(&value, origin + 3), Some(75.0));
+        assert_eq!(sample_scalar_channel(&value, origin + 4), Some(100.0));
+        value.keyframes[0].curve = AnimationCurve::Simple(SimpleAnimationCurve::Hold);
+        assert_eq!(sample_scalar_channel(&value, origin + 3), Some(0.0));
+        assert_eq!(sample_scalar_channel(&value, origin + 4), Some(100.0));
+    }
 
     fn channel(curve: serde_json::Value, first: f64, last: f64) -> AnimationChannel {
         serde_json::from_value(json!({
@@ -517,6 +957,84 @@ fn push_positive_range(ranges: &mut Vec<(u64, u64)>, start_ms: u64, end_ms: u64,
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn extended_fractional_clocks_preserve_loop_phase_and_compound_values() {
+        let channel: AnimationChannel = serde_json::from_value(serde_json::json!({"property":"transform.rotation_deg","loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":10,"value":{"type":"scalar","value":100},"curve":"hold"}]})).unwrap();
+        assert_eq!(sample_scalar_channel_at(&channel, 9.5), Some(95.0));
+        assert_eq!(sample_scalar_channel_at(&channel, 10.5), Some(95.0));
+        assert_eq!(sample_scalar_channel_at(&channel, 20.5), Some(5.0));
+        let mut path: AnimationChannel = serde_json::from_value(serde_json::json!({"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"p"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0}]},"curve":"linear"},{"timeMs":10,"value":{"type":"path_points","points":[{"x":10,"y":20}]},"curve":"hold"}]})).unwrap();
+        assert_eq!(
+            serde_json::to_value(sample_channel_at(&path, 0.5).unwrap()).unwrap(),
+            serde_json::json!({"type":"path_points","points":[{"x":0.5,"y":1.0}]})
+        );
+        path.keyframes[0].curve = AnimationCurve::Simple(SimpleAnimationCurve::Hold);
+        assert_eq!(
+            sample_channel_at(&path, 0.5),
+            Some(path.keyframes[0].value.clone())
+        );
+    }
+
+    #[test]
+    fn canonical_extended_samples_match_independent_values() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        fn compare(actual: &serde_json::Value, expected: &serde_json::Value) {
+            match (actual, expected) {
+                (serde_json::Value::Number(a), serde_json::Value::Number(b)) => {
+                    assert!((a.as_f64().unwrap() - b.as_f64().unwrap()).abs() < 1e-9)
+                }
+                (serde_json::Value::Array(a), serde_json::Value::Array(b)) => {
+                    assert_eq!(a.len(), b.len());
+                    for (a, b) in a.iter().zip(b) {
+                        compare(a, b);
+                    }
+                }
+                (serde_json::Value::Object(a), serde_json::Value::Object(b)) => {
+                    assert_eq!(a.len(), b.len());
+                    for (key, value) in b {
+                        compare(&a[key], value);
+                    }
+                }
+                _ => assert_eq!(actual, expected),
+            }
+        }
+        for case in fixture["sampleCases"].as_array().unwrap() {
+            let channel: AnimationChannel =
+                serde_json::from_value(case["channel"].clone()).unwrap();
+            let sampled = sample_channel(&channel, case["timeMs"].as_u64().unwrap()).unwrap();
+            compare(&serde_json::to_value(sampled).unwrap(), &case["expected"]);
+        }
+    }
+
+    #[test]
+    fn spring_envelopes_contain_all_stationary_points_and_endpoint_jumps() {
+        for damping in [0.01, 1.0, 20.0, 100.0] {
+            for velocity in [-10.0, 0.0, 10.0] {
+                let curve = ParameterizedAnimationCurve::Spring {
+                    mass: 1.0,
+                    stiffness: 100.0,
+                    damping,
+                    initial_velocity: velocity,
+                };
+                for (low, high) in [(0.0, 1.0), (0.1, 0.2), (0.9, 1.0)] {
+                    let (min, max) = curve_bounds(AnimationCurve::Parameterized(curve), low, high);
+                    for i in 0..=1000 {
+                        let value = parameterized_curve_progress(
+                            curve,
+                            low + (high - low) * f64::from(i) / 1000.0,
+                        );
+                        assert!(
+                            value >= min - 1e-12 && value <= max + 1e-12,
+                            "{curve:?}: {value} outside [{min},{max}]"
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     fn scalar(time_ms: u64, value: f64, easing: Easing) -> Keyframe {
         Keyframe {

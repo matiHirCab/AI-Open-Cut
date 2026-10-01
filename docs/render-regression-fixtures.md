@@ -170,3 +170,7 @@ hit/miss diagnostics on stderr only. Rebuild without the feature before ordinary
 MCP integration and packaged smoke checks. The native bridge test is explicitly
 skipped in an ordinary unit run; its separate required run is recorded in the
 follow-up change's verification index. The required Linux Render parity job now also executes core cache conformance, feature-enabled native worker tests and the real bridge reuse test with both required flags. It restores the default headless build and runs default transport tests before report validation/upload; the policy guard protects that exact sequence. See [mandatory native CI reproduction](ci-parity-gates.md#mandatory-native-raster-cache-evidence). Local Windows logs do not prove remote Linux execution. No golden references are regenerated.
+
+## Extended visual animation
+
+See [schema-27 animation semantics](extended-visual-animation.md). The required xtended_visual_animation integration suite exercises all twelve new properties, asymmetric crop, ordered effects, inherited clocks and nonzero range starts using the configured FFmpeg/FFprobe pair. Set OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1 to fail when native dependencies are missing. CPU tests independently check kernels, order, exact budgets and canonical compound samples.

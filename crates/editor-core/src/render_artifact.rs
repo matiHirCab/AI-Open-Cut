@@ -3,6 +3,7 @@
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;
+pub(crate) mod extended_visual;
 mod shapes;
 mod text;
 use std::{
