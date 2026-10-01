@@ -3,6 +3,9 @@ use opencut_editor_core::{
 };
 use serde_json::{Value, json};
 
+// Limit both filter inputs: FFmpeg 6 may evaluate frames ahead of the output limit.
+const SINGLE_FRAME_SSIM: &str = "[0:v]trim=end_frame=1,setpts=PTS-STARTPTS[reference];[1:v]trim=end_frame=1,setpts=PTS-STARTPTS[actual];[reference][actual]ssim";
+
 fn setup() -> (tempfile::TempDir, EditorCore, String, String) {
     let root = tempfile::tempdir().unwrap();
     let media = root.path().join("media");
@@ -163,7 +166,9 @@ fn native_review_identity_effect_preserves_offset_path_in_every_intent() {
     };
     let extent = |pixels: &[u8]| {
         let mut points = pixels
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .enumerate()
             .filter(|(_, p)| p[0] > 180 && p[1] < 30 && p[2] < 30)
             .map(|(i, _)| (i % 64, i / 64));
@@ -177,6 +182,10 @@ fn native_review_identity_effect_preserves_offset_path_in_every_intent() {
     std::fs::copy(dir.join(before.relative_path), &baseline_png).unwrap();
     let before = decode(&baseline_png);
     assert_eq!(extent(&before), (10, 29, 20, 39));
+    assert!(
+        before[(30 * 64 + 30) * 3] < 30,
+        "transparent path border expanded"
+    );
     let frame = renderer.render_preview(&sampled, &dir, 0).unwrap();
     let pixels = decode(&dir.join(&frame.relative_path));
     assert_eq!(extent(&pixels), (10, 29, 20, 39));
@@ -231,7 +240,7 @@ fn native_review_identity_effect_preserves_offset_path_in_every_intent() {
                 "-frames:v",
                 "1",
                 "-lavfi",
-                "ssim",
+                SINGLE_FRAME_SSIM,
                 "-f",
                 "null",
                 if cfg!(windows) { "NUL" } else { "/dev/null" },
@@ -815,8 +824,10 @@ fn native_extended_draft_and_export_preserve_decoded_audio_and_timing() {
         );
         output
             .stdout
-            .chunks_exact(4)
-            .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| f32::from_le_bytes(*c))
             .collect::<Vec<_>>()
     };
     for (left, right) in [(0, 2), (1, 3)] {
@@ -997,6 +1008,7 @@ fn nested_rotation_clocks_and_scoped_effects_render_at_loop_turns() {
         let frame = renderer.render_preview(&project, &dir, time).unwrap();
         frames.push(std::fs::read(dir.join(&frame.relative_path)).unwrap());
         let comparison = std::process::Command::new(&ffmpeg)
+            .current_dir(_root.path())
             .args(["-v", "info", "-i"])
             .arg(dir.join(frame.relative_path))
             .args(["-ss", &format!("{:.3}", (time - 200) as f64 / 1000.0), "-i"])
@@ -1005,7 +1017,7 @@ fn nested_rotation_clocks_and_scoped_effects_render_at_loop_turns() {
                 "-frames:v",
                 "1",
                 "-lavfi",
-                "ssim",
+                &format!("{SINGLE_FRAME_SSIM}=stats_file=single-frame-ssim.txt"),
                 "-f",
                 "null",
                 if cfg!(windows) { "NUL" } else { "/dev/null" },
@@ -1016,6 +1028,12 @@ fn nested_rotation_clocks_and_scoped_effects_render_at_loop_turns() {
             comparison.status.success(),
             "{}",
             String::from_utf8_lossy(&comparison.stderr)
+        );
+        let stats = std::fs::read_to_string(_root.path().join("single-frame-ssim.txt")).unwrap();
+        assert_eq!(
+            stats.lines().count(),
+            1,
+            "comparison evaluated later animation frames"
         );
         let log = String::from_utf8_lossy(&comparison.stderr);
         let ssim = log
@@ -1408,7 +1426,7 @@ fn native_rotation_effects_share_frame_range_and_export_samples() {
                 "-frames:v",
                 "1",
                 "-lavfi",
-                "ssim",
+                SINGLE_FRAME_SSIM,
                 "-f",
                 "null",
                 if cfg!(windows) { "NUL" } else { "/dev/null" },
@@ -1695,7 +1713,7 @@ fn native_compound_path_gradient_crop_and_effect_channels_share_nonzero_range_sa
                         "-frames:v",
                         "1",
                         "-lavfi",
-                        "ssim",
+                        SINGLE_FRAME_SSIM,
                         "-f",
                         "null",
                         if cfg!(windows) { "NUL" } else { "/dev/null" },

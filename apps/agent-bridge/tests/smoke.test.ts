@@ -1183,8 +1183,11 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
-  await verifyExtendedVisualWorkflow(client, call);
   await verifyComponentWorkflow(client, call, media, projects);
+});
+
+it("authors extended animation through standalone and alias MCP edits", async () => {
+  await verifyExtendedVisualWorkflow(client, call);
 });
 
 it("exercises all shape contracts, atomic batches and retained history", async () => {

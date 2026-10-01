@@ -52,7 +52,7 @@ impl Raster {
         if bytes.len() != width * height * 4 {
             return Err(invalid("decoded raster size mismatch"));
         }
-        for (pixel, bytes) in raster.pixels.iter_mut().zip(bytes.chunks_exact(4)) {
+        for (pixel, bytes) in raster.pixels.iter_mut().zip(bytes.as_chunks::<4>().0) {
             let a = f64::from(bytes[3]) / 255.0;
             *pixel = [
                 (linear(f64::from(bytes[0]) / 255.0) * a) as f32,
