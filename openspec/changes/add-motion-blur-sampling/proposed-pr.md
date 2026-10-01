@@ -1,35 +1,47 @@
 # Proposed PR title
 
-[MG-M3-07] Add inherited motion-blur sampling
+[MG-M3-07] Add motion-blur sampling over inherited transforms
 
 # Proposed PR body
 
-An animated visual leaf can now author `motionBlur: { shutterAngleDeg, sampleCount }`
-through existing standalone and alias-aware batch edits. Centered deterministic
-midpoint samples evaluate crop, paint, effects, complete inherited transforms and
-activity on canonical clocks, then average premultiplied linear-light canvas rasters
-before the existing stacking pass. Preview frames, audiovisual ranges, drafts and
-export share that preparation; audio processing stays unchanged.
+Animated visual leaves can author `motionBlur: { shutterAngleDeg, sampleCount }`
+through existing standalone `update_item` and alias-aware batch edits. Centered
+midpoint samples use authored project FPS and canonical inherited clocks, then
+average premultiplied linear-light canvas rasters after crop/clip/paint/effects and
+full affine/transition evaluation, before existing stacking. Frame, audiovisual
+range, draft and export consume the same preparation; audio stays unchanged.
 
-Editor-core owns finite numeric bounds, 16-sample and cumulative work limits,
-unsupported-target rejection, schema28 adoption of current state and retained
-history, and atomic failures. Additive bridge/headless catalogs advertise
-`motion_blur_sampling_v1`; omitted/disabled settings preserve instantaneous behavior.
-See `docs/motion-blur-sampling.md` and the approved OpenSpec change for the exact
-coordinate, timing, ordering, clipping and fallback policy.
+Editor-core owns finite angle bounds, the 16-sample and 268435456 weighted-pixel
+limits, unsupported-target errors, optimistic revisions, atomic batch rollback,
+undo/redo and schema 28 adoption of current state plus all retained history/drafts.
+Additive protocol 1 catalogs advertise `motion_blur_sampling_v1`. Omitted, zero-angle
+and single-sample controls retain deterministic instantaneous output. The inherited
+instantaneous fallback reuses the private expression-thread guard for graphs that
+emit mutable FFmpeg registers. No raw expressions, paths or resources are exposed.
 
-Depends on PR131. This local implementation is stacked on pinned issue43 head
-`e1010bb97174d44a5d19c61a90514bf2336845ca`; PR131 is not merged or rewritten.
-References #44. Publication is not approved yet.
+Based on main `b2be8f219743639db106330f5839a2efcf77c053`, containing the merged
+issue43 implementation and corrected head `81a6ec6` (all 11 exact-head CI jobs
+passed; 49.03 minutes within the unchanged 120-minute budget). Original issue44 commits are
+preserved. References #44.
 
-Validation: pinned Rust format/strict Clippy and 779 workspace tests pass; bridge
-427 unit, 360 contract, 14 integration and 8 packaged smoke tests pass. Real
-FFmpeg 7.1 passes all 55 animation fixtures, reviewed native goldens, native
-cache/worker reuse and geometry/font/report checks. Packaged smoke is mocked.
+Validation passes: Rust format, workspace tests and strict Clippy 1.97/1.98;
+bridge type/lint, 185 Rust + 360 TS contract fixtures, 427 unit, 14 MCP integration,
+8 packaged smoke and 15 hermetic Python cases; actual FFmpeg 6/7 animation 55 each,
+cache core/worker/bridge 13/3/1, native lifecycle and geometry/font 29. Additional
+actual-headless 22-request reproduction has independent pixel MSE 0, SSIM >0.9997,
+unchanged PCM RMS 0, exact durations, equal draft pixels and byte preservation.
+The unchanged seven-corpus golden run and strict captured-report validator pass.
+The loaded integration timeout is retained alongside the passing complete idle
+rerun; timeout 60 seconds, tolerances, golden references and CI policy are unchanged.
+Packaged smoke mocks FFmpeg and supplies packaging evidence only.
 
-**Not merge-ready:** official Ubuntu FFmpeg 6.1 reproduces the base's three parity
-failures plus two issue44 conformance failures. Rust 1.98 has an inherited lint
-failure. Required rules-screen coverage is incomplete, Moon's GHCR download is
-blocked, and CODEOWNER review/archive are pending. Full commands, failures,
-performance observations and follow-up steps are in this change's `verification.md`.
-Do not close #44 until those requirements are satisfied.
+The complete unchanged PR rules-screen matrix passes locally: 25 / 25 / 6 actual
+renders at 960 / 1280 / 1920, with all five lifecycle states at each resolution.
+This is Linux evidence; issue44 remote CI has not been run.
+
+**Pending before merge readiness:** designated `@matiHirCab`
+implementation review, OpenSpec synchronization/archival and the protected final
+gate remain required. This is local proposed text; publication is separately
+unapproved. See `docs/motion-blur-sampling.md` for exact timing, coordinate, ordering
+and fallback policy, and the change's `verification.md` for commands, failures,
+performance observations, limits and complete evidence.

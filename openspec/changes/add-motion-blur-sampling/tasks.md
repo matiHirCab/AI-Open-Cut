@@ -18,7 +18,7 @@
 - [x] 3.3 Reuse issue43 local crop/clip/effects/affine pipeline; average weighted premultiplied canvas rasters before stacking and preserve cache dependencies.
 - [x] 3.4 Bound cumulative sample-weighted pixel, geometry and effect work before persistence/artifact I/O; test cleanup and encoder failures.
 
-- [ ] 3.5 Extend the existing deterministic expression guard only to inherited instantaneous affine register graphs; retain ordinary/sampled selection and prove exact disabled compatibility with real tools.
+- [x] 3.5 Extend the existing deterministic expression guard only to inherited instantaneous affine register graphs; retain ordinary/sampled selection and prove exact disabled compatibility with real tools.
 
 ## 4. Governed consumers
 
@@ -29,10 +29,16 @@
 
 ## 5. Conformance and final review
 
-- [x] 5.0 Recheck terminal corrected PR131 CI, preserve original issue44 commits and merge the verified corrected head locally; reconcile sampled composition and exact-frame comparisons without threshold or numeric-oracle changes.
+- [x] 5.0 Recheck terminal corrected PR131 CI, preserve original issue44 commits and merge the verified corrected head and externally merged main locally; reconcile sampled composition and exact-frame comparisons without threshold or numeric-oracle changes.
 
-- [ ] 5.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace.
-- [ ] 5.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run applicable documented hermetic Python worker runner.
-- [ ] 5.3 Run required native FFmpeg frame/range/draft/export oracle fixtures, decoded audio synchronization and existing regression corpora according to docs/render-regression-fixtures.md; measure sample-count performance and record limits. Do not count optional early returns as render evidence.
+- [x] 5.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace.
+- [x] 5.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run applicable documented hermetic Python worker runner.
+- [x] 5.3 Run required native FFmpeg frame/range/draft/export oracle fixtures, decoded audio synchronization and existing regression corpora according to docs/render-regression-fixtures.md; measure sample-count performance and record limits. Do not count optional early returns as render evidence.
 - [ ] 5.4 Run strict OpenSpec validation and protected Moon pre-archive gate; invoke openspec-verify-change and resolve every mismatch. Synchronize/archive only after all required checks pass, then rerun final protected gate and strict validation.
-- [ ] 5.5 Record exact commits/diff, dependency state, full verification results and proposed PR text. Leave branch local pending separate publication approval.
+- [x] 5.5 Record exact commits/diff, dependency state, full verification results and proposed PR text. Leave branch local pending separate publication approval.
+
+Task 5.4 has passing strict validation, complete conformance evidence and protected
+pre-archive rejection naming only this active change. It stays incomplete until
+task 1.2a supplies designated implementation review, synchronization/archival is
+performed and the final protected gate passes. See verification.md for the full
+scorecard, exact checks, failures, skips and local evidence locations.
