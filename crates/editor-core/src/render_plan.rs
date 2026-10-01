@@ -135,10 +135,10 @@ pub(crate) fn build_render_plan(
             {
                 // Sampled pixels already enforce each shutter sample's half-open activity.
                 filters.push(format!(
-                    "[{current_video}][{prepared}]overlay=x=0:y=0:eof_action=pass[{composited}]"
+                    "[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass[{composited}]"
                 ));
             } else {
-                filters.push(format!("[{current_video}][{prepared}]overlay=x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
+                filters.push(format!("[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
             }
             current_video = composited;
             continue;
@@ -1635,7 +1635,15 @@ fn append_affine_samples(
     let fx = format!("({x}-floor({x}))");
     let fy = format!("({y}-floor({y}))");
     let source_separator = if source.ends_with(']') { "" } else { "," };
-    filters.push(format!("{source}{source_separator}format=gbrap,geq=r='r(X,Y)*alpha(X,Y)/255':g='g(X,Y)*alpha(X,Y)/255':b='b(X,Y)*alpha(X,Y)/255':a='alpha(X,Y)',format=rgba,split=4[{label}s0][{label}s1][{label}s2][{label}s3]"));
+    // Vector resources carry a transparent border that must survive pixelwise
+    // alpha conversion. FFmpeg 6 bilinear geq copies its inner neighbor there.
+    // Retain the existing media/text lookup for exact legacy orientation parity.
+    let channel_lookup = if matches!(&layer.source, EvaluatedVisualSource::Shape(_)) {
+        "interpolation=nearest:"
+    } else {
+        ""
+    };
+    filters.push(format!("{source}{source_separator}format=gbrap,geq={channel_lookup}r='r(X,Y)*alpha(X,Y)/255':g='g(X,Y)*alpha(X,Y)/255':b='b(X,Y)*alpha(X,Y)/255':a='alpha(X,Y)',format=rgba,split=4[{label}s0][{label}s1][{label}s2][{label}s3]"));
     for (n, (dx, dy)) in [(0, 0), (1, 0), (0, 1), (1, 1)].into_iter().enumerate() {
         let sx = format!("floor({x})+{dx}");
         let sy = format!("floor({y})+{dy}");
@@ -1677,7 +1685,7 @@ fn append_affine_samples(
         evaluated_transition_filters(&layer.transitions)
     };
     let opacity = inherited_transition_opacity(layer, opacity);
-    filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq=r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*({opacity})',format=rgba{fade}[{label}]"));
+    filters.push(format!("[{label}row0][{label}row1]blend=all_expr='A*(1-{fy})+B*{fy}',geq={channel_lookup}r='if(gt(alpha(X,Y),0),r(X,Y)*255/alpha(X,Y),0)':g='if(gt(alpha(X,Y),0),g(X,Y)*255/alpha(X,Y),0)':b='if(gt(alpha(X,Y),0),b(X,Y)*255/alpha(X,Y),0)':a='alpha(X,Y)*({opacity})',format=rgba{fade}[{label}]"));
     filters.push(format!("[{base}][{label}]overlay=x={:.0}:y={:.0}:format=auto:enable='gte(t,{})*lt(t,{})'[{output}]",
         affine.left,affine.top,precise_seconds(layer.instance.map_or(layer.visible_span().start_ms as f64, |c|c.start_ms)),precise_seconds(layer.instance.map_or(layer.visible_span().end_ms as f64, |c|c.end_ms))));
     Ok(())
