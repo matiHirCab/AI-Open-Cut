@@ -25,8 +25,8 @@
 
 ## 5. Conformance and final review
 
-- [ ] 5.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace.
-- [ ] 5.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run applicable documented hermetic Python worker runner.
+- [x] 5.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace.
+- [x] 5.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run applicable documented hermetic Python worker runner.
 - [ ] 5.3 Run required native FFmpeg frame/range/draft/export oracle fixtures, decoded audio synchronization and existing regression corpora according to docs/render-regression-fixtures.md; measure sample-count performance and record limits. Do not count optional early returns as render evidence.
 - [ ] 5.4 Run strict OpenSpec validation and protected Moon pre-archive gate; invoke openspec-verify-change and resolve every mismatch. Synchronize/archive only after all required checks pass, then rerun final protected gate and strict validation.
-- [ ] 5.5 Record exact commits/diff, dependency state, full verification results and proposed PR text. Leave branch local pending separate publication approval.
+- [x] 5.5 Record exact commits/diff, dependency state, full verification results and proposed PR text. Leave branch local pending separate publication approval.
