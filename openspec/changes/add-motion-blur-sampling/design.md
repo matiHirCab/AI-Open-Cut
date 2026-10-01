@@ -29,3 +29,29 @@ Keep schema27 controls as deterministic byte-preservation fixtures. Migrate all 
 ## Open Questions
 
 None about intended semantics. Environment/verification limitations must be recorded in verification.md without converting skipped tests into successes.
+
+## Reconciliation verification follow-up (2026-10-01)
+
+PR131's separately approved corrective update is published at
+81a6ec682bd65a3b31d84b4d2aee7eef276c0bb4. Its exact-head CI is still running;
+wait for terminal results before merging that head into this local branch. Preserve
+the three original issue44 commits and do not publish issue44 or merge PR131.
+
+Retain enabled-shutter activity outside the center sample while adopting the
+corrected explicit RGBA sampled overlay and vector-only legacy channel lookup.
+Keep one independent extended-animation MCP case with all blur assertions and
+the existing timeout. New SSIM comparisons must trim both selected inputs and
+assert a single stats line, preserving timestamps and SSIM>=0.99. The independent
+analytic parent-translation oracle retains samples462/487/512/537ms, coverage
+weights and MSE<=1.0; explicitly select the corrected RGBA final composition
+without replacing any numeric oracle with actual renderer output.
+
+Strengthen the already-required rejected-record fixtures with null, missing-field
+and wrong-type records. Check published sample/pixel limits against core constants.
+Exercise every rejected canonical record through actual headless standalone and
+batch requests (a valid earlier batch edit must not publish), checking existing
+INVALID_ARGUMENT/non-retryable errors and authoritative project/history bytes.
+Also exercise null standalone/batch MCP inputs and unchanged project state.
+This is failure-path evidence for existing requirements, with no new behavior,
+contract meaning, tolerance, golden or CI-policy change. Re-run final mandatory
+checks after reconciliation; external designated-owner review remains required.

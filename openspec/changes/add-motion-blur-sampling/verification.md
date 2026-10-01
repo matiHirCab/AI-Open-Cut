@@ -1,6 +1,14 @@
 # Verification: add-motion-blur-sampling
 
-Status: implemented locally, blocked; not complete, archived, published or merge-ready.
+Status: implemented locally; reconciliation verification plan approved, tests pending.
+Not complete, archived, published or merge-ready.
+
+The following results describe the original e1010bb-based snapshot, not the final
+reconciled tree. PR131 correction81a6ec6 is published under separate explicit
+authority; all correctness/render jobs pass, rules-screen/aggregate CI are still
+running. Final issue44 checks must be rerun. Reconciliation design/tasks supersede
+the stale follow-up and environment blockers in this historical record; a final
+report will replace it after verification.
 
 ## Scope and decision
 
