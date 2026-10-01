@@ -50,6 +50,7 @@ export const verifyExtendedVisualWorkflow = async (
         {
           effects: [{ id: "blur", radiusPx: 0, type: "gaussian_blur" }],
           itemId: "@box",
+          motionBlur: { sampleCount: 4, shutterAngleDeg: 180 },
           operation: "update_item",
         },
         {
@@ -122,11 +123,28 @@ export const verifyExtendedVisualWorkflow = async (
     { animationChannels: [], expectedRevision: 1, itemId, projectId },
     writeResultSchema
   );
+  await call(
+    "timeline_update_item",
+    {
+      expectedRevision: 2,
+      itemId,
+      motionBlur: { sampleCount: 1, shutterAngleDeg: 0 },
+      projectId,
+    },
+    writeResultSchema
+  );
   const state = await call("project_open", { projectId }, projectStateSchema);
-  expect(state.project.revision).toBe(2);
+  expect(state.project.revision).toBe(3);
   expect(state.project.tracks[1]?.items[0]?.effects).toEqual([
     { id: "blur", radiusPx: 0, type: "gaussian_blur" },
   ]);
+  expect(state.project.tracks[1]?.items[0]?.motionBlur).toEqual({
+    sampleCount: 1,
+    shutterAngleDeg: 0,
+  });
+  expect(
+    (await call("editor_get_status", {}, statusSchema)).capabilities
+  ).toContain("motion_blur_sampling_v1");
   expect(
     (await call("editor_get_status", {}, statusSchema)).capabilities
   ).toContain("extended_visual_animation_v1");

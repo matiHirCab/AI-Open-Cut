@@ -11,11 +11,13 @@ mod review_regressions;
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ExtendedVisual {
     pub crop: Option<MediaCrop>,
+    pub motion_blur: Option<crate::MotionBlur>,
+    pub frame_rate: u32,
     pub effects: Vec<VisualEffect>,
     pub channels: Vec<AnimationChannel>,
 }
 
-pub(crate) fn authored(item: &TimelineItem) -> Option<ExtendedVisual> {
+pub(crate) fn authored(item: &TimelineItem, frame_rate: u32) -> Option<ExtendedVisual> {
     let visual = item.visual_properties();
     let channels: Vec<_> = visual
         .animation_channels
@@ -23,12 +25,16 @@ pub(crate) fn authored(item: &TimelineItem) -> Option<ExtendedVisual> {
         .filter(|c| c.property.extended() && !c.keyframes.is_empty())
         .cloned()
         .collect();
-    (visual.crop.is_some() || !visual.effects.is_empty() || !channels.is_empty()).then(|| {
-        ExtendedVisual {
-            crop: visual.crop,
-            effects: visual.effects.clone(),
-            channels,
-        }
+    (visual.crop.is_some()
+        || !visual.effects.is_empty()
+        || !channels.is_empty()
+        || visual.motion_blur.is_some_and(crate::MotionBlur::enabled))
+    .then(|| ExtendedVisual {
+        crop: visual.crop,
+        motion_blur: visual.motion_blur,
+        frame_rate,
+        effects: visual.effects.clone(),
+        channels,
     })
 }
 
@@ -247,6 +253,12 @@ pub(crate) fn preflight_samples(
     if !scene.visual_layers.iter().any(required) {
         return Ok(());
     }
+    let has_blur = scene.visual_layers.iter().any(|l| {
+        l.extended
+            .as_ref()
+            .and_then(|v| v.motion_blur)
+            .is_some_and(crate::MotionBlur::enabled)
+    });
     let canvas = (scene.canvas.width, scene.canvas.height);
     if u64::from(canvas.0) * u64::from(canvas.1) > 16_777_216 {
         return Err(invalid("sampled output surface exceeds limits"));
@@ -271,27 +283,55 @@ pub(crate) fn preflight_samples(
             .ok_or_else(|| invalid("sample time overflow"))?;
         let mut work = 0;
         let mut segments = 0;
+        let mut pixel_work = 0_u64;
         for layer in scene.visual_layers.iter().filter(|l| required(l)) {
-            if !layer.visible_at(time) {
-                continue;
+            let times = layer
+                .extended
+                .as_ref()
+                .and_then(|v| v.motion_blur)
+                .map_or_else(
+                    || Ok(vec![time]),
+                    |settings| {
+                        settings.sample_times(
+                            time,
+                            layer.extended.as_ref().unwrap().frame_rate,
+                            scene.duration_ms,
+                        )
+                    },
+                )?;
+            if has_blur {
+                pixel_work = pixel_work
+                    .checked_add(
+                        u64::from(canvas.0)
+                            .checked_mul(u64::from(canvas.1))
+                            .and_then(|v| v.checked_mul(times.len() as u64))
+                            .ok_or_else(|| invalid("motion blur pixel work overflow"))?,
+                    )
+                    .filter(|v| *v <= crate::MotionBlur::MAX_PIXEL_WORK)
+                    .ok_or_else(|| invalid("motion blur scene pixel work exceeds limits"))?;
             }
-            let (mut sampled, _, effects) = sample(layer, time)?;
-            let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
-                segments += shape.segments();
-                if segments > shapes::MAX_SCENE_SEGMENTS {
-                    return Err(invalid("sampled scene segment limit exceeded"));
+            for time in times {
+                if !layer.visible_at(time) {
+                    continue;
                 }
-                (shape.size, shape.density)
-            } else {
-                (
-                    sampled
-                        .source_size
-                        .ok_or_else(|| invalid("sampled source measurement missing"))?,
-                    1.0,
-                )
-            };
-            super::extended_certification::effect_budget(size, &effects, density, &mut work)?;
-            sample_transform(&mut sampled, time, size, canvas)?;
+                let (mut sampled, _, effects) = sample(layer, time)?;
+                let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                    segments += shape.segments();
+                    if segments > shapes::MAX_SCENE_SEGMENTS {
+                        return Err(invalid("sampled scene segment limit exceeded"));
+                    }
+                    (shape.size, shape.density)
+                } else {
+                    (
+                        sampled
+                            .source_size
+                            .ok_or_else(|| invalid("sampled source measurement missing"))?,
+                        1.0,
+                    )
+                };
+                super::extended_certification::effect_budget(size, &effects, density, &mut work)?;
+                sample_transform(&mut sampled, time, size, canvas)?;
+            }
         }
     }
     Ok(())

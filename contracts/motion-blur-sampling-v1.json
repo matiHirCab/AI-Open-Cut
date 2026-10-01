@@ -1,0 +1,165 @@
+{
+  "contract": "motion-blur-sampling-v1",
+  "version": 1,
+  "projectSchemaVersion": 28,
+  "capability": "motion_blur_sampling_v1",
+  "limits": {
+    "maxSampleCount": 16,
+    "maxShutterAngleDeg": 360,
+    "maxPixelWorkPerOutputFrame": 268435456
+  },
+  "timing": {
+    "interval": "centered",
+    "samples": "equal-weight ascending midpoint",
+    "rootResolution": "floor once to integer milliseconds; preserve inherited fractional clocks",
+    "boundary": "clamp to [0,durationMs-1] without renormalization",
+    "disabled": "omission, zero angle or sample count one"
+  },
+  "composition": "per-leaf premultiplied linear-light canvas average after local crop/clip/paint/effects and complete inherited affine/transition opacity, before existing stacking",
+  "cases": [
+    {
+      "name": "half-turn",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 8
+      },
+      "accepted": true
+    },
+    {
+      "name": "disabled",
+      "value": {
+        "shutterAngleDeg": 0,
+        "sampleCount": 16
+      },
+      "accepted": true
+    },
+    {
+      "name": "single",
+      "value": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 1
+      },
+      "accepted": true
+    },
+    {
+      "name": "maximum",
+      "value": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 16
+      },
+      "accepted": true
+    },
+    {
+      "name": "negative",
+      "value": {
+        "shutterAngleDeg": -1,
+        "sampleCount": 8
+      },
+      "accepted": false
+    },
+    {
+      "name": "over-angle",
+      "value": {
+        "shutterAngleDeg": 361,
+        "sampleCount": 8
+      },
+      "accepted": false
+    },
+    {
+      "name": "zero-samples",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 0
+      },
+      "accepted": false
+    },
+    {
+      "name": "over-samples",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 17
+      },
+      "accepted": false
+    },
+    {
+      "name": "fractional-samples",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 2.5
+      },
+      "accepted": false
+    },
+    {
+      "name": "unknown",
+      "value": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 8,
+        "seed": 1
+      },
+      "accepted": false
+    }
+  ],
+  "sampleCases": [
+    {
+      "name": "centered-interior",
+      "atMs": 100,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 4
+      },
+      "expected": [
+        92,
+        97,
+        102,
+        107
+      ]
+    },
+    {
+      "name": "start-clamp",
+      "atMs": 0,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 4
+      },
+      "expected": [
+        0,
+        0,
+        5,
+        15
+      ]
+    },
+    {
+      "name": "end-clamp",
+      "atMs": 999,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 4
+      },
+      "expected": [
+        984,
+        994,
+        999,
+        999
+      ]
+    },
+    {
+      "name": "single-compatibility",
+      "atMs": 100,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 1
+      },
+      "expected": [
+        100
+      ]
+    }
+  ]
+}

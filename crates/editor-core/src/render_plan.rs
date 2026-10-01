@@ -127,7 +127,19 @@ pub(crate) fn build_render_plan(
                 ),
                 |clock| (clock.start_ms, clock.end_ms),
             );
-            filters.push(format!("[{current_video}][{prepared}]overlay=x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
+            if layer
+                .extended
+                .as_ref()
+                .and_then(|v| v.motion_blur)
+                .is_some_and(crate::MotionBlur::enabled)
+            {
+                // Sampled pixels already enforce each shutter sample's half-open activity.
+                filters.push(format!(
+                    "[{current_video}][{prepared}]overlay=x=0:y=0:eof_action=pass[{composited}]"
+                ));
+            } else {
+                filters.push(format!("[{current_video}][{prepared}]overlay=x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
+            }
             current_video = composited;
             continue;
         }

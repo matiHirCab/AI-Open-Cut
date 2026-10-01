@@ -13,6 +13,7 @@ import type {
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
   mediaCropSchema,
+  motionBlurSchema,
   richTextDocumentSchema,
   templateSlotSchema,
   textStyleSchema,
@@ -182,6 +183,7 @@ export type HeadlessEdit =
   | {
       operation: "update_item";
       crop?: z.infer<typeof mediaCropSchema> | undefined;
+      motionBlur?: z.infer<typeof motionBlurSchema> | undefined;
       effects?: z.infer<typeof visualEffectSchema>[] | undefined;
       staggerMs?: number | undefined;
       geometry?: ShapeGeometry | undefined;

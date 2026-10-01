@@ -181,7 +181,10 @@ fn lifecycle_schema26_missing_draft_base_preserves_draft_and_generation() {
     }
     let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));
     let draft_bytes = std::fs::read(&draft_path).unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 27);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for side in ["undo", "redo"] {
@@ -190,7 +193,7 @@ fn lifecycle_schema26_missing_draft_base_preserves_draft_and_generation() {
                 .as_array()
                 .unwrap()
                 .iter()
-                .all(|p| p["schemaVersion"] == 27)
+                .all(|p| p["schemaVersion"] == opencut_editor_core::PROJECT_SCHEMA_VERSION)
         );
     }
     assert_eq!(std::fs::read(&draft_path).unwrap(), draft_bytes);

@@ -145,7 +145,7 @@ fn native_sampled_encoder_failure_is_safe_on_the_headless_wire() {
     let track = core.get_project(&id).unwrap().tracks[1].id.clone();
     let add=serde_json::from_value(json!({"operation":"add_rectangle","trackId":track,"width":8,"height":8,"color":"#ff0000","startMs":0,"durationMs":100,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
     let item = core.edit(&id, 0, add).unwrap().changed_ids[0].clone();
-    core.edit(&id,1,serde_json::from_value(json!({"operation":"update_item","itemId":item,"effects":[{"type":"vignette","id":"identity","amount":0}]})).unwrap()).unwrap();
+    core.edit(&id,1,serde_json::from_value(json!({"operation":"update_item","itemId":item,"effects":[{"type":"vignette","id":"identity","amount":0}],"motionBlur":{"shutterAngleDeg":180,"sampleCount":4}})).unwrap()).unwrap();
     let helper = root.path().join(if cfg!(windows) {
         "encoder.exe"
     } else {

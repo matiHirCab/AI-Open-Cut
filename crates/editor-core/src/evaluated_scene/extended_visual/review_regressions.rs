@@ -6,6 +6,8 @@ fn layer(channels: Vec<AnimationChannel>) -> EvaluatedVisualLayer {
         sampled_input: None,
         extended: Some(ExtendedVisual {
             crop: None,
+            motion_blur: None,
+            frame_rate: 30,
             effects: vec![],
             channels,
         }),
@@ -438,4 +440,41 @@ fn review_inherited_scale_envelope_does_not_require_rotation() {
     let actual = sample_transform(&mut sampled, 300, (24, 8), (64, 64)).unwrap();
     assert!(actual.matrix[0] > 4.0);
     assert!(bound >= actual.matrix[0]);
+}
+
+#[test]
+fn shutter_samples_cross_reflected_turns_and_finite_exhaustion_on_canonical_clocks() {
+    let settings = crate::MotionBlur {
+        shutter_angle_deg: 360.0,
+        sample_count: 4,
+    };
+    let mut ping = ramp(0, "transform.rotation_deg");
+    ping.r#loop = Some(serde_json::from_value(json!({"mode":"ping_pong","iterations":2})).unwrap());
+    let original = layer(vec![ping]);
+    for (center, expected) in [(4, [50.0, 75.0, 100.0, 75.0]), (16, [50.0, 25.0, 0.0, 0.0])] {
+        let times = settings.sample_times(center, 250, 100).unwrap();
+        for (time, rotation) in times.into_iter().zip(expected) {
+            let mut sampled = original.clone();
+            sample_transform(&mut sampled, time, (24, 8), (64, 64)).unwrap();
+            assert_eq!(sampled.transform2d.unwrap().rotation_deg, rotation);
+        }
+    }
+    let mut fractional = layer(vec![ramp(0, "transform.rotation_deg")]);
+    fractional.instance = Some(EvaluatedInstance {
+        rate: 0.5,
+        offset: 0.25,
+        start_ms: 0.0,
+        end_ms: 20.0,
+        canvas: (64, 64),
+    });
+    for (time, rotation) in settings
+        .sample_times(4, 250, 100)
+        .unwrap()
+        .into_iter()
+        .zip([31.25, 43.75, 56.25, 68.75])
+    {
+        let mut sampled = fractional.clone();
+        sample_transform(&mut sampled, time, (24, 8), (64, 64)).unwrap();
+        assert_eq!(sampled.transform2d.unwrap().rotation_deg, rotation);
+    }
 }

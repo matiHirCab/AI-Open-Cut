@@ -429,6 +429,33 @@
         "apps/agent-bridge/tests/advanced-text-layout.test.ts",
         "docs/advanced-text-layout.md"
       ]
+    },
+    "motionBlurSampling": {
+      "canonical": "contracts/motion-blur-sampling-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/motion_blur.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/validation/extended_visual.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/evaluated_scene/extended_visual.rs",
+        "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+        "crates/editor-core/src/render_artifact/extended_visual.rs",
+        "crates/editor-core/tests/motion_blur_sampling.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/motion-blur-sampling.test.ts",
+        "docs/motion-blur-sampling.md",
+        "crates/editor-core/src/evaluated_scene.rs",
+        "crates/editor-core/src/render_plan.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/tests/extended-visual-workflow.ts",
+        "crates/editor-core/tests/animation_channels.rs",
+        "apps/headless/tests/render_worker.rs",
+        "apps/agent-bridge/tests/smoke.test.ts"
+      ]
     }
   }
 }

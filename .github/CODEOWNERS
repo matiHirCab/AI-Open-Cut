@@ -144,3 +144,8 @@
 /apps/headless/tests/render_worker.rs @matiHirCab
 /apps/agent-bridge/src/render-worker.ts @matiHirCab
 /apps/agent-bridge/tests/render-worker.test.ts @matiHirCab
+
+/crates/editor-core/src/model/motion_blur.rs @matiHirCab
+/crates/editor-core/tests/motion_blur_sampling.rs @matiHirCab
+/apps/agent-bridge/tests/motion-blur-sampling.test.ts @matiHirCab
+/docs/motion-blur-sampling.md @matiHirCab
