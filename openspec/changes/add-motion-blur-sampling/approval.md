@@ -1,0 +1,5 @@
+# Bounded delegated OpenSpec decision
+
+2026-10-01: Reviewed proposal.md, design.md, specs/motion-blur-sampling/spec.md and tasks.md against issue44 and issue43 ownership/lifecycle rules. Strict change validation passed. Approved these artifacts under the user's explicit permission to approve necessary issue44 OpenSpec specs. Scope is only issue44; no unrelated proposals approved.
+
+This approves specification workflow decisions, not publication, account/security changes, PR131 merging, or a completed implementation. Designated cross-language CODEOWNER implementation review remains pending and must be obtained before archival. Base PR131 remains open at pinned e1010bb97174d44a5d19c61a90514bf2336845ca.
