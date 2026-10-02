@@ -110,3 +110,35 @@ fn effective_parameters<'de, D: serde::Deserializer<'de>>(
     }
     value.decode().map_err(serde::de::Error::custom)
 }
+
+pub(super) fn provenance_map<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<std::collections::BTreeMap<AnimationChannelProperty, AnimationPresetProvenance>, D::Error>
+{
+    struct SourceMap;
+    impl<'de> serde::de::Visitor<'de> for SourceMap {
+        type Value =
+            std::collections::BTreeMap<AnimationChannelProperty, AnimationPresetProvenance>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an object with unique animation preset properties")
+        }
+
+        fn visit_map<M: serde::de::MapAccess<'de>>(
+            self,
+            mut entries: M,
+        ) -> Result<Self::Value, M::Error> {
+            let mut sources = Self::Value::new();
+            while let Some(property) = entries.next_key::<AnimationChannelProperty>()? {
+                if sources.contains_key(&property) {
+                    return Err(serde::de::Error::custom(
+                        "duplicate animation preset provenance property",
+                    ));
+                }
+                sources.insert(property, entries.next_value()?);
+            }
+            Ok(sources)
+        }
+    }
+    deserializer.deserialize_map(SourceMap)
+}

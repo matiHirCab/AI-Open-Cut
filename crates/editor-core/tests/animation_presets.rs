@@ -356,7 +356,27 @@ fn strict_preset_records_reject_arrays_and_duplicate_raw_fields_without_publicat
             serde_json::from_str::<AnimationPresetProvenance>(raw).is_err(),
             "{raw}"
         );
-        for target in ["current", "undo", "redo"] {
+    }
+    let mut source_maps: Vec<String> = source_cases
+        .into_iter()
+        .map(|raw| format!(r#"{{"transform.opacity":{raw}}}"#))
+        .collect();
+    let valid = serde_json::to_string(&catalog()["examples"]["provenance"]).unwrap();
+    for invalid in [
+        valid.replace("scalar_tween", "Bad/ID"),
+        {
+            let mut source = catalog()["examples"]["provenance"].clone();
+            source["parameters"]["from"] = json!(99.0);
+            serde_json::to_string(&source).unwrap()
+        },
+        valid.clone(),
+    ] {
+        source_maps.push(format!(
+            r#"{{"transform.opacity":{invalid},"transform.opacity":{valid}}}"#
+        ));
+    }
+    for raw in source_maps {
+        for target in ["current", "component", "undo", "redo"] {
             let (_root, core, project, id) = setup();
             core.edit(&project, 1, op(request(&id))).unwrap();
             for (revision, color) in [(2, "#00ff00"), (3, "#0000ff")] {
@@ -369,12 +389,12 @@ fn strict_preset_records_reject_arrays_and_duplicate_raw_fields_without_publicat
             }
             core.undo(&project, 4).unwrap();
             let dir = core.paths().project_dir(&project).unwrap();
-            let mut document: Value = if target == "current" {
+            let mut document: Value = if matches!(target, "current" | "component") {
                 state(&core, &project)
             } else {
                 serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap()
             };
-            let candidate = if target == "current" {
+            let candidate = if matches!(target, "current" | "component") {
                 &mut document
             } else {
                 document[target]
@@ -388,13 +408,23 @@ fn strict_preset_records_reject_arrays_and_duplicate_raw_fields_without_publicat
                     })
                     .unwrap()
             };
-            candidate["tracks"][1]["items"][0]["animationPresetProvenance"]["transform.opacity"] =
-                json!("SOURCE_TOKEN");
+            if target == "component" {
+                candidate["components"] = json!([{
+                    "id":"source-component","name":"Source component","width":64,
+                    "height":64,"durationMs":1000,"tracks":[candidate["tracks"][1]],"slots":[],"markers":[]
+                }]);
+                serde_json::from_value::<opencut_editor_core::Project>(candidate.clone()).unwrap();
+                candidate["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"] =
+                    json!("SOURCE_TOKEN");
+            } else {
+                candidate["tracks"][1]["items"][0]["animationPresetProvenance"] =
+                    json!("SOURCE_TOKEN");
+            }
             let bytes = serde_json::to_string(&document)
                 .unwrap()
-                .replace("\"SOURCE_TOKEN\"", raw);
+                .replace("\"SOURCE_TOKEN\"", &raw);
             std::fs::write(
-                dir.join(if target == "current" {
+                dir.join(if matches!(target, "current" | "component") {
                     "project.json"
                 } else {
                     "history.json"

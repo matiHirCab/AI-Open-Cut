@@ -1082,7 +1082,11 @@ pub struct VisualProperties {
     pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub animation_channels: Vec<AnimationChannel>,
-    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    #[serde(
+        default,
+        deserialize_with = "animation_presets::provenance_map",
+        skip_serializing_if = "std::collections::BTreeMap::is_empty"
+    )]
     pub animation_preset_provenance:
         std::collections::BTreeMap<AnimationChannelProperty, AnimationPresetProvenance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
