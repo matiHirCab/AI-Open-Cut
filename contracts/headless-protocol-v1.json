@@ -87,6 +87,108 @@
           "to": 1
         }
       }
+    },
+    "applyMotion_impact_slam": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "impact_slam",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "impact_slam",
+          "startMs": 10,
+          "durationMs": 80,
+          "centerX": 100.0,
+          "centerY": 200.0,
+          "shakeAmplitudePx": 8.0,
+          "scaleFrom": 0.5,
+          "scaleOvershoot": 1.2,
+          "scaleTo": 1.0,
+          "opacityFrom": 0.0,
+          "opacityTo": 1.0,
+          "flashOpacity": 0.2,
+          "motionBlur": {
+            "shutterAngleDeg": 180.0,
+            "sampleCount": 3
+          }
+        }
+      }
+    },
+    "applyMotion_slide_left": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "slide_left",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "slide_left",
+          "startMs": 10,
+          "durationMs": 80,
+          "positionFromX": 20.0,
+          "positionToX": -20.0
+        }
+      }
+    },
+    "applyMotion_scan": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "scan",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "scan",
+          "startMs": 10,
+          "durationMs": 80,
+          "positionFromX": 20.0,
+          "positionToX": -20.0
+        }
+      }
+    },
+    "applyMotion_pulse": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "pulse",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "pulse",
+          "startMs": 10,
+          "durationMs": 80,
+          "scaleFrom": 0.5,
+          "scalePeak": 1.5
+        }
+      }
+    },
+    "applyMotion_radar_expand": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "radar_expand",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "radar_expand",
+          "startMs": 10,
+          "durationMs": 80,
+          "scaleFrom": 0.5,
+          "scaleTo": 2.0,
+          "opacityPeak": 1.0
+        }
+      }
     }
   },
   "events": [
@@ -116,6 +218,7 @@
       "keyframes",
       "typed_animation_channels_v1",
       "animation_presets_v1",
+      "initial_motion_preset_pack_v1",
       "deterministic_animation_curves_v1",
       "animation_loops_v1",
       "inherited_animation_timing_v1",

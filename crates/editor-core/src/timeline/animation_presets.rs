@@ -17,36 +17,58 @@ pub(super) fn apply(
     if project.tracks[track_index].locked {
         return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
     }
-    let (channel, source) = compile(preset_id, preset_version, parameters)?;
-    let property = channel.property;
+    let compiled = compile(preset_id, preset_version, parameters)?;
     let item = &project.tracks[track_index].items[item_index];
-    let mut channels = item.visual_properties().animation_channels.clone();
-    if let Some(index) = channels
-        .iter()
-        .position(|c| c.property == property && c.target.is_none())
+    let mut candidate = item.clone();
+    let visual = candidate.visual_properties_mut();
+    if compiled.motion_blur.is_some()
+        && visual.motion_blur.is_some()
+        && collision_policy == AnimationPresetCollisionPolicy::Reject
     {
-        if collision_policy == AnimationPresetCollisionPolicy::Reject {
-            return Err(CoreError::new(
-                ErrorCode::InvalidArgument,
-                "animation preset channel collision",
-            ));
-        }
-        channels[index] = channel;
-    } else {
-        channels.push(channel);
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "animation preset motionBlur collision",
+        ));
     }
-    crate::validation::animation_channels::validate_channels(&channels, item, project)?;
-    let visual = project.tracks[track_index].items[item_index].visual_properties_mut();
-    visual.animation_channels = channels;
-    visual.animation_preset_provenance.insert(property, source);
+    for channel in compiled.channels {
+        let property = channel.property;
+        if let Some(index) = visual
+            .animation_channels
+            .iter()
+            .position(|c| c.property == property && c.target.is_none())
+        {
+            if collision_policy == AnimationPresetCollisionPolicy::Reject {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "animation preset channel collision",
+                ));
+            }
+            visual.animation_channels[index] = channel;
+        } else {
+            visual.animation_channels.push(channel);
+        }
+        visual
+            .animation_preset_provenance
+            .insert(property, compiled.source.clone());
+    }
+    if let Some(blur) = compiled.motion_blur {
+        visual.motion_blur = Some(blur);
+    }
+    crate::validation::animation_channels::validate_channels(
+        &candidate.visual_properties().animation_channels,
+        item,
+        project,
+    )?;
+    crate::validation::extended_visual::validate_static(&candidate, project)?;
+    project.tracks[track_index].items[item_index] = candidate;
     Ok(())
 }
 
 // Compilation is pure; candidate validation and publication stay with their existing owners.
-fn compile(
+fn compile_scalar(
     preset_id: String,
     preset_version: u32,
-    parameters: AnimationPresetParameters,
+    parameters: crate::ScalarTweenParameters,
 ) -> Result<(AnimationChannel, AnimationPresetProvenance), CoreError> {
     if preset_id != "scalar_tween" || preset_version != 1 {
         return Err(CoreError::new(
@@ -54,7 +76,8 @@ fn compile(
             "unsupported animation preset or version",
         ));
     }
-    let end = crate::validation::animation_presets::validate_parameters(&parameters)?;
+    let end =
+        crate::validation::animation_presets::validate_parameters(&parameters.clone().into())?;
     let channel = AnimationChannel {
         property: parameters.property,
         target: None,
@@ -82,9 +105,231 @@ fn compile(
             preset_id,
             preset_version,
             compiler_version: ANIMATION_PRESET_COMPILER_VERSION,
-            parameters,
+            parameters: parameters.into(),
         },
     ))
+}
+
+struct CompiledPreset {
+    channels: Vec<AnimationChannel>,
+    source: AnimationPresetProvenance,
+    motion_blur: Option<crate::MotionBlur>,
+}
+
+fn compile(
+    preset_id: String,
+    preset_version: u32,
+    parameters: AnimationPresetParameters,
+) -> Result<CompiledPreset, CoreError> {
+    use crate::{
+        AnimationChannelProperty as P, AnimationLoop, AnimationLoopMode,
+        MotionPresetParameters as M,
+    };
+    if let AnimationPresetParameters::Scalar(p) = parameters {
+        let (channel, source) = compile_scalar(preset_id, preset_version, p)?;
+        return Ok(CompiledPreset {
+            channels: vec![channel],
+            source,
+            motion_blur: None,
+        });
+    }
+    let AnimationPresetParameters::Pack(mut p) = parameters else {
+        unreachable!()
+    };
+    if preset_version != 1 || preset_id != p.id() {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "unsupported animation preset or version/parameter kind",
+        ));
+    }
+    p.materialize_iterations();
+    crate::validation::animation_presets::validate_parameters(&AnimationPresetParameters::Pack(
+        p.clone(),
+    ))?;
+    let (start, duration) = p.timing();
+    let phase = |q: u64| -> Result<u64, CoreError> {
+        let offset = u128::from(q) * u128::from(duration) / 8;
+        u64::try_from(offset)
+            .ok()
+            .and_then(|offset| start.checked_add(offset))
+            .filter(|time| *time <= crate::MAX_PRESET_TIME_MS)
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "preset phase time exceeds bounds",
+                )
+            })
+    };
+    let r#loop = p.iterations().map(|iterations| AnimationLoop {
+        mode: AnimationLoopMode::Repeat,
+        iterations,
+    });
+    let make = |property, phases: &[u64], values: &[f64]| -> Result<AnimationChannel, CoreError> {
+        let mut keyframes = Vec::with_capacity(phases.len());
+        for (index, (&q, &value)) in phases.iter().zip(values).enumerate() {
+            let time_ms = phase(q)?;
+            if keyframes
+                .last()
+                .is_some_and(|prior: &AnimationChannelKeyframe| prior.time_ms >= time_ms)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "preset phases collapse",
+                ));
+            }
+            keyframes.push(AnimationChannelKeyframe {
+                time_ms,
+                value: AnimationChannelValue::Scalar { value },
+                curve: AnimationCurve::Simple(if index + 1 == phases.len() {
+                    SimpleAnimationCurve::Hold
+                } else {
+                    SimpleAnimationCurve::Linear
+                }),
+            });
+        }
+        Ok(AnimationChannel {
+            property,
+            target: None,
+            keyframes,
+            r#loop,
+        })
+    };
+    let (channels, motion_blur) = match &p {
+        M::ImpactSlam {
+            center_x: x,
+            center_y: y,
+            shake_amplitude_px: a,
+            scale_from,
+            scale_overshoot,
+            scale_to,
+            opacity_from,
+            opacity_to,
+            flash_opacity,
+            motion_blur,
+            ..
+        } => (
+            vec![
+                make(
+                    P::PositionX,
+                    &[0, 4, 5, 6, 7, 8],
+                    &[*x, *x, *x + *a, *x - *a / 2.0, *x + *a / 4.0, *x],
+                )?,
+                make(
+                    P::PositionY,
+                    &[0, 4, 5, 6, 7, 8],
+                    &[*y, *y, *y - *a, *y + *a / 2.0, *y - *a / 4.0, *y],
+                )?,
+                make(
+                    P::ScaleX,
+                    &[0, 4, 6, 8],
+                    &[*scale_from, *scale_overshoot, *scale_to, *scale_to],
+                )?,
+                make(
+                    P::ScaleY,
+                    &[0, 4, 6, 8],
+                    &[*scale_from, *scale_overshoot, *scale_to, *scale_to],
+                )?,
+                make(
+                    P::Opacity,
+                    &[0, 4, 5, 6, 8],
+                    &[
+                        *opacity_from,
+                        *opacity_to,
+                        *flash_opacity,
+                        *opacity_to,
+                        *opacity_to,
+                    ],
+                )?,
+            ],
+            Some(*motion_blur),
+        ),
+        M::SlideLeft {
+            position_from_x,
+            position_to_x,
+            ..
+        } => (
+            vec![make(
+                P::PositionX,
+                &[0, 8],
+                &[*position_from_x, *position_to_x],
+            )?],
+            None,
+        ),
+        M::Scan {
+            position_from_x,
+            position_to_x,
+            ..
+        } => (
+            vec![make(
+                P::PositionX,
+                &[0, 4, 8],
+                &[*position_from_x, *position_to_x, *position_from_x],
+            )?],
+            None,
+        ),
+        M::Pulse {
+            scale_from,
+            scale_peak,
+            ..
+        } => (
+            vec![
+                make(
+                    P::ScaleX,
+                    &[0, 4, 8],
+                    &[*scale_from, *scale_peak, *scale_from],
+                )?,
+                make(
+                    P::ScaleY,
+                    &[0, 4, 8],
+                    &[*scale_from, *scale_peak, *scale_from],
+                )?,
+            ],
+            None,
+        ),
+        M::RadarExpand {
+            scale_from,
+            scale_to,
+            opacity_peak,
+            ..
+        } => (
+            vec![
+                make(
+                    P::ScaleX,
+                    &[0, 6, 8],
+                    &[*scale_from, *scale_to, *scale_from],
+                )?,
+                make(
+                    P::ScaleY,
+                    &[0, 6, 8],
+                    &[*scale_from, *scale_to, *scale_from],
+                )?,
+                make(P::Opacity, &[0, 2, 6, 8], &[0.0, *opacity_peak, 0.0, 0.0])?,
+            ],
+            None,
+        ),
+    };
+    Ok(CompiledPreset {
+        channels,
+        motion_blur,
+        source: AnimationPresetProvenance {
+            preset_id,
+            preset_version,
+            compiler_version: crate::MOTION_PRESET_COMPILER_VERSION,
+            parameters: AnimationPresetParameters::Pack(p),
+        },
+    })
+}
+
+pub(super) fn blur_changed(visual: &mut crate::VisualProperties, blur: crate::MotionBlur) {
+    if !same_bytes(&visual.motion_blur, &Some(blur)) {
+        visual
+            .animation_preset_provenance
+            .retain(|_, source| !source.parameters.is_impact());
+    }
+}
+
+fn same_bytes<T: serde::Serialize>(before: &T, after: &T) -> bool {
+    matches!((serde_json::to_vec(before),serde_json::to_vec(after)),(Ok(before),Ok(after)) if before == after)
 }
 
 pub(super) fn reconcile_raw_tracks(tracks: &mut [Track], prior: &[Track]) {
@@ -114,7 +359,10 @@ pub(super) fn reconcile_raw_tracks(tracks: &mut [Track], prior: &[Track]) {
                         (Ok(before), Ok(after)) if before == after
                     )
                 });
-                if unchanged {
+                if unchanged
+                    && (!source.parameters.is_impact()
+                        || same_bytes(&old.visual_properties().motion_blur, &visual.motion_blur))
+                {
                     visual
                         .animation_preset_provenance
                         .insert(*property, source.clone());
@@ -128,6 +376,99 @@ pub(super) fn reconcile_raw_tracks(tracks: &mut [Track], prior: &[Track]) {
 mod tests {
     use super::*;
     use crate::AnimationChannelProperty;
+
+    #[test]
+    fn pack_samples_match_fixed_canonical_seams_and_fractional_oracles() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../contracts/initial-motion-preset-pack-v1.json"
+        ))
+        .unwrap();
+        for entry in fixture["presets"].as_array().unwrap() {
+            let compiled = compile(
+                entry["id"].as_str().unwrap().into(),
+                1,
+                serde_json::from_value(entry["parameters"].clone()).unwrap(),
+            )
+            .unwrap();
+            for sample in entry["expected"]["samples"].as_array().unwrap() {
+                let time = sample["timeMs"].as_f64().unwrap();
+                for (field, property) in [
+                    ("positionX", crate::AnimationChannelProperty::PositionX),
+                    ("positionY", crate::AnimationChannelProperty::PositionY),
+                    ("scaleX", crate::AnimationChannelProperty::ScaleX),
+                    ("opacity", crate::AnimationChannelProperty::Opacity),
+                ] {
+                    if let Some(expected) = sample.get(field).and_then(serde_json::Value::as_f64) {
+                        let channel = compiled
+                            .channels
+                            .iter()
+                            .find(|c| c.property == property)
+                            .unwrap();
+                        let actual =
+                            crate::animation::sample_scalar_channel_at(channel, time).unwrap();
+                        assert!(
+                            (actual - expected).abs() < 1e-12,
+                            "{} {time} {field}: {actual} != {expected}",
+                            entry["id"]
+                        );
+                    }
+                }
+            }
+        }
+        let fixture = &fixture["presets"][2];
+        let compiled = compile(
+            "scan".into(),
+            1,
+            serde_json::from_value(fixture["parameters"].clone()).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            (crate::animation::sample_scalar_channel_at(&compiled.channels[0], 10.5).unwrap()
+                - 19.5)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            (crate::animation::sample_scalar_channel_at(&compiled.channels[0], 90.5).unwrap()
+                - 19.5)
+                .abs()
+                < 1e-12
+        );
+    }
+
+    #[test]
+    fn pack_native_nonfinite_inputs_fail_without_json_normalization() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../contracts/initial-motion-preset-pack-v1.json"
+        ))
+        .unwrap();
+        for entry in fixture["presets"].as_array().unwrap() {
+            for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let mut parameters: AnimationPresetParameters =
+                    serde_json::from_value(entry["parameters"].clone()).unwrap();
+                let AnimationPresetParameters::Pack(p) = &mut parameters else {
+                    panic!()
+                };
+                match p {
+                    crate::MotionPresetParameters::ImpactSlam { center_x, .. } => *center_x = value,
+                    crate::MotionPresetParameters::SlideLeft {
+                        position_from_x, ..
+                    }
+                    | crate::MotionPresetParameters::Scan {
+                        position_from_x, ..
+                    } => *position_from_x = value,
+                    crate::MotionPresetParameters::Pulse { scale_from, .. }
+                    | crate::MotionPresetParameters::RadarExpand { scale_from, .. } => {
+                        *scale_from = value
+                    }
+                }
+                match compile(entry["id"].as_str().unwrap().into(), 1, parameters) {
+                    Err(error) => assert_eq!(error.code, ErrorCode::InvalidArgument),
+                    Ok(_) => panic!("nonfinite accepted"),
+                }
+            }
+        }
+    }
 
     #[test]
     fn compiler_samples_use_independent_fixed_curve_oracles_and_fractional_times() {
@@ -157,10 +498,10 @@ mod tests {
                 (0.5, 1.0)
             };
             for (curve, midpoint) in &cases {
-                let (channel, _) = compile(
+                let (channel, _) = compile_scalar(
                     "scalar_tween".into(),
                     1,
-                    AnimationPresetParameters {
+                    crate::ScalarTweenParameters {
                         property,
                         start_ms: 10,
                         duration_ms: 500,
@@ -187,10 +528,10 @@ mod tests {
                 }
             }
         }
-        let (channel, _) = compile(
+        let (channel, _) = compile_scalar(
             "scalar_tween".into(),
             1,
-            AnimationPresetParameters {
+            crate::ScalarTweenParameters {
                 property: AnimationChannelProperty::PositionX,
                 start_ms: 10,
                 duration_ms: 500,
@@ -210,7 +551,7 @@ mod tests {
     fn compiler_rejects_native_nonfinite_values_without_serialization() {
         for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
             for from_endpoint in [true, false] {
-                let parameters = AnimationPresetParameters {
+                let parameters = crate::ScalarTweenParameters {
                     property: AnimationChannelProperty::Opacity,
                     start_ms: 0,
                     duration_ms: 500,
@@ -219,7 +560,7 @@ mod tests {
                     curve: AnimationCurve::Simple(SimpleAnimationCurve::Linear),
                 };
                 assert_eq!(
-                    compile("scalar_tween".into(), 1, parameters)
+                    compile_scalar("scalar_tween".into(), 1, parameters)
                         .unwrap_err()
                         .code,
                     ErrorCode::InvalidArgument
@@ -237,14 +578,15 @@ mod tests {
             "item",
             "scalar_tween".into(),
             1,
-            AnimationPresetParameters {
+            crate::ScalarTweenParameters {
                 property: AnimationChannelProperty::Opacity,
                 start_ms: 0,
                 duration_ms: 500,
                 from: 0.0,
                 to: 1.0,
                 curve: AnimationCurve::Simple(SimpleAnimationCurve::Linear),
-            },
+            }
+            .into(),
             AnimationPresetCollisionPolicy::Reject,
         )
         .unwrap();
@@ -267,7 +609,9 @@ mod tests {
         source.preset_id = "retired_seed".into();
         source.preset_version = 99;
         source.compiler_version = 88;
-        source.parameters.from = 0.25;
+        if let AnimationPresetParameters::Scalar(p) = &mut source.parameters {
+            p.from = 0.25;
+        }
         assert_eq!(evaluate(&project), evaluate(&manual));
         let nested = |p: &Project| {
             let mut value = serde_json::to_value(p).unwrap();
@@ -292,14 +636,15 @@ mod tests {
             "item",
             "scalar_tween".into(),
             1,
-            AnimationPresetParameters {
+            crate::ScalarTweenParameters {
                 property: AnimationChannelProperty::PositionX,
                 start_ms: 0,
                 duration_ms: 500,
                 from: 0.0,
                 to: 20.0,
                 curve: AnimationCurve::Simple(SimpleAnimationCurve::Linear),
-            },
+            }
+            .into(),
             AnimationPresetCollisionPolicy::Reject,
         )
         .unwrap_err();

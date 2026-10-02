@@ -26,7 +26,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 29;
+pub const PROJECT_SCHEMA_VERSION: u32 = 30;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -194,6 +194,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_inherited_timing(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_inherited_timing(components)?;
+            }
+        }
+        if value.schema_version < 30 {
+            reject_pack_provenance(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_pack_provenance(components)?;
             }
         }
         if value.schema_version < 29 {
@@ -463,6 +469,40 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub(crate) fn reject_pack_provenance(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            if let Some(items) = fields.get("items").and_then(serde_json::Value::as_array) {
+                for item in items {
+                    if item
+                        .get("animationPresetProvenance")
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|sources| {
+                            sources.values().any(|source| {
+                                source
+                                    .get("parameters")
+                                    .is_some_and(|p| p.get("kind").is_some())
+                            })
+                        })
+                    {
+                        return Err("tagged preset provenance requires schema 30".into());
+                    }
+                }
+            }
+            if let Some(tracks) = fields.get("tracks") {
+                reject_pack_provenance(tracks)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_pack_provenance(child)?;
             }
         }
         _ => {}

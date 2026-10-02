@@ -784,7 +784,7 @@ export const registerTimelineTools = (
     {
       annotations: WRITE,
       description:
-        "Apply scalar_tween@1 with explicit scalar endpoints and item-local timing. Reject collisions by default; replace explicitly. Draft intents and direct definition authoring are excluded.",
+        "Apply scalar_tween@1 or initial motion pack impact_slam, slide_left, scan, pulse, radar_expand@1 with explicit parameters and item-local timing. Slam assigns motion blur; scan/pulse/radar support repeat iterations. Reject all channel/blur collisions by default; replace explicitly and atomically. Draft intents and direct definition authoring are excluded.",
       inputSchema: schemas.timelineApplyAnimationPreset,
       outputSchema: writeResultSchema,
     },

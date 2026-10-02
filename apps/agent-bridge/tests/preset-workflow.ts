@@ -2,6 +2,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
+import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -105,8 +106,8 @@ export const verifyPresetWorkflow = async (client: Client, call: Call) => {
   expect(
     replaced.project.tracks[1]?.items[0]?.animationPresetProvenance?.[
       "transform.opacity"
-    ]?.parameters.from
-  ).toBe(1);
+    ]?.parameters
+  ).toMatchObject({ from: 1 });
   await edit("timeline_set_animation_channels", 2, {
     animationChannels: replaced.project.tracks[1]?.items[0]?.animationChannels,
     itemId,
@@ -136,4 +137,68 @@ export const verifyPresetWorkflow = async (client: Client, call: Call) => {
   expect(
     (await read()).project.tracks[1]?.items[0]?.animationPresetProvenance
   ).toBeUndefined();
+  const verifyPack = async (entry: (typeof PACK.presets)[number]) => {
+    const before = await read();
+    const { revision } = before.project;
+    const application = {
+      itemId: "@motion",
+      operation: "apply_animation_preset",
+      parameters: entry.parameters,
+      presetId: entry.id,
+      presetVersion: 1,
+    };
+    const createdPack = await edit("timeline_batch_edit", revision, {
+      operations: [
+        {
+          color: "#00ff00",
+          durationMs: 1000,
+          height: 32,
+          operation: "add_rectangle",
+          resultAlias: "motion",
+          startMs: 0,
+          trackId,
+          transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+          width: 32,
+        },
+        application,
+      ],
+    });
+    const saved = await read();
+    const motion = saved.project.tracks[1]?.items.find(
+      (item) => item.id === createdPack.aliases.motion
+    );
+    expect(motion?.animationPresetProvenance).toEqual(entry.expectedProvenance);
+    const expected = entry.expected.channels.map((channel) => ({
+      keyframes: channel.times.map((timeMs, index) => ({
+        curve: index + 1 === channel.times.length ? "hold" : "linear",
+        timeMs,
+        value: { type: "scalar", value: channel.values[index] },
+      })),
+      property: channel.property,
+      ...(entry.expected.loop ? { loop: entry.expected.loop } : {}),
+    }));
+    expect(motion?.animationChannels).toEqual(expected);
+    expect(motion?.motionBlur).toEqual(entry.expected.motionBlur ?? undefined);
+    const rejected = await client.callTool({
+      arguments: {
+        expectedRevision: revision + 1,
+        projectId,
+        ...application,
+        itemId: createdPack.aliases.motion,
+      },
+      name: "timeline_apply_animation_preset",
+    });
+    expect(rejected.structuredContent).toMatchObject({
+      error: { code: "INVALID_ARGUMENT", retryable: false },
+    });
+    expect(await read()).toEqual(saved);
+    await edit("project_undo", revision + 1, {});
+    expect((await read()).project.tracks).toEqual(before.project.tracks);
+    await edit("project_redo", revision + 2, {});
+    expect((await read()).project.tracks).toEqual(saved.project.tracks);
+  };
+  await PACK.presets.reduce(
+    (prior, entry) => prior.then(() => verifyPack(entry)),
+    Promise.resolve()
+  );
 };

@@ -1,62 +1,961 @@
 {
   "version": 1,
-  "projectSchemaVersion": 29,
+  "projectSchemaVersion": 30,
   "capability": "extended_visual_animation_v1",
-  "limits": {"maxEffectsPerItem": 16, "maxEffectIdBytes": 128, "maxEffectRadiusPx": 128, "maxPixelPassesPerSample": 268435456, "maxCandidateAnalysisNodes": 65536},
-  "candidateCertification": {"node": "bounded time interval for one visual occurrence", "order": "canonical occurrences, left subdivision before right", "unresolvedAtLimit": "INVALID_ARGUMENT", "conservativeRejection": true},
-  "targetKinds": ["graphic_geometry", "graphic_fill", "graphic_stroke", "effect"],
-  "cropDefault": {"x": 0, "y": 0, "width": 1, "height": 1},
+  "limits": {
+    "maxEffectsPerItem": 16,
+    "maxEffectIdBytes": 128,
+    "maxEffectRadiusPx": 128,
+    "maxPixelPassesPerSample": 268435456,
+    "maxCandidateAnalysisNodes": 65536
+  },
+  "candidateCertification": {
+    "node": "bounded time interval for one visual occurrence",
+    "order": "canonical occurrences, left subdivision before right",
+    "unresolvedAtLimit": "INVALID_ARGUMENT",
+    "conservativeRejection": true
+  },
+  "targetKinds": [
+    "graphic_geometry",
+    "graphic_fill",
+    "graphic_stroke",
+    "effect"
+  ],
+  "cropDefault": {
+    "x": 0,
+    "y": 0,
+    "width": 1,
+    "height": 1
+  },
   "effectDefault": [],
-  "activeProperties": ["transform.rotation_deg", "media.crop_x", "media.crop_y", "media.crop_width", "media.crop_height", "graphic.path_points", "graphic.path_trim", "graphic.gradient_stops", "effect.blur_radius", "effect.glow_radius", "effect.tint_color", "effect.vignette_amount"],
+  "activeProperties": [
+    "transform.rotation_deg",
+    "media.crop_x",
+    "media.crop_y",
+    "media.crop_width",
+    "media.crop_height",
+    "graphic.path_points",
+    "graphic.path_trim",
+    "graphic.gradient_stops",
+    "effect.blur_radius",
+    "effect.glow_radius",
+    "effect.tint_color",
+    "effect.vignette_amount"
+  ],
   "scalarBounds": {
-    "transform.rotation_deg": {"minimum": -36000, "maximum": 36000},
-    "media.crop_x": {"minimum": 0, "maximum": 1},
-    "media.crop_y": {"minimum": 0, "maximum": 1},
-    "media.crop_width": {"minimumExclusive": 0, "maximum": 1},
-    "media.crop_height": {"minimumExclusive": 0, "maximum": 1},
-    "graphic.path_trim": {"minimum": 0, "maximum": 1},
-    "effect.blur_radius": {"minimum": 0, "maximum": 128},
-    "effect.glow_radius": {"minimum": 0, "maximum": 128},
-    "effect.vignette_amount": {"minimum": 0, "maximum": 1}
+    "transform.rotation_deg": {
+      "minimum": -36000,
+      "maximum": 36000
+    },
+    "media.crop_x": {
+      "minimum": 0,
+      "maximum": 1
+    },
+    "media.crop_y": {
+      "minimum": 0,
+      "maximum": 1
+    },
+    "media.crop_width": {
+      "minimumExclusive": 0,
+      "maximum": 1
+    },
+    "media.crop_height": {
+      "minimumExclusive": 0,
+      "maximum": 1
+    },
+    "graphic.path_trim": {
+      "minimum": 0,
+      "maximum": 1
+    },
+    "effect.blur_radius": {
+      "minimum": 0,
+      "maximum": 128
+    },
+    "effect.glow_radius": {
+      "minimum": 0,
+      "maximum": 128
+    },
+    "effect.vignette_amount": {
+      "minimum": 0,
+      "maximum": 1
+    }
   },
   "sampleCases": [
-    {"name":"linear-light-opaque-tint","timeMs":500,"channel":{"property":"effect.tint_color","target":{"kind":"effect","scope":"root","id":"tint"},"keyframes":[{"timeMs":0,"value":{"type":"rgba","r":1,"g":0,"b":0,"a":1},"curve":"linear"},{"timeMs":1000,"value":{"type":"rgba","r":0,"g":0,"b":1,"a":1},"curve":"hold"}]},"expected":{"type":"rgba","r":0.7353569830524495,"g":0,"b":0.7353569830524495,"a":1}},
-    {"name":"bezier-compound-tint","timeMs":500,"channel":{"property":"effect.tint_color","target":{"kind":"effect","scope":"root","id":"tint"},"keyframes":[{"timeMs":0,"value":{"type":"rgba","r":1,"g":0,"b":0,"a":1},"curve":{"type":"cubic_bezier","x1":0,"y1":0,"x2":1,"y2":1}},{"timeMs":1000,"value":{"type":"rgba","r":0,"g":0,"b":1,"a":0},"curve":"hold"}]},"expected":{"type":"rgba","r":1,"g":0,"b":0,"a":0.5}},
-    {"name":"critical-spring-compound-tint","timeMs":500,"channel":{"property":"effect.tint_color","target":{"kind":"effect","scope":"root","id":"tint"},"keyframes":[{"timeMs":0,"value":{"type":"rgba","r":1,"g":0,"b":0,"a":1},"curve":{"type":"spring","mass":1,"stiffness":100,"damping":20,"initialVelocity":0}},{"timeMs":1000,"value":{"type":"rgba","r":0,"g":0,"b":1,"a":0},"curve":"hold"}]},"expected":{"type":"rgba","r":1,"g":0,"b":0,"a":0.040427681994512785}},
-    {"name":"reflected-compound-path","timeMs":1500,"channel":{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":20,"y":10}]},"curve":"linear"},{"timeMs":1000,"value":{"type":"path_points","points":[{"x":10,"y":10},{"x":40,"y":30}]},"curve":"hold"}]},"expected":{"type":"path_points","points":[{"x":5,"y":5},{"x":30,"y":20}]}},
-    {"name":"absolute-multiple-turn-rotation","timeMs":250,"channel":{"property":"transform.rotation_deg","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":720},"curve":"linear"},{"timeMs":1000,"value":{"type":"scalar","value":-720},"curve":"hold"}]},"expected":{"type":"scalar","value":360}},
-    {"name":"path-coordinate-midpoint","timeMs":500,"channel":{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":20,"y":10}]},"curve":"linear"},{"timeMs":1000,"value":{"type":"path_points","points":[{"x":10,"y":10},{"x":40,"y":30}]},"curve":"hold"}]},"expected":{"type":"path_points","points":[{"x":5,"y":5},{"x":30,"y":20}]}},
-    {"name":"premultiplied-transparent-tint","timeMs":500,"channel":{"property":"effect.tint_color","target":{"kind":"effect","scope":"root","id":"tint"},"keyframes":[{"timeMs":0,"value":{"type":"rgba","r":1,"g":0,"b":0,"a":1},"curve":"linear"},{"timeMs":1000,"value":{"type":"rgba","r":0,"g":0,"b":1,"a":0},"curve":"hold"}]},"expected":{"type":"rgba","r":1,"g":0,"b":0,"a":0.5}},
-    {"name":"transparent-exact-endpoint","timeMs":1000,"channel":{"property":"effect.tint_color","target":{"kind":"effect","scope":"root","id":"tint"},"keyframes":[{"timeMs":0,"value":{"type":"rgba","r":1,"g":0,"b":0,"a":1},"curve":"linear"},{"timeMs":1000,"value":{"type":"rgba","r":0,"g":0,"b":1,"a":0},"curve":"hold"}]},"expected":{"type":"rgba","r":0,"g":0,"b":1,"a":0}}
+    {
+      "name": "linear-light-opaque-tint",
+      "timeMs": 500,
+      "channel": {
+        "property": "effect.tint_color",
+        "target": {
+          "kind": "effect",
+          "scope": "root",
+          "id": "tint"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "rgba",
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "rgba",
+        "r": 0.7353569830524495,
+        "g": 0,
+        "b": 0.7353569830524495,
+        "a": 1
+      }
+    },
+    {
+      "name": "bezier-compound-tint",
+      "timeMs": 500,
+      "channel": {
+        "property": "effect.tint_color",
+        "target": {
+          "kind": "effect",
+          "scope": "root",
+          "id": "tint"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "curve": {
+              "type": "cubic_bezier",
+              "x1": 0,
+              "y1": 0,
+              "x2": 1,
+              "y2": 1
+            }
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "rgba",
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "rgba",
+        "r": 1,
+        "g": 0,
+        "b": 0,
+        "a": 0.5
+      }
+    },
+    {
+      "name": "critical-spring-compound-tint",
+      "timeMs": 500,
+      "channel": {
+        "property": "effect.tint_color",
+        "target": {
+          "kind": "effect",
+          "scope": "root",
+          "id": "tint"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "curve": {
+              "type": "spring",
+              "mass": 1,
+              "stiffness": 100,
+              "damping": 20,
+              "initialVelocity": 0
+            }
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "rgba",
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "rgba",
+        "r": 1,
+        "g": 0,
+        "b": 0,
+        "a": 0.040427681994512785
+      }
+    },
+    {
+      "name": "reflected-compound-path",
+      "timeMs": 1500,
+      "channel": {
+        "property": "graphic.path_points",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "loop": {
+          "mode": "ping_pong",
+          "iterations": "infinite"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 20,
+                  "y": 10
+                }
+              ]
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 10,
+                  "y": 10
+                },
+                {
+                  "x": 40,
+                  "y": 30
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "path_points",
+        "points": [
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 30,
+            "y": 20
+          }
+        ]
+      }
+    },
+    {
+      "name": "absolute-multiple-turn-rotation",
+      "timeMs": 250,
+      "channel": {
+        "property": "transform.rotation_deg",
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 720
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "scalar",
+              "value": -720
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "scalar",
+        "value": 360
+      }
+    },
+    {
+      "name": "path-coordinate-midpoint",
+      "timeMs": 500,
+      "channel": {
+        "property": "graphic.path_points",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 20,
+                  "y": 10
+                }
+              ]
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 10,
+                  "y": 10
+                },
+                {
+                  "x": 40,
+                  "y": 30
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "path_points",
+        "points": [
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 30,
+            "y": 20
+          }
+        ]
+      }
+    },
+    {
+      "name": "premultiplied-transparent-tint",
+      "timeMs": 500,
+      "channel": {
+        "property": "effect.tint_color",
+        "target": {
+          "kind": "effect",
+          "scope": "root",
+          "id": "tint"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "rgba",
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "rgba",
+        "r": 1,
+        "g": 0,
+        "b": 0,
+        "a": 0.5
+      }
+    },
+    {
+      "name": "transparent-exact-endpoint",
+      "timeMs": 1000,
+      "channel": {
+        "property": "effect.tint_color",
+        "target": {
+          "kind": "effect",
+          "scope": "root",
+          "id": "tint"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "curve": "linear"
+          },
+          {
+            "timeMs": 1000,
+            "value": {
+              "type": "rgba",
+              "r": 0,
+              "g": 0,
+              "b": 1,
+              "a": 0
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "expected": {
+        "type": "rgba",
+        "r": 0,
+        "g": 0,
+        "b": 1,
+        "a": 0
+      }
+    }
   ],
   "channelCases": [
-    {"name":"empty-channel-static-fallback","channel":{"property":"transform.rotation_deg","keyframes":[]},"accepted":true},
-    {"name":"absolute-rotation-bound","channel":{"property":"transform.rotation_deg","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":36000},"curve":"hold"}]},"accepted":true},
-    {"name":"rotation-over-bound","channel":{"property":"transform.rotation_deg","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":36001},"curve":"hold"}]},"accepted":false},
-    {"name":"valid-path","channel":{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":10,"y":0},{"x":10,"y":10}]},"curve":"hold"}]},"accepted":true},
-    {"name":"path-topology","channel":{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0}]},"curve":"hold"}]},"accepted":false},
-    {"name":"path-coordinate-bound","channel":{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":1000001,"y":0},{"x":10,"y":0},{"x":10,"y":10}]},"curve":"hold"}]},"accepted":false},
-    {"name":"wrong-path-target","channel":{"property":"graphic.path_trim","target":{"kind":"graphic_fill","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]},"accepted":false},
-    {"name":"trim-over-bound","channel":{"property":"graphic.path_trim","target":{"kind":"graphic_geometry","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":1.1},"curve":"hold"}]},"accepted":false},
-    {"name":"valid-gradient","channel":{"property":"graphic.gradient_stops","target":{"kind":"graphic_fill","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"gradient_stops","stops":[{"offset":0,"color":[1,0,0,1]},{"offset":0.5,"color":[0,1,0,1]},{"offset":1,"color":[0,0,1,1]}]},"curve":"hold"}]},"accepted":true},
-    {"name":"gradient-topology","channel":{"property":"graphic.gradient_stops","target":{"kind":"graphic_fill","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"gradient_stops","stops":[{"offset":0,"color":[1,0,0,1]},{"offset":1,"color":[0,0,1,1]}]},"curve":"hold"}]},"accepted":false},
-    {"name":"gradient-order","channel":{"property":"graphic.gradient_stops","target":{"kind":"graphic_fill","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"gradient_stops","stops":[{"offset":0,"color":[1,0,0,1]},{"offset":0,"color":[0,1,0,1]},{"offset":1,"color":[0,0,1,1]}]},"curve":"hold"}]},"accepted":false},
-    {"name":"gradient-color","channel":{"property":"graphic.gradient_stops","target":{"kind":"graphic_fill","scope":"root","id":"shape"},"keyframes":[{"timeMs":0,"value":{"type":"gradient_stops","stops":[{"offset":0,"color":[2,0,0,1]},{"offset":0.5,"color":[0,1,0,1]},{"offset":1,"color":[0,0,1,1]}]},"curve":"hold"}]},"accepted":false}
+    {
+      "name": "empty-channel-static-fallback",
+      "channel": {
+        "property": "transform.rotation_deg",
+        "keyframes": []
+      },
+      "accepted": true
+    },
+    {
+      "name": "absolute-rotation-bound",
+      "channel": {
+        "property": "transform.rotation_deg",
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 36000
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": true
+    },
+    {
+      "name": "rotation-over-bound",
+      "channel": {
+        "property": "transform.rotation_deg",
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 36001
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "valid-path",
+      "channel": {
+        "property": "graphic.path_points",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 10,
+                  "y": 0
+                },
+                {
+                  "x": 10,
+                  "y": 10
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": true
+    },
+    {
+      "name": "path-topology",
+      "channel": {
+        "property": "graphic.path_points",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "path-coordinate-bound",
+      "channel": {
+        "property": "graphic.path_points",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 1000001,
+                  "y": 0
+                },
+                {
+                  "x": 10,
+                  "y": 0
+                },
+                {
+                  "x": 10,
+                  "y": 10
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "wrong-path-target",
+      "channel": {
+        "property": "graphic.path_trim",
+        "target": {
+          "kind": "graphic_fill",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 0.5
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "trim-over-bound",
+      "channel": {
+        "property": "graphic.path_trim",
+        "target": {
+          "kind": "graphic_geometry",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1.1
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "valid-gradient",
+      "channel": {
+        "property": "graphic.gradient_stops",
+        "target": {
+          "kind": "graphic_fill",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "gradient_stops",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": [
+                    1,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 0.5,
+                  "color": [
+                    0,
+                    1,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 1,
+                  "color": [
+                    0,
+                    0,
+                    1,
+                    1
+                  ]
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": true
+    },
+    {
+      "name": "gradient-topology",
+      "channel": {
+        "property": "graphic.gradient_stops",
+        "target": {
+          "kind": "graphic_fill",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "gradient_stops",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": [
+                    1,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 1,
+                  "color": [
+                    0,
+                    0,
+                    1,
+                    1
+                  ]
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "gradient-order",
+      "channel": {
+        "property": "graphic.gradient_stops",
+        "target": {
+          "kind": "graphic_fill",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "gradient_stops",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": [
+                    1,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 0,
+                  "color": [
+                    0,
+                    1,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 1,
+                  "color": [
+                    0,
+                    0,
+                    1,
+                    1
+                  ]
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "name": "gradient-color",
+      "channel": {
+        "property": "graphic.gradient_stops",
+        "target": {
+          "kind": "graphic_fill",
+          "scope": "root",
+          "id": "shape"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "gradient_stops",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": [
+                    2,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 0.5,
+                  "color": [
+                    0,
+                    1,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 1,
+                  "color": [
+                    0,
+                    0,
+                    1,
+                    1
+                  ]
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      },
+      "accepted": false
+    }
   ],
   "cropCases": [
-    {"value": {"x": 0, "y": 0, "width": 1, "height": 1}, "accepted": true},
-    {"value": {"x": 0.25, "y": 0.5, "width": 0.75, "height": 0.5}, "accepted": true},
-    {"value": {"x": 0.5, "y": 0, "width": 0.6, "height": 1}, "accepted": false},
-    {"value": {"x": 0, "y": 0, "width": 0, "height": 1}, "accepted": false},
-    {"value": {"x": 0, "y": 0, "width": 1, "height": 1, "url": "https://invalid.example"}, "accepted": false}
+    {
+      "value": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "x": 0.25,
+        "y": 0.5,
+        "width": 0.75,
+        "height": 0.5
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "x": 0.5,
+        "y": 0,
+        "width": 0.6,
+        "height": 1
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 1
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1,
+        "url": "https://invalid.example"
+      },
+      "accepted": false
+    }
   ],
   "effectCases": [
-    {"value": {"id": "blur", "type": "gaussian_blur", "radiusPx": 128}, "accepted": true},
-    {"value": {"id": "glow", "type": "glow", "radiusPx": 2, "intensity": 0.8, "color": {"r": 1, "g": 0, "b": 0, "a": 1}}, "accepted": true},
-    {"value": {"id": "tint", "type": "color_tint", "color": {"r": 0, "g": 0.5, "b": 1, "a": 0.25}}, "accepted": true},
-    {"value": {"id": "vignette", "type": "vignette", "amount": 1}, "accepted": true},
-    {"value": {"id": "blur", "type": "gaussian_blur", "radiusPx": 129}, "accepted": false},
-    {"value": {"id": "particles", "type": "particle_overlay", "amount": 1}, "accepted": false},
-    {"value": {"id": "", "type": "vignette", "amount": 0}, "accepted": false}
+    {
+      "value": {
+        "id": "blur",
+        "type": "gaussian_blur",
+        "radiusPx": 128
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "id": "glow",
+        "type": "glow",
+        "radiusPx": 2,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "id": "tint",
+        "type": "color_tint",
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.25
+        }
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "id": "vignette",
+        "type": "vignette",
+        "amount": 1
+      },
+      "accepted": true
+    },
+    {
+      "value": {
+        "id": "blur",
+        "type": "gaussian_blur",
+        "radiusPx": 129
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "id": "particles",
+        "type": "particle_overlay",
+        "amount": 1
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "id": "",
+        "type": "vignette",
+        "amount": 0
+      },
+      "accepted": false
+    }
   ]
 }
