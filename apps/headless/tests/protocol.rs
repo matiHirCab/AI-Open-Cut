@@ -1918,3 +1918,92 @@ fn versioned_presets_match_fixed_primitives_and_preserve_wire_failures_history_a
         replaced["project"]["tracks"]
     );
 }
+
+#[test]
+fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Legacy presets"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let added = result(&h.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":0,
+        "edit":{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,
+            "width":32,"height":32,"color":"#ff0000",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}}),
+    ));
+    let item = added["changedIds"][0].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    for name in ["project.json", "history.json"] {
+        let path = dir.join(name);
+        let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        if name == "project.json" {
+            document["schemaVersion"] = json!(28);
+        } else {
+            for kind in ["undo", "redo"] {
+                for snapshot in document[kind].as_array_mut().unwrap() {
+                    snapshot["schemaVersion"] = json!(28);
+                }
+            }
+        }
+        std::fs::write(path, serde_json::to_vec(&document).unwrap()).unwrap();
+    }
+    let bytes = || {
+        (
+            std::fs::read(dir.join("project.json")).unwrap(),
+            std::fs::read(dir.join("history.json")).unwrap(),
+        )
+    };
+    let before = bytes();
+    let mut preset = json!({"operation":"apply_animation_preset","itemId":item,
+        "presetId":"scalar_tween","presetVersion":2,
+        "parameters":{"property":"transform.opacity","startMs":0,"durationMs":400,
+            "from":0,"to":1,"curve":"linear"}});
+    for request in [
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":preset}),
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+            {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,
+                "color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"seed"},
+            {"operation":"apply_animation_preset","itemId":"@seed","presetId":"scalar_tween","presetVersion":2,
+                "parameters":preset["parameters"]}]}),
+    ] {
+        let response = h.request(request);
+        assert!(!response.status.success());
+        let failure = event(&response);
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(failure["error"]["retryable"], false);
+        assert_eq!(bytes(), before);
+    }
+    preset["presetVersion"] = json!(1);
+    let edited = result(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":preset})),
+    );
+    assert_eq!(edited["revision"], 2);
+    let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        saved["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        saved["project"]["tracks"][1]["items"][0]["animationPresetProvenance"]["transform.opacity"]
+            ["presetVersion"],
+        1
+    );
+    let history: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    assert_eq!(history["undo"].as_array().unwrap().len(), 2);
+    assert!(
+        history["undo"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|p| p["schemaVersion"] == opencut_editor_core::PROJECT_SCHEMA_VERSION)
+    );
+    assert_eq!(
+        result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})))["revision"],
+        3
+    );
+    assert_eq!(
+        result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})))["revision"],
+        4
+    );
+}

@@ -908,6 +908,24 @@ pub(crate) fn publish_fonts(
     dir: &Path,
     staged: &FontBytes,
 ) -> Result<(), CoreError> {
+    publish_fonts_prepared(storage, dir, staged, None)
+}
+
+pub(crate) fn publish_fonts_tracked(
+    storage: &dyn Storage,
+    dir: &Path,
+    staged: &FontBytes,
+    rollback: &mut super::UncommittedResources,
+) -> Result<(), CoreError> {
+    publish_fonts_prepared(storage, dir, staged, Some(rollback))
+}
+
+fn publish_fonts_prepared(
+    storage: &dyn Storage,
+    dir: &Path,
+    staged: &FontBytes,
+    mut rollback: Option<&mut super::UncommittedResources>,
+) -> Result<(), CoreError> {
     if staged.is_empty() {
         return Ok(());
     }
@@ -933,6 +951,9 @@ pub(crate) fn publish_fonts(
         if storage.storage_path_exists(&path) {
             managed_bytes(storage, dir, &face)?;
         } else {
+            if let Some(rollback) = rollback.as_deref_mut() {
+                rollback.track_absent(storage, path.clone());
+            }
             storage
                 .atomic_replace(&path, bytes)
                 .map_err(|e| CoreError::io("cannot publish managed font", e))?;

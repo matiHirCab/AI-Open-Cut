@@ -1313,34 +1313,53 @@ fn replacing_loop_is_whole_channel_and_undo_restores_original_loop() {
 
 #[test]
 fn final_scene_budget_failure_rolls_back_preset_alias_and_existing_draft() {
-    let (_root, core, project, id) = setup();
-    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
-    let shape=core.edit(&project,1,op(json!({"operation":"add_shape","trackId":track,"startMs":0,"durationMs":40000,"geometry":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":10,"y":10}}]}},"fill":null,"stroke":{"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"width":1,"dash":[],"dashOffset":0,"lineCap":"butt","lineJoin":"miter","miterLimit":4}}))).unwrap().changed_ids[0].clone();
-    let draft = core
-        .create_draft(
-            &project,
-            2,
-            vec![op(
-                json!({"operation":"update_item","itemId":id,"color":"#00ff00"}),
-            )],
-            None,
-        )
-        .unwrap();
-    let dir = core.paths().project_dir(&project).unwrap();
-    let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));
-    let draft_bytes = std::fs::read(&draft_path).unwrap();
-    let before = files(&core, &project);
-    let channels = json!([{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":shape},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":10,"y":10}]},"curve":"linear"},{"timeMs":39999,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":20,"y":10}]},"curve":"hold"}]}]);
-    let operations:Vec<BatchEditOperation>=serde_json::from_value(json!([{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"new"},request("@new"),{"operation":"set_animation_channels","itemId":shape,"animationChannels":channels}])).unwrap();
-    let error = core.edit_batch(&project, 2, operations).unwrap_err();
-    assert_eq!(error.code, ErrorCode::InvalidArgument);
-    assert!(
-        error.message.contains("maxCandidateAnalysisNodes"),
-        "{}",
-        error.message
-    );
-    assert_eq!(files(&core, &project), before);
-    assert_eq!(std::fs::read(draft_path).unwrap(), draft_bytes);
+    for version in [28, 29] {
+        let (_root, core, project, id) = setup();
+        let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+        let shape=core.edit(&project,1,op(json!({"operation":"add_shape","trackId":track,"startMs":0,"durationMs":40000,"geometry":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":10,"y":10}}]}},"fill":null,"stroke":{"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"width":1,"dash":[],"dashOffset":0,"lineCap":"butt","lineJoin":"miter","miterLimit":4}}))).unwrap().changed_ids[0].clone();
+        let draft = core
+            .create_draft(
+                &project,
+                2,
+                vec![op(
+                    json!({"operation":"update_item","itemId":id,"color":"#00ff00"}),
+                )],
+                None,
+            )
+            .unwrap();
+        let dir = core.paths().project_dir(&project).unwrap();
+        let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));
+        let draft_bytes = std::fs::read(&draft_path).unwrap();
+        if version == 28 {
+            for name in ["project.json", "history.json"] {
+                let path = dir.join(name);
+                let mut value: Value =
+                    serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+                if name == "project.json" {
+                    value["schemaVersion"] = json!(28);
+                } else {
+                    for kind in ["undo", "redo"] {
+                        for snapshot in value[kind].as_array_mut().unwrap() {
+                            snapshot["schemaVersion"] = json!(28);
+                        }
+                    }
+                }
+                std::fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
+            }
+        }
+        let before = files(&core, &project);
+        let channels = json!([{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":shape},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":10,"y":10}]},"curve":"linear"},{"timeMs":39999,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":20,"y":10}]},"curve":"hold"}]}]);
+        let operations:Vec<BatchEditOperation>=serde_json::from_value(json!([{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"new"},request("@new"),{"operation":"set_animation_channels","itemId":shape,"animationChannels":channels}])).unwrap();
+        let error = core.edit_batch(&project, 2, operations).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(
+            error.message.contains("maxCandidateAnalysisNodes"),
+            "{}",
+            error.message
+        );
+        assert_eq!(files(&core, &project), before);
+        assert_eq!(std::fs::read(draft_path).unwrap(), draft_bytes);
+    }
 }
 
 #[test]
@@ -1455,4 +1474,76 @@ fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejectio
     let bytes = files(&core, &project);
     assert_eq!(state(&core, &project), current);
     assert_eq!(files(&core, &project), bytes);
+}
+
+#[test]
+fn legacy_invalid_preset_does_not_publish_schema_migration() {
+    let (_root, core, project, id) = setup();
+    let dir = core.paths().project_dir(&project).unwrap();
+    let mut doc = state(&core, &project);
+    doc["schemaVersion"] = json!(28);
+    std::fs::write(dir.join("project.json"), serde_json::to_vec(&doc).unwrap()).unwrap();
+    let mut hist: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    for k in ["undo", "redo"] {
+        for snap in hist[k].as_array_mut().unwrap() {
+            snap["schemaVersion"] = json!(28);
+        }
+    }
+    std::fs::write(dir.join("history.json"), serde_json::to_vec(&hist).unwrap()).unwrap();
+    let before = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    let mut req = request(&id);
+    req["presetVersion"] = json!(2);
+    let err = core.edit(&project, 1, op(req)).unwrap_err();
+    assert_eq!(err.code, ErrorCode::InvalidArgument);
+    let after = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    assert!(
+        before == after,
+        "INVALID_ARGUMENT changed schema to {}",
+        serde_json::from_slice::<Value>(&after.0).unwrap()["schemaVersion"]
+    );
+}
+
+#[test]
+fn legacy_failed_alias_batch_does_not_publish_schema_migration() {
+    let (_root, core, project, id) = setup();
+    let dir = core.paths().project_dir(&project).unwrap();
+    let mut doc = state(&core, &project);
+    doc["schemaVersion"] = json!(28);
+    std::fs::write(dir.join("project.json"), serde_json::to_vec(&doc).unwrap()).unwrap();
+    let mut hist: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    for k in ["undo", "redo"] {
+        for snap in hist[k].as_array_mut().unwrap() {
+            snap["schemaVersion"] = json!(28);
+        }
+    }
+    std::fs::write(dir.join("history.json"), serde_json::to_vec(&hist).unwrap()).unwrap();
+    let before = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    let mut req = request(&id);
+    req["presetVersion"] = json!(2);
+    let track = doc["tracks"][1]["id"].clone();
+    req["itemId"] = json!("@seed");
+    let ops:Vec<opencut_editor_core::BatchEditOperation>=serde_json::from_value(json!([
+ {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"seed"},req])).unwrap();
+    let err = core.edit_batch(&project, 1, ops).unwrap_err();
+    assert_eq!(err.code, ErrorCode::InvalidArgument);
+    let after = (
+        std::fs::read(dir.join("project.json")).unwrap(),
+        std::fs::read(dir.join("history.json")).unwrap(),
+    );
+    assert!(
+        before == after,
+        "INVALID_ARGUMENT changed schema to {}",
+        serde_json::from_slice::<Value>(&after.0).unwrap()["schemaVersion"]
+    );
 }
