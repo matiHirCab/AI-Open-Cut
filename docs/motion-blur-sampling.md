@@ -13,6 +13,12 @@ once to milliseconds; inherited component rates, parent clocks, stagger, loops a
 signed repeater offsets retain their fractional mappings. Root intervals clamp to
 [0,durationMs-1], preserving duplicate boundary weights. There is no random jitter.
 
+Midpoint offsets use the exact parsed binary64 angle and the ratio
+`angle * 1000 * (2*i + 1 - N) / (720 * projectFPS * N)`. Integer-ratio flooring
+avoids cancellation at exact boundaries; there is no epsilon snapping. Fractional
+angles, including positive subnormals, retain mathematical floor semantics. For
+angle 360, count 5, FPS 25 and time 500, samples are [484,492,500,508,516].
+
 Every sample resolves canonical activity, source time, crop, local clipping, paint,
 ordered effects, complete inherited affine, opacity and transition gain. Canvas
 rasters average in premultiplied linear light before existing per-layer stacking.
