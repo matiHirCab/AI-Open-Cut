@@ -590,6 +590,26 @@ fn raw_component_replacement_strips_forgery_and_preserves_only_known_exact_chann
             .code,
         ErrorCode::ItemNotFound
     );
+    let mut signed_zero = saved["components"][0]["tracks"].clone();
+    signed_zero[0]["items"][0]["animationChannels"][0]["keyframes"][0]["value"]["value"] =
+        json!(-0.0);
+    core.edit(&project,6,op(json!({"operation":"component_update","componentId":component,"name":"Seed","width":64,"height":64,"durationMs":1000,"tracks":signed_zero}))).unwrap();
+    let rewritten = state(&core, &project);
+    let rewritten_item = &rewritten["components"][0]["tracks"][0]["items"][0];
+    assert!(rewritten_item.get("animationPresetProvenance").is_none());
+    assert_eq!(
+        rewritten_item["animationChannels"][0]["keyframes"][0]["value"]["value"]
+            .as_f64()
+            .unwrap()
+            .to_bits(),
+        (-0.0_f64).to_bits()
+    );
+    core.undo(&project, 7).unwrap();
+    let restored = state(&core, &project);
+    assert_eq!(
+        serde_json::to_vec(&restored["components"][0]["tracks"][0]["items"][0]).unwrap(),
+        serde_json::to_vec(&saved["components"][0]["tracks"][0]["items"][0]).unwrap()
+    );
 }
 
 #[test]

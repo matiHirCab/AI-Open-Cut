@@ -106,7 +106,15 @@ pub(super) fn reconcile_raw_tracks(tracks: &mut [Track], prior: &[Track]) {
                     .animation_channels
                     .iter()
                     .find(|c| c.property == *property && c.target.is_none());
-                if before.is_some() && before == after {
+                // Persisted binary64 endpoints retain signed zero. Floating-point
+                // PartialEq alone would label a +0 to -0 rewrite as unchanged.
+                let unchanged = before.zip(after).is_some_and(|(before, after)| {
+                    matches!(
+                        (serde_json::to_vec(before), serde_json::to_vec(after)),
+                        (Ok(before), Ok(after)) if before == after
+                    )
+                });
+                if unchanged {
                     visual
                         .animation_preset_provenance
                         .insert(*property, source.clone());

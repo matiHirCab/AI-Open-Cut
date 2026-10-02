@@ -169,7 +169,7 @@ Alternative considered: generate catalogs from runtime schemas or duplicate comp
 - [Old applications cannot open schema 29] -> Forward-only locked migration, backups for rollback, fail-closed future-version tests; no format downgrade.
 - [A valid new channel can make a coupled scene unsafe] -> Retain existing complete-candidate certification and history/resource checks rather than validating only the two endpoints.
 - [Draft limitation is visible to new clients] -> Document it and test canonical failure with unchanged draft/project/history bytes; old draft operations remain compatible.
-- [PR #133 is unmerged] -> Keep the proposal stacked on its exact published head; refresh main/PR state before implementation and before any separately authorized publication.
+- [Published prerequisite must remain in the base] -> The proposal began on PR #133's exact published head. After its merge, main `51cd085253402bd0a2f1798f7a4bba418f83bb5d` was integrated without conflicts; retain the correction and refresh main/PR state before any separately authorized publication.
 
 ## Migration Plan
 
@@ -183,7 +183,7 @@ There is no deployment in this task. Rollback of an implemented upgrade uses a b
 
 Automated coverage is required for every delta scenario; tasks include the exact checks. Tests must independently assert the fixed generated keys/provenance and sample values, rather than just compile then compare to the same compiler output. Cover every seed property/curve, bounds and boundaries, unknown versions, collision policies, untouched channels, revision/lock/missing/alias errors, complete batch rollback, metadata lifecycle, current/history/component migration, malformed retained state, idempotent reopen and catalog retirement. Require raw-channel versus preset-generated scene/frame/range/draft/export equality with the existing visual/audio tolerance. Run the existing exact-midpoint regression on this stacked base and do not modify PR #133's correction or goldens.
 
-No executable files, contracts, migrations or tests have been edited as part of this proposal. Planning validation checks only document structure and inventory; implementation suites must run after approval. Archive-only protected policy rejection is expected while this unapproved active change exists and is not a passing gate.
+The initial proposal was prepared before executable files, contracts, migrations or tests were edited. Implementation began after the explicit approval recorded in `approval.md`; check results and remaining gates are recorded in `verification.md`. Archive-only protected policy rejection is expected while this approved change remains active and is not a passing gate.
 
 ## Open Questions
 
