@@ -1873,6 +1873,27 @@ fn versioned_presets_match_fixed_primitives_and_preserve_wire_failures_history_a
             saved
         );
     }
+    for parameters in [
+        r#"["transform.opacity",0,500,0.0,1.0]"#,
+        r#"["transform.opacity",0,500,0.0,1.0,"linear"]"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":99.0,"from":0.0,"to":1.0,"curve":"linear"}"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":0.0,"to":1.0,"curve":{"type":"cubic_bezier","x1":99.0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}}"#,
+    ] {
+        let mut raw_edit = request.clone();
+        raw_edit["parameters"] = json!("PARAMETERS_TOKEN");
+        let raw = serde_json::to_string(&json!({
+            "operation":"edit","projectId":id,"expectedRevision":1,"edit":raw_edit
+        }))
+        .unwrap()
+        .replace("\"PARAMETERS_TOKEN\"", parameters);
+        let failed = event(&h.request_raw(&raw));
+        assert_eq!(failed["error"]["code"], "INVALID_ARGUMENT", "{raw}");
+        assert_eq!(failed["error"]["retryable"], false);
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id}))),
+            saved
+        );
+    }
     result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_track","trackId":track,"locked":true}})));
     let locked = event(
         &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":request})),

@@ -463,6 +463,7 @@
         "crates/editor-core/src/model/animation_presets.rs",
         "crates/editor-core/src/model.rs",
         "crates/editor-core/src/validation/animation_presets.rs",
+        "crates/editor-core/src/validation/animation_channels.rs",
         "crates/editor-core/src/timeline/animation_presets.rs",
         "crates/editor-core/src/timeline.rs",
         "crates/editor-core/src/migrations.rs",

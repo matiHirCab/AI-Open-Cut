@@ -322,6 +322,97 @@ fn provenance_null_missing_curve_or_premature_field_is_not_defaulted() {
     assert!(serde_json::from_value::<opencut_editor_core::Project>(invalid).is_err());
 }
 
+#[test]
+fn strict_preset_records_reject_arrays_and_duplicate_raw_fields_without_publication() {
+    use opencut_editor_core::{AnimationPresetParameters, AnimationPresetProvenance};
+    let parameter_cases = [
+        r#"["transform.opacity",0,500,0.0,1.0]"#,
+        r#"["transform.opacity",0,500,0.0,1.0,"linear"]"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":99.0,"from":0.0,"to":1.0,"curve":"linear"}"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":0.0,"to":1.0,"curve":{"type":"cubic_bezier","x1":99.0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}}"#,
+    ];
+    for raw in parameter_cases {
+        assert!(
+            serde_json::from_str::<AnimationPresetParameters>(raw).is_err(),
+            "{raw}"
+        );
+        let mut request = catalog()["examples"]["apply"].clone();
+        request["parameters"] = json!("PARAMETERS_TOKEN");
+        let request = serde_json::to_string(&request)
+            .unwrap()
+            .replace("\"PARAMETERS_TOKEN\"", raw);
+        assert!(
+            serde_json::from_str::<EditOperation>(&request).is_err(),
+            "{request}"
+        );
+    }
+    let source_cases = [
+        r#"["scalar_tween",1,1,{"property":"transform.opacity","startMs":0,"durationMs":500,"from":0.0,"to":1.0,"curve":"linear"}]"#,
+        r#"{"presetId":"scalar_tween","presetVersion":1,"compilerVersion":1,"parameters":{"property":"transform.opacity","startMs":0,"durationMs":500,"from":99.0,"from":0.0,"to":1.0,"curve":"linear"}}"#,
+        r#"{"presetId":"scalar_tween","presetVersion":1,"compilerVersion":1,"parameters":{"property":"transform.opacity","startMs":0,"durationMs":500,"from":0.0,"to":1.0,"curve":{"type":"cubic_bezier","x1":99.0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}}}"#,
+    ];
+    for raw in source_cases {
+        assert!(
+            serde_json::from_str::<AnimationPresetProvenance>(raw).is_err(),
+            "{raw}"
+        );
+        for target in ["current", "undo", "redo"] {
+            let (_root, core, project, id) = setup();
+            core.edit(&project, 1, op(request(&id))).unwrap();
+            for (revision, color) in [(2, "#00ff00"), (3, "#0000ff")] {
+                core.edit(
+                    &project,
+                    revision,
+                    op(json!({"operation":"update_item","itemId":id,"color":color})),
+                )
+                .unwrap();
+            }
+            core.undo(&project, 4).unwrap();
+            let dir = core.paths().project_dir(&project).unwrap();
+            let mut document: Value = if target == "current" {
+                state(&core, &project)
+            } else {
+                serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap()
+            };
+            let candidate = if target == "current" {
+                &mut document
+            } else {
+                document[target]
+                    .as_array_mut()
+                    .unwrap()
+                    .iter_mut()
+                    .find(|snapshot| {
+                        snapshot["tracks"][1]["items"][0]
+                            .get("animationPresetProvenance")
+                            .is_some()
+                    })
+                    .unwrap()
+            };
+            candidate["tracks"][1]["items"][0]["animationPresetProvenance"]["transform.opacity"] =
+                json!("SOURCE_TOKEN");
+            let bytes = serde_json::to_string(&document)
+                .unwrap()
+                .replace("\"SOURCE_TOKEN\"", raw);
+            std::fs::write(
+                dir.join(if target == "current" {
+                    "project.json"
+                } else {
+                    "history.json"
+                }),
+                bytes,
+            )
+            .unwrap();
+            let before = files(&core, &project);
+            assert_eq!(
+                core.get_project(&project).unwrap_err().code,
+                ErrorCode::InternalError,
+                "{target} {raw}"
+            );
+            assert_eq!(files(&core, &project), before, "{target} {raw}");
+        }
+    }
+}
+
 fn files(core: &EditorCore, project: &str) -> (Vec<u8>, Vec<u8>) {
     let dir = core.paths().project_dir(project).unwrap();
     (

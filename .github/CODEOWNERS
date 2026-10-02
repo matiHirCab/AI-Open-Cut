@@ -154,6 +154,7 @@
 /crates/editor-core/src/model/animation_presets.rs @matiHirCab
 /crates/editor-core/src/model.rs @matiHirCab
 /crates/editor-core/src/validation/animation_presets.rs @matiHirCab
+/crates/editor-core/src/validation/animation_channels.rs @matiHirCab
 /crates/editor-core/src/timeline/animation_presets.rs @matiHirCab
 /crates/editor-core/src/timeline.rs @matiHirCab
 /crates/editor-core/src/migrations.rs @matiHirCab
