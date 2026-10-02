@@ -31,6 +31,8 @@ impl MotionBlur {
     }
 
     /// Root-grid integer resolution is applied once, before inherited mappings.
+    /// Midpoints use the exact stored binary64 angle; no rounded subtraction or
+    /// epsilon can move a sample across an integer boundary.
     /// Offset arithmetic preserves adjacent timestamps throughout the u64 range.
     pub fn sample_times(
         self,
@@ -48,13 +50,51 @@ impl MotionBlur {
         if !self.enabled() {
             return Ok(vec![at_ms]);
         }
-        let width = self.shutter_angle_deg / 360.0 * 1000.0 / f64::from(fps);
-        Ok((0..self.sample_count)
+        let arithmetic_error = || {
+            CoreError::new(
+                ErrorCode::InvalidArgument,
+                "motion blur midpoint arithmetic exceeds bounds",
+            )
+        };
+        // Every enabled, validated angle is positive and <= 360. Its exact
+        // value is significand / 2^shift, with shift in 44..=1074. The largest
+        // numerator below is < 2^68; an overflowing denominator is therefore
+        // strictly larger, including for subnormal angles.
+        let bits = self.shutter_angle_deg.to_bits();
+        let exponent = ((bits >> 52) & 0x7ff) as u32;
+        let significand =
+            (bits & ((1_u64 << 52) - 1)) | if exponent == 0 { 0 } else { 1_u64 << 52 };
+        let shift = 1075 - exponent.max(1);
+        let denominator = 720_u128
+            .checked_mul(u128::from(fps))
+            .and_then(|value| value.checked_mul(u128::from(self.sample_count)))
+            .ok_or_else(arithmetic_error)?;
+        let scaled_denominator = 1_u128
+            .checked_shl(shift)
+            .and_then(|scale| denominator.checked_mul(scale));
+        (0..self.sample_count)
             .map(|i| {
-                let delta = (width * ((f64::from(i) + 0.5) / f64::from(self.sample_count) - 0.5))
-                    .floor() as i64;
-                at_ms.saturating_add_signed(delta).min(duration_ms - 1)
+                // angle * 1000 * (2*i + 1 - N) / (720 * FPS * N).
+                let coefficient = i64::from(2 * i + 1) - i64::from(self.sample_count);
+                let numerator = u128::from(significand)
+                    .checked_mul(1000)
+                    .and_then(|value| value.checked_mul(u128::from(coefficient.unsigned_abs())))
+                    .ok_or_else(arithmetic_error)?;
+                let magnitude = match scaled_denominator {
+                    Some(divisor) => {
+                        numerator / divisor
+                            + u128::from(coefficient < 0 && numerator % divisor != 0)
+                    }
+                    None => u128::from(coefficient < 0),
+                };
+                let magnitude = i64::try_from(magnitude).map_err(|_| arithmetic_error())?;
+                let delta = if coefficient < 0 {
+                    -magnitude
+                } else {
+                    magnitude
+                };
+                Ok(at_ms.saturating_add_signed(delta).min(duration_ms - 1))
             })
-            .collect())
+            .collect()
     }
 }

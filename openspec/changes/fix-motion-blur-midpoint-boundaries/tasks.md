@@ -1,7 +1,7 @@
 - [x] 1. Read living requirements and PR132 archival; approve this bounded complete correction before implementation under delegated issue44 authority.
 - [x] 2. Preserve original commits and capture unchanged-sampler CPU and real FFmpeg6/7 failures with independent references.
-- [ ] 3. Implement checked exact binary64 midpoint arithmetic in editor-core; preserve validation, root clipping, inherited clocks and all compatibility limits.
-- [ ] 4. Add all-count independent boundary/neighbor/fractional/subnormal/clipping fixtures and native frame/range/draft/export/audio/byte-preservation regression; pass on both actual backends.
+- [x] 3. Implement checked exact binary64 midpoint arithmetic in editor-core; preserve validation, root clipping, inherited clocks and all compatibility limits.
+- [x] 4. Add all-count independent boundary/neighbor/fractional/subnormal/clipping fixtures and native frame/range/draft/export/audio/byte-preservation regression; pass on both actual backends.
 - [ ] 5. Run required Rust/bridge/contracts/native checks, strict validation and protected pre-archive gates; verify conformance and document evidence reuse/failures/skips.
 - [ ] 6. Obtain fresh designated CODEOWNER implementation review for this correction.
 - [ ] 7. After review, synchronize/archive with repository workflows and pass protected post-archive checks.
