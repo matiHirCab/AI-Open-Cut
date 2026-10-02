@@ -420,7 +420,10 @@ fn review_schema26_legacy_drafts_validate_matching_retained_base() {
             );
             assert_eq!(authoritative_files(&core, &id), before);
         } else {
-            assert_eq!(core.get_project(&id).unwrap().schema_version, 27);
+            assert_eq!(
+                core.get_project(&id).unwrap().schema_version,
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(
                 core.get_draft_state(&id, &draft.id).unwrap_err().code,
                 ErrorCode::RevisionConflict
@@ -555,7 +558,12 @@ fn legacy_draft_edits_on_extended_bases_are_certified_before_reopen() {
 
 #[test]
 fn malformed_retained_generations_and_future_versions_never_publish() {
-    for (which, version) in [("current", 26), ("undo", 26), ("redo", 26), ("current", 28)] {
+    for (which, version) in [
+        ("current", 26),
+        ("undo", 26),
+        ("redo", 26),
+        ("current", opencut_editor_core::PROJECT_SCHEMA_VERSION + 1),
+    ] {
         let (_root, core, id, track) = setup();
         let item = core
             .edit(&id, 0, op(authored_rectangle(&track)))
@@ -1170,7 +1178,10 @@ fn schema_27_migrates_current_history_and_drafts_and_reopen_does_not_rewrite() {
         }
     }
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 27);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(migrated.id, before.id);
     assert_eq!(migrated.revision, before.revision);
     assert_eq!(

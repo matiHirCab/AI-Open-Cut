@@ -18,6 +18,10 @@ const id = z.string().min(1).max(128);
 const milliseconds = z.int().nonnegative();
 const positiveMilliseconds = z.int().positive();
 const finite = z.number().finite();
+export const motionBlurSchema = z.strictObject({
+  sampleCount: z.int().min(1).max(16),
+  shutterAngleDeg: finite.min(0).max(360),
+});
 export const mediaCropSchema = z.strictObject({
   height: finite.positive().max(1),
   width: finite.positive().max(1),
@@ -452,7 +456,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(27).optional(),
+    projectSchemaVersion: z.literal(28).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -918,6 +922,7 @@ const mediaItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     sourceInMs: milliseconds,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -945,6 +950,7 @@ const textItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
@@ -968,6 +974,7 @@ const solidColorItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
@@ -1024,6 +1031,7 @@ const repeaterItemSchema = z.strictObject({
   effects: z.array(visualEffectSchema).max(16).optional(),
   hidden: z.boolean(),
   id,
+  motionBlur: motionBlurSchema.optional(),
   parent: parentReferenceSchema.nullable().optional(),
   repeater: repeaterDescriptorSchema,
   stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1066,6 +1074,7 @@ const captionItemSchema = z
     effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     source: z
       .object({
@@ -1108,6 +1117,7 @@ const transitionItemSchema = z
     fromItemId: id,
     hidden: z.boolean(),
     id,
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
     startMs: milliseconds,
@@ -1130,6 +1140,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       effects: z.array(visualEffectSchema).max(16).optional(),
       hidden: z.boolean(),
       id,
+      motionBlur: motionBlurSchema.optional(),
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
       staggerMs: z.int().min(0).max(60_000).optional(),
@@ -1318,6 +1329,7 @@ export const componentInstanceSchema = z
     effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
+    motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     slotValues: slotValuesSchema,
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1549,7 +1561,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(27),
+        schemaVersion: z.literal(28),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1853,6 +1865,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      motionBlur: motionBlurSchema.optional(),
       operation: z.literal("update_item"),
       repeater: repeaterEditDescriptorSchema.optional(),
       staggerMs: z.int().min(0).max(60_000).optional(),
@@ -2353,6 +2366,7 @@ export const schemas = {
       grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      motionBlur: motionBlurSchema.optional(),
       repeater: repeaterDescriptorSchema.optional(),
       staggerMs: z.int().min(0).max(60_000).optional(),
       stroke: strokeSchema.nullable().optional(),

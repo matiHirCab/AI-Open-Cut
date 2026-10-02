@@ -209,7 +209,7 @@ pub(crate) fn certify_project(project: &Project) -> Result<usize, CoreError> {
         .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|t| &t.items)
     {
-        let Some(extended) = super::extended_visual::authored(item) else {
+        let Some(extended) = super::extended_visual::authored(item, project.settings.fps) else {
             continue;
         };
         let end = extended
@@ -292,6 +292,34 @@ pub(crate) fn certify_scene(
     project: &Project,
     nodes: &mut usize,
 ) -> Result<(), CoreError> {
+    let mut pixel_work = 0_u64;
+    let has_blur = scene.visual_layers.iter().any(|l| {
+        l.extended
+            .as_ref()
+            .and_then(|v| v.motion_blur)
+            .is_some_and(crate::MotionBlur::enabled)
+    });
+    for layer in scene
+        .visual_layers
+        .iter()
+        .filter(|l| has_blur && super::extended_visual::required(l))
+    {
+        let count = layer
+            .extended
+            .as_ref()
+            .and_then(|v| v.motion_blur)
+            .filter(|v| v.enabled())
+            .map_or(1, |v| v.sample_count);
+        pixel_work = pixel_work
+            .checked_add(
+                u64::from(scene.canvas.width)
+                    .checked_mul(u64::from(scene.canvas.height))
+                    .and_then(|v| v.checked_mul(u64::from(count)))
+                    .ok_or_else(|| invalid("motion blur pixel work overflow"))?,
+            )
+            .filter(|v| *v <= crate::MotionBlur::MAX_PIXEL_WORK)
+            .ok_or_else(|| invalid("motion blur scene pixel work exceeds limits"))?;
+    }
     let mut work = 0;
     let mut segments: usize = scene
         .visual_layers
@@ -380,7 +408,18 @@ pub(crate) fn certify_scene(
                 })?;
             }
             segments = segments
-                .checked_add(maximum_segments)
+                .checked_add(
+                    maximum_segments
+                        .checked_mul(
+                            layer
+                                .extended
+                                .as_ref()
+                                .and_then(|v| v.motion_blur)
+                                .filter(|v| v.enabled())
+                                .map_or(1, |v| v.sample_count as usize),
+                        )
+                        .ok_or_else(|| invalid("motion blur geometry work overflow"))?,
+                )
                 .filter(|n| *n <= shapes::MAX_SCENE_SEGMENTS)
                 .ok_or_else(|| invalid("extended scene segment envelope exceeded"))?;
         }
@@ -411,7 +450,15 @@ pub(crate) fn certify_scene(
                 }
             }
         }
-        effect_budget(size, &effects, density, &mut work)?;
+        let samples = layer
+            .extended
+            .as_ref()
+            .and_then(|v| v.motion_blur)
+            .filter(|v| v.enabled())
+            .map_or(1, |v| v.sample_count);
+        for _ in 0..samples {
+            effect_budget(size, &effects, density, &mut work)?;
+        }
         // A rotation changes direction, never the operator norm. Bounding each
         // ancestor's norm separately covers every combination of inherited clocks.
         if let Some(maximum) =

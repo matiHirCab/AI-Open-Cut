@@ -24,6 +24,19 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 28
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| i.visual_properties().motion_blur.is_some())
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "motion blur requires schema 28",
+        ));
+    }
     if project.schema_version < 27
         && project
             .tracks
@@ -207,7 +220,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=26 => {
+        9..=27 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

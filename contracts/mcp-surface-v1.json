@@ -19,7 +19,8 @@
     "deterministic_animation_curves_v1",
     "animation_loops_v1",
     "inherited_animation_timing_v1",
-    "extended_visual_animation_v1"
+    "extended_visual_animation_v1",
+    "motion_blur_sampling_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2217,7 +2218,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 27,
+            "const": 28,
             "type": "number"
           },
           "protocolVersion": {
@@ -8146,6 +8147,26 @@
             "minLength": 1,
             "type": "string"
           },
+          "motionBlur": {
+            "additionalProperties": false,
+            "properties": {
+              "sampleCount": {
+                "maximum": 16,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "shutterAngleDeg": {
+                "maximum": 360,
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "sampleCount",
+              "shutterAngleDeg"
+            ],
+            "type": "object"
+          },
           "projectId": {
             "maxLength": 128,
             "minLength": 1,
@@ -10889,6 +10910,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -11787,6 +11828,26 @@
           ]
         },
         "type": "array"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -17663,6 +17724,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "operation": {
         "const": "update_item",
         "type": "string"
@@ -17975,6 +18056,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -18346,6 +18447,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -18701,6 +18822,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -18922,6 +19063,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -19300,6 +19461,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -19651,6 +19832,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -19999,6 +20200,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -20341,6 +20562,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -20678,6 +20919,26 @@
           ]
         },
         "type": "array"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -21270,6 +21531,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -21843,6 +22124,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -22097,6 +22398,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -23663,6 +23984,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "operation": {
         "const": "update_item",
         "type": "string"
@@ -24454,7 +24795,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 27,
+        "const": 28,
         "type": "number"
       },
       "settings": {
@@ -25129,6 +25470,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -25495,6 +25856,26 @@
         "minLength": 1,
         "type": "string"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -25845,6 +26226,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -26061,6 +26462,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -26434,6 +26855,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -26780,6 +27221,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -27123,6 +27584,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -27460,6 +27941,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -27792,6 +28293,26 @@
           ]
         },
         "type": "array"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -28382,6 +28903,26 @@
         },
         "type": "array"
       },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
+      },
       "parent": {
         "anyOf": [
           {
@@ -28612,6 +29153,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [
@@ -29846,6 +30407,26 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "motionBlur": {
+        "additionalProperties": false,
+        "properties": {
+          "sampleCount": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "shutterAngleDeg": {
+            "maximum": 360,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "sampleCount",
+          "shutterAngleDeg"
+        ],
+        "type": "object"
       },
       "parent": {
         "anyOf": [

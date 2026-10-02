@@ -1472,6 +1472,10 @@ fn load_project_data(
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision)
             .unwrap_or(&project);
+        if base.schema_version < 28 {
+            crate::reject_motion_blur_fields(&serde_json::to_value(&draft.operations)?)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
         if base.schema_version < 27 {
             crate::reject_extended_visual_fields(&serde_json::to_value(&draft.operations)?)
                 .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;

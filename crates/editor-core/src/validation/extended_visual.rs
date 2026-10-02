@@ -62,6 +62,21 @@ pub(crate) fn validate_effect(effect: &VisualEffect) -> Result<(), CoreError> {
 
 pub(crate) fn validate_static(item: &TimelineItem, project: &Project) -> Result<(), CoreError> {
     let visual = item.visual_properties();
+    if let Some(settings) = visual.motion_blur {
+        settings.validate()?;
+        let eligible = matches!(
+            item,
+            TimelineItem::Text(_)
+                | TimelineItem::SolidColor(_)
+                | TimelineItem::Rectangle(_)
+                | TimelineItem::Shape(_)
+                | TimelineItem::Svg(_)
+                | TimelineItem::Grid(_)
+        ) || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|a| a.id == media.asset_id && a.media_type != MediaType::Audio));
+        if !eligible {
+            return Err(invalid("motion blur requires a supported visual leaf"));
+        }
+    }
     if let Some(crop) = visual.crop {
         let TimelineItem::Media(media) = item else {
             return Err(invalid("crop requires visual media"));

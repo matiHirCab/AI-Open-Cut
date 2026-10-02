@@ -410,6 +410,7 @@ fn apply_operation_inner(
             }
             let visual_properties = crate::VisualProperties {
                 crop: None,
+                motion_blur: None,
                 effects: Vec::new(),
                 start_time: None,
                 animation_channels: Vec::new(),
@@ -1080,6 +1081,7 @@ fn apply_operation_inner(
             item_id,
             crop,
             effects,
+            motion_blur,
             grid,
             repeater,
             stagger_ms,
@@ -1116,6 +1118,10 @@ fn apply_operation_inner(
             let item = find_editable_item_mut(project, &item_id)?;
             if let Some(value) = crop {
                 item.visual_properties_mut().crop = Some(*value);
+            }
+            if let Some(value) = motion_blur {
+                value.validate()?;
+                item.visual_properties_mut().motion_blur = Some(value);
             }
             if let Some(value) = effects {
                 item.visual_properties_mut().effects = value;

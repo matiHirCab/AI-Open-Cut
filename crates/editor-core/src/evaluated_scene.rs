@@ -112,7 +112,7 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
         .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|track| &track.items)
         .any(|item| {
-            extended_visual::authored(item).is_some()
+            extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
                 || matches!(item, TimelineItem::Repeater(r) if r.repeater.time_offset_ms != 0)
@@ -152,7 +152,7 @@ pub(crate) fn preflight_extended_fonts(
             .flat_map(|t| &t.items)
     };
     if !items().any(|i| matches!(i, TimelineItem::Text(_)))
-        || !items().any(|i| extended_visual::authored(i).is_some())
+        || !items().any(|i| extended_visual::authored(i, project.settings.fps).is_some())
     {
         return Ok(());
     }
@@ -281,7 +281,7 @@ fn evaluate_project_inner(
         .flat_map(|tracks| tracks.iter())
         .flat_map(|track| &track.items)
         .any(|item| {
-            extended_visual::authored(item).is_some()
+            extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Repeater(_))
                 || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(instance) if instance.stagger_ms != 0)
@@ -2457,7 +2457,7 @@ fn evaluate_flat_project(
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
                         visual_layers.push(EvaluatedVisualLayer {
-                            extended: extended_visual::authored(item),
+                            extended: extended_visual::authored(item, project.settings.fps),
                             sampled_input: None,
                             instance: None,
                             transform2d: item.visual_properties().transform2d,
@@ -2528,7 +2528,7 @@ fn evaluate_flat_project(
                         });
                     }
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2565,7 +2565,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::SolidColor(color) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2590,7 +2590,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Rectangle(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2617,7 +2617,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Shape(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2647,7 +2647,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Svg(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2672,7 +2672,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Grid(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -2697,7 +2697,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
-                        extended: extended_visual::authored(item),
+                        extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
                         transform2d: item.visual_properties().transform2d,
@@ -5765,6 +5765,8 @@ mod instance_tests {
         };
         layer.extended = Some(extended_visual::ExtendedVisual {
             crop: None,
+            motion_blur: None,
+            frame_rate: 30,
             channels: vec![],
             effects: vec![crate::VisualEffect::GaussianBlur {
                 id: "blur".into(),

@@ -10,6 +10,9 @@ use serde_json::{Value, json};
 #[path = "extended_visual_animation.rs"]
 mod extended_visual_animation;
 
+#[path = "motion_blur_sampling.rs"]
+mod motion_blur_sampling;
+
 #[path = "animation_lifecycle_regressions.rs"]
 mod animation_lifecycle_regressions;
 

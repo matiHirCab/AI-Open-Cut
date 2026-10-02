@@ -305,6 +305,8 @@ pub(crate) fn prepare(
 ) -> Result<(), CoreError> {
     let (start, end, frame) = sample_times(scene, intent);
     let canvas = (scene.canvas.width, scene.canvas.height);
+    let fps = scene.canvas.fps;
+    let duration = scene.duration_ms;
     let frames = if frame {
         1
     } else {
@@ -327,11 +329,10 @@ pub(crate) fn prepare(
         } else {
             format!("sampled-{index}.mkv")
         };
-        let mut produce = |n| {
-            let at = start + n * 1000 / u64::from(scene.canvas.fps);
+        let draw = |at| {
             let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
-            let bytes = if !layer.visible_at(at) {
-                Raster::empty(canvas.0 as usize, canvas.1 as usize)?.pam_bytes()
+            let result = if !layer.visible_at(at) {
+                Raster::empty(canvas.0 as usize, canvas.1 as usize)?
             } else {
                 let (mut raster, density) = match &sampled.source {
                     EvaluatedVisualSource::Shape(shape) => (
@@ -437,9 +438,32 @@ pub(crate) fn prepare(
                         output.pixels[y * output.width + x] = pixel;
                     }
                 }
-                output.pam_bytes()
+                output
             };
-            Ok(bytes)
+            Ok::<Raster, CoreError>(result)
+        };
+        let mut produce = |n| {
+            let at = start + n * 1000 / u64::from(fps);
+            let times = if let Some(settings) = layer.extended.as_ref().and_then(|v| v.motion_blur)
+            {
+                settings.sample_times(at, layer.extended.as_ref().unwrap().frame_rate, duration)?
+            } else {
+                vec![at]
+            };
+            if times.len() == 1 {
+                return Ok(draw(times[0])?.pam_bytes());
+            }
+            let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
+            let weight = 1.0 / times.len() as f32;
+            for time in times {
+                let raster = draw(time)?;
+                for (dst, src) in averaged.pixels.iter_mut().zip(raster.pixels) {
+                    for c in 0..4 {
+                        dst[c] += src[c] * weight;
+                    }
+                }
+            }
+            Ok(averaged.pam_bytes())
         };
         if frame {
             io.write(&workspace.join(&file), &produce(0)?)

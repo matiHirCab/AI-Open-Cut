@@ -1186,7 +1186,7 @@ it("ungroups through standalone and alias MCP edits with atomic failures and his
   await verifyComponentWorkflow(client, call, media, projects);
 });
 
-it("authors extended animation through standalone and alias MCP edits", async () => {
+it("authors extended animation and motion blur through standalone and alias MCP edits", async () => {
   await verifyExtendedVisualWorkflow(client, call);
 });
 

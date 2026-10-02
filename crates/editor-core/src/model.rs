@@ -2,6 +2,8 @@ mod buffered;
 use buffered::BufferedValue;
 mod animation_channels;
 pub use animation_channels::*;
+mod motion_blur;
+pub use motion_blur::*;
 mod visual_effects;
 pub use visual_effects::*;
 mod font;
@@ -22,7 +24,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 27;
+pub const PROJECT_SCHEMA_VERSION: u32 = 28;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -190,6 +192,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_inherited_timing(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_inherited_timing(components)?;
+            }
+        }
+        if value.schema_version < 28 {
+            reject_motion_blur_fields(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_motion_blur_fields(components)?;
             }
         }
         if value.schema_version < 27 {
@@ -447,6 +455,26 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub(crate) fn reject_motion_blur_fields(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            if fields.contains_key("motionBlur") {
+                return Err("motion blur requires schema 28".into());
+            }
+            for child in fields.values() {
+                reject_motion_blur_fields(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_motion_blur_fields(child)?;
             }
         }
         _ => {}
@@ -1009,6 +1037,12 @@ pub struct VisualProperties {
         skip_serializing_if = "Option::is_none"
     )]
     pub crop: Option<MediaCrop>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub motion_blur: Option<MotionBlur>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<VisualEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1033,6 +1067,7 @@ impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
             crop: None,
+            motion_blur: None,
             effects: Vec::new(),
             start_time: None,
             animation_channels: Vec::new(),
@@ -1980,6 +2015,12 @@ pub enum EditOperation {
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
+        motion_blur: Option<MotionBlur>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         geometry: Option<Box<ShapeGeometry>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         grid: Option<Box<GridDescriptor>>,
@@ -2356,6 +2397,12 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         effects: Option<Vec<VisualEffect>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        motion_blur: Option<MotionBlur>,
         #[serde(
             default,
             deserialize_with = "deserialize_present",

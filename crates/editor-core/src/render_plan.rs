@@ -76,7 +76,7 @@ pub(crate) struct FilterContext<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderPlan {
     pub(crate) text_layout_fidelity: bool,
-    /// FFmpeg 6 evaluates Bézier expression registers across filter threads.
+    /// FFmpeg 6 shares inherited affine and Bézier expression registers across threads.
     pub(crate) serial_bezier_filters: bool,
     /// Fine procedural marks and styled text need export-quality range encoding for parity.
     pub(crate) detail_fidelity: bool,
@@ -127,7 +127,19 @@ pub(crate) fn build_render_plan(
                 ),
                 |clock| (clock.start_ms, clock.end_ms),
             );
-            filters.push(format!("[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
+            if layer
+                .extended
+                .as_ref()
+                .and_then(|v| v.motion_blur)
+                .is_some_and(crate::MotionBlur::enabled)
+            {
+                // Sampled pixels already enforce each shutter sample's half-open activity.
+                filters.push(format!(
+                    "[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass[{composited}]"
+                ));
+            } else {
+                filters.push(format!("[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
+            }
             current_video = composited;
             continue;
         }
@@ -389,9 +401,14 @@ pub(crate) fn build_render_plan(
     ));
     Ok(RenderPlan {
         serial_bezier_filters: scene.visual_layers.iter().any(|layer| {
-            layer.keyframes.iter().any(|keyframe| {
-                matches!(keyframe.easing, EvaluatedEasing::CubicBezier { .. })
-            })
+            // Inherited affine expressions and Bezier easing both use mutable
+            // expression registers shared by FFmpeg's parallel blend slices.
+            (layer.sampled_input.is_none()
+                && layer.affine.is_some()
+                && layer.has_animated_ancestors())
+                || layer.keyframes.iter().any(|keyframe| {
+                    matches!(keyframe.easing, EvaluatedEasing::CubicBezier { .. })
+                })
         }) || scene.audio_layers.iter().any(|layer| {
             layer.volume_keyframes.iter().any(|keyframe| {
                 matches!(keyframe.easing, EvaluatedEasing::CubicBezier { .. })
