@@ -23,3 +23,17 @@ analytic oracle. All numeric oracles, tolerances, CI budgets and ordinary/sample
 thread selection remain unchanged. Required verification must use the unmodified
 real executable. This approval does not authorize a further PR131 update,
 publication of issue44, or designated-owner implementation approval.
+
+## CODEOWNER implementation approval and publication authorization
+
+2026-10-01 (America/Montevideo): The human user explicitly supplied designated
+CODEOWNER implementation approval in this chat: "I give codeowner approval".
+The approval applies to the recovered Issue #44 implementation at
+28a1ecf37355bcb171afe2cdd26fce7fb771ffac, PR #132, including governed contracts.
+This is the user's approval; the agent did not submit a GitHub approval review
+or approve on the user's behalf. GitHub branch-protection review state is separate.
+
+The user previously authorized normal push and draft PR publication, then requested
+OpenSpec archival. Those instructions supersede historical publication restrictions
+for this recovery and authorize spec synchronization/archival and updating the draft.
+No merge or deployment is authorized.

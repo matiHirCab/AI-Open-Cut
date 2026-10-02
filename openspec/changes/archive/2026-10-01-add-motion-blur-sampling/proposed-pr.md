@@ -45,3 +45,7 @@ gate remain required. This is local proposed text; publication is separately
 unapproved. See `docs/motion-blur-sampling.md` for exact timing, coordinate, ordering
 and fallback policy, and the change's `verification.md` for commands, failures,
 performance observations, limits and complete evidence.
+
+## Superseding archival status
+
+The proposed text above is historical. PR #132 is published in draft; explicit human CODEOWNER implementation approval is recorded in approval.md. OpenSpec is synchronized and archived with 21/21 tasks; final local protected checks pass as recorded in verification.md. Remote CI for the archival head is a separate observation.

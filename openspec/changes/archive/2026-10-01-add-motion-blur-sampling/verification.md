@@ -231,3 +231,72 @@ Actual transport artifacts, report and request journal are in
 `proposed-pr.md` is proposed text only. Obtain designated implementation review,
 finish synchronization/archival and the unchanged protected final gate, then obtain
 separate user publication approval. No issue44 branch or PR has been published.
+
+## Recovery conformance and CODEOWNER approval (2026-10-01)
+
+This section supersedes the historical pending-approval/publication statements
+above; original observations, failures and imported evidence remain preserved.
+The human user's explicit "I give codeowner approval" supplies the designated
+implementation review for head 28a1ecf37355bcb171afe2cdd26fce7fb771ffac. See approval.md.
+Normal recovery publication was separately authorized; draft PR #132 is published.
+No GitHub approval review was submitted by the agent and no merge is authorized.
+
+The openspec-verify-change workflow was reapplied using pinned CLI status/apply
+context and all proposal/design/delta/task artifacts. All four requirements and
+11 scenarios retain the implementation/test mapping recorded above. There is no
+implementation edit in this archival follow-up. The review requirement is resolved;
+task 5.4 awaits synchronized archival and successful final protected checks.
+
+Checks actually executed during recovery on Windows Rust 1.97/Bun 1.4:
+- Rust format, strict workspace Clippy and workspace tests passed.
+- Bridge formatting/type/lint passed; unit 427 passed/1 optional native skipped,
+  MCP integration 14 passed, mocked packaged smoke 8 passed, Python 10+5 passed.
+- Contract suite initially timed out one MCP catalog test at unchanged 5000ms
+  under concurrent compilation (359 TS passed/1 failed); complete idle rerun
+  passed all 360 TS tests and Rust contract suites without altering timeouts.
+- Installed FFmpeg 9.0.1 rejects filter_complex_script: required animation run
+  exited 101, 41 passed/14 failed. This remains a documented unsupported-version
+  failure, not a passed rendering check or a correction made by this recovery.
+- Existing temporary FFmpeg/FFprobe 6.1.2 tools, required native markers and the
+  reviewed font passed animation_channels 55, motion_blur_sampling 9, transform2d
+  13, font_resolution 16, and one selected real headless lifecycle test.
+- Strict OpenSpec validation passed all 35 items; prior Moon/protected bootstrap
+  rejected only this active change. Those are pre-archive failures, not final passes.
+
+Full recovery logs are outside Git at the local Windows temporary directory as
+issue44-recovery-*.log; issue44-recovery-report.md records the complete handoff.
+Prior Linux full golden/report, raster-cache and rules-screen records above remain
+imported evidence; the source /workspace external logs/artifacts were not included
+in the recovery ZIP, and these full matrices were not rerun locally. No code,
+threshold, timeout, golden, dependency, contract or protected-policy change follows
+from archival. Exact-head remote CI separately supplies platform evidence; final
+remote status must be checked on the subsequent documentation commit.
+
+## Completed synchronization and archival
+
+2026-10-01 (America/Montevideo): All four approved requirements and eleven
+scenarios are synchronized into openspec/specs/motion-blur-sampling/spec.md.
+The change is archived at 2026-10-01-add-motion-blur-sampling with its delta,
+metadata, original history and explicit human CODEOWNER approval preserved.
+Tasks 1.2a and 5.4 are complete: 21/21 tasks. No implementation files changed.
+
+Final local checks after archival:
+- Pinned Moon 2.3.3 root:openspec-validate: PASS, exit 0; all 35 specs pass and
+  the unchanged CI policy accepts the archive-only change inventory.
+- Pinned OpenSpec 1.5.0 validate --all --strict --no-interactive: PASS, exit 0,
+  35 items.
+- Isolated bun --config=NUL --no-env-file run scripts/run-ci-policy.ts:
+  initial exit 1 because moon was absent from this process PATH, retained in
+  issue44-archive-final-checks.log. Rerun with the existing cached pinned Moon
+  2.3.3 directory added only to process PATH: PASS, exit 0, including actual
+  protected Moon execution. Log: issue44-archive-policy-rerun.log.
+- git diff --check: PASS, exit 0.
+
+The final documentation/task update is validated again before commit. Full logs
+remain outside Git. Earlier code-check evidence is reusable because executable,
+contract, fixture, dependency, reference, threshold and policy inputs are unchanged.
+Historical FFmpeg 9 incompatibility and transient contract timeout are preserved;
+passing supported-version and idle reruns are documented above. No new remote
+success or GitHub branch-protection approval is inferred from human chat approval.
+The original recovered head remains an ancestor; archival is a normal additive
+commit on the draft PR branch. No merge or deployment is performed.
