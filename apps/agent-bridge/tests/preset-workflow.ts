@@ -117,6 +117,22 @@ export const verifyPresetWorkflow = async (client: Client, call: Call) => {
   await edit("project_undo", 3, {});
   expect((await read()).project.tracks).toEqual(replaced.project.tracks);
   await edit("project_redo", 4, {});
+  await edit("track_update", 5, { locked: true, trackId });
+  const locked = await client.callTool({
+    arguments: {
+      expectedRevision: 6,
+      projectId,
+      ...fields,
+      collisionPolicy: "replace",
+      itemId,
+    },
+    name: "timeline_apply_animation_preset",
+  });
+  expect(locked.structuredContent).toMatchObject({
+    error: { code: "TRACK_LOCKED", retryable: false },
+  });
+  await edit("track_update", 6, { locked: false, trackId });
+
   expect(
     (await read()).project.tracks[1]?.items[0]?.animationPresetProvenance
   ).toBeUndefined();

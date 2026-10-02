@@ -1010,7 +1010,12 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
             let candidate = if target == "current" {
                 &mut current
             } else {
-                &mut history[target][0]
+                history[target]
+                    .as_array_mut()
+                    .unwrap()
+                    .iter_mut()
+                    .find(|p| !p["tracks"][1]["items"].as_array().unwrap().is_empty())
+                    .unwrap()
             };
             candidate["schemaVersion"] = json!(28);
             candidate["tracks"][1]["items"][0]["animationPresetProvenance"] = json!({});
@@ -1050,7 +1055,10 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
         )
         .unwrap();
         let before = files(&core, &project);
-        assert!(core.get_project(&project).is_err(), "{mode}");
+        let error = core.get_project(&project).unwrap_err();
+        if mode.starts_with("future_") {
+            assert_eq!(error.code, ErrorCode::InternalError);
+        }
         assert_eq!(files(&core, &project), before, "{mode}");
     }
 }
@@ -1136,4 +1144,173 @@ fn parameter_and_deferred_shape_boundaries_publish_no_accepted_prefix() {
         );
         assert_eq!(files(&core, &project), before);
     }
+}
+
+#[test]
+fn replacing_loop_is_whole_channel_and_undo_restores_original_loop() {
+    let (_root, core, project, id) = setup();
+    let original = json!([{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":250,"value":{"type":"scalar","value":1.0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0.0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":3}}]);
+    core.edit(
+        &project,
+        1,
+        op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":original})),
+    )
+    .unwrap();
+    let before = state(&core, &project);
+    let mut input = request(&id);
+    input["collisionPolicy"] = json!("replace");
+    core.edit(&project, 2, op(input)).unwrap();
+    assert!(
+        item(&state(&core, &project))["animationChannels"][0]
+            .get("loop")
+            .is_none()
+    );
+    core.undo(&project, 3).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&before));
+}
+
+#[test]
+fn final_scene_budget_failure_rolls_back_preset_alias_and_existing_draft() {
+    let (_root, core, project, id) = setup();
+    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+    let shape=core.edit(&project,1,op(json!({"operation":"add_shape","trackId":track,"startMs":0,"durationMs":40000,"geometry":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":10,"y":10}}]}},"fill":null,"stroke":{"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}},"width":1,"dash":[],"dashOffset":0,"lineCap":"butt","lineJoin":"miter","miterLimit":4}}))).unwrap().changed_ids[0].clone();
+    let draft = core
+        .create_draft(
+            &project,
+            2,
+            vec![op(
+                json!({"operation":"update_item","itemId":id,"color":"#00ff00"}),
+            )],
+            None,
+        )
+        .unwrap();
+    let dir = core.paths().project_dir(&project).unwrap();
+    let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));
+    let draft_bytes = std::fs::read(&draft_path).unwrap();
+    let before = files(&core, &project);
+    let channels = json!([{"property":"graphic.path_points","target":{"kind":"graphic_geometry","scope":"root","id":shape},"keyframes":[{"timeMs":0,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":10,"y":10}]},"curve":"linear"},{"timeMs":39999,"value":{"type":"path_points","points":[{"x":0,"y":0},{"x":20,"y":10}]},"curve":"hold"}]}]);
+    let operations:Vec<BatchEditOperation>=serde_json::from_value(json!([{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"new"},request("@new"),{"operation":"set_animation_channels","itemId":shape,"animationChannels":channels}])).unwrap();
+    let error = core.edit_batch(&project, 2, operations).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidArgument);
+    assert!(
+        error.message.contains("maxCandidateAnalysisNodes"),
+        "{}",
+        error.message
+    );
+    assert_eq!(files(&core, &project), before);
+    assert_eq!(std::fs::read(draft_path).unwrap(), draft_bytes);
+}
+
+#[test]
+fn root_group_component_and_parenting_use_existing_compatibility() {
+    let (_root, core, project, id) = setup();
+    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+    let group = core
+        .edit(
+            &project,
+            1,
+            op(json!({"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000})),
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    core.edit_batch(
+        &project,
+        2,
+        vec![
+            op(json!({"operation":"update_item","itemId":group,"transform2d":null})),
+            op(request(&group)),
+        ],
+    )
+    .unwrap();
+    core.edit(&project, 3, op(request(&id))).unwrap();
+    let source = item(&state(&core, &project))["animationPresetProvenance"].clone();
+    core.edit(
+        &project,
+        4,
+        op(json!({"operation":"item_set_parent","itemId":id,"parent":{"scope":"root","id":group}})),
+    )
+    .unwrap();
+    assert_eq!(
+        item(&state(&core, &project))["animationPresetProvenance"],
+        source
+    );
+    let component=core.edit(&project,5,op(json!({"operation":"component_create","name":"Empty","width":64,"height":64,"durationMs":1000,"tracks":[]}))).unwrap().changed_ids[0].clone();
+    let instance=core.edit(&project,6,op(json!({"operation":"add_component_instance","trackId":track,"componentId":component,"startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1}))).unwrap().changed_ids[0].clone();
+    core.edit(&project, 7, op(request(&instance))).unwrap();
+    // Transform2D remains incompatible with these legacy scalar axes.
+    let before = files(&core, &project);
+    let edits:Vec<BatchEditOperation>=serde_json::from_value(json!([{"operation":"set_animation_channels","itemId":id,"animationChannels":[]},{"operation":"update_item","itemId":id,"transform2d":opencut_editor_core::Transform2D::default()},request(&id)])).unwrap();
+    assert_eq!(
+        core.edit_batch(&project, 8, edits).unwrap_err().code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(files(&core, &project), before);
+}
+
+#[test]
+fn canonical_collision_outcomes_are_independent_of_live_compiler() {
+    for case in catalog()["collisionCases"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        core.edit(&project, 1, op(request(&id))).unwrap();
+        let before = files(&core, &project);
+        let mut input = request(&id);
+        input["parameters"]["startMs"] = case["startMs"].clone();
+        input["parameters"]["durationMs"] = case["durationMs"].clone();
+        if let Some(policy) = case.get("collisionPolicy") {
+            input["collisionPolicy"] = policy.clone();
+        }
+        let result = core.edit(&project, 2, op(input));
+        if case["accepted"] == true {
+            assert_eq!(result.unwrap().revision, 3);
+            assert_eq!(
+                item(&state(&core, &project))["animationChannels"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                case["channelCount"].as_u64().unwrap() as usize
+            );
+        } else {
+            assert_eq!(
+                serde_json::to_value(result.unwrap_err().code).unwrap(),
+                case["error"]
+            );
+            assert_eq!(files(&core, &project), before);
+        }
+    }
+}
+
+#[test]
+fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejection() {
+    let (_root, core, project, _) = setup();
+    let saved = state(&core, &project);
+    let child_id = item(&saved)["id"].clone();
+    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+    let component=core.edit(&project,1,op(json!({"operation":"component_create","name":"Named slot","width":64,"height":64,"durationMs":1000,"tracks":[saved["tracks"][1]],"slots":[{"id":"animationPresetProvenance","name":"Opacity override","kind":"number","required":false,"defaultValue":{"type":"number","value":1},"binding":{"targetLayerId":child_id,"property":"visual.opacity"},"constraints":{}}]}))).unwrap().changed_ids[0].clone();
+    core.edit(&project,2,op(json!({"operation":"add_component_instance","trackId":track,"componentId":component,"startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1,"slotValues":{"animationPresetProvenance":{"type":"number","value":0.5}}}))).unwrap();
+    let dir = core.paths().project_dir(&project).unwrap();
+    let mut current = state(&core, &project);
+    let mut history: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    current["schemaVersion"] = json!(28);
+    for list in ["undo", "redo"] {
+        for snapshot in history[list].as_array_mut().unwrap() {
+            snapshot["schemaVersion"] = json!(28);
+        }
+    }
+    std::fs::write(
+        dir.join("project.json"),
+        serde_json::to_vec(&current).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("history.json"),
+        serde_json::to_vec(&history).unwrap(),
+    )
+    .unwrap();
+    current["schemaVersion"] = json!(29);
+    assert_eq!(state(&core, &project), current);
+    let bytes = files(&core, &project);
+    assert_eq!(state(&core, &project), current);
+    assert_eq!(files(&core, &project), bytes);
 }

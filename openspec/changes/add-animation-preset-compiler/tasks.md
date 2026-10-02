@@ -7,13 +7,13 @@
 
 - [x] 2.1 Core model/validation: add typed parameters, provenance records and schema-29 optional sidecar with strict null/unknown-field handling, finite/version/identity checks and bounded maps; keep existing channel payloads unchanged. Add independent model/fixture tests for descriptive retired versions and malformed/orphan records.
 - [x] 2.2 Core migrations: implement empty-provenance migration through supported older schemas for root/component items in current state and every retained undo/redo snapshot; reject premature fields and unknown future schemas; preserve primitive/media/revision/timestamp state.
-- [ ] 2.3 Core persistence tests: prove complete-generation atomicity on invalid current/undo/redo state and named pre/post-commit I/O fault phases, recovery without recompilation/duplicate edits, mixed older snapshots and byte-preserving idempotent reopen. Do not add a new transaction owner or draft format.
+- [x] 2.3 Core persistence tests: prove complete-generation atomicity on invalid current/undo/redo state and named pre/post-commit I/O fault phases, recovery without recompilation/duplicate edits, mixed older snapshots and byte-preserving idempotent reopen. Do not add a new transaction owner or draft format.
 
 ## 3. Core compiler, edits and source lifecycle
 
 - [x] 3.1 Core timeline: add the pure nested compiler for `scalar_tween@1`, version dispatch, default normalization, checked safe-integer timing, explicit scalar endpoints and terminal hold/no-loop output. Cover every property/curve with independently fixed keys and sample oracles, not compiler-generated expectations.
 - [x] 3.2 Core timeline/validation: integrate `apply_animation_preset` through existing edit/batch paths, canonical target/legacy checks, reject/default and whole-channel explicit-replace policies, stable channel order and provenance updates; preserve unrelated channels/static properties. Cover disjoint/identical collisions, legacy coupled-axis collisions, timing/endpoint/curve boundaries and incompatible/deferred inputs.
-- [ ] 3.3 Core timeline/store tests: prove stale-revision/missing-item/missing-asset/locked-track/alias misuse errors, earlier `@alias` resolution, non-creator `resultAlias` rejection, one-revision success and whole-batch rollback after earlier successes or final scene-safety failure. Retain existing resource/history/certification budgets.
+- [x] 3.3 Core timeline/store tests: prove stale-revision/missing-item/missing-asset/locked-track/alias misuse errors, earlier `@alias` resolution, non-creator `resultAlias` rejection, one-revision success and whole-batch rollback after earlier successes or final scene-safety failure. Retain existing resource/history/certification budgets.
 - [x] 3.4 Core lifecycle: clear metadata on raw collection replacement and changed/removed/retimed primitives; preserve known records for exact core copies/unchanged local channels; sanitize raw component replacements; cover static/move/parent/visibility edits, deletion, split/duration outcomes, and exact undo/redo/reopen of primitives plus source records.
 - [x] 3.5 Core draft orchestration: reject preset application intents on create/update/read-materialization/preview/rebase/commit before writes, using the current core error path; preserve accepted draft inputs/version 2. Test existing draft previews of committed presets and isolated raw-channel clearing/commit/discard.
 
@@ -26,7 +26,7 @@
 
 ## 5. Conformance and documentation
 
-- [ ] 5.1 Core renderer conformance: compare preset-created channels to independently authored primitives through evaluated scenes/frame/range/ordinary draft/export at boundaries/interior/fractional inherited clocks; include visual and gain/audio examples, saved retired provenance and untagged controls. Preserve all old tolerances, goldens and exact-midpoint regression.
+- [x] 5.1 Core renderer conformance: compare preset-created channels to independently authored primitives through evaluated scenes/frame/range/ordinary draft/export at boundaries/interior/fractional inherited clocks; include visual and gain/audio examples, saved retired provenance and untagged controls. Preserve all old tolerances, goldens and exact-midpoint regression.
 - [x] 5.2 Documentation/fixtures: document the single seed, exact parameter bounds and units, explicit versions, half-open timing, collisions, source lifecycle, protocol/schema transition, backup rollback and draft/root-only authoring limitations; distinguish #45's seed from #46's creative pack. Keep every delta scenario linked to an automated test using the coverage map below; document any technically impossible automation explicitly.
 
 ## 6. Required verification, synchronization and archival

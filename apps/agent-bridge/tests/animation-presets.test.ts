@@ -98,3 +98,16 @@ const missingVersion: HeadlessEdit = {
   presetId: "scalar_tween",
 };
 expect(missingVersion.operation).toBe("apply_animation_preset");
+
+// These negatives pin the public caller types without broadening the runtime schemas.
+type PresetParameters = Extract<
+  HeadlessEdit,
+  { operation: "apply_animation_preset" }
+>["parameters"];
+// @ts-expect-error The seed excludes deferred properties.
+const unsupportedProperty: PresetParameters["property"] = "graphic.path_points";
+// @ts-expect-error Endpoints are scalar numbers.
+const wrongValue: PresetParameters["from"] = "0";
+// @ts-expect-error Executable curve tags are excluded.
+const wrongCurve: PresetParameters["curve"] = "expression";
+expect([unsupportedProperty, wrongValue, wrongCurve]).toHaveLength(3);

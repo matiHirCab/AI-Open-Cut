@@ -219,4 +219,84 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn saved_primitives_and_retired_provenance_share_the_exact_evaluated_scene() {
+        use serde_json::json;
+        let mut project:Project=serde_json::from_value(json!({"schemaVersion":29,"id":"project","revision":0,"name":"Scene","createdAtMs":1,"updatedAtMs":1,"settings":{"width":64,"height":64,"fps":20},"assets":[],"fonts":{},"markers":[],"components":[],"tracks":[{"id":"track","name":"Visual","trackType":"overlay","items":[{"type":"rectangle","id":"item","zIndex":0,"stackOrder":0,"keyframes":[],"hidden":false,"color":"#ff0000","width":32,"height":32,"startMs":0,"durationMs":1000,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}]}]})).unwrap();
+        apply(
+            &mut project,
+            "item",
+            "scalar_tween".into(),
+            1,
+            AnimationPresetParameters {
+                property: AnimationChannelProperty::Opacity,
+                start_ms: 0,
+                duration_ms: 500,
+                from: 0.0,
+                to: 1.0,
+                curve: AnimationCurve::Simple(SimpleAnimationCurve::Linear),
+            },
+            AnimationPresetCollisionPolicy::Reject,
+        )
+        .unwrap();
+        let mut manual = project.clone();
+        let visual = manual.tracks[0].items[0].visual_properties_mut();
+        visual.animation_preset_provenance.clear();
+        visual.animation_channels=serde_json::from_value(json!([{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":1.0},"curve":"hold"}]}])).unwrap();
+        let evaluate = |p: &Project| {
+            crate::evaluated_scene::evaluate_project(p, 64, 64, 20)
+                .unwrap()
+                .scene
+        };
+        assert_eq!(evaluate(&project), evaluate(&manual));
+        let source = project.tracks[0].items[0]
+            .visual_properties_mut()
+            .animation_preset_provenance
+            .values_mut()
+            .next()
+            .unwrap();
+        source.preset_id = "retired_seed".into();
+        source.preset_version = 99;
+        source.compiler_version = 88;
+        source.parameters.from = 0.25;
+        assert_eq!(evaluate(&project), evaluate(&manual));
+        let nested = |p: &Project| {
+            let mut value = serde_json::to_value(p).unwrap();
+            let child = value["tracks"][0].clone();
+            value["components"] = json!([{"id":"child","name":"Child","width":64,"height":64,"durationMs":1000,"tracks":[child],"slots":[],"markers":[]}]);
+            value["tracks"][0]["items"] = json!([{"type":"component_instance","id":"instance","componentId":"child","startMs":100,"durationMs":500,"trimStartMs":25,"timeScale":0.75,"slotValues":{},"stackOrder":0,"zIndex":0}]);
+            serde_json::from_value::<Project>(value).unwrap()
+        };
+        let scene = evaluate(&nested(&project));
+        assert_eq!(scene, evaluate(&nested(&manual)));
+        let clock = scene.visual_layers[0].instance.unwrap();
+        assert_eq!(clock.rate, 0.75);
+        assert_eq!(clock.offset, -50.0);
+        assert_eq!(clock.rate * 101.0 + clock.offset, 25.75);
+        // A synthetic candidate exercises the retained inherited channel ceiling,
+        // which cannot be reached with six distinct targetless seed properties.
+        let visual = manual.tracks[0].items[0].visual_properties_mut();
+        visual.animation_channels = vec![visual.animation_channels[0].clone(); 64];
+        let before = serde_json::to_value(&manual).unwrap();
+        let error = apply(
+            &mut manual,
+            "item",
+            "scalar_tween".into(),
+            1,
+            AnimationPresetParameters {
+                property: AnimationChannelProperty::PositionX,
+                start_ms: 0,
+                duration_ms: 500,
+                from: 0.0,
+                to: 20.0,
+                curve: AnimationCurve::Simple(SimpleAnimationCurve::Linear),
+            },
+            AnimationPresetCollisionPolicy::Reject,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(error.message.contains("maxChannelsPerItem"));
+        assert_eq!(serde_json::to_value(&manual).unwrap(), before);
+    }
 }

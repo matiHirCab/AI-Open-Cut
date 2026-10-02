@@ -1797,3 +1797,103 @@ fn inherited_bounds_batch_fails_before_transport_reports_publication() {
         before
     );
 }
+
+#[test]
+fn versioned_presets_match_fixed_primitives_and_preserve_wire_failures_history_and_reopen() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/animation-presets-v1.json")).unwrap();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"Presets"})))["projectId"]
+            .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let mut request = catalog["examples"]["apply"].clone();
+    request["itemId"] = json!("@seed");
+    let written=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"seed"},request]})));
+    assert_eq!(written["revision"], 1);
+    request["itemId"] = written["aliases"]["seed"].clone();
+    let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    let item = &saved["project"]["tracks"][1]["items"][0];
+    assert_eq!(
+        item["animationChannels"],
+        json!([catalog["examples"]["resolvedChannel"]])
+    );
+    assert_eq!(
+        item["animationPresetProvenance"]["transform.opacity"],
+        catalog["examples"]["provenance"]
+    );
+    for (revision, edit, code) in [
+        (0, request.clone(), "REVISION_CONFLICT"),
+        (1, request.clone(), "INVALID_ARGUMENT"),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["presetVersion"] = json!(2);
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["itemId"] = json!("missing");
+                e
+            },
+            "ITEM_NOT_FOUND",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e.as_object_mut().unwrap().remove("presetVersion");
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["presetVersion"] = json!("latest");
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+    ] {
+        let failed = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(failed["error"]["code"], code);
+        assert_eq!(failed["error"]["retryable"], code == "REVISION_CONFLICT");
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id}))),
+            saved
+        );
+    }
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_track","trackId":track,"locked":true}})));
+    let locked = event(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":request})),
+    );
+    assert_eq!(locked["error"]["code"], "TRACK_LOCKED");
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{"operation":"update_track","trackId":track,"locked":false}})));
+    request["collisionPolicy"] = json!("replace");
+    request["parameters"]["from"] = json!(1.0);
+    request["parameters"]["to"] = json!(0.0);
+    result(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":3,"edit":request})),
+    );
+    let replaced = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":4})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"],
+        saved["project"]["tracks"]
+    );
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":5})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        replaced["project"]["tracks"]
+    );
+}

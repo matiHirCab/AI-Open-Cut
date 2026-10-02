@@ -5,38 +5,172 @@
   "capability": "animation_presets_v1",
   "operation": "apply_animation_preset",
   "tool": "timeline_apply_animation_preset",
-  "presets": [{
-    "id": "scalar_tween", "version": 1,
-    "properties": ["transform.position_x", "transform.position_y", "transform.scale_x", "transform.scale_y", "transform.opacity", "audio.gain_db"],
-    "parameters": ["property", "startMs", "durationMs", "from", "to", "curve"],
-    "defaultCurve": "linear", "terminalCurve": "hold",
-    "curves": ["hold", "linear", "cubic_bezier", "spring"],
-    "bounds": {
-      "transform.position_x": {"minimum": -1000000, "maximum": 1000000},
-      "transform.position_y": {"minimum": -1000000, "maximum": 1000000},
-      "transform.scale_x": {"exclusiveMinimum": 0, "maximum": 100},
-      "transform.scale_y": {"exclusiveMinimum": 0, "maximum": 100},
-      "transform.opacity": {"minimum": 0, "maximum": 1},
-      "audio.gain_db": {"minimum": -96, "maximum": 12}
+  "presets": [
+    {
+      "id": "scalar_tween",
+      "version": 1,
+      "properties": [
+        "transform.position_x",
+        "transform.position_y",
+        "transform.scale_x",
+        "transform.scale_y",
+        "transform.opacity",
+        "audio.gain_db"
+      ],
+      "parameters": [
+        "property",
+        "startMs",
+        "durationMs",
+        "from",
+        "to",
+        "curve"
+      ],
+      "defaultCurve": "linear",
+      "terminalCurve": "hold",
+      "curves": [
+        "hold",
+        "linear",
+        "cubic_bezier",
+        "spring"
+      ],
+      "bounds": {
+        "transform.position_x": {
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "transform.position_y": {
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "transform.scale_x": {
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "transform.scale_y": {
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "transform.opacity": {
+          "minimum": 0,
+          "maximum": 1
+        },
+        "audio.gain_db": {
+          "minimum": -96,
+          "maximum": 12
+        }
+      }
     }
-  }],
-  "limits": {"maxGeneratedChannels": 1, "maxGeneratedKeyframes": 2, "maxProvenancePerItem": 64, "maxPresetIdBytes": 64, "maxTimeMs": 9007199254740991},
-  "collisionPolicies": ["reject", "replace"],
+  ],
+  "limits": {
+    "maxGeneratedChannels": 1,
+    "maxGeneratedKeyframes": 2,
+    "maxProvenancePerItem": 64,
+    "maxPresetIdBytes": 64,
+    "maxTimeMs": 9007199254740991
+  },
+  "collisionPolicies": [
+    "reject",
+    "replace"
+  ],
   "defaultCollisionPolicy": "reject",
   "examples": {
-    "apply": {"operation": "apply_animation_preset", "itemId": "rectangle-id", "presetId": "scalar_tween", "presetVersion": 1, "parameters": {"property": "transform.opacity", "startMs": 0, "durationMs": 500, "from": 0.0, "to": 1.0}},
-    "resolvedChannel": {"property": "transform.opacity", "keyframes": [{"timeMs": 0, "value": {"type": "scalar", "value": 0.0}, "curve": "linear"}, {"timeMs": 500, "value": {"type": "scalar", "value": 1.0}, "curve": "hold"}]},
-    "provenance": {"presetId": "scalar_tween", "presetVersion": 1, "compilerVersion": 1, "parameters": {"property": "transform.opacity", "startMs": 0, "durationMs": 500, "from": 0.0, "to": 1.0, "curve": "linear"}},
-    "retiredProvenance": {"presetId": "retired_seed", "presetVersion": 9, "compilerVersion": 9, "parameters": {"property": "transform.opacity", "startMs": 0, "durationMs": 500, "from": 0.0, "to": 1.0, "curve": "linear"}}
+    "apply": {
+      "operation": "apply_animation_preset",
+      "itemId": "rectangle-id",
+      "presetId": "scalar_tween",
+      "presetVersion": 1,
+      "parameters": {
+        "property": "transform.opacity",
+        "startMs": 0,
+        "durationMs": 500,
+        "from": 0.0,
+        "to": 1.0
+      }
+    },
+    "resolvedChannel": {
+      "property": "transform.opacity",
+      "keyframes": [
+        {
+          "timeMs": 0,
+          "value": {
+            "type": "scalar",
+            "value": 0.0
+          },
+          "curve": "linear"
+        },
+        {
+          "timeMs": 500,
+          "value": {
+            "type": "scalar",
+            "value": 1.0
+          },
+          "curve": "hold"
+        }
+      ]
+    },
+    "provenance": {
+      "presetId": "scalar_tween",
+      "presetVersion": 1,
+      "compilerVersion": 1,
+      "parameters": {
+        "property": "transform.opacity",
+        "startMs": 0,
+        "durationMs": 500,
+        "from": 0.0,
+        "to": 1.0,
+        "curve": "linear"
+      }
+    },
+    "retiredProvenance": {
+      "presetId": "retired_seed",
+      "presetVersion": 9,
+      "compilerVersion": 9,
+      "parameters": {
+        "property": "transform.opacity",
+        "startMs": 0,
+        "durationMs": 500,
+        "from": 0.0,
+        "to": 1.0,
+        "curve": "linear"
+      }
+    }
   },
   "invalidApplications": [
-    {"field": "presetId", "value": "unknown_seed", "error": "INVALID_ARGUMENT"},
-    {"field": "presetVersion", "value": 2, "error": "INVALID_ARGUMENT"},
-    {"field": "presetVersion", "value": 0, "error": "INVALID_ARGUMENT"},
-    {"field": "parameters.durationMs", "value": 0, "error": "INVALID_ARGUMENT"},
-    {"field": "parameters.from", "value": -0.1, "error": "INVALID_ARGUMENT"},
-    {"field": "parameters.to", "value": 1.1, "error": "INVALID_ARGUMENT"},
-    {"field": "parameters.property", "value": "transform.rotation_deg", "error": "INVALID_ARGUMENT"}
+    {
+      "field": "presetId",
+      "value": "unknown_seed",
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "presetVersion",
+      "value": 2,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "presetVersion",
+      "value": 0,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "parameters.durationMs",
+      "value": 0,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "parameters.from",
+      "value": -0.1,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "parameters.to",
+      "value": 1.1,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "field": "parameters.property",
+      "value": "transform.rotation_deg",
+      "error": "INVALID_ARGUMENT"
+    }
   ],
   "semantics": {
     "timing": "absolute item-local integer milliseconds; both keys inside half-open item duration; checked safe-integer sum",
@@ -44,5 +178,94 @@
     "provenance": "descriptive sidecar; saved channels authoritative; no compiler lookup on reopen or evaluation; raw full channel setter clears all labels",
     "draftAuthoring": "preset intents rejected by core; ordinary drafts over saved primitives supported",
     "definitionAuthoring": "root targets only; root component instances supported; direct definition preset application excluded"
-  }
+  },
+  "curveBounds": {
+    "cubic_bezier": {
+      "x1": [
+        0,
+        1
+      ],
+      "y1": [
+        0,
+        1
+      ],
+      "x2": [
+        0,
+        1
+      ],
+      "y2": [
+        0,
+        1
+      ],
+      "order": "x1 <= x2"
+    },
+    "spring": {
+      "mass": [
+        0.01,
+        100
+      ],
+      "stiffness": [
+        0.01,
+        10000
+      ],
+      "damping": [
+        0.01,
+        1000
+      ],
+      "initialVelocity": [
+        -100,
+        100
+      ]
+    }
+  },
+  "collisionCases": [
+    {
+      "id": "identical_default",
+      "startMs": 0,
+      "durationMs": 500,
+      "accepted": false,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "disjoint_default",
+      "startMs": 600,
+      "durationMs": 100,
+      "accepted": false,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "id": "explicit_whole_replace",
+      "startMs": 600,
+      "durationMs": 100,
+      "collisionPolicy": "replace",
+      "accepted": true,
+      "channelCount": 1
+    }
+  ],
+  "lifecycleCases": [
+    {
+      "edit": "set_animation_channels",
+      "equivalent": true,
+      "sourceAfter": "omitted",
+      "undoSource": "exact_prior",
+      "redoSource": "omitted"
+    },
+    {
+      "edit": "component_create",
+      "submittedSource": "stripped"
+    },
+    {
+      "edit": "component_update",
+      "unchangedSource": "known_prior",
+      "changedSource": "omitted"
+    },
+    {
+      "edit": "duplicate_items",
+      "sourceAfter": "exact_prior"
+    },
+    {
+      "edit": "delete_item",
+      "sourceAfter": "item_deleted"
+    }
+  ]
 }

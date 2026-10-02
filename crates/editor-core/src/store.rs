@@ -4399,7 +4399,17 @@ mod tests {
                     before
                 );
             } else {
-                assert_eq!(result.unwrap().revision, 2);
+                let committed = result.unwrap();
+                assert_eq!(committed.revision, 2);
+                if phase == PersistencePhase::AfterJournalCleanup {
+                    assert!(committed.warnings.is_empty());
+                } else {
+                    assert!(
+                        committed
+                            .warnings
+                            .contains(&PERSISTENCE_RECOVERY_PENDING.to_owned())
+                    );
+                }
             }
             let reopened = EditorCore::new(core.paths().clone());
             let project = reopened.get_project(&id).unwrap();

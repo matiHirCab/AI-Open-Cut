@@ -473,11 +473,16 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
 pub(crate) fn reject_preset_provenance(value: &serde_json::Value) -> Result<(), String> {
     match value {
         serde_json::Value::Object(fields) => {
-            if fields.contains_key("animationPresetProvenance") {
-                return Err("preset provenance requires schema 29".into());
+            // Inspect the item envelope, not user-selected keys in slotValues.
+            if let Some(items) = fields.get("items").and_then(serde_json::Value::as_array) {
+                for item in items {
+                    if item.get("animationPresetProvenance").is_some() {
+                        return Err("preset provenance requires schema 29".into());
+                    }
+                }
             }
-            for child in fields.values() {
-                reject_preset_provenance(child)?;
+            if let Some(tracks) = fields.get("tracks") {
+                reject_preset_provenance(tracks)?;
             }
         }
         serde_json::Value::Array(values) => {
