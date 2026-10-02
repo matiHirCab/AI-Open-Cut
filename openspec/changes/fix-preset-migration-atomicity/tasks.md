@@ -13,10 +13,12 @@
 
 ## 3. Verification and delivery
 
-- [ ] 3.1 Run cargo fmt --all --check, cargo clippy --workspace --all-targets -- -D warnings, cargo test --workspace; run affected native/render shards with required environment.
+- [x] 3.1 Run cargo fmt --all --check, cargo clippy --workspace --all-targets -- -D warnings, cargo test --workspace; run affected native/render shards with required environment.
 - [x] 3.2 Run bridge bun run typecheck, bun run lint, bun test, bun run contracts:check, MCP integration, packaged smoke, and hermetic Python worker checks using repository commands.
-- [ ] 3.3 Run moon run openspec-validate, openspec-verify-change, synchronize/archive accepted delta, then protected repository gate per docs/spec-driven-development.md.
+- [x] 3.3 Run and record the protected prearchive Moon gate and strict all-spec validation, accepting only the documented active-change rejection before archival.
 - [ ] 3.4 Verify commitability and dry-run push, report exact-head checks and recoverable artifacts before publication; issue 46 remains separate and blocked pending concrete approval.
+
+Mandatory delivery sequence after every implementation task passes: run `$openspec-verify-change`, synchronize and archive the accepted delta, then require the protected postarchive Moon gate and strict all-spec validation to pass. Record conformance and delivery results in `verification.md`. Current status: conformance verification pending required native matrix; synchronization/archival pending conformance; protected postarchive gate and final strict validation pending archival. This sequence remains a completion gate, rather than a checkbox that would require its own verification before it can truthfully be completed.
 
 Independent reviewer `/root/correction_review` (gpt-6-sol, medium) explicitly accepted these artifacts before code on 2026-10-02: existing transactional restoration; no fresh public/persisted contract approval. Conditions: track rollback for new assets/fonts, preserve preexisting files, verify copied bytes, and report any cleanup limitation.
 
@@ -27,3 +29,5 @@ Follow-up independent probe found deferred future asset font selection could acc
 Exact-head static review of c454dee2 found no correctness/design blocker. Reviewer also approved the editorial destination scenario qualifier: integrity errors are asserted when staging/publication reaches that destination, preserving earlier invalid-preset error priority. This wording correction changes no executable or public contract semantics.
 
 Final executable source c454dee2: fmt PASS, strict workspace Clippy PASS, workspace856 passed/9 default-ignored benchmarks, contracts Rust222+TS361 PASS, MCP15 PASS, packaged smoke9 PASS, fresh preset native2 PASS and headless lifecycle1 PASS. Native baseline and required PR rules-screen matrix remain running; task3.1 is intentionally incomplete. Prior TS typecheck/lint/unit431+1 optional native skip and hermetic Python10+5 passes are reused only because their source/fixture/toolchain inputs remain unchanged; required native bridge tests passed separately. Initial concurrently loaded MCP/smoke timeout failures and the corrected05dc Clippy failure remain disclosed in local evidence logs.
+
+Required final-source PR matrix completed: 960x540 all5states25operations PASS3679.47sec;1280x720 all5states25operations PASS4807.72sec;1920x1080 all5semanticstates6operations PASS1660.31sec. Required native driver terminal exit0 at21:16UTC; no skipped required shard. Fresh source-native baseline PASS and external performance report PASS. Rendering timings are local report-only observations, not correction-head GitHub budget evidence. Protected prearchive Moon gate ran after implementation checks: strict37 PASS and policy rejected only this active change (expected exit1, not gate success). No other gate error.
