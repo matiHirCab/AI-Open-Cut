@@ -770,10 +770,10 @@ fn schema_28_migrates_current_components_and_all_history_once() {
         serde_json::to_vec(&history).unwrap(),
     )
     .unwrap();
-    current["schemaVersion"] = json!(29);
+    current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     for snapshots in ["undo", "redo"] {
         for snapshot in history[snapshots].as_array_mut().unwrap() {
-            snapshot["schemaVersion"] = json!(29);
+            snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
         }
     }
     assert_eq!(state(&core, &project), current);
@@ -1472,7 +1472,7 @@ fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejectio
         serde_json::to_vec(&history).unwrap(),
     )
     .unwrap();
-    current["schemaVersion"] = json!(29);
+    current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     assert_eq!(state(&core, &project), current);
     let bytes = files(&core, &project);
     assert_eq!(state(&core, &project), current);
@@ -1882,7 +1882,9 @@ fn motion_pack_schema29_component_and_retained_sources_fail_without_writes() {
                         .as_array_mut()
                         .unwrap()
                         .iter_mut()
-                        .find(|p| !p["tracks"][1]["items"].as_array().unwrap().is_empty())
+                        .find(|p| {
+                            p["tracks"][1]["items"][0]["animationPresetProvenance"].is_object()
+                        })
                         .unwrap()
                 };
                 candidate["schemaVersion"] = json!(29);
