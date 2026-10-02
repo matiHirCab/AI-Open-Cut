@@ -1,7 +1,7 @@
 ## 1. Approval and dependency checkpoint
 
 - [x] 1.1 Obtain explicit approval of the exact roadmap-oriented parameter/phase table, opacity flash/positional shake, enabled MotionBlur collision behavior, loop defaults/invisible radar reset, schema30 and blur-sensitive provenance rules; record attributable approval. Do not implement before this task completes.
-- [x] 1.2 Resolve issue45 review concerns through parent; verify accepted prerequisite head, rebase this branch and preserve the unmerged dependency status until #45 actually closes. Parent must confirm scope before any issue46 publication.
+- [x] 1.2 Resolve issue45 review concerns through parent; verify accepted prerequisite head, rebase this branch and preserve the unmerged dependency status until #45 actually closes. Standing user authority permits draft publication after mandatory checks and delegated governed review.
 
 ## 2. Canonical contracts and persistence
 
@@ -28,7 +28,7 @@
 - [ ] 5.3 Run required native render/cache/worker and all three rules-screen PR shards exactly as .github/workflows/bun-ci.yml requires; record optional weekly scope separately and do not equate local timings with GitHub budget evidence.
 - [ ] 5.4 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive`; run `moon run root:openspec-validate` prearchive and inspect that its only expected rejection is this active change. Resolve every other failure.
 
-Mandatory post-implementation delivery sequence: invoke $openspec-verify-change and resolve completeness/correctness/coherence gaps; obtain designated CODEOWNER implementation acceptance; invoke $openspec-sync-specs and $openspec-archive-change only for this verified change. Then require postarchive `moon run root:openspec-validate`, strict all-spec validation and `bun --config=/dev/null --no-env-file run scripts/run-ci-policy.ts` to pass. Verify clean scoped commits and dry-run push. Publication requires separate parent scope confirmation; after authorized publication track exact-head CI to terminal and protected duration audit. Do not merge/deploy or claim issue45 closed. Delivery status: implementation pending; conformance, CODEOWNER acceptance, archive, protected postarchive gates and publication pending. This explicit mandatory sequence avoids requiring verification/archive to verify its own unchecked implementation task.
+Mandatory post-implementation delivery sequence: invoke $openspec-verify-change and resolve completeness/correctness/coherence gaps; obtain designated CODEOWNER implementation acceptance; invoke $openspec-sync-specs and $openspec-archive-change only for this verified change. Then require postarchive `moon run root:openspec-validate`, strict all-spec validation and `bun --config=/dev/null --no-env-file run scripts/run-ci-policy.ts` to pass. Verify clean scoped commits and dry-run push. Standing delegated authority in approval.md permits draft publication after acceptance; after publication track exact-head CI to terminal and protected duration audit. Do not merge/deploy or claim issue45 closed. Delivery status: implementation pending; conformance, CODEOWNER acceptance, archive, protected postarchive gates and publication pending. This explicit mandatory sequence avoids requiring verification/archive to verify its own unchecked implementation task.
 
 ## Implementation checkpoint2026-10-02
 

@@ -1843,6 +1843,92 @@ fn motion_pack_descriptive_retirement_membership_and_premature_generations_fail_
 }
 
 #[test]
+fn motion_pack_schema29_component_and_retained_sources_fail_without_writes() {
+    let fixture = pack_fixture();
+    for entry in fixture["presets"].as_array().unwrap() {
+        for location in ["component", "undo", "redo"] {
+            for malformed in [false, true] {
+                let (_root, core, project, id) = setup();
+                core.edit(&project, 1, op(pack_request(&id, entry)))
+                    .unwrap();
+                core.edit(
+                    &project,
+                    2,
+                    op(json!({"operation":"update_item","itemId":id,"color":"#00ff00"})),
+                )
+                .unwrap();
+                core.edit(
+                    &project,
+                    3,
+                    op(json!({"operation":"update_item","itemId":id,"color":"#0000ff"})),
+                )
+                .unwrap();
+                core.undo(&project, 4).unwrap();
+                let dir = core.paths().project_dir(&project).unwrap();
+                let mut current = state(&core, &project);
+                let mut history: Value =
+                    serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap())
+                        .unwrap();
+                let candidate = if location == "component" {
+                    let tracks = json!([current["tracks"][1]]);
+                    current["components"] = json!([{"id":"local","name":"Local","width":64,"height":64,"durationMs":1000,"tracks":tracks,"slots":[],"markers":[]}]);
+                    current["tracks"][1]["items"][0]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("animationPresetProvenance");
+                    &mut current
+                } else {
+                    history[location]
+                        .as_array_mut()
+                        .unwrap()
+                        .iter_mut()
+                        .find(|p| !p["tracks"][1]["items"].as_array().unwrap().is_empty())
+                        .unwrap()
+                };
+                candidate["schemaVersion"] = json!(29);
+                if malformed {
+                    let visual = if location == "component" {
+                        &mut candidate["components"][0]["tracks"][0]["items"][0]
+                    } else {
+                        &mut candidate["tracks"][1]["items"][0]
+                    };
+                    let property = visual["animationChannels"][0]["property"]
+                        .as_str()
+                        .unwrap()
+                        .to_owned();
+                    visual["animationPresetProvenance"][property]["parameters"]["durationMs"] =
+                        json!(null);
+                }
+                std::fs::write(
+                    dir.join("project.json"),
+                    serde_json::to_vec(&current).unwrap(),
+                )
+                .unwrap();
+                std::fs::write(
+                    dir.join("history.json"),
+                    serde_json::to_vec(&history).unwrap(),
+                )
+                .unwrap();
+                let before = pack_files(&core, &project);
+                assert!(
+                    EditorCore::new(core.paths().clone())
+                        .get_project(&project)
+                        .is_err(),
+                    "{} {location} malformed={malformed}",
+                    entry["id"]
+                );
+                assert_eq!(
+                    pack_files(&core, &project),
+                    before,
+                    "{} {location} malformed={malformed}",
+                    entry["id"]
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn motion_pack_schema29_scalar_current_components_and_history_migrate_once_without_relabeling() {
     let (_root, core, project, id) = setup();
     core.edit(&project, 1, op(request(&id))).unwrap();
