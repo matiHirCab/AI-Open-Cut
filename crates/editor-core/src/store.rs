@@ -1626,7 +1626,7 @@ fn prepare_project_data(
     dir: &Path,
     config: &crate::FontConfig,
     expected_revision: Option<u64>,
-    mut rollback: Option<&mut crate::assets::UncommittedResources>,
+    rollback: Option<&mut crate::assets::UncommittedResources>,
 ) -> Result<PreparedProject, CoreError> {
     recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
@@ -1680,7 +1680,7 @@ fn prepare_project_data(
             migrate_project_assets(storage, snapshot, dir)?
         };
     }
-    if let Some(rollback) = rollback.as_deref_mut() {
+    if let Some(rollback) = rollback {
         // Source-font resolution must see exactly the migration assets the
         // eager loader exposes. These speculative copies belong to the request
         // rollback ledger until its document journal commits.
