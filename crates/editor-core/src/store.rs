@@ -809,43 +809,37 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let mut prepared = prepare_project_data(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &self.font_config,
-            Some(expected_revision),
-            true,
-        )?;
-        let previous = prepared.project.clone();
-        let AppliedBatch {
-            changed_ids,
-            aliases,
-            summary,
-        } = apply_edit_batch(&mut prepared.project, operations)?;
-        crate::assets::fonts::prepare_fonts(
-            self.storage.as_ref(),
-            &dir,
-            &mut prepared.project,
-            &self.font_config,
-            &mut prepared.fonts,
-        )?;
-        crate::evaluated_scene::preflight_inherited_project(&prepared.project)?;
-        crate::evaluated_scene::preflight_extended_fonts(&prepared.project, &prepared.fonts)?;
-        push_undo(&mut prepared.history, &previous);
-        bump_revision(&mut prepared.project)?;
         let mut rollback = crate::assets::UncommittedResources::default();
-        let publish = (|| {
+        let edit = (|| {
+            let mut prepared = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &self.font_config,
+                Some(expected_revision),
+                Some(&mut rollback),
+            )?;
+            let previous = prepared.project.clone();
+            let AppliedBatch {
+                changed_ids,
+                aliases,
+                summary,
+            } = apply_edit_batch(&mut prepared.project, operations)?;
+            crate::assets::fonts::prepare_fonts(
+                self.storage.as_ref(),
+                &dir,
+                &mut prepared.project,
+                &self.font_config,
+                &mut prepared.fonts,
+            )?;
+            crate::evaluated_scene::preflight_inherited_project(&prepared.project)?;
+            crate::evaluated_scene::preflight_extended_fonts(&prepared.project, &prepared.fonts)?;
+            push_undo(&mut prepared.history, &previous);
+            bump_revision(&mut prepared.project)?;
             if prepared.changed {
                 self.persistence_faults
                     .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
             }
-            crate::assets::publish_migrated_assets(
-                self.storage.as_ref(),
-                &dir,
-                &prepared.asset_copies,
-                &mut rollback,
-            )?;
             crate::assets::fonts::publish_fonts_tracked(
                 self.storage.as_ref(),
                 &dir,
@@ -856,7 +850,7 @@ impl EditorCore {
                 self.persistence_faults
                     .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
             }
-            crate::persistence::persist_transaction_with_drafts(
+            let warnings = match crate::persistence::persist_transaction_with_drafts(
                 self.storage.as_ref(),
                 &self.persistence_faults,
                 &dir,
@@ -864,44 +858,43 @@ impl EditorCore {
                 &prepared.history,
                 None,
                 prepared.draft_updates,
-            )
-        })();
-        let warnings = match publish {
-            Ok(warnings) => warnings,
-            // Atomic replacement may report a parent-sync failure after the
-            // journal was renamed. Its presence makes commit durability uncertain;
-            // recovery owns the published resources from this point onward.
-            Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
-                vec![PERSISTENCE_RECOVERY_PENDING.into()]
-            }
-            Err(mut error) => {
-                if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
-                    error
-                        .message
-                        .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            ) {
+                Ok(warnings) => warnings,
+                // A parent-sync error can follow journal rename. Recovery owns
+                // the resources when this request's commit durability is uncertain.
+                Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
+                    vec![PERSISTENCE_RECOVERY_PENDING.into()]
                 }
-                return Err(error);
+                Err(error) => return Err(error),
+            };
+            let mut result = write_result(
+                &prepared.project,
+                changed_ids,
+                if is_batch {
+                    "Applied timeline edit batch"
+                } else {
+                    summary
+                },
+            );
+            result.aliases = aliases;
+            result.warnings = finish_persistence(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &prepared.project,
+                &prepared.history,
+                warnings,
+            );
+            Ok(result)
+        })();
+        edit.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
             }
-        };
-        let mut result = write_result(
-            &prepared.project,
-            changed_ids,
-            if is_batch {
-                "Applied timeline edit batch"
-            } else {
-                summary
-            },
-        );
-        result.aliases = aliases;
-        result.warnings = finish_persistence(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &prepared.project,
-            &prepared.history,
-            warnings,
-        );
-        Ok(result)
+            error
+        })
     }
 
     pub fn create_draft(
@@ -1601,7 +1594,7 @@ fn load_project_data(
     config: &crate::FontConfig,
     expected_revision: Option<u64>,
 ) -> Result<(Project, History), CoreError> {
-    let prepared = prepare_project_data(storage, faults, dir, config, expected_revision, false)?;
+    let prepared = prepare_project_data(storage, faults, dir, config, expected_revision, None)?;
     if prepared.changed {
         faults.checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
         crate::assets::fonts::publish_fonts(storage, dir, &prepared.fonts)?;
@@ -1623,7 +1616,6 @@ struct PreparedProject {
     project: Project,
     history: History,
     fonts: crate::assets::fonts::FontBytes,
-    asset_copies: Vec<crate::assets::AssetMigrationCopy>,
     draft_updates: BTreeMap<String, Vec<u8>>,
     changed: bool,
 }
@@ -1634,7 +1626,7 @@ fn prepare_project_data(
     dir: &Path,
     config: &crate::FontConfig,
     expected_revision: Option<u64>,
-    defer_assets: bool,
+    mut rollback: Option<&mut crate::assets::UncommittedResources>,
 ) -> Result<PreparedProject, CoreError> {
     recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
@@ -1682,11 +1674,17 @@ fn prepare_project_data(
         .chain(history.undo.iter_mut())
         .chain(history.redo.iter_mut())
     {
-        changed |= if defer_assets {
+        changed |= if rollback.is_some() {
             crate::assets::prepare_project_assets(storage, snapshot, dir, &mut asset_copies)?
         } else {
             migrate_project_assets(storage, snapshot, dir)?
         };
+    }
+    if let Some(rollback) = rollback.as_deref_mut() {
+        // Source-font resolution must see exactly the migration assets the
+        // eager loader exposes. These speculative copies belong to the request
+        // rollback ledger until its document journal commits.
+        crate::assets::publish_migrated_assets(storage, dir, &asset_copies, rollback)?;
     }
     let mut staged = crate::assets::fonts::FontBytes::new();
     for snapshot in std::iter::once(&mut project)
@@ -1754,7 +1752,6 @@ fn prepare_project_data(
         project,
         history,
         fonts: staged,
-        asset_copies,
         draft_updates,
         changed,
     })
@@ -2495,6 +2492,45 @@ mod tests {
         }
     }
 
+    #[test]
+    fn preset_asset_staging_preserves_explicit_and_default_font_selection_failures() {
+        for use_default in [false, true] {
+            let (mut core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let project: Project = read_json(&project_path(&dir)).unwrap();
+            let text = project.tracks[1].items[0].id().to_owned();
+            let digest =
+                crate::assets::hash_file(&FileSystemStorage, &dir.join("assets/legacy.bin"))
+                    .unwrap()
+                    .0;
+            let future = dir.join(crate::assets::hash_relative_path(&digest));
+            core.font_config.roots = vec![dir.clone()];
+            if use_default {
+                core.font_config.default_path = Some(future.clone());
+            }
+            let before = project_file_bytes(&dir);
+            let error = if use_default {
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap_err()
+            } else {
+                core.edit_batch(
+                    &id,
+                    1,
+                    vec![
+                        serde_json::from_value(serde_json::json!({"operation":"update_item",
+                        "itemId":text,"fontPath":future}))
+                        .unwrap(),
+                        preset_edit(&item, 1),
+                    ],
+                )
+                .unwrap_err()
+            };
+            assert_eq!(error.code, ErrorCode::DependencyUnavailable);
+            assert_eq!(error.message, "font filename needs extension");
+            assert_eq!(project_file_bytes(&dir), before);
+            assert!(!future.exists());
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn preset_rollback_preserves_dangling_asset_and_font_destination_links() {
@@ -2502,26 +2538,28 @@ mod tests {
         for is_font in [false, true] {
             let (core, _) = core();
             let (id, item, dir) = preset_legacy_resource_fixture(&core);
-            let prepared = prepare_project_data(
+            let mut project: Project = read_json(&project_path(&dir)).unwrap();
+            let mut history: History = read_json(&history_path(&dir)).unwrap();
+            migrate_project_documents(&mut project, &mut history).unwrap();
+            crate::assets::prepare_project_assets(
                 &FileSystemStorage,
-                &core.persistence_faults,
+                &mut project,
                 &dir,
+                &mut Vec::new(),
+            )
+            .unwrap();
+            crate::assets::fonts::prepare_fonts(
+                &FileSystemStorage,
+                &dir,
+                &mut project,
                 &core.font_config,
-                Some(1),
-                true,
+                &mut Default::default(),
             )
             .unwrap();
             let relative = if is_font {
-                prepared
-                    .project
-                    .fonts
-                    .values()
-                    .next()
-                    .unwrap()
-                    .relative_path
-                    .clone()
+                project.fonts.values().next().unwrap().relative_path.clone()
             } else {
-                prepared.project.assets[0].project_relative_path.clone()
+                project.assets[0].project_relative_path.clone()
             };
             let path = dir.join(relative);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -2530,7 +2568,11 @@ mod tests {
             symlink(&missing, &path).unwrap();
             assert_eq!(
                 core.edit(&id, 1, preset_edit(&item, 2)).unwrap_err().code,
-                ErrorCode::InvalidArgument
+                if is_font {
+                    ErrorCode::InvalidArgument
+                } else {
+                    ErrorCode::AssetIntegrityFailed
+                }
             );
             assert_eq!(std::fs::read_link(&path).unwrap(), missing);
             assert_eq!(

@@ -30,3 +30,7 @@
 #### Scenario: Preserve preexisting resource destination entries
 - **WHEN** a planned managed asset or font destination has a dangling symlink or other invalid preexisting entry during a preset transaction
 - **THEN** the request fails with the established integrity error before overwriting that entry, and rollback preserves its link target and all preexisting project/history/draft/resource bytes
+
+#### Scenario: Preserve migration asset font selection behavior
+- **WHEN** a preset-containing request selects an extensionless content-addressed migration asset as an explicit or configured-default font source
+- **THEN** the existing font owner returns nonretryable DEPENDENCY_UNAVAILABLE rather than accepting a pinned fallback, and all project/history/draft/resource bytes remain unchanged

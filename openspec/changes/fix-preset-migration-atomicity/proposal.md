@@ -5,7 +5,7 @@ A rejected preset application on a schema-28 project currently publishes schema-
 ## What Changes
 
 - Restore the existing rejection guarantee for standalone presets and any ordered batch containing a preset, including migration, retained history, draft upgrades, and managed resource additions.
-- Prepare migration and the entire candidate under the existing exclusive lock before publication. Commit accepted edits and migration in one existing journal transaction.
+- Prepare documents and the entire candidate under the existing exclusive lock before their publication, with verified asset copies staged speculatively and rolled back on any rejection to preserve existing font resolution. Commit accepted edits and migration in one existing journal transaction.
 - Add legacy-project rejection, successful migration, undo/redo/reopen, transport, and transaction-failure regression evidence.
 
 ## Capabilities

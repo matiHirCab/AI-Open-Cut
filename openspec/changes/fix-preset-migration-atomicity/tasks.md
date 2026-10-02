@@ -6,7 +6,7 @@
 
 ## 2. Core correction
 
-- [x] 2.1 Separate prepare-only migration/resource planning from eager load in existing store/assets owners without new dependency edges.
+- [x] 2.1 Separate document preparation and tracked speculative asset staging from eager load in existing store/assets owners without new dependency edges.
 - [x] 2.2 Apply preset-containing transactions exactly once, certify complete candidate, and commit migration/edit/history/drafts through one journal.
 - [x] 2.3 Preserve pre-journal rollback and post-journal recovery semantics; add targeted fault/resource/lifecycle tests.
 - [x] 2.4 Obtain independent Sol medium review of code and regression coverage and resolve findings.
@@ -21,3 +21,5 @@
 Independent reviewer `/root/correction_review` (gpt-6-sol, medium) explicitly accepted these artifacts before code on 2026-10-02: existing transactional restoration; no fresh public/persisted contract approval. Conditions: track rollback for new assets/fonts, preserve preexisting files, verify copied bytes, and report any cleanup limitation.
 
 Independent code review completed with no remaining correctness/ADR blocker. Targeted tests: standalone/alias schema28, schema18 resources/components/v1 drafts/undo+redo, copy corruption and font write rollback, nine persistence phases, journal sync-after-rename, complete-candidate scene budget schema28+29, and actual headless error/undo/redo passed. Full gates remain pending below.
+
+Follow-up independent probe found deferred future asset font selection could accept fallback when eager loading rejects an extensionless filename. Reviewer accepted amended speculative asset staging with request-wide rollback before code; no fresh governed contract gate. Full final executable checks must be rerun on the amended stable tree.
