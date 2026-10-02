@@ -3,6 +3,6 @@
 - [x] 3. Implement checked exact binary64 midpoint arithmetic in editor-core; preserve validation, root clipping, inherited clocks and all compatibility limits.
 - [x] 4. Add all-count independent boundary/neighbor/fractional/subnormal/clipping fixtures and native frame/range/draft/export/audio/byte-preservation regression; pass on both actual backends.
 - [x] 5. Run required Rust/bridge/contracts/native checks, strict validation and protected pre-archive gates; verify conformance and document evidence reuse/failures/skips.
-- [ ] 6. Obtain fresh designated CODEOWNER implementation review for this correction.
-- [ ] 7. After review, synchronize/archive with repository workflows and pass protected post-archive checks.
+- [x] 6. Obtain fresh designated CODEOWNER implementation review for this correction. The user's explicit approval of published implementation 0dc3802c for synchronization and archival is recorded in approval.md; no GitHub review submission is claimed.
+- [x] 7. After review, synchronize/archive with repository workflows and pass protected post-archive checks. The approved requirement and scenario are synchronized, the dated archive preserves .openspec.yaml, and strict validation, protected Moon, isolated policy bootstrap and formatting pass; see publication-verification.md.
 - [x] 8. Commit without rewriting history and prepare a small verified recovery bundle of commits missing from PR132 for private Library delivery, with checksum/exact head and explicit supersession. The final upload receipt is external handoff evidence, not a self-referencing source artifact.

@@ -1,5 +1,11 @@
 # Exact-midpoint correction verification
 
+This file preserves the historical recovery-package evidence at correction head
+199d22f4. The subsequent PR #133 publication, fresh user implementation approval,
+specification synchronization and archival checks are recorded in
+publication-verification.md. Historical pending/publication statements below
+describe that earlier delivery, not the current archival result.
+
 The independent P2 finding is fixed. Implementation checks pass; fresh designated
 CODEOWNER review and correction archival remain pending. The original PR132
 archival and human approval records are preserved byte-for-byte. This report does
