@@ -12,7 +12,7 @@ Use an internal prepared-project result owned by store, carrying migrated docume
 
 Do not use an unsupported-version-only guard: it misses collisions, aliases and later candidate failures. Do not perform a second speculative application: generated IDs and complete candidate preflight must be authoritative. Do not implement an overlay storage backend or duplicate transport checks.
 
-Before publication track only newly created managed asset/font paths; on a pre-journal failure remove only those files, preserving preexisting bytes. Never remove published resources once the existing journal commits; return existing recovery-pending warnings and recover on reopen. Retain current font-publication checkpoints. Asset publication verifies planned hash/size against source at publication. A source race or I/O error fails before journal; journal ownership remains unchanged. Recovery of an already committed transaction before a request remains required, distinct from publishing this rejected request.
+Before publication inspect destination entry kinds without following symlinks, reject invalid preexisting entries, and track only newly created managed asset/font paths; on a pre-journal failure remove only those files, preserving preexisting bytes. Never remove published resources once the existing journal commits; return existing recovery-pending warnings and recover on reopen. Retain current font-publication checkpoints. Asset publication verifies planned hash/size against source at publication. A source race or I/O error fails before journal; journal ownership remains unchanged. Recovery of an already committed transaction before a request remains required, distinct from publishing this rejected request.
 
 ## Risks / Trade-offs
 

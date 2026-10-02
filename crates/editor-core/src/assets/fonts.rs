@@ -952,7 +952,7 @@ fn publish_fonts_prepared(
             managed_bytes(storage, dir, &face)?;
         } else {
             if let Some(rollback) = rollback.as_deref_mut() {
-                rollback.track_absent(storage, path.clone());
+                rollback.track_absent(storage, path.clone())?;
             }
             storage
                 .atomic_replace(&path, bytes)

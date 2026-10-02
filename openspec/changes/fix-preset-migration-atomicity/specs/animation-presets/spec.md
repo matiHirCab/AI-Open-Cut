@@ -26,3 +26,7 @@
 #### Scenario: Preserve preset publication fault semantics
 - **WHEN** resource publication or transaction persistence fails before journal commit, or a checkpoint fails after the journal commits
 - **THEN** pre-commit failure preserves authoritative documents and preexisting managed bytes and removes only new uncommitted resources, while committed recovery-pending behavior and reopen recovery remain unchanged
+
+#### Scenario: Preserve preexisting resource destination entries
+- **WHEN** a planned managed asset or font destination has a dangling symlink or other invalid preexisting entry during a preset transaction
+- **THEN** the request fails with the established integrity error before overwriting that entry, and rollback preserves its link target and all preexisting project/history/draft/resource bytes

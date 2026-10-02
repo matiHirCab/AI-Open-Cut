@@ -2495,6 +2495,54 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn preset_rollback_preserves_dangling_asset_and_font_destination_links() {
+        use std::os::unix::fs::symlink;
+        for is_font in [false, true] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let prepared = prepare_project_data(
+                &FileSystemStorage,
+                &core.persistence_faults,
+                &dir,
+                &core.font_config,
+                Some(1),
+                true,
+            )
+            .unwrap();
+            let relative = if is_font {
+                prepared
+                    .project
+                    .fonts
+                    .values()
+                    .next()
+                    .unwrap()
+                    .relative_path
+                    .clone()
+            } else {
+                prepared.project.assets[0].project_relative_path.clone()
+            };
+            let path = dir.join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let before = project_file_bytes(&dir);
+            let missing = dir.join("missing-destination");
+            symlink(&missing, &path).unwrap();
+            assert_eq!(
+                core.edit(&id, 1, preset_edit(&item, 2)).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+            assert_eq!(std::fs::read_link(&path).unwrap(), missing);
+            assert_eq!(
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap_err().code,
+                ErrorCode::AssetIntegrityFailed
+            );
+            assert_eq!(std::fs::read_link(&path).unwrap(), missing);
+            std::fs::remove_file(path).unwrap();
+            assert_eq!(project_file_bytes(&dir), before);
+        }
+    }
+
     #[test]
     fn preset_resource_copy_and_font_write_errors_remove_only_uncommitted_bytes() {
         for (fault, expected) in [

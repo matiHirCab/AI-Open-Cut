@@ -415,9 +415,23 @@ pub(crate) struct UncommittedResources {
 }
 
 impl UncommittedResources {
-    pub(crate) fn track_absent(&mut self, storage: &dyn Storage, path: PathBuf) {
-        if !storage.storage_path_exists(&path) && !self.paths.contains(&path) {
-            self.paths.push(path);
+    pub(crate) fn track_absent(
+        &mut self,
+        storage: &dyn Storage,
+        path: PathBuf,
+    ) -> Result<(), CoreError> {
+        match storage.entry_kind(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if !self.paths.contains(&path) {
+                    self.paths.push(path);
+                }
+                Ok(())
+            }
+            Ok(_) => Err(CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "uncommitted resource destination already exists",
+            )),
+            Err(error) => Err(CoreError::io("cannot inspect resource destination", error)),
         }
     }
 
@@ -450,7 +464,7 @@ pub(crate) fn publish_migrated_assets(
                 .create_dir_all(parent)
                 .map_err(|error| CoreError::io("cannot create asset store", error))?;
             let temporary = parent.join(format!(".{}.{}.tmp", copy.digest, Uuid::new_v4()));
-            rollback.track_absent(storage, temporary.clone());
+            rollback.track_absent(storage, temporary.clone())?;
             storage
                 .copy(&copy.source, &temporary)
                 .map_err(|error| CoreError::io("cannot copy asset", error))?;
@@ -460,7 +474,7 @@ pub(crate) fn publish_migrated_assets(
                     "asset changed during migration copy",
                 ));
             }
-            rollback.track_absent(storage, destination.clone());
+            rollback.track_absent(storage, destination.clone())?;
             storage
                 .rename(&temporary, &destination)
                 .map_err(|error| CoreError::io("cannot publish asset", error))?;
