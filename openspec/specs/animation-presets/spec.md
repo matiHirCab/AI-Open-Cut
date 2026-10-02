@@ -100,6 +100,26 @@ Successful preset replacement MUST replace that identity's source record without
 - **WHEN** the expected revision is stale, item/asset is missing, track is locked, an alias is referenced before creation, or the preset declares `resultAlias`
 - **THEN** core preserves the existing respective `REVISION_CONFLICT`, `ITEM_NOT_FOUND`/`ASSET_NOT_FOUND`, `TRACK_LOCKED` or `VALIDATION_FAILED` code and retryability without a mutation
 
+#### Scenario: Reject before publishing legacy migration
+- **WHEN** a supported legacy project and retained history require migration and a preset or preset-containing ordered batch is rejected for invalid input, collision, alias, track/target, or complete-candidate safety
+- **THEN** the established typed error is returned and this request changes no current/history/draft bytes, revision, or managed resource bytes
+
+#### Scenario: Accept legacy migration and edit together
+- **WHEN** a valid preset or preset-containing ordered batch edits supported legacy current/history/drafts
+- **THEN** migration and the complete edit publish through the existing journal as one revision and undo entry, and undo/redo/reopen preserve migrated snapshots and provenance
+
+#### Scenario: Preserve preset publication fault semantics
+- **WHEN** resource publication or transaction persistence fails before journal commit, or a checkpoint fails after the journal commits
+- **THEN** pre-commit failure preserves authoritative documents and preexisting managed bytes and removes only new uncommitted resources, while committed recovery-pending behavior and reopen recovery remain unchanged
+
+#### Scenario: Preserve preexisting resource destination entries
+- **WHEN** a preset transaction reaches migration asset staging or font publication and the respective planned managed destination has a dangling symlink or other invalid preexisting entry
+- **THEN** the request fails with the established integrity error before overwriting that entry, and rollback preserves its link target and all preexisting project/history/draft/resource bytes
+
+#### Scenario: Preserve migration asset font selection behavior
+- **WHEN** a preset-containing request selects an extensionless content-addressed migration asset as an explicit or configured-default font source
+- **THEN** the existing font owner returns nonretryable DEPENDENCY_UNAVAILABLE rather than accepting a pinned fallback, and all project/history/draft/resource bytes remain unchanged
+
 ### Requirement: Bounded safe preset expansion
 Core MUST reject non-finite values, wrong tags, unknown fields, out-of-range parameters, unsafe or overflowing timing and violations of canonical candidate bounds with `INVALID_ARGUMENT`. Each seed application MUST expand to at most one channel and two keys; source IDs MUST be at most 64 ASCII bytes; each item MUST hold at most 64 source entries, each for one existing channel identity. The closed parameter shape MUST accept no arbitrary maps, expressions, external resources, paths or executable SVG. The existing 100-operation batch, 64-channel, 1,000-keyframe, retained-history, scene, raster and 65,536-node extended-certification limits MUST remain unchanged. Reapplication MUST replace one source record rather than grow history outside retained project snapshots.
 
