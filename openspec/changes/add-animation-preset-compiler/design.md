@@ -1,6 +1,6 @@
 ## Context
 
-This is a proposed design for issue #45, not implementation approval. Research base: main `90f7884f1b58deb1a4cd5992083520b516b56fe3`; published draft PR #133 head `618357054cd6d2d40275ec6f61163996852227a3`. The latter contains main and the archived exact-midpoint correction. Work is isolated on `codex/issue-45-proposal-20261002` in `/workspace/issue45-proposal`; PR #133 and the original checkout remain untouched. Dependencies #38, #39 and #11 were verified closed on 2026-10-02; #45 and the separate initial-pack issue #46 are open.
+This issue-45 design is approved by the explicit user response recorded in `approval.md`; implementation and verification are in progress. Research base: main `90f7884f1b58deb1a4cd5992083520b516b56fe3`; published draft PR #133 head `618357054cd6d2d40275ec6f61163996852227a3`. The latter contains main and the archived exact-midpoint correction. Work is isolated on `codex/issue-45-proposal-20261002` in `/workspace/issue45-proposal`; PR #133 and the original checkout remain untouched. Dependencies #38, #39 and #11 were verified closed on 2026-10-02; #45 and the separate initial-pack issue #46 are open.
 
 Current code has schema 28, protocol 1, `AnimationChannel` and deterministic `hold`, `linear`, `cubic_bezier`, `spring` sampling. `set_animation_channels` replaces the complete collection; core rejects collisions with legacy keyframes. `timeline` owns alias resolution and edit application; `validation` owns channel/curve rules; store owns project locking, revisions and atomic publication. Component-definition tracks and retained history contain the same item models. ADR 0004 already requires primitive-only evaluation and descriptive preset provenance.
 
@@ -187,4 +187,4 @@ No executable files, contracts, migrations or tests have been edited as part of 
 
 ## Open Questions
 
-The sole blocking decision is owner approval of the complete proposed design, especially the one-entry seed, raw-setter label clearing, reject/explicit-replace policy, schema 29 and draft/direct-definition exclusions. Approval of issue #44 does not answer this decision. No implementation or external publication is authorized by the CLI reporting planning artifacts complete.
+The owner approved this complete design as recorded in `approval.md`. Implementation must stay within the one-entry seed, raw-setter label clearing, reject/explicit-replace policy, schema 29 and draft/direct-definition exclusions. Any material expansion requires a new explicit decision. Final implementation acceptance and any external publication remain separate from design approval.

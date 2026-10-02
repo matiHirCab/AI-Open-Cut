@@ -39,6 +39,6 @@ Wire changes are additive: new edit/tool/capability and an optional, ignorable i
 
 ## Approval status
 
-PROPOSED, NOT APPROVED. The local scaffold and planning artifacts are authorized; implementation is blocked by root `AGENTS.md` until the owner explicitly approves this proposal, design, delta specifications and tasks. Issue #44 approval does not authorize this new change. CLI artifact completeness is not owner approval, and this active change must remain unarchived until implemented and verified.
+DESIGN APPROVED on 2026-10-02 by the explicit forwarded user response recorded in `approval.md`, against proposal commit `32ebd32e329287827e15831528bd9fe041203196`. Implementation, tests and local commits are authorized within the bounded design. Issue #44 approval does not authorize this new change. CLI artifact completeness is not implementation acceptance, and this active change must remain unarchived until implemented and verified.
 
-Requested decision: approve `scalar_tween@1` as the single issue-45 seed, exact-channel reject/explicit-replace semantics, metadata clearing on raw replacements, atomic schema 29, and the documented draft/component-definition authoring exclusions; or identify the specific design point to revise before coding.
+Approved decision: `scalar_tween@1` is the single issue-45 seed, with exact-channel reject/explicit-replace semantics, metadata clearing on raw replacements, atomic schema 29, and the documented draft/component-definition authoring exclusions. No external publication authorization is implied.

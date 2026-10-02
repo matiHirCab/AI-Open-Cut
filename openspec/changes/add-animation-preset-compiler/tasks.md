@@ -1,6 +1,6 @@
 ## 1. Approval and canonical contract preparation
 
-- [ ] 1.1 Obtain explicit owner approval of proposal/design/all five delta specifications/tasks; record exact approved content and scope. Recheck main, PR #133 and dependencies; preserve the published midpoint fix and do not publish without separate authorization.
+- [x] 1.1 Obtain explicit owner approval of proposal/design/all five delta specifications/tasks; record exact approved content and scope. Recheck main, PR #133 and dependencies; preserve the published midpoint fix and do not publish without separate authorization.
 - [ ] 1.2 Cross-layer contract governance: add manually reviewed `contracts/animation-presets-v1.json` with all six property bounds, four curve families, effective defaults, fixed keys/provenance, collision/retirement/lifecycle/error fixtures and named limits. Add ownership/CODEOWNER coverage for new consumers; plan synchronized protocol-1 headless/MCP fixture changes without touching workflow gates.
 
 ## 2. Core persisted model and migration
