@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "compilerVersion": 1,
+  "compilerVersion": 2,
   "projectSchemaVersion": 30,
   "capability": "animation_presets_v1",
   "operation": "apply_animation_preset",
@@ -119,7 +119,8 @@
         "startMs",
         "durationMs",
         "positionFromX",
-        "positionToX"
+        "positionToX",
+        "iterations"
       ],
       "properties": [
         "transform.position_x"
@@ -138,7 +139,8 @@
         "startMs",
         "durationMs",
         "scaleFrom",
-        "scalePeak"
+        "scalePeak",
+        "iterations"
       ],
       "properties": [
         "transform.scale_x",
@@ -159,7 +161,8 @@
         "durationMs",
         "scaleFrom",
         "scaleTo",
-        "opacityPeak"
+        "opacityPeak",
+        "iterations"
       ],
       "properties": [
         "transform.scale_x",
@@ -380,5 +383,6 @@
   ],
   "additionalCapabilities": [
     "initial_motion_preset_pack_v1"
-  ]
+  ],
+  "compilerVersionSemantics": "latest compiler generation; each preset retains its explicit compilerVersion, scalar_tween remains1"
 }
