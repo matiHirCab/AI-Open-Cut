@@ -5,7 +5,7 @@
 
 ## 2. Canonical contracts and persistence
 
-- [ ] 2.1 Add manually reviewed canonical positive/negative expansion, provenance, parameter, collision, status and schema30 fixtures; update ownership/affected catalogs and cross-language expectations before consumers. Preserve scalar outputs and old meaning.
+- [x] 2.1 Add manually reviewed canonical positive/negative expansion, provenance, parameter, collision, status and schema30 fixtures; update ownership/affected catalogs and cross-language expectations before consumers. Preserve scalar outputs and old meaning.
 - [x] 2.2 Core: add strict union shapes/object-only duplicate-preserving decoding (including nested MotionBlur arrays/duplicates), property-membership provenance validation and schema30 migration; test current/components/undo/redo, premature/future schemas, malformed state and every journal fault phase. Trace to atomic schema30 and descriptive provenance requirements.
 
 ## 3. Core compilation and mutation

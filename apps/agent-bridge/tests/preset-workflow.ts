@@ -179,15 +179,17 @@ export const verifyPresetWorkflow = async (client: Client, call: Call) => {
     }));
     expect(motion?.animationChannels).toEqual(expected);
     expect(motion?.motionBlur).toEqual(entry.expected.motionBlur ?? undefined);
+    const { operation: _packOperation, ...packFields } = application;
     const rejected = await client.callTool({
       arguments: {
         expectedRevision: revision + 1,
         projectId,
-        ...application,
+        ...packFields,
         itemId: createdPack.aliases.motion,
       },
       name: "timeline_apply_animation_preset",
     });
+    expect(rejected.isError).toBe(true);
     expect(rejected.structuredContent).toMatchObject({
       error: { code: "INVALID_ARGUMENT", retryable: false },
     });
