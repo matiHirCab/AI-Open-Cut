@@ -1,6 +1,6 @@
 # Implementation evidence and scenario coverage
 
-Status: all mandatory implementation checks pass locally and formal conformance verification is recorded in `conformance.md`. Designated CODEOWNER review, approved synchronization/archival and the post-archive protected gate remain pending. This is an evidence ledger, not an archival approval or a claim that all completion gates passed.
+Status: all mandatory implementation checks pass locally and formal conformance verification is recorded in `conformance.md`. Fresh concrete implementation/CODEOWNER acceptance is recorded in `approval.md`; all five deltas are synchronized and the change is archived. The post-archive protected gate remains pending. This is an evidence ledger, not a claim that remote CI or all completion gates passed.
 
 ## Base and ownership
 
@@ -98,4 +98,4 @@ This container's PID1 leaves exited descendants as zombies. An uncommitted Linux
 
 ## Remaining gates
 
-Tasks6.1/6.2/6.3 are complete using the final-map refresh plus scoped unchanged TS/Python/native-control evidence and all three mandatory PR shards. Formal openspec-verify-change assessment found no missing requirement implementation, uncovered scenario or design mismatch; see conformance.md. Three completion tasks remain:4.3 designated @matiHirCab review of concrete catalogs/consumers;6.5 approved synchronization/archival (verification portion complete);6.6 post-archive strict validation and the unchanged protected Moon/bootstrap gate. Only owner acceptance permits synchronization/archival. Active-change rejection before archive is expected, not success. No push/new PR/merge/deploy is authorized.
+Tasks6.1/6.2/6.3 are complete using the final-map refresh plus scoped unchanged TS/Python/native-control evidence and all three mandatory PR shards. Formal openspec-verify-change assessment found no missing requirement implementation, uncovered scenario or design mismatch; see conformance.md. Fresh owner acceptance of review HEAD b10e6b7b is recorded in approval.md. Tasks4.3/6.5 are complete after that acceptance and authorized synchronization/archival. The remaining task6.6 requires post-archive strict validation and the unchanged protected Moon/bootstrap gate. Earlier active-change rejection is preserved as expected pre-archive failure, not success. Draft branch/PR publication is authorized only after final checks pass; merge/deployment remain unauthorized.

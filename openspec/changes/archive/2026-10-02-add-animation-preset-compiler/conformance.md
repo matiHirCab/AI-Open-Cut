@@ -56,3 +56,9 @@ None required for this bounded change. The optional full weekly scope was stoppe
 ## Final assessment
 
 Three completion tasks remain. Implementation correctness/coherence and mandatory local checks are reviewable; the change is **not ready to archive until designated owner acceptance arrives**, and cannot be called complete until authorized sync/archive and the post-archive protected gate pass. No missing product implementation or test mismatch was found.
+
+## Authorized completion update — 2026-10-02
+
+The assessment above records the state presented for concrete owner review at `b10e6b7b`. The owner subsequently accepted that implementation and authorized synchronization/archival, final checks and draft publication; exact forwarded evidence and authenticated CODEOWNER identity are recorded in `approval.md`. Task4.3's review gate is therefore satisfied, without fabricating a submitted GitHub review. All five approved delta bodies were synchronized as13 added requirements, with existing living-spec bytes preserved. This change was archived using the repository skills, preserving `.openspec.yaml`; task6.5 is complete. The user expressly authorized this sequence with the post-archive task still pending.
+
+Current task status is21/22. No implementation, normative delta or test input changed. The remaining task6.6 requires strict all-spec validation and actual protected Moon/bootstrap success after archival. Earlier CRITICAL items4.3/6.5 are resolved; task6.6 remains a completion gate until its results are recorded. External publication is now authorized only after these final checks pass; merge/deployment and workflow/security changes remain outside scope.
