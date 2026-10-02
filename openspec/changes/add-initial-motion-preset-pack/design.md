@@ -1,10 +1,10 @@
 ## Context
 
-Unapproved issue46 proposal based on unmerged PR134 at67d05dbf. The roadmap at docs/motion-graphics-implementation-plan.md:357/:502 calls for slam overshoot/shake/flash/motion blur and looping scan/radar motion. Current code supports primitive scalar channels, repeat loops and per-leaf MotionBlur. Source parameters are a closed scalar record; adding pack shapes needs schema30. Core remains the owner; transports only decode and forward.
+Explicitly approved issue46 proposal (approval.md), rebased onto corrected prerequisite0dd191d2; PR134 remains unmerged. The roadmap at docs/motion-graphics-implementation-plan.md:357/:502 calls for slam overshoot/shake/flash/motion blur and looping scan/radar motion. Current code supports primitive scalar channels, repeat loops and per-leaf MotionBlur. Source parameters are a closed scalar record; adding pack shapes needs schema30. Core remains the owner; transports only decode and forward.
 
 ## Goals / Non-Goals
 
-Goals: the five requested presets with precise editable creative output, safe bounds, atomic replacement, complete descriptive source data and independent render/lifecycle fixtures. Non-goals are in proposal.md. Existing-item ring/grid construction belongs to callers. No implementation is authorized until the exact artifacts are approved.
+Goals: the five requested presets with precise editable creative output, safe bounds, atomic replacement, complete descriptive source data and independent render/lifecycle fixtures. Non-goals are in proposal.md. Existing-item ring/grid construction belongs to callers. The exact artifacts are approved; CODEOWNER implementation acceptance and separate publication confirmation remain required.
 
 ## Decisions
 
@@ -61,4 +61,4 @@ After exact design approval and issue45 resolution: fixtures/migration before co
 
 ## Open Questions
 
-Approve the exact five parameter shapes, opacity flash/shake definition, enabled blur collision semantics, loop defaults/limits and invisible radar reset, schema30, complete descriptive sources and blur-sensitive lifecycle. User continuation authorized planning, not these concrete decisions.
+Approve the exact five parameter shapes, opacity flash/shake definition, enabled blur collision semantics, loop defaults/limits and invisible radar reset, schema30, complete descriptive sources and blur-sensitive lifecycle. The user explicitly approved these concrete decisions on2026-10-02 at21:19:22UTC (approval.md).

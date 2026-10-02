@@ -1,7 +1,7 @@
 ## 1. Approval and dependency checkpoint
 
-- [ ] 1.1 Obtain explicit approval of the exact roadmap-oriented parameter/phase table, opacity flash/positional shake, enabled MotionBlur collision behavior, loop defaults/invisible radar reset, schema30 and blur-sensitive provenance rules; record attributable approval. Do not implement before this task completes.
-- [ ] 1.2 Resolve issue45 review concerns through parent; verify accepted prerequisite head, rebase this branch and preserve the unmerged dependency status until #45 actually closes. Parent must confirm scope before any issue46 publication.
+- [x] 1.1 Obtain explicit approval of the exact roadmap-oriented parameter/phase table, opacity flash/positional shake, enabled MotionBlur collision behavior, loop defaults/invisible radar reset, schema30 and blur-sensitive provenance rules; record attributable approval. Do not implement before this task completes.
+- [x] 1.2 Resolve issue45 review concerns through parent; verify accepted prerequisite head, rebase this branch and preserve the unmerged dependency status until #45 actually closes. Parent must confirm scope before any issue46 publication.
 
 ## 2. Canonical contracts and persistence
 
