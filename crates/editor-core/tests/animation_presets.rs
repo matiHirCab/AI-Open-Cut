@@ -567,8 +567,9 @@ fn raw_component_replacement_strips_forgery_and_preserves_only_known_exact_chann
     unchanged[0]["items"][0]["animationPresetProvenance"]["transform.opacity"]["presetId"] =
         json!("forged");
     core.edit(&project,3,op(json!({"operation":"component_update","componentId":component,"name":"Seed","width":64,"height":64,"durationMs":1000,"tracks":unchanged}))).unwrap();
+    let known = state(&core, &project);
     assert_eq!(
-        state(&core, &project)["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
+        known["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
         item(&saved)["animationPresetProvenance"]
     );
     let mut changed = saved["components"][0]["tracks"].clone();
@@ -608,7 +609,7 @@ fn raw_component_replacement_strips_forgery_and_preserves_only_known_exact_chann
     let restored = state(&core, &project);
     assert_eq!(
         serde_json::to_vec(&restored["components"][0]["tracks"][0]["items"][0]).unwrap(),
-        serde_json::to_vec(&saved["components"][0]["tracks"][0]["items"][0]).unwrap()
+        serde_json::to_vec(&known["components"][0]["tracks"][0]["items"][0]).unwrap()
     );
 }
 
