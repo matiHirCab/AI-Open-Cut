@@ -1967,12 +1967,15 @@ fn native_motion_pack_matches_fixed_primitives_frames_range_draft_export_and_fra
                         width: 512,
                         height: 512,
                         fps: 20,
-                        include_audio: false,
+                        include_audio: true,
                     },
                     |_| {},
                 )
                 .unwrap();
-            decode(&ffmpeg, &dir.join(result.relative_path), false)
+            (
+                decode(&ffmpeg, &dir.join(&result.relative_path), false),
+                decode(&ffmpeg, &dir.join(result.relative_path), true),
+            )
         };
         assert_eq!(range(&compiled), range(&manual));
         let export = |project: &Project, name: &str| {
@@ -2023,5 +2026,223 @@ fn native_motion_pack_matches_fixed_primitives_frames_range_draft_export_and_fra
             );
         }
         assert_eq!(files(&core, &id), authoritative);
+    }
+}
+
+#[test]
+fn motion_pack_partial_collisions_replace_order_and_nonimpact_blur_preservation() {
+    let fixture = pack_fixture();
+    let pulse = &fixture["presets"][3];
+    let (_root, core, project, id) = setup();
+    let unrelated = json!({"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]});
+    let colliding = json!({"property":"transform.scale_y","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":2.0},"curve":"hold"}]});
+    core.edit(&project,1,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":[unrelated,colliding]}))).unwrap();
+    core.edit(&project,2,op(json!({"operation":"update_item","itemId":id,"motionBlur":{"shutterAngleDeg":90.0,"sampleCount":2}}))).unwrap();
+    let before = state(&core, &project);
+    let bytes = pack_files(&core, &project);
+    assert_eq!(
+        core.edit(&project, 3, op(pack_request(&id, pulse)))
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(pack_files(&core, &project), bytes);
+    let mut replace = pack_request(&id, pulse);
+    replace["collisionPolicy"] = json!("replace");
+    core.edit(&project, 3, op(replace)).unwrap();
+    let after = state(&core, &project);
+    let expected = pack_channels(pulse);
+    assert_eq!(
+        item(&after)["animationChannels"],
+        json!([unrelated, expected[1], expected[0]])
+    );
+    assert_eq!(item(&after)["motionBlur"], item(&before)["motionBlur"]);
+    core.undo(&project, 4).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&before));
+    core.redo(&project, 5).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&after));
+}
+
+#[test]
+fn motion_pack_component_replacement_clears_only_blur_dependent_sources() {
+    let fixture = pack_fixture();
+    let (_root, core, project, id) = setup();
+    core.edit(&project, 1, op(pack_request(&id, &fixture["presets"][0])))
+        .unwrap();
+    let before = state(&core, &project);
+    let tracks = json!([before["tracks"][1]]);
+    let component=core.edit(&project,2,op(json!({"operation":"component_create","name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":tracks}))).unwrap().changed_ids[0].clone();
+    let path = core
+        .paths()
+        .project_dir(&project)
+        .unwrap()
+        .join("project.json");
+    let mut saved = state(&core, &project);
+    let mut sources = item(&before)["animationPresetProvenance"].clone();
+    for source in sources.as_object_mut().unwrap().values_mut() {
+        source["presetId"] = json!("retired_impact");
+        source["compilerVersion"] = json!(99);
+    }
+    sources["transform.opacity"] = catalog()["examples"]["retiredProvenance"].clone();
+    saved["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"] = sources.clone();
+    std::fs::write(&path, serde_json::to_vec(&saved).unwrap()).unwrap();
+    let unchanged = saved["components"][0]["tracks"].clone();
+    core.edit(&project,3,op(json!({"operation":"component_update","componentId":component,"name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":unchanged}))).unwrap();
+    let known = state(&core, &project);
+    assert_eq!(
+        known["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
+        sources
+    );
+    let mut removed = unchanged;
+    removed[0]["items"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("motionBlur");
+    core.edit(&project,4,op(json!({"operation":"component_update","componentId":component,"name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":removed}))).unwrap();
+    let after = state(&core, &project);
+    assert_eq!(
+        after["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
+        json!({"transform.opacity":sources["transform.opacity"]})
+    );
+    assert_eq!(
+        after["components"][0]["tracks"][0]["items"][0]["animationChannels"],
+        known["components"][0]["tracks"][0]["items"][0]["animationChannels"]
+    );
+    core.undo(&project, 5).unwrap();
+    assert_eq!(state(&core, &project)["components"], known["components"]);
+    core.redo(&project, 6).unwrap();
+    assert_eq!(state(&core, &project)["components"], after["components"]);
+}
+
+#[test]
+fn motion_pack_raster_budget_failure_rolls_back_aliased_prefix_and_existing_draft() {
+    let fixture = pack_fixture();
+    let (_root, core, project, id) = setup_canvas(4096);
+    let mut first = pack_request(&id, &fixture["presets"][0]);
+    first["parameters"]["motionBlur"]["sampleCount"] = json!(16);
+    core.edit(&project, 1, op(first.clone())).unwrap();
+    let draft = core
+        .create_draft(
+            &project,
+            2,
+            vec![op(
+                json!({"operation":"update_item","itemId":id,"color":"#00ff00"}),
+            )],
+            None,
+        )
+        .unwrap();
+    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+    let before = pack_files(&core, &project);
+    first["itemId"] = json!("@motion");
+    let edits:Vec<BatchEditOperation>=serde_json::from_value(json!([
+        {"operation":"update_item","itemId":id,"color":"#0000ff"},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"motion"},first])).unwrap();
+    let error = core.edit_batch(&project, 2, edits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidArgument);
+    assert!(error.message.contains("pixel work"), "{}", error.message);
+    assert_eq!(pack_files(&core, &project), before);
+    assert_eq!(
+        core.get_draft(&project, &draft.id)
+            .unwrap()
+            .operations
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn motion_pack_groups_instances_duration_edits_copies_and_channel_clear_follow_existing_owners() {
+    let fixture = pack_fixture();
+    for entry in fixture["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        core.edit(&project, 1, op(pack_request(&id, entry)))
+            .unwrap();
+        let saved = state(&core, &project);
+        let source = item(&saved)["animationPresetProvenance"].clone();
+        core.edit_batch(
+            &project,
+            2,
+            vec![
+                op(json!({"operation":"update_item","itemId":id,"color":"#00ff00"})),
+                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":900})),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            item(&state(&core, &project))["animationPresetProvenance"],
+            source
+        );
+        let before = pack_files(&core, &project);
+        assert_eq!(
+            core.edit(
+                &project,
+                3,
+                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":90}))
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(pack_files(&core, &project), before);
+        let copies = core
+            .edit(
+                &project,
+                3,
+                op(json!({"operation":"duplicate_items","itemIds":[id],"offsetMs":1500})),
+            )
+            .unwrap();
+        let copy = core.get_project(&project).unwrap();
+        assert_eq!(
+            serde_json::to_value(
+                &copy
+                    .find_item(&copies.changed_ids[0])
+                    .unwrap()
+                    .visual_properties()
+                    .animation_preset_provenance
+            )
+            .unwrap(),
+            source
+        );
+        core.edit(&project,4,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":item(&saved)["animationChannels"]}))).unwrap();
+        assert!(
+            item(&state(&core, &project))
+                .get("animationPresetProvenance")
+                .is_none()
+        );
+        core.undo(&project, 5).unwrap();
+        assert_eq!(
+            item(&state(&core, &project))["animationPresetProvenance"],
+            source
+        );
+    }
+    for entry in fixture["presets"].as_array().unwrap() {
+        for instance in [false, true] {
+            let (_root, core, project, _id) = setup();
+            let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+            let target = if instance {
+                let component=core.edit(&project,1,op(json!({"operation":"component_create","name":"Empty","width":64,"height":64,"durationMs":1000,"tracks":[]}))).unwrap().changed_ids[0].clone();
+                core.edit(&project,2,op(json!({"operation":"add_component_instance","trackId":track,"componentId":component,"startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1}))).unwrap().changed_ids[0].clone()
+            } else {
+                core.edit(&project,1,op(json!({"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000}))).unwrap().changed_ids[0].clone()
+            };
+            let revision = core.get_project(&project).unwrap().revision;
+            if !instance {
+                core.edit(
+                    &project,
+                    revision,
+                    op(json!({"operation":"update_item","itemId":target,"transform2d":null})),
+                )
+                .unwrap();
+            }
+            let revision = core.get_project(&project).unwrap().revision;
+            let before = pack_files(&core, &project);
+            let applied = core.edit(&project, revision, op(pack_request(&target, entry)));
+            if entry["id"] == "impact_slam" {
+                assert_eq!(applied.unwrap_err().code, ErrorCode::InvalidArgument);
+                assert_eq!(pack_files(&core, &project), before);
+            } else {
+                applied.unwrap();
+            }
+        }
     }
 }
