@@ -1,33 +1,33 @@
 ## 1. Approval and canonical contract preparation
 
 - [x] 1.1 Obtain explicit owner approval of proposal/design/all five delta specifications/tasks; record exact approved content and scope. Recheck main, PR #133 and dependencies; preserve the published midpoint fix and do not publish without separate authorization.
-- [ ] 1.2 Cross-layer contract governance: add manually reviewed `contracts/animation-presets-v1.json` with all six property bounds, four curve families, effective defaults, fixed keys/provenance, collision/retirement/lifecycle/error fixtures and named limits. Add ownership/CODEOWNER coverage for new consumers; plan synchronized protocol-1 headless/MCP fixture changes without touching workflow gates.
+- [x] 1.2 Cross-layer contract governance: add manually reviewed `contracts/animation-presets-v1.json` with all six property bounds, four curve families, effective defaults, fixed keys/provenance, collision/retirement/lifecycle/error fixtures and named limits. Add ownership/CODEOWNER coverage for new consumers; plan synchronized protocol-1 headless/MCP fixture changes without touching workflow gates.
 
 ## 2. Core persisted model and migration
 
-- [ ] 2.1 Core model/validation: add typed parameters, provenance records and schema-29 optional sidecar with strict null/unknown-field handling, finite/version/identity checks and bounded maps; keep existing channel payloads unchanged. Add independent model/fixture tests for descriptive retired versions and malformed/orphan records.
-- [ ] 2.2 Core migrations: implement empty-provenance migration through supported older schemas for root/component items in current state and every retained undo/redo snapshot; reject premature fields and unknown future schemas; preserve primitive/media/revision/timestamp state.
+- [x] 2.1 Core model/validation: add typed parameters, provenance records and schema-29 optional sidecar with strict null/unknown-field handling, finite/version/identity checks and bounded maps; keep existing channel payloads unchanged. Add independent model/fixture tests for descriptive retired versions and malformed/orphan records.
+- [x] 2.2 Core migrations: implement empty-provenance migration through supported older schemas for root/component items in current state and every retained undo/redo snapshot; reject premature fields and unknown future schemas; preserve primitive/media/revision/timestamp state.
 - [ ] 2.3 Core persistence tests: prove complete-generation atomicity on invalid current/undo/redo state and named pre/post-commit I/O fault phases, recovery without recompilation/duplicate edits, mixed older snapshots and byte-preserving idempotent reopen. Do not add a new transaction owner or draft format.
 
 ## 3. Core compiler, edits and source lifecycle
 
-- [ ] 3.1 Core timeline: add the pure nested compiler for `scalar_tween@1`, version dispatch, default normalization, checked safe-integer timing, explicit scalar endpoints and terminal hold/no-loop output. Cover every property/curve with independently fixed keys and sample oracles, not compiler-generated expectations.
-- [ ] 3.2 Core timeline/validation: integrate `apply_animation_preset` through existing edit/batch paths, canonical target/legacy checks, reject/default and whole-channel explicit-replace policies, stable channel order and provenance updates; preserve unrelated channels/static properties. Cover disjoint/identical collisions, legacy coupled-axis collisions, timing/endpoint/curve boundaries and incompatible/deferred inputs.
+- [x] 3.1 Core timeline: add the pure nested compiler for `scalar_tween@1`, version dispatch, default normalization, checked safe-integer timing, explicit scalar endpoints and terminal hold/no-loop output. Cover every property/curve with independently fixed keys and sample oracles, not compiler-generated expectations.
+- [x] 3.2 Core timeline/validation: integrate `apply_animation_preset` through existing edit/batch paths, canonical target/legacy checks, reject/default and whole-channel explicit-replace policies, stable channel order and provenance updates; preserve unrelated channels/static properties. Cover disjoint/identical collisions, legacy coupled-axis collisions, timing/endpoint/curve boundaries and incompatible/deferred inputs.
 - [ ] 3.3 Core timeline/store tests: prove stale-revision/missing-item/missing-asset/locked-track/alias misuse errors, earlier `@alias` resolution, non-creator `resultAlias` rejection, one-revision success and whole-batch rollback after earlier successes or final scene-safety failure. Retain existing resource/history/certification budgets.
-- [ ] 3.4 Core lifecycle: clear metadata on raw collection replacement and changed/removed/retimed primitives; preserve known records for exact core copies/unchanged local channels; sanitize raw component replacements; cover static/move/parent/visibility edits, deletion, split/duration outcomes, and exact undo/redo/reopen of primitives plus source records.
-- [ ] 3.5 Core draft orchestration: reject preset application intents on create/update/read-materialization/preview/rebase/commit before writes, using the current core error path; preserve accepted draft inputs/version 2. Test existing draft previews of committed presets and isolated raw-channel clearing/commit/discard.
+- [x] 3.4 Core lifecycle: clear metadata on raw collection replacement and changed/removed/retimed primitives; preserve known records for exact core copies/unchanged local channels; sanitize raw component replacements; cover static/move/parent/visibility edits, deletion, split/duration outcomes, and exact undo/redo/reopen of primitives plus source records.
+- [x] 3.5 Core draft orchestration: reject preset application intents on create/update/read-materialization/preview/rebase/commit before writes, using the current core error path; preserve accepted draft inputs/version 2. Test existing draft previews of committed presets and isolated raw-channel clearing/commit/discard.
 
 ## 4. Typed headless and bridge consumers
 
-- [ ] 4.1 Headless: integrate the typed nested edit with current standalone/batch envelopes; advertise `animation_presets_v1` and schema 29 under protocol 1; synchronize request/state/capability fixtures and protocol tests. Keep transport free of domain compilation/validation.
-- [ ] 4.2 Bridge: add typed preset input/output sidecar schemas, exported nested edit types, `timeline_apply_animation_preset` registration and batch mapping; use injected core transport and existing WriteResult/error adapters. Add compile-time negative fixtures and runtime direct/MCP failure tests, including unknown versions reaching core.
+- [x] 4.1 Headless: integrate the typed nested edit with current standalone/batch envelopes; advertise `animation_presets_v1` and schema 29 under protocol 1; synchronize request/state/capability fixtures and protocol tests. Keep transport free of domain compilation/validation.
+- [x] 4.2 Bridge: add typed preset input/output sidecar schemas, exported nested edit types, `timeline_apply_animation_preset` registration and batch mapping; use injected core transport and existing WriteResult/error adapters. Add compile-time negative fixtures and runtime direct/MCP failure tests, including unknown versions reaching core.
 - [ ] 4.3 Cross-layer contract governance: update the manually reviewed headless/MCP catalogs and reviewed expanded-schema digest, all governed consumers and fixture evidence; exercise the new catalog through existing canonical parity entry points as well as focused tests so `bun run contracts:check` actually covers it. Obtain `@matiHirCab` CODEOWNER review; preserve all existing identifiers, annotations, errors and retryability.
 - [ ] 4.4 Bridge integration/packaged smoke: add one real headless/MCP workflow covering direct apply, creation alias, explicit replace, failed later batch, source clearing, undo/redo and reopen. Exercise a semantically invalid preset after valid operations with structurally valid Zod input so rollback reaches core. Distinguish mocked smoke from native render evidence.
 
 ## 5. Conformance and documentation
 
 - [ ] 5.1 Core renderer conformance: compare preset-created channels to independently authored primitives through evaluated scenes/frame/range/ordinary draft/export at boundaries/interior/fractional inherited clocks; include visual and gain/audio examples, saved retired provenance and untagged controls. Preserve all old tolerances, goldens and exact-midpoint regression.
-- [ ] 5.2 Documentation/fixtures: document the single seed, exact parameter bounds and units, explicit versions, half-open timing, collisions, source lifecycle, protocol/schema transition, backup rollback and draft/root-only authoring limitations; distinguish #45's seed from #46's creative pack. Keep every delta scenario linked to an automated test using the coverage map below; document any technically impossible automation explicitly.
+- [x] 5.2 Documentation/fixtures: document the single seed, exact parameter bounds and units, explicit versions, half-open timing, collisions, source lifecycle, protocol/schema transition, backup rollback and draft/root-only authoring limitations; distinguish #45's seed from #46's creative pack. Keep every delta scenario linked to an automated test using the coverage map below; document any technically impossible automation explicitly.
 
 ## 6. Required verification, synchronization and archival
 
@@ -40,7 +40,7 @@
 
 ## 7. Scenario coverage map
 
-This map is an implementation obligation, not completed-test evidence. Every scenario in the five deltas must be named by an automated case and its recorded check before verification. New test files below are proposed locations; none has been created before approval.
+This map records owning implementation coverage. Exact named tests and check results are recorded in verification.md as verification completes. Every scenario in the five deltas must be named by an automated case and its recorded check before verification. New test files were created only after the recorded explicit design approval.
 
 | Delta requirement | Owning tests / tasks |
 | --- | --- |

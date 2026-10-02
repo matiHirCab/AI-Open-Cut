@@ -135,40 +135,7 @@ pub(crate) fn validate_channels(
                 ));
             }
             previous = Some(keyframe.time_ms);
-            match keyframe.curve {
-                AnimationCurve::Simple(_) => {}
-                AnimationCurve::Parameterized(curve) => {
-                    if index + 1 == channel.keyframes.len() {
-                        return Err(invalid("parameterized curve requires a following keyframe"));
-                    }
-                    let valid = match curve {
-                        ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 } => {
-                            [x1, y1, x2, y2]
-                                .iter()
-                                .all(|value| value.is_finite() && (0.0..=1.0).contains(value))
-                                && x1 <= x2
-                        }
-                        ParameterizedAnimationCurve::Spring {
-                            mass,
-                            stiffness,
-                            damping,
-                            initial_velocity,
-                        } => {
-                            mass.is_finite()
-                                && (0.01..=100.0).contains(&mass)
-                                && stiffness.is_finite()
-                                && (0.01..=10_000.0).contains(&stiffness)
-                                && damping.is_finite()
-                                && (0.01..=1_000.0).contains(&damping)
-                                && initial_velocity.is_finite()
-                                && (-100.0..=100.0).contains(&initial_velocity)
-                        }
-                    };
-                    if !valid {
-                        return Err(invalid("animation curve parameters exceed finite bounds"));
-                    }
-                }
-            }
+            validate_curve(keyframe.curve, index + 1 == channel.keyframes.len())?;
             if channel.property.extended() {
                 super::extended_visual::validate_value(channel, item, &keyframe.value)?;
                 continue;
@@ -176,21 +143,68 @@ pub(crate) fn validate_channels(
             let AnimationChannelValue::Scalar { value } = keyframe.value else {
                 return Err(invalid("active animation channel requires scalar values"));
             };
-            let within = match channel.property {
-                AnimationChannelProperty::PositionX | AnimationChannelProperty::PositionY => {
-                    (-1_000_000.0..=1_000_000.0).contains(&value)
-                }
-                AnimationChannelProperty::ScaleX | AnimationChannelProperty::ScaleY => {
-                    value > 0.0 && value <= 100.0
-                }
-                AnimationChannelProperty::Opacity => (0.0..=1.0).contains(&value),
-                AnimationChannelProperty::GainDb => (-96.0..=12.0).contains(&value),
-                _ => false,
-            };
-            if !value.is_finite() || !within {
-                return Err(invalid("animation channel value exceeds finite bounds"));
-            }
+            validate_scalar_value(channel.property, value)?;
         }
     }
     validate_legacy_collision(channels, item.keyframes())
+}
+
+pub(crate) fn validate_curve(curve: AnimationCurve, terminal: bool) -> Result<(), CoreError> {
+    match curve {
+        AnimationCurve::Simple(_) => {}
+        AnimationCurve::Parameterized(curve) => {
+            if terminal {
+                return Err(invalid("parameterized curve requires a following keyframe"));
+            }
+            let valid = match curve {
+                ParameterizedAnimationCurve::CubicBezier { x1, y1, x2, y2 } => {
+                    [x1, y1, x2, y2]
+                        .iter()
+                        .all(|value| value.is_finite() && (0.0..=1.0).contains(value))
+                        && x1 <= x2
+                }
+                ParameterizedAnimationCurve::Spring {
+                    mass,
+                    stiffness,
+                    damping,
+                    initial_velocity,
+                } => {
+                    mass.is_finite()
+                        && (0.01..=100.0).contains(&mass)
+                        && stiffness.is_finite()
+                        && (0.01..=10_000.0).contains(&stiffness)
+                        && damping.is_finite()
+                        && (0.01..=1_000.0).contains(&damping)
+                        && initial_velocity.is_finite()
+                        && (-100.0..=100.0).contains(&initial_velocity)
+                }
+            };
+            if !valid {
+                return Err(invalid("animation curve parameters exceed finite bounds"));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) fn validate_scalar_value(
+    property: AnimationChannelProperty,
+    value: f64,
+) -> Result<(), CoreError> {
+    let within = match property {
+        AnimationChannelProperty::PositionX | AnimationChannelProperty::PositionY => {
+            (-1_000_000.0..=1_000_000.0).contains(&value)
+        }
+        AnimationChannelProperty::ScaleX | AnimationChannelProperty::ScaleY => {
+            value > 0.0 && value <= 100.0
+        }
+        AnimationChannelProperty::Opacity => (0.0..=1.0).contains(&value),
+        AnimationChannelProperty::GainDb => (-96.0..=12.0).contains(&value),
+        _ => false,
+    };
+    if !value.is_finite() || !within {
+        return Err(invalid("animation channel value exceeds finite bounds"));
+    }
+    Ok(())
 }

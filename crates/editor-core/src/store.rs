@@ -817,6 +817,7 @@ impl EditorCore {
         operations: Vec<EditOperation>,
         label: Option<String>,
     ) -> Result<EditDraft, CoreError> {
+        crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
@@ -890,6 +891,7 @@ impl EditorCore {
         operations: Vec<EditOperation>,
         label: Option<String>,
     ) -> Result<EditDraft, CoreError> {
+        crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
@@ -4357,6 +4359,91 @@ mod tests {
     }
 
     #[test]
+    fn preset_provenance_recovers_all_publication_phases_without_recompilation() {
+        for phase in [
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _root) = core();
+            let id = core
+                .create_project("Preset recovery", ProjectSettings::default())
+                .unwrap()
+                .project_id;
+            let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+            let add=serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+            let item_id = core.edit(&id, 0, add).unwrap().changed_ids[0].clone();
+            let dir = core.paths().project_dir(&id).unwrap();
+            let before = (
+                std::fs::read(project_path(&dir)).unwrap(),
+                std::fs::read(history_path(&dir)).unwrap(),
+            );
+            let mut request: serde_json::Value =
+                serde_json::from_str(include_str!("../../../contracts/animation-presets-v1.json"))
+                    .unwrap();
+            request = request["examples"]["apply"].clone();
+            request["itemId"] = serde_json::json!(item_id);
+            set_persistence_fault(&core, phase);
+            let result = core.edit(&id, 1, serde_json::from_value(request).unwrap());
+            if phase == PersistencePhase::BeforeJournal {
+                assert!(result.is_err());
+                assert_eq!(
+                    (
+                        std::fs::read(project_path(&dir)).unwrap(),
+                        std::fs::read(history_path(&dir)).unwrap()
+                    ),
+                    before
+                );
+            } else {
+                assert_eq!(result.unwrap().revision, 2);
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let project = reopened.get_project(&id).unwrap();
+            let visual = project.find_item(&item_id).unwrap().visual_properties();
+            assert_eq!(
+                project.revision,
+                if phase == PersistencePhase::BeforeJournal {
+                    1
+                } else {
+                    2
+                }
+            );
+            assert_eq!(
+                visual.animation_preset_provenance.len(),
+                if phase == PersistencePhase::BeforeJournal {
+                    0
+                } else {
+                    1
+                }
+            );
+            if phase != PersistencePhase::BeforeJournal {
+                let fixture: serde_json::Value = serde_json::from_str(include_str!(
+                    "../../../contracts/animation-presets-v1.json"
+                ))
+                .unwrap();
+                assert_eq!(
+                    serde_json::to_value(&visual.animation_channels).unwrap(),
+                    serde_json::json!([fixture["examples"]["resolvedChannel"]])
+                );
+                assert_eq!(
+                    serde_json::to_value(
+                        visual.animation_preset_provenance.values().next().unwrap()
+                    )
+                    .unwrap(),
+                    fixture["examples"]["provenance"]
+                );
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert_eq!(history.undo.len(), 2);
+            }
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
     fn supported_migrations_recover_every_publication_phase() {
         let phases = [
             PersistencePhase::AfterJournal,
@@ -4366,7 +4453,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {

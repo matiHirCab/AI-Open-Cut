@@ -73,6 +73,7 @@ pub(crate) fn read_draft(
         ));
     }
     let draft: EditDraft = read_json(storage, &path)?;
+    reject_preset_intents(&draft.operations)?;
     if !matches!(draft.version, 1 | DRAFT_VERSION) {
         return Err(CoreError::new(
             ErrorCode::InternalError,
@@ -149,4 +150,17 @@ pub(crate) fn count_drafts(storage: &dyn Storage, directory: &Path) -> Result<us
         .into_iter()
         .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
         .count())
+}
+
+pub(crate) fn reject_preset_intents(operations: &[EditOperation]) -> Result<(), CoreError> {
+    if operations
+        .iter()
+        .any(|operation| matches!(operation, EditOperation::ApplyAnimationPreset { .. }))
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "animation preset intents are not supported in drafts",
+        ));
+    }
+    Ok(())
 }

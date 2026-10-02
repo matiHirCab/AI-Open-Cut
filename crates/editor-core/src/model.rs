@@ -1,7 +1,9 @@
 mod buffered;
 use buffered::BufferedValue;
 mod animation_channels;
+mod animation_presets;
 pub use animation_channels::*;
+pub use animation_presets::*;
 mod motion_blur;
 pub use motion_blur::*;
 mod visual_effects;
@@ -24,7 +26,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 28;
+pub const PROJECT_SCHEMA_VERSION: u32 = 29;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -192,6 +194,12 @@ impl TryFrom<ProjectDocument> for Project {
             reject_inherited_timing(&value.tracks)?;
             if let Some(components) = &value.components {
                 reject_inherited_timing(components)?;
+            }
+        }
+        if value.schema_version < 29 {
+            reject_preset_provenance(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_preset_provenance(components)?;
             }
         }
         if value.schema_version < 28 {
@@ -455,6 +463,26 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub(crate) fn reject_preset_provenance(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            if fields.contains_key("animationPresetProvenance") {
+                return Err("preset provenance requires schema 29".into());
+            }
+            for child in fields.values() {
+                reject_preset_provenance(child)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_preset_provenance(child)?;
             }
         }
         _ => {}
@@ -1049,6 +1077,9 @@ pub struct VisualProperties {
     pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub animation_channels: Vec<AnimationChannel>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub animation_preset_provenance:
+        std::collections::BTreeMap<AnimationChannelProperty, AnimationPresetProvenance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<ParentReference>,
     #[serde(default)]
@@ -1071,6 +1102,7 @@ impl VisualProperties {
             effects: Vec::new(),
             start_time: None,
             animation_channels: Vec::new(),
+            animation_preset_provenance: Default::default(),
             parent: None,
             transform,
             hidden,
@@ -2106,6 +2138,14 @@ pub enum EditOperation {
         item_id: String,
         keyframes: Vec<Keyframe>,
     },
+    ApplyAnimationPreset {
+        item_id: String,
+        preset_id: String,
+        preset_version: u32,
+        parameters: AnimationPresetParameters,
+        #[serde(default)]
+        collision_policy: AnimationPresetCollisionPolicy,
+    },
     SetAnimationChannels {
         item_id: String,
         animation_channels: Vec<AnimationChannel>,
@@ -2493,6 +2533,14 @@ enum EditOperationDef {
         item_id: String,
         keyframes: Vec<Keyframe>,
     },
+    ApplyAnimationPreset {
+        item_id: String,
+        preset_id: String,
+        preset_version: u32,
+        parameters: AnimationPresetParameters,
+        #[serde(default)]
+        collision_policy: AnimationPresetCollisionPolicy,
+    },
     SetAnimationChannels {
         item_id: String,
         animation_channels: Vec<AnimationChannel>,
@@ -2715,6 +2763,14 @@ impl<'de> Deserialize<'de> for EditOperation {
                 "durationMs",
                 "transform2d",
                 "parent",
+            ]),
+            Some("apply_animation_preset") => Some(&[
+                "operation",
+                "itemId",
+                "presetId",
+                "presetVersion",
+                "parameters",
+                "collisionPolicy",
             ]),
             Some("item_set_parent") => Some(&["operation", "itemId", "parent"]),
             Some("item_set_z_index") => Some(&["operation", "itemId", "zIndex"]),

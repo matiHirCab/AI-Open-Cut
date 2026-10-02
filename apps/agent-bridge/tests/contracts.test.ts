@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import type { ResourceTemplate } from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
+import PRESETS from "../../../contracts/animation-presets-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -55,7 +56,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "d1ee42ad21674fb56b0fce1d55c52c17695d0345e85ad68e9278c9da897ea822";
+  "343c11014f9203e3b929863c83a31301873dc07421067708633739e88b136690";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -234,11 +235,26 @@ const dependencies = {
 } as unknown as ServerDependencies;
 
 describe("canonical public contracts", () => {
+  it("consumes the independent animation preset contract in the canonical gate", () => {
+    expect(headlessEditSchema.parse(PRESETS.examples.apply)).toEqual({
+      ...PRESETS.examples.apply,
+      collisionPolicy: "reject",
+      parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
+    });
+    expect(PRESETS.compilerVersion).toBe(1);
+    expect(PRESETS.projectSchemaVersion).toBe(29);
+    expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
+      { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
+      { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
+    ]);
+    expect(PRESETS.examples.retiredProvenance.presetVersion).toBeGreaterThan(0);
+  });
+
   it("expands the compact MCP catalog deterministically to the legacy catalog", () => {
     const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     expect(first).toEqual(second);
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(76);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(77);
     expect(
       createHash("sha256").update(JSON.stringify(first)).digest("hex")
     ).toBe(MCP_BASELINE_DIGEST);
@@ -442,7 +458,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 28,
+      projectSchemaVersion: 29,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -486,6 +502,7 @@ describe("canonical public contracts", () => {
       "inherited_animation_timing_v1",
       "extended_visual_animation_v1",
       "motion_blur_sampling_v1",
+      "animation_presets_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

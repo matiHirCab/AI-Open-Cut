@@ -20,7 +20,8 @@
     "animation_loops_v1",
     "inherited_animation_timing_v1",
     "extended_visual_animation_v1",
-    "motion_blur_sampling_v1"
+    "motion_blur_sampling_v1",
+    "animation_presets_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2218,7 +2219,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 28,
+            "const": 29,
             "type": "number"
           },
           "protocolVersion": {
@@ -6716,6 +6717,245 @@
         "type": "object"
       }
     },
+    "timeline_apply_animation_preset": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "collisionPolicy": {
+            "default": "reject",
+            "enum": [
+              "reject",
+              "replace"
+            ],
+            "type": "string"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "curve": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "hold",
+                      "linear"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "cubic_bezier",
+                            "type": "string"
+                          },
+                          "x1": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "x2": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "y1": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "y2": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "x1",
+                          "x2",
+                          "y1",
+                          "y2"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "damping": {
+                            "maximum": 1000,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "initialVelocity": {
+                            "maximum": 100,
+                            "minimum": -100,
+                            "type": "number"
+                          },
+                          "mass": {
+                            "maximum": 100,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "stiffness": {
+                            "maximum": 10000,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "type": {
+                            "const": "spring",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "damping",
+                          "initialVelocity",
+                          "mass",
+                          "stiffness",
+                          "type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                ],
+                "default": "linear"
+              },
+              "durationMs": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "from": {
+                "type": "number"
+              },
+              "property": {
+                "enum": [
+                  "transform.position_x",
+                  "transform.position_y",
+                  "transform.scale_x",
+                  "transform.scale_y",
+                  "transform.opacity",
+                  "audio.gain_db"
+                ],
+                "type": "string"
+              },
+              "startMs": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "durationMs",
+              "from",
+              "property",
+              "startMs",
+              "to"
+            ],
+            "type": "object"
+          },
+          "presetId": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "presetVersion": {
+            "maximum": 4294967295,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "itemId",
+          "parameters",
+          "presetId",
+          "presetVersion"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
     "timeline_batch_edit": {
       "annotations": {
         "destructiveHint": false,
@@ -10213,6 +10453,7 @@
     "timeline_add_svg",
     "timeline_add_text",
     "timeline_add_transition",
+    "timeline_apply_animation_preset",
     "timeline_batch_edit",
     "timeline_delete_item",
     "timeline_duplicate_items",
@@ -10886,6 +11127,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -11439,6 +11683,9 @@
     "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "color": {
         "type": "string"
@@ -14195,6 +14442,175 @@
           "type": "object"
         },
         {
+          "additionalProperties": false,
+          "properties": {
+            "collisionPolicy": {
+              "default": "reject",
+              "enum": [
+                "reject",
+                "replace"
+              ],
+              "type": "string"
+            },
+            "itemId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "apply_animation_preset",
+              "type": "string"
+            },
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "hold",
+                        "linear"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "const": "cubic_bezier",
+                              "type": "string"
+                            },
+                            "x1": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "x2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "y1": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "y2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "x1",
+                            "x2",
+                            "y1",
+                            "y2"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "damping": {
+                              "maximum": 1000,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "initialVelocity": {
+                              "maximum": 100,
+                              "minimum": -100,
+                              "type": "number"
+                            },
+                            "mass": {
+                              "maximum": 100,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "stiffness": {
+                              "maximum": 10000,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "type": {
+                              "const": "spring",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "damping",
+                            "initialVelocity",
+                            "mass",
+                            "stiffness",
+                            "type"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  ],
+                  "default": "linear"
+                },
+                "durationMs": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "from": {
+                  "type": "number"
+                },
+                "property": {
+                  "enum": [
+                    "transform.position_x",
+                    "transform.position_y",
+                    "transform.scale_x",
+                    "transform.scale_y",
+                    "transform.opacity",
+                    "audio.gain_db"
+                  ],
+                  "type": "string"
+                },
+                "startMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "to": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "durationMs",
+                "from",
+                "property",
+                "startMs",
+                "to"
+              ],
+              "type": "object"
+            },
+            "presetId": {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            "presetVersion": {
+              "maximum": 4294967295,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "itemId",
+            "parameters",
+            "presetId",
+            "presetVersion",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
           "$ref": "#/$defs/OperationsItemsOneOfSetAnimationChannels"
         },
         {
@@ -15965,6 +16381,177 @@
           "required": [
             "itemId",
             "keyframes",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "collisionPolicy": {
+              "default": "reject",
+              "enum": [
+                "reject",
+                "replace"
+              ],
+              "type": "string"
+            },
+            "itemId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "apply_animation_preset",
+              "type": "string"
+            },
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {
+                "curve": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "hold",
+                        "linear"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "const": "cubic_bezier",
+                              "type": "string"
+                            },
+                            "x1": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "x2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "y1": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "y2": {
+                              "maximum": 1,
+                              "minimum": 0,
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "x1",
+                            "x2",
+                            "y1",
+                            "y2"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "damping": {
+                              "maximum": 1000,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "initialVelocity": {
+                              "maximum": 100,
+                              "minimum": -100,
+                              "type": "number"
+                            },
+                            "mass": {
+                              "maximum": 100,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "stiffness": {
+                              "maximum": 10000,
+                              "minimum": 0.01,
+                              "type": "number"
+                            },
+                            "type": {
+                              "const": "spring",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "damping",
+                            "initialVelocity",
+                            "mass",
+                            "stiffness",
+                            "type"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  ],
+                  "default": "linear"
+                },
+                "durationMs": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "from": {
+                  "type": "number"
+                },
+                "property": {
+                  "enum": [
+                    "transform.position_x",
+                    "transform.position_y",
+                    "transform.scale_x",
+                    "transform.scale_y",
+                    "transform.opacity",
+                    "audio.gain_db"
+                  ],
+                  "type": "string"
+                },
+                "startMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "to": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "curve",
+                "durationMs",
+                "from",
+                "property",
+                "startMs",
+                "to"
+              ],
+              "type": "object"
+            },
+            "presetId": {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            "presetVersion": {
+              "maximum": 4294967295,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "collisionPolicy",
+            "itemId",
+            "parameters",
+            "presetId",
+            "presetVersion",
             "operation"
           ],
           "type": "object"
@@ -18033,6 +18620,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -18418,6 +19008,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -18683,6 +19276,9 @@
     "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -19040,6 +19636,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -19290,6 +19889,9 @@
     "InputPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "assetId": {
         "maxLength": 128,
@@ -19688,6 +20290,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -20059,6 +20664,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -20423,6 +21031,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -20781,6 +21392,9 @@
     "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -21141,6 +21755,9 @@
     "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "color": {
         "type": "string"
@@ -22095,6 +22712,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -22369,6 +22989,9 @@
     "ItemsPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "componentId": {
         "maxLength": 128,
@@ -24795,7 +25418,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 28,
+        "const": 29,
         "type": "number"
       },
       "settings": {
@@ -25447,6 +26070,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -25828,6 +26454,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -26088,6 +26717,9 @@
     "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -26440,6 +27072,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -26685,6 +27320,9 @@
     "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "assetId": {
         "maxLength": 128,
@@ -27078,6 +27716,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -27444,6 +28085,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -27803,6 +28447,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -28156,6 +28803,9 @@
     "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -28516,6 +29166,9 @@
     "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "color": {
         "type": "string"
@@ -29125,6 +29778,9 @@
     "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties": {
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
+      },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -30385,6 +31041,9 @@
       "animationChannels": {
         "$ref": "#/$defs/ComponentInstancePropertiesAnimationChannels"
       },
+      "animationPresetProvenance": {
+        "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -30937,6 +31596,176 @@
           "type": "object"
         }
       ]
+    },
+    "AnimationPresetProvenanceMap": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "compilerVersion": {
+            "maximum": 4294967295,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "curve": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "hold",
+                      "linear"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "const": "cubic_bezier",
+                            "type": "string"
+                          },
+                          "x1": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "x2": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "y1": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "y2": {
+                            "maximum": 1,
+                            "minimum": 0,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "x1",
+                          "x2",
+                          "y1",
+                          "y2"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "damping": {
+                            "maximum": 1000,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "initialVelocity": {
+                            "maximum": 100,
+                            "minimum": -100,
+                            "type": "number"
+                          },
+                          "mass": {
+                            "maximum": 100,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "stiffness": {
+                            "maximum": 10000,
+                            "minimum": 0.01,
+                            "type": "number"
+                          },
+                          "type": {
+                            "const": "spring",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "damping",
+                          "initialVelocity",
+                          "mass",
+                          "stiffness",
+                          "type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "durationMs": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "from": {
+                "type": "number"
+              },
+              "property": {
+                "enum": [
+                  "transform.position_x",
+                  "transform.position_y",
+                  "transform.scale_x",
+                  "transform.scale_y",
+                  "transform.opacity",
+                  "audio.gain_db"
+                ],
+                "type": "string"
+              },
+              "startMs": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "curve",
+              "durationMs",
+              "from",
+              "property",
+              "startMs",
+              "to"
+            ],
+            "type": "object"
+          },
+          "presetId": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "presetVersion": {
+            "maximum": 4294967295,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "compilerVersion",
+          "parameters",
+          "presetId",
+          "presetVersion"
+        ],
+        "type": "object"
+      },
+      "propertyNames": {
+        "enum": [
+          "transform.position_x",
+          "transform.position_y",
+          "transform.scale_x",
+          "transform.scale_y",
+          "transform.opacity",
+          "audio.gain_db"
+        ],
+        "type": "string"
+      },
+      "type": "object"
     }
   }
 }

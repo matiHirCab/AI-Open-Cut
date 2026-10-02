@@ -8,6 +8,7 @@ import type {
   addShapeSchema,
   addSvgSchema,
   animationChannelSchema,
+  animationPresetParametersSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
@@ -220,6 +221,14 @@ export type HeadlessEdit =
       startMs: number;
     }
   | { operation: "delete_item"; itemId: string }
+  | {
+      operation: "apply_animation_preset";
+      itemId: string;
+      presetId: string;
+      presetVersion: number;
+      parameters: z.input<typeof animationPresetParametersSchema>;
+      collisionPolicy?: "reject" | "replace" | undefined;
+    }
   | { operation: "set_keyframes"; itemId: string; keyframes: unknown[] }
   | {
       operation: "set_animation_channels";

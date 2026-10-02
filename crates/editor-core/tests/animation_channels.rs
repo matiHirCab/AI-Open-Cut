@@ -16,6 +16,9 @@ mod motion_blur_sampling;
 #[path = "animation_lifecycle_regressions.rs"]
 mod animation_lifecycle_regressions;
 
+#[path = "animation_presets.rs"]
+mod animation_presets;
+
 fn fixture() -> Value {
     serde_json::from_str(include_str!(
         "../../../contracts/animation-channels-v1.json"

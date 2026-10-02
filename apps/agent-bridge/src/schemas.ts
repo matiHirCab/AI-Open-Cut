@@ -411,6 +411,51 @@ export const animationChannelSchema = z
   })
   .strict();
 
+export const animationPresetPropertySchema = z.enum([
+  "transform.position_x",
+  "transform.position_y",
+  "transform.scale_x",
+  "transform.scale_y",
+  "transform.opacity",
+  "audio.gain_db",
+]);
+export const animationPresetParametersSchema = z
+  .object({
+    curve:
+      animationChannelSchema.shape.keyframes.element.shape.curve.default(
+        "linear"
+      ),
+    durationMs: positiveMilliseconds.max(Number.MAX_SAFE_INTEGER),
+    from: finite,
+    property: animationPresetPropertySchema,
+    startMs: milliseconds.max(Number.MAX_SAFE_INTEGER),
+    to: finite,
+  })
+  .strict();
+const animationPresetProvenanceSchema = z
+  .object({
+    compilerVersion: z.int().min(1).max(4_294_967_295),
+    parameters: animationPresetParametersSchema
+      .extend({
+        curve: animationChannelSchema.shape.keyframes.element.shape.curve,
+      })
+      .strict(),
+    presetId: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+    presetVersion: z.int().min(1).max(4_294_967_295),
+  })
+  .strict();
+const animationPresetProvenanceMapSchema = z.partialRecord(
+  animationPresetPropertySchema,
+  animationPresetProvenanceSchema
+);
+export const animationPresetEditFields = {
+  collisionPolicy: z.enum(["reject", "replace"]).default("reject"),
+  itemId: id,
+  parameters: animationPresetParametersSchema,
+  presetId: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+  presetVersion: z.int().min(1).max(4_294_967_295),
+};
+
 export const writeResultSchema = z
   .object({
     aliases: z.record(z.string(), id).default({}),
@@ -456,7 +501,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(28).optional(),
+    projectSchemaVersion: z.literal(29).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -914,6 +959,7 @@ export const transcriptionEstimateSchema = z
 const mediaItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     assetId: id,
     audio: audioSchema,
     crop: mediaCropSchema.optional(),
@@ -938,6 +984,7 @@ const mediaItemSchema = z
 const textItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     color: z.string(),
     crop: mediaCropSchema.optional(),
     document: z.lazy(() => richTextDocumentSchema),
@@ -967,6 +1014,7 @@ const textItemSchema = z
 const solidColorItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     color,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1026,6 +1074,7 @@ export const addGridSchema = z.strictObject({
 });
 const repeaterItemSchema = z.strictObject({
   animationChannels: z.array(animationChannelSchema).max(64).optional(),
+  animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
   crop: mediaCropSchema.optional(),
   durationMs: positiveMilliseconds,
   effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1069,6 +1118,7 @@ const captionWordSchema = z
 const captionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1111,6 +1161,7 @@ const captionItemSchema = z
 const transitionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1135,6 +1186,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
   z
     .object({
       animationChannels: z.array(animationChannelSchema).max(64).optional(),
+      animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
       crop: mediaCropSchema.optional(),
       durationMs: positiveMilliseconds,
       effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1323,6 +1375,7 @@ const slotValuesSchema = z
 export const componentInstanceSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
+    animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     componentId: id,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1561,7 +1614,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(28),
+        schemaVersion: z.literal(29),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1900,6 +1953,12 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       itemId: id,
       keyframes: z.array(keyframeSchema).max(1000),
       operation: z.literal("set_keyframes"),
+    })
+    .strict(),
+  z
+    .object({
+      ...animationPresetEditFields,
+      operation: z.literal("apply_animation_preset"),
     })
     .strict(),
   z
@@ -2292,6 +2351,9 @@ export const schemas = {
       trackId: id,
       transitionType: z.enum(["fade", "crossfade"]),
     })
+    .strict(),
+  timelineApplyAnimationPreset: projectRevisionSchema
+    .extend(animationPresetEditFields)
     .strict(),
   timelineBatchEdit: projectRevisionSchema
     .extend({ operations: z.array(headlessEditSchema).min(1).max(100) })
