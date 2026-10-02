@@ -4,27 +4,9 @@
   "projectSchemaVersion": 30,
   "capability": "inherited_animation_timing_v1",
   "fields": {
-    "group.staggerMs": {
-      "optional": true,
-      "default": 0,
-      "integer": true,
-      "minimum": 0,
-      "maximum": 60000
-    },
-    "component_instance.staggerMs": {
-      "optional": true,
-      "default": 0,
-      "integer": true,
-      "minimum": 0,
-      "maximum": 60000
-    },
-    "repeater.timeOffsetMs": {
-      "optional": true,
-      "default": 0,
-      "integer": true,
-      "minimum": -60000,
-      "maximum": 60000
-    }
+    "group.staggerMs": {"optional": true, "default": 0, "integer": true, "minimum": 0, "maximum": 60000},
+    "component_instance.staggerMs": {"optional": true, "default": 0, "integer": true, "minimum": 0, "maximum": 60000},
+    "repeater.timeOffsetMs": {"optional": true, "default": 0, "integer": true, "minimum": -60000, "maximum": 60000}
   },
   "parentChannels": [
     "transform.position_x",

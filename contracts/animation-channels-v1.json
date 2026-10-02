@@ -9,791 +9,86 @@
     "maxLoopIterations": 10000
   },
   "active": {
-    "transform.position_x": {
-      "valueType": "scalar",
-      "target": "visual_legacy",
-      "activation": "active",
-      "minimum": -1000000,
-      "maximum": 1000000
-    },
-    "transform.position_y": {
-      "valueType": "scalar",
-      "target": "visual_legacy",
-      "activation": "active",
-      "minimum": -1000000,
-      "maximum": 1000000
-    },
-    "transform.scale_x": {
-      "valueType": "scalar",
-      "target": "visual_legacy",
-      "activation": "active",
-      "minimumExclusive": 0,
-      "maximum": 100
-    },
-    "transform.scale_y": {
-      "valueType": "scalar",
-      "target": "visual_legacy",
-      "activation": "active",
-      "minimumExclusive": 0,
-      "maximum": 100
-    },
-    "transform.opacity": {
-      "valueType": "scalar",
-      "target": "visual_legacy",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "audio.gain_db": {
-      "valueType": "scalar",
-      "target": "media_audio",
-      "activation": "active",
-      "minimum": -96,
-      "maximum": 12
-    },
-    "transform.rotation_deg": {
-      "valueType": "scalar",
-      "target": "visual",
-      "activation": "active",
-      "minimum": -36000,
-      "maximum": 36000
-    },
-    "media.crop_x": {
-      "valueType": "scalar",
-      "target": "media_visual",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "media.crop_y": {
-      "valueType": "scalar",
-      "target": "media_visual",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "media.crop_width": {
-      "valueType": "scalar",
-      "target": "media_visual",
-      "activation": "active",
-      "minimumExclusive": 0,
-      "maximum": 1
-    },
-    "media.crop_height": {
-      "valueType": "scalar",
-      "target": "media_visual",
-      "activation": "active",
-      "minimumExclusive": 0,
-      "maximum": 1
-    },
-    "graphic.path_points": {
-      "valueType": "path_points",
-      "target": "graphic_scoped",
-      "activation": "active",
-      "minimum": -1000000,
-      "maximum": 1000000
-    },
-    "graphic.path_trim": {
-      "valueType": "scalar",
-      "target": "graphic_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "graphic.gradient_stops": {
-      "valueType": "gradient_stops",
-      "target": "graphic_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "effect.blur_radius": {
-      "valueType": "scalar",
-      "target": "effect_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 128
-    },
-    "effect.glow_radius": {
-      "valueType": "scalar",
-      "target": "effect_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 128
-    },
-    "effect.tint_color": {
-      "valueType": "rgba",
-      "target": "effect_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "effect.vignette_amount": {
-      "valueType": "scalar",
-      "target": "effect_scoped",
-      "activation": "active",
-      "minimum": 0,
-      "maximum": 1
-    }
+    "transform.position_x": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
+    "transform.position_y": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
+    "transform.scale_x": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimumExclusive": 0, "maximum": 100 },
+    "transform.scale_y": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimumExclusive": 0, "maximum": 100 },
+    "transform.opacity": { "valueType": "scalar", "target": "visual_legacy", "activation": "active", "minimum": 0, "maximum": 1 },
+    "audio.gain_db": { "valueType": "scalar", "target": "media_audio", "activation": "active", "minimum": -96, "maximum": 12 },
+    "transform.rotation_deg": { "valueType": "scalar", "target": "visual", "activation": "active", "minimum": -36000, "maximum": 36000 },
+    "media.crop_x": { "valueType": "scalar", "target": "media_visual", "activation": "active", "minimum": 0, "maximum": 1 },
+    "media.crop_y": { "valueType": "scalar", "target": "media_visual", "activation": "active", "minimum": 0, "maximum": 1 },
+    "media.crop_width": { "valueType": "scalar", "target": "media_visual", "activation": "active", "minimumExclusive": 0, "maximum": 1 },
+    "media.crop_height": { "valueType": "scalar", "target": "media_visual", "activation": "active", "minimumExclusive": 0, "maximum": 1 },
+    "graphic.path_points": { "valueType": "path_points", "target": "graphic_scoped", "activation": "active", "minimum": -1000000, "maximum": 1000000 },
+    "graphic.path_trim": { "valueType": "scalar", "target": "graphic_scoped", "activation": "active", "minimum": 0, "maximum": 1 },
+    "graphic.gradient_stops": { "valueType": "gradient_stops", "target": "graphic_scoped", "activation": "active", "minimum": 0, "maximum": 1 },
+    "effect.blur_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 128 },
+    "effect.glow_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 128 },
+    "effect.tint_color": { "valueType": "rgba", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 1 },
+    "effect.vignette_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 1 }
   },
   "inactive": {
-    "transform.skew_x_deg": {
-      "valueType": "scalar",
-      "target": "visual",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "transform.skew_y_deg": {
-      "valueType": "scalar",
-      "target": "visual",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "transform.anchor_x": {
-      "valueType": "scalar",
-      "target": "visual",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "transform.anchor_y": {
-      "valueType": "scalar",
-      "target": "visual",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "media.source_position_ms": {
-      "valueType": "scalar",
-      "target": "media_source",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "media.playback_rate": {
-      "valueType": "scalar",
-      "target": "media_source",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "graphic.fill_color": {
-      "valueType": "rgba",
-      "target": "graphic_scoped",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "graphic.stroke_color": {
-      "valueType": "rgba",
-      "target": "graphic_scoped",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "graphic.stroke_width": {
-      "valueType": "scalar",
-      "target": "graphic_scoped",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "effect.particle_amount": {
-      "valueType": "scalar",
-      "target": "effect_scoped",
-      "activation": "inactive",
-      "bounds": "deferred"
-    },
-    "audio.pan": {
-      "valueType": "scalar",
-      "target": "media_audio",
-      "activation": "inactive",
-      "bounds": "deferred"
-    }
+    "transform.skew_x_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.skew_y_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.anchor_x": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "transform.anchor_y": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
+    "media.source_position_ms": { "valueType": "scalar", "target": "media_source", "activation": "inactive", "bounds": "deferred" },
+    "media.playback_rate": { "valueType": "scalar", "target": "media_source", "activation": "inactive", "bounds": "deferred" },
+    "graphic.fill_color": { "valueType": "rgba", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.stroke_color": { "valueType": "rgba", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "graphic.stroke_width": { "valueType": "scalar", "target": "graphic_scoped", "activation": "inactive", "bounds": "deferred" },
+    "effect.particle_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "inactive", "bounds": "deferred" },
+    "audio.pan": { "valueType": "scalar", "target": "media_audio", "activation": "inactive", "bounds": "deferred" }
   },
-  "curves": [
-    "hold",
-    "linear",
-    "cubic_bezier",
-    "spring"
-  ],
-  "loop": {
-    "modes": [
-      "repeat",
-      "ping_pong"
-    ],
-    "iterations": {
-      "minimum": 1,
-      "maximum": 10000,
-      "infinite": "infinite"
-    },
-    "interval": "first_to_last_keyframe_half_open",
-    "repeatRequiresMatchingEndpoints": true,
-    "pingPongCount": "round_trips"
-  },
+  "curves": ["hold", "linear", "cubic_bezier", "spring"],
+  "loop": {"modes":["repeat","ping_pong"],"iterations":{"minimum":1,"maximum":10000,"infinite":"infinite"},"interval":"first_to_last_keyframe_half_open","repeatRequiresMatchingEndpoints":true,"pingPongCount":"round_trips"},
   "curveParameters": {
-    "cubic_bezier": {
-      "x1": [
-        0,
-        1
-      ],
-      "y1": [
-        0,
-        1
-      ],
-      "x2": [
-        0,
-        1
-      ],
-      "y2": [
-        0,
-        1
-      ],
-      "x1AtMostX2": true,
-      "iterations": 40
-    },
-    "spring": {
-      "mass": [
-        0.01,
-        100
-      ],
-      "stiffness": [
-        0.01,
-        10000
-      ],
-      "damping": [
-        0.01,
-        1000
-      ],
-      "initialVelocity": [
-        -100,
-        100
-      ]
-    }
+    "cubic_bezier": { "x1": [0, 1], "y1": [0, 1], "x2": [0, 1], "y2": [0, 1], "x1AtMostX2": true, "iterations": 40 },
+    "spring": { "mass": [0.01, 100], "stiffness": [0.01, 10000], "damping": [0.01, 1000], "initialVelocity": [-100, 100] }
   },
   "curveCases": [
-    {
-      "name": "legacy_hold",
-      "curve": "hold",
-      "accepted": true
-    },
-    {
-      "name": "legacy_linear",
-      "curve": "linear",
-      "accepted": true
-    },
-    {
-      "name": "bezier_lower",
-      "curve": {
-        "type": "cubic_bezier",
-        "x1": 0,
-        "y1": 0,
-        "x2": 0,
-        "y2": 0
-      },
-      "accepted": true
-    },
-    {
-      "name": "bezier_upper",
-      "curve": {
-        "type": "cubic_bezier",
-        "x1": 1,
-        "y1": 1,
-        "x2": 1,
-        "y2": 1
-      },
-      "accepted": true
-    },
-    {
-      "name": "spring_lower",
-      "curve": {
-        "type": "spring",
-        "mass": 0.01,
-        "stiffness": 0.01,
-        "damping": 0.01,
-        "initialVelocity": -100
-      },
-      "accepted": true
-    },
-    {
-      "name": "spring_upper",
-      "curve": {
-        "type": "spring",
-        "mass": 100,
-        "stiffness": 10000,
-        "damping": 1000,
-        "initialVelocity": 100
-      },
-      "accepted": true
-    },
-    {
-      "name": "bezier_x_below",
-      "curve": {
-        "type": "cubic_bezier",
-        "x1": -0.001,
-        "y1": 0,
-        "x2": 1,
-        "y2": 1
-      },
-      "accepted": false
-    },
-    {
-      "name": "bezier_y_above",
-      "curve": {
-        "type": "cubic_bezier",
-        "x1": 0,
-        "y1": 0,
-        "x2": 1,
-        "y2": 1.001
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_mass_below",
-      "curve": {
-        "type": "spring",
-        "mass": 0.009,
-        "stiffness": 100,
-        "damping": 20,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_mass_above",
-      "curve": {
-        "type": "spring",
-        "mass": 100.001,
-        "stiffness": 100,
-        "damping": 20,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_stiffness_below",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 0.009,
-        "damping": 20,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_stiffness_above",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 10000.001,
-        "damping": 20,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_damping_below",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 100,
-        "damping": 0.009,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_damping_above",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 100,
-        "damping": 1000.001,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_velocity_below",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 100,
-        "damping": 20,
-        "initialVelocity": -100.001
-      },
-      "accepted": false
-    },
-    {
-      "name": "spring_velocity_above",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 100,
-        "damping": 20,
-        "initialVelocity": 100.001
-      },
-      "accepted": false
-    },
-    {
-      "name": "unknown_variant",
-      "curve": {
-        "type": "wiggle"
-      },
-      "accepted": false
-    },
-    {
-      "name": "unknown_field",
-      "curve": {
-        "type": "cubic_bezier",
-        "x1": 0,
-        "y1": 0,
-        "x2": 1,
-        "y2": 1,
-        "expression": "t"
-      },
-      "accepted": false
-    },
-    {
-      "name": "missing_field",
-      "curve": {
-        "type": "spring",
-        "mass": 1,
-        "stiffness": 100,
-        "damping": 20
-      },
-      "accepted": false
-    },
-    {
-      "name": "nonfinite_string",
-      "curve": {
-        "type": "spring",
-        "mass": "Infinity",
-        "stiffness": 100,
-        "damping": 20,
-        "initialVelocity": 0
-      },
-      "accepted": false
-    }
+    { "name": "legacy_hold", "curve": "hold", "accepted": true },
+    { "name": "legacy_linear", "curve": "linear", "accepted": true },
+    { "name": "bezier_lower", "curve": { "type": "cubic_bezier", "x1": 0, "y1": 0, "x2": 0, "y2": 0 }, "accepted": true },
+    { "name": "bezier_upper", "curve": { "type": "cubic_bezier", "x1": 1, "y1": 1, "x2": 1, "y2": 1 }, "accepted": true },
+    { "name": "spring_lower", "curve": { "type": "spring", "mass": 0.01, "stiffness": 0.01, "damping": 0.01, "initialVelocity": -100 }, "accepted": true },
+    { "name": "spring_upper", "curve": { "type": "spring", "mass": 100, "stiffness": 10000, "damping": 1000, "initialVelocity": 100 }, "accepted": true },
+    { "name": "bezier_x_below", "curve": { "type": "cubic_bezier", "x1": -0.001, "y1": 0, "x2": 1, "y2": 1 }, "accepted": false },
+    { "name": "bezier_y_above", "curve": { "type": "cubic_bezier", "x1": 0, "y1": 0, "x2": 1, "y2": 1.001 }, "accepted": false },
+    { "name": "spring_mass_below", "curve": { "type": "spring", "mass": 0.009, "stiffness": 100, "damping": 20, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_mass_above", "curve": { "type": "spring", "mass": 100.001, "stiffness": 100, "damping": 20, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_stiffness_below", "curve": { "type": "spring", "mass": 1, "stiffness": 0.009, "damping": 20, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_stiffness_above", "curve": { "type": "spring", "mass": 1, "stiffness": 10000.001, "damping": 20, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_damping_below", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 0.009, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_damping_above", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 1000.001, "initialVelocity": 0 }, "accepted": false },
+    { "name": "spring_velocity_below", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 20, "initialVelocity": -100.001 }, "accepted": false },
+    { "name": "spring_velocity_above", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 20, "initialVelocity": 100.001 }, "accepted": false },
+    { "name": "unknown_variant", "curve": { "type": "wiggle" }, "accepted": false },
+    { "name": "unknown_field", "curve": { "type": "cubic_bezier", "x1": 0, "y1": 0, "x2": 1, "y2": 1, "expression": "t" }, "accepted": false },
+    { "name": "missing_field", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 20 }, "accepted": false },
+    { "name": "nonfinite_string", "curve": { "type": "spring", "mass": "Infinity", "stiffness": 100, "damping": 20, "initialVelocity": 0 }, "accepted": false }
   ],
   "timeUnit": "item_local_milliseconds",
   "examples": {
-    "validChannel": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 20
-          },
-          "curve": "linear"
-        }
-      ]
-    },
-    "invalidChannel": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "expression",
-            "value": "t"
-          },
-          "curve": "linear"
-        }
-      ]
-    },
-    "inactiveChannel": {
-      "property": "transform.skew_x_deg",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 20
-          },
-          "curve": "hold"
-        }
-      ]
-    },
-    "validBezier": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": {
-            "type": "cubic_bezier",
-            "x1": 0.25,
-            "y1": 0.1,
-            "x2": 0.25,
-            "y2": 1
-          }
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ]
-    },
-    "validSpring": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": {
-            "type": "spring",
-            "mass": 1,
-            "stiffness": 170,
-            "damping": 26,
-            "initialVelocity": 0
-          }
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ]
-    },
-    "validRepeatLoop": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 250,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "repeat",
-        "iterations": 3
-      }
-    },
-    "validMaxRepeatLoop": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 250,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "repeat",
-        "iterations": 10000
-      }
-    },
-    "validInfinitePingPong": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "ping_pong",
-        "iterations": "infinite"
-      }
-    },
-    "invalidLoopUnknownField": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "repeat",
-        "iterations": 2,
-        "expression": "t"
-      }
-    },
-    "invalidLoopCount": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "repeat",
-        "iterations": 0
-      }
-    },
-    "invalidLoopEndpoint": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": "linear"
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ],
-      "loop": {
-        "mode": "repeat",
-        "iterations": 2
-      }
-    },
-    "invalidBezier": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": {
-            "type": "cubic_bezier",
-            "x1": 0.75,
-            "y1": 0.1,
-            "x2": 0.25,
-            "y2": 1
-          }
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ]
-    },
-    "invalidSpring": {
-      "property": "transform.position_x",
-      "keyframes": [
-        {
-          "timeMs": 0,
-          "value": {
-            "type": "scalar",
-            "value": 0
-          },
-          "curve": {
-            "type": "spring",
-            "mass": 0,
-            "stiffness": 170,
-            "damping": 26,
-            "initialVelocity": 0
-          }
-        },
-        {
-          "timeMs": 500,
-          "value": {
-            "type": "scalar",
-            "value": 100
-          },
-          "curve": "hold"
-        }
-      ]
-    }
+    "validChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "linear" }] },
+    "invalidChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "expression", "value": "t" }, "curve": "linear" }] },
+    "inactiveChannel": { "property": "transform.skew_x_deg", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "hold" }] },
+    "validBezier": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "cubic_bezier", "x1": 0.25, "y1": 0.1, "x2": 0.25, "y2": 1 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
+    "validSpring": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "spring", "mass": 1, "stiffness": 170, "damping": 26, "initialVelocity": 0 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
+    "validRepeatLoop": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":3}},
+    "validMaxRepeatLoop": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":10000}},
+    "validInfinitePingPong": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"loop":{"mode":"ping_pong","iterations":"infinite"}},
+    "invalidLoopUnknownField": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":2,"expression":"t"}},
+    "invalidLoopCount": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":0},"curve":"hold"}],"loop":{"mode":"repeat","iterations":0}},
+    "invalidLoopEndpoint": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"loop":{"mode":"repeat","iterations":2}},
+    "invalidBezier": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "cubic_bezier", "x1": 0.75, "y1": 0.1, "x2": 0.25, "y2": 1 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
+    "invalidSpring": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "spring", "mass": 0, "stiffness": 170, "damping": 26, "initialVelocity": 0 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] }
   },
   "operation": "set_animation_channels",
   "mcpTool": "timeline_set_animation_channels",
   "capability": "typed_animation_channels_v1",
   "curveCapability": "deterministic_animation_curves_v1",
   "loopCapability": "animation_loops_v1",
-  "parentTargets": [
-    "group",
-    "component_instance"
-  ]
+  "parentTargets": ["group", "component_instance"]
 }
