@@ -28,7 +28,7 @@
 - **THEN** pre-commit failure preserves authoritative documents and preexisting managed bytes and removes only new uncommitted resources, while committed recovery-pending behavior and reopen recovery remain unchanged
 
 #### Scenario: Preserve preexisting resource destination entries
-- **WHEN** a planned managed asset or font destination has a dangling symlink or other invalid preexisting entry during a preset transaction
+- **WHEN** a preset transaction reaches migration asset staging or font publication and the respective planned managed destination has a dangling symlink or other invalid preexisting entry
 - **THEN** the request fails with the established integrity error before overwriting that entry, and rollback preserves its link target and all preexisting project/history/draft/resource bytes
 
 #### Scenario: Preserve migration asset font selection behavior
