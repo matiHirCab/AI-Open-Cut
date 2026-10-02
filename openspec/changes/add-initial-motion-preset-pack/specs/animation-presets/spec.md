@@ -8,7 +8,7 @@ Editor-core MUST own a pure, bounded compiler addressed by mandatory `presetId` 
 - **THEN** core produces the specified editable channel and effective source record with compiler version 1
 
 #### Scenario: Reject unsupported compilation identity
-- **WHEN** a request omits the version, uses `latest`, names another preset, or requests an unsupported version
+- **WHEN** a request omits the version, uses `latest`, names an unknown preset, or requests an unsupported version
 - **THEN** it fails with `INVALID_ARGUMENT` without changing project, revision, history, aliases or managed bytes
 
 ### Requirement: Explicit channel collision policy
@@ -57,7 +57,7 @@ Core MUST reject non-finite values, wrong tags, unknown fields, out-of-range par
 ## ADDED Requirements
 
 ### Requirement: Motion-blur-aware impact provenance lifecycle
-Accepted changes/removal of an item's MotionBlur MUST clear all source records using the impact_slam parameter shape on that item. Raw component replacements MUST preserve those known source records only when both the same identity's channel and associated blur remain byte-equivalent. Read/retirement validation MUST remain descriptive without requiring equality to current runtime blur or live catalog identity/version. Exact copies, undo/redo and unrelated edits MUST retain existing source behavior.
+Accepted changes/removal through existing edit paths (including raw component replacement) of an item's MotionBlur MUST clear all source records using the impact_slam parameter shape on that item. Raw component replacements MUST preserve those known source records only when both the same identity's channel and associated blur remain byte-equivalent. Read/retirement validation MUST remain descriptive without requiring equality to current runtime blur or live catalog identity/version. Exact copies, undo/redo and unrelated edits MUST retain existing source behavior.
 
 #### Scenario: Change blur and undo
 - **WHEN** a committed slam's MotionBlur is changed or removed through an accepted low-level edit, then undo/redo
