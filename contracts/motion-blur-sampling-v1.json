@@ -13,7 +13,8 @@
     "samples": "equal-weight ascending midpoint",
     "rootResolution": "floor once to integer milliseconds; preserve inherited fractional clocks",
     "boundary": "clamp to [0,durationMs-1] without renormalization",
-    "disabled": "omission, zero angle or sample count one"
+    "disabled": "omission, zero angle or sample count one",
+    "arithmetic": "exact midpoint ratio of parsed finite binary64 angle; no epsilon snapping"
   },
   "composition": "per-leaf premultiplied linear-light canvas average after local crop/clip/paint/effects and complete inherited affine/transition opacity, before existing stacking",
   "cases": [
@@ -199,6 +200,417 @@
       },
       "expected": [
         100
+      ]
+    },
+    {
+      "name": "review-five-sample-held-boundary",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 360,
+        "sampleCount": 5
+      },
+      "expected": [
+        484,
+        492,
+        500,
+        508,
+        516
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-1",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 18,
+        "sampleCount": 1
+      },
+      "expected": [
+        500
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-2",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 36,
+        "sampleCount": 2
+      },
+      "expected": [
+        499,
+        501
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-3",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 54,
+        "sampleCount": 3
+      },
+      "expected": [
+        498,
+        500,
+        502
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-4",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 72,
+        "sampleCount": 4
+      },
+      "expected": [
+        497,
+        499,
+        501,
+        503
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-5",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 90,
+        "sampleCount": 5
+      },
+      "expected": [
+        496,
+        498,
+        500,
+        502,
+        504
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-6",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 108,
+        "sampleCount": 6
+      },
+      "expected": [
+        495,
+        497,
+        499,
+        501,
+        503,
+        505
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-7",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 126,
+        "sampleCount": 7
+      },
+      "expected": [
+        494,
+        496,
+        498,
+        500,
+        502,
+        504,
+        506
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-8",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 144,
+        "sampleCount": 8
+      },
+      "expected": [
+        493,
+        495,
+        497,
+        499,
+        501,
+        503,
+        505,
+        507
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-9",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 162,
+        "sampleCount": 9
+      },
+      "expected": [
+        492,
+        494,
+        496,
+        498,
+        500,
+        502,
+        504,
+        506,
+        508
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-10",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 180,
+        "sampleCount": 10
+      },
+      "expected": [
+        491,
+        493,
+        495,
+        497,
+        499,
+        501,
+        503,
+        505,
+        507,
+        509
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-11",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 198,
+        "sampleCount": 11
+      },
+      "expected": [
+        490,
+        492,
+        494,
+        496,
+        498,
+        500,
+        502,
+        504,
+        506,
+        508,
+        510
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-12",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 216,
+        "sampleCount": 12
+      },
+      "expected": [
+        489,
+        491,
+        493,
+        495,
+        497,
+        499,
+        501,
+        503,
+        505,
+        507,
+        509,
+        511
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-13",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 234,
+        "sampleCount": 13
+      },
+      "expected": [
+        488,
+        490,
+        492,
+        494,
+        496,
+        498,
+        500,
+        502,
+        504,
+        506,
+        508,
+        510,
+        512
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-14",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 252,
+        "sampleCount": 14
+      },
+      "expected": [
+        487,
+        489,
+        491,
+        493,
+        495,
+        497,
+        499,
+        501,
+        503,
+        505,
+        507,
+        509,
+        511,
+        513
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-15",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 270,
+        "sampleCount": 15
+      },
+      "expected": [
+        486,
+        488,
+        490,
+        492,
+        494,
+        496,
+        498,
+        500,
+        502,
+        504,
+        506,
+        508,
+        510,
+        512,
+        514
+      ]
+    },
+    {
+      "name": "exact-integer-midpoints-count-16",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 288,
+        "sampleCount": 16
+      },
+      "expected": [
+        485,
+        487,
+        489,
+        491,
+        493,
+        495,
+        497,
+        499,
+        501,
+        503,
+        505,
+        507,
+        509,
+        511,
+        513,
+        515
+      ]
+    },
+    {
+      "name": "fractional-decimal-binary64-boundary",
+      "atMs": 500,
+      "fps": 5,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 10.8,
+        "sampleCount": 3
+      },
+      "expected": [
+        497,
+        500,
+        502
+      ]
+    },
+    {
+      "name": "fractional-decimal-binary64-next-down",
+      "atMs": 500,
+      "fps": 5,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 10.799999999999999,
+        "sampleCount": 3
+      },
+      "expected": [
+        498,
+        500,
+        501
+      ]
+    },
+    {
+      "name": "subnormal-negative-floor",
+      "atMs": 500,
+      "fps": 25,
+      "durationMs": 1000,
+      "settings": {
+        "shutterAngleDeg": 5e-324,
+        "sampleCount": 5
+      },
+      "expected": [
+        499,
+        499,
+        500,
+        500,
+        500
+      ]
+    },
+    {
+      "name": "fractional-fps-start-clamp",
+      "atMs": 0,
+      "fps": 59,
+      "durationMs": 1,
+      "settings": {
+        "shutterAngleDeg": 180.5,
+        "sampleCount": 7
+      },
+      "expected": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
       ]
     }
   ]

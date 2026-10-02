@@ -76,6 +76,517 @@ fn shutter_offsets_preserve_adjacent_large_integer_times() {
     assert!(settings.sample_times(0, 25, 0).is_err());
 }
 
+#[test]
+fn integer_boundary_midpoints_match_every_allowed_count_and_angle_neighbor() {
+    for count in 1..=MotionBlur::MAX_SAMPLES {
+        // At 25 FPS, angle=18*N gives exposure 2*N ms, so every midpoint
+        // offset is the integer 2*i+1-N. This oracle uses no floating ratio.
+        let angle = 18.0 * f64::from(count);
+        for (value, neighbor) in [(angle.next_down(), -1), (angle, 0), (angle.next_up(), 1)] {
+            for (root, duration) in [
+                (0, 1),
+                (0, 1000),
+                (1, 1000),
+                (500, 1000),
+                (999, 1000),
+                ((1_u64 << 53) + 1, u64::MAX),
+                (u64::MAX - 2, u64::MAX),
+            ] {
+                let expected: Vec<u64> = (0..count)
+                    .map(|i| {
+                        let mut offset = i128::from(2 * i + 1) - i128::from(count);
+                        if (neighbor == -1 && offset > 0) || (neighbor == 1 && offset < 0) {
+                            offset -= 1;
+                        }
+                        (i128::from(root) + offset).clamp(0, i128::from(duration - 1)) as u64
+                    })
+                    .collect();
+                let actual = MotionBlur {
+                    shutter_angle_deg: value,
+                    sample_count: count,
+                }
+                .sample_times(root, 25, duration)
+                .unwrap();
+                assert_eq!(
+                    actual, expected,
+                    "N={count}, angle={value:?}, neighbor={neighbor}, root={root}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn fractional_midpoints_and_subnormal_angles_preserve_floor_and_clipping() {
+    for count in 1..=MotionBlur::MAX_SAMPLES {
+        for quarter in 0..=3_u32 {
+            let divisor = 1_u32 << quarter;
+            let angle = 18.0 * f64::from(count) / f64::from(divisor);
+            for fps in [1, 24, 25, 30, 59, 60, 144, u32::MAX] {
+                for (root, duration) in [
+                    (0, 1),
+                    (0, 1000),
+                    (500, 1000),
+                    (999, 1000),
+                    ((1_u64 << 53) + 1, u64::MAX),
+                ] {
+                    let expected: Vec<u64> = (0..count)
+                        .map(|i| {
+                            let coefficient = i128::from(2 * i + 1) - i128::from(count);
+                            let offset = (25 * coefficient)
+                                .div_euclid(i128::from(divisor) * i128::from(fps));
+                            (i128::from(root) + offset).clamp(0, i128::from(duration - 1)) as u64
+                        })
+                        .collect();
+                    let actual = MotionBlur {
+                        shutter_angle_deg: angle,
+                        sample_count: count,
+                    }
+                    .sample_times(root, fps, duration)
+                    .unwrap();
+                    assert_eq!(
+                        actual, expected,
+                        "N={count}, angle={angle}, fps={fps}, root={root}"
+                    );
+                }
+            }
+        }
+        for angle in [
+            f64::from_bits(1),
+            f64::from_bits((1_u64 << 52) - 1),
+            f64::MIN_POSITIVE,
+        ] {
+            for root in [0_u64, 1, 500] {
+                let expected: Vec<u64> = (0..count)
+                    .map(|i| {
+                        if 2 * i + 1 < count {
+                            root.saturating_sub(1)
+                        } else {
+                            root
+                        }
+                    })
+                    .collect();
+                let actual = MotionBlur {
+                    shutter_angle_deg: angle,
+                    sample_count: count,
+                }
+                .sample_times(root, 25, 1000)
+                .unwrap();
+                assert_eq!(
+                    actual, expected,
+                    "N={count}, subnormal={angle:?}, root={root}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn native_five_midpoint_held_parent_matches_independent_frame_range_draft_export() {
+    use opencut_editor_core::{
+        EditorCore, ExportOptions, MediaProbeFacts, MediaType, PathPolicy, PreviewRangeOptions,
+        ProjectSettings, Renderer,
+    };
+    use serde_json::json;
+    let (Some(ffmpeg), Some(ffprobe)) = (
+        std::env::var_os("OPENCUT_FFMPEG_PATH"),
+        std::env::var_os("OPENCUT_FFPROBE_PATH"),
+    ) else {
+        assert_ne!(
+            std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+            Ok("1")
+        );
+        return;
+    };
+    let root = tempfile::tempdir().unwrap();
+    let media = root.path().join("media");
+    std::fs::create_dir(&media).unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            root.path().join("projects"),
+            [&media],
+            root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let id = core
+        .create_project(
+            "Five exact shutter midpoints",
+            ProjectSettings {
+                width: 64,
+                height: 64,
+                fps: 25,
+            },
+        )
+        .unwrap()
+        .project_id;
+    let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+    let channels = |boundary| {
+        json!([{"property":"transform.position_x","keyframes":[
+            {"timeMs":0,"curve":"hold","value":{"type":"scalar","value":0}},
+            {"timeMs":boundary,"curve":"hold","value":{"type":"scalar","value":16}}
+        ]}])
+    };
+    let batch: Vec<opencut_editor_core::BatchEditOperation> = serde_json::from_value(json!([
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"resultAlias":"parent"},
+        {"operation":"update_item","itemId":"@parent","transform2d":null},
+        {"operation":"set_animation_channels","itemId":"@parent","animationChannels":channels(508)},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#ffffff","transform":{"positionX":8,"positionY":8,"scale":1,"opacity":1},"resultAlias":"leaf"},
+        {"operation":"update_item","itemId":"@leaf","transform2d":{"position":{"x":8,"y":8,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":1,"anchor":{"x":0,"y":0}},"motionBlur":{"shutterAngleDeg":360,"sampleCount":5}},
+        {"operation":"item_set_parent","itemId":"@leaf","parent":{"scope":"root","id":"@parent"}}
+    ])).unwrap();
+    core.edit_batch(&id, 0, batch).unwrap();
+    let wav = media.join("tone.wav");
+    let tone = std::process::Command::new(&ffmpeg)
+        .args([
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=1",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&wav)
+        .output()
+        .unwrap();
+    assert!(
+        tone.status.success(),
+        "{}",
+        String::from_utf8_lossy(&tone.stderr)
+    );
+    let asset = core
+        .import_asset(
+            &id,
+            1,
+            &wav,
+            MediaType::Audio,
+            MediaProbeFacts {
+                duration_ms: Some(1000),
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let audio_track = core.get_project(&id).unwrap().tracks[2].id.clone();
+    core.edit(&id,2,edit(json!({"operation":"add_media","trackId":audio_track,"assetId":asset,"startMs":0,"sourceInMs":0,"durationMs":1000}))).unwrap();
+    let project = core.get_project(&id).unwrap();
+    let leaf = project.tracks[1]
+        .items
+        .iter()
+        .find(|item| item.visual_properties().motion_blur.is_some())
+        .unwrap()
+        .id()
+        .to_owned();
+    let parent = project
+        .find_item(&leaf)
+        .unwrap()
+        .visual_properties()
+        .parent
+        .as_ref()
+        .unwrap()
+        .id
+        .clone();
+    let dir = core.paths().project_dir(&id).unwrap();
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+    let before_project = std::fs::read(dir.join("project.json")).unwrap();
+    let before_history = std::fs::read(dir.join("history.json")).unwrap();
+    let frame = renderer.render_preview(&project, &dir, 500).unwrap();
+    let draft = core.create_draft(&id,3,vec![edit(json!({"operation":"update_item","itemId":leaf,"motionBlur":{"shutterAngleDeg":360,"sampleCount":5}}))],Some("Five midpoint boundary".into())).unwrap();
+    let draft_project = core.get_draft_state(&id, &draft.id).unwrap().project;
+    let draft_frame = renderer.render_preview(&draft_project, &dir, 500).unwrap();
+    let range_options = PreviewRangeOptions {
+        start_ms: 500,
+        end_ms: 580,
+        width: 64,
+        height: 64,
+        fps: 25,
+        include_audio: true,
+    };
+    let range = renderer
+        .render_preview_range(&project, &dir, range_options, |_| {})
+        .unwrap();
+    let mut instant = project.clone();
+    instant.tracks[1]
+        .items
+        .iter_mut()
+        .find(|item| item.id() == leaf)
+        .unwrap()
+        .visual_properties_mut()
+        .motion_blur = Some(MotionBlur {
+        shutter_angle_deg: 0.0,
+        sample_count: 5,
+    });
+    let range_control = renderer
+        .render_preview_range(&instant, &dir, range_options, |_| {})
+        .unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("project.json")).unwrap(),
+        before_project
+    );
+    assert_eq!(
+        std::fs::read(dir.join("history.json")).unwrap(),
+        before_history
+    );
+    // Final export at 25 FPS has a frame at 480 ms, not 500 ms. Shift the
+    // held boundary by the same 20 ms so its independent coverage is also 3/5 : 2/5.
+    core.edit(&id,3,edit(json!({"operation":"set_animation_channels","itemId":parent,"animationChannels":channels(488)}))).unwrap();
+    let export_project = core.get_project(&id).unwrap();
+    let export_before_project = std::fs::read(dir.join("project.json")).unwrap();
+    let export_before_history = std::fs::read(dir.join("history.json")).unwrap();
+    let export = root.path().join("exports/five.mp4");
+    std::fs::create_dir_all(export.parent().unwrap()).unwrap();
+    renderer
+        .export_video(
+            &export_project,
+            &dir,
+            ExportOptions {
+                output: &export,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    let mut export_instant = export_project.clone();
+    export_instant.tracks[1]
+        .items
+        .iter_mut()
+        .find(|item| item.id() == leaf)
+        .unwrap()
+        .visual_properties_mut()
+        .motion_blur = Some(MotionBlur {
+        shutter_angle_deg: 0.0,
+        sample_count: 5,
+    });
+    let export_control = root.path().join("exports/instant.mp4");
+    renderer
+        .export_video(
+            &export_instant,
+            &dir,
+            ExportOptions {
+                output: &export_control,
+                width: 64,
+                height: 64,
+                overwrite: false,
+            },
+            |_| {},
+        )
+        .unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("project.json")).unwrap(),
+        export_before_project
+    );
+    assert_eq!(
+        std::fs::read(dir.join("history.json")).unwrap(),
+        export_before_history
+    );
+    // Independent analytic oracle: three integer midpoints precede the held
+    // boundary and two are at/after it. Both disjoint white 8x8 leaves are exact
+    // pixel-aligned. The fractions are constants, not renderer-produced samples.
+    let mut pam =
+        b"P7\nWIDTH 64\nHEIGHT 64\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n".to_vec();
+    for y in 0..64 {
+        for x in 0..64 {
+            let alpha = if (8..16).contains(&y) && (8..16).contains(&x) {
+                153
+            } else if (8..16).contains(&y) && (24..32).contains(&x) {
+                102
+            } else {
+                0
+            };
+            pam.extend_from_slice(&[255, 255, 255, alpha]);
+        }
+    }
+    let oracle = root.path().join("oracle.pam");
+    std::fs::write(&oracle, pam).unwrap();
+    let expected = std::process::Command::new(&ffmpeg).args(["-v","error","-f","lavfi","-i","color=c=black:s=64x64:r=25:d=1","-i"]).arg(&oracle).args(["-filter_complex","[0:v]format=rgba[base];[1:v]format=rgba[leaf];[base][leaf]overlay=format=auto:x=0:y=0:eof_action=pass,format=yuv420p[out]","-map","[out]","-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","pipe:1"]).output().unwrap();
+    assert!(
+        expected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&expected.stderr)
+    );
+    assert_eq!(expected.stdout.len(), 64 * 64 * 3);
+    let expected_ppm = root.path().join("expected.ppm");
+    let mut ppm = b"P6\n64 64\n255\n".to_vec();
+    ppm.extend_from_slice(&expected.stdout);
+    std::fs::write(&expected_ppm, ppm).unwrap();
+    let decode = |path: &std::path::Path, time: f64| {
+        let output = std::process::Command::new(&ffmpeg)
+            .args(["-v", "error", "-ss", &format!("{time:.3}"), "-i"])
+            .arg(path)
+            .args([
+                "-frames:v",
+                "1",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "rgb24",
+                "pipe:1",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout.len(), 64 * 64 * 3);
+        output.stdout
+    };
+    let frame_pixels = decode(&dir.join(&frame.relative_path), 0.0);
+    assert_eq!(
+        frame_pixels,
+        decode(&dir.join(&draft_frame.relative_path), 0.0)
+    );
+    let mut measurements = Vec::new();
+    for (mode, path, time) in [
+        ("frame", dir.join(&frame.relative_path), 0.0),
+        ("draft", dir.join(&draft_frame.relative_path), 0.0),
+        ("range", dir.join(&range.relative_path), 0.0),
+        ("export", export.clone(), 0.480),
+    ] {
+        let pixels = decode(&path, time);
+        let mse = pixels
+            .iter()
+            .zip(&expected.stdout)
+            .map(|(a, b)| (f64::from(*a) - f64::from(*b)).powi(2))
+            .sum::<f64>()
+            / pixels.len() as f64;
+        let comparison = std::process::Command::new(&ffmpeg)
+            .current_dir(root.path())
+            .args(["-v", "info", "-i"])
+            .arg(&expected_ppm)
+            .args(["-ss", &format!("{time:.3}"), "-i"])
+            .arg(&path)
+            .args([
+                "-lavfi",
+                &format!("{SINGLE_FRAME_SSIM}=stats_file=midpoint-ssim.txt"),
+                "-frames:v",
+                "1",
+                "-f",
+                "null",
+                "-",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            comparison.status.success(),
+            "{}",
+            String::from_utf8_lossy(&comparison.stderr)
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.path().join("midpoint-ssim.txt"))
+                .unwrap()
+                .lines()
+                .count(),
+            1
+        );
+        let log = String::from_utf8_lossy(&comparison.stderr);
+        let ssim = log
+            .split("All:")
+            .last()
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap();
+        println!("five_midpoint mode={mode} mse={mse} ssim={ssim}");
+        measurements.push((mode, mse, ssim));
+    }
+    let pcm = |path: &std::path::Path| {
+        let output = std::process::Command::new(&ffmpeg)
+            .args(["-v", "error", "-i"])
+            .arg(path)
+            .args([
+                "-map",
+                "0:a:0",
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ac",
+                "2",
+                "-ar",
+                "48000",
+                "pipe:1",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        output
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|v| f32::from_le_bytes(*v))
+            .collect::<Vec<_>>()
+    };
+    for (mode, actual, control, duration) in [
+        (
+            "range",
+            dir.join(&range.relative_path),
+            dir.join(&range_control.relative_path),
+            0.08,
+        ),
+        ("export", export, export_control, 1.0),
+    ] {
+        let actual_pcm = pcm(&actual);
+        let control_pcm = pcm(&control);
+        assert!(!actual_pcm.is_empty());
+        assert_eq!(actual_pcm.len(), control_pcm.len());
+        let rms = (actual_pcm
+            .iter()
+            .zip(control_pcm)
+            .map(|(a, b)| (f64::from(*a) - f64::from(b)).powi(2))
+            .sum::<f64>()
+            / actual_pcm.len() as f64)
+            .sqrt();
+        assert!(rms <= 0.0001, "{mode} audio RMS={rms}");
+        let probe = std::process::Command::new(&ffprobe)
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+            ])
+            .arg(&actual)
+            .output()
+            .unwrap();
+        assert!(probe.status.success());
+        let actual_duration = String::from_utf8(probe.stdout)
+            .unwrap()
+            .trim()
+            .parse::<f64>()
+            .unwrap();
+        assert!((actual_duration - duration).abs() <= 1.0 / 25.0);
+        println!("five_midpoint mode={mode} pcm_rms={rms} duration={actual_duration}");
+    }
+    let samples = MotionBlur {
+        shutter_angle_deg: 360.0,
+        sample_count: 5,
+    }
+    .sample_times(500, 25, 1000)
+    .unwrap();
+    println!("five_midpoint root_samples={samples:?}; independent_weights=3/5:2/5");
+    for (mode, mse, ssim) in measurements {
+        assert!(mse <= 1.0, "{mode} independent held-keyframe MSE={mse}");
+        assert!(ssim >= 0.99, "{mode} SSIM={ssim}");
+    }
+    assert_eq!(samples, [484, 492, 500, 508, 516]);
+}
+
 fn setup() -> (
     tempfile::TempDir,
     opencut_editor_core::EditorCore,
