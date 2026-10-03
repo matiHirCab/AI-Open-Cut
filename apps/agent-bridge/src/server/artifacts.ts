@@ -90,14 +90,14 @@ const readOwnedFile = async (root: string, path: string) => {
     throw unavailable();
   }
   safeRelativePath(suffix.split(sep).join("/"));
-  if ((await realpath(base)) !== base) {
-    throw unavailable();
-  }
-  let current = base;
-  const rootStat = await lstat(current);
+  const rootStat = await lstat(base);
   if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
     throw unavailable();
   }
+  // Trusted parent aliases (for example macOS /var) may precede the owned root.
+  // Traverse its canonical location while rejecting every symlink beneath it.
+  const canonicalBase = await realpath(base);
+  let current = canonicalBase;
   const segments = suffix.split(sep);
   for (const [index, segment] of segments.entries()) {
     current = join(current, segment);
@@ -110,8 +110,11 @@ const readOwnedFile = async (root: string, path: string) => {
       throw unavailable();
     }
   }
-  // biome-ignore lint/suspicious/noBitwiseOperators: Combine filesystem open flags to refuse following the final symlink.
-  const file = await open(current, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const file = await open(
+    current,
+    // biome-ignore lint/suspicious/noBitwiseOperators: Combine filesystem open flags to refuse following the final symlink where supported.
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
+  );
   try {
     const stat = await file.stat();
     const pathStat = await lstat(current);
@@ -119,7 +122,7 @@ const readOwnedFile = async (root: string, path: string) => {
       !stat.isFile() ||
       stat.ino !== pathStat.ino ||
       stat.dev !== pathStat.dev ||
-      (await realpath(current)) !== current
+      relative(join(canonicalBase, ...segments), await realpath(current)) !== ""
     ) {
       throw unavailable();
     }

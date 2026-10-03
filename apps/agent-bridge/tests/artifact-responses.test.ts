@@ -325,6 +325,38 @@ it.each([
   expect(JSON.stringify(result)).not.toContain(path);
 });
 
+it("reads an owned root beneath a trusted parent alias", async () => {
+  const { dependencies, root } = await fixture();
+  const job = await complete(dependencies);
+  const projects = dependencies.config.projectsDirectory ?? "";
+  const file = join(projects, job.projectId, "previews", "frame.png");
+  await mkdir(join(projects, job.projectId, "previews"), { recursive: true });
+  await writeFile(file, "owned preview");
+  const alias = join(root, "parent-alias");
+  await symlink(root, alias, "junction");
+  const aliasedDependencies = {
+    ...dependencies,
+    config: {
+      ...dependencies.config,
+      projectsDirectory: join(alias, "projects"),
+    },
+  };
+  expect((await readJobArtifact(aliasedDependencies, job)).data).toEqual(
+    Buffer.from("owned preview")
+  );
+  const outside = join(root, "outside-alias");
+  await mkdir(outside);
+  await writeFile(join(outside, "frame.png"), "foreign preview");
+  const previews = join(projects, job.projectId, "previews");
+  await rm(previews, { recursive: true });
+  await symlink(outside, previews, "junction");
+  await expect(readJobArtifact(aliasedDependencies, job)).rejects.toMatchObject(
+    {
+      code: "VALIDATION_FAILED",
+    }
+  );
+});
+
 it.each(["root", "project", "directory", "file"])(
   "rejects %s symlinks and directories",
   async (target) => {
@@ -338,15 +370,15 @@ it.each(["root", "project", "directory", "file"])(
     await mkdir(outside, { recursive: true });
     await writeFile(join(outside, "frame.png"), "secret");
     if (target === "root") {
-      await symlink(outside, projects);
+      await symlink(outside, projects, "junction");
     }
     if (target === "project") {
       await mkdir(projects);
-      await symlink(outside, project);
+      await symlink(outside, project, "junction");
     }
     if (target === "directory") {
       await mkdir(project, { recursive: true });
-      await symlink(outside, previews);
+      await symlink(outside, previews, "junction");
     }
     if (target === "file") {
       await mkdir(previews, { recursive: true });
