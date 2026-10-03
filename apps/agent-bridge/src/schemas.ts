@@ -425,7 +425,7 @@ export const animationPresetPropertySchema = z.enum([
   "transform.opacity",
   "audio.gain_db",
 ]);
-export const animationPresetParametersSchema = z
+const scalarTweenParametersSchema = z
   .object({
     curve:
       animationChannelSchema.shape.keyframes.element.shape.curve.default(
@@ -438,14 +438,83 @@ export const animationPresetParametersSchema = z
     to: finite,
   })
   .strict();
+const presetDuration = positiveMilliseconds.max(Number.MAX_SAFE_INTEGER);
+const presetStart = milliseconds.max(Number.MAX_SAFE_INTEGER);
+const presetIterations = z.union([
+  z.int().min(1).max(10_000),
+  z.literal("infinite"),
+]);
+const impactSlamParametersSchema = z.strictObject({
+  centerX: finite,
+  centerY: finite,
+  durationMs: presetDuration,
+  flashOpacity: finite,
+  kind: z.literal("impact_slam"),
+  motionBlur: motionBlurSchema,
+  opacityFrom: finite,
+  opacityTo: finite,
+  scaleFrom: finite,
+  scaleOvershoot: finite,
+  scaleTo: finite,
+  shakeAmplitudePx: finite,
+  startMs: presetStart,
+});
+const slideLeftParametersSchema = z.strictObject({
+  durationMs: presetDuration,
+  kind: z.literal("slide_left"),
+  positionFromX: finite,
+  positionToX: finite,
+  startMs: presetStart,
+});
+const scanParametersSchema = z.strictObject({
+  durationMs: presetDuration,
+  iterations: presetIterations.optional(),
+  kind: z.literal("scan"),
+  positionFromX: finite,
+  positionToX: finite,
+  startMs: presetStart,
+});
+const pulseParametersSchema = z.strictObject({
+  durationMs: presetDuration,
+  iterations: presetIterations.optional(),
+  kind: z.literal("pulse"),
+  scaleFrom: finite,
+  scalePeak: finite,
+  startMs: presetStart,
+});
+const radarExpandParametersSchema = z.strictObject({
+  durationMs: presetDuration,
+  iterations: presetIterations.optional(),
+  kind: z.literal("radar_expand"),
+  opacityPeak: finite,
+  scaleFrom: finite,
+  scaleTo: finite,
+  startMs: presetStart,
+});
+export const animationPresetParametersSchema = z.union([
+  scalarTweenParametersSchema,
+  impactSlamParametersSchema,
+  slideLeftParametersSchema,
+  scanParametersSchema,
+  pulseParametersSchema,
+  radarExpandParametersSchema,
+]);
+const savedPresetParametersSchema = z.union([
+  scalarTweenParametersSchema
+    .extend({
+      curve: animationChannelSchema.shape.keyframes.element.shape.curve,
+    })
+    .strict(),
+  impactSlamParametersSchema,
+  slideLeftParametersSchema,
+  scanParametersSchema.extend({ iterations: presetIterations }),
+  pulseParametersSchema.extend({ iterations: presetIterations }),
+  radarExpandParametersSchema.extend({ iterations: presetIterations }),
+]);
 const animationPresetProvenanceSchema = z
   .object({
     compilerVersion: z.int().min(1).max(4_294_967_295),
-    parameters: animationPresetParametersSchema
-      .extend({
-        curve: animationChannelSchema.shape.keyframes.element.shape.curve,
-      })
-      .strict(),
+    parameters: savedPresetParametersSchema,
     presetId: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
     presetVersion: z.int().min(1).max(4_294_967_295),
   })

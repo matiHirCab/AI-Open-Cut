@@ -41,6 +41,26 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             "retained animation clocks require schema 31",
         ));
     }
+    if project.schema_version < 30
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| {
+                i.visual_properties()
+                    .animation_preset_provenance
+                    .values()
+                    .any(|source| {
+                        matches!(source.parameters, crate::AnimationPresetParameters::Pack(_))
+                    })
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "tagged preset provenance requires schema 30",
+        ));
+    }
     if project.schema_version < 29
         && project
             .tracks
@@ -250,7 +270,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=29 => {
+        9..=30 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

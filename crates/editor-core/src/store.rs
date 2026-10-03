@@ -1629,13 +1629,20 @@ fn prepare_project_data(
     rollback: Option<&mut crate::assets::UncommittedResources>,
 ) -> Result<PreparedProject, CoreError> {
     recover_transaction(storage, faults, dir, |project, history| {
-        for snapshot in std::iter::once(project)
+        // Validate the committed generation on private migrated copies before
+        // recovery can replay any authoritative document or draft bytes.
+        let mut project = project.clone();
+        let mut history = history.clone();
+        migrate_project_documents(&mut project, &mut history)?;
+        for snapshot in std::iter::once(&project)
             .chain(history.undo.iter())
             .chain(history.redo.iter())
         {
             crate::validation::animation_channels::validate_project_retained_clocks(snapshot)?;
+            validate_project_visual_properties(snapshot)?;
+            crate::evaluated_scene::preflight_inherited_project(snapshot)?;
         }
-        Ok(())
+        validate_retained_project_references(&project, &history)
     })?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
@@ -2501,6 +2508,85 @@ mod tests {
     }
 
     #[test]
+    fn schema29_pack_publication_faults_preserve_complete_generations() {
+        for phase in [
+            PersistencePhase::BeforeFontPublish,
+            PersistencePhase::AfterFontPublish,
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            core.get_project(&id).unwrap();
+            let mut current: Project = read_json(&project_path(&dir)).unwrap();
+            let mut history: History = read_json(&history_path(&dir)).unwrap();
+            current.schema_version = 29;
+            for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
+                snapshot.schema_version = 29;
+            }
+            std::fs::write(project_path(&dir), serde_json::to_vec(&current).unwrap()).unwrap();
+            std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
+            let fixture: serde_json::Value = serde_json::from_str(include_str!(
+                "../../../contracts/initial-motion-preset-pack-v1.json"
+            ))
+            .unwrap();
+            let edit:EditOperation=serde_json::from_value(serde_json::json!({"operation":"apply_animation_preset","itemId":item,"presetId":"impact_slam","presetVersion":1,"parameters":fixture["presets"][0]["parameters"]})).unwrap();
+            let before = project_file_bytes(&dir);
+            set_persistence_fault(&core, phase);
+            let result = core.edit(&id, 1, edit.clone());
+            if matches!(
+                phase,
+                PersistencePhase::BeforeFontPublish
+                    | PersistencePhase::AfterFontPublish
+                    | PersistencePhase::BeforeJournal
+            ) {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    ErrorCode::InternalError,
+                    "{phase:?}"
+                );
+                assert_eq!(project_file_bytes(&dir), before, "{phase:?}");
+                core.edit(&id, 1, edit).unwrap();
+            } else {
+                assert_eq!(result.unwrap().revision, 2, "{phase:?}");
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let saved = reopened.get_project(&id).unwrap();
+            assert_eq!(saved.schema_version, PROJECT_SCHEMA_VERSION);
+            assert_eq!(saved.revision, 2);
+            assert_eq!(
+                serde_json::to_value(
+                    &saved
+                        .find_item(&item)
+                        .unwrap()
+                        .visual_properties()
+                        .animation_preset_provenance
+                )
+                .unwrap(),
+                fixture["presets"][0]["expectedProvenance"]
+            );
+            let history: History = read_json(&history_path(&dir)).unwrap();
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|p| p.schema_version == PROJECT_SCHEMA_VERSION)
+            );
+            crate::assets::fonts::verify_project_fonts(&FileSystemStorage, &dir, &saved).unwrap();
+            assert!(!transaction_path(&dir).exists());
+            reopened.undo(&id, 2).unwrap();
+            reopened.redo(&id, 3).unwrap();
+            assert_eq!(reopened.get_project(&id).unwrap().revision, 4);
+        }
+    }
+
+    #[test]
     fn preset_asset_staging_preserves_explicit_and_default_font_selection_failures() {
         for use_default in [false, true] {
             let (mut core, _) = core();
@@ -3338,11 +3424,112 @@ mod tests {
     }
 
     #[test]
-    fn reserved_schema30_journal_rejects_before_replay_for_current_and_history() {
+    fn schema30_provenance_journals_validate_before_replay_and_preserve_all_sources() {
+        let catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/initial-motion-preset-pack-v1.json"
+        ))
+        .unwrap();
+        for entry in catalog["presets"].as_array().unwrap() {
+            for location in 0..3 {
+                for invalid in [
+                    None,
+                    Some("version"),
+                    Some("timing"),
+                    Some("order"),
+                    Some("clock"),
+                ] {
+                    for component in [false, true] {
+                        let (core, _root) = core();
+                        let id = core
+                            .create_project("Pack journal", ProjectSettings::default())
+                            .unwrap()
+                            .project_id;
+                        let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+                        let item = core.edit(&id,0,serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap()).unwrap().changed_ids[0].clone();
+                        core.edit(&id,1,serde_json::from_value(serde_json::json!({"operation":"apply_animation_preset","itemId":item,"presetId":entry["id"],"presetVersion":1,"parameters":entry["parameters"]})).unwrap()).unwrap();
+                        let dir = core.paths().project_dir(&id).unwrap();
+                        let mut source =
+                            serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                        source["schemaVersion"] = serde_json::json!(30);
+                        let mut local_track = source["tracks"][1].clone();
+                        local_track["id"] = serde_json::json!("local-track");
+                        source["components"] = serde_json::json!([{"id":"pack-source","name":"Pack source","width":1280,"height":720,"durationMs":1000,"tracks":[local_track],"slots":[],"markers":[]}]);
+                        let mut journal = serde_json::json!({"version":TRANSACTION_VERSION,"project":source.clone(),"history":{"undo":[source.clone()],"redo":[source.clone()]},"committedDraftId":null,"draftUpdates":{}});
+                        let target = match location {
+                            0 => &mut journal["project"],
+                            1 => &mut journal["history"]["undo"][0],
+                            _ => &mut journal["history"]["redo"][0],
+                        };
+                        let target = if component {
+                            &mut target["components"][0]["tracks"][0]["items"][0]
+                        } else {
+                            &mut target["tracks"][1]["items"][0]
+                        };
+                        let property = target["animationChannels"][0]["property"]
+                            .as_str()
+                            .unwrap()
+                            .to_owned();
+                        match invalid {
+                            Some("version") => {
+                                target["animationPresetProvenance"][&property]["presetVersion"] =
+                                    serde_json::json!(0)
+                            }
+                            Some("timing") => {
+                                target["animationPresetProvenance"][&property]["parameters"]["durationMs"] =
+                                    serde_json::json!(0)
+                            }
+                            Some("order") => {
+                                target["animationChannels"][0]["keyframes"][1]["timeMs"] =
+                                    target["animationChannels"][0]["keyframes"][0]["timeMs"].clone()
+                            }
+                            Some("clock") => {
+                                target["animationChannels"][0]["clock"] =
+                                    serde_json::json!({"offsetMs":0,"sourceDurationMs":1000})
+                            }
+                            None => (),
+                            _ => unreachable!(),
+                        }
+                        write_json_atomic(&transaction_path(&dir), &journal).unwrap();
+                        let before = project_file_bytes(&dir);
+                        if let Some(case) = invalid {
+                            let error = core.get_project(&id).unwrap_err();
+                            assert_eq!(
+                                error.code,
+                                ErrorCode::ProjectRecoveryFailed,
+                                "{} {location} {component} {case}: {}",
+                                entry["id"],
+                                error.message
+                            );
+                            assert_eq!(project_file_bytes(&dir), before);
+                        } else {
+                            let migrated =
+                                serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                            let mut expected = source.clone();
+                            expected["schemaVersion"] = serde_json::json!(PROJECT_SCHEMA_VERSION);
+                            assert_eq!(migrated, expected);
+                            let history: serde_json::Value =
+                                read_json(&history_path(&dir)).unwrap();
+                            assert_eq!(
+                                history,
+                                serde_json::json!({"undo":[expected.clone()],"redo":[expected]})
+                            );
+                            assert!(!transaction_path(&dir).exists());
+                            let stable = project_file_bytes(&dir);
+                            core.get_project(&id).unwrap();
+                            assert_eq!(project_file_bytes(&dir), stable);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn future_schema_journal_rejects_before_replay_for_current_and_history() {
         for location in 0..3 {
             let (core, _) = core();
             let created = core
-                .create_project("reserved journal", ProjectSettings::default())
+                .create_project("future journal", ProjectSettings::default())
                 .unwrap();
             let dir = core.paths().project_dir(&created.project_id).unwrap();
             let project: Project = read_json(&project_path(&dir)).unwrap();
@@ -3357,9 +3544,9 @@ mod tests {
                 committed_draft_id: None,
             };
             match location {
-                0 => transaction.project.schema_version = 30,
-                1 => transaction.history.undo[0].schema_version = 30,
-                _ => transaction.history.redo[0].schema_version = 30,
+                0 => transaction.project.schema_version = PROJECT_SCHEMA_VERSION + 1,
+                1 => transaction.history.undo[0].schema_version = PROJECT_SCHEMA_VERSION + 1,
+                _ => transaction.history.redo[0].schema_version = PROJECT_SCHEMA_VERSION + 1,
             }
             write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
             let before = (
@@ -3372,7 +3559,7 @@ mod tests {
             assert!(
                 error
                     .message
-                    .contains("unsupported project schema version 30")
+                    .contains("unsupported project schema version 32")
             );
             assert_eq!(
                 before,
@@ -5181,9 +5368,11 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28, 29]
-            .into_iter()
-            .flat_map(|version| phases.map(|phase| (version, phase)))
+        for (version, phase) in [
+            6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28, 29, 30,
+        ]
+        .into_iter()
+        .flat_map(|version| phases.map(|phase| (version, phase)))
         {
             let (core, _) = core();
             let created = core

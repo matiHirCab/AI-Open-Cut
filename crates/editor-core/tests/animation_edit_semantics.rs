@@ -300,9 +300,9 @@ fn schema29_migrates_root_components_and_all_retained_history_atomically() {
 }
 
 #[test]
-fn reserved_future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
+fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
     for history_location in [false, true] {
-        for case in ["reserved", "future", "old_clock", "unsafe_window"] {
+        for case in ["old30_clock", "future", "old_clock", "unsafe_window"] {
             let (_root, core, id, track) = setup();
             let item = add(&core, &id, &track);
             core.edit(&id,1,op(json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.position_x","keyframes":keys()}]}))).unwrap();
@@ -319,7 +319,11 @@ fn reserved_future_and_pre31_clocks_reject_current_or_history_without_disk_mutat
                 &mut current
             };
             match case {
-                "reserved" => target["schemaVersion"] = json!(30),
+                "old30_clock" => {
+                    target["schemaVersion"] = json!(30);
+                    target["tracks"][1]["items"][0]["legacyAnimationClock"] =
+                        json!({"offsetMs":0,"sourceDurationMs":2400});
+                }
                 "future" => target["schemaVersion"] = json!(32),
                 "old_clock" => {
                     target["schemaVersion"] = json!(29);

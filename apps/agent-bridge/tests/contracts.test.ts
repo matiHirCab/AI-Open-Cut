@@ -56,7 +56,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "bcd336ce69dd779034762909db9ad364c4c2a12726be3aa9ebc5b252e889ee76";
+  "8d7c2e3c812866b64a4c5c9d3aff7291fd665ce09cb6221bf7d06111e0118621";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -241,7 +241,7 @@ describe("canonical public contracts", () => {
       collisionPolicy: "reject",
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
-    expect(PRESETS.compilerVersion).toBe(1);
+    expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(31);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
@@ -503,6 +503,7 @@ describe("canonical public contracts", () => {
       "extended_visual_animation_v1",
       "motion_blur_sampling_v1",
       "animation_presets_v1",
+      "initial_motion_preset_pack_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

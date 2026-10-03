@@ -116,30 +116,19 @@ pub(crate) fn build_render_plan(
             visual_count += 1;
             let prepared = format!("sampled{visual_count}");
             let composited = format!("base{visual_count}");
+            // Still CPU samples otherwise inherit image2's 25fps cadence,
+            // which can defer a half-open overlay start on FFmpeg 6. Match the
+            // authored sample cadence before placing it on a precise clock.
             filters.push(format!(
-                "[{input}:v]setpts=PTS-STARTPTS+{}/TB,format=rgba[{prepared}]",
+                "[{input}:v]fps={fps},settb=AVTB,setpts=PTS-STARTPTS+{}/TB,format=rgba[{prepared}]",
                 seconds(*start_ms)
             ));
-            let (start, end) = layer.instance.map_or(
-                (
-                    layer.visible_span().start_ms as f64,
-                    layer.visible_span().end_ms as f64,
-                ),
-                |clock| (clock.start_ms, clock.end_ms),
-            );
-            if layer
-                .extended
-                .as_ref()
-                .and_then(|v| v.motion_blur)
-                .is_some_and(crate::MotionBlur::enabled)
-            {
-                // Sampled pixels already enforce each shutter sample's half-open activity.
-                filters.push(format!(
-                    "[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass[{composited}]"
-                ));
-            } else {
-                filters.push(format!("[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass:enable='gte(t,{})*lt(t,{})'[{composited}]",precise_seconds(start),precise_seconds(end)));
-            }
+            // Prepared pixels already enforce canonical sample activity,
+            // including shutter samples. A second floating-time enable can
+            // discard a valid seam frame on FFmpeg 6.
+            filters.push(format!(
+                "[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass[{composited}]"
+            ));
             current_video = composited;
             continue;
         }
@@ -606,6 +595,7 @@ fn evaluated_scalar_expression_with_precision(
     time_variable: &str,
     precision: LoopClockPrecision,
 ) -> String {
+    let time_variable_unshifted = time_variable;
     let source_time = retained_time_expression(keyframes, property, time_variable);
     let time_variable = source_time.as_str();
     let loop_spec = keyframes
@@ -630,6 +620,26 @@ fn evaluated_scalar_expression_with_precision(
         EvaluatedProperty::GainDb => Some((-96.0, 12.0)),
         _ => None,
     };
+    if values.is_empty() {
+        return format_number(default);
+    }
+    if let Some(clock) = keyframes
+        .iter()
+        .find(|key| key.property == property)
+        .and_then(|key| key.clock)
+    {
+        return clocked_scalar_expression(
+            &values,
+            item_start_ms,
+            // Keep the unshifted clock: the integer offset cancels against
+            // each key origin before any floating-point arithmetic.
+            time_variable_unshifted,
+            clock.offset_ms,
+            loop_spec,
+            precision,
+            bounds,
+        );
+    }
     let mapped_time = loop_spec.and_then(|loop_spec| {
         let first = values.first()?.0;
         let last = values.last()?.0;
@@ -742,8 +752,196 @@ fn evaluated_position_expression_for(
             _ => None,
         })
         .collect::<Vec<_>>();
+    if let Some(clock) = keyframes
+        .iter()
+        .find(|key| key.property == EvaluatedProperty::Position)
+        .and_then(|key| key.clock)
+    {
+        let local_ms = format!("(({time_variable})*1000-({item_start_ms}))");
+        return clocked_piecewise_expression(
+            &values,
+            default,
+            &local_ms,
+            i128::from(clock.offset_ms),
+            1,
+            None,
+        );
+    }
     let time = retained_time_expression(keyframes, EvaluatedProperty::Position, time_variable);
     evaluated_piecewise_expression_for(&values, default, item_start_ms, &time, None)
+}
+
+// The source origin stays integer until it cancels against a selected key.
+// This also handles large key origins, not just large retained offsets.
+fn clocked_scalar_expression(
+    values: &[(u64, f64, EvaluatedEasing)],
+    item_start_ms: u64,
+    time_variable: &str,
+    offset_ms: i64,
+    loop_spec: Option<crate::AnimationLoop>,
+    precision: LoopClockPrecision,
+    bounds: Option<(f64, f64)>,
+) -> String {
+    let default = values.first().expect("nonempty values").1;
+    let local_ms = format!("(({time_variable})*1000-({item_start_ms}))");
+    let plain = || {
+        clocked_piecewise_expression(values, default, &local_ms, i128::from(offset_ms), 1, bounds)
+    };
+    let Some(spec) = loop_spec else {
+        return plain();
+    };
+    let Some((first, _, _)) = values.first().copied() else {
+        return plain();
+    };
+    let last = values.last().expect("nonempty values").0;
+    let span = i128::from(last - first);
+    if span == 0 {
+        return plain();
+    }
+    let period = span
+        * if spec.mode == crate::AnimationLoopMode::PingPong {
+            2
+        } else {
+            1
+        };
+    let sample_ms = match precision {
+        LoopClockPrecision::IntegerMilliseconds => {
+            format!("(floor((({time_variable})*1000)+0.5)-({item_start_ms}))")
+        }
+        LoopClockPrecision::FractionalMilliseconds => local_ms,
+    };
+    let raw_phase = format!("mod(({sample_ms}),{period})");
+    let local_phase = format!("if(lt(({raw_phase}),0),({raw_phase})+({period}),({raw_phase}))");
+    let phase_offset = (i128::from(offset_ms) - i128::from(first)).rem_euclid(period);
+    let branch = |phase_origin: i128| {
+        let forward = clocked_piecewise_expression(
+            values,
+            default,
+            &local_phase,
+            i128::from(first) + phase_origin,
+            1,
+            bounds,
+        );
+        if spec.mode == crate::AnimationLoopMode::Repeat {
+            return forward;
+        }
+        let reverse = clocked_piecewise_expression(
+            values,
+            default,
+            &local_phase,
+            i128::from(first) + period - phase_origin,
+            -1,
+            bounds,
+        );
+        format!(
+            "if(lte(({local_phase}),{}),({forward}),({reverse}))",
+            span - phase_origin
+        )
+    };
+    let active = format!(
+        "if(gte(({local_phase}),{}),({}),({}))",
+        period - phase_offset,
+        branch(phase_offset - period),
+        branch(phase_offset)
+    );
+    let mapped = if let crate::AnimationLoopIterations::Finite(count) = spec.iterations {
+        let remaining = i128::from(first) + period * i128::from(count) - i128::from(offset_ms);
+        let endpoint = if spec.mode == crate::AnimationLoopMode::PingPong {
+            values[0].1
+        } else {
+            values.last().expect("nonempty values").1
+        };
+        let endpoint = if spec.mode == crate::AnimationLoopMode::PingPong {
+            if parameterized_easing(values[0].2) {
+                format_curve_number(endpoint)
+            } else {
+                format_number(endpoint)
+            }
+        } else if values.len() > 1 && parameterized_easing(values[values.len() - 2].2) {
+            format_curve_number(endpoint)
+        } else {
+            format_number(endpoint)
+        };
+        format!("if(gte(({sample_ms}),{remaining}),({endpoint}),({active}))")
+    } else {
+        active
+    };
+    let before_first = i128::from(first) - i128::from(offset_ms);
+    let first_value = if parameterized_easing(values[0].2) {
+        format_curve_number(values[0].1)
+    } else {
+        format_number(values[0].1)
+    };
+    format!("if(lt(({sample_ms}),{before_first}),({first_value}),({mapped}))")
+}
+
+fn clocked_piecewise_expression(
+    values: &[(u64, f64, EvaluatedEasing)],
+    default: f64,
+    sample_ms: &str,
+    origin_ms: i128,
+    direction: i8,
+    bounds: Option<(f64, f64)>,
+) -> String {
+    let Some(last) = values.last() else {
+        return format_number(default);
+    };
+    let difference = |key: u64| {
+        format!(
+            "(({direction})*({sample_ms})+({}))",
+            origin_ms - i128::from(key)
+        )
+    };
+    let mut expression = if values.len() > 1 && parameterized_easing(values[values.len() - 2].2) {
+        format_curve_number(last.1)
+    } else {
+        format_number(last.1)
+    };
+    for pair in values.windows(2).rev() {
+        let (start, start_value, easing) = pair[0];
+        let (end, end_value, _) = pair[1];
+        let start_delta = difference(start);
+        let end_delta = difference(end);
+        let progress = format!("({start_delta})/({})", (end - start).max(1));
+        let eased = evaluated_easing_expression(&progress, easing);
+        let format_value: fn(f64) -> String = if parameterized_easing(easing) {
+            format_curve_number
+        } else {
+            format_number
+        };
+        let mut interpolated = format!(
+            "({})+(({})-({}))*({eased})",
+            format_value(start_value),
+            format_value(end_value),
+            format_value(start_value)
+        );
+        if parameterized_easing(easing)
+            && let Some((minimum, maximum)) = bounds
+        {
+            interpolated = format!(
+                "if(eq(({start_delta}),0),{},max({},min({},({interpolated}))))",
+                format_value(start_value),
+                format_number(minimum),
+                format_number(maximum)
+            );
+        }
+        if parameterized_easing(easing) {
+            expression = format!(
+                "if(eq(({end_delta}),0),{},({expression}))",
+                format_curve_number(end_value)
+            );
+        }
+        expression = format!("if(lt(({end_delta}),0),({interpolated}),({expression}))");
+    }
+    let first_value = if parameterized_easing(values[0].2) {
+        format_curve_number(values[0].1)
+    } else {
+        format_number(values[0].1)
+    };
+    format!(
+        "if(lt(({}),0),({first_value}),({expression}))",
+        difference(values[0].0)
+    )
 }
 
 fn evaluated_piecewise_expression_for(
@@ -1658,10 +1856,14 @@ fn append_affine_samples(
     let fx = format!("({x}-floor({x}))");
     let fy = format!("({y}-floor({y}))");
     let source_separator = if source.ends_with(']') { "" } else { "," };
-    // Vector resources carry a transparent border that must survive pixelwise
-    // alpha conversion. FFmpeg 6 bilinear geq copies its inner neighbor there.
-    // Retain the existing media/text lookup for exact legacy orientation parity.
-    let channel_lookup = if matches!(&layer.source, EvaluatedVisualSource::Shape(_)) {
+    // Rectangle and vector raster borders must survive pointwise alpha
+    // conversion. FFmpeg 6 bilinear geq copies the inner neighbor at an edge.
+    // Geometry still uses the four gathers and bilinear blends below; retain
+    // the existing media/text lookup for exact legacy orientation parity.
+    let channel_lookup = if matches!(
+        &layer.source,
+        EvaluatedVisualSource::Shape(_) | EvaluatedVisualSource::Rectangle { .. }
+    ) {
         "interpolation=nearest:"
     } else {
         ""
@@ -1940,6 +2142,260 @@ mod tests {
                     "{property:?} offset={offset} local={local} actual={actual} expected={expected}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn native_retained_large_clock_expressions_preserve_fractional_segments() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref(),
+                Ok("1"),
+                "large clock expression comparison requires FFmpeg"
+            );
+            return;
+        };
+        use crate::{
+            AnimationInfiniteIterations, AnimationLoop, AnimationLoopIterations as Iterations,
+            AnimationLoopMode as Mode,
+        };
+        let huge = 1_u64 << 52;
+        let infinite = Iterations::Infinite(AnimationInfiniteIterations::Infinite);
+        let linear = EvaluatedEasing::Linear;
+        let hold = EvaluatedEasing::Hold;
+        let short = vec![(0, 0.0, linear), (100, 1.0, hold)];
+        let origin = vec![(huge, 0.0, linear), (huge + 100, 1.0, hold)];
+        let large_period = vec![
+            (0, 0.0, linear),
+            (huge, 0.0, linear),
+            (huge + 1, 1.0, linear),
+            (huge + 100, 1.0, hold),
+        ];
+        let cases = vec![
+            (
+                short.clone(),
+                huge as i64,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.9625,
+            ),
+            (
+                short.clone(),
+                huge as i64 + 100,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.0375,
+            ),
+            (
+                short.clone(),
+                i64::MAX,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.0725,
+            ),
+            (short.clone(), -(huge as i64), None, 0.25, 0.0),
+            (origin.clone(), huge as i64, None, 0.25, 0.0025),
+            (
+                origin.clone(),
+                huge as i64,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.0025,
+            ),
+            (
+                origin.clone(),
+                huge as i64 + 199,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: Iterations::Finite(2),
+                }),
+                0.25,
+                0.9925,
+            ),
+            (
+                origin.clone(),
+                huge as i64 + 199,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: Iterations::Finite(2),
+                }),
+                1.0,
+                1.0,
+            ),
+            (
+                origin.clone(),
+                huge as i64 + 199,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: Iterations::Finite(1),
+                }),
+                0.25,
+                0.0075,
+            ),
+            (
+                origin,
+                huge as i64 + 199,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: Iterations::Finite(1),
+                }),
+                1.0,
+                0.0,
+            ),
+            (
+                short.clone(),
+                huge as i64,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: Iterations::Finite(3),
+                }),
+                0.25,
+                1.0,
+            ),
+            (
+                short,
+                huge as i64,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: Iterations::Finite(3),
+                }),
+                0.25,
+                0.0,
+            ),
+            (
+                large_period.clone(),
+                huge as i64,
+                Some(AnimationLoop {
+                    mode: Mode::Repeat,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.25,
+            ),
+            (
+                large_period,
+                huge as i64 + 199,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: infinite,
+                }),
+                0.25,
+                0.75,
+            ),
+            (
+                vec![(huge, 0.0, EvaluatedEasing::EaseIn), (huge + 1, 1.0, hold)],
+                huge as i64,
+                None,
+                0.25,
+                0.0625,
+            ),
+            (
+                vec![
+                    (
+                        huge,
+                        0.0,
+                        EvaluatedEasing::CubicBezier {
+                            x1: 1.0 / 3.0,
+                            y1: 0.0,
+                            x2: 2.0 / 3.0,
+                            y2: 0.0,
+                        },
+                    ),
+                    (huge + 1, 1.0, hold),
+                ],
+                huge as i64,
+                None,
+                0.25,
+                0.015625,
+            ),
+            // Independent critical-spring formula: 1-(1+2t)*exp(-2t).
+            (
+                vec![
+                    (
+                        huge,
+                        0.0,
+                        EvaluatedEasing::Spring {
+                            mass: 1.0,
+                            stiffness: 4.0,
+                            damping: 4.0,
+                            initial_velocity: 0.0,
+                        },
+                    ),
+                    (huge + 1, 1.0, hold),
+                ],
+                huge as i64,
+                None,
+                0.25,
+                1.0 - 1.5 * (-0.5_f64).exp(),
+            ),
+        ];
+        let mut cases = cases;
+        for (local_ms, expected) in [(0.0, 1.0), (0.25, 0.0), (0.000_001, 0.0)] {
+            cases.push((
+                vec![(huge, 0.0, hold), (huge + 100, 1.0, hold)],
+                huge as i64 + 100,
+                Some(AnimationLoop {
+                    mode: Mode::PingPong,
+                    iterations: infinite,
+                }),
+                local_ms,
+                expected,
+            ));
+        }
+        for (values, offset, loop_spec, local_ms, expected) in cases {
+            let time = format!("{:.17}", (10.0 + local_ms) / 1000.0);
+            let expression = clocked_scalar_expression(
+                &values,
+                10,
+                &time,
+                offset,
+                loop_spec,
+                LoopClockPrecision::FractionalMilliseconds,
+                None,
+            );
+            let source = format!("aevalsrc=exprs='{expression}':s=8000:d=0.001");
+            let output = std::process::Command::new(&ffmpeg)
+                .args([
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    &source,
+                    "-frames:a",
+                    "1",
+                    "-ac",
+                    "1",
+                    "-c:a",
+                    "pcm_f64le",
+                    "-f",
+                    "f64le",
+                    "-",
+                ])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let actual = f64::from_le_bytes(output.stdout[..8].try_into().unwrap());
+            assert!(
+                (actual - expected).abs() < 0.000_001,
+                "offset{offset} local{local_ms} loop{loop_spec:?}: expected{expected} actual{actual}"
+            );
         }
     }
 

@@ -413,7 +413,7 @@ fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<
         }
         // Replay a supported older binary's committed generation before the
         // store performs its normal atomic migration to the current schema.
-        if !matches!(snapshot.schema_version, 1..=29 | PROJECT_SCHEMA_VERSION) {
+        if !(1..=PROJECT_SCHEMA_VERSION).contains(&snapshot.schema_version) {
             return Err(recovery_error(format!(
                 "transaction contains unsupported project schema version {}",
                 snapshot.schema_version

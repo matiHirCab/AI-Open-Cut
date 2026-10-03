@@ -29,6 +29,7 @@ import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
+import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
@@ -1210,4 +1211,5 @@ it("edits scoped markers and live item starts through MCP", async () => {
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
   await verifyPresetWorkflow(client, call);
   await verifyAnimationEditWorkflow(client, call);
+  await verifyPackClockMigrationWorkflow(client, call, projects);
 });

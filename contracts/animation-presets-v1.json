@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "compilerVersion": 1,
+  "compilerVersion": 2,
   "projectSchemaVersion": 31,
   "capability": "animation_presets_v1",
   "operation": "apply_animation_preset",
@@ -58,12 +58,125 @@
           "minimum": -96,
           "maximum": 12
         }
-      }
+      },
+      "compilerVersion": 1
+    },
+    {
+      "id": "impact_slam",
+      "version": 1,
+      "minimumDurationMs": 8,
+      "compilerVersion": 2,
+      "parameters": [
+        "kind",
+        "startMs",
+        "durationMs",
+        "centerX",
+        "centerY",
+        "shakeAmplitudePx",
+        "scaleFrom",
+        "scaleOvershoot",
+        "scaleTo",
+        "opacityFrom",
+        "opacityTo",
+        "flashOpacity",
+        "motionBlur"
+      ],
+      "properties": [
+        "transform.position_x",
+        "transform.position_y",
+        "transform.scale_x",
+        "transform.scale_y",
+        "transform.opacity"
+      ],
+      "terminalCurve": "hold",
+      "nonterminalCurve": "linear"
+    },
+    {
+      "id": "slide_left",
+      "version": 1,
+      "minimumDurationMs": 1,
+      "compilerVersion": 2,
+      "parameters": [
+        "kind",
+        "startMs",
+        "durationMs",
+        "positionFromX",
+        "positionToX"
+      ],
+      "properties": [
+        "transform.position_x"
+      ],
+      "terminalCurve": "hold",
+      "nonterminalCurve": "linear"
+    },
+    {
+      "id": "scan",
+      "version": 1,
+      "minimumDurationMs": 2,
+      "compilerVersion": 2,
+      "parameters": [
+        "kind",
+        "startMs",
+        "durationMs",
+        "positionFromX",
+        "positionToX",
+        "iterations"
+      ],
+      "properties": [
+        "transform.position_x"
+      ],
+      "terminalCurve": "hold",
+      "nonterminalCurve": "linear",
+      "defaultIterations": "infinite"
+    },
+    {
+      "id": "pulse",
+      "version": 1,
+      "minimumDurationMs": 2,
+      "compilerVersion": 2,
+      "parameters": [
+        "kind",
+        "startMs",
+        "durationMs",
+        "scaleFrom",
+        "scalePeak",
+        "iterations"
+      ],
+      "properties": [
+        "transform.scale_x",
+        "transform.scale_y"
+      ],
+      "terminalCurve": "hold",
+      "nonterminalCurve": "linear",
+      "defaultIterations": 1
+    },
+    {
+      "id": "radar_expand",
+      "version": 1,
+      "minimumDurationMs": 4,
+      "compilerVersion": 2,
+      "parameters": [
+        "kind",
+        "startMs",
+        "durationMs",
+        "scaleFrom",
+        "scaleTo",
+        "opacityPeak",
+        "iterations"
+      ],
+      "properties": [
+        "transform.scale_x",
+        "transform.scale_y",
+        "transform.opacity"
+      ],
+      "terminalCurve": "hold",
+      "nonterminalCurve": "linear",
+      "defaultIterations": "infinite"
     }
   ],
   "limits": {
-    "maxGeneratedChannels": 1,
-    "maxGeneratedKeyframes": 2,
+    "maxGeneratedChannels": 5,
+    "maxGeneratedKeyframes": 25,
     "maxProvenancePerItem": 64,
     "maxPresetIdBytes": 64,
     "maxTimeMs": 9007199254740991
@@ -267,5 +380,9 @@
       "edit": "delete_item",
       "sourceAfter": "item_deleted"
     }
-  ]
+  ],
+  "additionalCapabilities": [
+    "initial_motion_preset_pack_v1"
+  ],
+  "compilerVersionSemantics": "latest compiler generation; each preset retains its explicit compilerVersion, scalar_tween remains1"
 }

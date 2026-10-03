@@ -11,6 +11,9 @@ fn op(value: Value) -> EditOperation {
     serde_json::from_value(value).unwrap()
 }
 fn setup() -> (tempfile::TempDir, EditorCore, String, String) {
+    setup_canvas(64)
+}
+fn setup_canvas(size: u32) -> (tempfile::TempDir, EditorCore, String, String) {
     let root = tempfile::tempdir().unwrap();
     let media = root.path().join("media");
     std::fs::create_dir(&media).unwrap();
@@ -26,8 +29,8 @@ fn setup() -> (tempfile::TempDir, EditorCore, String, String) {
         .create_project(
             "Presets",
             ProjectSettings {
-                width: 64,
-                height: 64,
+                width: size,
+                height: size,
                 fps: 20,
             },
         )
@@ -1204,7 +1207,7 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
             candidate["schemaVersion"] = json!(28);
             candidate["tracks"][1]["items"][0]["animationPresetProvenance"] = json!({});
         } else if let Some(target) = mode.strip_prefix("future_") {
-            history[target][0]["schemaVersion"] = json!(30);
+            history[target][0]["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION + 1);
         } else {
             let visual = &mut current["tracks"][1]["items"][0];
             match mode {
@@ -1592,4 +1595,926 @@ fn legacy_failed_alias_batch_does_not_publish_schema_migration() {
         "INVALID_ARGUMENT changed schema to {}",
         serde_json::from_slice::<Value>(&after.0).unwrap()["schemaVersion"]
     );
+}
+
+fn pack_files(
+    core: &EditorCore,
+    project: &str,
+) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+    fn visit(
+        dir: &std::path::Path,
+        files: &mut std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+    ) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                visit(&path, files);
+            } else {
+                files.insert(path.clone(), std::fs::read(path).unwrap());
+            }
+        }
+    }
+    let mut files = std::collections::BTreeMap::new();
+    visit(&core.paths().project_dir(project).unwrap(), &mut files);
+    files
+}
+
+fn pack_fixture() -> Value {
+    serde_json::from_str(include_str!(
+        "../../../contracts/initial-motion-preset-pack-v1.json"
+    ))
+    .unwrap()
+}
+fn pack_request(id: &str, entry: &Value) -> Value {
+    json!({"operation":"apply_animation_preset","itemId":id,"presetId":entry["id"],"presetVersion":1,"parameters":entry["parameters"]})
+}
+fn pack_channels(entry: &Value) -> Value {
+    Value::Array(entry["expected"]["channels"].as_array().unwrap().iter().map(|channel| {
+        let times=channel["times"].as_array().unwrap();
+        let keys:Vec<_>=times.iter().zip(channel["values"].as_array().unwrap()).enumerate().map(|(i,(time,value))| json!({"timeMs":time,"value":{"type":"scalar","value":value},"curve":if i+1 == times.len() { "hold" } else { "linear" }})).collect();
+        let mut value=json!({"property":channel["property"],"keyframes":keys});
+        if !entry["expected"]["loop"].is_null() { value["loop"]=entry["expected"]["loop"].clone(); }
+        value
+    }).collect())
+}
+
+#[test]
+fn motion_pack_canonical_primitives_complete_sources_and_history_are_exact() {
+    for entry in pack_fixture()["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        let before = state(&core, &project);
+        core.edit(&project, 1, op(pack_request(&id, entry)))
+            .unwrap();
+        let after = state(&core, &project);
+        assert_eq!(
+            item(&after)["animationChannels"],
+            pack_channels(entry),
+            "{}",
+            entry["id"]
+        );
+        assert_eq!(
+            item(&after)["animationPresetProvenance"],
+            entry["expectedProvenance"],
+            "{}",
+            entry["id"]
+        );
+        assert_eq!(
+            item(&after).get("motionBlur"),
+            if entry["expected"]["motionBlur"].is_null() {
+                None
+            } else {
+                Some(&entry["expected"]["motionBlur"])
+            }
+        );
+        assert_eq!(after["schemaVersion"], PROJECT_SCHEMA_VERSION);
+        core.undo(&project, 2).unwrap();
+        assert_eq!(item(&state(&core, &project)), item(&before));
+        core.redo(&project, 3).unwrap();
+        assert_eq!(item(&state(&core, &project)), item(&after));
+        let reopened = EditorCore::new(core.paths().clone());
+        reopened.get_project(&project).unwrap();
+        assert_eq!(item(&state(&core, &project)), item(&after));
+    }
+}
+
+#[test]
+fn motion_pack_phase_minima_and_odd_times_use_fixed_oracles() {
+    let fixture = pack_fixture();
+    for case in fixture["phaseCases"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        let entry = fixture["presets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["id"] == case["id"])
+            .unwrap();
+        let mut request = pack_request(&id, entry);
+        request["parameters"]["startMs"] = case["startMs"].clone();
+        request["parameters"]["durationMs"] = case["durationMs"].clone();
+        core.edit(&project, 1, op(request)).unwrap();
+        let after = state(&core, &project);
+        for channel in item(&after)["animationChannels"].as_array().unwrap() {
+            let times: Vec<_> = channel["keyframes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|k| k["timeMs"].clone())
+                .collect();
+            assert_eq!(
+                json!(times),
+                case["timesByProperty"][channel["property"].as_str().unwrap()]
+            );
+        }
+    }
+}
+
+#[test]
+fn motion_pack_raw_shape_errors_preserve_original_duplicate_fields() {
+    use opencut_editor_core::AnimationPresetParameters;
+    for raw in pack_fixture()["invalidRawParameters"].as_array().unwrap() {
+        let raw = raw.as_str().unwrap();
+        assert!(
+            serde_json::from_str::<AnimationPresetParameters>(raw).is_err(),
+            "accepted {raw}"
+        );
+        let edit = format!(
+            "{{\"operation\":\"apply_animation_preset\",\"itemId\":\"item\",\"presetId\":\"impact_slam\",\"presetVersion\":1,\"parameters\":{raw}}}"
+        );
+        assert!(
+            serde_json::from_str::<EditOperation>(&edit).is_err(),
+            "accepted {edit}"
+        );
+    }
+}
+
+#[test]
+fn motion_pack_invalid_bounds_and_identity_leave_documents_and_resources_unchanged() {
+    let fixture = pack_fixture();
+    let (_root, core, project, id) = setup();
+    let before = pack_files(&core, &project);
+    for case in fixture["invalidApplications"].as_array().unwrap() {
+        let entry = fixture["presets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["id"] == case["id"])
+            .unwrap();
+        let mut request = pack_request(&id, entry);
+        let mut target = &mut request["parameters"];
+        let parts: Vec<_> = case["field"].as_str().unwrap().split('.').collect();
+        for part in &parts[..parts.len() - 1] {
+            target = &mut target[*part];
+        }
+        target[parts[parts.len() - 1]] = case["value"].clone();
+        let error = match serde_json::from_value::<EditOperation>(request) {
+            Ok(request) => core.edit(&project, 1, request).unwrap_err(),
+            Err(_) => {
+                assert_eq!(pack_files(&core, &project), before);
+                continue;
+            }
+        };
+        assert_eq!(error.code, ErrorCode::InvalidArgument, "{case}");
+        assert!(!error.retryable);
+        assert_eq!(pack_files(&core, &project), before, "{case}");
+    }
+    for entry in fixture["presets"].as_array().unwrap() {
+        for field in ["presetId", "presetVersion"] {
+            let mut request = pack_request(&id, entry);
+            request[field] = if field == "presetId" {
+                json!("retired_pack")
+            } else {
+                json!(2)
+            };
+            assert_eq!(
+                core.edit(&project, 1, op(request)).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+            assert_eq!(pack_files(&core, &project), before);
+        }
+    }
+}
+
+#[test]
+fn motion_pack_impact_blur_reject_replace_retired_labels_and_undo_are_exact() {
+    let fixture = pack_fixture();
+    let entry = &fixture["presets"][0];
+    let (_root, core, project, id) = setup();
+    core.edit(&project,1,op(json!({"operation":"update_item","itemId":id,"motionBlur":{"shutterAngleDeg":0,"sampleCount":1}}))).unwrap();
+    let before = files(&core, &project);
+    assert_eq!(
+        core.edit(&project, 2, op(pack_request(&id, entry)))
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(files(&core, &project), before);
+    let mut request = pack_request(&id, entry);
+    request["collisionPolicy"] = json!("replace");
+    core.edit(&project, 2, op(request)).unwrap();
+    let saved = state(&core, &project);
+    core.edit(&project,3,op(json!({"operation":"update_item","itemId":id,"motionBlur":{"shutterAngleDeg":180,"sampleCount":3}}))).unwrap();
+    assert_eq!(
+        item(&state(&core, &project))["animationPresetProvenance"],
+        item(&saved)["animationPresetProvenance"]
+    );
+    core.edit(&project,4,op(json!({"operation":"update_item","itemId":id,"motionBlur":{"shutterAngleDeg":90,"sampleCount":2}}))).unwrap();
+    let after = state(&core, &project);
+    assert!(item(&after).get("animationPresetProvenance").is_none());
+    assert_eq!(
+        item(&after)["animationChannels"],
+        item(&saved)["animationChannels"]
+    );
+    core.undo(&project, 5).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&saved));
+    core.redo(&project, 6).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&after));
+}
+
+#[test]
+fn motion_pack_and_scalar_preserve_unrelated_scoped_channel_targets() {
+    let fixture = pack_fixture();
+    let mut entries = fixture["presets"].as_array().unwrap().clone();
+    entries.push(json!({"id":"scalar_tween","parameters":{"property":"transform.opacity","startMs":10,"durationMs":80,"from":0.0,"to":1.0}}));
+    for entry in entries {
+        let (_root, core, project, id) = setup();
+        core.edit(&project,1,op(json!({"operation":"update_item","itemId":id,"effects":[{"id":"soft","type":"gaussian_blur","radiusPx":1.0}]}))).unwrap();
+        let channel = json!({"property":"effect.blur_radius","target":{"kind":"effect","scope":"root","id":"soft"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":1.0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":2.0},"curve":"hold"}]});
+        core.edit(&project,2,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":[channel]}))).unwrap();
+        let before = state(&core, &project);
+        core.edit(&project, 3, op(pack_request(&id, &entry)))
+            .unwrap();
+        let after = state(&core, &project);
+        assert_eq!(
+            item(&after)["animationChannels"][0],
+            channel,
+            "{}",
+            entry["id"]
+        );
+        assert_eq!(item(&after)["effects"], item(&before)["effects"]);
+        core.undo(&project, 4).unwrap();
+        assert_eq!(item(&state(&core, &project)), item(&before));
+    }
+}
+
+#[test]
+fn motion_pack_descriptive_retirement_membership_and_premature_generations_fail_closed() {
+    let fixture = pack_fixture();
+    for entry in fixture["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        core.edit(&project, 1, op(pack_request(&id, entry)))
+            .unwrap();
+        let dir = core.paths().project_dir(&project).unwrap();
+        let path = dir.join("project.json");
+        let mut saved = state(&core, &project);
+        let visual = &mut saved["tracks"][1]["items"][0];
+        let property = visual["animationChannels"][0]["property"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let mut source = visual["animationPresetProvenance"][&property].clone();
+        source["presetId"] = json!("retired_artistic_pack");
+        source["presetVersion"] = json!(99);
+        source["compilerVersion"] = json!(88);
+        visual["animationChannels"] = json!([visual["animationChannels"][0]]);
+        visual["animationPresetProvenance"] = json!({property.clone():source});
+        std::fs::write(&path, serde_json::to_vec(&saved).unwrap()).unwrap();
+        let bytes = files(&core, &project);
+        assert_eq!(state(&core, &project), saved);
+        assert_eq!(files(&core, &project), bytes);
+        if ["scan", "pulse", "radar_expand"].contains(&entry["id"].as_str().unwrap()) {
+            let mut missing = saved.clone();
+            missing["tracks"][1]["items"][0]["animationPresetProvenance"][&property]["parameters"]
+                .as_object_mut()
+                .unwrap()
+                .remove("iterations");
+            std::fs::write(&path, serde_json::to_vec(&missing).unwrap()).unwrap();
+            let before = files(&core, &project);
+            assert!(core.get_project(&project).is_err());
+            assert_eq!(files(&core, &project), before);
+        }
+        let mut premature = saved.clone();
+        premature["schemaVersion"] = json!(29);
+        std::fs::write(&path, serde_json::to_vec(&premature).unwrap()).unwrap();
+        let before = files(&core, &project);
+        assert!(core.get_project(&project).is_err());
+        assert_eq!(files(&core, &project), before);
+        let mut mismatched = saved.clone();
+        mismatched["tracks"][1]["items"][0]["animationPresetProvenance"] =
+            json!({"audio.gain_db":source});
+        std::fs::write(&path, serde_json::to_vec(&mismatched).unwrap()).unwrap();
+        let before = files(&core, &project);
+        assert!(core.get_project(&project).is_err());
+        assert_eq!(files(&core, &project), before);
+    }
+}
+
+#[test]
+fn motion_pack_schema29_component_and_retained_sources_fail_without_writes() {
+    let fixture = pack_fixture();
+    for entry in fixture["presets"].as_array().unwrap() {
+        for location in ["component", "undo", "redo"] {
+            for malformed in [false, true] {
+                let (_root, core, project, id) = setup();
+                core.edit(&project, 1, op(pack_request(&id, entry)))
+                    .unwrap();
+                core.edit(
+                    &project,
+                    2,
+                    op(json!({"operation":"update_item","itemId":id,"color":"#00ff00"})),
+                )
+                .unwrap();
+                core.edit(
+                    &project,
+                    3,
+                    op(json!({"operation":"update_item","itemId":id,"color":"#0000ff"})),
+                )
+                .unwrap();
+                core.undo(&project, 4).unwrap();
+                let dir = core.paths().project_dir(&project).unwrap();
+                let mut current = state(&core, &project);
+                let mut history: Value =
+                    serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap())
+                        .unwrap();
+                let candidate = if location == "component" {
+                    let tracks = json!([current["tracks"][1]]);
+                    current["components"] = json!([{"id":"local","name":"Local","width":64,"height":64,"durationMs":1000,"tracks":tracks,"slots":[],"markers":[]}]);
+                    current["tracks"][1]["items"][0]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("animationPresetProvenance");
+                    &mut current
+                } else {
+                    history[location]
+                        .as_array_mut()
+                        .unwrap()
+                        .iter_mut()
+                        .find(|p| {
+                            p["tracks"][1]["items"][0]["animationPresetProvenance"].is_object()
+                        })
+                        .unwrap()
+                };
+                candidate["schemaVersion"] = json!(29);
+                if malformed {
+                    let visual = if location == "component" {
+                        &mut candidate["components"][0]["tracks"][0]["items"][0]
+                    } else {
+                        &mut candidate["tracks"][1]["items"][0]
+                    };
+                    let property = visual["animationChannels"][0]["property"]
+                        .as_str()
+                        .unwrap()
+                        .to_owned();
+                    visual["animationPresetProvenance"][property]["parameters"]["durationMs"] =
+                        json!(null);
+                }
+                std::fs::write(
+                    dir.join("project.json"),
+                    serde_json::to_vec(&current).unwrap(),
+                )
+                .unwrap();
+                std::fs::write(
+                    dir.join("history.json"),
+                    serde_json::to_vec(&history).unwrap(),
+                )
+                .unwrap();
+                let before = pack_files(&core, &project);
+                assert!(
+                    EditorCore::new(core.paths().clone())
+                        .get_project(&project)
+                        .is_err(),
+                    "{} {location} malformed={malformed}",
+                    entry["id"]
+                );
+                assert_eq!(
+                    pack_files(&core, &project),
+                    before,
+                    "{} {location} malformed={malformed}",
+                    entry["id"]
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn motion_pack_schema29_scalar_current_components_and_history_migrate_once_without_relabeling() {
+    let (_root, core, project, id) = setup();
+    core.edit(&project, 1, op(request(&id))).unwrap();
+    core.edit(
+        &project,
+        2,
+        op(json!({"operation":"update_item","itemId":id,"color":"#00ff00"})),
+    )
+    .unwrap();
+    core.edit(
+        &project,
+        3,
+        op(json!({"operation":"update_item","itemId":id,"color":"#0000ff"})),
+    )
+    .unwrap();
+    core.undo(&project, 4).unwrap();
+    let dir = core.paths().project_dir(&project).unwrap();
+    let mut current = state(&core, &project);
+    let mut history: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    for document in std::iter::once(&mut current).chain(
+        history
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .filter_map(Value::as_array_mut)
+            .flat_map(|snapshots| snapshots.iter_mut()),
+    ) {
+        document["schemaVersion"] = json!(29);
+        if !document["tracks"][1]["items"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+        {
+            let tracks = json!([document["tracks"][1]]);
+            document["components"] = json!([{"id":"local","name":"Local","width":64,"height":64,"durationMs":1000,"tracks":tracks,"slots":[],"markers":[]}]);
+        }
+    }
+    std::fs::write(
+        dir.join("project.json"),
+        serde_json::to_vec(&current).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("history.json"),
+        serde_json::to_vec(&history).unwrap(),
+    )
+    .unwrap();
+    let before = json!([current, history]);
+    let reopened = EditorCore::new(core.paths().clone());
+    let migrated = serde_json::to_value(reopened.get_project(&project).unwrap()).unwrap();
+    let migrated_history: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    let mut expected = before;
+    expected[0]["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    for stack in ["undo", "redo"] {
+        for snapshot in expected[1][stack].as_array_mut().unwrap() {
+            snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+        }
+    }
+    assert_eq!(json!([migrated, migrated_history]), expected);
+    let bytes = files(&core, &project);
+    reopened.get_project(&project).unwrap();
+    assert_eq!(files(&core, &project), bytes);
+}
+
+#[test]
+fn native_motion_pack_matches_fixed_primitives_frames_range_draft_export_and_fractional_clocks() {
+    use opencut_editor_core::{ExportOptions, PreviewRangeOptions, Project, Renderer};
+    let Some((ffmpeg, ffprobe)) = native_tools() else {
+        return;
+    };
+    for entry in pack_fixture()["presets"].as_array().unwrap() {
+        let (root, core, id, item_id) = setup_canvas(512);
+        core.edit(&id, 1, op(pack_request(&item_id, entry)))
+            .unwrap();
+        let authoritative = files(&core, &id);
+        let compiled = core.get_project(&id).unwrap();
+        let dir = core.paths().project_dir(&id).unwrap();
+        let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
+        let mut manual = compiled.clone();
+        let visual = manual.tracks[1].items[0].visual_properties_mut();
+        visual.animation_preset_provenance.clear();
+        visual.animation_channels = serde_json::from_value(pack_channels(entry)).unwrap();
+        visual.motion_blur =
+            serde_json::from_value(entry["expected"]["motionBlur"].clone()).unwrap();
+        let frame = |project: &Project, time| {
+            let result = renderer.render_preview(project, &dir, time).unwrap();
+            decode(&ffmpeg, &dir.join(result.relative_path), false)
+        };
+        for time in [
+            0, 9, 10, 25, 50, 55, 60, 65, 70, 75, 80, 89, 90, 91, 170, 950,
+        ] {
+            assert_eq!(
+                frame(&compiled, time),
+                frame(&manual, time),
+                "frame at {time}"
+            );
+        }
+        let draft = core
+            .create_draft(
+                &id,
+                2,
+                vec![op(
+                    json!({"operation":"update_item","itemId":item_id,"color":"#ff0000"}),
+                )],
+                None,
+            )
+            .unwrap();
+        let candidate = core.get_draft_state(&id, &draft.id).unwrap().project;
+        assert_eq!(frame(&candidate, 55), frame(&manual, 55));
+        core.discard_draft(&id, &draft.id).unwrap();
+        assert_eq!(core.get_project(&id).unwrap().revision, 2);
+        let range = |project: &Project| {
+            let result = renderer
+                .render_preview_range(
+                    project,
+                    &dir,
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 1000,
+                        width: 512,
+                        height: 512,
+                        fps: 20,
+                        include_audio: true,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            (
+                decode(&ffmpeg, &dir.join(&result.relative_path), false),
+                decode(&ffmpeg, &dir.join(result.relative_path), true),
+            )
+        };
+        assert_eq!(range(&compiled), range(&manual));
+        let export = |project: &Project, name: &str| {
+            let output = root.path().join(name);
+            renderer
+                .export_video(
+                    project,
+                    &dir,
+                    ExportOptions {
+                        output: &output,
+                        width: 512,
+                        height: 512,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            decode(&ffmpeg, &output, false)
+        };
+        assert_eq!(
+            export(&compiled, "preset.mp4"),
+            export(&manual, "manual.mp4")
+        );
+        let mut retired = compiled.clone();
+        let source = retired.tracks[1].items[0]
+            .visual_properties_mut()
+            .animation_preset_provenance
+            .values_mut()
+            .next()
+            .unwrap();
+        source.preset_id = "retired_tween".into();
+        source.preset_version = 77;
+        source.compiler_version = 55;
+        assert_eq!(frame(&retired, 55), frame(&manual, 55));
+        // Same independently authored channel inside a fractional inherited composition clock.
+        let nested = |project: &Project| {
+            let mut saved = serde_json::to_value(project).unwrap();
+            let child = saved["tracks"][1].clone();
+            saved["components"] = json!([{"id":"nested","name":"Nested","width":512,"height":512,"durationMs":1000,"tracks":[child],"slots":[],"markers":[]}]);
+            saved["tracks"][1]["items"] = json!([{"type":"component_instance","id":"instance","componentId":"nested","startMs":100,"durationMs":500,"trimStartMs":25,"timeScale":0.75,"slotValues":{},"stackOrder":0,"zIndex":0}]);
+            serde_json::from_value::<Project>(saved).unwrap()
+        };
+        for time in [100, 101, 140, 141, 186, 187, 333, 550] {
+            assert_eq!(
+                frame(&nested(&compiled), time),
+                frame(&nested(&manual), time),
+                "fractional nested frame {time}"
+            );
+        }
+        assert_eq!(files(&core, &id), authoritative);
+    }
+}
+
+#[test]
+fn motion_pack_partial_collisions_replace_order_and_nonimpact_blur_preservation() {
+    let fixture = pack_fixture();
+    let pulse = &fixture["presets"][3];
+    let (_root, core, project, id) = setup();
+    let unrelated = json!({"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]});
+    let colliding = json!({"property":"transform.scale_y","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":2.0},"curve":"hold"}]});
+    core.edit(&project,1,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":[unrelated,colliding]}))).unwrap();
+    core.edit(&project,2,op(json!({"operation":"update_item","itemId":id,"motionBlur":{"shutterAngleDeg":90.0,"sampleCount":2}}))).unwrap();
+    let before = state(&core, &project);
+    let bytes = pack_files(&core, &project);
+    assert_eq!(
+        core.edit(&project, 3, op(pack_request(&id, pulse)))
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(pack_files(&core, &project), bytes);
+    let mut replace = pack_request(&id, pulse);
+    replace["collisionPolicy"] = json!("replace");
+    core.edit(&project, 3, op(replace)).unwrap();
+    let after = state(&core, &project);
+    let expected = pack_channels(pulse);
+    assert_eq!(
+        item(&after)["animationChannels"],
+        json!([unrelated, expected[1], expected[0]])
+    );
+    assert_eq!(item(&after)["motionBlur"], item(&before)["motionBlur"]);
+    core.undo(&project, 4).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&before));
+    core.redo(&project, 5).unwrap();
+    assert_eq!(item(&state(&core, &project)), item(&after));
+}
+
+#[test]
+fn motion_pack_component_replacement_clears_only_blur_dependent_sources() {
+    let fixture = pack_fixture();
+    let (_root, core, project, id) = setup();
+    core.edit(&project, 1, op(pack_request(&id, &fixture["presets"][0])))
+        .unwrap();
+    let before = state(&core, &project);
+    let tracks = json!([before["tracks"][1]]);
+    let component=core.edit(&project,2,op(json!({"operation":"component_create","name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":tracks}))).unwrap().changed_ids[0].clone();
+    let path = core
+        .paths()
+        .project_dir(&project)
+        .unwrap()
+        .join("project.json");
+    let mut saved = state(&core, &project);
+    let mut sources = item(&before)["animationPresetProvenance"].clone();
+    for source in sources.as_object_mut().unwrap().values_mut() {
+        source["presetId"] = json!("retired_impact");
+        source["compilerVersion"] = json!(99);
+    }
+    sources["transform.opacity"] = catalog()["examples"]["retiredProvenance"].clone();
+    saved["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"] = sources.clone();
+    std::fs::write(&path, serde_json::to_vec(&saved).unwrap()).unwrap();
+    let unchanged = saved["components"][0]["tracks"].clone();
+    core.edit(&project,3,op(json!({"operation":"component_update","componentId":component,"name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":unchanged}))).unwrap();
+    let known = state(&core, &project);
+    assert_eq!(
+        known["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
+        sources
+    );
+    let mut removed = unchanged;
+    removed[0]["items"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("motionBlur");
+    core.edit(&project,4,op(json!({"operation":"component_update","componentId":component,"name":"Motion","width":64,"height":64,"durationMs":1000,"tracks":removed}))).unwrap();
+    let after = state(&core, &project);
+    assert_eq!(
+        after["components"][0]["tracks"][0]["items"][0]["animationPresetProvenance"],
+        json!({"transform.opacity":sources["transform.opacity"]})
+    );
+    assert_eq!(
+        after["components"][0]["tracks"][0]["items"][0]["animationChannels"],
+        known["components"][0]["tracks"][0]["items"][0]["animationChannels"]
+    );
+    core.undo(&project, 5).unwrap();
+    assert_eq!(state(&core, &project)["components"], known["components"]);
+    core.redo(&project, 6).unwrap();
+    assert_eq!(state(&core, &project)["components"], after["components"]);
+}
+
+#[test]
+fn motion_pack_raster_budget_failure_rolls_back_aliased_prefix_and_existing_draft() {
+    let fixture = pack_fixture();
+    let (_root, core, project, id) = setup_canvas(4096);
+    let mut first = pack_request(&id, &fixture["presets"][0]);
+    first["parameters"]["motionBlur"]["sampleCount"] = json!(16);
+    core.edit(&project, 1, op(first.clone())).unwrap();
+    let draft = core
+        .create_draft(
+            &project,
+            2,
+            vec![op(
+                json!({"operation":"update_item","itemId":id,"color":"#00ff00"}),
+            )],
+            None,
+        )
+        .unwrap();
+    let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+    let before = pack_files(&core, &project);
+    first["itemId"] = json!("@motion");
+    let edits:Vec<BatchEditOperation>=serde_json::from_value(json!([
+        {"operation":"update_item","itemId":id,"color":"#0000ff"},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"motion"},first])).unwrap();
+    let error = core.edit_batch(&project, 2, edits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidArgument);
+    assert!(error.message.contains("pixel work"), "{}", error.message);
+    assert_eq!(pack_files(&core, &project), before);
+    assert_eq!(
+        core.get_draft(&project, &draft.id)
+            .unwrap()
+            .operations
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn motion_pack_groups_instances_duration_edits_copies_and_channel_clear_follow_existing_owners() {
+    let fixture = pack_fixture();
+    for entry in fixture["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        core.edit(&project, 1, op(pack_request(&id, entry)))
+            .unwrap();
+        let saved = state(&core, &project);
+        let source = item(&saved)["animationPresetProvenance"].clone();
+        core.edit_batch(
+            &project,
+            2,
+            vec![
+                op(json!({"operation":"update_item","itemId":id,"color":"#00ff00"})),
+                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":900})),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            item(&state(&core, &project))["animationPresetProvenance"],
+            source
+        );
+        core.edit(
+            &project,
+            3,
+            op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":90})),
+        )
+        .unwrap();
+        let retained = state(&core, &project);
+        assert_eq!(item(&retained)["animationPresetProvenance"], source);
+        for (channel, original) in item(&retained)["animationChannels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(item(&saved)["animationChannels"].as_array().unwrap())
+        {
+            assert_eq!(channel["keyframes"], original["keyframes"]);
+            assert_eq!(
+                channel["clock"],
+                json!({"offsetMs":0,"sourceDurationMs":1000})
+            );
+        }
+        core.undo(&project, 4).unwrap();
+        let before = pack_files(&core, &project);
+        assert_eq!(
+            core.edit(
+                &project,
+                5,
+                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":0}))
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::ValidationFailed
+        );
+        assert_eq!(pack_files(&core, &project), before);
+        let copies = core
+            .edit(
+                &project,
+                5,
+                op(json!({"operation":"duplicate_items","itemIds":[id],"offsetMs":1500})),
+            )
+            .unwrap();
+        let copy = core.get_project(&project).unwrap();
+        assert_eq!(
+            serde_json::to_value(
+                &copy
+                    .find_item(&copies.changed_ids[0])
+                    .unwrap()
+                    .visual_properties()
+                    .animation_preset_provenance
+            )
+            .unwrap(),
+            source
+        );
+        core.edit(&project,6,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":item(&saved)["animationChannels"]}))).unwrap();
+        assert!(
+            item(&state(&core, &project))
+                .get("animationPresetProvenance")
+                .is_none()
+        );
+        core.undo(&project, 7).unwrap();
+        assert_eq!(
+            item(&state(&core, &project))["animationPresetProvenance"],
+            source
+        );
+    }
+    for entry in fixture["presets"].as_array().unwrap() {
+        for instance in [false, true] {
+            let (_root, core, project, _id) = setup();
+            let track = core.get_project(&project).unwrap().tracks[1].id.clone();
+            let target = if instance {
+                let component=core.edit(&project,1,op(json!({"operation":"component_create","name":"Empty","width":64,"height":64,"durationMs":1000,"tracks":[]}))).unwrap().changed_ids[0].clone();
+                core.edit(&project,2,op(json!({"operation":"add_component_instance","trackId":track,"componentId":component,"startMs":0,"durationMs":1000,"trimStartMs":0,"timeScale":1}))).unwrap().changed_ids[0].clone()
+            } else {
+                core.edit(&project,1,op(json!({"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000}))).unwrap().changed_ids[0].clone()
+            };
+            let revision = core.get_project(&project).unwrap().revision;
+            if !instance {
+                core.edit(
+                    &project,
+                    revision,
+                    op(json!({"operation":"update_item","itemId":target,"transform2d":null})),
+                )
+                .unwrap();
+            }
+            let revision = core.get_project(&project).unwrap().revision;
+            let before = pack_files(&core, &project);
+            let applied = core.edit(&project, revision, op(pack_request(&target, entry)));
+            if entry["id"] == "impact_slam" {
+                assert_eq!(applied.unwrap_err().code, ErrorCode::InvalidArgument);
+                assert_eq!(pack_files(&core, &project), before);
+            } else {
+                applied.unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generation() {
+    for entry in pack_fixture()["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        let track = state(&core, &project)["tracks"][1]["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let scalar_id = core.edit(&project, 1, op(json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}))).unwrap().changed_ids[0].clone();
+        core.edit(&project, 2, op(request(&scalar_id))).unwrap();
+        let mut older_scalar = state(&core, &project);
+        older_scalar["schemaVersion"] = json!(29);
+        core.edit(&project, 3, op(pack_request(&id, entry)))
+            .unwrap();
+        let mut source = state(&core, &project);
+        source["schemaVersion"] = json!(30);
+        let mut local_track = source["tracks"][1].clone();
+        local_track["id"] = json!("local-track");
+        source["components"] = json!([{"id":"pack-source","name":"Pack source","width":64,"height":64,"durationMs":1000,"tracks":[local_track],"slots":[],"markers":[]}]);
+        let history = json!({"undo":[older_scalar.clone(),source.clone()],"redo":[source.clone()]});
+        let dir = core.paths().project_dir(&project).unwrap();
+        std::fs::write(
+            dir.join("project.json"),
+            serde_json::to_vec(&source).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("history.json"),
+            serde_json::to_vec(&history).unwrap(),
+        )
+        .unwrap();
+        let reopened = EditorCore::new(core.paths().clone());
+        let migrated = state(&reopened, &project);
+        let mut expected = source.clone();
+        expected["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+        assert_eq!(migrated, expected, "{}", entry["id"]);
+        let mut expected_history = history;
+        for kind in ["undo", "redo"] {
+            for snapshot in expected_history[kind].as_array_mut().unwrap() {
+                snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+            }
+        }
+        let saved_history: Value =
+            serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+        assert_eq!(saved_history, expected_history);
+        // Scalar serialization stays untagged; Pack stays tagged and effective.
+        let scalar_source = migrated["tracks"][1]["items"][1]["animationPresetProvenance"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap();
+        assert!(scalar_source["parameters"].get("kind").is_none());
+        let pack_source = item(&migrated)["animationPresetProvenance"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap();
+        assert_eq!(pack_source["parameters"]["kind"], entry["id"]);
+        let stable = files(&reopened, &project);
+        reopened.get_project(&project).unwrap();
+        assert_eq!(files(&reopened, &project), stable);
+        let undo = reopened
+            .undo(&project, migrated["revision"].as_u64().unwrap())
+            .unwrap();
+        assert_eq!(
+            state(&reopened, &project)["components"],
+            expected["components"]
+        );
+        reopened.redo(&project, undo.revision).unwrap();
+        assert_eq!(state(&reopened, &project)["tracks"], expected["tracks"]);
+
+        // Already31 Pack records survive retained edits and idempotent reopen.
+        let before = state(&reopened, &project);
+        let split = reopened
+            .edit(
+                &project,
+                before["revision"].as_u64().unwrap(),
+                op(json!({"operation":"split_item","itemId":id,"splitMs":500})),
+            )
+            .unwrap();
+        let after = state(&reopened, &project);
+        for (segment_id, offset) in [(&split.changed_ids[0], 0), (&split.changed_ids[1], 500)] {
+            let segment = after["tracks"][1]["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|v| v["id"] == *segment_id)
+                .unwrap();
+            assert_eq!(
+                segment["animationPresetProvenance"],
+                item(&before)["animationPresetProvenance"]
+            );
+            for (channel, original) in segment["animationChannels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(item(&before)["animationChannels"].as_array().unwrap())
+            {
+                assert_eq!(channel["keyframes"], original["keyframes"]);
+                assert_eq!(channel.get("loop"), original.get("loop"));
+                assert_eq!(
+                    channel["clock"],
+                    json!({"offsetMs":offset,"sourceDurationMs":1000})
+                );
+            }
+        }
+        let stable = files(&reopened, &project);
+        assert_eq!(
+            state(&EditorCore::new(reopened.paths().clone()), &project),
+            after
+        );
+        assert_eq!(files(&reopened, &project), stable);
+    }
 }

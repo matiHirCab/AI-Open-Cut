@@ -1,0 +1,12 @@
+## Tasks
+- [x] 1. Independently review and explicitly approve integration specifications.
+- [ ] 2. Resolve local merge preserving closed Pack provenance and retained-clock contracts.
+- [ ] 3. Implement validated30→31 migration and recovery without altering source records.
+- [ ] 4. Test all five Pack tags and scalar attribution across current/components/undo/redo, migration failpoints, invalid generation and future schema rejection.
+- [ ] 5. Verify migrated pack split/trim/duplicate, source sampling, alias rollback, undo/redo/reopen and bridge/catalog parity.
+- [ ] 5a. Independently approve and implement the scoped rectangle pointwise lookup amendment; reproduce FFmpeg6 failure and pass unchanged native oracles under FFmpeg6 and7.
+- [ ] 5b. Independently approve and implement sampled CPU-raster canvas-cadence normalization; reproduce exact seam failure and verify unchanged bounds/source clocks under FFmpeg6 and7.
+- [ ] 5c. Independently approve canonical sampled-raster activity as the sole CPU-input visibility authority; verify gaps, end bounds, draft seam and existing shutter/EOF behavior across backends.
+- [ ] 5d. Independently approve and implement exact retained integer/fraction composition through sampler, bounds and renderer expression phase reduction; reproduce huge-offset loss and verify canonical/native equivalent phases without narrowing accepted bounds.
+- [ ] 6. Obtain independent final implementation/conformance review, reproduce and fix findings.
+- [ ] 7. Run mandatory combined-tree gates, synchronize/archive, protect bootstrap and preserve bundles.

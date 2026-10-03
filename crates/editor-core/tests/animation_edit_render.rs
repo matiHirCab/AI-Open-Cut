@@ -77,6 +77,15 @@ fn expected(mut project: Project, source: f64, tint: bool) -> Project {
             rect.visual_properties.legacy_animation_clock = None;
             if tint {
                 rect.visual_properties.effects=serde_json::from_value(json!([{"id":"tint","type":"color_tint","color":{"r":srgb(1.0-progress),"g":srgb(progress),"b":0,"a":1}}])).unwrap();
+            } else {
+                // The neutral effect gives the independently calculated static
+                // reference a full transparent workspace. FFmpeg 6's bilinear
+                // geq lookup otherwise inflates the last row/column of its tight
+                // atlas, unlike the larger animated atlas being compared.
+                rect.visual_properties.effects = serde_json::from_value(json!([
+                    {"id":"oracle-workspace","type":"vignette","amount":0}
+                ]))
+                .unwrap();
             }
         }
     }
@@ -110,6 +119,13 @@ fn compare(reference: &[u8], actual: &[u8], label: &str) {
         (x - a).abs() < 0.4 && (y - b).abs() < 0.4,
         "{label}: centroid expected({x},{y}) actual({a},{b})"
     );
+}
+
+fn compare_black(actual: &[u8], label: &str) {
+    // Use the existing RGB tolerance for lossy outputs. A black reference has
+    // no centroid, while any retained visible rectangle exceeds this bound.
+    let mse = actual.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / actual.len() as f64;
+    assert!(mse < 20.0, "{label}: decoded black frame MSE={mse}");
 }
 
 #[test]
@@ -171,6 +187,36 @@ fn native_edited_bezier_legacy_finite_loop_and_compound_match_all_intents() {
         let dir = core.paths().project_dir(&id).unwrap();
         let renderer = Renderer::new(&ffmpeg, &ffprobe, None);
         let original = core.get_project(&id).unwrap();
+        let source_range = renderer
+            .render_preview_range(
+                &original,
+                &dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1000,
+                    width: 64,
+                    height: 64,
+                    fps: 10,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        let source_export = root.path().join("exports/source.mp4");
+        std::fs::create_dir_all(source_export.parent().unwrap()).unwrap();
+        renderer
+            .export_video(
+                &original,
+                &dir,
+                ExportOptions {
+                    output: &source_export,
+                    width: 64,
+                    height: 64,
+                    overwrite: false,
+                },
+                |_| {},
+            )
+            .unwrap();
         let split = core
             .edit(
                 &id,
@@ -251,6 +297,26 @@ fn native_edited_bezier_legacy_finite_loop_and_compound_match_all_intents() {
                 )
                 .unwrap();
             let reference = decode(Path::new(&ffmpeg), &dir.join(reference.relative_path), 0);
+            if matches!(at, 200 | 700) {
+                // Certify the unedited source as well as retained clocks against
+                // the same independent equations, including the raster edge.
+                let frame = renderer.render_preview(&original, &dir, at).unwrap();
+                compare(
+                    &reference,
+                    &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                    &format!("unedited frame at={at} tint={tint}"),
+                );
+                for (name, path) in [
+                    ("range", dir.join(&source_range.relative_path)),
+                    ("export", source_export.clone()),
+                ] {
+                    compare(
+                        &reference,
+                        &decode(Path::new(&ffmpeg), &path, at),
+                        &format!("unedited {name} at={at} tint={tint}"),
+                    );
+                }
+            }
             let frame = renderer.render_preview(&edited, &dir, at).unwrap();
             compare(
                 &reference,
@@ -269,6 +335,116 @@ fn native_edited_bezier_legacy_finite_loop_and_compound_match_all_intents() {
             ] {
                 compare(&reference, &decode(Path::new(&ffmpeg), &path, at), name);
             }
+        }
+        if tint {
+            // Canonical sampled pixels must enforce half-open activity even
+            // when an FFmpeg overlay cannot represent its exact boundary.
+            for at in [400, 1000] {
+                for (name, project) in [("edited", &edited), ("draft", &draft)] {
+                    let frame = renderer.render_preview(project, &dir, at).unwrap();
+                    compare_black(
+                        &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                        &format!("CPU {name} half-open gap at{at}"),
+                    );
+                }
+                for (name, path) in [
+                    ("range", dir.join(&range.relative_path)),
+                    ("export", export.clone()),
+                ] {
+                    compare_black(
+                        &decode(Path::new(&ffmpeg), &path, at),
+                        &format!("CPU {name} half-open gap at{at}"),
+                    );
+                }
+            }
+            let frame = renderer.render_preview(&draft, &dir, 1500).unwrap();
+            compare_black(
+                &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                "CPU draft remains inactive before its1600ms start",
+            );
+            let reference = renderer
+                .render_preview(&expected(original.clone(), 500.0, tint), &dir, 500)
+                .unwrap();
+            let reference = decode(Path::new(&ffmpeg), &dir.join(reference.relative_path), 0);
+            let frame = renderer.render_preview(&edited, &dir, 1500).unwrap();
+            compare(
+                &reference,
+                &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                "CPU duplicate begins1500 source500",
+            );
+            for (name, path) in [
+                ("range", dir.join(&range.relative_path)),
+                ("export", export.clone()),
+            ] {
+                compare(
+                    &reference,
+                    &decode(Path::new(&ffmpeg), &path, 1500),
+                    &format!("CPU {name} duplicate begins1500 source500"),
+                );
+            }
+            // A CPU sample sequence starts at the requested millisecond, even
+            // when that start is between canonical frame ticks. Its first
+            // retained-copy sample is source 1513 - 1000 = 513ms.
+            let reference = renderer
+                .render_preview(&expected(original.clone(), 513.0, tint), &dir, 513)
+                .unwrap();
+            let reference = decode(Path::new(&ffmpeg), &dir.join(reference.relative_path), 0);
+            let frame = renderer.render_preview(&edited, &dir, 1513).unwrap();
+            compare(
+                &reference,
+                &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                "CPU frame at1513 source513",
+            );
+            let interval = renderer
+                .render_preview_range(
+                    &edited,
+                    &dir,
+                    PreviewRangeOptions {
+                        start_ms: 1513,
+                        end_ms: 1913,
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                        include_audio: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let interval = dir.join(interval.relative_path);
+            compare(
+                &reference,
+                &decode(Path::new(&ffmpeg), &interval, 0),
+                "CPU interval starts1513 source513",
+            );
+            let probe = std::process::Command::new(&ffprobe)
+                .args([
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-count_frames",
+                    "-show_entries",
+                    "stream=r_frame_rate,nb_read_frames",
+                    "-of",
+                    "json",
+                ])
+                .arg(&interval)
+                .output()
+                .unwrap();
+            assert!(probe.status.success());
+            let probe: Value = serde_json::from_slice(&probe.stdout).unwrap();
+            assert_eq!(probe["streams"][0]["r_frame_rate"], "10/1");
+            assert_eq!(probe["streams"][0]["nb_read_frames"], "4");
+            // A full export retains the project frame grid: its first frame
+            // after 1513ms is 1600ms, whose copy samples source600ms.
+            let reference = renderer
+                .render_preview(&expected(original.clone(), 600.0, tint), &dir, 600)
+                .unwrap();
+            compare(
+                &decode(Path::new(&ffmpeg), &dir.join(reference.relative_path), 0),
+                &decode(Path::new(&ffmpeg), &export, 1600),
+                "CPU export grid1600 source600",
+            );
         }
         if !tint {
             // Root frame timestamps are integer, but the inherited 0.751 scale
@@ -326,6 +502,99 @@ fn native_edited_bezier_legacy_finite_loop_and_compound_match_all_intents() {
                 for (name, path) in [
                     ("fractional range", dir.join(&range.relative_path)),
                     ("fractional export", export.clone()),
+                ] {
+                    compare(&reference, &decode(Path::new(&ffmpeg), &path, at), name);
+                }
+            }
+            // Two-millisecond segments in a closed repeat at a huge origin make
+            // lost inherited fractions visibly change the position. Its cubic
+            // equation remains independent of both Rust and FFmpeg samplers.
+            let huge = 1_u64 << 52;
+            let mut large = original.clone();
+            for item in &mut large.tracks[1].items {
+                if let TimelineItem::Rectangle(rect) = item {
+                    let channel = &mut rect.visual_properties.animation_channels[0];
+                    channel.keyframes[0].time_ms = huge;
+                    channel.keyframes[1].time_ms = huge + 2;
+                    channel.keyframes[1].curve = serde_json::from_value(json!("linear")).unwrap();
+                    let mut close = channel.keyframes[0].clone();
+                    close.time_ms = huge + 4;
+                    close.curve = serde_json::from_value(json!("hold")).unwrap();
+                    channel.keyframes.push(close);
+                    channel.clock = Some(opencut_editor_core::AnimationClock {
+                        offset_ms: huge as i64,
+                        source_duration_ms: huge + 5,
+                    });
+                    channel.r#loop = Some(
+                        serde_json::from_value(json!({"mode":"repeat","iterations":"infinite"}))
+                            .unwrap(),
+                    );
+                }
+            }
+            let local = large.tracks[1].clone();
+            large.components.push(serde_json::from_value(json!({"id":"large-origin","name":"Large source origin","width":64,"height":64,"durationMs":1000,"slots":[],"markers":[],"tracks":[local]})).unwrap());
+            large.tracks[1].items = vec![serde_json::from_value(json!({"type":"component_instance","id":"large-instance","componentId":"large-origin","startMs":0,"durationMs":1300,"trimStartMs":0,"timeScale":0.751,"zIndex":0,"stackOrder":0})).unwrap()];
+            let range = renderer
+                .render_preview_range(
+                    &large,
+                    &dir,
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 1300,
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                        include_audio: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            let export = root.path().join("exports/large-clock.mp4");
+            renderer
+                .export_video(
+                    &large,
+                    &dir,
+                    ExportOptions {
+                        output: &export,
+                        width: 64,
+                        height: 64,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            for at in [500, 1200] {
+                let local = at as f64 * 0.751;
+                let phase = local.rem_euclid(4.0);
+                let x = if phase <= 2.0 {
+                    20.0 + 20.0 * (phase / 2.0).powi(3)
+                } else {
+                    40.0 - 20.0 * ((phase - 2.0) / 2.0)
+                };
+                let mut reference = expected(original.clone(), local, false);
+                for item in &mut reference.tracks[1].items {
+                    if let TimelineItem::Rectangle(rect) = item {
+                        rect.transform.position_x = x;
+                        rect.visual_properties.animation_channels = serde_json::from_value(json!(
+                            [scalar("transform.position_x", 800, x, x, json!("hold"))]
+                        ))
+                        .unwrap();
+                    }
+                }
+                let reference = renderer.render_preview(&reference, &dir, 0).unwrap();
+                let reference = decode(Path::new(&ffmpeg), &dir.join(reference.relative_path), 0);
+                let frame = renderer.render_preview(&large, &dir, at).unwrap();
+                compare(
+                    &reference,
+                    &decode(Path::new(&ffmpeg), &dir.join(frame.relative_path), 0),
+                    "large-origin fractional frame",
+                );
+                for (name, path) in [
+                    (
+                        "large-origin fractional range",
+                        dir.join(&range.relative_path),
+                    ),
+                    ("large-origin fractional export", export.clone()),
                 ] {
                     compare(&reference, &decode(Path::new(&ffmpeg), &path, at), name);
                 }
