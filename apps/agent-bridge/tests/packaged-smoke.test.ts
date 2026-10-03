@@ -168,6 +168,45 @@ it("completes packaged editing, draft, speech, and transcription flows", async (
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
     return await waitForCompletion(queuedJob, attemptsRemaining - 1);
   };
+  const preview = await call(
+    "speech_preview",
+    { source: { text: "Packaged preview", type: "request" } },
+    jobSchema
+  );
+  const previewDone = await waitForCompletion(preview);
+  const metadata = await client.callTool({
+    arguments: { jobId: preview.jobId },
+    name: "job_get_status",
+  });
+  expect(
+    (metadata.content as { type: string }[]).map((block) => block.type)
+  ).toEqual(["text", "resource_link"]);
+  const uri = previewDone.artifactResource?.uri;
+  const token = previewDone.speechPreview?.token;
+  if (!(uri && token)) {
+    throw new Error("packaged preview output missing");
+  }
+  expect(uri).not.toContain(token);
+  expect((await client.readResource({ uri })).contents[0]).toMatchObject({
+    blob: expect.any(String),
+    mimeType: "audio/wav",
+  });
+  const inline = await client.callTool({
+    arguments: { includeBinary: true, jobId: preview.jobId },
+    name: "job_get_status",
+  });
+  expect(inline.content).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ mimeType: "audio/wav", type: "audio" }),
+    ])
+  );
+  await client.callTool({
+    arguments: { token },
+    name: "speech_discard_preview",
+  });
+  await expect(client.readResource({ uri })).rejects.toThrow(
+    "GENERATED_ARTIFACT_NOT_FOUND"
+  );
   const terminal = await waitForCompletion(queued);
   expect(terminal).toMatchObject({
     result: {

@@ -6,6 +6,7 @@ import type { ResourceTemplate } from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
+import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -34,6 +35,7 @@ import {
   templateSlotSchema,
   ttsStatusSchema,
 } from "../src/schemas";
+import { ARTIFACT_RESOURCES_CAPABILITY } from "../src/server/artifacts";
 import {
   MCP_RESOURCE_URIS,
   registerContextResources,
@@ -56,7 +58,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "343c11014f9203e3b929863c83a31301873dc07421067708633739e88b136690";
+  "98db698e26f32f6604f2d836f6854e6a61937ae85cf836482e5fa1a0d8826b46";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -503,10 +505,33 @@ describe("canonical public contracts", () => {
       "extended_visual_animation_v1",
       "motion_blur_sampling_v1",
       "animation_presets_v1",
+      ARTIFACT_RESOURCES_CAPABILITY,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
     );
+  });
+
+  it("governs the version-2 artifact content policy independently of headless", () => {
+    expect(ARTIFACT_DELIVERY.version).toBe(2);
+    expect(ARTIFACT_DELIVERY.capability).toBe(ARTIFACT_RESOURCES_CAPABILITY);
+    expect(ARTIFACT_DELIVERY.resourceTemplate).toBe(
+      MCP_RESOURCE_URIS.jobArtifact
+    );
+    expect(ARTIFACT_DELIVERY.defaultContentTypes).toEqual([
+      "text",
+      "resource_link",
+    ]);
+    expect(
+      schemas.jobGetStatus.safeParse({ includeBinary: true, jobId: "job" })
+        .success
+    ).toBe(true);
+    expect(
+      schemas.jobGetStatus.safeParse({ includeBinary: "true", jobId: "job" })
+        .success
+    ).toBe(false);
+    expect(ARTIFACT_DELIVERY.headlessProtocolChanged).toBe(false);
+    expect(ARTIFACT_DELIVERY.persistedSchemaChanged).toBe(false);
   });
 
   it("keeps TypeScript checking in the standalone contract gate", () => {

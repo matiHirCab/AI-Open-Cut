@@ -21,7 +21,8 @@
     "inherited_animation_timing_v1",
     "extended_visual_animation_v1",
     "motion_blur_sampling_v1",
-    "animation_presets_v1"
+    "animation_presets_v1",
+    "artifact_resources_v2"
   ],
   "prompts": [
     "add_narration",
@@ -30,6 +31,10 @@
     "transcribe_and_caption"
   ],
   "resources": [
+    {
+      "name": "job-artifact",
+      "uriTemplate": "opencut://jobs/{jobId}/artifact"
+    },
     {
       "name": "job-status",
       "uriTemplate": "opencut://jobs/{jobId}"
@@ -3176,6 +3181,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "includeBinary": {
+            "type": "boolean"
+          },
           "jobId": {
             "maxLength": 128,
             "minLength": 1,
@@ -17093,6 +17101,51 @@
           "relativePath",
           "sizeBytes",
           "warnings"
+        ],
+        "type": "object"
+      },
+      "artifactResource": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAtMs": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mimeType": {
+            "enum": [
+              "image/png",
+              "audio/wav",
+              "video/mp4"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sizeBytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "uri": {
+            "pattern": "^opencut:\\/\\/jobs\\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\/artifact$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expiresAtMs",
+          "mimeType",
+          "name",
+          "uri"
         ],
         "type": "object"
       },

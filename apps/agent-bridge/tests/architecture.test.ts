@@ -10,6 +10,12 @@ import { registerTimelineTools } from "../src/server/timeline";
 type Handler = (input: Record<string, unknown>) => Promise<unknown> | unknown;
 
 class RegistrationHarness {
+  readonly resources = new Set<string>();
+
+  registerResource(name: string) {
+    this.resources.add(name);
+  }
+
   readonly handlers = new Map<string, Handler>();
 
   registerTool(name: string, _definition: unknown, handler: Handler) {
@@ -62,6 +68,7 @@ describe("capability registrar architecture", () => {
     registerSpeechTools(server, injected);
     registerJobTools(server, injected);
 
+    expect(harness.resources.has("job-artifact")).toBe(true);
     expect([...harness.handlers.keys()].sort()).toEqual(
       expect.arrayContaining([
         "asset_delete",
@@ -136,7 +143,11 @@ describe("capability registrar architecture", () => {
     ).structuredContent;
     expect(structured.ready).toBe(true);
     expect(structured.protocolVersion).toBe(1);
-    expect(structured.capabilities).toEqual(["projects", "timeline"]);
+    expect(structured.capabilities).toEqual([
+      "projects",
+      "timeline",
+      "artifact_resources_v2",
+    ]);
     expect(structured.subsystems).toMatchObject({
       rendering: { ready: false },
       speech: { ready: false },

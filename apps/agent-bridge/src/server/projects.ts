@@ -8,6 +8,7 @@ import {
   statusSchema,
   writeResultSchema,
 } from "../schemas";
+import { ARTIFACT_RESOURCES_CAPABILITY } from "./artifacts";
 import {
   DESTRUCTIVE,
   failure,
@@ -44,7 +45,10 @@ export const registerProjectTools = (
           },
           headlessStatusSchema
         );
-        let { capabilities } = status;
+        let capabilities = [
+          ...status.capabilities,
+          ARTIFACT_RESOURCES_CAPABILITY,
+        ];
         let speechSubsystem: z.infer<
           typeof statusSchema
         >["subsystems"]["speech"];

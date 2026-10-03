@@ -6,6 +6,10 @@ import {
   projectListSchema,
   projectStateSchema,
 } from "../schemas";
+import {
+  ARTIFACT_RESOURCE_TEMPLATE,
+  jobWithArtifactResource,
+} from "./artifacts";
 import type { ServerDependencies } from "./shared";
 
 const jsonResource = (uri: URL, value: unknown) => ({
@@ -19,6 +23,7 @@ const jsonResource = (uri: URL, value: unknown) => ({
 });
 
 export const MCP_RESOURCE_URIS = {
+  jobArtifact: ARTIFACT_RESOURCE_TEMPLATE,
   jobStatus: "opencut://jobs/{jobId}",
   projectDraft: "opencut://projects/{projectId}/drafts/{draftId}",
   projectState: "opencut://projects/{projectId}/state",
@@ -103,7 +108,11 @@ export const registerContextResources = (
       description: "Current process-local OpenCut job status.",
       mimeType: "application/json",
     },
-    (uri, variables) => jsonResource(uri, jobs.get(String(variables.jobId)))
+    (uri, variables) =>
+      jsonResource(
+        uri,
+        jobWithArtifactResource(jobs.get(String(variables.jobId)))
+      )
   );
 
   server.registerResource(
