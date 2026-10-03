@@ -9,3 +9,5 @@ Shared sections announced before implementation: `schemas.ts` speech timestamp s
 Designated `@matiHirCab` review will be requested on publication. No claim of completed human review is made.
 
 The later narrow `.github/CODEOWNERS` speech-provider block was announced before editing and matches the governed status consumer/test paths. Independent implementation review by `/root/implementation_review` reported no critical findings and no edits; that review explicitly did not claim check completion.
+
+After CI found the new Windows fixture working-directory race at original head `e0ad88c3`, the user explicitly delegated diagnosis, in-scope correction, regression review, testing, verified push, and exact-head CI follow-up. The same approved metadata scenarios authorize the fixture-only correction. The change was reopened for correction verification and re-archival. Independent Sol/medium implementation regression review confirmed the root cause and correction with no critical findings or scope expansion; no edits or claimed test reruns were made by that reviewer.

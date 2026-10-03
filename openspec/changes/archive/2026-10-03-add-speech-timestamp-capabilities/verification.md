@@ -4,7 +4,7 @@ Completed 2026-10-03 using the repository-local openspec-verify-change workflow 
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 9/9 implementation tasks complete; 3 requirements and 5 scenarios covered |
+| Completeness | 12/12 implementation/correction tasks complete; 3 requirements and 5 scenarios covered |
 | Correctness | Each scenario maps to native tests and canonical fixture evidence below |
 | Coherence | Provider/bridge ownership preserved; no project, headless, migration, rendering, job, alignment generation, or persisted provenance changes |
 
@@ -50,3 +50,13 @@ Pre-archive `moon run root:openspec-validate` exited 1 solely because `add-speec
 Independent spec review identified the status error translation gap, addressed explicitly in design and tests. Independent implementation review found no critical issues. Delegated issue-scoped approval is recorded in `approval.md`; it is not a human or CODEOWNER artifact approval. Designated owner review is requested on publication.
 
 No critical, warning, or suggestion conformance findings remain. Ready for synchronization and archive; final merge-readiness and publication evidence will be recorded separately after the unchanged protected gate runs on the archive-only tree.
+
+## Windows CI correction and re-verification
+
+CI run `37129040044`, Windows job `111220258575`, failed at original head `e0ad88c3b03f4eaa669f7ad07eaeddf8ecfd7ba3` with 14 teardown `EBUSY` failures in new `tts.test.ts` metadata cases. Capability assertions completed; failure was `rmSync(root)` while a Python process still held the working-directory handle. The generated worker path was inside `root`, and production `spawn` sets cwd to dirname(workerPath). Existing shutdown sends kill without promising synchronous cwd-handle release. Full uncommitted original log: `/tmp/issue59-windows-ci-failure.log`. This was diagnosed as an introduced fixture error, not dismissed as a flake.
+
+The correction runs the checked-in fake worker in its existing fixture directory and passes `OPENCUT_TEST_TIMESTAMP_SUPPORT` JSON through immutable configuration environment. Absent override retains legacy omission. All eight valid and nine invalid metadata assertions, typed MCP/service assertions, immediate `rmSync` teardown, and timeouts remain unchanged. No production lifecycle, provider capabilities, public contract, or project behavior was modified. Independent Sol/medium regression review found no critical issue and confirmed that the correction addresses the working-directory cause without masking assertions.
+
+Affected checks rerun with exit 0: typecheck (`/tmp/issue59-correction-typecheck.log`), full lint (`/tmp/issue59-correction-lint.log`), full unit (467 passed, existing opt-in skip; `/tmp/issue59-correction-unit.log`), full integration (15 passed; `/tmp/issue59-correction-integration.log`), and packaged smoke (9 passed; `/tmp/issue59-correction-smoke.log`). The unit suite executes the Python fixture through the actual adapter for all valid and invalid canonical cases. Rust source/toolchain, production Python worker/test inputs, canonical catalogs, and public schema inputs are unchanged, so their existing passing check/parity evidence remains valid. No required check is newly skipped or weakened.
+
+Reopened-change pre-archive `moon run root:openspec-validate` again rejected only this own active change after strict validation passed 37 items; log `/tmp/issue59-correction-prearchive.log`. Living delta content is already synchronized and unchanged. Correction conformance passes all original requirements/scenarios plus the fixture regression. Final protected/strict gates are rerun after re-archival before committing. Corrected-head Windows CI remains an external check to observe after push, not a claimed pass here.

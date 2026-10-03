@@ -2,10 +2,8 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   realpathSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -32,20 +30,11 @@ let provider: KokoroSpeechSynthesizer | undefined;
 
 const providerWithTimestampSupport = async (timestampSupport: unknown) => {
   await provider?.close();
-  const path = join(root, "timestamp-worker.py");
-  const source = readFileSync(
-    resolve(import.meta.dirname, "fixtures/fake_tts_worker.py"),
-    "utf8"
-  );
-  writeFileSync(
-    path,
-    source.replace(
-      '"ready": True,',
-      `"ready": True, "timestampSupport": json.loads(${JSON.stringify(JSON.stringify(timestampSupport))}),`
-    )
-  );
   provider = new KokoroSpeechSynthesizer(
-    loadBridgeConfig({ ...process.env, OPENCUT_KOKORO_WORKER: path })
+    loadBridgeConfig({
+      ...process.env,
+      OPENCUT_TEST_TIMESTAMP_SUPPORT: JSON.stringify(timestampSupport),
+    })
   );
   return provider;
 };

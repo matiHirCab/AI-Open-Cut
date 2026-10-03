@@ -27,6 +27,8 @@ Ship worker, schema, bridge, fixtures, and documentation together. No persisted 
 
 Test all eight flag combinations, legacy omission through a real fake-worker adapter and service, explicit malformed metadata, Kokoro cold/ready/loaded status, and unavailable fallback. Assert canonical fixture cases and MCP schema parity. Run Rust formatting, strict workspace Clippy/tests, bridge typecheck/lint/unit/contracts/integration/packaged smoke, hermetic Python, strict OpenSpec and protected gate. Independent spec and implementation reviews precede verification and archival; record delegated approval honestly and request designated owner review on the draft PR.
 
+The fake worker accepts an optional test-only `OPENCUT_TEST_TIMESTAMP_SUPPORT` JSON value via the immutable adapter environment. Absence retains legacy omission. Run the checked-in worker from its ordinary fixture directory rather than generating a worker beneath a directory immediately removed at teardown: Windows holds a process working-directory handle until exit. This fixture choice preserves every metadata assertion and cleanup assertion without changing production shutdown or introducing retries/timeouts.
+
 ## Open Questions
 
 None.

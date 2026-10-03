@@ -19,3 +19,9 @@
 ## 4. Finalization after implementation verification
 
 Synchronize and archive only this verified change, then rerun strict all-spec validation and protected `moon run root:openspec-validate`. Create a verified commit and preserved bundle, push the issue branch, create a draft PR with CODEOWNER review request, and inspect exact-head CI through terminal. Record finalization and publication evidence separately; these steps follow implementation conformance verification and do not waive any required final check.
+
+## 5. Windows CI fixture correction
+
+- [x] 5.1 Replace generated workers under the teardown root with a test-only environment override in the existing fake worker; preserve every assertion and timeout.
+- [x] 5.2 Independently review the regression correction and run affected typecheck/lint/unit/integration/smoke checks.
+- [x] 5.3 Record the original Windows failure, verify unchanged requirements and fixture parity, and run the expected pre-archive gate. Follow the finalization steps in section 4 again before the correction commit.
