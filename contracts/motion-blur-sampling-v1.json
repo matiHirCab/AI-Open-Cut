@@ -1,7 +1,7 @@
 {
   "contract": "motion-blur-sampling-v1",
   "version": 1,
-  "projectSchemaVersion": 29,
+  "projectSchemaVersion": 31,
   "capability": "motion_blur_sampling_v1",
   "limits": {
     "maxSampleCount": 16,

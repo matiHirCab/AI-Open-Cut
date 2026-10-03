@@ -21,6 +21,7 @@ import {
   ttsStatusSchema,
   writeResultSchema,
 } from "../src/schemas";
+import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
@@ -523,4 +524,5 @@ it("preserves parameterized animation curves through packaged MCP edits", async 
 
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
   await verifyPresetWorkflow(client, call);
+  await verifyAnimationEditWorkflow(client, call);
 });

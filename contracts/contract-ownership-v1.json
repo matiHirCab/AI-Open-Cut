@@ -66,6 +66,7 @@
         "apps/agent-bridge/src/headless-contract.ts",
         "apps/agent-bridge/src/schemas.ts",
         "apps/agent-bridge/tests/animation-channels.test.ts",
+        "apps/agent-bridge/tests/animation-edit-workflow.ts",
         "docs/animation-channels.md"
       ]
     },

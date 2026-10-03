@@ -491,6 +491,14 @@ fn append_audio_layer(
             precise_seconds(clock.end_ms),
             clock.start_ms
         ));
+    } else if audio.retained_timeline_delay {
+        // amix consumes sequential samples, so a timestamp shift alone cannot
+        // place edited clips. Physical silence also establishes the global
+        // clock for ducking after local source animation has been sampled.
+        chain.push_str(&format!(
+            ",adelay={}:all=1,volume='{ducking}':eval=frame[{label}]",
+            audio.span.start_ms
+        ));
     } else {
         chain.push_str(&format!(
             ",asetpts=PTS+{}/TB,volume='{ducking}':eval=frame[{label}]",
@@ -598,6 +606,8 @@ fn evaluated_scalar_expression_with_precision(
     time_variable: &str,
     precision: LoopClockPrecision,
 ) -> String {
+    let source_time = retained_time_expression(keyframes, property, time_variable);
+    let time_variable = source_time.as_str();
     let loop_spec = keyframes
         .iter()
         .find(|keyframe| keyframe.property == property)
@@ -687,11 +697,39 @@ fn looped_time_expression(
     format!("if(lt(({sample_ms}),{first}),({time_variable}),({mapped}))",)
 }
 
+fn retained_time_expression(
+    keyframes: &[EvaluatedKeyframe],
+    property: EvaluatedProperty,
+    time_variable: &str,
+) -> String {
+    match keyframes
+        .iter()
+        .find(|key| key.property == property)
+        .and_then(|key| key.clock)
+    {
+        Some(clock) if clock.offset_ms != 0 => format!(
+            "(({time_variable})+({:.17}))",
+            clock.offset_ms as f64 / 1000.0
+        ),
+        _ => time_variable.to_owned(),
+    }
+}
+
 fn evaluated_position_expression(
     keyframes: &[EvaluatedKeyframe],
     x_axis: bool,
     default: f64,
     item_start_ms: u64,
+) -> String {
+    evaluated_position_expression_for(keyframes, x_axis, default, item_start_ms, "t")
+}
+
+fn evaluated_position_expression_for(
+    keyframes: &[EvaluatedKeyframe],
+    x_axis: bool,
+    default: f64,
+    item_start_ms: u64,
+    time_variable: &str,
 ) -> String {
     let values = keyframes
         .iter()
@@ -704,7 +742,8 @@ fn evaluated_position_expression(
             _ => None,
         })
         .collect::<Vec<_>>();
-    evaluated_piecewise_expression_for(&values, default, item_start_ms, "t", None)
+    let time = retained_time_expression(keyframes, EvaluatedProperty::Position, time_variable);
+    evaluated_piecewise_expression_for(&values, default, item_start_ms, &time, None)
 }
 
 fn evaluated_piecewise_expression_for(
@@ -1416,23 +1455,12 @@ fn animated_ancestor_coordinates(
                     local_time,
                 )
             } else {
-                let values = layer
-                    .keyframes
-                    .iter()
-                    .filter_map(|key| match (key.property, key.value) {
-                        (
-                            EvaluatedProperty::Position,
-                            EvaluatedKeyframeValue::Position { x, y },
-                        ) => Some((key.time_ms, if x_axis { x } else { y }, key.easing)),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>();
-                evaluated_piecewise_expression_for(
-                    &values,
+                evaluated_position_expression_for(
+                    &layer.keyframes,
+                    x_axis,
                     default,
                     layer.span.start_ms,
                     local_time,
-                    None,
                 )
             }
         };
@@ -1567,22 +1595,12 @@ fn append_affine_samples(
                     &local_time,
                 );
             }
-            let values = layer
-                .keyframes
-                .iter()
-                .filter_map(|key| match (key.property, key.value) {
-                    (EvaluatedProperty::Position, EvaluatedKeyframeValue::Position { x, y }) => {
-                        Some((key.time_ms, if x_axis { x } else { y }, key.easing))
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            evaluated_piecewise_expression_for(
-                &values,
+            evaluated_position_expression_for(
+                &layer.keyframes,
+                x_axis,
                 default,
                 layer.span.start_ms,
                 &local_time,
-                None,
             )
         };
         let px = position(true, layer.transform.position_x);
@@ -1782,6 +1800,148 @@ mod tests {
         TextStyle, Track, TrackType, Transform, TransitionItem, TransitionType,
         evaluated_scene::evaluate_project, render_artifact::media_input_requests,
     };
+
+    #[test]
+    fn native_retained_clock_expressions_match_independent_source_functions() {
+        let Some(ffmpeg) = std::env::var_os("OPENCUT_FFMPEG_PATH") else {
+            assert_ne!(
+                std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+                Ok("1"),
+                "retained clock parity requires FFmpeg"
+            );
+            return;
+        };
+        for (offset, local, source) in [
+            (200, 200.5, 400.5),
+            (-200, 100.5, 0.0),
+            (700, 500.25, 1200.25),
+        ] {
+            for (property, easing, loop_spec, expected) in [
+                (
+                    EvaluatedProperty::PositionX,
+                    EvaluatedEasing::CubicBezier {
+                        x1: 1.0 / 3.0,
+                        y1: 0.0,
+                        x2: 2.0 / 3.0,
+                        y2: 0.0,
+                    },
+                    None,
+                    40.0 * (source / 1000.0_f64).min(1.0).powi(3),
+                ),
+                (
+                    EvaluatedProperty::GainDb,
+                    EvaluatedEasing::Spring {
+                        mass: 1.0,
+                        stiffness: 16.0,
+                        damping: 8.0,
+                        initial_velocity: 0.0,
+                    },
+                    None,
+                    if source >= 1000.0 {
+                        0.0
+                    } else {
+                        -12.0
+                            + 12.0
+                                * (1.0
+                                    - (1.0 + 4.0 * source / 1000.0)
+                                        * (-4.0 * source / 1000.0).exp())
+                    },
+                ),
+                (
+                    EvaluatedProperty::Opacity,
+                    EvaluatedEasing::Linear,
+                    Some(crate::AnimationLoop {
+                        mode: crate::AnimationLoopMode::PingPong,
+                        iterations: crate::AnimationLoopIterations::Finite(1),
+                    }),
+                    if source >= 2000.0 {
+                        0.0
+                    } else {
+                        (if source <= 1000.0 {
+                            source
+                        } else {
+                            2000.0 - source
+                        }) / 1000.0
+                    },
+                ),
+            ] {
+                let last_value = match property {
+                    EvaluatedProperty::PositionX => 40.0,
+                    EvaluatedProperty::GainDb => 0.0,
+                    _ => 1.0,
+                };
+                let first_value = if property == EvaluatedProperty::GainDb {
+                    -12.0
+                } else {
+                    0.0
+                };
+                let frames = [
+                    EvaluatedKeyframe {
+                        property,
+                        time_ms: 0,
+                        value: EvaluatedKeyframeValue::Scalar { value: first_value },
+                        easing,
+                        r#loop: loop_spec,
+                        clock: Some(crate::AnimationClock {
+                            offset_ms: offset,
+                            source_duration_ms: 3000,
+                        }),
+                    },
+                    EvaluatedKeyframe {
+                        property,
+                        time_ms: 1000,
+                        value: EvaluatedKeyframeValue::Scalar { value: last_value },
+                        easing: EvaluatedEasing::Hold,
+                        r#loop: loop_spec,
+                        clock: Some(crate::AnimationClock {
+                            offset_ms: offset,
+                            source_duration_ms: 3000,
+                        }),
+                    },
+                ];
+                let time = format!("{:.17}", local / 1000.0);
+                let expr = evaluated_scalar_expression_with_precision(
+                    &frames,
+                    property,
+                    0.0,
+                    0,
+                    &time,
+                    LoopClockPrecision::FractionalMilliseconds,
+                );
+                let source = format!("aevalsrc=exprs='{expr}':s=8000:d=0.001");
+                let output = std::process::Command::new(&ffmpeg)
+                    .args([
+                        "-v",
+                        "error",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        &source,
+                        "-frames:a",
+                        "1",
+                        "-ac",
+                        "1",
+                        "-c:a",
+                        "pcm_f64le",
+                        "-f",
+                        "f64le",
+                        "-",
+                    ])
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let actual = f64::from_le_bytes(output.stdout[..8].try_into().unwrap());
+                assert!(
+                    (actual - expected).abs() < 1e-7,
+                    "{property:?} offset={offset} local={local} actual={actual} expected={expected}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn native_loop_fractional_expression_matches_independent_phases() {

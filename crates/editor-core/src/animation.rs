@@ -1,6 +1,6 @@
 use crate::{
-    AnimationChannel, AnimationChannelValue, AnimationCurve, AnimationLoopIterations,
-    AnimationLoopMode, Easing, Keyframe, KeyframeProperty, KeyframeValue,
+    AnimationChannel, AnimationChannelValue, AnimationClock, AnimationCurve,
+    AnimationLoopIterations, AnimationLoopMode, Easing, Keyframe, KeyframeProperty, KeyframeValue,
     ParameterizedAnimationCurve, SimpleAnimationCurve,
 };
 
@@ -262,6 +262,13 @@ pub(crate) fn scalar_bounds_at(
     mut low: f64,
     mut high: f64,
 ) -> Option<(f64, f64)> {
+    if channel.clock.is_some() {
+        low = map_source_time_at(channel.clock, low)?;
+        high = map_source_time_at(channel.clock, high)?;
+        let mut source = channel.clone();
+        source.clock = None;
+        return scalar_bounds_at(&source, low, high);
+    }
     let scalar = |v: &AnimationChannelValue| {
         if let AnimationChannelValue::Scalar { value } = v {
             Some(*value)
@@ -396,7 +403,31 @@ pub(crate) fn sample_scalar_channel_at(channel: &AnimationChannel, time_ms: f64)
     scalar(&channel.keyframes.last()?.value)
 }
 
+fn map_source_time(clock: Option<AnimationClock>, time_ms: u64) -> Option<u64> {
+    let Some(clock) = clock else {
+        return Some(time_ms);
+    };
+    if clock.offset_ms < 0 {
+        Some(time_ms.saturating_sub(clock.offset_ms.unsigned_abs()))
+    } else {
+        time_ms.checked_add(clock.offset_ms as u64)
+    }
+}
+
+fn map_source_time_at(clock: Option<AnimationClock>, time_ms: f64) -> Option<f64> {
+    if !time_ms.is_finite() || time_ms < 0.0 {
+        return None;
+    }
+    let result = time_ms + clock.map_or(0.0, |clock| clock.offset_ms as f64);
+    result.is_finite().then_some(result.max(0.0))
+}
+
 pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<u64> {
+    let time_ms = map_source_time(channel.clock, time_ms)?;
+    map_loop_source_time(channel, time_ms)
+}
+
+fn map_loop_source_time(channel: &AnimationChannel, time_ms: u64) -> Option<u64> {
     let Some(loop_spec) = channel.r#loop else {
         return Some(time_ms);
     };
@@ -432,11 +463,12 @@ pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<
 }
 
 pub(crate) fn map_loop_time_at(channel: &AnimationChannel, time_ms: f64) -> Option<f64> {
+    let time_ms = map_source_time_at(channel.clock, time_ms)?;
     if !time_ms.is_finite() || time_ms < 0.0 {
         return None;
     }
     if time_ms.fract() == 0.0 && time_ms < u64::MAX as f64 {
-        return map_loop_time(channel, time_ms as u64).map(|t| t as f64);
+        return map_loop_source_time(channel, time_ms as u64).map(|t| t as f64);
     }
     let Some(spec) = channel.r#loop else {
         return Some(time_ms);
@@ -503,6 +535,7 @@ pub(crate) fn sample_channel(
             start.time_ms = 0;
             end.time_ms -= origin;
             let relative = AnimationChannel {
+                clock: None,
                 property: channel.property,
                 target: channel.target.clone(),
                 keyframes: vec![start, end],
@@ -775,6 +808,7 @@ mod curve_tests {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn easing_progress(easing: Easing, progress: f64) -> f64 {
     let progress = progress.clamp(0.0, 1.0);
     match easing {
@@ -787,6 +821,7 @@ pub(crate) fn easing_progress(easing: Easing, progress: f64) -> f64 {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_keyframe_value(
     keyframes: &[Keyframe],
     property: KeyframeProperty,
@@ -823,6 +858,7 @@ pub(crate) fn evaluate_keyframe_value(
     Some((last.value.clone(), last.easing))
 }
 
+#[cfg(test)]
 pub(crate) fn split_keyframes(
     keyframes: &[Keyframe],
     split_offset_ms: u64,
@@ -879,6 +915,41 @@ pub(crate) fn split_keyframes(
     (left, right)
 }
 
+/// Map conservative source activity intervals into the edited item window.
+pub(crate) fn positive_scalar_ranges_at(
+    keyframes: &[Keyframe],
+    property: KeyframeProperty,
+    duration_ms: u64,
+    clock: Option<AnimationClock>,
+) -> Vec<(u64, u64)> {
+    let Some(clock) = clock else {
+        return positive_scalar_ranges(keyframes, property, duration_ms);
+    };
+    let source_end = (i128::from(clock.offset_ms) + i128::from(duration_ms)).max(0) as u64;
+    let source_ranges = positive_scalar_ranges(keyframes, property, source_end);
+    let mut ranges = Vec::new();
+    // A left extension holds the first source value (or the static default).
+    if clock.offset_ms < 0 {
+        let first = keyframes.iter().find(|key| key.property == property);
+        let positive = first
+            .is_none_or(|key| matches!(key.value, KeyframeValue::Scalar { value } if value > 0.0));
+        push_positive_range(
+            &mut ranges,
+            0,
+            clock.offset_ms.unsigned_abs().min(duration_ms),
+            positive,
+        );
+    }
+    for (start, end) in source_ranges {
+        let local = |source: u64| {
+            (i128::from(source) - i128::from(clock.offset_ms)).clamp(0, i128::from(duration_ms))
+                as u64
+        };
+        push_positive_range(&mut ranges, local(start), local(end), true);
+    }
+    ranges
+}
+
 pub(crate) fn positive_scalar_ranges(
     keyframes: &[Keyframe],
     property: KeyframeProperty,
@@ -920,6 +991,7 @@ pub(crate) fn positive_scalar_ranges(
     ranges
 }
 
+#[cfg(test)]
 fn interpolate_value(start: &KeyframeValue, end: &KeyframeValue, progress: f64) -> KeyframeValue {
     match (start, end) {
         (
@@ -1215,5 +1287,168 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod retained_clock_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn source(curve: serde_json::Value, looping: Option<serde_json::Value>) -> AnimationChannel {
+        let mut value = json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":100,"value":{"type":"scalar","value":0},"curve":curve},
+            {"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},
+            {"timeMs":400,"value":{"type":"scalar","value":0},"curve":"hold"}
+        ]});
+        if let Some(looping) = looping {
+            value["loop"] = looping;
+        }
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn retained_clock_preserves_arbitrary_curves_finite_phases_and_fractional_interiors() {
+        for curve in [
+            json!("linear"),
+            json!("hold"),
+            json!({"type":"cubic_bezier","x1":0.2,"y1":0.8,"x2":0.7,"y2":0.95}),
+            json!({"type":"spring","mass":1,"stiffness":120,"damping":7,"initialVelocity":-2}),
+        ] {
+            for looping in [
+                None,
+                Some(json!({"mode":"repeat","iterations":2})),
+                Some(json!({"mode":"ping_pong","iterations":2})),
+                Some(json!({"mode":"ping_pong","iterations":"infinite"})),
+            ] {
+                let original = source(curve.clone(), looping);
+                for offset in [175, 350, 700] {
+                    let mut retained = original.clone();
+                    retained.clock = Some(AnimationClock {
+                        offset_ms: offset,
+                        source_duration_ms: 1800,
+                    });
+                    for time in [
+                        0.0, 0.5, 25.0, 49.5, 50.0, 50.5, 100.0, 224.5, 225.0, 225.5, 500.0, 1100.0,
+                    ] {
+                        assert_eq!(
+                            sample_channel_at(&retained, time),
+                            sample_channel_at(&original, time + offset as f64),
+                            "offset={offset} time={time}"
+                        );
+                    }
+                    for time in [0, 1, 25, 50, 100, 225, 500, 1100] {
+                        assert_eq!(
+                            sample_channel(&retained, time),
+                            sample_channel(&original, time + offset as u64)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn negative_retained_clock_holds_source_first_before_exact_start() {
+        let original = source(
+            json!("linear"),
+            Some(json!({"mode":"ping_pong","iterations":1})),
+        );
+        let mut retained = original.clone();
+        retained.clock = Some(AnimationClock {
+            offset_ms: -200,
+            source_duration_ms: 1000,
+        });
+        for (time, expected) in [
+            (0.0, 0.0),
+            (299.5, 0.0),
+            (300.0, 0.0),
+            (375.0, 50.0),
+            (500.0, 200.0 / 3.0),
+            (900.0, 0.0),
+        ] {
+            let AnimationChannelValue::Scalar { value } =
+                sample_channel_at(&retained, time).unwrap()
+            else {
+                panic!()
+            };
+            assert!((value - expected).abs() < 1e-9, "{time}: {value}");
+        }
+    }
+
+    #[test]
+    fn retained_clocks_keep_compound_segments_and_bounds() {
+        for (property, a, b) in [
+            (
+                "graphic.fill_color",
+                json!({"type":"rgba","r":1,"g":0,"b":0,"a":1}),
+                json!({"type":"rgba","r":0,"g":1,"b":0,"a":0.5}),
+            ),
+            (
+                "graphic.path_points",
+                json!({"type":"path_points","points":[{"x":0,"y":10}]}),
+                json!({"type":"path_points","points":[{"x":100,"y":20}]}),
+            ),
+            (
+                "graphic.gradient_stops",
+                json!({"type":"gradient_stops","stops":[{"offset":0,"color":[1,0,0,1]}]}),
+                json!({"type":"gradient_stops","stops":[{"offset":1,"color":[0,1,0,1]}]}),
+            ),
+        ] {
+            let original: AnimationChannel = serde_json::from_value(json!({"property":property,"keyframes":[{"timeMs":0,"value":a,"curve":"linear"},{"timeMs":1000,"value":b,"curve":"hold"}]})).unwrap();
+            let mut retained = original.clone();
+            retained.clock = Some(AnimationClock {
+                offset_ms: 275,
+                source_duration_ms: 1200,
+            });
+            for time in [0.0, 0.5, 100.5, 725.0] {
+                assert_eq!(
+                    sample_channel_at(&retained, time),
+                    sample_channel_at(&original, time + 275.0)
+                );
+            }
+        }
+        let original = source(json!("linear"), None);
+        let mut retained = original.clone();
+        retained.clock = Some(AnimationClock {
+            offset_ms: 175,
+            source_duration_ms: 1000,
+        });
+        let (low, high) = scalar_bounds_at(&retained, 0.0, 25.0).unwrap();
+        assert!((low - 50.0).abs() < 1e-9 && (high - 200.0 / 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn retained_legacy_voice_activity_maps_source_intervals_without_restart() {
+        let keys: Vec<Keyframe> = serde_json::from_value(json!([
+            {"property":"volume","timeMs":0,"value":{"type":"scalar","value":0},"easing":"hold"},
+            {"property":"volume","timeMs":500,"value":{"type":"scalar","value":1},"easing":"hold"},
+            {"property":"volume","timeMs":1000,"value":{"type":"scalar","value":0},"easing":"hold"}
+        ]))
+        .unwrap();
+        assert_eq!(
+            positive_scalar_ranges_at(
+                &keys,
+                KeyframeProperty::Volume,
+                800,
+                Some(AnimationClock {
+                    offset_ms: 300,
+                    source_duration_ms: 1500
+                })
+            ),
+            vec![(200, 700)]
+        );
+        assert_eq!(
+            positive_scalar_ranges_at(
+                &keys,
+                KeyframeProperty::Volume,
+                1300,
+                Some(AnimationClock {
+                    offset_ms: -200,
+                    source_duration_ms: 1500
+                })
+            ),
+            vec![(700, 1200)]
+        );
     }
 }

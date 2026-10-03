@@ -602,7 +602,7 @@ fn replacement_preserves_order_static_state_and_legacy_collisions() {
 }
 
 #[test]
-fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
+fn unrelated_edits_copies_and_retained_duration_edits_preserve_known_source() {
     let (_root, core, project, id) = setup();
     core.edit(&project, 1, op(request(&id))).unwrap();
     let saved = state(&core, &project);
@@ -621,21 +621,63 @@ fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
             source
         );
     }
+    core.edit(
+        &project,
+        6,
+        op(json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":500})),
+    )
+    .unwrap();
+    let trimmed = state(&core, &project);
+    assert_eq!(
+        item(&trimmed)["animationChannels"][0]["keyframes"],
+        item(&saved)["animationChannels"][0]["keyframes"]
+    );
+    assert_eq!(
+        item(&trimmed)["animationChannels"][0]["clock"],
+        json!({"offsetMs":0,"sourceDurationMs":1000})
+    );
+    assert_eq!(item(&trimmed)["animationPresetProvenance"], source);
+    let split = core
+        .edit(
+            &project,
+            7,
+            op(json!({"operation":"split_item","itemId":id,"splitMs":400})),
+        )
+        .unwrap();
+    let split_state = core.get_project(&project).unwrap();
+    for (split_id, offset) in [(&split.changed_ids[0], 0), (&split.changed_ids[1], 300)] {
+        let visual = split_state.find_item(split_id).unwrap().visual_properties();
+        assert_eq!(
+            serde_json::to_value(&visual.animation_channels[0].keyframes).unwrap(),
+            item(&saved)["animationChannels"][0]["keyframes"]
+        );
+        assert_eq!(
+            visual.animation_channels[0].clock,
+            Some(opencut_editor_core::AnimationClock {
+                offset_ms: offset,
+                source_duration_ms: 1000
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(&visual.animation_preset_provenance).unwrap(),
+            source
+        );
+    }
     let before = files(&core, &project);
     for input in [
-        json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":500}),
+        json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":0}),
         json!({"operation":"split_item","itemId":id,"splitMs":400}),
     ] {
         assert_eq!(
-            core.edit(&project, 6, op(input)).unwrap_err().code,
-            ErrorCode::InvalidArgument
+            core.edit(&project, 8, op(input)).unwrap_err().code,
+            ErrorCode::ValidationFailed
         );
         assert_eq!(files(&core, &project), before);
     }
     let copies = core
         .edit(
             &project,
-            6,
+            8,
             op(json!({"operation":"duplicate_items","itemIds":[id],"offsetMs":1500})),
         )
         .unwrap();
@@ -650,11 +692,11 @@ fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
     assert_eq!(serde_json::to_value(copy).unwrap(), source);
     core.edit(
         &project,
-        7,
+        9,
         op(json!({"operation":"delete_item","itemId":id})),
     )
     .unwrap();
-    core.undo(&project, 8).unwrap();
+    core.undo(&project, 10).unwrap();
     assert_eq!(
         item(&state(&core, &project))["animationPresetProvenance"],
         source
@@ -767,10 +809,10 @@ fn schema_28_migrates_current_components_and_all_history_once() {
         serde_json::to_vec(&history).unwrap(),
     )
     .unwrap();
-    current["schemaVersion"] = json!(29);
+    current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     for snapshots in ["undo", "redo"] {
         for snapshot in history[snapshots].as_array_mut().unwrap() {
-            snapshot["schemaVersion"] = json!(29);
+            snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
         }
     }
     assert_eq!(state(&core, &project), current);
@@ -1206,7 +1248,7 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
 }
 
 #[test]
-fn successful_split_preserves_only_exact_local_channels_and_labels() {
+fn successful_split_preserves_exact_source_channels_clocks_and_labels() {
     let (_root, core, project, id) = setup();
     let mut input = request(&id);
     input["parameters"]["durationMs"] = json!(200);
@@ -1220,11 +1262,15 @@ fn successful_split_preserves_only_exact_local_channels_and_labels() {
         )
         .unwrap();
     let after = core.get_project(&project).unwrap();
-    for id in &split.changed_ids {
+    for (index, id) in split.changed_ids.iter().enumerate() {
+        let mut expected_channels = item(&before)["animationChannels"].clone();
+        for channel in expected_channels.as_array_mut().unwrap() {
+            channel["clock"] = json!({"offsetMs":index as u64*500,"sourceDurationMs":1000});
+        }
         let visual = after.find_item(id).unwrap().visual_properties();
         assert_eq!(
             serde_json::to_value(&visual.animation_channels).unwrap(),
-            item(&before)["animationChannels"]
+            expected_channels
         );
         assert_eq!(
             serde_json::to_value(&visual.animation_preset_provenance).unwrap(),
@@ -1469,7 +1515,7 @@ fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejectio
         serde_json::to_vec(&history).unwrap(),
     )
     .unwrap();
-    current["schemaVersion"] = json!(29);
+    current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     assert_eq!(state(&core, &project), current);
     let bytes = files(&core, &project);
     assert_eq!(state(&core, &project), current);

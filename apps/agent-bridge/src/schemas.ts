@@ -349,8 +349,14 @@ export const animationChannelValueSchema = z.discriminatedUnion("type", [
     .strict(),
 ]);
 
+export const animationClockSchema = z.strictObject({
+  offsetMs: z.int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
+  sourceDurationMs: positiveMilliseconds.max(Number.MAX_SAFE_INTEGER),
+});
+
 export const animationChannelSchema = z
   .object({
+    clock: animationClockSchema.optional(),
     keyframes: z
       .array(
         z
@@ -501,7 +507,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(29).optional(),
+    projectSchemaVersion: z.literal(31).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -968,6 +974,7 @@ const mediaItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     sourceInMs: milliseconds,
@@ -997,6 +1004,7 @@ const textItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1022,6 +1030,7 @@ const solidColorItemSchema = z
     hidden: z.boolean(),
     id,
     keyframes: z.array(keyframeSchema),
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1080,6 +1089,7 @@ const repeaterItemSchema = z.strictObject({
   effects: z.array(visualEffectSchema).max(16).optional(),
   hidden: z.boolean(),
   id,
+  legacyAnimationClock: animationClockSchema.optional(),
   motionBlur: motionBlurSchema.optional(),
   parent: parentReferenceSchema.nullable().optional(),
   repeater: repeaterDescriptorSchema,
@@ -1124,6 +1134,7 @@ const captionItemSchema = z
     effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     source: z
@@ -1168,6 +1179,7 @@ const transitionItemSchema = z
     fromItemId: id,
     hidden: z.boolean(),
     id,
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1192,6 +1204,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       effects: z.array(visualEffectSchema).max(16).optional(),
       hidden: z.boolean(),
       id,
+      legacyAnimationClock: animationClockSchema.optional(),
       motionBlur: motionBlurSchema.optional(),
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1382,6 +1395,7 @@ export const componentInstanceSchema = z
     effects: z.array(visualEffectSchema).max(16).optional(),
     hidden: z.boolean(),
     id,
+    legacyAnimationClock: animationClockSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     slotValues: slotValuesSchema,
@@ -1614,7 +1628,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(29),
+        schemaVersion: z.literal(31),
         settings: z
           .object({
             fps: z.int().positive(),

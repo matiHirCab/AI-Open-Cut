@@ -485,6 +485,7 @@ fn sample_scalar(
             })
             .collect(),
         r#loop: first.r#loop,
+        clock: first.clock,
     };
     let time = time.looped(&channel)?;
     if time.compare(first.time_ms)? != std::cmp::Ordering::Greater {

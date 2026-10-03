@@ -23,6 +23,7 @@ import {
   ttsStatusSchema,
   writeResultSchema,
 } from "../src/schemas";
+import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
@@ -1208,4 +1209,5 @@ it("edits scoped markers and live item starts through MCP", async () => {
 
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
   await verifyPresetWorkflow(client, call);
+  await verifyAnimationEditWorkflow(client, call);
 });

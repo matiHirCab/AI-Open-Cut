@@ -56,6 +56,7 @@ fn compile(
     }
     let end = crate::validation::animation_presets::validate_parameters(&parameters)?;
     let channel = AnimationChannel {
+        clock: None,
         property: parameters.property,
         target: None,
         keyframes: vec![

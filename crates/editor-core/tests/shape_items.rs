@@ -421,6 +421,8 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
     );
     core.edit(&id,1,op(json!({"operation":"update_item","itemId":item,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}))).unwrap();
     core.edit(&id, 2, edit).unwrap();
+    let original = core.get_project(&id).unwrap();
+    let original_item = original.find_item(item).unwrap();
     let r = core
         .edit(
             &id,
@@ -429,11 +431,36 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
         )
         .unwrap();
     let p = core.get_project(&id).unwrap();
-    let right = p.find_item(&r.changed_ids[1]).unwrap();
-    assert_eq!(right.keyframes()[0].time_ms, 0);
+    for (split_id, offset) in [(&r.changed_ids[0], 0), (&r.changed_ids[1], 500)] {
+        let segment = p.find_item(split_id).unwrap();
+        assert_eq!(
+            serde_json::to_value(segment.keyframes()).unwrap(),
+            serde_json::to_value(original_item.keyframes()).unwrap()
+        );
+        assert_eq!(
+            segment.visual_properties().legacy_animation_clock,
+            Some(opencut_editor_core::AnimationClock {
+                offset_ms: offset,
+                source_duration_ms: original_item.duration_ms(),
+            })
+        );
+    }
+    core.undo(&id, 4).unwrap();
     assert_eq!(
-        right.keyframes()[0].value,
-        opencut_editor_core::KeyframeValue::Position { x: 10.0, y: 5.0 }
+        serde_json::to_value(core.get_project(&id).unwrap().find_item(item).unwrap()).unwrap(),
+        serde_json::to_value(original_item).unwrap()
+    );
+    core.redo(&id, 5).unwrap();
+    let restored = core.get_project(&id).unwrap();
+    assert_eq!(
+        serde_json::to_value(&restored.tracks).unwrap(),
+        serde_json::to_value(&p.tracks).unwrap()
+    );
+    // Reopen from a separate owner using the same persisted project directory.
+    let reopened = EditorCore::new(core.paths().clone());
+    assert_eq!(
+        serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap(),
+        serde_json::to_value(restored).unwrap()
     );
 
     let (_root, core, id, _track) = setup();

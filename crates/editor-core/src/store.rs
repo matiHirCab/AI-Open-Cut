@@ -1628,7 +1628,15 @@ fn prepare_project_data(
     expected_revision: Option<u64>,
     rollback: Option<&mut crate::assets::UncommittedResources>,
 ) -> Result<PreparedProject, CoreError> {
-    recover_transaction(storage, faults, dir)?;
+    recover_transaction(storage, faults, dir, |project, history| {
+        for snapshot in std::iter::once(project)
+            .chain(history.undo.iter())
+            .chain(history.redo.iter())
+        {
+            crate::validation::animation_channels::validate_project_retained_clocks(snapshot)?;
+        }
+        Ok(())
+    })?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
     let mut project: Project = read_json(storage, &project_file)?;
@@ -3202,6 +3210,182 @@ mod tests {
     }
 
     #[test]
+    fn invalid_retained_clock_journal_leaves_all_authoritative_bytes_unchanged() {
+        for location in 0..3 {
+            for component in [false, true] {
+                for case in [
+                    "window",
+                    "empty_typed",
+                    "empty_legacy",
+                    "typed_source",
+                    "legacy_source",
+                    "order",
+                    "spring",
+                    "target",
+                    "loop",
+                    "legacy_order",
+                ] {
+                    let (core, _) = core();
+                    let created = core
+                        .create_project("invalid clock journal", ProjectSettings::default())
+                        .unwrap();
+                    let id = &created.project_id;
+                    let track = core.get_project(id).unwrap().tracks[1].id.clone();
+                    let item=core.edit(id,0,serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":10,"height":10,"color":"#ff0000","transform":Transform::default()})).unwrap()).unwrap().changed_ids[0].clone();
+                    core.edit(id,1,serde_json::from_value(serde_json::json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":10},"curve":"hold"}]}]})).unwrap()).unwrap();
+                    let dir = core.paths().project_dir(id).unwrap();
+                    let mut project = core.get_project(id).unwrap();
+                    if component {
+                        project.components.push(serde_json::from_value(serde_json::json!({"id":"local","name":"Local","width":64,"height":64,"durationMs":1000,"markers":[],"slots":[],"tracks":[project.tracks[1]]})).unwrap());
+                    }
+                    let mut transaction = ProjectTransaction {
+                        draft_updates: Default::default(),
+                        version: TRANSACTION_VERSION,
+                        project: project.clone(),
+                        history: History {
+                            undo: vec![project.clone()],
+                            redo: vec![project],
+                        },
+                        committed_draft_id: None,
+                    };
+                    let snapshot = match location {
+                        0 => &mut transaction.project,
+                        1 => &mut transaction.history.undo[0],
+                        _ => &mut transaction.history.redo[0],
+                    };
+                    let item = if component {
+                        &mut snapshot.components[0].tracks[0].items[0]
+                    } else {
+                        &mut snapshot.tracks[1].items[0]
+                    };
+                    let clock = crate::AnimationClock {
+                        offset_ms: if case == "window" {
+                            9_007_199_254_740_991
+                        } else {
+                            0
+                        },
+                        source_duration_ms: if case.ends_with("source") { 100 } else { 1000 },
+                    };
+                    if case.contains("legacy") {
+                        item.visual_properties_mut().legacy_animation_clock = Some(clock);
+                        if case == "legacy_source" || case == "legacy_order" {
+                            let key = crate::Keyframe {
+                                property: crate::KeyframeProperty::Opacity,
+                                time_ms: 500,
+                                value: crate::KeyframeValue::Scalar { value: 0.5 },
+                                easing: crate::Easing::Linear,
+                            };
+                            *item.keyframes_mut().unwrap() = if case == "legacy_order" {
+                                vec![key.clone(), key]
+                            } else {
+                                vec![key]
+                            };
+                        }
+                    } else {
+                        item.visual_properties_mut().animation_channels[0].clock = Some(clock);
+                        let channel = &mut item.visual_properties_mut().animation_channels[0];
+                        match case {
+                            "empty_typed" => channel.keyframes.clear(),
+                            "order" => channel.keyframes[1].time_ms = 0,
+                            "spring" => {
+                                channel.keyframes[0].curve = crate::AnimationCurve::Parameterized(
+                                    crate::ParameterizedAnimationCurve::Spring {
+                                        mass: 0.0,
+                                        stiffness: 100.0,
+                                        damping: 5.0,
+                                        initial_velocity: 0.0,
+                                    },
+                                )
+                            }
+                            "target" => {
+                                channel.target = Some(crate::AnimationTarget {
+                                    kind: crate::AnimationTargetKind::GraphicGeometry,
+                                    scope: "root".into(),
+                                    id: "missing".into(),
+                                })
+                            }
+                            "loop" => {
+                                channel.r#loop = Some(crate::AnimationLoop {
+                                    mode: crate::AnimationLoopMode::PingPong,
+                                    iterations: crate::AnimationLoopIterations::Finite(0),
+                                })
+                            }
+                            _ => {}
+                        }
+                    }
+                    write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
+                    let before = (
+                        std::fs::read(project_path(&dir)).unwrap(),
+                        std::fs::read(history_path(&dir)).unwrap(),
+                        std::fs::read(transaction_path(&dir)).unwrap(),
+                    );
+                    assert_eq!(
+                        core.get_project(id).unwrap_err().code,
+                        ErrorCode::ProjectRecoveryFailed,
+                        "{case} location={location} component={component}"
+                    );
+                    assert_eq!(
+                        before,
+                        (
+                            std::fs::read(project_path(&dir)).unwrap(),
+                            std::fs::read(history_path(&dir)).unwrap(),
+                            std::fs::read(transaction_path(&dir)).unwrap()
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn reserved_schema30_journal_rejects_before_replay_for_current_and_history() {
+        for location in 0..3 {
+            let (core, _) = core();
+            let created = core
+                .create_project("reserved journal", ProjectSettings::default())
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            let project: Project = read_json(&project_path(&dir)).unwrap();
+            let mut transaction = ProjectTransaction {
+                draft_updates: Default::default(),
+                version: TRANSACTION_VERSION,
+                project: project.clone(),
+                history: History {
+                    undo: vec![project.clone()],
+                    redo: vec![project],
+                },
+                committed_draft_id: None,
+            };
+            match location {
+                0 => transaction.project.schema_version = 30,
+                1 => transaction.history.undo[0].schema_version = 30,
+                _ => transaction.history.redo[0].schema_version = 30,
+            }
+            write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
+            let before = (
+                std::fs::read(project_path(&dir)).unwrap(),
+                std::fs::read(history_path(&dir)).unwrap(),
+                std::fs::read(transaction_path(&dir)).unwrap(),
+            );
+            let error = core.get_project(&created.project_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProjectRecoveryFailed);
+            assert!(
+                error
+                    .message
+                    .contains("unsupported project schema version 30")
+            );
+            assert_eq!(
+                before,
+                (
+                    std::fs::read(project_path(&dir)).unwrap(),
+                    std::fs::read(history_path(&dir)).unwrap(),
+                    std::fs::read(transaction_path(&dir)).unwrap()
+                )
+            );
+        }
+    }
+
+    #[test]
     fn schema_zero_current_and_retained_state_are_rejected_without_publication() {
         for retained in [false, true] {
             let (core, _) = core();
@@ -4708,7 +4892,7 @@ mod tests {
     }
 
     #[test]
-    fn splitting_an_animated_shape_rebases_keyframes_and_is_undoable() {
+    fn splitting_an_animated_shape_retains_source_clock_and_is_undoable() {
         let (core, _) = core();
         let created = core
             .create_project("animated split", ProjectSettings::default())
@@ -4781,18 +4965,53 @@ mod tests {
         };
         assert_eq!(left.duration_ms, 500);
         assert_eq!(right.duration_ms, 500);
-        assert_eq!(left.keyframes.last().unwrap().time_ms, 500);
-        assert_eq!(right.keyframes.first().unwrap().time_ms, 0);
         assert_eq!(
-            left.keyframes.last().unwrap().value,
-            right.keyframes[0].value
+            serde_json::to_value(&left.keyframes).unwrap(),
+            serde_json::to_value(&keyframes).unwrap()
         );
-        assert!(
-            right
-                .keyframes
-                .iter()
-                .all(|keyframe| keyframe.time_ms <= right.duration_ms)
+        assert_eq!(
+            serde_json::to_value(&right.keyframes).unwrap(),
+            serde_json::to_value(&keyframes).unwrap()
         );
+        assert_eq!(
+            left.visual_properties.legacy_animation_clock,
+            Some(crate::AnimationClock {
+                offset_ms: 0,
+                source_duration_ms: 1000
+            })
+        );
+        assert_eq!(
+            right.visual_properties.legacy_animation_clock,
+            Some(crate::AnimationClock {
+                offset_ms: 500,
+                source_duration_ms: 1000
+            })
+        );
+        for local in [0, 125, 250, 499] {
+            let expected = crate::animation::evaluate_keyframe_value(
+                &keyframes,
+                KeyframeProperty::Opacity,
+                local + 500,
+            )
+            .unwrap()
+            .0;
+            let observed = crate::animation::evaluate_keyframe_value(
+                &right.keyframes,
+                KeyframeProperty::Opacity,
+                local
+                    + right
+                        .visual_properties
+                        .legacy_animation_clock
+                        .unwrap()
+                        .offset_ms as u64,
+            )
+            .unwrap()
+            .0;
+            assert_eq!(
+                serde_json::to_value(observed).unwrap(),
+                serde_json::to_value(expected).unwrap()
+            );
+        }
 
         core.undo(&created.project_id, 3).unwrap();
         let project = core.get_project(&created.project_id).unwrap();
@@ -4962,7 +5181,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28, 29]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {

@@ -10,6 +10,106 @@ fn invalid(message: &str) -> CoreError {
     CoreError::new(ErrorCode::InvalidArgument, message)
 }
 
+pub(crate) const MAX_SAFE_CLOCK: i64 = 9_007_199_254_740_991;
+
+pub(crate) fn validate_clock(
+    clock: crate::AnimationClock,
+    duration_ms: u64,
+) -> Result<(), CoreError> {
+    if clock.offset_ms.unsigned_abs() > MAX_SAFE_CLOCK as u64
+        || clock.source_duration_ms == 0
+        || clock.source_duration_ms > MAX_SAFE_CLOCK as u64
+        || duration_ms > MAX_SAFE_CLOCK as u64
+        || clock
+            .offset_ms
+            .checked_add(duration_ms as i64)
+            .is_none_or(|end| end.unsigned_abs() > MAX_SAFE_CLOCK as u64)
+    {
+        return Err(invalid("retained animation clock exceeds safe bounds"));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_legacy_clock(item: &TimelineItem) -> Result<(), CoreError> {
+    if let Some(clock) = item.visual_properties().legacy_animation_clock {
+        validate_clock(clock, item.duration_ms())?;
+        super::validate_legacy_keyframe_limit(item.keyframes())?;
+        super::validate_keyframes(item.keyframes()).map_err(|error| invalid(&error.message))?;
+        if item.keyframes().is_empty()
+            || item
+                .keyframes()
+                .iter()
+                .any(|key| key.time_ms > clock.source_duration_ms)
+        {
+            return Err(invalid("retained legacy animation source is invalid"));
+        }
+    }
+    Ok(())
+}
+
+/// Shared retained-source validation for edits and committed-journal recovery.
+fn validate_retained_sources(
+    channels: &[AnimationChannel],
+    item: &TimelineItem,
+) -> Result<(), CoreError> {
+    validate_legacy_clock(item)?;
+    for channel in channels {
+        if let Some(clock) = channel.clock {
+            validate_clock(clock, item.duration_ms())?;
+            if channel.keyframes.is_empty()
+                || channel
+                    .keyframes
+                    .iter()
+                    .any(|key| key.time_ms >= clock.source_duration_ms)
+            {
+                return Err(invalid("retained animation source is invalid"));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_project_retained_clocks(project: &Project) -> Result<(), CoreError> {
+    for item in project
+        .tracks
+        .iter()
+        .chain(
+            project
+                .components
+                .iter()
+                .flat_map(|component| &component.tracks),
+        )
+        .flat_map(|track| &track.items)
+    {
+        let visual = item.visual_properties();
+        if visual.legacy_animation_clock.is_some()
+            || visual
+                .animation_channels
+                .iter()
+                .any(|channel| channel.clock.is_some())
+        {
+            validate_channels(&visual.animation_channels, item, project)?;
+        }
+    }
+    for item in project
+        .components
+        .iter()
+        .flat_map(|component| &component.tracks)
+        .flat_map(|track| &track.items)
+    {
+        let visual = item.visual_properties();
+        if visual.legacy_animation_clock.is_some()
+            || visual
+                .animation_channels
+                .iter()
+                .any(|channel| channel.clock.is_some())
+        {
+            super::validate_component_keyframe_limit(item.keyframes())?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_legacy_collision(
     channels: &[AnimationChannel],
     keyframes: &[Keyframe],
@@ -40,6 +140,7 @@ pub(crate) fn validate_channels(
     item: &TimelineItem,
     project: &Project,
 ) -> Result<(), CoreError> {
+    validate_retained_sources(channels, item)?;
     if channels.len() > 64 {
         return Err(invalid("maxChannelsPerItem exceeded"));
     }
@@ -125,9 +226,12 @@ pub(crate) fn validate_channels(
                 return Err(invalid("repeat loop endpoints must match"));
             }
         }
+        let source_duration = channel
+            .clock
+            .map_or(item.duration_ms(), |clock| clock.source_duration_ms);
         let mut previous = None;
         for (index, keyframe) in channel.keyframes.iter().enumerate() {
-            if keyframe.time_ms >= item.duration_ms()
+            if keyframe.time_ms >= source_duration
                 || previous.is_some_and(|time| keyframe.time_ms <= time)
             {
                 return Err(invalid(

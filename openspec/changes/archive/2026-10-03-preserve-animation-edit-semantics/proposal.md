@@ -18,6 +18,9 @@ Issue #47 requires timeline editing to retain continuous animation values, loop 
 
 ### Modified Capabilities
 
+- `animation-channels`: effective retained source-duration key bounds and source-clock sampling before curves/loops.
+- `animation-loops`: retained source-clock phase and original finite exhaustion through editing.
+- `animation-presets`: preserved original compilation attribution and exact source primitives/effective clocks through retained edits; fresh clocks only for newly compiled properties.
 - `project-persistence`: schema 31, bounded retained clocks and atomic historical migration.
 
 ## Non-goals

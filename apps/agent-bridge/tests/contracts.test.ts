@@ -56,7 +56,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "343c11014f9203e3b929863c83a31301873dc07421067708633739e88b136690";
+  "bcd336ce69dd779034762909db9ad364c4c2a12726be3aa9ebc5b252e889ee76";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -242,7 +242,7 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(1);
-    expect(PRESETS.projectSchemaVersion).toBe(29);
+    expect(PRESETS.projectSchemaVersion).toBe(31);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -458,7 +458,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 29,
+      projectSchemaVersion: 31,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {

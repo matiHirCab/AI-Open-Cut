@@ -336,6 +336,7 @@ pub(crate) fn recover_transaction(
     storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
+    validate_sources: impl Fn(&Project, &History) -> Result<(), CoreError>,
 ) -> Result<(), CoreError> {
     cleanup_orphaned_transaction_temps(storage, dir)?;
     let path = transaction_path(dir);
@@ -344,6 +345,7 @@ pub(crate) fn recover_transaction(
     }
     let transaction = read_transaction(storage, &path)?;
     validate_transaction(dir, &transaction)?;
+    validate_sources(&transaction.project, &transaction.history).map_err(as_recovery_error)?;
     replay_transaction(storage, faults, dir, &transaction)
 }
 
@@ -411,7 +413,7 @@ fn validate_transaction(dir: &Path, transaction: &ProjectTransaction) -> Result<
         }
         // Replay a supported older binary's committed generation before the
         // store performs its normal atomic migration to the current schema.
-        if !(1..=PROJECT_SCHEMA_VERSION).contains(&snapshot.schema_version) {
+        if !matches!(snapshot.schema_version, 1..=29 | PROJECT_SCHEMA_VERSION) {
             return Err(recovery_error(format!(
                 "transaction contains unsupported project schema version {}",
                 snapshot.schema_version
