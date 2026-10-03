@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "capability": "artifact_resources_v2",
+  "resourceTemplate": "opencut://jobs/{jobId}/artifact",
+  "defaultContentTypes": ["text", "resource_link"],
+  "binaryOptIn": { "field": "includeBinary", "value": true, "mimeTypes": ["image/png", "audio/wav"] },
+  "migration": "Clients requiring legacy inline PNG/WAV content must set includeBinary=true on job_get_status. Use resources/read for MP4 or other on-demand delivery.",
+  "fixtures": [
+    { "kind": "preview", "mimeType": "image/png", "relativePath": "previews/frame.png", "name": "Render preview", "inlineType": "image" },
+    { "kind": "preview_range", "mimeType": "video/mp4", "relativePath": "previews/range.mp4", "name": "Render preview", "inlineType": null },
+    { "kind": "export", "mimeType": "video/mp4", "relativePath": "nested/video.mp4", "name": "Video export", "inlineType": null },
+    { "kind": "speech_preview", "mimeType": "audio/wav", "name": "Speech preview", "inlineType": "audio" }
+  ],
+  "failures": {
+    "unknownOrExpiredJob": "JOB_NOT_FOUND",
+    "discardedConsumedOrExpiredSpeech": "GENERATED_ARTIFACT_NOT_FOUND",
+    "missingUnsafeOrUnreadableFile": "VALIDATION_FAILED"
+  },
+  "headlessProtocolChanged": false,
+  "persistedSchemaChanged": false
+}
