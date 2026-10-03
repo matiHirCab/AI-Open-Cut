@@ -102,39 +102,48 @@ it("reuses the warm worker, handles split output and keeps typed errors reusable
   });
 });
 
-it("uses one-shot overflow and cancellation cleans draft temporaries before replacement", async () => {
-  const { client, root } = create();
-  const warm = await client.call(request(), resultSchema);
-  const controller = new AbortController();
-  const pending = client.call(
-    request("hang-tree", "render_draft_preview"),
-    resultSchema,
-    { requestId: "cancelled", signal: controller.signal }
-  );
-  const rejected = expect(pending).rejects.toMatchObject({
-    code: "JOB_CANCELLED",
-  });
-  const overflowPending = client.call(request("slow"), resultSchema);
-  const descendantPath = join(root, "project", "descendant.pid");
-  await vi.waitFor(() => expect(existsSync(descendantPath)).toBe(true));
-  const descendant = Number(readFileSync(descendantPath, "utf8"));
-  controller.abort();
-  const overflow = await overflowPending;
-  expect(overflow.worker).toBe(false);
-  expect(overflow.pid).not.toBe(warm.pid);
-  await rejected;
-  expect(() => process.kill(descendant, 0)).toThrow();
-  expect(
-    readFileSync(join(root, "project", "previews", "published.png"), "utf8")
-  ).toBe("published");
-  expect(existsSync(join(root, "project", ".opencut-work-cancelled"))).toBe(
-    false
-  );
-  expect(
-    existsSync(join(root, "project", "previews", ".opencut-cancelled.png"))
-  ).toBe(false);
-  expect((await client.call(request(), resultSchema)).pid).not.toBe(warm.pid);
-});
+it.each(["render_draft_preview", "render_review_range"])(
+  "uses one-shot overflow and cancellation cleans %s temporaries before replacement",
+  async (operation) => {
+    const { client, root } = create();
+    const warm = await client.call(request(), resultSchema);
+    const controller = new AbortController();
+    const pending = client.call(request("hang-tree", operation), resultSchema, {
+      requestId: "cancelled",
+      signal: controller.signal,
+    });
+    const rejected = expect(pending).rejects.toMatchObject({
+      code: "JOB_CANCELLED",
+    });
+    const overflowPending = client.call(request("slow"), resultSchema);
+    const descendantPath = join(root, "project", "descendant.pid");
+    await vi.waitFor(() => expect(existsSync(descendantPath)).toBe(true));
+    const descendant = Number(readFileSync(descendantPath, "utf8"));
+    controller.abort();
+    const overflow = await overflowPending;
+    expect(overflow.worker).toBe(false);
+    expect(overflow.pid).not.toBe(warm.pid);
+    await rejected;
+    expect(() => process.kill(descendant, 0)).toThrow();
+    expect(
+      readFileSync(join(root, "project", "previews", "published.png"), "utf8")
+    ).toBe("published");
+    expect(existsSync(join(root, "project", ".opencut-work-cancelled"))).toBe(
+      false
+    );
+    expect(
+      existsSync(
+        join(
+          root,
+          "project",
+          "previews",
+          `.opencut-cancelled.${operation === "render_review_range" ? "mp4" : "png"}`
+        )
+      )
+    ).toBe(false);
+    expect((await client.call(request(), resultSchema)).pid).not.toBe(warm.pid);
+  }
+);
 
 it.each([
   "malformed",

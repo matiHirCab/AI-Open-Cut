@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "capability": "preview_review_presets_v1",
+  "mcpTool": "preview_review_range",
+  "headlessOperation": "render_review_range",
+  "validResolutions": [
+    "540p",
+    "720p",
+    "project",
+    {
+      "width": 320,
+      "height": 180
+    }
+  ],
+  "invalidResolutions": [
+    "1080p",
+    {},
+    {
+      "width": 320
+    },
+    {
+      "width": 320,
+      "height": 180,
+      "preset": "540p"
+    },
+    {
+      "width": -1,
+      "height": 180
+    },
+    null
+  ],
+  "cases": [
+    {
+      "project": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 30
+      },
+      "resolution": "540p",
+      "expected": {
+        "width": 960,
+        "height": 540,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 30
+      },
+      "resolution": "720p",
+      "expected": {
+        "width": 1280,
+        "height": 720,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 1080,
+        "height": 1920,
+        "fps": 30
+      },
+      "resolution": "540p",
+      "expected": {
+        "width": 304,
+        "height": 540,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 1080,
+        "height": 1920,
+        "fps": 30
+      },
+      "resolution": "720p",
+      "expected": {
+        "width": 406,
+        "height": 720,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 100,
+        "height": 100,
+        "fps": 30
+      },
+      "resolution": "540p",
+      "expected": {
+        "width": 540,
+        "height": 540,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 3,
+        "height": 540,
+        "fps": 30
+      },
+      "resolution": "540p",
+      "expected": {
+        "width": 4,
+        "height": 540,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 1,
+        "height": 4320,
+        "fps": 30
+      },
+      "resolution": "540p",
+      "expected": {
+        "width": 2,
+        "height": 540,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 321,
+        "height": 181,
+        "fps": 30
+      },
+      "resolution": "project",
+      "expected": {
+        "width": 321,
+        "height": 181,
+        "fps": 30,
+        "includeAudio": true
+      }
+    },
+    {
+      "project": {
+        "width": 321,
+        "height": 181,
+        "fps": 30
+      },
+      "resolution": {
+        "width": 123,
+        "height": 99
+      },
+      "expected": {
+        "width": 123,
+        "height": 99,
+        "fps": 30,
+        "includeAudio": true
+      }
+    }
+  ]
+}

@@ -24,6 +24,7 @@ fn is_render(request: &Request) -> bool {
         request,
         Request::RenderPreview { .. }
             | Request::RenderPreviewRange { .. }
+            | Request::RenderReviewRange { .. }
             | Request::RenderDraftPreview { .. }
             | Request::ExportVideo { .. }
     )

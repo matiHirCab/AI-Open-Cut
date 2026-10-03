@@ -29,6 +29,7 @@ import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
+import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
@@ -1208,4 +1209,8 @@ it("edits scoped markers and live item starts through MCP", async () => {
 
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
   await verifyPresetWorkflow(client, call);
+});
+
+it("reviews typed presets through real MCP without mutating state or history", async () => {
+  await verifyPreviewReviewWorkflow(client, call, projects);
 });

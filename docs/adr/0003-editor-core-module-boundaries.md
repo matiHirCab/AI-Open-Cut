@@ -30,6 +30,7 @@ store facade ─> assets ─> persistence
      └─────────> validation ─> markers
 
 renderer facade ─> evaluated_scene ─> animation/validation/markers
+        ├────────> validation (review output settings)
         ├────────> render_artifact ─> evaluated_scene
         │                  └───────> render_plan ─> evaluated_scene/animation
         ├────────> render_plan
@@ -54,13 +55,15 @@ Root facade re-exports provide model and error types without adding an outward o
 | `render_artifact` | `evaluated_scene`, `render_plan`, `fonts` |
 | `render_plan` | `animation`, `evaluated_scene` |
 | `render_process` | `render_plan` |
-| `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process` |
+| `renderer` | `evaluated_scene`, `render_artifact`, `render_plan`, `render_process`, `validation` |
 | `store` | `evaluated_scene`, `assets`, `drafts`, `fonts`, `migrations`, `persistence`, `timeline`, `validation` |
 | `timeline` | `animation`, `markers`, `validation` |
 | `validation` | `markers` |
 | `vector` | none |
 
 Animation channel DTOs are nested under `model`; channel compatibility, bounds, target, and legacy-collision rules are nested under `validation`. Timeline edits call that validation owner, and scene evaluation consumes the model types. The architecture test compares the complete top-level private module inventory with this matrix, so an unlisted owner cannot bypass dependency review.
+
+The renderer's audiovisual review resolver calls canonical project-settings validation through the `renderer` → `validation` edge. This keeps review dimension and frame-rate bounds in their existing owner without narrowing legacy numeric render requests or duplicating validation in adapters.
 
 ### Canonical owners
 

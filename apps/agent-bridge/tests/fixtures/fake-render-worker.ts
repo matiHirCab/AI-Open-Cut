@@ -9,7 +9,14 @@ const prepareHang = (request: Record<string, unknown>, id: string) => {
     const dir = join(projects, String(request.projectId));
     mkdirSync(join(dir, "previews"), { recursive: true });
     mkdirSync(join(dir, `.opencut-work-${id}`), { recursive: true });
-    writeFileSync(join(dir, "previews", `.opencut-${id}.png`), "partial");
+    writeFileSync(
+      join(
+        dir,
+        "previews",
+        `.opencut-${id}.${request.operation === "render_review_range" ? "mp4" : "png"}`
+      ),
+      "partial"
+    );
     if (request.testMode === "hang-tree") {
       writeFileSync(join(dir, "previews", "published.png"), "published");
       const descendant = spawn(

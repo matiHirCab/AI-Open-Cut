@@ -2282,6 +2282,29 @@ export const schemas = {
       (value) => value.startMs < value.endMs,
       "startMs must be less than endMs"
     ),
+  previewReviewRange: projectRevisionSchema
+    .extend({
+      endMs: positiveMilliseconds,
+      fps: z.int().min(1).max(120).optional(),
+      includeAudio: z.boolean().default(true),
+      resolution: z
+        .union([
+          z.enum(["540p", "720p", "project"]),
+          z
+            .object({
+              height: z.int().positive().max(4320),
+              width: z.int().positive().max(7680),
+            })
+            .strict(),
+        ])
+        .default("project"),
+      startMs: milliseconds,
+    })
+    .strict()
+    .refine(
+      (value) => value.startMs < value.endMs,
+      "startMs must be less than endMs"
+    ),
   projectCreate: z
     .object({
       fps: z.int().min(1).max(120).default(30),

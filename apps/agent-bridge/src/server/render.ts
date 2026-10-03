@@ -14,6 +14,52 @@ export const registerRenderTools = (
   { headless, jobs }: ServerDependencies
 ) => {
   server.registerTool(
+    "preview_review_range",
+    {
+      annotations: WRITE,
+      description:
+        "Queue an audio-enabled MP4 review using 540p, 720p, project, or custom dimensions. Set includeAudio=false for silent review.",
+      inputSchema: schemas.previewReviewRange,
+      outputSchema: jobSchema,
+    },
+    async ({
+      projectId,
+      expectedRevision,
+      startMs,
+      endMs,
+      resolution,
+      fps,
+      includeAudio,
+    }) => {
+      try {
+        const state = await headless.call(
+          { operation: "get_state", projectId },
+          projectStateSchema
+        );
+        if (state.project.revision !== expectedRevision) {
+          throw new BridgeError(
+            "REVISION_CONFLICT",
+            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
+          );
+        }
+        return success(
+          jobs.start("preview_range", projectId, expectedRevision, {
+            endMs,
+            expectedRevision,
+            fps,
+            includeAudio,
+            operation: "render_review_range",
+            projectId,
+            resolution,
+            startMs,
+          })
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "preview_render_frame",
     {
       annotations: WRITE,
