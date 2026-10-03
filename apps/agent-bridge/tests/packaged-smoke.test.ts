@@ -428,8 +428,17 @@ it("completes the packaged group workflow with aliases, rollback and history", a
 
 it("exercises all shape contracts, atomic batches and retained history", async () => {
   await verifyShapeWorkflow(client, call, directories.projects);
+});
+
+it("preserves SVG workflows through packaged MCP", async () => {
   await verifySvgWorkflow(client, call);
+});
+
+it("preserves grid workflows through packaged MCP", async () => {
   await verifyGridWorkflow(client, call);
+});
+
+it("preserves repeater workflows through packaged MCP", async () => {
   await verifyRepeaterWorkflow(client, call, directories.media);
 });
 

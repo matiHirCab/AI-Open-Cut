@@ -1186,6 +1186,9 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
+});
+
+it("preserves component, instance, rule card and slot workflows through MCP", async () => {
   await verifyComponentWorkflow(client, call, media, projects);
 });
 
