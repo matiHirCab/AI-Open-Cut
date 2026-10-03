@@ -47,4 +47,6 @@ Rejected because isolated native tests do not identify one canonical owner and c
 
 ## Consequences
 
+See [parallel contract integration](../contract-integration.md) for section ownership, base/head tracking, semantic union checks and publish-time reconciliation.
+
 Contract changes require synchronized native declarations, fixtures/catalogs, parity tests, and owner review in one pull request. Canonical catalogs remain manually governed: parity tests read and compare them but do not rewrite them. This retains some manual maintenance but makes drift observable and keeps each language's full validation expressiveness. Generation can be reconsidered if measured synchronization cost justifies a lossless intermediate representation.

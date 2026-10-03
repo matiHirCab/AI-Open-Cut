@@ -665,8 +665,25 @@ it("supports discoverable voices, preview, commit, discard, and in-place regener
     durationMs: 450,
     token: expect.any(String),
   });
-  const playable = await client.callTool({
+  const metadata = await client.callTool({
     arguments: { jobId: previewJob.jobId },
+    name: "job_get_status",
+  });
+  expect(
+    (metadata.content as { type: string }[]).map((block) => block.type)
+  ).toEqual(["text", "resource_link"]);
+  const artifactUri = previewDone.artifactResource?.uri;
+  if (!artifactUri) {
+    throw new Error("preview resource missing");
+  }
+  expect(artifactUri).not.toContain(previewDone.speechPreview?.token);
+  const resource = await client.readResource({ uri: artifactUri });
+  expect(resource.contents[0]).toMatchObject({
+    blob: expect.any(String),
+    mimeType: "audio/wav",
+  });
+  const playable = await client.callTool({
+    arguments: { includeBinary: true, jobId: previewJob.jobId },
     name: "job_get_status",
   });
   expect(playable.content).toEqual(
@@ -691,6 +708,10 @@ it("supports discoverable voices, preview, commit, discard, and in-place regener
   expect(committed.durationMs).toBe(450);
   expect(readdirSync(ttsWork)).toHaveLength(0);
 
+  await expect(client.readResource({ uri: artifactUri })).rejects.toThrow(
+    "GENERATED_ARTIFACT_NOT_FOUND"
+  );
+  expect((await waitForJob(previewJob.jobId)).status).toBe("completed");
   const audioUpdated = await call(
     "timeline_set_audio",
     {

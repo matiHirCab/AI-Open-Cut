@@ -117,6 +117,30 @@ export const verifyPreviewReviewWorkflow = async (
         status: "completed",
       });
       expect(complete.artifact?.sizeBytes).toBeGreaterThan(0);
+      expect(complete.artifactResource).toMatchObject({
+        mimeType: "video/mp4",
+        uri: `opencut://jobs/${queued.jobId}/artifact`,
+      });
+      const metadata = await client.callTool({
+        arguments: { jobId: queued.jobId },
+        name: "job_get_status",
+      });
+      expect(
+        (metadata.content as { type: string }[]).map((entry) => entry.type)
+      ).toEqual(["text", "resource_link"]);
+      const resource = await client.readResource({
+        uri: complete.artifactResource?.uri ?? "",
+      });
+      const [content] = resource.contents;
+      expect(content?.mimeType).toBe("video/mp4");
+      const bytes =
+        content && "blob" in content
+          ? Buffer.from(content.blob, "base64")
+          : Buffer.alloc(0);
+      expect(bytes.length).toBe(complete.artifact?.sizeBytes);
+      expect(bytes).toEqual(
+        readFileSync(join(directory, complete.artifact?.relativePath ?? ""))
+      );
     })
   );
   expect((await read()).project).toEqual(before.project);

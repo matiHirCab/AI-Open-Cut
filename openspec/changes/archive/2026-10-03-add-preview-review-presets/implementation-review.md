@@ -49,3 +49,9 @@ Independent Sol medium reviewer accepted rebased scope at9d9aadf3 over current m
 ## CI fixture correction review
 
 Independent reviewer accepted appending the new review fixture to preserve all legacy positional consumers and the regression test protecting those positions. Feature-enabled native worker4/4, formatting and strict Clippy evidence passed. Correction remains governed by the existing legacy compatibility requirement; production behavior and tolerances are unchanged. Final contract/native cache checks and replacement CI remain delivery gates.
+
+## Authorized current-main artifact reconciliation
+
+User explicitly requested fixing conflicting OpenCut PRs. Independent Sol medium reviewer accepted the normal merge of authoritative main4c2897e0 into PR139, preserving all existing main MCP definitions byte-structurally and adding only the review tool. Both capability/ownership/test sections survive; legacy fixture prefixes, speech fields, artifact metadata/binary opt-in and persisted schema remain intact. Recomputed digest77e1e52c matches; comparison with reconstructed historic8fbe proves only final capability-list ordering differs. Strengthened real workflow verifies default resource-link metadata and exact decoded MP4 bytes against disk; accepted. Final running checks and merge delivery results remain pending until recorded.
+
+Final reconciliation conformance accepted after the reviewer inspected full merged-tree workspace, contracts394, unit501/one skip, type/lint, protectedpolicy and packaged10 evidence. The final normal-mode integration subsequently passed16/16 without further source changes. No review blockers. Normal merge publication and new exact-head CI remain external delivery gates.
