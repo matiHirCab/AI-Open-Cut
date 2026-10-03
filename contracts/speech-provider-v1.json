@@ -22,6 +22,11 @@
     }
   },
   "status": {
+    "timestampSupport": {
+      "sentence": true,
+      "word": false,
+      "phoneme": true
+    },
     "ready": true,
     "version": "1.0",
     "providerId": "contract-provider",
@@ -79,5 +84,85 @@
     "sampleRateHz": 24000,
     "language": "en-US",
     "voiceId": "contract_voice"
+  },
+  "timestampSupportCases": {
+    "unsupported": {
+      "sentence": false,
+      "word": false,
+      "phoneme": false
+    },
+    "valid": [
+      {
+        "sentence": false,
+        "word": false,
+        "phoneme": false
+      },
+      {
+        "sentence": false,
+        "word": false,
+        "phoneme": true
+      },
+      {
+        "sentence": false,
+        "word": true,
+        "phoneme": false
+      },
+      {
+        "sentence": false,
+        "word": true,
+        "phoneme": true
+      },
+      {
+        "sentence": true,
+        "word": false,
+        "phoneme": false
+      },
+      {
+        "sentence": true,
+        "word": false,
+        "phoneme": true
+      },
+      {
+        "sentence": true,
+        "word": true,
+        "phoneme": false
+      },
+      {
+        "sentence": true,
+        "word": true,
+        "phoneme": true
+      }
+    ],
+    "invalid": [
+      null,
+      [],
+      false,
+      "sentence",
+      {
+        "sentence": true,
+        "word": false
+      },
+      {
+        "sentence": "true",
+        "word": false,
+        "phoneme": false
+      },
+      {
+        "sentence": 0,
+        "word": false,
+        "phoneme": false
+      },
+      {
+        "sentence": true,
+        "word": null,
+        "phoneme": false
+      },
+      {
+        "sentence": true,
+        "word": false,
+        "phoneme": false,
+        "syllable": true
+      }
+    ]
   }
 }

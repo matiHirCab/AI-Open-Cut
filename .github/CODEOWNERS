@@ -49,6 +49,14 @@
 /apps/agent-bridge/tests/fixtures/motion-graphics-contract.ts @matiHirCab
 /docs/motion-graphics-contract-fixtures.md @matiHirCab
 
+# Speech provider status and timestamp-capability consumers.
+/apps/kokoro-tts/worker.py @matiHirCab
+/apps/kokoro-tts/test_worker.py @matiHirCab
+/apps/agent-bridge/src/tts.ts @matiHirCab
+/apps/agent-bridge/src/speech.ts @matiHirCab
+/apps/agent-bridge/tests/tts.test.ts @matiHirCab
+/apps/agent-bridge/tests/speech.test.ts @matiHirCab
+
 # Reviewed CI policy boundary. Enable required CODEOWNER review on main.
 /.github/workflows/bun-ci.yml @matiHirCab
 /bunfig.toml @matiHirCab

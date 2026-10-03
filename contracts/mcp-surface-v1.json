@@ -10245,6 +10245,31 @@
               }
             ]
           },
+          "timestampSupport": {
+            "additionalProperties": false,
+            "default": {
+              "phoneme": false,
+              "sentence": false,
+              "word": false
+            },
+            "properties": {
+              "phoneme": {
+                "type": "boolean"
+              },
+              "sentence": {
+                "type": "boolean"
+              },
+              "word": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "phoneme",
+              "sentence",
+              "word"
+            ],
+            "type": "object"
+          },
           "version": {
             "type": "string"
           },
@@ -10275,6 +10300,7 @@
           "ready",
           "resources",
           "sampleRateHz",
+          "timestampSupport",
           "version",
           "voices"
         ],
