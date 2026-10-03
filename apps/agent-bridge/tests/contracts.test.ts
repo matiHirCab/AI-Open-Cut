@@ -59,7 +59,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "77e1e52ca14bfdc25183c3cd8306c7b6ba07fd1a0f8d99a3c2bf2eb2eb395cbf";
+  "181c60179f3d9f329417093315b0b6058a9093fd8e1c23e06cee83c4c19b2620";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -245,7 +245,7 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(30);
+    expect(PRESETS.projectSchemaVersion).toBe(31);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -336,11 +336,11 @@ describe("canonical public contracts", () => {
       "resources",
       "tools",
     ] as const) {
-      const changed = structuredClone(MCP_SURFACE);
+      const changed = { ...MCP_SURFACE };
       changed[key] = [];
       expect(mismatchedSupportingSurfaces(changed, MCP_SURFACE)).toEqual([key]);
     }
-    const resourceMappingDrift = structuredClone(MCP_SURFACE);
+    const resourceMappingDrift = { ...MCP_SURFACE };
     resourceMappingDrift.resources = resourceMappingDrift.resources.map(
       (resource, index) => ({
         ...resource,
@@ -462,7 +462,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 30,
+      projectSchemaVersion: 31,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {

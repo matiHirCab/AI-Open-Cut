@@ -2149,7 +2149,10 @@ fn motion_pack_headless_canonical_sources_aliases_and_history_survive_reopen() {
         assert_eq!(applied["revision"], 1);
         assert!(applied["aliases"]["motion"].is_string());
         let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
-        assert_eq!(saved["project"]["schemaVersion"], 30);
+        assert_eq!(
+            saved["project"]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         assert_eq!(
             saved["project"]["tracks"][1]["items"][0]["animationPresetProvenance"],
             entry["expectedProvenance"]

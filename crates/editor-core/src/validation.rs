@@ -626,6 +626,39 @@ pub(crate) fn validate_audio(audio: &AudioSettings) -> Result<(), CoreError> {
     Ok(())
 }
 
+pub(crate) const MAX_LEGACY_KEYFRAMES_PER_CHANNEL: usize = 10_000;
+pub(crate) const MAX_COMPONENT_KEYFRAMES_PER_ITEM: usize = 10_000;
+
+pub(crate) fn validate_legacy_keyframe_limit(keyframes: &[Keyframe]) -> Result<(), CoreError> {
+    let mut counts = [0_usize; 4];
+    for keyframe in keyframes {
+        let count = &mut counts[match keyframe.property {
+            KeyframeProperty::Position => 0,
+            KeyframeProperty::Scale => 1,
+            KeyframeProperty::Opacity => 2,
+            KeyframeProperty::Volume => 3,
+        }];
+        if *count >= MAX_LEGACY_KEYFRAMES_PER_CHANNEL {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "evaluated keyframe channel limit exceeded",
+            ));
+        }
+        *count += 1;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_component_keyframe_limit(keyframes: &[Keyframe]) -> Result<(), CoreError> {
+    if keyframes.len() > MAX_COMPONENT_KEYFRAMES_PER_ITEM {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "component keyframe limit exceeded",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_keyframes(keyframes: &[Keyframe]) -> Result<(), CoreError> {
     let mut previous_by_property = BTreeMap::new();
     for keyframe in keyframes {
@@ -903,9 +936,7 @@ fn validate_component_content(
             if let Some(transform) = item.visual_properties().transform2d {
                 transform.validate()?;
             }
-            if item.keyframes().len() > 10_000 {
-                return Err(invalid("component keyframe limit exceeded"));
-            }
+            validate_component_keyframe_limit(item.keyframes())?;
             validate_keyframes(item.keyframes()).map_err(|e| invalid(&e.message))?;
             animation_channels::validate_channels(
                 &item.visual_properties().animation_channels,

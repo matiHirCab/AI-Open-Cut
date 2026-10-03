@@ -1,6 +1,6 @@
 # Versioned animation presets
 
-`scalar_tween@1` retains compiler version1 and `animation_presets_v1`. The initial motion pack adds five version1 entries with compiler version2 and `initial_motion_preset_pack_v1`. All use headless protocol1 and current project schema30.
+`scalar_tween@1` retains compiler version1 and `animation_presets_v1`. The initial motion pack adds five version1 entries with compiler version2 and `initial_motion_preset_pack_v1`. All use headless protocol1 and current project schema31.
 
 Use MCP `timeline_apply_animation_preset` or headless `apply_animation_preset` inside the existing `edit` envelope. Inputs are `itemId`, mandatory explicit `presetId`, mandatory `presetVersion: 1`, `parameters`, and optional `collisionPolicy`. The same edit works in `timeline_batch_edit`, including an earlier item's `@alias`; it does not create an ID or accept `resultAlias`.
 
@@ -14,7 +14,7 @@ Resolved `animationChannels` are authoritative. Optional `animationPresetProvena
 
 Standalone edits and batches use the existing optimistic revision, lock, retained-state/candidate safety, undo and transaction paths. Preset application inside draft operation lists and direct component-definition authoring are excluded in this first version. Core rejects draft intents before writes; ordinary drafts can preview committed channels and edit/clear them through existing low-level operations.
 
-Supported earlier schemas migrate under the project lock to schema30 in current state, component items and every retained undo/redo snapshot. Existing schema29 scalar sources and channels remain identical; migration infers no labels and preserves media/fonts, revisions/timestamps and render output. Tagged pack source shapes below30, premature older provenance fields, malformed retained state and future project schemas fail closed before publication. The recoverable journal publishes one complete generation. Keep a complete pre-migration project/history backup for rollback; schema29 builds reject30 and must never strip fields to downgrade it.
+Supported earlier schemas migrate under the project lock to schema31 in current state, component items and every retained undo/redo snapshot. Existing schema29 scalar sources and channels remain identical; migration infers no labels and preserves media/fonts, revisions/timestamps and render output. The explicit schema30→31 adapter validates closed tagged Pack and untagged scalar source records without recompilation or retagging. Tagged pack source shapes below30, retained clocks below31, premature older provenance fields, malformed retained state and future project schemas fail closed before publication. The recoverable journal publishes one complete generation. Keep a complete pre-migration project/history backup for rollback; schema29 and schema30 builds reject31 and must never strip fields to downgrade it.
 
 `contracts/animation-presets-v1.json` governs the catalog, bounds, fixed expansion, source examples and failures. Rendering uses existing shared channel/evaluated-scene behavior; no preset files, external resources, expressions or second renderer are accepted.
 
@@ -54,3 +54,5 @@ Collision rejection covers every generated identity atomically. For slam it also
 Every generated property gets the complete effective descriptive source parameters. Historical IDs/positive versions remain readable without catalog lookup, expansion equality or requiring every sibling channel to survive. A low-level blur change clears impact-shaped source labels, including retired IDs. Raw component removal of blur does the same; unchanged channel and blur bytes retain known impact labels. Scalar/unrelated labels follow their existing rules. Raw channel setters clear all labels; accepted copies, local timing edits, undo/redo and reopening preserve authoritative primitives under existing owners. No automatic split/trim retiming is introduced.
 
 `contracts/initial-motion-preset-pack-v1.json` supplies independent fixed channels, phase/sampling/source oracles and failure cases. Frame, audiovisual range, ordinary draft and export evaluate those saved primitives through the existing renderer.
+
+Split, trim and duplicate preserve original tagged pack provenance and exact primitive keys while composing schema31 source clocks. Newly compiled properties start without inherited clocks; unrelated clocks remain intact. Undo/redo and reopen restore attribution together with the retained animation.

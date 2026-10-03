@@ -23,11 +23,13 @@ import {
   ttsStatusSchema,
   writeResultSchema,
 } from "../src/schemas";
+import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
+import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
@@ -1206,6 +1208,9 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
+});
+
+it("preserves component, instance, rule card and slot workflows through MCP", async () => {
   await verifyComponentWorkflow(client, call, media, projects);
 });
 
@@ -1230,6 +1235,8 @@ it("edits scoped markers and live item starts through MCP", async () => {
 
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
   await verifyPresetWorkflow(client, call);
+  await verifyAnimationEditWorkflow(client, call);
+  await verifyPackClockMigrationWorkflow(client, call, projects);
 });
 
 it("reviews typed presets through real MCP without mutating state or history", async () => {

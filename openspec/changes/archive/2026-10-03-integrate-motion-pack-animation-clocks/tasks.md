@@ -1,0 +1,15 @@
+## Tasks
+- [x] 1. Independently review and explicitly approve integration specifications.
+- [x] 2. Resolve local merge preserving closed Pack provenance and retained-clock contracts.
+- [x] 3. Implement validated30→31 migration and recovery without altering source records.
+- [x] 4. Test all five Pack tags and scalar attribution across current/components/undo/redo, migration failpoints, invalid generation and future schema rejection.
+- [x] 5. Verify migrated pack split/trim/duplicate, source sampling, alias rollback, undo/redo/reopen and bridge/catalog parity.
+- [x] 5a. Independently approve and implement the scoped rectangle pointwise lookup amendment; reproduce FFmpeg6 failure and pass unchanged native oracles under FFmpeg6 and7.
+- [x] 5b. Independently approve and implement sampled CPU-raster canvas-cadence normalization; reproduce exact seam failure and verify unchanged bounds/source clocks under FFmpeg6 and7.
+- [x] 5c. Independently approve canonical sampled-raster activity as the sole CPU-input visibility authority; verify gaps, end bounds, draft seam and existing shutter/EOF behavior across backends.
+- [x] 5d. Independently approve and implement exact retained integer/fraction composition through sampler, bounds and renderer expression phase reduction; reproduce huge-offset loss and verify canonical/native equivalent phases without narrowing accepted bounds.
+- [x] 5e. Independently approve and implement test-only immutable supporting-surface drift setup, preserving the full baseline, all cases/assertions and unchanged5000ms timeout/canonical commands; verify fixture immutability and actual canonical parity.
+- [x] 5f. Independently approve and review caller-only partition of measured MCP group/component and packaged shape/SVG/grid/repeater workflows; preserve all ordered calls/assertions/arguments/setup/teardown, individual timeout values and CI job budgets; explicitly disclose separate domain deadlines replacing the prior composite aggregate deadline, then pass full canonical suites.
+- [x] 5g. Normally reconcile exact latest main480bd8d7f326eb4cf204dd09f8b9d28f3f61e802 after checkpointing reviewed work; preserve imported issue59 speech semantics/specifications and the union of shared schemas/catalogs with a reviewed canonical MCP digest; independently review conflict resolution and rerun affected contracts/type/lint/unit/MCP/packaged/Python/policy checks without prematurely claiming combined-tree success.
+- [x] 6. Obtain independent final implementation/conformance review, reproduce and fix findings.
+- [x] 7. Run mandatory combined-tree implementation gates and verify complete conformance before synchronization/archival. Protected postarchive bootstrap and publication are tracked in the delivery checklist.

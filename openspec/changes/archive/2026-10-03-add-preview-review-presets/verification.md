@@ -1,6 +1,6 @@
 # Conformance verification ledger
 
-Current state: requested behavior and the user-authorized normal merge of current main4c2897e0 are independently accepted. The final merged-tree required local checks passed; the normal merge commit, push and its exact-head CI are tracked externally. Earlier passing evidence is retained as historical context.
+Current reconciliation: the user authorized normally merging animation main ad5cd0ca into reviewed b1ef124e. See main47-reconciliation.md for current schema31 preservation and final verification. Evidence below describes the preceding verified bases; current required checks and independent final conformance must complete before publication. Publication and exact-head CI are recorded externally.
 
 ## Requirement and scenario traceability
 
@@ -59,7 +59,7 @@ Completeness:11/11 implementation tasks completed;4/4 requirements and10/10 scen
 
 Postarchive protected/strict gate passed: `/tmp/issue71-policy-postarchive.log`. Publication re-fetch found PR137 merged into currentmain480bd8d7; integration reconciliation is required before publication.
 
-## Current-main verification
+## Historical artifact-main verification
 
 Final publication base is480bd8d7f326eb4cf204dd09f8b9d28f3f61e802 after PR137 merged; feature rebased with only deliberate catalog digest conflict. Independent reconciliation review accepted. Production Rust/headless files are byte-identical to original verified feature commit0db0c728, so workspace, fmt/strict Clippy, native review/export parity and required release golden evidence remain applicable.
 

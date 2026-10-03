@@ -218,9 +218,55 @@ where
     AnimationLoop::deserialize(deserializer).map(Some)
 }
 
+/// Retains the original source function when an item window is edited.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimationClock {
+    pub offset_ms: i64,
+    pub source_duration_ms: u64,
+}
+
+impl<'de> Deserialize<'de> for AnimationClock {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct Fields {
+            offset_ms: i64,
+            source_duration_ms: u64,
+        }
+        let fields = Fields::deserialize(deserializer)?;
+        const SAFE: u64 = 9_007_199_254_740_991;
+        if fields.offset_ms.unsigned_abs() > SAFE
+            || fields.source_duration_ms == 0
+            || fields.source_duration_ms > SAFE
+        {
+            return Err(serde::de::Error::custom(
+                "retained animation clock exceeds safe bounds",
+            ));
+        }
+        Ok(Self {
+            offset_ms: fields.offset_ms,
+            source_duration_ms: fields.source_duration_ms,
+        })
+    }
+}
+
+fn deserialize_present_clock<'de, D>(deserializer: D) -> Result<Option<AnimationClock>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    AnimationClock::deserialize(deserializer).map(Some)
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AnimationChannel {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_clock",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub clock: Option<AnimationClock>,
     pub property: AnimationChannelProperty,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<AnimationTarget>,

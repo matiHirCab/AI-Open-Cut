@@ -15,7 +15,7 @@ pub(crate) mod text_layout;
 use crate::{
     AnchorPoint, Asset, AudioTrackRole, CoreError, Easing, ErrorCode, Keyframe, KeyframeProperty,
     KeyframeValue, MediaType, Project, TextAlignment, TextStyle, TimelineItem, Track, Transform,
-    TransitionItem, TransitionType, animation::positive_scalar_ranges,
+    TransitionItem, TransitionType, animation::positive_scalar_ranges_at,
     validation::validate_project_stacking,
 };
 
@@ -23,7 +23,9 @@ pub(crate) const MAX_EVALUATED_VISUAL_LAYERS: usize = 4_096;
 pub(crate) const MAX_EVALUATED_MEDIA_RESOURCES: usize = 4_096;
 pub(crate) const MAX_EVALUATED_AUDIO_LAYERS: usize = 4_096;
 pub(crate) const MAX_EVALUATED_TRANSITION_FACTS: usize = 4_096;
-pub(crate) const MAX_EVALUATED_KEYFRAMES_PER_CHANNEL: usize = 10_000;
+#[cfg(test)]
+pub(crate) const MAX_EVALUATED_KEYFRAMES_PER_CHANNEL: usize =
+    crate::validation::MAX_LEGACY_KEYFRAMES_PER_CHANNEL;
 pub(crate) const MAX_EVALUATED_VOICEOVER_ACTIVITY_RANGES: usize = 10_000;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -1147,7 +1149,8 @@ impl InstanceTraversal<'_> {
                         },
                         start_ms: item.start_ms(),
                         transform: evaluate_transform(&visual.transform)?,
-                        keyframes: evaluate_keyframes(&[], &visual.animation_channels)?.into(),
+                        keyframes: evaluate_keyframes(&[], &visual.animation_channels, None)?
+                            .into(),
                     })
                 };
                 Ok(EvaluatedAncestorStage {
@@ -2033,6 +2036,7 @@ pub(crate) struct EvaluatedKeyframe {
     pub(crate) value: EvaluatedKeyframeValue,
     pub(crate) easing: EvaluatedEasing,
     pub(crate) r#loop: Option<crate::AnimationLoop>,
+    pub(crate) clock: Option<crate::AnimationClock>,
 }
 
 impl std::fmt::Debug for EvaluatedKeyframe {
@@ -2045,6 +2049,9 @@ impl std::fmt::Debug for EvaluatedKeyframe {
             .field("easing", &self.easing);
         if self.r#loop.is_some() {
             debug.field("loop", &self.r#loop);
+        }
+        if self.clock.is_some() {
+            debug.field("clock", &self.clock);
         }
         debug.finish()
     }
@@ -2346,6 +2353,9 @@ impl std::fmt::Debug for EvaluatedAudioLayer {
         value.field("fade_in_ms", &self.fade_in_ms);
         value.field("fade_out_ms", &self.fade_out_ms);
         value.field("volume_keyframes", &self.volume_keyframes);
+        if self.retained_timeline_delay {
+            value.field("retained_timeline_delay", &true);
+        }
         value.field("role", &self.role);
         value.field("ducking", &self.ducking);
         if let Some(extra) = &self.instance {
@@ -2366,6 +2376,7 @@ pub(crate) struct EvaluatedAudioLayer {
     pub(crate) fade_in_ms: u64,
     pub(crate) fade_out_ms: u64,
     pub(crate) volume_keyframes: Vec<EvaluatedKeyframe>,
+    pub(crate) retained_timeline_delay: bool,
     pub(crate) role: EvaluatedAudioRole,
     pub(crate) ducking: Option<EvaluatedDucking>,
 }
@@ -2443,6 +2454,7 @@ fn evaluate_flat_project(
                     let keyframes = evaluate_keyframes(
                         &media.keyframes,
                         &media.visual_properties.animation_channels,
+                        media.visual_properties.legacy_animation_clock,
                     )?;
                     let volume_keyframes = keyframes
                         .iter()
@@ -2494,6 +2506,15 @@ fn evaluate_flat_project(
                             fade_in_ms: media.audio.fade_in_ms,
                             fade_out_ms: media.audio.fade_out_ms,
                             volume_keyframes,
+                            retained_timeline_delay: media
+                                .visual_properties
+                                .legacy_animation_clock
+                                .is_some()
+                                || media
+                                    .visual_properties
+                                    .animation_channels
+                                    .iter()
+                                    .any(|channel| channel.clock.is_some()),
                             role: evaluate_audio_role(track.audio_role),
                             ducking,
                         });
@@ -2544,6 +2565,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &text.keyframes,
                             &text.visual_properties.animation_channels,
+                            text.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&text.id, &transition_index),
                         source: EvaluatedVisualSource::Text(Box::new(EvaluatedText {
@@ -2581,6 +2603,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &color.keyframes,
                             &color.visual_properties.animation_channels,
+                            color.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&color.id, &transition_index),
                         source: EvaluatedVisualSource::SolidColor {
@@ -2606,6 +2629,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &rectangle.keyframes,
                             &rectangle.visual_properties.animation_channels,
+                            rectangle.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Rectangle {
@@ -2633,6 +2657,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &rectangle.keyframes,
                             &rectangle.visual_properties.animation_channels,
+                            rectangle.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
@@ -2663,6 +2688,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &rectangle.keyframes,
                             &rectangle.visual_properties.animation_channels,
+                            rectangle.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
@@ -2688,6 +2714,7 @@ fn evaluate_flat_project(
                         keyframes: evaluate_keyframes(
                             &rectangle.keyframes,
                             &rectangle.visual_properties.animation_channels,
+                            rectangle.visual_properties.legacy_animation_clock,
                         )?,
                         transitions: transitions_for(&rectangle.id, &transition_index),
                         source: EvaluatedVisualSource::Shape(Box::new(
@@ -2959,10 +2986,11 @@ fn preflight_project<'a>(
                         && media.audio.volume != 0.0
                         && asset.has_audio
                     {
-                        let item_range_count = positive_scalar_ranges(
+                        let item_range_count = positive_scalar_ranges_at(
                             &media.keyframes,
                             KeyframeProperty::Volume,
                             media.duration_ms,
+                            media.visual_properties.legacy_animation_clock,
                         )
                         .len();
                         voiceover_activity_range_count = voiceover_activity_range_count
@@ -3207,6 +3235,7 @@ fn evaluate_transform(transform: &Transform) -> Result<EvaluatedTransform, CoreE
 fn evaluate_keyframes(
     keyframes: &[Keyframe],
     channels: &[crate::AnimationChannel],
+    legacy_clock: Option<crate::AnimationClock>,
 ) -> Result<Vec<EvaluatedKeyframe>, CoreError> {
     validate_keyframe_limit(keyframes)?;
     let mut evaluated = Vec::with_capacity(keyframes.len());
@@ -3226,6 +3255,7 @@ fn evaluate_keyframes(
             value,
             easing: evaluate_easing(keyframe.easing),
             r#loop: None,
+            clock: legacy_clock,
         });
     }
     for channel in channels {
@@ -3287,6 +3317,7 @@ fn evaluate_keyframes(
                     },
                 },
                 r#loop: channel.r#loop,
+                clock: channel.clock,
             });
         }
     }
@@ -3294,21 +3325,7 @@ fn evaluate_keyframes(
 }
 
 fn validate_keyframe_limit(keyframes: &[Keyframe]) -> Result<(), CoreError> {
-    let mut counts = [0_usize; 4];
-    for keyframe in keyframes {
-        let count = &mut counts[match keyframe.property {
-            KeyframeProperty::Position => 0,
-            KeyframeProperty::Scale => 1,
-            KeyframeProperty::Opacity => 2,
-            KeyframeProperty::Volume => 3,
-        }];
-        increment_bounded(
-            count,
-            MAX_EVALUATED_KEYFRAMES_PER_CHANNEL,
-            "evaluated keyframe channel limit exceeded",
-        )?;
-    }
-    Ok(())
+    crate::validation::validate_legacy_keyframe_limit(keyframes)
 }
 
 fn evaluate_transition_kind(transition_type: TransitionType) -> EvaluatedTransitionKind {
@@ -3343,10 +3360,11 @@ fn audible_voiceover_intervals(
             if !asset.has_audio {
                 continue;
             }
-            for (start, end) in positive_scalar_ranges(
+            for (start, end) in positive_scalar_ranges_at(
                 &media.keyframes,
                 KeyframeProperty::Volume,
                 media.duration_ms,
+                media.visual_properties.legacy_animation_clock,
             ) {
                 let start_ms = media.start_ms.checked_add(start).ok_or_else(|| {
                     invalid("evaluated voiceover interval overflows milliseconds")
@@ -3509,6 +3527,7 @@ mod tests {
             value: EvaluatedKeyframeValue::Scalar { value: 0.8 },
             easing: EvaluatedEasing::Linear,
             r#loop: None,
+            clock: None,
         };
         let unlooped = format!("{keyframe:#?}");
         assert!(!unlooped.contains("loop:"));

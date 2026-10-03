@@ -1,6 +1,6 @@
 use crate::{
-    AnimationChannel, AnimationChannelValue, AnimationCurve, AnimationLoopIterations,
-    AnimationLoopMode, Easing, Keyframe, KeyframeProperty, KeyframeValue,
+    AnimationChannel, AnimationChannelValue, AnimationClock, AnimationCurve,
+    AnimationLoopIterations, AnimationLoopMode, Easing, Keyframe, KeyframeProperty, KeyframeValue,
     ParameterizedAnimationCurve, SimpleAnimationCurve,
 };
 
@@ -10,6 +10,7 @@ use crate::{
 pub(crate) enum SampleTime {
     Integer(u64),
     Fractional(f64),
+    Split { whole: u64, fraction: f64 },
 }
 
 impl SampleTime {
@@ -25,6 +26,7 @@ impl SampleTime {
         match self {
             Self::Integer(time) => sample_channel(channel, time),
             Self::Fractional(time) => sample_channel_at(channel, time),
+            Self::Split { .. } => sample_channel_time(channel, self),
         }
     }
     pub(crate) fn scalar(self, channel: &AnimationChannel) -> Option<f64> {
@@ -36,21 +38,33 @@ impl SampleTime {
     pub(crate) fn looped(self, channel: &AnimationChannel) -> Option<Self> {
         match self {
             Self::Integer(time) => map_loop_time(channel, time).map(Self::Integer),
-            Self::Fractional(time) => map_loop_time_at(channel, time).map(Self::Fractional),
+            Self::Fractional(time) => map_loop_time_at(channel, time),
+            Self::Split { .. } => Some(self),
         }
     }
     pub(crate) fn compare(self, key: u64) -> Option<std::cmp::Ordering> {
         match self {
             Self::Integer(time) => Some(time.cmp(&key)),
             Self::Fractional(time) => time.partial_cmp(&(key as f64)),
+            Self::Split { whole, fraction } => Some(match whole.cmp(&key) {
+                std::cmp::Ordering::Equal if fraction > 0.0 => std::cmp::Ordering::Greater,
+                std::cmp::Ordering::Equal if fraction < 0.0 => std::cmp::Ordering::Less,
+                ordering => ordering,
+            }),
         }
     }
     pub(crate) fn progress(self, start: u64, end: u64) -> f64 {
-        let elapsed = match self {
-            Self::Integer(time) => (time - start) as f64,
-            Self::Fractional(time) => time - start as f64,
-        };
-        elapsed / (end - start) as f64
+        let span = (end - start) as f64;
+        match self {
+            Self::Integer(time) => (time as i128 - start as i128) as f64 / span,
+            Self::Fractional(time) => (time - start as f64) / span,
+            Self::Split { whole, fraction } => {
+                let delta = (whole as i128 - start as i128) as f64;
+                let sum = delta + fraction;
+                let remainder = fraction - (sum - delta);
+                sum / span + remainder / span
+            }
+        }
     }
 }
 
@@ -259,9 +273,30 @@ pub(crate) fn scalar_bounds(channel: &AnimationChannel, low: u64, high: u64) -> 
 
 pub(crate) fn scalar_bounds_at(
     channel: &AnimationChannel,
-    mut low: f64,
-    mut high: f64,
+    low: f64,
+    high: f64,
 ) -> Option<(f64, f64)> {
+    if low == high {
+        let value = sample_scalar_channel_at(channel, low)?;
+        return Some((value, value));
+    }
+    let source_low = map_source_time_at(channel.clock, low)?;
+    let source_high = map_source_time_at(channel.clock, high)?;
+    if matches!(
+        (source_low, source_high),
+        (SampleTime::Integer(0), SampleTime::Integer(0))
+    ) {
+        let value = sample_scalar_channel_time(channel, SampleTime::Integer(0))?;
+        return Some((value, value));
+    }
+    let (low, high) = if channel.r#loop.is_some() {
+        (
+            SampleTime::Integer(0),
+            SampleTime::Integer(channel.keyframes.last()?.time_ms),
+        )
+    } else {
+        (source_low, source_high)
+    };
     let scalar = |v: &AnimationChannelValue| {
         if let AnimationChannelValue::Scalar { value } = v {
             Some(*value)
@@ -269,33 +304,26 @@ pub(crate) fn scalar_bounds_at(
             None
         }
     };
-    if low == high {
-        let value = sample_scalar_channel_at(channel, low)?;
-        return Some((value, value));
-    }
-    if channel.r#loop.is_some() {
-        low = 0.0;
-        high = channel.keyframes.last()?.time_ms as f64;
-    }
     let mut bounds = (
-        sample_scalar_channel_at(channel, low)?,
-        sample_scalar_channel_at(channel, low)?,
+        sample_scalar_channel_time(channel, low)?,
+        sample_scalar_channel_time(channel, low)?,
     );
     let mut add = |value: f64| {
         bounds.0 = bounds.0.min(value);
         bounds.1 = bounds.1.max(value);
     };
-    add(sample_scalar_channel_at(channel, high)?);
+    add(sample_scalar_channel_time(channel, high)?);
     for pair in channel.keyframes.windows(2) {
         let (a, b) = (&pair[0], &pair[1]);
-        if high < a.time_ms as f64 || low > b.time_ms as f64 {
+        if high.compare(a.time_ms)? == std::cmp::Ordering::Less
+            || low.compare(b.time_ms)? == std::cmp::Ordering::Greater
+        {
             continue;
         }
-        let span = (b.time_ms - a.time_ms) as f64;
         let (p, q) = curve_bounds(
             a.curve,
-            ((low - a.time_ms as f64).max(0.0) / span).clamp(0.0, 1.0),
-            ((high - a.time_ms as f64).max(0.0) / span).clamp(0.0, 1.0),
+            low.progress(a.time_ms, b.time_ms).clamp(0.0, 1.0),
+            high.progress(a.time_ms, b.time_ms).clamp(0.0, 1.0),
         );
         let start = scalar(&a.value)?;
         let end = scalar(&b.value)?;
@@ -313,7 +341,9 @@ pub(crate) fn scalar_bounds_at(
         for t in [p, q] {
             add(clamp(start + (end - start) * t));
         }
-        if (low..=high).contains(&(b.time_ms as f64)) {
+        if low.compare(b.time_ms)? != std::cmp::Ordering::Greater
+            && high.compare(b.time_ms)? != std::cmp::Ordering::Less
+        {
             add(end);
         }
     }
@@ -328,22 +358,25 @@ pub(crate) fn sample_scalar_channel(channel: &AnimationChannel, time_ms: u64) ->
 }
 
 pub(crate) fn sample_scalar_channel_at(channel: &AnimationChannel, time_ms: f64) -> Option<f64> {
+    sample_scalar_channel_time(channel, map_loop_time_at(channel, time_ms)?)
+}
+
+fn sample_scalar_channel_time(channel: &AnimationChannel, time_ms: SampleTime) -> Option<f64> {
     let first = channel.keyframes.first()?;
-    let time_ms = map_loop_time_at(channel, time_ms)?;
     let scalar = |value: &AnimationChannelValue| match value {
         AnimationChannelValue::Scalar { value } => Some(*value),
         _ => None,
     };
-    if time_ms <= first.time_ms as f64 {
+    if time_ms.compare(first.time_ms)? != std::cmp::Ordering::Greater {
         return scalar(&first.value);
     }
     for pair in channel.keyframes.windows(2) {
         let start = &pair[0];
         let end = &pair[1];
-        if time_ms == end.time_ms as f64 {
+        if time_ms.compare(end.time_ms)? == std::cmp::Ordering::Equal {
             return scalar(&end.value);
         }
-        if time_ms < end.time_ms as f64 {
+        if time_ms.compare(end.time_ms)? == std::cmp::Ordering::Less {
             if matches!(
                 start.curve,
                 AnimationCurve::Simple(SimpleAnimationCurve::Hold)
@@ -352,7 +385,7 @@ pub(crate) fn sample_scalar_channel_at(channel: &AnimationChannel, time_ms: f64)
             }
             let start_value = scalar(&start.value)?;
             let end_value = scalar(&end.value)?;
-            let progress = (time_ms - start.time_ms as f64) / (end.time_ms - start.time_ms) as f64;
+            let progress = time_ms.progress(start.time_ms, end.time_ms);
             let eased = match start.curve {
                 AnimationCurve::Simple(SimpleAnimationCurve::Hold) => 0.0,
                 AnimationCurve::Simple(SimpleAnimationCurve::Linear) => progress,
@@ -396,7 +429,47 @@ pub(crate) fn sample_scalar_channel_at(channel: &AnimationChannel, time_ms: f64)
     scalar(&channel.keyframes.last()?.value)
 }
 
+fn map_source_time(clock: Option<AnimationClock>, time_ms: u64) -> Option<u64> {
+    let Some(clock) = clock else {
+        return Some(time_ms);
+    };
+    if clock.offset_ms < 0 {
+        Some(time_ms.saturating_sub(clock.offset_ms.unsigned_abs()))
+    } else {
+        time_ms.checked_add(clock.offset_ms as u64)
+    }
+}
+
+fn map_source_time_at(clock: Option<AnimationClock>, time_ms: f64) -> Option<SampleTime> {
+    if !time_ms.is_finite() || time_ms < 0.0 {
+        return None;
+    }
+    if time_ms >= u64::MAX as f64 {
+        let result = time_ms + clock.map_or(0.0, |clock| clock.offset_ms as f64);
+        return result
+            .is_finite()
+            .then_some(SampleTime::Fractional(result.max(0.0)));
+    }
+    let whole = (time_ms.floor() as u64 as i128)
+        .checked_add(clock.map_or(0, |clock| clock.offset_ms as i128))?;
+    if whole < 0 {
+        return Some(SampleTime::Integer(0));
+    }
+    let whole = u64::try_from(whole).ok()?;
+    let fraction = time_ms.fract();
+    Some(if fraction == 0.0 {
+        SampleTime::Integer(whole)
+    } else {
+        SampleTime::Split { whole, fraction }
+    })
+}
+
 pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<u64> {
+    let time_ms = map_source_time(channel.clock, time_ms)?;
+    map_loop_source_time(channel, time_ms)
+}
+
+fn map_loop_source_time(channel: &AnimationChannel, time_ms: u64) -> Option<u64> {
     let Some(loop_spec) = channel.r#loop else {
         return Some(time_ms);
     };
@@ -431,21 +504,63 @@ pub(crate) fn map_loop_time(channel: &AnimationChannel, time_ms: u64) -> Option<
     first.checked_add(u64::try_from(offset).ok()?)
 }
 
-pub(crate) fn map_loop_time_at(channel: &AnimationChannel, time_ms: f64) -> Option<f64> {
-    if !time_ms.is_finite() || time_ms < 0.0 {
-        return None;
-    }
-    if time_ms.fract() == 0.0 && time_ms < u64::MAX as f64 {
-        return map_loop_time(channel, time_ms as u64).map(|t| t as f64);
+fn map_loop_time_at(channel: &AnimationChannel, time_ms: f64) -> Option<SampleTime> {
+    let time = map_source_time_at(channel.clock, time_ms)?;
+    let (whole, fraction) = match time {
+        SampleTime::Integer(whole) => (whole, 0.0),
+        SampleTime::Split { whole, fraction } => (whole, fraction),
+        SampleTime::Fractional(time) => return map_loop_float_fallback(channel, time),
+    };
+    if fraction == 0.0 {
+        return map_loop_source_time(channel, whole).map(SampleTime::Integer);
     }
     let Some(spec) = channel.r#loop else {
-        return Some(time_ms);
+        return Some(time);
+    };
+    let first = channel.keyframes.first()?.time_ms;
+    let last = channel.keyframes.last()?.time_ms;
+    let span = last.checked_sub(first)?;
+    if span == 0 || whole < first {
+        return Some(time);
+    }
+    let period = u128::from(span)
+        * if spec.mode == AnimationLoopMode::PingPong {
+            2
+        } else {
+            1
+        };
+    let elapsed = u128::from(whole - first);
+    if let AnimationLoopIterations::Finite(count) = spec.iterations
+        && elapsed >= period * u128::from(count)
+    {
+        return Some(SampleTime::Integer(
+            if spec.mode == AnimationLoopMode::PingPong {
+                first
+            } else {
+                last
+            },
+        ));
+    }
+    let phase = elapsed % period;
+    let (phase, fraction) = if spec.mode == AnimationLoopMode::PingPong && phase >= u128::from(span)
+    {
+        (period - phase, -fraction)
+    } else {
+        (phase, fraction)
+    };
+    let whole = first.checked_add(u64::try_from(phase).ok()?)?;
+    Some(SampleTime::Split { whole, fraction })
+}
+
+fn map_loop_float_fallback(channel: &AnimationChannel, time_ms: f64) -> Option<SampleTime> {
+    let Some(spec) = channel.r#loop else {
+        return Some(SampleTime::Fractional(time_ms));
     };
     let first = channel.keyframes.first()?.time_ms as f64;
     let last = channel.keyframes.last()?.time_ms as f64;
     let span = last - first;
     if span <= 0.0 || time_ms < first {
-        return Some(time_ms);
+        return Some(SampleTime::Fractional(time_ms));
     }
     let period = span
         * if spec.mode == AnimationLoopMode::PingPong {
@@ -457,21 +572,23 @@ pub(crate) fn map_loop_time_at(channel: &AnimationChannel, time_ms: f64) -> Opti
     if let AnimationLoopIterations::Finite(count) = spec.iterations
         && elapsed >= period * f64::from(count)
     {
-        return Some(if spec.mode == AnimationLoopMode::PingPong {
-            first
-        } else {
-            last
-        });
+        return Some(SampleTime::Fractional(
+            if spec.mode == AnimationLoopMode::PingPong {
+                first
+            } else {
+                last
+            },
+        ));
     }
     let phase = elapsed.rem_euclid(period);
-    Some(
+    Some(SampleTime::Fractional(
         first
             + if spec.mode == AnimationLoopMode::PingPong && phase > span {
                 period - phase
             } else {
                 phase
             },
-    )
+    ))
 }
 
 /// The same bounded sampler supplies compound scene facts for every output intent.
@@ -503,6 +620,7 @@ pub(crate) fn sample_channel(
             start.time_ms = 0;
             end.time_ms -= origin;
             let relative = AnimationChannel {
+                clock: None,
                 property: channel.property,
                 target: channel.target.clone(),
                 keyframes: vec![start, end],
@@ -518,25 +636,31 @@ pub(crate) fn sample_channel_at(
     channel: &AnimationChannel,
     time_ms: f64,
 ) -> Option<AnimationChannelValue> {
+    sample_channel_time(channel, map_loop_time_at(channel, time_ms)?)
+}
+
+fn sample_channel_time(
+    channel: &AnimationChannel,
+    time: SampleTime,
+) -> Option<AnimationChannelValue> {
     if matches!(
         channel.keyframes.first()?.value,
         AnimationChannelValue::Scalar { .. }
     ) {
-        return sample_scalar_channel_at(channel, time_ms)
+        return sample_scalar_channel_time(channel, time)
             .map(|value| AnimationChannelValue::Scalar { value });
     }
-    let time = map_loop_time_at(channel, time_ms)?;
     let first = channel.keyframes.first()?;
-    if time <= first.time_ms as f64 {
+    if time.compare(first.time_ms)? != std::cmp::Ordering::Greater {
         return Some(first.value.clone());
     }
     for pair in channel.keyframes.windows(2) {
         let (start, end) = (&pair[0], &pair[1]);
-        if time == end.time_ms as f64 {
+        if time.compare(end.time_ms)? == std::cmp::Ordering::Equal {
             return Some(end.value.clone());
         }
-        if time < end.time_ms as f64 {
-            let progress = (time - start.time_ms as f64) / (end.time_ms - start.time_ms) as f64;
+        if time.compare(end.time_ms)? == std::cmp::Ordering::Less {
+            let progress = time.progress(start.time_ms, end.time_ms);
             let t = match start.curve {
                 AnimationCurve::Simple(SimpleAnimationCurve::Hold) => {
                     return Some(start.value.clone());
@@ -775,6 +899,7 @@ mod curve_tests {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn easing_progress(easing: Easing, progress: f64) -> f64 {
     let progress = progress.clamp(0.0, 1.0);
     match easing {
@@ -787,6 +912,7 @@ pub(crate) fn easing_progress(easing: Easing, progress: f64) -> f64 {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_keyframe_value(
     keyframes: &[Keyframe],
     property: KeyframeProperty,
@@ -823,6 +949,7 @@ pub(crate) fn evaluate_keyframe_value(
     Some((last.value.clone(), last.easing))
 }
 
+#[cfg(test)]
 pub(crate) fn split_keyframes(
     keyframes: &[Keyframe],
     split_offset_ms: u64,
@@ -879,6 +1006,41 @@ pub(crate) fn split_keyframes(
     (left, right)
 }
 
+/// Map conservative source activity intervals into the edited item window.
+pub(crate) fn positive_scalar_ranges_at(
+    keyframes: &[Keyframe],
+    property: KeyframeProperty,
+    duration_ms: u64,
+    clock: Option<AnimationClock>,
+) -> Vec<(u64, u64)> {
+    let Some(clock) = clock else {
+        return positive_scalar_ranges(keyframes, property, duration_ms);
+    };
+    let source_end = (i128::from(clock.offset_ms) + i128::from(duration_ms)).max(0) as u64;
+    let source_ranges = positive_scalar_ranges(keyframes, property, source_end);
+    let mut ranges = Vec::new();
+    // A left extension holds the first source value (or the static default).
+    if clock.offset_ms < 0 {
+        let first = keyframes.iter().find(|key| key.property == property);
+        let positive = first
+            .is_none_or(|key| matches!(key.value, KeyframeValue::Scalar { value } if value > 0.0));
+        push_positive_range(
+            &mut ranges,
+            0,
+            clock.offset_ms.unsigned_abs().min(duration_ms),
+            positive,
+        );
+    }
+    for (start, end) in source_ranges {
+        let local = |source: u64| {
+            (i128::from(source) - i128::from(clock.offset_ms)).clamp(0, i128::from(duration_ms))
+                as u64
+        };
+        push_positive_range(&mut ranges, local(start), local(end), true);
+    }
+    ranges
+}
+
 pub(crate) fn positive_scalar_ranges(
     keyframes: &[Keyframe],
     property: KeyframeProperty,
@@ -920,6 +1082,7 @@ pub(crate) fn positive_scalar_ranges(
     ranges
 }
 
+#[cfg(test)]
 fn interpolate_value(start: &KeyframeValue, end: &KeyframeValue, progress: f64) -> KeyframeValue {
     match (start, end) {
         (
@@ -1215,5 +1378,311 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod retained_clock_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn source(curve: serde_json::Value, looping: Option<serde_json::Value>) -> AnimationChannel {
+        let mut value = json!({"property":"transform.position_x","keyframes":[
+            {"timeMs":100,"value":{"type":"scalar","value":0},"curve":curve},
+            {"timeMs":250,"value":{"type":"scalar","value":100},"curve":"linear"},
+            {"timeMs":400,"value":{"type":"scalar","value":0},"curve":"hold"}
+        ]});
+        if let Some(looping) = looping {
+            value["loop"] = looping;
+        }
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn huge_retained_offsets_keep_fractional_repeat_pingpong_and_compound_phase() {
+        for curve in [
+            json!("linear"),
+            json!("hold"),
+            json!({"type":"cubic_bezier","x1":0.2,"y1":0.8,"x2":0.7,"y2":0.95}),
+            json!({"type":"spring","mass":1,"stiffness":120,"damping":7,"initialVelocity":-2}),
+        ] {
+            for mode in ["repeat", "ping_pong"] {
+                let period = if mode == "repeat" { 10 } else { 20 };
+                for offset in [4_503_599_627_370_496_i64, 9_007_199_254_740_891_i64] {
+                    let mut large: AnimationChannel = serde_json::from_value(json!({"property":"transform.position_x","clock":{"offsetMs":offset,"sourceDurationMs":100},"loop":{"mode":mode,"iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":curve},{"timeMs":10,"value":{"type":"scalar","value":10.0},"curve":"hold"}]})).unwrap();
+                    let mut reduced = large.clone();
+                    reduced.clock.as_mut().unwrap().offset_ms = offset % period;
+                    for local in [
+                        0.0, 0.25, 0.75, 3.25, 3.75, 4.0, 4.25, 9.75, 10.0, 10.25, 20.0, 20.75,
+                    ] {
+                        assert_eq!(
+                            sample_channel_at(&large, local),
+                            sample_channel_at(&reduced, local),
+                            "{mode} offset{offset} local{local}"
+                        );
+                        let precise = SampleTime::Fractional(local).looped(&large).unwrap();
+                        let expected = SampleTime::Fractional(local).looped(&reduced).unwrap();
+                        assert_eq!(precise.progress(0, 10), expected.progress(0, 10));
+                    }
+                    for local in [0, 1, 4, 10, 20] {
+                        assert_eq!(
+                            sample_channel(&large, local),
+                            sample_channel(&reduced, local)
+                        );
+                    }
+                    large.clock.as_mut().unwrap().offset_ms = -offset;
+                    assert_eq!(sample_scalar_channel_at(&large, 0.25), Some(0.0));
+                    assert_eq!(sample_scalar_channel_at(&large, 99.75), Some(0.0));
+                    assert_eq!(scalar_bounds_at(&large, 0.25, 99.75), Some((0.0, 0.0)));
+                }
+            }
+        }
+        let mut scalar: AnimationChannel = serde_json::from_value(json!({"property":"transform.position_x","clock":{"offsetMs":4503599627370496_i64,"sourceDurationMs":100},"loop":{"mode":"repeat","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":10,"value":{"type":"scalar","value":10.0},"curve":"hold"}]})).unwrap();
+        assert_eq!(sample_scalar_channel_at(&scalar, 0.25), Some(6.25));
+        assert_eq!(scalar_bounds_at(&scalar, 0.25, 0.25), Some((6.25, 6.25)));
+        scalar.r#loop.as_mut().unwrap().mode = AnimationLoopMode::PingPong;
+        assert_eq!(sample_scalar_channel_at(&scalar, 0.25), Some(3.75));
+        let mut compound = scalar.clone();
+        compound.property = crate::AnimationChannelProperty::PathPoints;
+        compound.keyframes[0].value = AnimationChannelValue::PathPoints {
+            points: vec![crate::AnimationPoint { x: 0.0, y: 0.0 }],
+        };
+        compound.keyframes[1].value = AnimationChannelValue::PathPoints {
+            points: vec![crate::AnimationPoint { x: 10.0, y: 20.0 }],
+        };
+        assert_eq!(
+            sample_channel_at(&compound, 0.25),
+            Some(AnimationChannelValue::PathPoints {
+                points: vec![crate::AnimationPoint { x: 3.75, y: 7.5 }]
+            })
+        );
+    }
+
+    #[test]
+    fn pingpong_tiny_fraction_keeps_before_key_hold_selection() {
+        let mut channel: AnimationChannel=serde_json::from_value(json!({"property":"transform.position_x","clock":{"offsetMs":4503599627370490_i64,"sourceDurationMs":100},"loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"hold"},{"timeMs":10,"value":{"type":"scalar","value":10.0},"curve":"hold"}]})).unwrap();
+        assert_eq!(sample_scalar_channel_at(&channel, 0.0), Some(10.0));
+        for fraction in [f64::from_bits(1), f64::MIN_POSITIVE, 0.25] {
+            let time = SampleTime::Fractional(fraction).looped(&channel).unwrap();
+            assert_eq!(time.compare(10), Some(std::cmp::Ordering::Less));
+            assert_eq!(sample_scalar_channel_at(&channel, fraction), Some(0.0));
+            assert_eq!(
+                scalar_bounds_at(&channel, fraction, fraction),
+                Some((0.0, 0.0))
+            );
+        }
+        channel.clock.as_mut().unwrap().offset_ms = 10;
+        assert_eq!(
+            sample_scalar_channel_at(&channel, f64::from_bits(1)),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn huge_key_origins_preserve_nonloop_interiors_bounds_and_finite_budget() {
+        for origin in [4_503_599_627_370_496_u64, 9_007_199_254_740_891_u64] {
+            let mut channel: AnimationChannel=serde_json::from_value(json!({"property":"transform.position_x","clock":{"offsetMs":origin+6,"sourceDurationMs":origin+100},"keyframes":[{"timeMs":origin,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":origin+10,"value":{"type":"scalar","value":10.0},"curve":"hold"}]})).unwrap();
+            assert_eq!(sample_scalar_channel_at(&channel, 0.25), Some(6.25));
+            assert_eq!(scalar_bounds_at(&channel, 0.25, 0.75), Some((6.25, 6.75)));
+            let time = SampleTime::Fractional(0.25).looped(&channel).unwrap();
+            assert_eq!(time.compare(origin + 6), Some(std::cmp::Ordering::Greater));
+            assert_eq!(time.compare(origin + 7), Some(std::cmp::Ordering::Less));
+            assert_eq!(time.progress(origin, origin + 10), 0.625);
+            channel.clock.as_mut().unwrap().offset_ms = origin as i64 - 1;
+            assert_eq!(sample_scalar_channel_at(&channel, 0.75), Some(0.0));
+            assert_eq!(sample_scalar_channel_at(&channel, 1.25), Some(0.25));
+            channel.clock.as_mut().unwrap().offset_ms = origin as i64 + 6;
+            for (mode, remaining, terminal) in [
+                (AnimationLoopMode::Repeat, 24.0, 10.0),
+                (AnimationLoopMode::PingPong, 54.0, 0.0),
+            ] {
+                channel.r#loop = Some(crate::AnimationLoop {
+                    mode,
+                    iterations: AnimationLoopIterations::Finite(3),
+                });
+                assert_eq!(
+                    sample_scalar_channel_at(&channel, remaining),
+                    Some(terminal)
+                );
+                assert_eq!(
+                    sample_scalar_channel_at(&channel, remaining + 0.25),
+                    Some(terminal)
+                );
+                assert_eq!(
+                    sample_scalar_channel_at(&channel, remaining - 0.25),
+                    Some(if mode == AnimationLoopMode::Repeat {
+                        9.75
+                    } else {
+                        0.25
+                    })
+                );
+                assert_eq!(
+                    sample_scalar_channel_at(&channel, 4.0),
+                    Some(if mode == AnimationLoopMode::PingPong {
+                        10.0
+                    } else {
+                        0.0
+                    })
+                );
+                assert_eq!(
+                    sample_scalar_channel_at(&channel, 4.25),
+                    Some(if mode == AnimationLoopMode::PingPong {
+                        9.75
+                    } else {
+                        0.25
+                    })
+                );
+            }
+        }
+        let mut negative: AnimationChannel=serde_json::from_value(json!({"property":"transform.position_x","clock":{"offsetMs":-9007199254740991_i64,"sourceDurationMs":100},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":10,"value":{"type":"scalar","value":10.0},"curve":"hold"}]})).unwrap();
+        assert_eq!(sample_scalar_channel_at(&negative, 0.75), Some(0.0));
+        negative.clock.as_mut().unwrap().offset_ms = -1;
+        assert_eq!(sample_scalar_channel_at(&negative, 0.75), Some(0.0));
+        assert_eq!(sample_scalar_channel_at(&negative, 1.25), Some(0.25));
+    }
+
+    #[test]
+    fn retained_clock_preserves_arbitrary_curves_finite_phases_and_fractional_interiors() {
+        for curve in [
+            json!("linear"),
+            json!("hold"),
+            json!({"type":"cubic_bezier","x1":0.2,"y1":0.8,"x2":0.7,"y2":0.95}),
+            json!({"type":"spring","mass":1,"stiffness":120,"damping":7,"initialVelocity":-2}),
+        ] {
+            for looping in [
+                None,
+                Some(json!({"mode":"repeat","iterations":2})),
+                Some(json!({"mode":"ping_pong","iterations":2})),
+                Some(json!({"mode":"ping_pong","iterations":"infinite"})),
+            ] {
+                let original = source(curve.clone(), looping);
+                for offset in [175, 350, 700] {
+                    let mut retained = original.clone();
+                    retained.clock = Some(AnimationClock {
+                        offset_ms: offset,
+                        source_duration_ms: 1800,
+                    });
+                    for time in [
+                        0.0, 0.5, 25.0, 49.5, 50.0, 50.5, 100.0, 224.5, 225.0, 225.5, 500.0, 1100.0,
+                    ] {
+                        assert_eq!(
+                            sample_channel_at(&retained, time),
+                            sample_channel_at(&original, time + offset as f64),
+                            "offset={offset} time={time}"
+                        );
+                    }
+                    for time in [0, 1, 25, 50, 100, 225, 500, 1100] {
+                        assert_eq!(
+                            sample_channel(&retained, time),
+                            sample_channel(&original, time + offset as u64)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn negative_retained_clock_holds_source_first_before_exact_start() {
+        let original = source(
+            json!("linear"),
+            Some(json!({"mode":"ping_pong","iterations":1})),
+        );
+        let mut retained = original.clone();
+        retained.clock = Some(AnimationClock {
+            offset_ms: -200,
+            source_duration_ms: 1000,
+        });
+        for (time, expected) in [
+            (0.0, 0.0),
+            (299.5, 0.0),
+            (300.0, 0.0),
+            (375.0, 50.0),
+            (500.0, 200.0 / 3.0),
+            (900.0, 0.0),
+        ] {
+            let AnimationChannelValue::Scalar { value } =
+                sample_channel_at(&retained, time).unwrap()
+            else {
+                panic!()
+            };
+            assert!((value - expected).abs() < 1e-9, "{time}: {value}");
+        }
+    }
+
+    #[test]
+    fn retained_clocks_keep_compound_segments_and_bounds() {
+        for (property, a, b) in [
+            (
+                "graphic.fill_color",
+                json!({"type":"rgba","r":1,"g":0,"b":0,"a":1}),
+                json!({"type":"rgba","r":0,"g":1,"b":0,"a":0.5}),
+            ),
+            (
+                "graphic.path_points",
+                json!({"type":"path_points","points":[{"x":0,"y":10}]}),
+                json!({"type":"path_points","points":[{"x":100,"y":20}]}),
+            ),
+            (
+                "graphic.gradient_stops",
+                json!({"type":"gradient_stops","stops":[{"offset":0,"color":[1,0,0,1]}]}),
+                json!({"type":"gradient_stops","stops":[{"offset":1,"color":[0,1,0,1]}]}),
+            ),
+        ] {
+            let original: AnimationChannel = serde_json::from_value(json!({"property":property,"keyframes":[{"timeMs":0,"value":a,"curve":"linear"},{"timeMs":1000,"value":b,"curve":"hold"}]})).unwrap();
+            let mut retained = original.clone();
+            retained.clock = Some(AnimationClock {
+                offset_ms: 275,
+                source_duration_ms: 1200,
+            });
+            for time in [0.0, 0.5, 100.5, 725.0] {
+                assert_eq!(
+                    sample_channel_at(&retained, time),
+                    sample_channel_at(&original, time + 275.0)
+                );
+            }
+        }
+        let original = source(json!("linear"), None);
+        let mut retained = original.clone();
+        retained.clock = Some(AnimationClock {
+            offset_ms: 175,
+            source_duration_ms: 1000,
+        });
+        let (low, high) = scalar_bounds_at(&retained, 0.0, 25.0).unwrap();
+        assert!((low - 50.0).abs() < 1e-9 && (high - 200.0 / 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn retained_legacy_voice_activity_maps_source_intervals_without_restart() {
+        let keys: Vec<Keyframe> = serde_json::from_value(json!([
+            {"property":"volume","timeMs":0,"value":{"type":"scalar","value":0},"easing":"hold"},
+            {"property":"volume","timeMs":500,"value":{"type":"scalar","value":1},"easing":"hold"},
+            {"property":"volume","timeMs":1000,"value":{"type":"scalar","value":0},"easing":"hold"}
+        ]))
+        .unwrap();
+        assert_eq!(
+            positive_scalar_ranges_at(
+                &keys,
+                KeyframeProperty::Volume,
+                800,
+                Some(AnimationClock {
+                    offset_ms: 300,
+                    source_duration_ms: 1500
+                })
+            ),
+            vec![(200, 700)]
+        );
+        assert_eq!(
+            positive_scalar_ranges_at(
+                &keys,
+                KeyframeProperty::Volume,
+                1300,
+                Some(AnimationClock {
+                    offset_ms: -200,
+                    source_duration_ms: 1500
+                })
+            ),
+            vec![(700, 1200)]
+        );
     }
 }

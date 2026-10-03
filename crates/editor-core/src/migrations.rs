@@ -24,6 +24,23 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 31
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|item| {
+                let visual = item.visual_properties();
+                visual.legacy_animation_clock.is_some()
+                    || visual.animation_channels.iter().any(|c| c.clock.is_some())
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "retained animation clocks require schema 31",
+        ));
+    }
     if project.schema_version < 30
         && project
             .tracks
@@ -253,7 +270,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=29 => {
+        9..=30 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
