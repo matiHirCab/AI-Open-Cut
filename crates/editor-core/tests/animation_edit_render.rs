@@ -95,7 +95,7 @@ fn compare(reference: &[u8], actual: &[u8], label: &str) {
         let mut weight = 0.0;
         let mut x = 0.0;
         let mut y = 0.0;
-        for (index, pixel) in pixels.chunks_exact(3).enumerate() {
+        for (index, pixel) in pixels.as_chunks::<3>().0.iter().enumerate() {
             let w = f64::from(*pixel.iter().max().unwrap());
             weight += w;
             x += (index % 64) as f64 * w;
@@ -618,8 +618,10 @@ fn native_edited_audio_keeps_independent_gain_and_legacy_volume_envelopes() {
                 assert!(output.status.success());
                 let pcm: Vec<f64> = output
                     .stdout
-                    .chunks_exact(4)
-                    .map(|b| f32::from_le_bytes(b.try_into().unwrap()) as f64)
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|b| f32::from_le_bytes(*b) as f64)
                     .collect();
                 let silence = if name == "raw_duplicate" {
                     vec![1200usize]

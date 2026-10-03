@@ -1,5 +1,11 @@
 # Final implementation verification — 2026-10-03
 
+## Draft CI helper correction
+
+Draft PR136 first head `17a7832c351b8681b7f937fb7f1b7fa7e3805080` exposed Clippy's `chunks_exact_to_as_chunks` diagnostic in two new native-test helpers on all three OS jobs. The helpers now iterate the same complete fixed-size arrays and decode the same little-endian samples, preserving ordering and ignored suffixes. No runtime behavior, specification, assertion, oracle, tolerance or CI policy changed; no lint suppression was added.
+
+Independent Sol medium implementation review approved this equivalent rewrite in `/tmp/issue47-ci-helper-review.md`; this is delegated agent review, not human CODEOWNER approval. Final correction checks passed: formatting, strict workspace/all-target Clippy, complete workspace tests, both required real native edit-render tests (2/2, 163.70s), and protected OpenSpec bootstrap. Evidence is `/tmp/issue47-ci-chunk-fmt-final.log`, `/tmp/issue47-ci-chunk-clippy-final.log`, `/tmp/issue47-ci-helper-workspace.log`, `/tmp/issue47-ci-chunk-native-final.log`, and `/tmp/issue47-ci-helper-bootstrap.log`. The application and contracts are unchanged from the fully verified implementation. Exact corrected-head remote CI is tracked in external delivery evidence; the first failed head is not counted as passing CI.
+
 The root completed the repository OpenSpec verification workflow using the CLI artifact graph and apply context, inspected approved artifacts, source and scenario traceability, and independent Sol medium reviews. The reviewer notes below are dated evidence snapshots; this final section closes their pending implementation checks. Human CODEOWNER review is still pending draft delivery and is not claimed.
 
 | Dimension | Final assessment |
