@@ -62,3 +62,8 @@ After exact design approval and issue45 resolution: fixtures/migration before co
 ## Open Questions
 
 Approve the exact five parameter shapes, opacity flash/shake definition, enabled blur collision semantics, loop defaults/limits and invisible radar reset, schema30, complete descriptive sources and blur-sensitive lifecycle. The user explicitly approved these concrete decisions on2026-10-02 at21:19:22UTC (approval.md).
+
+
+### Current-schema reconciliation
+
+The approved schema30/six-entry design supersedes latest schema29/one-entry discovery wording in living requirements. Delta specifications explicitly update Typed discoverable preset edit parity, Atomic schema29 preset provenance migration and Fail-closed complete provenance generations. Schema29 remains the provenance migration stage; final supported current generation is30 and unknown future rejection means above30. This is specification coherence for the already approved contract, with no additional executable behavior or scope. Standing delegated review authorizes this reconciliation; acceptance is recorded before synchronization. Existing older-schema tests and new current/component/history/schema30 tests cover these retained scenarios.
