@@ -333,11 +333,11 @@ describe("canonical public contracts", () => {
       "resources",
       "tools",
     ] as const) {
-      const changed = structuredClone(MCP_SURFACE);
+      const changed = { ...MCP_SURFACE };
       changed[key] = [];
       expect(mismatchedSupportingSurfaces(changed, MCP_SURFACE)).toEqual([key]);
     }
-    const resourceMappingDrift = structuredClone(MCP_SURFACE);
+    const resourceMappingDrift = { ...MCP_SURFACE };
     resourceMappingDrift.resources = resourceMappingDrift.resources.map(
       (resource, index) => ({
         ...resource,

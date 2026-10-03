@@ -1,5 +1,7 @@
 # Integrate schema30 motion packs with schema31 animation clocks
 
+Test setup amendment: the larger combined Pack/clock MCP fixture makes five whole-catalog copies in the existing supporting-surface drift test exceed its unchanged5s budget even on a quiet four-CPU container. Avoid copying untouched tool definitions when testing a replaced supporting array; retain the complete baseline and every existing case/assertion. This authorizes only immutable test setup changes, not production behavior, timeout/config changes or parity weakening. Independent approval and implementation review are required before applying it.
+
 ## Why
 Issue46 draftPR135 introduces closed tagged motion-pack provenance in schema30. Issue47 draftPR136 independently retains source clocks in schema31 and intentionally rejects reserved30. Both cannot be integrated safely without the actual Pack-capable decoder and explicit validated30→31 path. User explicitly requested this integration gate; GitHub mergeability is insufficient.
 

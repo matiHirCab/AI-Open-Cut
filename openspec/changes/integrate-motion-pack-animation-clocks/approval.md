@@ -1,5 +1,7 @@
 # Delegated integration specification approval — 2026-10-03
 
+Test-only setup amendment approval: `/root/spec_review` inspected the exact proposal/design/task5e, test body and read-only supporting-surface helper and approved immutable shallow catalog copies replacing only the tested arrays, with freshly mapped resource objects. All four array cases, URI case, complete baseline/shared-definition drift, expected lists, helpers,5000ms timeout and canonical commands remain. Verify fixture immutability and actual gate success. This authorizes no production behavior, timeout/config change or parity weakening; delegated agent approval only.
+
 The user explicitly authorized issue-scoped specification approval and required independent Sol medium review, including material integration fixes. Reviewer `/root/spec_review` independently inspected exact proposal/design/deltas/tasks and corrected post-archive delivery checklist. This is delegated agent approval, not human CODEOWNER approval.
 
 Reviewer approval: “The actual Scalar|Pack/source validation and explicit30→31 atomic current/components/allhistory path faithfully reconcile46+47 without relabel/drop/recompile; future/pre-version guards, journal PROJECT_RECOVERY_FAILED before replay, idempotence, Pack edits and exact-head delivery obligations remain.”
