@@ -139,7 +139,12 @@
       "canonical": "contracts/speech-provider-v1.json",
       "consumers": [
         "apps/kokoro-tts/worker.py",
+        "apps/kokoro-tts/test_worker.py",
         "apps/agent-bridge/src/tts.ts",
+        "apps/agent-bridge/src/speech.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/speech.test.ts",
+        "apps/agent-bridge/tests/tts.test.ts",
         "apps/agent-bridge/src/schemas.ts",
         "crates/editor-core/src/model.rs"
       ]

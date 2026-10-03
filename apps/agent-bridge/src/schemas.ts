@@ -743,6 +743,14 @@ export const speechLimitsSchema = z
   .strict()
   .refine((limits) => limits.minSpeed <= limits.maxSpeed);
 
+export const speechTimestampSupportSchema = z
+  .object({
+    phoneme: z.boolean(),
+    sentence: z.boolean(),
+    word: z.boolean(),
+  })
+  .strict();
+
 export const ttsStatusSchema = z
   .object({
     defaultLanguage: z.string().min(1),
@@ -781,6 +789,11 @@ export const ttsStatusSchema = z
     resources: speechResourcesSchema,
     sampleRateHz: z.int().positive(),
     startupError: publicErrorSchema.nullable().optional(),
+    timestampSupport: speechTimestampSupportSchema.default({
+      phoneme: false,
+      sentence: false,
+      word: false,
+    }),
     version: z.string(),
     voices: z.array(speechVoiceIdSchema).min(1),
   })

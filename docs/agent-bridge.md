@@ -134,6 +134,8 @@ OPENCUT_EXPORTS_DIR = "C:\\placeholder\\OpenCutExports"
 
 The bridge exposes provider-neutral local speech synthesis and currently ships a Kokoro-82M CPU adapter. It generates a 24 kHz mono WAV and atomically inserts it on an OpenCut audio track. V1 includes Kokoro's American and British English voices and defaults to `af_heart`. No API key or hosted inference service is used.
 
+`tts_get_status` reports `timestampSupport` with independent boolean `sentence`, `word`, and `phoneme` fields. Each flag describes timestamps exposed by that provider integration; one flag never implies another. Kokoro currently reports all three false, including when unavailable: sentence chunking, pauses, or model readiness do not provide timestamps. Replaceable providers can advertise any valid combination. Legacy provider-v1 status without the object is accepted and normalized to all false. An explicit object requires exactly those three boolean fields; malformed or unknown fields return non-retryable `TTS_INVALID_CAPABILITIES`. The additive field provides feature discovery while `version` continues to identify the worker package. Existing requests, generated audio, and persisted speech intent are unchanged. This metadata does not generate alignment or define timestamp coordinates or ordering; clients must not interpret duration estimates or chunk boundaries as alignment.
+
 ### Supported platforms
 
 - Windows 11 x86-64 supports the Rust core, headless process, bridge, fake provider, and the verified real Kokoro CPU setup.
