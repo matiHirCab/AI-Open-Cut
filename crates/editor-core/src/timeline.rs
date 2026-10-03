@@ -1126,6 +1126,7 @@ fn apply_operation_inner(
             }
             if let Some(value) = motion_blur {
                 value.validate()?;
+                animation_presets::blur_changed(item.visual_properties_mut(), value);
                 item.visual_properties_mut().motion_blur = Some(value);
             }
             if let Some(value) = effects {

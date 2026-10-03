@@ -2493,6 +2493,85 @@ mod tests {
     }
 
     #[test]
+    fn schema29_pack_publication_faults_preserve_complete_generations() {
+        for phase in [
+            PersistencePhase::BeforeFontPublish,
+            PersistencePhase::AfterFontPublish,
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            core.get_project(&id).unwrap();
+            let mut current: Project = read_json(&project_path(&dir)).unwrap();
+            let mut history: History = read_json(&history_path(&dir)).unwrap();
+            current.schema_version = 29;
+            for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
+                snapshot.schema_version = 29;
+            }
+            std::fs::write(project_path(&dir), serde_json::to_vec(&current).unwrap()).unwrap();
+            std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
+            let fixture: serde_json::Value = serde_json::from_str(include_str!(
+                "../../../contracts/initial-motion-preset-pack-v1.json"
+            ))
+            .unwrap();
+            let edit:EditOperation=serde_json::from_value(serde_json::json!({"operation":"apply_animation_preset","itemId":item,"presetId":"impact_slam","presetVersion":1,"parameters":fixture["presets"][0]["parameters"]})).unwrap();
+            let before = project_file_bytes(&dir);
+            set_persistence_fault(&core, phase);
+            let result = core.edit(&id, 1, edit.clone());
+            if matches!(
+                phase,
+                PersistencePhase::BeforeFontPublish
+                    | PersistencePhase::AfterFontPublish
+                    | PersistencePhase::BeforeJournal
+            ) {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    ErrorCode::InternalError,
+                    "{phase:?}"
+                );
+                assert_eq!(project_file_bytes(&dir), before, "{phase:?}");
+                core.edit(&id, 1, edit).unwrap();
+            } else {
+                assert_eq!(result.unwrap().revision, 2, "{phase:?}");
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let saved = reopened.get_project(&id).unwrap();
+            assert_eq!(saved.schema_version, 30);
+            assert_eq!(saved.revision, 2);
+            assert_eq!(
+                serde_json::to_value(
+                    &saved
+                        .find_item(&item)
+                        .unwrap()
+                        .visual_properties()
+                        .animation_preset_provenance
+                )
+                .unwrap(),
+                fixture["presets"][0]["expectedProvenance"]
+            );
+            let history: History = read_json(&history_path(&dir)).unwrap();
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|p| p.schema_version == 30)
+            );
+            crate::assets::fonts::verify_project_fonts(&FileSystemStorage, &dir, &saved).unwrap();
+            assert!(!transaction_path(&dir).exists());
+            reopened.undo(&id, 2).unwrap();
+            reopened.redo(&id, 3).unwrap();
+            assert_eq!(reopened.get_project(&id).unwrap().revision, 4);
+        }
+    }
+
+    #[test]
     fn preset_asset_staging_preserves_explicit_and_default_font_selection_failures() {
         for use_default in [false, true] {
             let (mut core, _) = core();
