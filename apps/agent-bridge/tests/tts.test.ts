@@ -2,14 +2,17 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import { loadBridgeConfig } from "../src/config";
 import { resolveExecutablePath } from "../src/diagnostics";
 import { KokoroSpeechSynthesizer } from "../src/tts";
@@ -26,6 +29,26 @@ const originalEnvironment = Object.fromEntries(
 );
 let root = "";
 let provider: KokoroSpeechSynthesizer | undefined;
+
+const providerWithTimestampSupport = async (timestampSupport: unknown) => {
+  await provider?.close();
+  const path = join(root, "timestamp-worker.py");
+  const source = readFileSync(
+    resolve(import.meta.dirname, "fixtures/fake_tts_worker.py"),
+    "utf8"
+  );
+  writeFileSync(
+    path,
+    source.replace(
+      '"ready": True,',
+      `"ready": True, "timestampSupport": json.loads(${JSON.stringify(JSON.stringify(timestampSupport))}),`
+    )
+  );
+  provider = new KokoroSpeechSynthesizer(
+    loadBridgeConfig({ ...process.env, OPENCUT_KOKORO_WORKER: path })
+  );
+  return provider;
+};
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "opencut-speech-provider-"));
@@ -69,6 +92,7 @@ it(
       modelId: "fake/model",
       providerId: "fake-speech",
       sampleRateHz: 24_000,
+      timestampSupport: SPEECH_CONTRACT.timestampSupportCases.unsupported,
     });
     expect(voices.map((voice) => voice.id)).toEqual(status.voices);
 
@@ -88,6 +112,25 @@ it(
     expect(existsSync(generated.outputPath)).toBe(false);
   },
   workerTestTimeoutMs
+);
+
+it.each(SPEECH_CONTRACT.timestampSupportCases.valid)(
+  "preserves worker timestamp metadata %j",
+  async (timestampSupport) => {
+    const adapter = await providerWithTimestampSupport(timestampSupport);
+    expect((await adapter.status()).timestampSupport).toEqual(timestampSupport);
+  }
+);
+
+it.each(SPEECH_CONTRACT.timestampSupportCases.invalid)(
+  "rejects malformed worker timestamp metadata %j without unavailable fallback",
+  async (timestampSupport) => {
+    const adapter = await providerWithTimestampSupport(timestampSupport);
+    await expect(adapter.status()).rejects.toMatchObject({
+      code: "TTS_INVALID_CAPABILITIES",
+      retryable: false,
+    });
+  }
 );
 
 it(
@@ -274,6 +317,7 @@ it(
         message: "Configured Kokoro Python executable is missing",
         retryable: false,
       },
+      timestampSupport: SPEECH_CONTRACT.timestampSupportCases.unsupported,
     });
     await provider.close();
     provider = new KokoroSpeechSynthesizer(loadBridgeConfig());

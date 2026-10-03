@@ -100,11 +100,18 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
     const paths = (await runtimePathDiagnostics(this.#config)).kokoro;
     let status: z.infer<typeof ttsStatusSchema>;
     if (workerStatus) {
-      status = ttsStatusSchema.parse({
+      const parsed = ttsStatusSchema.safeParse({
         ...workerStatus,
         paths,
         startupError: null,
       });
+      if (!parsed.success) {
+        throw new BridgeError(
+          "TTS_INVALID_CAPABILITIES",
+          "Speech provider returned invalid status metadata"
+        );
+      }
+      status = parsed.data;
     } else {
       const detail =
         startupError ??
@@ -143,6 +150,7 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
           message: detail.message,
           retryable: detail.retryable,
         },
+        timestampSupport: { phoneme: false, sentence: false, word: false },
         version: "unavailable",
         voices: ["af_heart"],
       });

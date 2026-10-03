@@ -62,7 +62,7 @@ export interface SpeechSynthesizer {
     maxQueued: number;
     queued: number;
   };
-  status: () => Promise<z.infer<typeof ttsStatusSchema>>;
+  status: () => Promise<z.input<typeof ttsStatusSchema>>;
   synthesize: (
     request: SpeechSynthesisRequest,
     signal?: AbortSignal
@@ -152,7 +152,14 @@ export class SpeechApplicationService {
 
   async status() {
     this.#cleanupExpired();
-    const status = ttsStatusSchema.parse(await this.#provider.status());
+    const parsed = ttsStatusSchema.safeParse(await this.#provider.status());
+    if (!parsed.success) {
+      throw new BridgeError(
+        "TTS_INVALID_CAPABILITIES",
+        "Speech provider returned invalid status metadata"
+      );
+    }
+    const status = parsed.data;
     validateStatus(status);
     return { ...status, queue: this.#provider.queueStatus() };
   }

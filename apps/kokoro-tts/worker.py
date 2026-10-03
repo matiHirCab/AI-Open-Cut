@@ -239,6 +239,7 @@ def status(backend: KokoroBackend) -> dict[str, object]:
     return {
         "ready": dependencies_ready and cached,
         "version": version,
+        "timestampSupport": {"sentence": False, "word": False, "phoneme": False},
         "providerId": PROVIDER_ID,
         "modelId": MODEL_ID,
         "modelVersion": MODEL_VERSION,
