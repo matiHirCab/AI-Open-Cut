@@ -240,6 +240,44 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(origin[field], status[field])
         self.assertEqual(synthesis["voiceId"], origin["request"]["voiceId"])
 
+    def test_timestamp_support_matches_canonical_unsupported_in_every_state(self):
+        contract_path = Path(__file__).resolve().parents[2] / "contracts" / "speech-provider-v1.json"
+        cases = json.loads(contract_path.read_text(encoding="utf-8"))["timestampSupportCases"]
+        for ready in (False, True):
+            for loaded in (False, True):
+                with (
+                    self.subTest(ready=ready, loaded=loaded),
+                    patch.object(worker, "dependency_versions", return_value={"kokoro": "test"} if ready else None),
+                    patch.object(worker, "readiness_marker_valid", return_value=ready),
+                ):
+                    backend = FakeBackend()
+                    backend.loaded = loaded
+                    status = worker.status(backend)
+                    self.assertEqual(status["ready"], ready)
+                    self.assertEqual(status["modelLoaded"], loaded)
+                    self.assertEqual(status["timestampSupport"], cases["unsupported"])
+
+    def test_canonical_timestamp_metadata_is_independent_and_strict(self):
+        contract_path = Path(__file__).resolve().parents[2] / "contracts" / "speech-provider-v1.json"
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        cases = contract["timestampSupportCases"]
+
+        def valid_support(value):
+            return (
+                isinstance(value, dict)
+                and set(value) == {"sentence", "word", "phoneme"}
+                and all(type(flag) is bool for flag in value.values())
+            )
+
+        self.assertTrue(valid_support(contract["status"]["timestampSupport"]))
+        self.assertTrue(valid_support(cases["unsupported"]))
+        self.assertEqual(len(cases["valid"]), 8)
+        self.assertEqual(len({tuple(case[key] for key in ("sentence", "word", "phoneme")) for case in cases["valid"]}), 8)
+        for case in cases["valid"]:
+            self.assertTrue(valid_support(case))
+        for case in cases["invalid"]:
+            self.assertFalse(valid_support(case))
+
     def test_worker_error_codes_exist_in_shared_catalog(self):
         catalog_path = Path(__file__).resolve().parents[2] / "contracts" / "error-codes-v1.json"
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))["codes"]

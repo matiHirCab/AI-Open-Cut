@@ -31,6 +31,7 @@ import {
   headlessStatusSchema,
   schemas,
   slotValueSchema,
+  synthesizedSpeechMetadataSchema,
   templateSlotSchema,
   ttsStatusSchema,
 } from "../src/schemas";
@@ -56,7 +57,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "85a9f9898845cf65abc6b2d214335382e0ad16c4ac16ed57e39e15101609563d";
+  "b7924e84a9ad5661fdfb52bbeed050cc704a839499bf361616cd1df4049175a6";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -524,6 +525,36 @@ describe("canonical public contracts", () => {
     }
     expect(ttsStatusSchema.parse(SPEECH_CONTRACT.status).version).toBe("1.0");
     expect(TRANSCRIPTION_CONTRACT.version).toBe("transcription-provider-v1");
+  });
+
+  it("governs independent timestamp support and strict legacy compatibility", () => {
+    const parsed = ttsStatusSchema.parse(SPEECH_CONTRACT.status);
+    expect(parsed.timestampSupport).toEqual(
+      SPEECH_CONTRACT.status.timestampSupport
+    );
+    for (const timestampSupport of SPEECH_CONTRACT.timestampSupportCases
+      .valid) {
+      expect(
+        ttsStatusSchema.parse({ ...SPEECH_CONTRACT.status, timestampSupport })
+          .timestampSupport
+      ).toEqual(timestampSupport);
+    }
+    const { timestampSupport: _support, ...legacy } = SPEECH_CONTRACT.status;
+    expect(ttsStatusSchema.parse(legacy).timestampSupport).toEqual(
+      SPEECH_CONTRACT.timestampSupportCases.unsupported
+    );
+    for (const timestampSupport of SPEECH_CONTRACT.timestampSupportCases
+      .invalid) {
+      expect(
+        ttsStatusSchema.safeParse({
+          ...SPEECH_CONTRACT.status,
+          timestampSupport,
+        }).success
+      ).toBe(false);
+    }
+    expect(
+      synthesizedSpeechMetadataSchema.parse(SPEECH_CONTRACT.synthesis)
+    ).toEqual(SPEECH_CONTRACT.synthesis);
   });
 
   it("registers exactly the canonical MCP definitions and supporting surfaces", () => {

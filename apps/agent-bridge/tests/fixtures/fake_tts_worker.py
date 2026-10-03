@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 import wave
@@ -46,6 +47,8 @@ for line in sys.stdin:
                 "recommendedRamBytes": 4294967296,
             },
         }
+        if "OPENCUT_TEST_TIMESTAMP_SUPPORT" in os.environ:
+            result["timestampSupport"] = json.loads(os.environ["OPENCUT_TEST_TIMESTAMP_SUPPORT"])
     elif request.get("operation") == "list_voices":
         result = VOICES
     elif request.get("operation") == "generate":

@@ -1,8 +1,11 @@
 import { expect, it, vi } from "vitest";
 
+import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import { BridgeError } from "../src/headless";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { schemas } from "../src/schemas";
+import type { Server, ServerDependencies } from "../src/server/shared";
+import { registerSpeechTools } from "../src/server/speech";
 import {
   prepareSpeechSegments,
   SpeechApplicationService,
@@ -47,7 +50,7 @@ class FakeSpeechSynthesizer implements SpeechSynthesizer {
   failedCleanupPaths: string[] = [];
   voiceUyAvailable = true;
 
-  status() {
+  status(): ReturnType<SpeechSynthesizer["status"]> {
     return Promise.resolve(status);
   }
 
@@ -142,6 +145,82 @@ const inputRequest = () =>
     text: "  Hola  ",
     trackId: "audio",
   });
+
+const unusedCommit = () =>
+  vi.fn(async () => ({
+    assetId: "unused",
+    itemId: "unused",
+    projectId: "unused",
+    revision: 0,
+    summary: "unused",
+    warnings: [],
+  }));
+
+it.each(SPEECH_CONTRACT.timestampSupportCases.valid)(
+  "preserves independent timestamp declarations %j without synthesis or commit",
+  async (timestampSupport) => {
+    const provider = new FakeSpeechSynthesizer();
+    vi.spyOn(provider, "status").mockResolvedValue({
+      ...status,
+      timestampSupport,
+    });
+    const commit = unusedCommit();
+    const service = new SpeechApplicationService(provider, commit);
+    expect((await service.status()).timestampSupport).toEqual(timestampSupport);
+    expect(provider.requests).toEqual([]);
+    expect(commit).not.toHaveBeenCalled();
+    await service.close();
+  }
+);
+
+it("normalizes legacy provider timestamp support conservatively", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  const service = new SpeechApplicationService(provider, unusedCommit());
+  expect((await service.status()).timestampSupport).toEqual(
+    SPEECH_CONTRACT.timestampSupportCases.unsupported
+  );
+  await service.close();
+});
+
+it.each(SPEECH_CONTRACT.timestampSupportCases.invalid)(
+  "returns typed MCP failure for malformed timestamp metadata %j",
+  async (timestampSupport) => {
+    const provider = new FakeSpeechSynthesizer();
+    vi.spyOn(provider, "status").mockResolvedValue({
+      ...status,
+      timestampSupport,
+    } as unknown as Awaited<ReturnType<SpeechSynthesizer["status"]>>);
+    const commit = unusedCommit();
+    const service = new SpeechApplicationService(provider, commit);
+    await expect(service.status()).rejects.toMatchObject({
+      code: "TTS_INVALID_CAPABILITIES",
+      retryable: false,
+    });
+    const registerTool = vi.fn(
+      (_name: string, _config: unknown, _handler: () => Promise<unknown>) =>
+        undefined
+    );
+    registerSpeechTools(
+      { registerTool } as unknown as Server,
+      {
+        speech: service,
+      } as ServerDependencies
+    );
+    const handler = registerTool.mock.calls.find(
+      ([name]) => name === "tts_get_status"
+    )?.[2];
+    expect(handler).toBeDefined();
+    expect(await handler?.()).toMatchObject({
+      isError: true,
+      structuredContent: {
+        error: { code: "TTS_INVALID_CAPABILITIES", retryable: false },
+      },
+    });
+    expect(provider.requests).toEqual([]);
+    expect(commit).not.toHaveBeenCalled();
+    await service.close();
+  }
+);
 
 it("resolves provider defaults and commits complete speech provenance", async () => {
   const provider = new FakeSpeechSynthesizer();
