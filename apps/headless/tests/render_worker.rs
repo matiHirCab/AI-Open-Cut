@@ -112,6 +112,27 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn additive_review_fixture_preserves_legacy_request_positions() {
+    let contract = fixture();
+    let operations: Vec<_> = contract["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["request"]["operation"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        operations,
+        [
+            "render_preview",
+            "render_preview_range",
+            "render_draft_preview",
+            "export_video",
+            "render_review_range",
+        ]
+    );
+}
+
+#[test]
 fn native_sampled_encoder_failure_is_safe_on_the_headless_wire() {
     if std::env::var_os("OPENCUT_FFMPEG_PATH").is_none() {
         assert_ne!(

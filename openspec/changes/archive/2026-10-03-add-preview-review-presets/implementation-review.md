@@ -45,3 +45,7 @@ Independent Sol medium reviewer accepted all four requirements and ten scenarios
 ## Current-main reconciliation acceptance
 
 Independent Sol medium reviewer accepted rebased scope at9d9aadf3 over current main480bd8d7. Merged speech contracts are preserved; no PR138 features were added. Independently recomputed digest matches7df40e56127433bfbc9dafbf5839e1d1a49c39bd6e734ee99661827ca3414e28. Post-verification delivery prose preserves all lifecycle obligations without claiming future actions complete. No new review blockers; affected check terminal results are recorded in verification.md before publication.
+
+## CI fixture correction review
+
+Independent reviewer accepted appending the new review fixture to preserve all legacy positional consumers and the regression test protecting those positions. Feature-enabled native worker4/4, formatting and strict Clippy evidence passed. Correction remains governed by the existing legacy compatibility requirement; production behavior and tolerances are unchanged. Final contract/native cache checks and replacement CI remain delivery gates.
