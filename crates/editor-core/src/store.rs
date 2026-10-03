@@ -699,6 +699,17 @@ impl EditorCore {
         expected_revision: u64,
         operation: EditOperation,
     ) -> Result<WriteResult, CoreError> {
+        if matches!(operation, EditOperation::ApplyAnimationPreset { .. }) {
+            return self.edit_presets(
+                project_id,
+                expected_revision,
+                vec![BatchEditOperation {
+                    edit: operation,
+                    result_alias: None,
+                }],
+                false,
+            );
+        }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
         let (mut project, mut history) = load_project_data(
@@ -744,6 +755,13 @@ impl EditorCore {
                 "edit batches must contain between 1 and 100 operations",
             ));
         }
+        let operations: Vec<BatchEditOperation> = operations.into_iter().map(Into::into).collect();
+        if operations
+            .iter()
+            .any(|op| matches!(op.edit, EditOperation::ApplyAnimationPreset { .. }))
+        {
+            return self.edit_presets(project_id, expected_revision, operations, true);
+        }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
         let (mut project, mut history) = load_project_data(
@@ -754,39 +772,11 @@ impl EditorCore {
             Some(expected_revision),
         )?;
         let previous = project.clone();
-        let mut changed_ids = Vec::new();
-        let mut aliases = BTreeMap::new();
-        for batch_operation in operations {
-            let BatchEditOperation {
-                mut edit,
-                result_alias,
-            } = batch_operation.into();
-            resolve_operation_aliases(&mut edit, &aliases)?;
-            if result_alias.is_some() && !is_single_id_creator(&edit) {
-                return Err(CoreError::new(
-                    ErrorCode::ValidationFailed,
-                    "resultAlias requires an operation that creates exactly one ID",
-                ));
-            }
-            if let Some(alias) = result_alias.as_deref() {
-                validate_alias(alias)?;
-                if aliases.contains_key(alias) {
-                    return Err(CoreError::new(
-                        ErrorCode::ValidationFailed,
-                        "resultAlias must be unique within the batch",
-                    ));
-                }
-            }
-            let operation = edit;
-            let (ids, _) = apply_operation(&mut project, operation)?;
-            if let Some(alias) = result_alias {
-                let id = ids.first().ok_or_else(|| {
-                    CoreError::new(ErrorCode::InternalError, "aliased operation returned no ID")
-                })?;
-                aliases.insert(alias, id.clone());
-            }
-            changed_ids.extend(ids);
-        }
+        let AppliedBatch {
+            changed_ids,
+            aliases,
+            ..
+        } = apply_edit_batch(&mut project, operations)?;
         self.prepare_font_edit(&dir, &mut project)?;
         push_undo(&mut history, &previous);
         bump_revision(&mut project)?;
@@ -810,6 +800,103 @@ impl EditorCore {
         Ok(result)
     }
 
+    fn edit_presets(
+        &self,
+        project_id: &str,
+        expected_revision: u64,
+        operations: Vec<BatchEditOperation>,
+        is_batch: bool,
+    ) -> Result<WriteResult, CoreError> {
+        let dir = self.existing_project_dir(project_id)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let mut rollback = crate::assets::UncommittedResources::default();
+        let edit = (|| {
+            let mut prepared = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &self.font_config,
+                Some(expected_revision),
+                Some(&mut rollback),
+            )?;
+            let previous = prepared.project.clone();
+            let AppliedBatch {
+                changed_ids,
+                aliases,
+                summary,
+            } = apply_edit_batch(&mut prepared.project, operations)?;
+            crate::assets::fonts::prepare_fonts(
+                self.storage.as_ref(),
+                &dir,
+                &mut prepared.project,
+                &self.font_config,
+                &mut prepared.fonts,
+            )?;
+            crate::evaluated_scene::preflight_inherited_project(&prepared.project)?;
+            crate::evaluated_scene::preflight_extended_fonts(&prepared.project, &prepared.fonts)?;
+            push_undo(&mut prepared.history, &previous);
+            bump_revision(&mut prepared.project)?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+            }
+            crate::assets::fonts::publish_fonts_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &prepared.fonts,
+                &mut rollback,
+            )?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+            }
+            let warnings = match crate::persistence::persist_transaction_with_drafts(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &prepared.project,
+                &prepared.history,
+                None,
+                prepared.draft_updates,
+            ) {
+                Ok(warnings) => warnings,
+                // A parent-sync error can follow journal rename. Recovery owns
+                // the resources when this request's commit durability is uncertain.
+                Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
+                    vec![PERSISTENCE_RECOVERY_PENDING.into()]
+                }
+                Err(error) => return Err(error),
+            };
+            let mut result = write_result(
+                &prepared.project,
+                changed_ids,
+                if is_batch {
+                    "Applied timeline edit batch"
+                } else {
+                    summary
+                },
+            );
+            result.aliases = aliases;
+            result.warnings = finish_persistence(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &prepared.project,
+                &prepared.history,
+                warnings,
+            );
+            Ok(result)
+        })();
+        edit.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            }
+            error
+        })
+    }
+
     pub fn create_draft(
         &self,
         project_id: &str,
@@ -817,6 +904,7 @@ impl EditorCore {
         operations: Vec<EditOperation>,
         label: Option<String>,
     ) -> Result<EditDraft, CoreError> {
+        crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
@@ -890,6 +978,7 @@ impl EditorCore {
         operations: Vec<EditOperation>,
         label: Option<String>,
     ) -> Result<EditDraft, CoreError> {
+        crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
         let dir = self.existing_project_dir(project_id)?;
@@ -1446,6 +1535,58 @@ fn persist(
     persist_transaction(storage, faults, dir, project, history, None)
 }
 
+struct AppliedBatch {
+    changed_ids: Vec<String>,
+    aliases: BTreeMap<String, String>,
+    summary: &'static str,
+}
+
+fn apply_edit_batch(
+    project: &mut Project,
+    operations: Vec<BatchEditOperation>,
+) -> Result<AppliedBatch, CoreError> {
+    let mut changed_ids = Vec::new();
+    let mut aliases = BTreeMap::new();
+    let mut summary = "";
+    for batch_operation in operations {
+        let BatchEditOperation {
+            mut edit,
+            result_alias,
+        } = batch_operation;
+        resolve_operation_aliases(&mut edit, &aliases)?;
+        if result_alias.is_some() && !is_single_id_creator(&edit) {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "resultAlias requires an operation that creates exactly one ID",
+            ));
+        }
+        if let Some(alias) = result_alias.as_deref() {
+            validate_alias(alias)?;
+            if aliases.contains_key(alias) {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "resultAlias must be unique within the batch",
+                ));
+            }
+        }
+        let operation = edit;
+        let (ids, operation_summary) = apply_operation(project, operation)?;
+        if let Some(alias) = result_alias {
+            let id = ids.first().ok_or_else(|| {
+                CoreError::new(ErrorCode::InternalError, "aliased operation returned no ID")
+            })?;
+            aliases.insert(alias, id.clone());
+        }
+        changed_ids.extend(ids);
+        summary = operation_summary;
+    }
+    Ok(AppliedBatch {
+        changed_ids,
+        aliases,
+        summary,
+    })
+}
+
 fn load_project_data(
     storage: &dyn Storage,
     faults: &PersistenceFaults,
@@ -1453,6 +1594,40 @@ fn load_project_data(
     config: &crate::FontConfig,
     expected_revision: Option<u64>,
 ) -> Result<(Project, History), CoreError> {
+    let prepared = prepare_project_data(storage, faults, dir, config, expected_revision, None)?;
+    if prepared.changed {
+        faults.checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+        crate::assets::fonts::publish_fonts(storage, dir, &prepared.fonts)?;
+        faults.checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+        let _ = crate::persistence::persist_transaction_with_drafts(
+            storage,
+            faults,
+            dir,
+            &prepared.project,
+            &prepared.history,
+            None,
+            prepared.draft_updates,
+        )?;
+    }
+    Ok((prepared.project, prepared.history))
+}
+
+struct PreparedProject {
+    project: Project,
+    history: History,
+    fonts: crate::assets::fonts::FontBytes,
+    draft_updates: BTreeMap<String, Vec<u8>>,
+    changed: bool,
+}
+
+fn prepare_project_data(
+    storage: &dyn Storage,
+    faults: &PersistenceFaults,
+    dir: &Path,
+    config: &crate::FontConfig,
+    expected_revision: Option<u64>,
+    rollback: Option<&mut crate::assets::UncommittedResources>,
+) -> Result<PreparedProject, CoreError> {
     recover_transaction(storage, faults, dir)?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
@@ -1494,9 +1669,22 @@ fn load_project_data(
     {
         crate::evaluated_scene::preflight_inherited_project(snapshot)?;
     }
-    changed |= migrate_project_assets(storage, &mut project, dir)?;
-    for snapshot in history.undo.iter_mut().chain(&mut history.redo) {
-        changed |= migrate_project_assets(storage, snapshot, dir)?;
+    let mut asset_copies = Vec::new();
+    for snapshot in std::iter::once(&mut project)
+        .chain(history.undo.iter_mut())
+        .chain(history.redo.iter_mut())
+    {
+        changed |= if rollback.is_some() {
+            crate::assets::prepare_project_assets(storage, snapshot, dir, &mut asset_copies)?
+        } else {
+            migrate_project_assets(storage, snapshot, dir)?
+        };
+    }
+    if let Some(rollback) = rollback {
+        // Source-font resolution must see exactly the migration assets the
+        // eager loader exposes. These speculative copies belong to the request
+        // rollback ledger until its document journal commits.
+        crate::assets::publish_migrated_assets(storage, dir, &asset_copies, rollback)?;
     }
     let mut staged = crate::assets::fonts::FontBytes::new();
     for snapshot in std::iter::once(&mut project)
@@ -1560,21 +1748,13 @@ fn load_project_data(
             }
         }
     }
-    if changed {
-        faults.checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
-        crate::assets::fonts::publish_fonts(storage, dir, &staged)?;
-        faults.checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
-        let _ = crate::persistence::persist_transaction_with_drafts(
-            storage,
-            faults,
-            dir,
-            &project,
-            &history,
-            None,
-            draft_updates,
-        )?;
-    }
-    Ok((project, history))
+    Ok(PreparedProject {
+        project,
+        history,
+        fonts: staged,
+        draft_updates,
+        changed,
+    })
 }
 
 fn prepare_draft_fonts(
@@ -1739,6 +1919,8 @@ mod tests {
         List,
         Read,
         AtomicReplace,
+        JournalAfterReplace,
+        AssetCopyCorruption,
         DraftRemove,
         AssetClassification,
         CanonicalEscape,
@@ -1820,7 +2002,11 @@ mod tests {
         }
 
         fn copy(&self, from: &Path, to: &Path) -> std::io::Result<u64> {
-            FileSystemStorage.copy(from, to)
+            let size = FileSystemStorage.copy(from, to)?;
+            if self.take(StorageFailure::AssetCopyCorruption) {
+                std::fs::write(to, b"changed after source hashing")?;
+            }
+            Ok(size)
         }
 
         fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
@@ -1863,7 +2049,16 @@ mod tests {
         }
 
         fn atomic_replace(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-            if self.take(StorageFailure::AtomicReplace) {
+            if path
+                .file_name()
+                .is_some_and(|name| name == TRANSACTION_FILE)
+                && self.take(StorageFailure::JournalAfterReplace)
+            {
+                FileSystemStorage.atomic_replace(path, bytes)?;
+                Err(std::io::Error::other(
+                    "injected journal sync failure after rename",
+                ))
+            } else if self.take(StorageFailure::AtomicReplace) {
                 Err(std::io::Error::other("injected atomic replacement failure"))
             } else {
                 FileSystemStorage.atomic_replace(path, bytes)
@@ -2127,6 +2322,312 @@ mod tests {
         .unwrap_err();
         assert_eq!(error.code, ErrorCode::PathNotAllowed);
         assert!(core.get_project(&id).unwrap().fonts.is_empty());
+    }
+
+    fn preset_legacy_resource_fixture(core: &EditorCore) -> (String, String, PathBuf) {
+        let id = core
+            .create_project("Preset migration", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let base = core.get_project(&id).unwrap();
+        let text: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation":"add_text","trackId":base.tracks[1].id,"text":"fresh staged font",
+            "fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+        }))
+        .unwrap();
+        let draft = core.create_draft(&id, 0, vec![text.clone()], None).unwrap();
+        let mut project = base.clone();
+        apply_operation(&mut project, text).unwrap();
+        let (ids, _) = apply_operation(
+            &mut project,
+            serde_json::from_value(serde_json::json!({
+                "operation":"add_rectangle","trackId":base.tracks[1].id,"startMs":0,
+                "durationMs":1000,"width":32,"height":32,"color":"#ff0000",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let component_track = project.tracks[1].clone();
+        apply_operation(
+            &mut project,
+            serde_json::from_value(serde_json::json!({
+                "operation":"component_create","name":"Retained legacy text and rectangle",
+                "width":64,"height":64,"durationMs":1000,"tracks":[component_track]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        project.revision = 1;
+        let dir = core.project_directory(&id).unwrap();
+        std::fs::write(dir.join("assets/legacy.bin"), b"legacy asset bytes").unwrap();
+        let mut legacy = serde_json::to_value(project).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(18);
+        clear_legacy_font_fields(&mut legacy);
+        legacy["assets"] = serde_json::json!([{
+            "id":"legacy-asset","mediaType":"image","fileName":"legacy.bin",
+            "projectRelativePath":"assets/legacy.bin","hasAudio":false
+        }]);
+        let mut old_base = serde_json::to_value(base).unwrap();
+        old_base["schemaVersion"] = serde_json::json!(18);
+        clear_legacy_font_fields(&mut old_base);
+        write_json_atomic(&project_path(&dir), &legacy).unwrap();
+        write_json_atomic(
+            &history_path(&dir),
+            &serde_json::json!({"undo":[old_base],"redo":[legacy]}),
+        )
+        .unwrap();
+        let mut old_draft = serde_json::to_value(&draft).unwrap();
+        old_draft["version"] = serde_json::json!(1);
+        old_draft.as_object_mut().unwrap().remove("fontCatalog");
+        old_draft.as_object_mut().unwrap().remove("fontSteps");
+        write_json_atomic(&draft_path(&dir, &draft.id).unwrap(), &old_draft).unwrap();
+        for entry in std::fs::read_dir(dir.join("fonts")).unwrap() {
+            std::fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        std::fs::write(dir.join("fonts/preexisting.bin"), b"preserve before commit").unwrap();
+        (id, ids[0].clone(), dir)
+    }
+
+    fn preset_edit(item: &str, version: u32) -> EditOperation {
+        serde_json::from_value(serde_json::json!({"operation":"apply_animation_preset",
+            "itemId":item,"presetId":"scalar_tween","presetVersion":version,
+            "parameters":{"property":"transform.opacity","startMs":0,"durationMs":400,
+                "from":0,"to":1,"curve":"linear"}}))
+        .unwrap()
+    }
+
+    fn project_file_bytes(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+        fn visit(dir: &Path, files: &mut BTreeMap<PathBuf, Vec<u8>>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    visit(&path, files);
+                } else {
+                    files.insert(path.clone(), std::fs::read(path).unwrap());
+                }
+            }
+        }
+        let mut files = BTreeMap::new();
+        visit(dir, &mut files);
+        files
+    }
+
+    #[test]
+    fn rejected_legacy_presets_stage_assets_fonts_history_and_drafts_without_writes() {
+        let (core, _) = core();
+        let (id, item, dir) = preset_legacy_resource_fixture(&core);
+        let before = project_file_bytes(&dir);
+        for (revision, operation, code) in [
+            (1, preset_edit(&item, 2), ErrorCode::InvalidArgument),
+            (0, preset_edit(&item, 1), ErrorCode::RevisionConflict),
+            (1, preset_edit("missing", 1), ErrorCode::ItemNotFound),
+        ] {
+            assert_eq!(core.edit(&id, revision, operation).unwrap_err().code, code);
+            assert_eq!(project_file_bytes(&dir), before);
+        }
+        let batch = vec![preset_edit(&item, 1), preset_edit(&item, 1)];
+        assert_eq!(
+            core.edit_batch(&id, 1, batch).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(project_file_bytes(&dir), before);
+    }
+
+    #[test]
+    fn preset_migration_publication_preserves_precommit_and_recovery_semantics() {
+        for phase in [
+            PersistencePhase::BeforeFontPublish,
+            PersistencePhase::AfterFontPublish,
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let before = project_file_bytes(&dir);
+            set_persistence_fault(&core, phase);
+            let edited = core.edit(&id, 1, preset_edit(&item, 1));
+            if matches!(
+                phase,
+                PersistencePhase::BeforeFontPublish
+                    | PersistencePhase::AfterFontPublish
+                    | PersistencePhase::BeforeJournal
+            ) {
+                assert_eq!(
+                    edited.unwrap_err().code,
+                    ErrorCode::InternalError,
+                    "{phase:?}"
+                );
+                assert_eq!(project_file_bytes(&dir), before, "{phase:?}");
+                assert!(!transaction_path(&dir).exists());
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap();
+            } else {
+                assert_eq!(edited.unwrap().revision, 2);
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let current = reopened.get_project(&id).unwrap();
+            assert_eq!(current.revision, 2, "{phase:?}");
+            assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
+            crate::assets::fonts::verify_project_fonts(&FileSystemStorage, &dir, &current).unwrap();
+            let history: History = read_json(&history_path(&dir)).unwrap();
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|p| p.schema_version == PROJECT_SCHEMA_VERSION)
+            );
+            let drafts = read_all_drafts(&FileSystemStorage, &dir).unwrap();
+            assert_eq!(drafts[0].version, 2);
+            assert!(!transaction_path(&dir).exists());
+            reopened.undo(&id, 2).unwrap();
+            reopened.redo(&id, 3).unwrap();
+            assert_eq!(reopened.get_project(&id).unwrap().revision, 4);
+        }
+    }
+
+    #[test]
+    fn preset_asset_staging_preserves_explicit_and_default_font_selection_failures() {
+        for use_default in [false, true] {
+            let (mut core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let project: Project = read_json(&project_path(&dir)).unwrap();
+            let text = project.tracks[1].items[0].id().to_owned();
+            let digest =
+                crate::assets::hash_file(&FileSystemStorage, &dir.join("assets/legacy.bin"))
+                    .unwrap()
+                    .0;
+            let future = dir.join(crate::assets::hash_relative_path(&digest));
+            core.font_config.roots = vec![dir.clone()];
+            if use_default {
+                core.font_config.default_path = Some(future.clone());
+            }
+            let before = project_file_bytes(&dir);
+            let error = if use_default {
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap_err()
+            } else {
+                core.edit_batch(
+                    &id,
+                    1,
+                    vec![
+                        serde_json::from_value(serde_json::json!({"operation":"update_item",
+                        "itemId":text,"fontPath":future}))
+                        .unwrap(),
+                        preset_edit(&item, 1),
+                    ],
+                )
+                .unwrap_err()
+            };
+            assert_eq!(error.code, ErrorCode::DependencyUnavailable);
+            assert_eq!(error.message, "font filename needs extension");
+            assert_eq!(project_file_bytes(&dir), before);
+            assert!(!future.exists());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preset_rollback_preserves_dangling_asset_and_font_destination_links() {
+        use std::os::unix::fs::symlink;
+        for is_font in [false, true] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let mut project: Project = read_json(&project_path(&dir)).unwrap();
+            let mut history: History = read_json(&history_path(&dir)).unwrap();
+            migrate_project_documents(&mut project, &mut history).unwrap();
+            crate::assets::prepare_project_assets(
+                &FileSystemStorage,
+                &mut project,
+                &dir,
+                &mut Vec::new(),
+            )
+            .unwrap();
+            crate::assets::fonts::prepare_fonts(
+                &FileSystemStorage,
+                &dir,
+                &mut project,
+                &core.font_config,
+                &mut Default::default(),
+            )
+            .unwrap();
+            let relative = if is_font {
+                project.fonts.values().next().unwrap().relative_path.clone()
+            } else {
+                project.assets[0].project_relative_path.clone()
+            };
+            let path = dir.join(relative);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let before = project_file_bytes(&dir);
+            let missing = dir.join("missing-destination");
+            symlink(&missing, &path).unwrap();
+            assert_eq!(
+                core.edit(&id, 1, preset_edit(&item, 2)).unwrap_err().code,
+                if is_font {
+                    ErrorCode::InvalidArgument
+                } else {
+                    ErrorCode::AssetIntegrityFailed
+                }
+            );
+            assert_eq!(std::fs::read_link(&path).unwrap(), missing);
+            assert_eq!(
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap_err().code,
+                ErrorCode::AssetIntegrityFailed
+            );
+            assert_eq!(std::fs::read_link(&path).unwrap(), missing);
+            std::fs::remove_file(path).unwrap();
+            assert_eq!(project_file_bytes(&dir), before);
+        }
+    }
+
+    #[test]
+    fn preset_resource_copy_and_font_write_errors_remove_only_uncommitted_bytes() {
+        for (fault, expected) in [
+            (
+                StorageFailure::AssetCopyCorruption,
+                ErrorCode::AssetIntegrityFailed,
+            ),
+            (StorageFailure::AtomicReplace, ErrorCode::InternalError),
+        ] {
+            let (core, storage, _) = core_with_storage();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let before = project_file_bytes(&dir);
+            storage.fail_next(fault);
+            assert_eq!(
+                core.edit(&id, 1, preset_edit(&item, 1)).unwrap_err().code,
+                expected
+            );
+            assert_eq!(project_file_bytes(&dir), before, "{fault:?}");
+            assert!(!transaction_path(&dir).exists());
+            let accepted = core.edit(&id, 1, preset_edit(&item, 1)).unwrap();
+            assert_eq!(accepted.revision, 2);
+        }
+    }
+
+    #[test]
+    fn preset_journal_sync_error_after_rename_keeps_committed_resources_for_recovery() {
+        let (core, storage, _) = core_with_storage();
+        let (id, item, dir) = preset_legacy_resource_fixture(&core);
+        storage.fail_next(StorageFailure::JournalAfterReplace);
+        let result = core.edit(&id, 1, preset_edit(&item, 1)).unwrap();
+        assert_eq!(result.revision, 2);
+        assert!(
+            result
+                .warnings
+                .contains(&PERSISTENCE_RECOVERY_PENDING.into())
+        );
+        assert!(transaction_path(&dir).exists());
+        let reopened = EditorCore::new(core.paths().clone());
+        let project = reopened.get_project(&id).unwrap();
+        assert_eq!(project.revision, 2);
+        crate::assets::fonts::verify_project_fonts(&FileSystemStorage, &dir, &project).unwrap();
+        assert!(dir.join(&project.assets[0].project_relative_path).is_file());
+        assert!(!transaction_path(&dir).exists());
     }
 
     #[test]
@@ -4357,6 +4858,101 @@ mod tests {
     }
 
     #[test]
+    fn preset_provenance_recovers_all_publication_phases_without_recompilation() {
+        for phase in [
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _root) = core();
+            let id = core
+                .create_project("Preset recovery", ProjectSettings::default())
+                .unwrap()
+                .project_id;
+            let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+            let add=serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap();
+            let item_id = core.edit(&id, 0, add).unwrap().changed_ids[0].clone();
+            let dir = core.paths().project_dir(&id).unwrap();
+            let before = (
+                std::fs::read(project_path(&dir)).unwrap(),
+                std::fs::read(history_path(&dir)).unwrap(),
+            );
+            let mut request: serde_json::Value =
+                serde_json::from_str(include_str!("../../../contracts/animation-presets-v1.json"))
+                    .unwrap();
+            request = request["examples"]["apply"].clone();
+            request["itemId"] = serde_json::json!(item_id);
+            set_persistence_fault(&core, phase);
+            let result = core.edit(&id, 1, serde_json::from_value(request).unwrap());
+            if phase == PersistencePhase::BeforeJournal {
+                assert!(result.is_err());
+                assert_eq!(
+                    (
+                        std::fs::read(project_path(&dir)).unwrap(),
+                        std::fs::read(history_path(&dir)).unwrap()
+                    ),
+                    before
+                );
+            } else {
+                let committed = result.unwrap();
+                assert_eq!(committed.revision, 2);
+                if phase == PersistencePhase::AfterJournalCleanup {
+                    assert!(committed.warnings.is_empty());
+                } else {
+                    assert!(
+                        committed
+                            .warnings
+                            .contains(&PERSISTENCE_RECOVERY_PENDING.to_owned())
+                    );
+                }
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let project = reopened.get_project(&id).unwrap();
+            let visual = project.find_item(&item_id).unwrap().visual_properties();
+            assert_eq!(
+                project.revision,
+                if phase == PersistencePhase::BeforeJournal {
+                    1
+                } else {
+                    2
+                }
+            );
+            assert_eq!(
+                visual.animation_preset_provenance.len(),
+                if phase == PersistencePhase::BeforeJournal {
+                    0
+                } else {
+                    1
+                }
+            );
+            if phase != PersistencePhase::BeforeJournal {
+                let fixture: serde_json::Value = serde_json::from_str(include_str!(
+                    "../../../contracts/animation-presets-v1.json"
+                ))
+                .unwrap();
+                assert_eq!(
+                    serde_json::to_value(&visual.animation_channels).unwrap(),
+                    serde_json::json!([fixture["examples"]["resolvedChannel"]])
+                );
+                assert_eq!(
+                    serde_json::to_value(
+                        visual.animation_preset_provenance.values().next().unwrap()
+                    )
+                    .unwrap(),
+                    fixture["examples"]["provenance"]
+                );
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert_eq!(history.undo.len(), 2);
+            }
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
     fn supported_migrations_recover_every_publication_phase() {
         let phases = [
             PersistencePhase::AfterJournal,
@@ -4366,7 +4962,7 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26]
+        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28]
             .into_iter()
             .flat_map(|version| phases.map(|phase| (version, phase)))
         {

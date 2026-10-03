@@ -780,6 +780,30 @@ export const registerTimelineTools = (
     }
   );
   server.registerTool(
+    "timeline_apply_animation_preset",
+    {
+      annotations: WRITE,
+      description:
+        "Apply scalar_tween@1 with explicit scalar endpoints and item-local timing. Reject collisions by default; replace explicitly. Draft intents and direct definition authoring are excluded.",
+      inputSchema: schemas.timelineApplyAnimationPreset,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "apply_animation_preset",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_set_animation_channels",
     {
       annotations: WRITE,

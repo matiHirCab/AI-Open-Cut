@@ -4,6 +4,7 @@
 //! these rules rather than maintaining parallel validation implementations.
 
 pub(crate) mod animation_channels;
+pub(crate) mod animation_presets;
 pub(crate) mod extended_visual;
 pub(crate) mod grid;
 pub(crate) mod repeater;
@@ -102,6 +103,7 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
         .flat_map(|track| &track.items)
     {
         extended_visual::validate_static(item, project)?;
+        animation_presets::validate_provenance(item)?;
         match item {
             TimelineItem::Group(group) if group.stagger_ms > 60_000 => {
                 return Err(CoreError::new(

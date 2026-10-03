@@ -6,6 +6,7 @@ use std::{
 };
 
 use uuid::Uuid;
+mod animation_presets;
 
 use crate::{
     AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, Marker,
@@ -191,6 +192,7 @@ pub(crate) fn resolve_operation_aliases(
         | EditOperation::ItemReorder { item_id, .. }
         | EditOperation::TrimItem { item_id, .. }
         | EditOperation::DeleteItem { item_id }
+        | EditOperation::ApplyAnimationPreset { item_id, .. }
         | EditOperation::SetKeyframes { item_id, .. }
         | EditOperation::SetAudio { item_id, .. }
         | EditOperation::SplitItem { item_id, .. }
@@ -414,6 +416,7 @@ fn apply_operation_inner(
                 effects: Vec::new(),
                 start_time: None,
                 animation_channels: Vec::new(),
+                animation_preset_provenance: Default::default(),
                 transform,
                 transform2d,
                 hidden,
@@ -530,9 +533,10 @@ fn apply_operation_inner(
             width,
             height,
             duration_ms,
-            tracks,
+            mut tracks,
             slots,
         } => {
+            animation_presets::reconcile_raw_tracks(&mut tracks, &[]);
             let id = Uuid::new_v4().to_string();
             project.components.push(crate::ComponentDefinition {
                 id: id.clone(),
@@ -560,6 +564,7 @@ fn apply_operation_inner(
                 .iter_mut()
                 .find(|c| c.id == component_id)
                 .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "component not found"))?;
+            animation_presets::reconcile_raw_tracks(&mut tracks, &current.tracks);
             // Full component replacements retain trusted bindings by local
             // identity unless the font selector actually changes. Clients need
             // not echo persisted resource metadata in editing requests.
@@ -1514,6 +1519,23 @@ fn apply_operation_inner(
             *destination = keyframes;
             Ok((vec![item_id], "Set item keyframes"))
         }
+        EditOperation::ApplyAnimationPreset {
+            item_id,
+            preset_id,
+            preset_version,
+            parameters,
+            collision_policy,
+        } => {
+            animation_presets::apply(
+                project,
+                &item_id,
+                preset_id,
+                preset_version,
+                parameters,
+                collision_policy,
+            )?;
+            Ok((vec![item_id], "Applied animation preset"))
+        }
         EditOperation::SetAnimationChannels {
             item_id,
             animation_channels,
@@ -1527,9 +1549,9 @@ fn apply_operation_inner(
                 &project.tracks[track_index].items[item_index],
                 project,
             )?;
-            project.tracks[track_index].items[item_index]
-                .visual_properties_mut()
-                .animation_channels = animation_channels;
+            let visual = project.tracks[track_index].items[item_index].visual_properties_mut();
+            visual.animation_channels = animation_channels;
+            visual.animation_preset_provenance.clear();
             Ok((vec![item_id], "Set item animation channels"))
         }
         EditOperation::AddTransition {

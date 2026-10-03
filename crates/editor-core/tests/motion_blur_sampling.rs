@@ -742,13 +742,20 @@ fn migration_adopts_complete_history_and_rejects_premature_fields_atomically() {
         serde_json::to_vec(&history).unwrap(),
     )
     .unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 28);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let adopted: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for key in ["undo", "redo"] {
         let snapshots = adopted[key].as_array().unwrap();
         assert!(!snapshots.is_empty(), "fixture must retain {key}");
-        assert!(snapshots.iter().all(|p| p["schemaVersion"] == 28));
+        assert!(
+            snapshots
+                .iter()
+                .all(|p| p["schemaVersion"] == opencut_editor_core::PROJECT_SCHEMA_VERSION)
+        );
     }
     let current_adopted = std::fs::read(dir.join("project.json")).unwrap();
     let history_adopted = std::fs::read(dir.join("history.json")).unwrap();
@@ -1359,13 +1366,16 @@ fn legacy_draft_fields_fail_before_adoption_and_compatible_drafts_reopen_determi
     let mut compatible: Value = serde_json::from_slice(&before[2]).unwrap();
     compatible["operations"] = json!([{"operation":"update_item","itemId":leaf,"hidden":false}]);
     std::fs::write(&draft_path, serde_json::to_vec(&compatible).unwrap()).unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 28);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         core.get_draft_state(&id, &draft.id)
             .unwrap()
             .project
             .schema_version,
-        28
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
     );
     let adopted: Vec<_> = paths.iter().map(|p| std::fs::read(p).unwrap()).collect();
     core.get_project(&id).unwrap();

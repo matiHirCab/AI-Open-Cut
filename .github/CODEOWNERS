@@ -149,3 +149,26 @@
 /crates/editor-core/tests/motion_blur_sampling.rs @matiHirCab
 /apps/agent-bridge/tests/motion-blur-sampling.test.ts @matiHirCab
 /docs/motion-blur-sampling.md @matiHirCab
+
+# Versioned animation-preset compiler consumers.
+/crates/editor-core/src/model/animation_presets.rs @matiHirCab
+/crates/editor-core/src/model.rs @matiHirCab
+/crates/editor-core/src/validation/animation_presets.rs @matiHirCab
+/crates/editor-core/src/validation/animation_channels.rs @matiHirCab
+/crates/editor-core/src/timeline/animation_presets.rs @matiHirCab
+/crates/editor-core/src/timeline.rs @matiHirCab
+/crates/editor-core/src/migrations.rs @matiHirCab
+/crates/editor-core/src/store.rs @matiHirCab
+/crates/editor-core/src/drafts.rs @matiHirCab
+/crates/editor-core/tests/animation_presets.rs @matiHirCab
+/crates/editor-core/tests/animation_channels.rs @matiHirCab
+/apps/headless/src/main.rs @matiHirCab
+/apps/headless/tests/protocol.rs @matiHirCab
+/apps/agent-bridge/src/headless-contract.ts @matiHirCab
+/apps/agent-bridge/src/schemas.ts @matiHirCab
+/apps/agent-bridge/src/server/timeline.ts @matiHirCab
+/apps/agent-bridge/tests/animation-presets.test.ts @matiHirCab
+/apps/agent-bridge/tests/contracts.test.ts @matiHirCab
+/docs/animation-presets.md @matiHirCab
+
+/apps/agent-bridge/tests/preset-workflow.ts @matiHirCab

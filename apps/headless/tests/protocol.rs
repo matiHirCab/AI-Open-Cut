@@ -1797,3 +1797,213 @@ fn inherited_bounds_batch_fails_before_transport_reports_publication() {
         before
     );
 }
+
+#[test]
+fn versioned_presets_match_fixed_primitives_and_preserve_wire_failures_history_and_reopen() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/animation-presets-v1.json")).unwrap();
+    let id =
+        result(&h.request(json!({"operation":"create_project","name":"Presets"})))["projectId"]
+            .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let mut request = catalog["examples"]["apply"].clone();
+    request["itemId"] = json!("@seed");
+    let written=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"seed"},request]})));
+    assert_eq!(written["revision"], 1);
+    request["itemId"] = written["aliases"]["seed"].clone();
+    let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    let item = &saved["project"]["tracks"][1]["items"][0];
+    assert_eq!(
+        item["animationChannels"],
+        json!([catalog["examples"]["resolvedChannel"]])
+    );
+    assert_eq!(
+        item["animationPresetProvenance"]["transform.opacity"],
+        catalog["examples"]["provenance"]
+    );
+    for (revision, edit, code) in [
+        (0, request.clone(), "REVISION_CONFLICT"),
+        (1, request.clone(), "INVALID_ARGUMENT"),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["presetVersion"] = json!(2);
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["itemId"] = json!("missing");
+                e
+            },
+            "ITEM_NOT_FOUND",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e.as_object_mut().unwrap().remove("presetVersion");
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+        (
+            1,
+            {
+                let mut e = request.clone();
+                e["presetVersion"] = json!("latest");
+                e
+            },
+            "INVALID_ARGUMENT",
+        ),
+    ] {
+        let failed = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(failed["error"]["code"], code);
+        assert_eq!(failed["error"]["retryable"], code == "REVISION_CONFLICT");
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id}))),
+            saved
+        );
+    }
+    for parameters in [
+        r#"["transform.opacity",0,500,0.0,1.0]"#,
+        r#"["transform.opacity",0,500,0.0,1.0,"linear"]"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":99.0,"from":0.0,"to":1.0,"curve":"linear"}"#,
+        r#"{"property":"transform.opacity","startMs":0,"durationMs":500,"from":0.0,"to":1.0,"curve":{"type":"cubic_bezier","x1":99.0,"x1":0.0,"y1":0.0,"x2":1.0,"y2":1.0}}"#,
+    ] {
+        let mut raw_edit = request.clone();
+        raw_edit["parameters"] = json!("PARAMETERS_TOKEN");
+        let raw = serde_json::to_string(&json!({
+            "operation":"edit","projectId":id,"expectedRevision":1,"edit":raw_edit
+        }))
+        .unwrap()
+        .replace("\"PARAMETERS_TOKEN\"", parameters);
+        let failed = event(&h.request_raw(&raw));
+        assert_eq!(failed["error"]["code"], "INVALID_ARGUMENT", "{raw}");
+        assert_eq!(failed["error"]["retryable"], false);
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id}))),
+            saved
+        );
+    }
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_track","trackId":track,"locked":true}})));
+    let locked = event(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":request})),
+    );
+    assert_eq!(locked["error"]["code"], "TRACK_LOCKED");
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{"operation":"update_track","trackId":track,"locked":false}})));
+    request["collisionPolicy"] = json!("replace");
+    request["parameters"]["from"] = json!(1.0);
+    request["parameters"]["to"] = json!(0.0);
+    result(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":3,"edit":request})),
+    );
+    let replaced = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":4})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"],
+        saved["project"]["tracks"]
+    );
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":5})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+        replaced["project"]["tracks"]
+    );
+}
+
+#[test]
+fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Legacy presets"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let added = result(&h.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":0,
+        "edit":{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,
+            "width":32,"height":32,"color":"#ff0000",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}}),
+    ));
+    let item = added["changedIds"][0].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    for name in ["project.json", "history.json"] {
+        let path = dir.join(name);
+        let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        if name == "project.json" {
+            document["schemaVersion"] = json!(28);
+        } else {
+            for kind in ["undo", "redo"] {
+                for snapshot in document[kind].as_array_mut().unwrap() {
+                    snapshot["schemaVersion"] = json!(28);
+                }
+            }
+        }
+        std::fs::write(path, serde_json::to_vec(&document).unwrap()).unwrap();
+    }
+    let bytes = || {
+        (
+            std::fs::read(dir.join("project.json")).unwrap(),
+            std::fs::read(dir.join("history.json")).unwrap(),
+        )
+    };
+    let before = bytes();
+    let mut preset = json!({"operation":"apply_animation_preset","itemId":item,
+        "presetId":"scalar_tween","presetVersion":2,
+        "parameters":{"property":"transform.opacity","startMs":0,"durationMs":400,
+            "from":0,"to":1,"curve":"linear"}});
+    for request in [
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":preset}),
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+            {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,
+                "color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"seed"},
+            {"operation":"apply_animation_preset","itemId":"@seed","presetId":"scalar_tween","presetVersion":2,
+                "parameters":preset["parameters"]}]}),
+    ] {
+        let response = h.request(request);
+        assert!(!response.status.success());
+        let failure = event(&response);
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(failure["error"]["retryable"], false);
+        assert_eq!(bytes(), before);
+    }
+    preset["presetVersion"] = json!(1);
+    let edited = result(
+        &h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":preset})),
+    );
+    assert_eq!(edited["revision"], 2);
+    let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        saved["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        saved["project"]["tracks"][1]["items"][0]["animationPresetProvenance"]["transform.opacity"]
+            ["presetVersion"],
+        1
+    );
+    let history: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+    assert_eq!(history["undo"].as_array().unwrap().len(), 2);
+    assert!(
+        history["undo"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|p| p["schemaVersion"] == opencut_editor_core::PROJECT_SCHEMA_VERSION)
+    );
+    assert_eq!(
+        result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})))["revision"],
+        3
+    );
+    assert_eq!(
+        result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})))["revision"],
+        4
+    );
+}

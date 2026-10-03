@@ -400,6 +400,110 @@ pub(crate) fn migrate_project_assets(
     project: &mut Project,
     dir: &Path,
 ) -> Result<bool, CoreError> {
+    migrate_project_assets_prepared(storage, project, dir, None)
+}
+
+pub(crate) struct AssetMigrationCopy {
+    source: PathBuf,
+    digest: String,
+    size_bytes: u64,
+}
+
+#[derive(Default)]
+pub(crate) struct UncommittedResources {
+    paths: Vec<PathBuf>,
+}
+
+impl UncommittedResources {
+    pub(crate) fn track_absent(
+        &mut self,
+        storage: &dyn Storage,
+        path: PathBuf,
+    ) -> Result<(), CoreError> {
+        match storage.entry_kind(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if !self.paths.contains(&path) {
+                    self.paths.push(path);
+                }
+                Ok(())
+            }
+            Ok(_) => Err(CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "uncommitted resource destination already exists",
+            )),
+            Err(error) => Err(CoreError::io("cannot inspect resource destination", error)),
+        }
+    }
+
+    pub(crate) fn rollback(&self, storage: &dyn Storage) -> Result<(), CoreError> {
+        let mut failure = None;
+        for path in self.paths.iter().rev() {
+            if storage.storage_path_exists(path)
+                && let Err(error) = storage.remove_durable(path)
+            {
+                failure = Some(CoreError::io("cannot remove uncommitted resource", error));
+            }
+        }
+        failure.map_or(Ok(()), Err)
+    }
+}
+
+pub(crate) fn publish_migrated_assets(
+    storage: &dyn Storage,
+    dir: &Path,
+    copies: &[AssetMigrationCopy],
+    rollback: &mut UncommittedResources,
+) -> Result<(), CoreError> {
+    for copy in copies {
+        let destination = dir.join(hash_relative_path(&copy.digest));
+        if !storage.storage_path_exists(&destination) {
+            let parent = destination.parent().ok_or_else(|| {
+                CoreError::new(ErrorCode::InternalError, "asset path has no parent")
+            })?;
+            storage
+                .create_dir_all(parent)
+                .map_err(|error| CoreError::io("cannot create asset store", error))?;
+            let temporary = parent.join(format!(".{}.{}.tmp", copy.digest, Uuid::new_v4()));
+            rollback.track_absent(storage, temporary.clone())?;
+            storage
+                .copy(&copy.source, &temporary)
+                .map_err(|error| CoreError::io("cannot copy asset", error))?;
+            if hash_file(storage, &temporary)? != (copy.digest.clone(), copy.size_bytes) {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "asset changed during migration copy",
+                ));
+            }
+            rollback.track_absent(storage, destination.clone())?;
+            storage
+                .rename(&temporary, &destination)
+                .map_err(|error| CoreError::io("cannot publish asset", error))?;
+        }
+        if hash_file(storage, &destination)? != (copy.digest.clone(), copy.size_bytes) {
+            return Err(CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "migrated asset does not match planned bytes",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn prepare_project_assets(
+    storage: &dyn Storage,
+    project: &mut Project,
+    dir: &Path,
+    copies: &mut Vec<AssetMigrationCopy>,
+) -> Result<bool, CoreError> {
+    migrate_project_assets_prepared(storage, project, dir, Some(copies))
+}
+
+fn migrate_project_assets_prepared(
+    storage: &dyn Storage,
+    project: &mut Project,
+    dir: &Path,
+    mut copies: Option<&mut Vec<AssetMigrationCopy>>,
+) -> Result<bool, CoreError> {
     let mut changed = false;
     for asset in &mut project.assets {
         if let Some(probe) = &asset.probe
@@ -426,7 +530,23 @@ pub(crate) fn migrate_project_assets(
                 "asset size does not match project metadata",
             ));
         }
-        let stored = store_content_addressed(storage, dir, &source)?;
+        let stored = if let Some(copies) = copies.as_deref_mut() {
+            copies.push(AssetMigrationCopy {
+                source,
+                digest: digest.clone(),
+                size_bytes,
+            });
+            StoredAsset {
+                relative_path: hash_relative_path(&digest),
+                content_hash: ContentHash {
+                    algorithm: "sha256".into(),
+                    digest,
+                },
+                size_bytes,
+            }
+        } else {
+            store_content_addressed(storage, dir, &source)?
+        };
         if asset.project_relative_path != stored.relative_path {
             asset.project_relative_path = stored.relative_path;
             changed = true;

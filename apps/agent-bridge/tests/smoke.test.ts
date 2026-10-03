@@ -28,6 +28,7 @@ import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
+import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
@@ -1203,4 +1204,8 @@ it("preserves rich text documents through MCP standalone and alias batches", asy
 
 it("edits scoped markers and live item starts through MCP", async () => {
   await verifyMarkerWorkflow(client, call);
+});
+
+it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {
+  await verifyPresetWorkflow(client, call);
 });
