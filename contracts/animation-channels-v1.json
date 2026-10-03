@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 30,
+  "projectSchemaVersion": 31,
   "limits": {
     "maxChannelsPerItem": 64,
     "maxKeyframesPerChannel": 1000,
@@ -69,8 +69,12 @@
     { "name": "missing_field", "curve": { "type": "spring", "mass": 1, "stiffness": 100, "damping": 20 }, "accepted": false },
     { "name": "nonfinite_string", "curve": { "type": "spring", "mass": "Infinity", "stiffness": 100, "damping": 20, "initialVelocity": 0 }, "accepted": false }
   ],
+  "clock": {"offsetMs":{"minimum":-9007199254740991,"maximum":9007199254740991,"integer":true},"sourceDurationMs":{"minimum":1,"maximum":9007199254740991,"integer":true},"additionalProperties":false,"nullable":false,"mapping":"source_time_equals_item_local_time_plus_offset_before_loop_mapping","keyframeBounds":"retained_source_duration","mappedWindowBounds":"signed_safe_integer","requiresNonemptySource":true},
+  "clockCases": [{"name":"zero","clock":{"offsetMs":0,"sourceDurationMs":1000},"accepted":true},{"name":"negative","clock":{"offsetMs":-125,"sourceDurationMs":1000},"accepted":true},{"name":"null","clock":null,"accepted":false},{"name":"fractional","clock":{"offsetMs":0.5,"sourceDurationMs":1000},"accepted":false},{"name":"zero_duration","clock":{"offsetMs":0,"sourceDurationMs":0},"accepted":false},{"name":"unsafe_offset","clock":{"offsetMs":9007199254740992,"sourceDurationMs":1000},"accepted":false},{"name":"unknown","clock":{"offsetMs":0,"sourceDurationMs":1000,"expression":"t"},"accepted":false}],
   "timeUnit": "item_local_milliseconds",
   "examples": {
+    "validRetainedClock": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"cubic_bezier","x1":0.25,"y1":0.1,"x2":0.25,"y2":1}},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"clock":{"offsetMs":175,"sourceDurationMs":1000}},
+    "validNegativeRetainedClock": {"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":{"type":"spring","mass":1,"stiffness":170,"damping":26,"initialVelocity":0}},{"timeMs":500,"value":{"type":"scalar","value":100},"curve":"hold"}],"clock":{"offsetMs":-125,"sourceDurationMs":1000}},
     "validChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "linear" }] },
     "invalidChannel": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "expression", "value": "t" }, "curve": "linear" }] },
     "inactiveChannel": { "property": "transform.skew_x_deg", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 20 }, "curve": "hold" }] },

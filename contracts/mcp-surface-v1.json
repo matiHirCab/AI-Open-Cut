@@ -2225,7 +2225,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 30,
+            "const": 31,
             "type": "number"
           },
           "protocolVersion": {
@@ -10389,6 +10389,26 @@
   ],
   "version": 1,
   "$defs": {
+    "AnimationClock": {
+      "additionalProperties": false,
+      "properties": {
+        "offsetMs": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        "sourceDurationMs": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "offsetMs",
+        "sourceDurationMs"
+      ],
+      "type": "object"
+    },
     "AddComponentInstanceInputPropertiesSlotValues": {
       "additionalProperties": {
         "$ref": "#/$defs/SlotValuesAdditionalProperties"
@@ -11061,6 +11081,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -11984,6 +12007,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -12599,6 +12625,9 @@
       "type": "object"
     },
     "ComponentInstancePropertiesAnimationChannelsItemsProperties": {
+      "clock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "keyframes": {
         "items": {
           "additionalProperties": false,
@@ -18345,6 +18374,9 @@
         "minLength": 1,
         "type": "string"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -18738,6 +18770,9 @@
         "minLength": 1,
         "type": "string"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19116,6 +19151,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19360,6 +19398,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -19761,6 +19802,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20135,6 +20179,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20506,6 +20553,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20871,6 +20921,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -21231,6 +21284,9 @@
           ]
         },
         "type": "array"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -21846,6 +21902,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -22442,6 +22501,9 @@
         "minLength": 1,
         "type": "string"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -22719,6 +22781,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -25116,7 +25181,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 30,
+        "const": 31,
         "type": "number"
       },
       "settings": {
@@ -25794,6 +25859,9 @@
         "minLength": 1,
         "type": "string"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26183,6 +26251,9 @@
         "minLength": 1,
         "type": "string"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26556,6 +26627,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26795,6 +26869,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -27191,6 +27268,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -27560,6 +27640,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -27926,6 +28009,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28286,6 +28372,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28641,6 +28730,9 @@
           ]
         },
         "type": "array"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -29254,6 +29346,9 @@
         },
         "type": "array"
       },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -29507,6 +29602,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -30764,6 +30862,9 @@
         "maxLength": 128,
         "minLength": 1,
         "type": "string"
+      },
+      "legacyAnimationClock": {
+        "$ref": "#/$defs/AnimationClock"
       },
       "motionBlur": {
         "additionalProperties": false,

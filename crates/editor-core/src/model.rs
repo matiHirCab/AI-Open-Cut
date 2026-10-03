@@ -26,7 +26,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 30;
+pub const PROJECT_SCHEMA_VERSION: u32 = 31;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -141,6 +141,12 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 31 {
+            reject_animation_clocks(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_animation_clocks(components)?;
+            }
+        }
         if value.schema_version < 24
             && value
                 .markers
@@ -469,6 +475,39 @@ fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
         serde_json::Value::Array(values) => {
             for child in values {
                 reject_inherited_timing(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn reject_animation_clocks(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            if let Some(items) = fields.get("items").and_then(serde_json::Value::as_array) {
+                for item in items {
+                    if item.get("legacyAnimationClock").is_some()
+                        || item
+                            .get("animationChannels")
+                            .and_then(serde_json::Value::as_array)
+                            .is_some_and(|channels| {
+                                channels
+                                    .iter()
+                                    .any(|channel| channel.get("clock").is_some())
+                            })
+                    {
+                        return Err("retained animation clocks require schema 31".into());
+                    }
+                }
+            }
+            if let Some(tracks) = fields.get("tracks") {
+                reject_animation_clocks(tracks)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                reject_animation_clocks(child)?;
             }
         }
         _ => {}
@@ -1109,6 +1148,12 @@ pub struct VisualProperties {
         deserialize_with = "deserialize_present",
         skip_serializing_if = "Option::is_none"
     )]
+    pub legacy_animation_clock: Option<AnimationClock>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub crop: Option<MediaCrop>,
     #[serde(
         default,
@@ -1146,6 +1191,7 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            legacy_animation_clock: None,
             crop: None,
             motion_blur: None,
             effects: Vec::new(),

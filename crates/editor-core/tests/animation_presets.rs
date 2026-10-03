@@ -605,7 +605,7 @@ fn replacement_preserves_order_static_state_and_legacy_collisions() {
 }
 
 #[test]
-fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
+fn unrelated_edits_copies_and_retained_duration_edits_preserve_known_source() {
     let (_root, core, project, id) = setup();
     core.edit(&project, 1, op(request(&id))).unwrap();
     let saved = state(&core, &project);
@@ -624,21 +624,63 @@ fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
             source
         );
     }
+    core.edit(
+        &project,
+        6,
+        op(json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":500})),
+    )
+    .unwrap();
+    let trimmed = state(&core, &project);
+    assert_eq!(
+        item(&trimmed)["animationChannels"][0]["keyframes"],
+        item(&saved)["animationChannels"][0]["keyframes"]
+    );
+    assert_eq!(
+        item(&trimmed)["animationChannels"][0]["clock"],
+        json!({"offsetMs":0,"sourceDurationMs":1000})
+    );
+    assert_eq!(item(&trimmed)["animationPresetProvenance"], source);
+    let split = core
+        .edit(
+            &project,
+            7,
+            op(json!({"operation":"split_item","itemId":id,"splitMs":400})),
+        )
+        .unwrap();
+    let split_state = core.get_project(&project).unwrap();
+    for (split_id, offset) in [(&split.changed_ids[0], 0), (&split.changed_ids[1], 300)] {
+        let visual = split_state.find_item(split_id).unwrap().visual_properties();
+        assert_eq!(
+            serde_json::to_value(&visual.animation_channels[0].keyframes).unwrap(),
+            item(&saved)["animationChannels"][0]["keyframes"]
+        );
+        assert_eq!(
+            visual.animation_channels[0].clock,
+            Some(opencut_editor_core::AnimationClock {
+                offset_ms: offset,
+                source_duration_ms: 1000
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(&visual.animation_preset_provenance).unwrap(),
+            source
+        );
+    }
     let before = files(&core, &project);
     for input in [
-        json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":500}),
+        json!({"operation":"trim_item","itemId":id,"startMs":100,"durationMs":0}),
         json!({"operation":"split_item","itemId":id,"splitMs":400}),
     ] {
         assert_eq!(
-            core.edit(&project, 6, op(input)).unwrap_err().code,
-            ErrorCode::InvalidArgument
+            core.edit(&project, 8, op(input)).unwrap_err().code,
+            ErrorCode::ValidationFailed
         );
         assert_eq!(files(&core, &project), before);
     }
     let copies = core
         .edit(
             &project,
-            6,
+            8,
             op(json!({"operation":"duplicate_items","itemIds":[id],"offsetMs":1500})),
         )
         .unwrap();
@@ -653,11 +695,11 @@ fn unrelated_edits_copies_and_duration_failures_preserve_known_source() {
     assert_eq!(serde_json::to_value(copy).unwrap(), source);
     core.edit(
         &project,
-        7,
+        9,
         op(json!({"operation":"delete_item","itemId":id})),
     )
     .unwrap();
-    core.undo(&project, 8).unwrap();
+    core.undo(&project, 10).unwrap();
     assert_eq!(
         item(&state(&core, &project))["animationPresetProvenance"],
         source
@@ -1209,7 +1251,7 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
 }
 
 #[test]
-fn successful_split_preserves_only_exact_local_channels_and_labels() {
+fn successful_split_preserves_exact_source_channels_clocks_and_labels() {
     let (_root, core, project, id) = setup();
     let mut input = request(&id);
     input["parameters"]["durationMs"] = json!(200);
@@ -1223,11 +1265,15 @@ fn successful_split_preserves_only_exact_local_channels_and_labels() {
         )
         .unwrap();
     let after = core.get_project(&project).unwrap();
-    for id in &split.changed_ids {
+    for (index, id) in split.changed_ids.iter().enumerate() {
+        let mut expected_channels = item(&before)["animationChannels"].clone();
+        for channel in expected_channels.as_array_mut().unwrap() {
+            channel["clock"] = json!({"offsetMs":index as u64*500,"sourceDurationMs":1000});
+        }
         let visual = after.find_item(id).unwrap().visual_properties();
         assert_eq!(
             serde_json::to_value(&visual.animation_channels).unwrap(),
-            item(&before)["animationChannels"]
+            expected_channels
         );
         assert_eq!(
             serde_json::to_value(&visual.animation_preset_provenance).unwrap(),
@@ -1620,7 +1666,7 @@ fn motion_pack_canonical_primitives_complete_sources_and_history_are_exact() {
                 Some(&entry["expected"]["motionBlur"])
             }
         );
-        assert_eq!(after["schemaVersion"], 30);
+        assert_eq!(after["schemaVersion"], PROJECT_SCHEMA_VERSION);
         core.undo(&project, 2).unwrap();
         assert_eq!(item(&state(&core, &project)), item(&before));
         core.redo(&project, 3).unwrap();
@@ -1985,10 +2031,10 @@ fn motion_pack_schema29_scalar_current_components_and_history_migrate_once_witho
     let migrated_history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     let mut expected = before;
-    expected[0]["schemaVersion"] = json!(30);
+    expected[0]["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     for stack in ["undo", "redo"] {
         for snapshot in expected[1][stack].as_array_mut().unwrap() {
-            snapshot["schemaVersion"] = json!(30);
+            snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
         }
     }
     assert_eq!(json!([migrated, migrated_history]), expected);
@@ -2260,22 +2306,43 @@ fn motion_pack_groups_instances_duration_edits_copies_and_channel_clear_follow_e
             item(&state(&core, &project))["animationPresetProvenance"],
             source
         );
+        core.edit(
+            &project,
+            3,
+            op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":90})),
+        )
+        .unwrap();
+        let retained = state(&core, &project);
+        assert_eq!(item(&retained)["animationPresetProvenance"], source);
+        for (channel, original) in item(&retained)["animationChannels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(item(&saved)["animationChannels"].as_array().unwrap())
+        {
+            assert_eq!(channel["keyframes"], original["keyframes"]);
+            assert_eq!(
+                channel["clock"],
+                json!({"offsetMs":0,"sourceDurationMs":1000})
+            );
+        }
+        core.undo(&project, 4).unwrap();
         let before = pack_files(&core, &project);
         assert_eq!(
             core.edit(
                 &project,
-                3,
-                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":90}))
+                5,
+                op(json!({"operation":"trim_item","itemId":id,"startMs":0,"durationMs":0}))
             )
             .unwrap_err()
             .code,
-            ErrorCode::InvalidArgument
+            ErrorCode::ValidationFailed
         );
         assert_eq!(pack_files(&core, &project), before);
         let copies = core
             .edit(
                 &project,
-                3,
+                5,
                 op(json!({"operation":"duplicate_items","itemIds":[id],"offsetMs":1500})),
             )
             .unwrap();
@@ -2291,13 +2358,13 @@ fn motion_pack_groups_instances_duration_edits_copies_and_channel_clear_follow_e
             .unwrap(),
             source
         );
-        core.edit(&project,4,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":item(&saved)["animationChannels"]}))).unwrap();
+        core.edit(&project,6,op(json!({"operation":"set_animation_channels","itemId":id,"animationChannels":item(&saved)["animationChannels"]}))).unwrap();
         assert!(
             item(&state(&core, &project))
                 .get("animationPresetProvenance")
                 .is_none()
         );
-        core.undo(&project, 5).unwrap();
+        core.undo(&project, 7).unwrap();
         assert_eq!(
             item(&state(&core, &project))["animationPresetProvenance"],
             source
@@ -2332,5 +2399,122 @@ fn motion_pack_groups_instances_duration_edits_copies_and_channel_clear_follow_e
                 applied.unwrap();
             }
         }
+    }
+}
+
+#[test]
+fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generation() {
+    for entry in pack_fixture()["presets"].as_array().unwrap() {
+        let (_root, core, project, id) = setup();
+        let track = state(&core, &project)["tracks"][1]["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let scalar_id = core.edit(&project, 1, op(json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}))).unwrap().changed_ids[0].clone();
+        core.edit(&project, 2, op(request(&scalar_id))).unwrap();
+        let mut older_scalar = state(&core, &project);
+        older_scalar["schemaVersion"] = json!(29);
+        core.edit(&project, 3, op(pack_request(&id, entry)))
+            .unwrap();
+        let mut source = state(&core, &project);
+        source["schemaVersion"] = json!(30);
+        let mut local_track = source["tracks"][1].clone();
+        local_track["id"] = json!("local-track");
+        source["components"] = json!([{"id":"pack-source","name":"Pack source","width":64,"height":64,"durationMs":1000,"tracks":[local_track],"slots":[],"markers":[]}]);
+        let history = json!({"undo":[older_scalar.clone(),source.clone()],"redo":[source.clone()]});
+        let dir = core.paths().project_dir(&project).unwrap();
+        std::fs::write(
+            dir.join("project.json"),
+            serde_json::to_vec(&source).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("history.json"),
+            serde_json::to_vec(&history).unwrap(),
+        )
+        .unwrap();
+        let reopened = EditorCore::new(core.paths().clone());
+        let migrated = state(&reopened, &project);
+        let mut expected = source.clone();
+        expected["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+        assert_eq!(migrated, expected, "{}", entry["id"]);
+        let mut expected_history = history;
+        for kind in ["undo", "redo"] {
+            for snapshot in expected_history[kind].as_array_mut().unwrap() {
+                snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+            }
+        }
+        let saved_history: Value =
+            serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
+        assert_eq!(saved_history, expected_history);
+        // Scalar serialization stays untagged; Pack stays tagged and effective.
+        let scalar_source = migrated["tracks"][1]["items"][1]["animationPresetProvenance"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap();
+        assert!(scalar_source["parameters"].get("kind").is_none());
+        let pack_source = item(&migrated)["animationPresetProvenance"]
+            .as_object()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap();
+        assert_eq!(pack_source["parameters"]["kind"], entry["id"]);
+        let stable = files(&reopened, &project);
+        reopened.get_project(&project).unwrap();
+        assert_eq!(files(&reopened, &project), stable);
+        let undo = reopened
+            .undo(&project, migrated["revision"].as_u64().unwrap())
+            .unwrap();
+        assert_eq!(
+            state(&reopened, &project)["components"],
+            expected["components"]
+        );
+        reopened.redo(&project, undo.revision).unwrap();
+        assert_eq!(state(&reopened, &project)["tracks"], expected["tracks"]);
+
+        // Already31 Pack records survive retained edits and idempotent reopen.
+        let before = state(&reopened, &project);
+        let split = reopened
+            .edit(
+                &project,
+                before["revision"].as_u64().unwrap(),
+                op(json!({"operation":"split_item","itemId":id,"splitMs":500})),
+            )
+            .unwrap();
+        let after = state(&reopened, &project);
+        for (segment_id, offset) in [(&split.changed_ids[0], 0), (&split.changed_ids[1], 500)] {
+            let segment = after["tracks"][1]["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|v| v["id"] == *segment_id)
+                .unwrap();
+            assert_eq!(
+                segment["animationPresetProvenance"],
+                item(&before)["animationPresetProvenance"]
+            );
+            for (channel, original) in segment["animationChannels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(item(&before)["animationChannels"].as_array().unwrap())
+            {
+                assert_eq!(channel["keyframes"], original["keyframes"]);
+                assert_eq!(channel.get("loop"), original.get("loop"));
+                assert_eq!(
+                    channel["clock"],
+                    json!({"offsetMs":offset,"sourceDurationMs":1000})
+                );
+            }
+        }
+        let stable = files(&reopened, &project);
+        assert_eq!(
+            state(&EditorCore::new(reopened.paths().clone()), &project),
+            after
+        );
+        assert_eq!(files(&reopened, &project), stable);
     }
 }

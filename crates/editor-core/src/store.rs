@@ -1628,7 +1628,22 @@ fn prepare_project_data(
     expected_revision: Option<u64>,
     rollback: Option<&mut crate::assets::UncommittedResources>,
 ) -> Result<PreparedProject, CoreError> {
-    recover_transaction(storage, faults, dir)?;
+    recover_transaction(storage, faults, dir, |project, history| {
+        // Validate the committed generation on private migrated copies before
+        // recovery can replay any authoritative document or draft bytes.
+        let mut project = project.clone();
+        let mut history = history.clone();
+        migrate_project_documents(&mut project, &mut history)?;
+        for snapshot in std::iter::once(&project)
+            .chain(history.undo.iter())
+            .chain(history.redo.iter())
+        {
+            crate::validation::animation_channels::validate_project_retained_clocks(snapshot)?;
+            validate_project_visual_properties(snapshot)?;
+            crate::evaluated_scene::preflight_inherited_project(snapshot)?;
+        }
+        validate_retained_project_references(&project, &history)
+    })?;
     let project_file = project_path(dir);
     let history_file = history_path(dir);
     let mut project: Project = read_json(storage, &project_file)?;
@@ -2542,7 +2557,7 @@ mod tests {
             }
             let reopened = EditorCore::new(core.paths().clone());
             let saved = reopened.get_project(&id).unwrap();
-            assert_eq!(saved.schema_version, 30);
+            assert_eq!(saved.schema_version, PROJECT_SCHEMA_VERSION);
             assert_eq!(saved.revision, 2);
             assert_eq!(
                 serde_json::to_value(
@@ -2561,7 +2576,7 @@ mod tests {
                     .undo
                     .iter()
                     .chain(&history.redo)
-                    .all(|p| p.schema_version == 30)
+                    .all(|p| p.schema_version == PROJECT_SCHEMA_VERSION)
             );
             crate::assets::fonts::verify_project_fonts(&FileSystemStorage, &dir, &saved).unwrap();
             assert!(!transaction_path(&dir).exists());
@@ -3278,6 +3293,283 @@ mod tests {
 
         let unchanged: serde_json::Value = read_json(&path).unwrap();
         assert_eq!(unchanged["schemaVersion"], PROJECT_SCHEMA_VERSION + 1);
+    }
+
+    #[test]
+    fn invalid_retained_clock_journal_leaves_all_authoritative_bytes_unchanged() {
+        for location in 0..3 {
+            for component in [false, true] {
+                for case in [
+                    "window",
+                    "empty_typed",
+                    "empty_legacy",
+                    "typed_source",
+                    "legacy_source",
+                    "order",
+                    "spring",
+                    "target",
+                    "loop",
+                    "legacy_order",
+                ] {
+                    let (core, _) = core();
+                    let created = core
+                        .create_project("invalid clock journal", ProjectSettings::default())
+                        .unwrap();
+                    let id = &created.project_id;
+                    let track = core.get_project(id).unwrap().tracks[1].id.clone();
+                    let item=core.edit(id,0,serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":10,"height":10,"color":"#ff0000","transform":Transform::default()})).unwrap()).unwrap().changed_ids[0].clone();
+                    core.edit(id,1,serde_json::from_value(serde_json::json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},{"timeMs":500,"value":{"type":"scalar","value":10},"curve":"hold"}]}]})).unwrap()).unwrap();
+                    let dir = core.paths().project_dir(id).unwrap();
+                    let mut project = core.get_project(id).unwrap();
+                    if component {
+                        project.components.push(serde_json::from_value(serde_json::json!({"id":"local","name":"Local","width":64,"height":64,"durationMs":1000,"markers":[],"slots":[],"tracks":[project.tracks[1]]})).unwrap());
+                    }
+                    let mut transaction = ProjectTransaction {
+                        draft_updates: Default::default(),
+                        version: TRANSACTION_VERSION,
+                        project: project.clone(),
+                        history: History {
+                            undo: vec![project.clone()],
+                            redo: vec![project],
+                        },
+                        committed_draft_id: None,
+                    };
+                    let snapshot = match location {
+                        0 => &mut transaction.project,
+                        1 => &mut transaction.history.undo[0],
+                        _ => &mut transaction.history.redo[0],
+                    };
+                    let item = if component {
+                        &mut snapshot.components[0].tracks[0].items[0]
+                    } else {
+                        &mut snapshot.tracks[1].items[0]
+                    };
+                    let clock = crate::AnimationClock {
+                        offset_ms: if case == "window" {
+                            9_007_199_254_740_991
+                        } else {
+                            0
+                        },
+                        source_duration_ms: if case.ends_with("source") { 100 } else { 1000 },
+                    };
+                    if case.contains("legacy") {
+                        item.visual_properties_mut().legacy_animation_clock = Some(clock);
+                        if case == "legacy_source" || case == "legacy_order" {
+                            let key = crate::Keyframe {
+                                property: crate::KeyframeProperty::Opacity,
+                                time_ms: 500,
+                                value: crate::KeyframeValue::Scalar { value: 0.5 },
+                                easing: crate::Easing::Linear,
+                            };
+                            *item.keyframes_mut().unwrap() = if case == "legacy_order" {
+                                vec![key.clone(), key]
+                            } else {
+                                vec![key]
+                            };
+                        }
+                    } else {
+                        item.visual_properties_mut().animation_channels[0].clock = Some(clock);
+                        let channel = &mut item.visual_properties_mut().animation_channels[0];
+                        match case {
+                            "empty_typed" => channel.keyframes.clear(),
+                            "order" => channel.keyframes[1].time_ms = 0,
+                            "spring" => {
+                                channel.keyframes[0].curve = crate::AnimationCurve::Parameterized(
+                                    crate::ParameterizedAnimationCurve::Spring {
+                                        mass: 0.0,
+                                        stiffness: 100.0,
+                                        damping: 5.0,
+                                        initial_velocity: 0.0,
+                                    },
+                                )
+                            }
+                            "target" => {
+                                channel.target = Some(crate::AnimationTarget {
+                                    kind: crate::AnimationTargetKind::GraphicGeometry,
+                                    scope: "root".into(),
+                                    id: "missing".into(),
+                                })
+                            }
+                            "loop" => {
+                                channel.r#loop = Some(crate::AnimationLoop {
+                                    mode: crate::AnimationLoopMode::PingPong,
+                                    iterations: crate::AnimationLoopIterations::Finite(0),
+                                })
+                            }
+                            _ => {}
+                        }
+                    }
+                    write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
+                    let before = (
+                        std::fs::read(project_path(&dir)).unwrap(),
+                        std::fs::read(history_path(&dir)).unwrap(),
+                        std::fs::read(transaction_path(&dir)).unwrap(),
+                    );
+                    assert_eq!(
+                        core.get_project(id).unwrap_err().code,
+                        ErrorCode::ProjectRecoveryFailed,
+                        "{case} location={location} component={component}"
+                    );
+                    assert_eq!(
+                        before,
+                        (
+                            std::fs::read(project_path(&dir)).unwrap(),
+                            std::fs::read(history_path(&dir)).unwrap(),
+                            std::fs::read(transaction_path(&dir)).unwrap()
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn schema30_provenance_journals_validate_before_replay_and_preserve_all_sources() {
+        let catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/initial-motion-preset-pack-v1.json"
+        ))
+        .unwrap();
+        for entry in catalog["presets"].as_array().unwrap() {
+            for location in 0..3 {
+                for invalid in [
+                    None,
+                    Some("version"),
+                    Some("timing"),
+                    Some("order"),
+                    Some("clock"),
+                ] {
+                    for component in [false, true] {
+                        let (core, _root) = core();
+                        let id = core
+                            .create_project("Pack journal", ProjectSettings::default())
+                            .unwrap()
+                            .project_id;
+                        let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+                        let item = core.edit(&id,0,serde_json::from_value(serde_json::json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap()).unwrap().changed_ids[0].clone();
+                        core.edit(&id,1,serde_json::from_value(serde_json::json!({"operation":"apply_animation_preset","itemId":item,"presetId":entry["id"],"presetVersion":1,"parameters":entry["parameters"]})).unwrap()).unwrap();
+                        let dir = core.paths().project_dir(&id).unwrap();
+                        let mut source =
+                            serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                        source["schemaVersion"] = serde_json::json!(30);
+                        let mut local_track = source["tracks"][1].clone();
+                        local_track["id"] = serde_json::json!("local-track");
+                        source["components"] = serde_json::json!([{"id":"pack-source","name":"Pack source","width":1280,"height":720,"durationMs":1000,"tracks":[local_track],"slots":[],"markers":[]}]);
+                        let mut journal = serde_json::json!({"version":TRANSACTION_VERSION,"project":source.clone(),"history":{"undo":[source.clone()],"redo":[source.clone()]},"committedDraftId":null,"draftUpdates":{}});
+                        let target = match location {
+                            0 => &mut journal["project"],
+                            1 => &mut journal["history"]["undo"][0],
+                            _ => &mut journal["history"]["redo"][0],
+                        };
+                        let target = if component {
+                            &mut target["components"][0]["tracks"][0]["items"][0]
+                        } else {
+                            &mut target["tracks"][1]["items"][0]
+                        };
+                        let property = target["animationChannels"][0]["property"]
+                            .as_str()
+                            .unwrap()
+                            .to_owned();
+                        match invalid {
+                            Some("version") => {
+                                target["animationPresetProvenance"][&property]["presetVersion"] =
+                                    serde_json::json!(0)
+                            }
+                            Some("timing") => {
+                                target["animationPresetProvenance"][&property]["parameters"]["durationMs"] =
+                                    serde_json::json!(0)
+                            }
+                            Some("order") => {
+                                target["animationChannels"][0]["keyframes"][1]["timeMs"] =
+                                    target["animationChannels"][0]["keyframes"][0]["timeMs"].clone()
+                            }
+                            Some("clock") => {
+                                target["animationChannels"][0]["clock"] =
+                                    serde_json::json!({"offsetMs":0,"sourceDurationMs":1000})
+                            }
+                            None => (),
+                            _ => unreachable!(),
+                        }
+                        write_json_atomic(&transaction_path(&dir), &journal).unwrap();
+                        let before = project_file_bytes(&dir);
+                        if let Some(case) = invalid {
+                            let error = core.get_project(&id).unwrap_err();
+                            assert_eq!(
+                                error.code,
+                                ErrorCode::ProjectRecoveryFailed,
+                                "{} {location} {component} {case}: {}",
+                                entry["id"],
+                                error.message
+                            );
+                            assert_eq!(project_file_bytes(&dir), before);
+                        } else {
+                            let migrated =
+                                serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                            let mut expected = source.clone();
+                            expected["schemaVersion"] = serde_json::json!(PROJECT_SCHEMA_VERSION);
+                            assert_eq!(migrated, expected);
+                            let history: serde_json::Value =
+                                read_json(&history_path(&dir)).unwrap();
+                            assert_eq!(
+                                history,
+                                serde_json::json!({"undo":[expected.clone()],"redo":[expected]})
+                            );
+                            assert!(!transaction_path(&dir).exists());
+                            let stable = project_file_bytes(&dir);
+                            core.get_project(&id).unwrap();
+                            assert_eq!(project_file_bytes(&dir), stable);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn future_schema_journal_rejects_before_replay_for_current_and_history() {
+        for location in 0..3 {
+            let (core, _) = core();
+            let created = core
+                .create_project("future journal", ProjectSettings::default())
+                .unwrap();
+            let dir = core.paths().project_dir(&created.project_id).unwrap();
+            let project: Project = read_json(&project_path(&dir)).unwrap();
+            let mut transaction = ProjectTransaction {
+                draft_updates: Default::default(),
+                version: TRANSACTION_VERSION,
+                project: project.clone(),
+                history: History {
+                    undo: vec![project.clone()],
+                    redo: vec![project],
+                },
+                committed_draft_id: None,
+            };
+            match location {
+                0 => transaction.project.schema_version = PROJECT_SCHEMA_VERSION + 1,
+                1 => transaction.history.undo[0].schema_version = PROJECT_SCHEMA_VERSION + 1,
+                _ => transaction.history.redo[0].schema_version = PROJECT_SCHEMA_VERSION + 1,
+            }
+            write_json_atomic(&transaction_path(&dir), &transaction).unwrap();
+            let before = (
+                std::fs::read(project_path(&dir)).unwrap(),
+                std::fs::read(history_path(&dir)).unwrap(),
+                std::fs::read(transaction_path(&dir)).unwrap(),
+            );
+            let error = core.get_project(&created.project_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProjectRecoveryFailed);
+            assert!(
+                error
+                    .message
+                    .contains("unsupported project schema version 32")
+            );
+            assert_eq!(
+                before,
+                (
+                    std::fs::read(project_path(&dir)).unwrap(),
+                    std::fs::read(history_path(&dir)).unwrap(),
+                    std::fs::read(transaction_path(&dir)).unwrap()
+                )
+            );
+        }
     }
 
     #[test]
@@ -4787,7 +5079,7 @@ mod tests {
     }
 
     #[test]
-    fn splitting_an_animated_shape_rebases_keyframes_and_is_undoable() {
+    fn splitting_an_animated_shape_retains_source_clock_and_is_undoable() {
         let (core, _) = core();
         let created = core
             .create_project("animated split", ProjectSettings::default())
@@ -4860,18 +5152,53 @@ mod tests {
         };
         assert_eq!(left.duration_ms, 500);
         assert_eq!(right.duration_ms, 500);
-        assert_eq!(left.keyframes.last().unwrap().time_ms, 500);
-        assert_eq!(right.keyframes.first().unwrap().time_ms, 0);
         assert_eq!(
-            left.keyframes.last().unwrap().value,
-            right.keyframes[0].value
+            serde_json::to_value(&left.keyframes).unwrap(),
+            serde_json::to_value(&keyframes).unwrap()
         );
-        assert!(
-            right
-                .keyframes
-                .iter()
-                .all(|keyframe| keyframe.time_ms <= right.duration_ms)
+        assert_eq!(
+            serde_json::to_value(&right.keyframes).unwrap(),
+            serde_json::to_value(&keyframes).unwrap()
         );
+        assert_eq!(
+            left.visual_properties.legacy_animation_clock,
+            Some(crate::AnimationClock {
+                offset_ms: 0,
+                source_duration_ms: 1000
+            })
+        );
+        assert_eq!(
+            right.visual_properties.legacy_animation_clock,
+            Some(crate::AnimationClock {
+                offset_ms: 500,
+                source_duration_ms: 1000
+            })
+        );
+        for local in [0, 125, 250, 499] {
+            let expected = crate::animation::evaluate_keyframe_value(
+                &keyframes,
+                KeyframeProperty::Opacity,
+                local + 500,
+            )
+            .unwrap()
+            .0;
+            let observed = crate::animation::evaluate_keyframe_value(
+                &right.keyframes,
+                KeyframeProperty::Opacity,
+                local
+                    + right
+                        .visual_properties
+                        .legacy_animation_clock
+                        .unwrap()
+                        .offset_ms as u64,
+            )
+            .unwrap()
+            .0;
+            assert_eq!(
+                serde_json::to_value(observed).unwrap(),
+                serde_json::to_value(expected).unwrap()
+            );
+        }
 
         core.undo(&created.project_id, 3).unwrap();
         let project = core.get_project(&created.project_id).unwrap();
@@ -5041,9 +5368,11 @@ mod tests {
             PersistencePhase::AfterJournalCleanup,
         ];
 
-        for (version, phase) in [6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28]
-            .into_iter()
-            .flat_map(|version| phases.map(|phase| (version, phase)))
+        for (version, phase) in [
+            6, 9, 10, 11, 12, 13, 16, 17, 20, 21, 22, 25, 26, 27, 28, 29, 30,
+        ]
+        .into_iter()
+        .flat_map(|version| phases.map(|phase| (version, phase)))
         {
             let (core, _) = core();
             let created = core

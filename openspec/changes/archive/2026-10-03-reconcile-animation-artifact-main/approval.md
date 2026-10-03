@@ -1,0 +1,7 @@
+## Delegated authorization and review status
+
+The user explicitly authorized ongoing issue-scoped specifications, implementation, verification and draft PRs, and subsequently requested PR136 conflict resolution after PR138/issue74 merged. No remote main merge or deployment is authorized. `/root/spec_review` authored these reconciliation artifacts from the actual incoming diff and existing contracts; authoring is not independent approval of the same text.
+
+Independent specification review: APPROVED by `/root/implementation_review` after inspecting the complete proposal, design, one requirement/three scenarios, final numbered tasks with exact commands, delivery checklist and authorization record. Actual reviewer quote: “The scoped normal main4c reconciliation preserves the complete47/59/74 contract union and imported security/client migration without new semantics; both-parent source review, actual authored-catalog digest and affected full gates plus exact-input evidence reuse are required before archival/delivery.”
+
+Supporting independent review report: `/tmp/issue47-artifact-main-review.md`. This is delegated agent specification approval, not human CODEOWNER approval. Normal local source reconciliation is authorized; implementation review, affected checks, archival and exact-head delivery remain pending. No source merge, successful combined-tree check, remote main merge or deployment is claimed by this approval.

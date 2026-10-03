@@ -12,7 +12,6 @@ use crate::{
     AudioSettings, CoreError, EditOperation, ErrorCode, History, KeyframeProperty, Marker,
     MediaItem, MediaType, Project, RectangleItem, SolidColorItem, TextItem, TimeExpression,
     TimelineItem, Track, TrackType, TransitionItem,
-    animation::split_keyframes,
     markers::set_item_start,
     validation::{
         validate_audio, validate_color, validate_dimensions, validate_duration,
@@ -411,6 +410,7 @@ fn apply_operation_inner(
                 ));
             }
             let visual_properties = crate::VisualProperties {
+                legacy_animation_clock: None,
                 crop: None,
                 motion_blur: None,
                 effects: Vec::new(),
@@ -1374,6 +1374,8 @@ fn apply_operation_inner(
             validate_duration(duration_ms)?;
             let item = find_editable_item_mut(project, &item_id)?;
             let previous_start = item.start_ms();
+            let delta = i128::from(start_ms) - i128::from(previous_start);
+            retain_animation_clock(item, delta, duration_ms)?;
             if previous_start != start_ms {
                 item.visual_properties_mut().start_time = None;
             }
@@ -1518,6 +1520,7 @@ fn apply_operation_inner(
                 )
             })?;
             *destination = keyframes;
+            item.visual_properties_mut().legacy_animation_clock = None;
             Ok((vec![item_id], "Set item keyframes"))
         }
         EditOperation::ApplyAnimationPreset {
@@ -1665,6 +1668,7 @@ fn apply_operation_inner(
             let right_id = Uuid::new_v4().to_string();
             let right_duration = item.end_ms() - split_ms;
             let left_duration = split_ms - item.start_ms();
+            retain_animation_clock(item, 0, left_duration)?;
             let mut right = match item {
                 TimelineItem::Group(_) | TimelineItem::ComponentInstance(_) => {
                     return Err(CoreError::new(
@@ -1674,87 +1678,59 @@ fn apply_operation_inner(
                 }
                 TimelineItem::Media(media) => {
                     let mut right = media.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&media.keyframes, left_duration, media.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
                     right.source_in_ms = right.source_in_ms.saturating_add(left_duration);
-                    right.keyframes = right_keyframes;
                     media.duration_ms = left_duration;
-                    media.keyframes = left_keyframes;
                     TimelineItem::Media(right)
                 }
                 TimelineItem::Text(text) => {
                     let mut right = text.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&text.keyframes, left_duration, text.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     text.duration_ms = left_duration;
-                    text.keyframes = left_keyframes;
                     TimelineItem::Text(right)
                 }
                 TimelineItem::SolidColor(shape) => {
                     let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
                     TimelineItem::SolidColor(right)
                 }
                 TimelineItem::Rectangle(shape) => {
                     let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
                     TimelineItem::Rectangle(right)
                 }
                 TimelineItem::Shape(shape) => {
                     let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
                     TimelineItem::Shape(right)
                 }
                 TimelineItem::Svg(shape) => {
                     let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
                     TimelineItem::Svg(right)
                 }
                 TimelineItem::Grid(shape) => {
                     let mut right = shape.clone();
-                    let (left_keyframes, right_keyframes) =
-                        split_keyframes(&shape.keyframes, left_duration, shape.duration_ms);
                     right.id = right_id.clone();
                     right.start_ms = split_ms;
                     right.duration_ms = right_duration;
-                    right.keyframes = right_keyframes;
                     shape.duration_ms = left_duration;
-                    shape.keyframes = left_keyframes;
                     TimelineItem::Grid(right)
                 }
                 TimelineItem::Repeater(repeater) => {
@@ -1780,6 +1756,8 @@ fn apply_operation_inner(
                     ));
                 }
             };
+            remap_animation_self_targets(&mut right, &item_id, &right_id);
+            retain_animation_clock(&mut right, i128::from(left_duration), right_duration)?;
             item.visual_properties_mut().start_time = None;
             right.visual_properties_mut().start_time = None;
             project.tracks[track_index]
@@ -1814,6 +1792,9 @@ fn apply_operation_inner(
                     CoreError::new(ErrorCode::ValidationFailed, "duplicate time overflow")
                 })?;
                 let new_id = Uuid::new_v4().to_string();
+                let copy_duration = copy.duration_ms();
+                retain_animation_clock(&mut copy, 0, copy_duration)?;
+                remap_animation_self_targets(&mut copy, &item_id, &new_id);
                 set_item_id(&mut copy, new_id.clone());
                 set_item_start(&mut copy, new_start);
                 crate::markers::shift_expression(&mut copy, offset_ms)?;
@@ -2097,6 +2078,66 @@ pub(crate) fn now_ms() -> Result<u64, CoreError> {
         .as_millis();
     u64::try_from(millis)
         .map_err(|_| CoreError::new(ErrorCode::InternalError, "system time overflow"))
+}
+
+fn remap_animation_self_targets(item: &mut TimelineItem, source_id: &str, new_id: &str) {
+    for channel in &mut item.visual_properties_mut().animation_channels {
+        if let Some(target) = &mut channel.target
+            && matches!(
+                target.kind,
+                crate::AnimationTargetKind::GraphicGeometry
+                    | crate::AnimationTargetKind::GraphicFill
+                    | crate::AnimationTargetKind::GraphicStroke
+            )
+            && target.id == source_id
+        {
+            target.id = new_id.to_owned();
+        }
+    }
+}
+
+/// Keep the source function intact while changing the item's active window.
+fn retain_animation_clock(
+    item: &mut TimelineItem,
+    delta: i128,
+    new_duration: u64,
+) -> Result<(), CoreError> {
+    let old_duration = item.duration_ms();
+    let legacy_duration = item
+        .keyframes()
+        .iter()
+        .map(|key| key.time_ms)
+        .max()
+        .unwrap_or(0)
+        .max(old_duration);
+    let has_legacy = !item.keyframes().is_empty();
+    let shifted = |clock: Option<crate::AnimationClock>,
+                   source_duration|
+     -> Result<crate::AnimationClock, CoreError> {
+        let mut clock = clock.unwrap_or(crate::AnimationClock {
+            offset_ms: 0,
+            source_duration_ms: source_duration,
+        });
+        clock.offset_ms = i64::try_from(i128::from(clock.offset_ms) + delta).map_err(|_| {
+            CoreError::new(
+                ErrorCode::InvalidArgument,
+                "retained animation clock overflow",
+            )
+        })?;
+        crate::validation::animation_channels::validate_clock(clock, new_duration)?;
+        Ok(clock)
+    };
+    let visual = item.visual_properties_mut();
+    if has_legacy {
+        visual.legacy_animation_clock =
+            Some(shifted(visual.legacy_animation_clock, legacy_duration)?);
+    }
+    for channel in &mut visual.animation_channels {
+        if !channel.keyframes.is_empty() {
+            channel.clock = Some(shifted(channel.clock, old_duration)?);
+        }
+    }
+    Ok(())
 }
 
 fn resolve_component_aliases(

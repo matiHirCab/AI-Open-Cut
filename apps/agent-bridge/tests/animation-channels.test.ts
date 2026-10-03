@@ -5,6 +5,7 @@ import {
   animationChannelSchema,
   headlessEditSchema,
   schemas,
+  timelineItemSchema,
 } from "../src/schemas";
 
 const channel = (property: string, value: number) => ({
@@ -14,7 +15,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(30);
+    expect(contract.projectSchemaVersion).toBe(31);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),
@@ -263,4 +264,67 @@ describe("governed animation channels", () => {
       expect(animationChannelSchema.safeParse(bad).success).toBe(false);
     }
   });
+});
+
+it("matches retained source clock structural fixtures without duplicating core semantics", () => {
+  for (const fixture of contract.clockCases) {
+    const payload = { ...contract.examples.validBezier, clock: fixture.clock };
+    expect(
+      animationChannelSchema.safeParse(payload).success,
+      fixture.name
+    ).toBe(fixture.accepted);
+    expect(
+      schemas.timelineSetAnimationChannels.safeParse({
+        animationChannels: [payload],
+        expectedRevision: 0,
+        itemId: "i",
+        projectId: "p",
+      }).success,
+      fixture.name
+    ).toBe(fixture.accepted);
+    expect(
+      headlessEditSchema.safeParse({
+        animationChannels: [payload],
+        itemId: "@seed",
+        operation: "set_animation_channels",
+      }).success,
+      fixture.name
+    ).toBe(fixture.accepted);
+  }
+  expect(
+    animationChannelSchema.parse(contract.examples.validRetainedClock)
+  ).toEqual(contract.examples.validRetainedClock);
+  expect(
+    animationChannelSchema.parse(contract.examples.validNegativeRetainedClock)
+  ).toEqual(contract.examples.validNegativeRetainedClock);
+});
+
+it("preserves legacy visual clocks in strict response shapes", () => {
+  const item = {
+    color: "#ffffff",
+    durationMs: 500,
+    height: 32,
+    hidden: false,
+    id: "box",
+    keyframes: [
+      {
+        easing: "linear",
+        property: "position",
+        timeMs: 0,
+        value: { type: "position", x: 0, y: 0 },
+      },
+    ],
+    stackOrder: 0,
+    startMs: 125,
+    transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+    type: "rectangle",
+    width: 32,
+    zIndex: 0,
+  };
+  for (const fixture of contract.clockCases) {
+    const payload = { ...item, legacyAnimationClock: fixture.clock };
+    expect(timelineItemSchema.safeParse(payload).success, fixture.name).toBe(
+      fixture.accepted
+    );
+  }
 });

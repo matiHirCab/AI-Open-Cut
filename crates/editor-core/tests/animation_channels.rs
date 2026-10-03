@@ -16,6 +16,12 @@ mod motion_blur_sampling;
 #[path = "animation_lifecycle_regressions.rs"]
 mod animation_lifecycle_regressions;
 
+#[path = "animation_edit_render.rs"]
+mod animation_edit_render;
+
+#[path = "animation_edit_semantics.rs"]
+mod animation_edit_semantics;
+
 #[path = "animation_presets.rs"]
 mod animation_presets;
 

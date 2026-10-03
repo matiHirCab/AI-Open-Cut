@@ -104,7 +104,7 @@ pub(super) fn transform_magnification(
                     .last()
                     .ok_or_else(|| invalid("ancestor scale sample missing"))?
                     .time_ms;
-                let scale = crate::animation::scalar_bounds(channel, 0, end)
+                let scale = source_scalar_bounds(channel, end)
                     .ok_or_else(|| invalid("ancestor scale envelope missing"))?
                     .1
                     .clamp(0.000001, 100.0);
@@ -439,7 +439,7 @@ pub(crate) fn certify_scene(
                 if let Some(channel) = extended.channels.iter().find(|c| {
                     c.property == property && c.target.as_ref().is_some_and(|t| t.id == effect.id())
                 }) {
-                    let maximum = crate::animation::scalar_bounds(channel, 0, end)
+                    let maximum = source_scalar_bounds(channel, end)
                         .ok_or_else(|| invalid("effect envelope missing"))?
                         .1;
                     match effect {
@@ -617,6 +617,15 @@ fn bound(
         })
 }
 
+// Resource envelopes cover every retained source key, independently of the
+// edited window's offset. Applying the item clock here could omit late values
+// after a left extension and understate magnification or effect work.
+fn source_scalar_bounds(channel: &AnimationChannel, end: u64) -> Option<(f64, f64)> {
+    let mut source = channel.clone();
+    source.clock = None;
+    crate::animation::scalar_bounds(&source, 0, end)
+}
+
 // Equal clocks/curves preserve component correlation for non-overshooting
 // interpolation. Independent envelopes remain valid for all other combinations.
 fn correlated_sum(left: &AnimationChannel, right: &AnimationChannel) -> Option<f64> {
@@ -626,7 +635,10 @@ fn correlated_sum(left: &AnimationChannel, right: &AnimationChannel) -> Option<f
             crate::AnimationCurve::Simple(crate::SimpleAnimationCurve::Hold)
         )
     });
-    if left.r#loop != right.r#loop || left.keyframes.len() != right.keyframes.len() {
+    if left.r#loop != right.r#loop
+        || left.clock != right.clock
+        || left.keyframes.len() != right.keyframes.len()
+    {
         return None;
     }
     let mut maximum: f64 = 0.0;
@@ -815,6 +827,70 @@ fn certify_interval(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn negative_retained_clocks_cannot_hide_late_ancestor_or_effect_work() {
+        use serde_json::json;
+        let channel = |property: &str, first: f64, last: f64| {
+            json!({
+                "property":property,"clock":{"offsetMs":-500,"sourceDurationMs":1100},
+                "keyframes":[{"timeMs":0,"value":{"type":"scalar","value":first},"curve":"linear"},{"timeMs":1000,"value":{"type":"scalar","value":last},"curve":"hold"}]
+            })
+        };
+        let project = |items: serde_json::Value| -> Project {
+            serde_json::from_value(json!({
+            "schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"budget","revision":0,"name":"Budget","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":64,"height":64,"fps":10},"assets":[],"markers":[],"components":[],"fonts":{},
+            "tracks":[{"id":"overlay","name":"Overlay","trackType":"overlay","items":items}]
+        })).unwrap()
+        };
+        let ancestor = project(json!([
+            {"type":"group","id":"parent","startMs":0,"durationMs":1500,"zIndex":0,"stackOrder":0,"animationChannels":[channel("transform.scale_x",1.0,100.0),channel("transform.scale_y",1.0,100.0)]},
+            {"type":"rectangle","id":"child","startMs":0,"durationMs":1500,"zIndex":0,"stackOrder":1,"width":60,"height":60,"color":"#ffffff","parent":{"scope":"root","id":"parent"},"keyframes":[],"effects":[{"id":"identity","type":"vignette","amount":0}]}
+        ]));
+        let mut small = ancestor.clone();
+        if let TimelineItem::Rectangle(rect) = &mut small.tracks[0].items[1] {
+            rect.width = 1;
+            rect.height = 1;
+        }
+        let evaluated = evaluate_project(&small, 64, 64, 10).unwrap();
+        let maximum = transform_magnification(&evaluated.scene.visual_layers[0], (64, 64))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            maximum, 100.0,
+            "retained source last scale must remain in the ancestor envelope"
+        );
+        let error = evaluate_project(&ancestor, 64, 64, 10).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(
+            error.message.contains("bounds") || error.message.contains("envelope"),
+            "{}",
+            error.message
+        );
+        for (kind, property) in [
+            ("gaussian_blur", "effect.blur_radius"),
+            ("glow", "effect.glow_radius"),
+        ] {
+            let mut effect = json!({"id":"radius","type":kind,"radiusPx":0});
+            if kind == "glow" {
+                effect["intensity"] = json!(0.5);
+                effect["color"] = json!({"r":1,"g":0,"b":0,"a":1});
+            }
+            let mut radius = channel(property, 0.0, 64.0);
+            radius["target"] = json!({"scope":"root","kind":"effect","id":"radius"});
+            let p = project(
+                json!([{ "type":"rectangle","id":"effect","startMs":0,"durationMs":1500,"zIndex":0,"stackOrder":0,"width":300,"height":300,"color":"#ffffff","keyframes":[],"effects":[effect],"animationChannels":[radius]}]),
+            );
+            let error = preflight_inherited_project(&p).unwrap_err();
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(
+                error.message.contains("effect") || error.message.contains("PixelPasses"),
+                "{}",
+                error.message
+            );
+        }
+    }
+
     #[test]
     fn node_quota_is_inclusive_and_left_subdivision_is_deterministic() {
         let mut nodes = 0;

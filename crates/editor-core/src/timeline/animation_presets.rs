@@ -79,6 +79,7 @@ fn compile_scalar(
     let end =
         crate::validation::animation_presets::validate_parameters(&parameters.clone().into())?;
     let channel = AnimationChannel {
+        clock: None,
         property: parameters.property,
         target: None,
         keyframes: vec![
@@ -188,6 +189,7 @@ fn compile(
             });
         }
         Ok(AnimationChannel {
+            clock: None,
             property,
             target: None,
             keyframes,
@@ -651,5 +653,186 @@ mod tests {
         assert_eq!(error.code, ErrorCode::InvalidArgument);
         assert!(error.message.contains("maxChannelsPerItem"));
         assert_eq!(serde_json::to_value(&manual).unwrap(), before);
+    }
+
+    #[test]
+    fn migrated_finite_pulse_preserves_samples_through_split_left_trim_copy_and_history() {
+        use crate::{AnimationClock, EditOperation, EditorCore, PathPolicy, ProjectSettings};
+        use serde_json::{Value, json};
+        let root = tempfile::tempdir().unwrap();
+        let media = root.path().join("media");
+        std::fs::create_dir(&media).unwrap();
+        let core = EditorCore::new(
+            PathPolicy::new(
+                root.path().join("projects"),
+                [&media],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project("Migrated finite pulse", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+        let op = |value: Value| serde_json::from_value::<EditOperation>(value).unwrap();
+        let item = core.edit(&id,0,op(json!({"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}))).unwrap().changed_ids[0].clone();
+        core.edit(&id,1,op(json!({"operation":"apply_animation_preset","itemId":item,"presetId":"pulse","presetVersion":1,"parameters":{"kind":"pulse","startMs":10,"durationMs":80,"scaleFrom":0.5,"scalePeak":1.5,"iterations":2}}))).unwrap();
+        let dir = core.paths().project_dir(&id).unwrap();
+        let path = dir.join("project.json");
+        let mut source = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+        source["schemaVersion"] = json!(30);
+        std::fs::write(&path, serde_json::to_vec(&source).unwrap()).unwrap();
+        let original = core.get_project(&id).unwrap();
+        let original_item = original.find_item(&item).unwrap();
+        let original_visual = original_item.visual_properties();
+        assert_eq!(original.schema_version, crate::PROJECT_SCHEMA_VERSION);
+        assert!(
+            original_visual
+                .animation_channels
+                .iter()
+                .all(|c| c.clock.is_none())
+        );
+        let provenance =
+            serde_json::to_value(&original_visual.animation_preset_provenance).unwrap();
+        assert_eq!(
+            provenance["transform.scale_x"]["parameters"]["kind"],
+            "pulse"
+        );
+        assert_eq!(
+            provenance["transform.scale_x"]["parameters"]["iterations"],
+            2
+        );
+        // Fixed independent pulse values include interiors, fractional samples,
+        // the second turn/seam and the finite terminal held value. Production
+        // sampling of the original source supplies the edit-preservation oracle.
+        let samples = [
+            (75.0, 0.875),
+            (80.0, 0.75),
+            (89.5, 0.5125),
+            (90.0, 0.5),
+            (100.0, 0.75),
+            (130.0, 1.5),
+            (130.5, 1.4875),
+            (150.0, 1.0),
+            (169.5, 0.5125),
+            (170.0, 0.5),
+            (200.5, 0.5),
+        ];
+        for channel in &original_visual.animation_channels {
+            for (source_ms, expected) in samples {
+                assert!(
+                    (crate::animation::sample_scalar_channel_at(channel, source_ms).unwrap()
+                        - expected)
+                        .abs()
+                        < 1e-12
+                );
+            }
+        }
+        let check = |project: &Project, target: &str, offset: i64, samples: &[(f64, f64)]| {
+            let visual = project.find_item(target).unwrap().visual_properties();
+            assert_eq!(
+                serde_json::to_value(&visual.animation_preset_provenance).unwrap(),
+                provenance
+            );
+            for (channel, source) in visual
+                .animation_channels
+                .iter()
+                .zip(&original_visual.animation_channels)
+            {
+                assert!(same_bytes(&channel.keyframes, &source.keyframes));
+                assert_eq!(channel.r#loop, source.r#loop);
+                assert_eq!(
+                    channel.clock,
+                    Some(AnimationClock {
+                        offset_ms: offset,
+                        source_duration_ms: 1000
+                    })
+                );
+                for &(source_ms, expected) in samples {
+                    let before =
+                        crate::animation::sample_scalar_channel_at(source, source_ms).unwrap();
+                    let after = crate::animation::sample_scalar_channel_at(
+                        channel,
+                        source_ms - offset as f64,
+                    )
+                    .unwrap();
+                    assert!(
+                        (after - before).abs() < 1e-12,
+                        "source {source_ms} offset {offset}"
+                    );
+                    assert!((after - expected).abs() < 1e-12);
+                }
+            }
+        };
+        let split = core
+            .edit(
+                &id,
+                2,
+                op(json!({"operation":"split_item","itemId":item,"splitMs":45})),
+            )
+            .unwrap();
+        let right = split.changed_ids[1].clone();
+        let split_state = core.get_project(&id).unwrap();
+        check(
+            &split_state,
+            &item,
+            0,
+            &[(0.0, 0.5), (10.0, 0.5), (25.0, 0.875), (44.5, 1.3625)],
+        );
+        check(
+            &split_state,
+            &right,
+            45,
+            &[(45.0, 1.375), (50.0, 1.5), (50.5, 1.4875)],
+        );
+        check(&split_state, &right, 45, &samples);
+        core.edit(
+            &id,
+            3,
+            op(json!({"operation":"trim_item","itemId":right,"startMs":75,"durationMs":900})),
+        )
+        .unwrap();
+        let trim_state = core.get_project(&id).unwrap();
+        check(&trim_state, &right, 75, &samples);
+        let copied = core
+            .edit(
+                &id,
+                4,
+                op(json!({"operation":"duplicate_items","itemIds":[right],"offsetMs":2000})),
+            )
+            .unwrap()
+            .changed_ids[0]
+            .clone();
+        let copied_state = core.get_project(&id).unwrap();
+        check(&copied_state, &right, 75, &samples);
+        check(&copied_state, &copied, 75, &samples);
+        core.undo(&id, 5).unwrap();
+        assert!(same_bytes(
+            &core.get_project(&id).unwrap().tracks,
+            &trim_state.tracks
+        ));
+        check(&core.get_project(&id).unwrap(), &right, 75, &samples);
+        core.undo(&id, 6).unwrap();
+        assert!(same_bytes(
+            &core.get_project(&id).unwrap().tracks,
+            &split_state.tracks
+        ));
+        check(&core.get_project(&id).unwrap(), &right, 45, &samples);
+        core.undo(&id, 7).unwrap();
+        assert!(same_bytes(
+            &core.get_project(&id).unwrap().tracks,
+            &original.tracks
+        ));
+        core.redo(&id, 8).unwrap();
+        core.redo(&id, 9).unwrap();
+        core.redo(&id, 10).unwrap();
+        let restored = core.get_project(&id).unwrap();
+        assert!(same_bytes(&restored.tracks, &copied_state.tracks));
+        let reopened = EditorCore::new(core.paths().clone());
+        let reopened_state = reopened.get_project(&id).unwrap();
+        assert!(same_bytes(&reopened_state, &restored));
+        check(&reopened_state, &right, 75, &samples);
+        check(&reopened_state, &copied, 75, &samples);
     }
 }

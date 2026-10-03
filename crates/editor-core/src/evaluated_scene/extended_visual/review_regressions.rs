@@ -82,6 +82,7 @@ fn review_root_relative_clock_and_legacy_scalars_keep_integer_progress() {
             value: EvaluatedKeyframeValue::Scalar { value: 0.0 },
             easing: EvaluatedEasing::Linear,
             r#loop: None,
+            clock: None,
         },
         EvaluatedKeyframe {
             property: EvaluatedProperty::PositionX,
@@ -89,6 +90,7 @@ fn review_root_relative_clock_and_legacy_scalars_keep_integer_progress() {
             value: EvaluatedKeyframeValue::Scalar { value: 100.0 },
             easing: EvaluatedEasing::Hold,
             r#loop: None,
+            clock: None,
         },
     ];
     sample_transform(&mut legacy, origin + 1, (24, 8), (64, 64)).unwrap();
@@ -477,4 +479,191 @@ fn shutter_samples_cross_reflected_turns_and_finite_exhaustion_on_canonical_cloc
         sample_transform(&mut sampled, time, (24, 8), (64, 64)).unwrap();
         assert_eq!(sampled.transform2d.unwrap().rotation_deg, rotation);
     }
+}
+
+#[test]
+fn retained_clock_legacy_and_typed_samples_keep_fractional_source_interiors() {
+    for (offset, local, expected) in [(200, 200.5, 16.040025), (-200, 100.5, 0.0)] {
+        // Independently evaluated legacy ease-in: 100 * ((local+offset)/1000)^2.
+        let frames = [
+            EvaluatedKeyframe {
+                property: EvaluatedProperty::Position,
+                time_ms: 0,
+                value: EvaluatedKeyframeValue::Position { x: 0.0, y: 0.0 },
+                easing: EvaluatedEasing::EaseIn,
+                r#loop: None,
+                clock: Some(crate::AnimationClock {
+                    offset_ms: offset,
+                    source_duration_ms: 1200,
+                }),
+            },
+            EvaluatedKeyframe {
+                property: EvaluatedProperty::Position,
+                time_ms: 1000,
+                value: EvaluatedKeyframeValue::Position { x: 100.0, y: 100.0 },
+                easing: EvaluatedEasing::Hold,
+                r#loop: None,
+                clock: Some(crate::AnimationClock {
+                    offset_ms: offset,
+                    source_duration_ms: 1200,
+                }),
+            },
+        ];
+        let actual = sample_scalar(
+            &frames,
+            EvaluatedProperty::Position,
+            crate::animation::SampleTime::Fractional(local),
+            false,
+        )
+        .unwrap();
+        assert!(
+            (actual - expected).abs() < 1e-7,
+            "offset={offset}, actual={actual}"
+        );
+    }
+    let channel: AnimationChannel = serde_json::from_value(json!({
+        "property":"transform.position_x", "clock":{"offsetMs":200,"sourceDurationMs":1200},
+        "loop":{"mode":"ping_pong","iterations":1}, "keyframes":[
+            {"timeMs":0,"value":{"type":"scalar","value":0},"curve":"linear"},
+            {"timeMs":400,"value":{"type":"scalar","value":40},"curve":"hold"}
+        ]
+    }))
+    .unwrap();
+    let frames = super::super::evaluate_keyframes(&[], &[channel], None).unwrap();
+    for (local, expected) in [
+        (0.25, 20.025),
+        (200.0, 40.0),
+        (200.25, 39.975),
+        (599.75, 0.025),
+        (600.0, 0.0),
+        (700.0, 0.0),
+    ] {
+        let actual = sample_scalar(
+            &frames,
+            EvaluatedProperty::PositionX,
+            crate::animation::SampleTime::Fractional(local),
+            false,
+        )
+        .unwrap();
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "local={local}, actual={actual}"
+        );
+    }
+}
+
+#[test]
+fn retained_crop_correlation_requires_equal_clocks_and_rejects_atomically() {
+    use crate::{
+        EditOperation, EditorCore, MediaProbeFacts, MediaType, PathPolicy, ProjectSettings,
+    };
+    let root = tempfile::tempdir().unwrap();
+    let media_dir = root.path().join("media");
+    std::fs::create_dir(&media_dir).unwrap();
+    // Core certification consumes explicit probe facts; raster decoding is not
+    // part of this unit test or the transaction under test.
+    let source = media_dir.join("image.png");
+    std::fs::write(&source, b"crop certification probe fixture").unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            root.path().join("projects"),
+            [&media_dir],
+            root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let project_id = core
+        .create_project("Retained crop correlation", ProjectSettings::default())
+        .unwrap()
+        .project_id;
+    let asset_id = core
+        .import_asset(
+            &project_id,
+            0,
+            &source,
+            MediaType::Image,
+            MediaProbeFacts {
+                has_video: true,
+                video_width: Some(40),
+                video_height: Some(20),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let track_id = core.get_project(&project_id).unwrap().tracks[1].id.clone();
+    let operation = |value| serde_json::from_value::<EditOperation>(value).unwrap();
+    let item_id = core
+        .edit(
+            &project_id,
+            1,
+            operation(json!({
+                "operation":"add_media","trackId":track_id,"assetId":asset_id,
+                "startMs":0,"sourceInMs":0,"durationMs":500
+            })),
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let channel = |property, first, last, offset| {
+        json!({
+            "property":property,"clock":{"offsetMs":offset,"sourceDurationMs":1001},
+            "keyframes":[
+                {"timeMs":0,"value":{"type":"scalar","value":first},"curve":"linear"},
+                {"timeMs":1000,"value":{"type":"scalar","value":last},"curve":"hold"}
+            ]
+        })
+    };
+    let edit = |width_offset| {
+        operation(json!({
+            "operation":"set_animation_channels","itemId":item_id,"animationChannels":[
+                channel("media.crop_x",0.0,0.8,500),
+                channel("media.crop_width",1.0,0.2,width_offset)
+            ]
+        }))
+    };
+    // Equal retained clocks keep x+width=1 at every fractional source time,
+    // despite their independent worst-case envelopes summing above one.
+    core.edit(&project_id, 2, edit(500)).unwrap();
+    let before = core.get_project(&project_id).unwrap();
+    super::super::extended_certification::certify_project(&before).unwrap();
+    let mut mismatched = before.clone();
+    mismatched.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels
+        .iter_mut()
+        .find(|channel| channel.property == P::CropWidth)
+        .unwrap()
+        .clock
+        .as_mut()
+        .unwrap()
+        .offset_ms = 0;
+    assert_eq!(
+        super::super::extended_certification::certify_project(&mismatched)
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    let project_dir = core.paths().project_dir(&project_id).unwrap();
+    let project_bytes = std::fs::read(project_dir.join("project.json")).unwrap();
+    let history_bytes = std::fs::read(project_dir.join("history.json")).unwrap();
+    // Source endpoint sums still equal one, but at local t=0 the mismatched
+    // clocks independently imply x=0.4, width=1, hence an invalid sum of1.4.
+    assert_eq!(
+        core.edit(&project_id, 3, edit(0)).unwrap_err().code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(
+        serde_json::to_value(core.get_project(&project_id).unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+    assert_eq!(
+        std::fs::read(project_dir.join("project.json")).unwrap(),
+        project_bytes
+    );
+    assert_eq!(
+        std::fs::read(project_dir.join("history.json")).unwrap(),
+        history_bytes
+    );
 }
