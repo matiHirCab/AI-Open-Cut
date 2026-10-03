@@ -1,15 +1,14 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { z } from "zod/v4";
 
 import type { BridgeConfig } from "../config";
-import { BridgeError, errorBody, type HeadlessClient } from "../headless";
+import { errorBody, type HeadlessClient } from "../headless";
 import type { HeadlessRequest } from "../headless-contract";
 import type { JobRegistry } from "../jobs";
 import type { SpeechApplicationService } from "../speech";
 import type { TranscriptionApplicationService } from "../transcription";
+
+import { jobWithArtifactResource, readJobArtifact } from "./artifacts";
 
 export const READ_ONLY = {
   destructiveHint: false,
@@ -57,57 +56,44 @@ export const invoke = async <Output extends Record<string, unknown>>(
 
 export const previewJobResponse = async (
   dependencies: ServerDependencies,
-  jobId: string
+  jobId: string,
+  includeBinary = false
 ) => {
-  const job = dependencies.jobs.get(jobId);
-  if (job.status !== "completed" || job.kind !== "preview" || !job.artifact) {
-    if (
-      job.status === "completed" &&
-      job.kind === "speech_preview" &&
-      job.speechPreview
-    ) {
-      const preview = await dependencies.speech.previewAudio(
-        job.speechPreview.token
-      );
-      const data = await readFile(preview.path);
-      return {
-        ...success(job),
-        content: [
-          { text: JSON.stringify(job), type: "text" as const },
-          {
-            data: data.toString("base64"),
-            mimeType: preview.mimeType,
-            type: "audio" as const,
-          },
-        ],
-      };
-    }
-    return success(job);
+  const job = jobWithArtifactResource(dependencies.jobs.get(jobId));
+  const response = success(job);
+  const resource = job.artifactResource;
+  if (!resource) {
+    return response;
   }
-  if (!dependencies.config.projectsDirectory) {
-    throw new BridgeError(
-      "INTERNAL_ERROR",
-      "Projects directory is unavailable"
-    );
-  }
-  const data = await readFile(
-    join(
-      dependencies.config.projectsDirectory,
-      job.projectId,
-      job.artifact.relativePath
-    )
-  );
-  return {
-    ...success(job),
-    content: [
-      { text: JSON.stringify(job), type: "text" as const },
-      {
-        data: data.toString("base64"),
-        mimeType: job.artifact.mimeType,
-        type: "image" as const,
-      },
-    ],
+  const link = {
+    mimeType: resource.mimeType,
+    name: resource.name,
+    type: "resource_link" as const,
+    uri: resource.uri,
+    ...(resource.sizeBytes === undefined ? {} : { size: resource.sizeBytes }),
   };
+  if (
+    includeBinary &&
+    (resource.mimeType === "image/png" || resource.mimeType === "audio/wav")
+  ) {
+    const artifact = await readJobArtifact(dependencies, job);
+    return {
+      ...response,
+      content: [
+        ...response.content,
+        link,
+        {
+          data: artifact.data.toString("base64"),
+          mimeType: artifact.mimeType,
+          type:
+            resource.mimeType === "image/png"
+              ? ("image" as const)
+              : ("audio" as const),
+        },
+      ],
+    };
+  }
+  return { ...response, content: [...response.content, link] };
 };
 
 export type Server = McpServer;

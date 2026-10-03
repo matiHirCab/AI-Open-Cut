@@ -515,6 +515,26 @@
         "apps/agent-bridge/tests/smoke.test.ts",
         "apps/agent-bridge/tests/packaged-smoke.test.ts"
       ]
+    },
+    "artifactDelivery": {
+      "canonical": "contracts/artifact-delivery-v2.json",
+      "consumers": [
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/server/artifacts.ts",
+        "apps/agent-bridge/src/server/shared.ts",
+        "apps/agent-bridge/src/server/jobs.ts",
+        "apps/agent-bridge/src/server/context.ts",
+        "apps/agent-bridge/src/server/projects.ts",
+        "contracts/mcp-surface-v1.json",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/artifact-responses.test.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "docs/artifact-delivery.md",
+        "apps/agent-bridge/tests/architecture.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "docs/agent-bridge.md",
+        "apps/agent-bridge/package.json"
+      ]
     }
   }
 }

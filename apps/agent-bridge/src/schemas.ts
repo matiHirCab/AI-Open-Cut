@@ -1751,9 +1751,24 @@ export const speechSourceSchema = z.discriminatedUnion("type", [
     .strict(),
 ]);
 
+export const artifactResourceSchema = z
+  .object({
+    expiresAtMs: milliseconds.nullable(),
+    mimeType: z.enum(["image/png", "audio/wav", "video/mp4"]),
+    name: z.string().min(1),
+    sizeBytes: z.int().positive().optional(),
+    uri: z
+      .string()
+      .regex(
+        /^opencut:\/\/jobs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/artifact$/u
+      ),
+  })
+  .strict();
+
 export const jobSchema = z
   .object({
     artifact: artifactSchema.optional(),
+    artifactResource: artifactResourceSchema.optional(),
     createdAtMs: milliseconds,
     error: publicErrorSchema.optional(),
     expiresAtMs: milliseconds.nullable(),
@@ -2238,7 +2253,9 @@ export const schemas = {
     })
     .strict(),
   jobCancel: z.object({ jobId: id }).strict(),
-  jobGetStatus: z.object({ jobId: id }).strict(),
+  jobGetStatus: z
+    .object({ includeBinary: z.boolean().optional(), jobId: id })
+    .strict(),
   markerCreate: projectRevisionSchema
     .extend({
       kind: z.literal("cue"),
