@@ -4,7 +4,7 @@ Completed 2026-10-03 using the repository-local openspec-verify-change workflow 
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 12/12 implementation/correction tasks complete; 3 requirements and 5 scenarios covered |
+| Completeness | 14/14 implementation/correction/reconciliation tasks complete; 3 requirements and 5 scenarios covered |
 | Correctness | Each scenario maps to native tests and canonical fixture evidence below |
 | Coherence | Provider/bridge ownership preserved; no project, headless, migration, rendering, job, alignment generation, or persisted provenance changes |
 
@@ -60,3 +60,13 @@ The correction runs the checked-in fake worker in its existing fixture directory
 Affected checks rerun with exit 0: typecheck (`/tmp/issue59-correction-typecheck.log`), full lint (`/tmp/issue59-correction-lint.log`), full unit (467 passed, existing opt-in skip; `/tmp/issue59-correction-unit.log`), full integration (15 passed; `/tmp/issue59-correction-integration.log`), and packaged smoke (9 passed; `/tmp/issue59-correction-smoke.log`). The unit suite executes the Python fixture through the actual adapter for all valid and invalid canonical cases. Rust source/toolchain, production Python worker/test inputs, canonical catalogs, and public schema inputs are unchanged, so their existing passing check/parity evidence remains valid. No required check is newly skipped or weakened.
 
 Reopened-change pre-archive `moon run root:openspec-validate` again rejected only this own active change after strict validation passed 37 items; log `/tmp/issue59-correction-prearchive.log`. Living delta content is already synchronized and unchanged. Correction conformance passes all original requirements/scenarios plus the fixture regression. Final protected/strict gates are rerun after re-archival before committing. Corrected-head Windows CI remains an external check to observe after push, not a claimed pass here.
+
+## Authorized integration of merged main
+
+Normal merge of main `5e6472a110bc15dc699d47252533bec337d5d16e` into reviewed speech head `6a835ac3` preserved accepted motion-pack/schema30 changes. The sole textual conflict was the pinned expanded MCP digest in `contracts.test.ts`; the combined canonical catalog computes `b7924e84a9ad5661fdfb52bbeed050cc704a839499bf361616cd1df4049175a6`. The canonical catalog itself auto-merged; the diff against main changes only `tts_get_status.outputSchema`. Independent Sol/medium reconciliation review found no critical issue, independently recomputed the digest, and confirmed no lost main sections or added job/animation31/render behavior. No whole-catalog regeneration was performed.
+
+All required implementation gates rerun with exit 0 on this combined tree: Rust formatting, strict workspace Clippy, workspace tests (889 passed, nine existing ignored), hermetic Python (12+5), bridge typecheck/lint/unit (469 passed, existing opt-in skip), full contracts (362 TS plus Rust parity), integration (15), and packaged smoke (9). Complete uncommitted logs `/tmp/issue59-reconcile-{fmt,clippy,rust,python,typecheck,lint,unit,contracts,integration,smoke}.log`. Sequential checks avoid the prior resource contention; no retries, timeout adjustments, or assertion changes were needed. The three original requirements/five scenarios remain covered by the same canonical and provider/service/MCP tests. Completeness, correctness, and coherence have no remaining conformance findings.
+
+Conflict prevention: preserve each owner's narrow schema/catalog/ownership sections, record this main base and combined digest, and coordinate merge order through the parent. Recheck remote main immediately before publication; if it advances, integrate and reverify rather than force-push or overwrite sibling fields. Required protected/archive gates and new exact-head CI remain subsequent finalization steps, not inferred passes.
+
+Reconciliation pre-archive strict validation passed 38 items. Protected Moon exited 1 solely for this own active change after those 38 passed; this expected rejection is not claimed as protected success. Logs `/tmp/issue59-reconcile-pre-strict.log` and `/tmp/issue59-reconcile-pre-moon.log`. The original living delta is already synchronized and unchanged; no requirement content is lost from merged main.

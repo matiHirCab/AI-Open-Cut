@@ -57,7 +57,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "07e3d60d5985c2722293c40712de5aa09ec83b3a2eef6a8679775559cafcefbe";
+  "b7924e84a9ad5661fdfb52bbeed050cc704a839499bf361616cd1df4049175a6";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -242,8 +242,8 @@ describe("canonical public contracts", () => {
       collisionPolicy: "reject",
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
-    expect(PRESETS.compilerVersion).toBe(1);
-    expect(PRESETS.projectSchemaVersion).toBe(29);
+    expect(PRESETS.compilerVersion).toBe(2);
+    expect(PRESETS.projectSchemaVersion).toBe(30);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -459,7 +459,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 29,
+      projectSchemaVersion: 30,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -504,6 +504,7 @@ describe("canonical public contracts", () => {
       "extended_visual_animation_v1",
       "motion_blur_sampling_v1",
       "animation_presets_v1",
+      "initial_motion_preset_pack_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

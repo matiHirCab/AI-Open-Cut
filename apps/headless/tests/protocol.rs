@@ -2007,3 +2007,102 @@ fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation
         4
     );
 }
+
+#[test]
+fn motion_pack_raw_wire_errors_preserve_schema29_documents() {
+    let h = Harness::new();
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../contracts/initial-motion-preset-pack-v1.json"
+    ))
+    .unwrap();
+    let id=result(&h.request(json!({"operation":"create_project","name":"Pack raw decoding"})))["projectId"].clone();
+    let track =
+        result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"][1]
+            ["id"]
+            .clone();
+    let item=result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})))["changedIds"][0].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    for name in ["project.json", "history.json"] {
+        let path = dir.join(name);
+        let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        if name == "project.json" {
+            document["schemaVersion"] = json!(29);
+        } else {
+            for kind in ["undo", "redo"] {
+                for snapshot in document[kind].as_array_mut().unwrap() {
+                    snapshot["schemaVersion"] = json!(29);
+                }
+            }
+        }
+        std::fs::write(path, serde_json::to_vec(&document).unwrap()).unwrap();
+    }
+    let bytes = || {
+        (
+            std::fs::read(dir.join("project.json")).unwrap(),
+            std::fs::read(dir.join("history.json")).unwrap(),
+        )
+    };
+    let before = bytes();
+    for parameters in fixture["invalidRawParameters"].as_array().unwrap() {
+        let request = format!(
+            "{{\"operation\":\"edit\",\"projectId\":{id},\"expectedRevision\":1,\"edit\":{{\"operation\":\"apply_animation_preset\",\"itemId\":{item},\"presetId\":\"impact_slam\",\"presetVersion\":1,\"parameters\":{}}}}}",
+            parameters.as_str().unwrap()
+        );
+        let response = h.request_raw(&request);
+        assert!(!response.status.success());
+        let failure = event(&response);
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(failure["error"]["retryable"], false);
+        assert_eq!(bytes(), before);
+    }
+    for entry in fixture["presets"].as_array().unwrap() {
+        let response=h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+            {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":8,"height":8,"color":"#00ff00","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"motion"},
+            {"operation":"apply_animation_preset","itemId":"@motion","presetId":entry["id"],"presetVersion":2,"parameters":entry["parameters"]}]}));
+        assert_eq!(
+            event(&response)["error"]["code"],
+            "INVALID_ARGUMENT",
+            "{}",
+            event(&response)
+        );
+        assert_eq!(event(&response)["error"]["retryable"], false);
+        assert_eq!(bytes(), before);
+    }
+}
+
+#[test]
+fn motion_pack_headless_canonical_sources_aliases_and_history_survive_reopen() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../contracts/initial-motion-preset-pack-v1.json"
+    ))
+    .unwrap();
+    for entry in fixture["presets"].as_array().unwrap() {
+        let h = Harness::new();
+        let id = result(&h.request(json!({"operation":"create_project","name":"Pack lifecycle"})))
+            ["projectId"]
+            .clone();
+        let initial = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let track = initial["project"]["tracks"][1]["id"].clone();
+        let applied=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+            {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":32,"height":32,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"motion"},
+            {"operation":"apply_animation_preset","itemId":"@motion","presetId":entry["id"],"presetVersion":1,"parameters":entry["parameters"]}]})));
+        assert_eq!(applied["revision"], 1);
+        assert!(applied["aliases"]["motion"].is_string());
+        let saved = result(&h.request(json!({"operation":"open_project","projectId":id})));
+        assert_eq!(saved["project"]["schemaVersion"], 30);
+        assert_eq!(
+            saved["project"]["tracks"][1]["items"][0]["animationPresetProvenance"],
+            entry["expectedProvenance"]
+        );
+        result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":1})));
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["tracks"],
+            initial["project"]["tracks"]
+        );
+        result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":2})));
+        assert_eq!(
+            result(&h.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"],
+            saved["project"]["tracks"]
+        );
+    }
+}

@@ -32,3 +32,7 @@ The fake worker accepts an optional test-only `OPENCUT_TEST_TIMESTAMP_SUPPORT` J
 ## Open Questions
 
 None.
+
+## Main integration and conflict prevention
+
+Merge main normally; preserve accepted motion-pack/schema30 definitions and this change's speech metadata independently. Recompute the pinned MCP digest from the combined canonical catalog without regenerating unrelated entries. Verify the delta against main remains speech scoped. Record the exact base and shared sections, recheck remote main before publication, and communicate integration order through the parent. Repeat full required gates and independent reconciliation review. No new behavior or specification requirements are introduced.

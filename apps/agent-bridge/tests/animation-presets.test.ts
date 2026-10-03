@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
+import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
 import type { HeadlessEdit } from "../src/headless-contract";
 import {
   animationPresetParametersSchema,
@@ -22,8 +23,8 @@ describe("canonical versioned animation presets", () => {
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
     ]);
-    expect(PRESETS.compilerVersion).toBe(1);
-    expect(PRESETS.projectSchemaVersion).toBe(29);
+    expect(PRESETS.compilerVersion).toBe(2);
+    expect(PRESETS.projectSchemaVersion).toBe(30);
   });
 
   it("accepts structurally valid unknown identities for canonical core rejection", () => {
@@ -111,3 +112,68 @@ const wrongValue: PresetParameters["from"] = "0";
 // @ts-expect-error Executable curve tags are excluded.
 const wrongCurve: PresetParameters["curve"] = "expression";
 expect([unsupportedProperty, wrongValue, wrongCurve]).toHaveLength(3);
+
+describe("initial motion pack typed contract", () => {
+  it("accepts all five closed inputs without transport expansion or defaulted loops", () => {
+    for (const entry of PACK.presets) {
+      expect(animationPresetParametersSchema.parse(entry.parameters)).toEqual(
+        entry.parameters
+      );
+      const request = {
+        itemId: "item",
+        operation: "apply_animation_preset",
+        parameters: entry.parameters,
+        presetId: entry.id,
+        presetVersion: 1,
+      };
+      expect(headlessEditSchema.parse(request)).toEqual({
+        ...request,
+        collisionPolicy: "reject",
+      });
+      expect(
+        schemas.timelineApplyAnimationPreset.parse({
+          expectedRevision: 1,
+          itemId: "item",
+          parameters: entry.parameters,
+          presetId: entry.id,
+          presetVersion: 1,
+          projectId: "project",
+        })
+      ).toMatchObject({ parameters: entry.parameters });
+      expect(
+        animationPresetParametersSchema.safeParse({
+          ...entry.parameters,
+          expression: "time",
+        }).success
+      ).toBe(false);
+      expect(
+        animationPresetParametersSchema.safeParse(
+          Object.values(entry.parameters)
+        ).success
+      ).toBe(false);
+    }
+  });
+  it("rejects nested positional blur, unknown fields and missing tagged endpoints", () => {
+    const impact = PACK.presets[0]?.parameters;
+    expect(
+      animationPresetParametersSchema.safeParse({
+        ...impact,
+        motionBlur: [180, 3],
+      }).success
+    ).toBe(false);
+    expect(
+      animationPresetParametersSchema.safeParse({
+        ...impact,
+        motionBlur: { enabled: true, sampleCount: 3, shutterAngleDeg: 180 },
+      }).success
+    ).toBe(false);
+    expect(
+      animationPresetParametersSchema.safeParse({
+        durationMs: 100,
+        kind: "pulse",
+        scaleFrom: 1,
+        startMs: 0,
+      }).success
+    ).toBe(false);
+  });
+});

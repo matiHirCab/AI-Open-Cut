@@ -21,7 +21,8 @@
     "inherited_animation_timing_v1",
     "extended_visual_animation_v1",
     "motion_blur_sampling_v1",
-    "animation_presets_v1"
+    "animation_presets_v1",
+    "initial_motion_preset_pack_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2219,7 +2220,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 29,
+            "const": 30,
             "type": "number"
           },
           "protocolVersion": {
@@ -6747,134 +6748,7 @@
             "type": "string"
           },
           "parameters": {
-            "additionalProperties": false,
-            "properties": {
-              "curve": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "hold",
-                      "linear"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "oneOf": [
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "type": {
-                            "const": "cubic_bezier",
-                            "type": "string"
-                          },
-                          "x1": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "x2": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "y1": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "y2": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "x1",
-                          "x2",
-                          "y1",
-                          "y2"
-                        ],
-                        "type": "object"
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "damping": {
-                            "maximum": 1000,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "initialVelocity": {
-                            "maximum": 100,
-                            "minimum": -100,
-                            "type": "number"
-                          },
-                          "mass": {
-                            "maximum": 100,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "stiffness": {
-                            "maximum": 10000,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "type": {
-                            "const": "spring",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "damping",
-                          "initialVelocity",
-                          "mass",
-                          "stiffness",
-                          "type"
-                        ],
-                        "type": "object"
-                      }
-                    ]
-                  }
-                ],
-                "default": "linear"
-              },
-              "durationMs": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "from": {
-                "type": "number"
-              },
-              "property": {
-                "enum": [
-                  "transform.position_x",
-                  "transform.position_y",
-                  "transform.scale_x",
-                  "transform.scale_y",
-                  "transform.opacity",
-                  "audio.gain_db"
-                ],
-                "type": "string"
-              },
-              "startMs": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "to": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "durationMs",
-              "from",
-              "property",
-              "startMs",
-              "to"
-            ],
-            "type": "object"
+            "$ref": "#/$defs/AnimationPresetRequestParameters"
           },
           "presetId": {
             "pattern": "^[a-z][a-z0-9_]{0,63}$",
@@ -14488,134 +14362,7 @@
               "type": "string"
             },
             "parameters": {
-              "additionalProperties": false,
-              "properties": {
-                "curve": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hold",
-                        "linear"
-                      ],
-                      "type": "string"
-                    },
-                    {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "type": {
-                              "const": "cubic_bezier",
-                              "type": "string"
-                            },
-                            "x1": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "x2": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "y1": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "y2": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "x1",
-                            "x2",
-                            "y1",
-                            "y2"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "damping": {
-                              "maximum": 1000,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "initialVelocity": {
-                              "maximum": 100,
-                              "minimum": -100,
-                              "type": "number"
-                            },
-                            "mass": {
-                              "maximum": 100,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "stiffness": {
-                              "maximum": 10000,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "type": {
-                              "const": "spring",
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "damping",
-                            "initialVelocity",
-                            "mass",
-                            "stiffness",
-                            "type"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    }
-                  ],
-                  "default": "linear"
-                },
-                "durationMs": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "from": {
-                  "type": "number"
-                },
-                "property": {
-                  "enum": [
-                    "transform.position_x",
-                    "transform.position_y",
-                    "transform.scale_x",
-                    "transform.scale_y",
-                    "transform.opacity",
-                    "audio.gain_db"
-                  ],
-                  "type": "string"
-                },
-                "startMs": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "durationMs",
-                "from",
-                "property",
-                "startMs",
-                "to"
-              ],
-              "type": "object"
+              "$ref": "#/$defs/AnimationPresetRequestParameters"
             },
             "presetId": {
               "pattern": "^[a-z][a-z0-9_]{0,63}$",
@@ -16432,135 +16179,7 @@
               "type": "string"
             },
             "parameters": {
-              "additionalProperties": false,
-              "properties": {
-                "curve": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hold",
-                        "linear"
-                      ],
-                      "type": "string"
-                    },
-                    {
-                      "oneOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "type": {
-                              "const": "cubic_bezier",
-                              "type": "string"
-                            },
-                            "x1": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "x2": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "y1": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            "y2": {
-                              "maximum": 1,
-                              "minimum": 0,
-                              "type": "number"
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "x1",
-                            "x2",
-                            "y1",
-                            "y2"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "damping": {
-                              "maximum": 1000,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "initialVelocity": {
-                              "maximum": 100,
-                              "minimum": -100,
-                              "type": "number"
-                            },
-                            "mass": {
-                              "maximum": 100,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "stiffness": {
-                              "maximum": 10000,
-                              "minimum": 0.01,
-                              "type": "number"
-                            },
-                            "type": {
-                              "const": "spring",
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "damping",
-                            "initialVelocity",
-                            "mass",
-                            "stiffness",
-                            "type"
-                          ],
-                          "type": "object"
-                        }
-                      ]
-                    }
-                  ],
-                  "default": "linear"
-                },
-                "durationMs": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "from": {
-                  "type": "number"
-                },
-                "property": {
-                  "enum": [
-                    "transform.position_x",
-                    "transform.position_y",
-                    "transform.scale_x",
-                    "transform.scale_y",
-                    "transform.opacity",
-                    "audio.gain_db"
-                  ],
-                  "type": "string"
-                },
-                "startMs": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "curve",
-                "durationMs",
-                "from",
-                "property",
-                "startMs",
-                "to"
-              ],
-              "type": "object"
+              "$ref": "#/$defs/AnimationPresetOutputParameters"
             },
             "presetId": {
               "pattern": "^[a-z][a-z0-9_]{0,63}$",
@@ -25444,7 +25063,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 29,
+        "const": 30,
         "type": "number"
       },
       "settings": {
@@ -31633,134 +31252,7 @@
             "type": "integer"
           },
           "parameters": {
-            "additionalProperties": false,
-            "properties": {
-              "curve": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "hold",
-                      "linear"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "oneOf": [
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "type": {
-                            "const": "cubic_bezier",
-                            "type": "string"
-                          },
-                          "x1": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "x2": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "y1": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          },
-                          "y2": {
-                            "maximum": 1,
-                            "minimum": 0,
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "x1",
-                          "x2",
-                          "y1",
-                          "y2"
-                        ],
-                        "type": "object"
-                      },
-                      {
-                        "additionalProperties": false,
-                        "properties": {
-                          "damping": {
-                            "maximum": 1000,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "initialVelocity": {
-                            "maximum": 100,
-                            "minimum": -100,
-                            "type": "number"
-                          },
-                          "mass": {
-                            "maximum": 100,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "stiffness": {
-                            "maximum": 10000,
-                            "minimum": 0.01,
-                            "type": "number"
-                          },
-                          "type": {
-                            "const": "spring",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "damping",
-                          "initialVelocity",
-                          "mass",
-                          "stiffness",
-                          "type"
-                        ],
-                        "type": "object"
-                      }
-                    ]
-                  }
-                ]
-              },
-              "durationMs": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "from": {
-                "type": "number"
-              },
-              "property": {
-                "enum": [
-                  "transform.position_x",
-                  "transform.position_y",
-                  "transform.scale_x",
-                  "transform.scale_y",
-                  "transform.opacity",
-                  "audio.gain_db"
-                ],
-                "type": "string"
-              },
-              "startMs": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "to": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "curve",
-              "durationMs",
-              "from",
-              "property",
-              "startMs",
-              "to"
-            ],
-            "type": "object"
+            "$ref": "#/$defs/AnimationPresetSavedParameters"
           },
           "presetId": {
             "pattern": "^[a-z][a-z0-9_]{0,63}$",
@@ -31792,6 +31284,1183 @@
         "type": "string"
       },
       "type": "object"
+    },
+    "AnimationPresetRequestParameters": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "curve": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hold",
+                    "linear"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "cubic_bezier",
+                          "type": "string"
+                        },
+                        "x1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "x2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x1",
+                        "x2",
+                        "y1",
+                        "y2"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "damping": {
+                          "maximum": 1000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "initialVelocity": {
+                          "maximum": 100,
+                          "minimum": -100,
+                          "type": "number"
+                        },
+                        "mass": {
+                          "maximum": 100,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "stiffness": {
+                          "maximum": 10000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "type": {
+                          "const": "spring",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "damping",
+                        "initialVelocity",
+                        "mass",
+                        "stiffness",
+                        "type"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              ],
+              "default": "linear"
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "from": {
+              "type": "number"
+            },
+            "property": {
+              "enum": [
+                "transform.position_x",
+                "transform.position_y",
+                "transform.scale_x",
+                "transform.scale_y",
+                "transform.opacity",
+                "audio.gain_db"
+              ],
+              "type": "string"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "to": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "durationMs",
+            "from",
+            "property",
+            "startMs",
+            "to"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "type": "number"
+            },
+            "centerY": {
+              "type": "number"
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "flashOpacity": {
+              "type": "number"
+            },
+            "kind": {
+              "const": "impact_slam",
+              "type": "string"
+            },
+            "motionBlur": {
+              "additionalProperties": false,
+              "properties": {
+                "sampleCount": {
+                  "maximum": 16,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "shutterAngleDeg": {
+                  "maximum": 360,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sampleCount",
+                "shutterAngleDeg"
+              ],
+              "type": "object"
+            },
+            "opacityFrom": {
+              "type": "number"
+            },
+            "opacityTo": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleOvershoot": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "shakeAmplitudePx": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "durationMs",
+            "flashOpacity",
+            "kind",
+            "motionBlur",
+            "opacityFrom",
+            "opacityTo",
+            "scaleFrom",
+            "scaleOvershoot",
+            "scaleTo",
+            "shakeAmplitudePx",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "slide_left",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "scan",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "pulse",
+              "type": "string"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scalePeak": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "scaleFrom",
+            "scalePeak",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "radar_expand",
+              "type": "string"
+            },
+            "opacityPeak": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "opacityPeak",
+            "scaleFrom",
+            "scaleTo",
+            "startMs"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AnimationPresetSavedParameters": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "curve": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hold",
+                    "linear"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "cubic_bezier",
+                          "type": "string"
+                        },
+                        "x1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "x2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x1",
+                        "x2",
+                        "y1",
+                        "y2"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "damping": {
+                          "maximum": 1000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "initialVelocity": {
+                          "maximum": 100,
+                          "minimum": -100,
+                          "type": "number"
+                        },
+                        "mass": {
+                          "maximum": 100,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "stiffness": {
+                          "maximum": 10000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "type": {
+                          "const": "spring",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "damping",
+                        "initialVelocity",
+                        "mass",
+                        "stiffness",
+                        "type"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              ]
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "from": {
+              "type": "number"
+            },
+            "property": {
+              "enum": [
+                "transform.position_x",
+                "transform.position_y",
+                "transform.scale_x",
+                "transform.scale_y",
+                "transform.opacity",
+                "audio.gain_db"
+              ],
+              "type": "string"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "to": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "curve",
+            "durationMs",
+            "from",
+            "property",
+            "startMs",
+            "to"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "type": "number"
+            },
+            "centerY": {
+              "type": "number"
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "flashOpacity": {
+              "type": "number"
+            },
+            "kind": {
+              "const": "impact_slam",
+              "type": "string"
+            },
+            "motionBlur": {
+              "additionalProperties": false,
+              "properties": {
+                "sampleCount": {
+                  "maximum": 16,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "shutterAngleDeg": {
+                  "maximum": 360,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sampleCount",
+                "shutterAngleDeg"
+              ],
+              "type": "object"
+            },
+            "opacityFrom": {
+              "type": "number"
+            },
+            "opacityTo": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleOvershoot": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "shakeAmplitudePx": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "durationMs",
+            "flashOpacity",
+            "kind",
+            "motionBlur",
+            "opacityFrom",
+            "opacityTo",
+            "scaleFrom",
+            "scaleOvershoot",
+            "scaleTo",
+            "shakeAmplitudePx",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "slide_left",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "scan",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "iterations",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "pulse",
+              "type": "string"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scalePeak": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "iterations",
+            "kind",
+            "scaleFrom",
+            "scalePeak",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "radar_expand",
+              "type": "string"
+            },
+            "opacityPeak": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "iterations",
+            "kind",
+            "opacityPeak",
+            "scaleFrom",
+            "scaleTo",
+            "startMs"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AnimationPresetOutputParameters": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "curve": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hold",
+                    "linear"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "cubic_bezier",
+                          "type": "string"
+                        },
+                        "x1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "x2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y1": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "y2": {
+                          "maximum": 1,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "x1",
+                        "x2",
+                        "y1",
+                        "y2"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "damping": {
+                          "maximum": 1000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "initialVelocity": {
+                          "maximum": 100,
+                          "minimum": -100,
+                          "type": "number"
+                        },
+                        "mass": {
+                          "maximum": 100,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "stiffness": {
+                          "maximum": 10000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "type": {
+                          "const": "spring",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "damping",
+                        "initialVelocity",
+                        "mass",
+                        "stiffness",
+                        "type"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              ],
+              "default": "linear"
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "from": {
+              "type": "number"
+            },
+            "property": {
+              "enum": [
+                "transform.position_x",
+                "transform.position_y",
+                "transform.scale_x",
+                "transform.scale_y",
+                "transform.opacity",
+                "audio.gain_db"
+              ],
+              "type": "string"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "to": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "curve",
+            "durationMs",
+            "from",
+            "property",
+            "startMs",
+            "to"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "centerX": {
+              "type": "number"
+            },
+            "centerY": {
+              "type": "number"
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "flashOpacity": {
+              "type": "number"
+            },
+            "kind": {
+              "const": "impact_slam",
+              "type": "string"
+            },
+            "motionBlur": {
+              "additionalProperties": false,
+              "properties": {
+                "sampleCount": {
+                  "maximum": 16,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "shutterAngleDeg": {
+                  "maximum": 360,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sampleCount",
+                "shutterAngleDeg"
+              ],
+              "type": "object"
+            },
+            "opacityFrom": {
+              "type": "number"
+            },
+            "opacityTo": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleOvershoot": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "shakeAmplitudePx": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "centerX",
+            "centerY",
+            "durationMs",
+            "flashOpacity",
+            "kind",
+            "motionBlur",
+            "opacityFrom",
+            "opacityTo",
+            "scaleFrom",
+            "scaleOvershoot",
+            "scaleTo",
+            "shakeAmplitudePx",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "kind": {
+              "const": "slide_left",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "scan",
+              "type": "string"
+            },
+            "positionFromX": {
+              "type": "number"
+            },
+            "positionToX": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "positionFromX",
+            "positionToX",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "pulse",
+              "type": "string"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scalePeak": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "scaleFrom",
+            "scalePeak",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "maximum": 10000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "const": "infinite",
+                  "type": "string"
+                }
+              ]
+            },
+            "kind": {
+              "const": "radar_expand",
+              "type": "string"
+            },
+            "opacityPeak": {
+              "type": "number"
+            },
+            "scaleFrom": {
+              "type": "number"
+            },
+            "scaleTo": {
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "durationMs",
+            "kind",
+            "opacityPeak",
+            "scaleFrom",
+            "scaleTo",
+            "startMs"
+          ],
+          "type": "object"
+        }
+      ]
     }
   }
 }
