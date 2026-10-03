@@ -7,8 +7,8 @@ use std::{
 use opencut_editor_core::{
     BatchEditOperation, CaptionStyle, CommitGeneratedAssetRequest, CommitTranscriptionRequest,
     CoreError, EditOperation, EditorCore, ExportOptions, GeneratedAssetOrigin, MediaProbeFacts,
-    MediaType, PathPolicy, PreviewRangeOptions, ProjectSettings, Renderer,
-    ReplaceGeneratedAssetRequest, TranscriptionSegment,
+    MediaType, PathPolicy, PreviewRangeOptions, PreviewResolution, PreviewReviewOptions,
+    ProjectSettings, Renderer, ReplaceGeneratedAssetRequest, TranscriptionSegment,
 };
 use serde::{Deserialize, Serialize};
 
@@ -163,6 +163,16 @@ enum Request {
         height: u32,
         fps: u32,
         include_audio: bool,
+    },
+    RenderReviewRange {
+        project_id: String,
+        expected_revision: u64,
+        start_ms: u64,
+        end_ms: u64,
+        #[serde(default)]
+        resolution: PreviewResolution,
+        fps: Option<u32>,
+        include_audio: Option<bool>,
     },
     ExportVideo {
         project_id: String,
@@ -601,6 +611,35 @@ fn dispatch(
             )?;
             sink.value(result)
         }
+        Request::RenderReviewRange {
+            project_id,
+            expected_revision,
+            start_ms,
+            end_ms,
+            resolution,
+            fps,
+            include_audio,
+        } => {
+            let project = core.validate_revision(&project_id, expected_revision)?;
+            let project_dir = core.paths().project_dir(&project_id)?;
+            let result = renderer.render_review_range(
+                &project,
+                &project_dir,
+                PreviewReviewOptions {
+                    start_ms,
+                    end_ms,
+                    resolution,
+                    fps,
+                    include_audio,
+                },
+                |progress| {
+                    let _ = sink.event(Event::<serde_json::Value>::Progress {
+                        progress: progress.progress,
+                    });
+                },
+            )?;
+            sink.value(result)
+        }
         Request::ExportVideo {
             project_id,
             expected_revision,
@@ -745,6 +784,7 @@ fn render_capabilities() -> Vec<&'static str> {
     vec![
         "preview",
         "preview_range",
+        "preview_review_presets_v1",
         "mp4_export",
         "evaluated_scene_rendering",
         "shape_rendering",
@@ -845,6 +885,52 @@ mod tests {
     use strum::VariantNames;
 
     const UNKNOWN_OPERATION_PROBE: &str = "__opencut_unknown_contract_operation__";
+
+    #[test]
+    fn review_request_contract_defaults_and_strict_resolution() {
+        let contract: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/headless-protocol-v1.json"))
+                .unwrap();
+        let request: Request =
+            serde_json::from_value(contract["requests"]["reviewRangeDefaults"].clone()).unwrap();
+        assert!(matches!(
+            request,
+            Request::RenderReviewRange {
+                resolution: PreviewResolution::Preset(opencut_editor_core::PreviewPreset::Project),
+                fps: None,
+                include_audio: None,
+                ..
+            }
+        ));
+        let request: Request =
+            serde_json::from_value(contract["requests"]["reviewRangeSilentCustom"].clone())
+                .unwrap();
+        assert!(matches!(
+            request,
+            Request::RenderReviewRange {
+                resolution: PreviewResolution::Custom(_),
+                fps: Some(10),
+                include_audio: Some(false),
+                ..
+            }
+        ));
+        let selections: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/preview-review-v1.json"))
+                .unwrap();
+        for value in selections["validResolutions"].as_array().unwrap() {
+            let mut request = contract["requests"]["reviewRangeDefaults"].clone();
+            request["resolution"] = value.clone();
+            assert!(serde_json::from_value::<Request>(request).is_ok());
+        }
+        for value in selections["invalidResolutions"].as_array().unwrap() {
+            let mut request = contract["requests"]["reviewRangeDefaults"].clone();
+            request["resolution"] = value.clone();
+            assert_eq!(
+                parse_request(&request.to_string()).unwrap_err().code,
+                opencut_editor_core::ErrorCode::InvalidArgument
+            );
+        }
+    }
 
     fn serde_accepts_operation<RequestType: DeserializeOwned>(operation: &str) -> bool {
         match serde_json::from_value::<RequestType>(serde_json::json!({ "operation": operation })) {

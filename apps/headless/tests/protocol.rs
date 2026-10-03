@@ -7,6 +7,64 @@ fn headless_contract() -> Value {
     serde_json::from_str(include_str!("../../../contracts/headless-protocol-v1.json")).unwrap()
 }
 
+#[test]
+fn review_range_transport_rejects_before_io_and_preserves_revision_reopen() {
+    let h = Harness::new();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Review transport"})))["projectId"].clone();
+    let initial = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = initial["project"]["tracks"][1]["id"].clone();
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#112233","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    for (extra, expected) in [
+        (json!({"expectedRevision":0}), "REVISION_CONFLICT"),
+        (
+            json!({"resolution":{"width":7681,"height":720}}),
+            "VALIDATION_FAILED",
+        ),
+        (json!({"resolution":{"width":320}}), "INVALID_ARGUMENT"),
+        (
+            json!({"resolution":{"width":320,"height":180,"preset":"540p"}}),
+            "INVALID_ARGUMENT",
+        ),
+        (json!({"resolution":"1080p"}), "INVALID_ARGUMENT"),
+        (json!({"fps":0}), "VALIDATION_FAILED"),
+    ] {
+        let mut request = json!({"operation":"render_review_range","projectId":id,"expectedRevision":1,"startMs":0,"endMs":1000});
+        for (key, value) in extra.as_object().unwrap() {
+            request[key] = value.clone();
+        }
+        let response = event(&h.request(request));
+        assert_eq!(response["error"]["code"], expected, "{response}");
+        assert_eq!(
+            result(&h.request(json!({"operation":"open_project","projectId":id})))["project"],
+            before["project"]
+        );
+    }
+    let previews = h
+        .root
+        .path()
+        .join("projects")
+        .join(id.as_str().unwrap())
+        .join("previews");
+    assert_eq!(std::fs::read_dir(previews).unwrap().count(), 0);
+    let status = result(&h.request(json!({"operation":"status"})));
+    let ready = status["subsystems"]["rendering"]["ready"]
+        .as_bool()
+        .unwrap();
+    for capabilities in [
+        &status["capabilities"],
+        &status["subsystems"]["rendering"]["capabilities"],
+    ] {
+        assert_eq!(
+            capabilities
+                .as_array()
+                .unwrap()
+                .contains(&json!("preview_review_presets_v1")),
+            ready
+        );
+    }
+}
+
 fn error_catalog() -> Value {
     serde_json::from_str(include_str!("../../../contracts/error-codes-v1.json")).unwrap()
 }
@@ -1193,6 +1251,8 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
+    assert!(!capabilities.contains(&json!("preview_review_presets_v1")));
+    assert_eq!(status["subsystems"]["rendering"]["capabilities"], json!([]));
     assert!(capabilities.contains(&json!("shape_items")));
     assert!(!capabilities.contains(&json!("shape_rendering")));
 }

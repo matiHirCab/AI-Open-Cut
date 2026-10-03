@@ -77,6 +77,7 @@ export class JobRegistry {
         operation:
           | "render_preview"
           | "render_preview_range"
+          | "render_review_range"
           | "render_draft_preview"
           | "export_video";
       }

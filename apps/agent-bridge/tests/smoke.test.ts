@@ -31,6 +31,7 @@ import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
+import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
@@ -1236,4 +1237,8 @@ it("compiles versioned presets through real MCP with aliases, rollback, and reop
   await verifyPresetWorkflow(client, call);
   await verifyAnimationEditWorkflow(client, call);
   await verifyPackClockMigrationWorkflow(client, call, projects);
+});
+
+it("reviews typed presets through real MCP without mutating state or history", async () => {
+  await verifyPreviewReviewWorkflow(client, call, projects);
 });

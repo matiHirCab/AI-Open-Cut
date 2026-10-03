@@ -27,7 +27,10 @@ mod markers;
 pub use path_policy::PathPolicy;
 pub use render_artifact::RenderArtifact;
 pub use render_process::{ProbeResult, RenderProgress};
-pub use renderer::{ExportOptions, PreviewRangeOptions, Renderer};
+pub use renderer::{
+    ExportOptions, PreviewDimensions, PreviewPreset, PreviewRangeOptions, PreviewResolution,
+    PreviewReviewOptions, Renderer,
+};
 pub use store::{
     CommitGeneratedAssetRequest, CommitGeneratedAssetResult, CommitTranscriptionRequest,
     EditorCore, ProjectSummary, ReplaceGeneratedAssetRequest, ReplaceGeneratedAssetResult,
