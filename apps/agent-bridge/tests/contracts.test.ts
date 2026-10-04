@@ -34,6 +34,7 @@ import {
   slotValueSchema,
   synthesizedSpeechMetadataSchema,
   templateSlotSchema,
+  timeExpressionSchema,
   ttsStatusSchema,
 } from "../src/schemas";
 import { ARTIFACT_RESOURCES_CAPABILITY } from "../src/server/artifacts";
@@ -1188,5 +1189,50 @@ it("matches lifecycle duplication fixtures across standalone and batch contracts
   }
   for (const edit of LIFECYCLE.validBatch) {
     expect(headlessEditSchema.safeParse(edit).success).toBe(true);
+  }
+});
+
+it("matches canonical closed time expressions through the public timing decoder", () => {
+  const ids = new Set<string>();
+  for (const fixture of MOTION_GRAPHICS_CONTRACT.timeExpressionCases) {
+    expect(ids.has(fixture.id)).toBe(false);
+    ids.add(fixture.id);
+    expect(
+      timeExpressionSchema.safeParse(fixture.value).success,
+      fixture.id
+    ).toBe(fixture.accept);
+    for (const operation of [
+      {
+        itemId: "item",
+        operation: "set_item_start_time",
+        scope: "root",
+        time: fixture.value,
+      },
+    ]) {
+      expect(headlessEditSchema.safeParse(operation).success, fixture.id).toBe(
+        fixture.accept
+      );
+      expect(
+        schemas.timelineBatchEdit.safeParse({
+          expectedRevision: 0,
+          operations: [
+            {
+              color: "#ffffff",
+              durationMs: 100,
+              height: 1,
+              operation: "add_rectangle",
+              resultAlias: "item",
+              startMs: 0,
+              trackId: "track",
+              transform: { opacity: 1, positionX: 0, positionY: 0, scale: 1 },
+              width: 1,
+            },
+            { ...operation, itemId: "@item" },
+          ],
+          projectId: "project",
+        }).success,
+        fixture.id
+      ).toBe(fixture.accept);
+    }
   }
 });

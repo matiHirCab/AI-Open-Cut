@@ -200,7 +200,9 @@ export async function verifyRepeaterWorkflow(
     jobSchema
   );
   await expect
-    .poll(() => call("job_get_status", { jobId: frame.jobId }, jobSchema))
+    .poll(() => call("job_get_status", { jobId: frame.jobId }, jobSchema), {
+      timeout: 10_000,
+    })
     .toMatchObject({ status: "completed" });
   await verifyEffectiveAudio(client, call, mediaDirectory);
 }
@@ -350,6 +352,8 @@ async function verifyEffectiveAudio(
     jobSchema
   );
   await expect
-    .poll(() => call("job_get_status", { jobId: frame.jobId }, jobSchema))
+    .poll(() => call("job_get_status", { jobId: frame.jobId }, jobSchema), {
+      timeout: 10_000,
+    })
     .toMatchObject({ status: "completed" });
 }

@@ -239,6 +239,7 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
             "managedResources",
             "semantics",
             "status",
+            "timeExpressionCases",
             "validFixtures",
             "version",
         ],
@@ -252,6 +253,27 @@ fn validate_catalog(catalog: &Value) -> Result<(), String> {
     }
     if root.get("status").and_then(Value::as_str) != Some("fixture_only") {
         return Err("catalog status must be fixture_only".into());
+    }
+
+    let cases = array(catalog, "timeExpressionCases")?;
+    if cases.is_empty() {
+        return Err("timeExpressionCases must not be empty".into());
+    }
+    let mut ids = std::collections::BTreeSet::new();
+    for fixture in cases {
+        let fields = object(fixture, "time expression case")?;
+        assert_closed_record(fields, &["id", "accept", "value"], "time expression case")?;
+        let id = fields
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or("time expression case id missing")?;
+        if !ids.insert(id) {
+            return Err("duplicate time expression case id".into());
+        }
+        if !fields.get("accept").is_some_and(Value::is_boolean) {
+            return Err("time expression acceptance must be boolean".into());
+        }
     }
 
     let semantics = object(
@@ -588,3 +610,38 @@ fn strict_motion_graphics_contract_rejects_malformed_payloads_and_scope_drift() 
     strict_contract::validate_malformed_regressions(&catalog)
         .unwrap_or_else(|message| panic!("{message}"));
 }
+
+#[test]
+fn canonical_time_expressions_use_the_native_closed_decoder() {
+    let catalog: Value = serde_json::from_str(CATALOG_SOURCE).unwrap();
+    for fixture in catalog["timeExpressionCases"].as_array().unwrap() {
+        let value = fixture["value"].clone();
+        let accept = fixture["accept"].as_bool().unwrap();
+        assert_eq!(
+            serde_json::from_value::<opencut_editor_core::TimeExpression>(value.clone()).is_ok(),
+            accept,
+            "{}",
+            fixture["id"]
+        );
+        {
+            let edit = serde_json::json!({"operation":"set_item_start_time","scope":"root","itemId":"item","time":value});
+            assert_eq!(
+                serde_json::from_value::<opencut_editor_core::EditOperation>(edit.clone()).is_ok(),
+                accept,
+                "{}",
+                fixture["id"]
+            );
+            let mut batch = edit;
+            batch["resultAlias"] = serde_json::json!("copy");
+            assert_eq!(
+                serde_json::from_value::<opencut_editor_core::BatchEditOperation>(batch).is_ok(),
+                accept,
+                "{}",
+                fixture["id"]
+            );
+        }
+    }
+}
+
+#[path = "support/historical_animation_guards.rs"]
+mod historical_animation_guards;

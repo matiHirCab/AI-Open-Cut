@@ -1971,5 +1971,88 @@
         ]
       }
     }
+  ],
+  "timeExpressionCases": [
+    {
+      "id": "milliseconds.zero",
+      "accept": true,
+      "value": {
+        "type": "milliseconds",
+        "valueMs": 0
+      }
+    },
+    {
+      "id": "milliseconds.positive",
+      "accept": true,
+      "value": {
+        "type": "milliseconds",
+        "valueMs": 713
+      }
+    },
+    {
+      "id": "marker.zero",
+      "accept": true,
+      "value": {
+        "type": "marker",
+        "markerName": "impact",
+        "offsetMs": 0
+      }
+    },
+    {
+      "id": "marker.negative",
+      "accept": true,
+      "value": {
+        "type": "marker",
+        "markerName": "impact",
+        "offsetMs": -50
+      }
+    },
+    {
+      "id": "marker.positive",
+      "accept": true,
+      "value": {
+        "type": "marker",
+        "markerName": "impact",
+        "offsetMs": 25
+      }
+    },
+    {
+      "id": "milliseconds.unknown_member",
+      "accept": false,
+      "value": {
+        "type": "milliseconds",
+        "valueMs": 713,
+        "unexpected": true
+      }
+    },
+    {
+      "id": "milliseconds.marker_member",
+      "accept": false,
+      "value": {
+        "type": "milliseconds",
+        "valueMs": 713,
+        "markerName": "impact"
+      }
+    },
+    {
+      "id": "marker.unknown_member",
+      "accept": false,
+      "value": {
+        "type": "marker",
+        "markerName": "impact",
+        "offsetMs": -50,
+        "unexpected": true
+      }
+    },
+    {
+      "id": "marker.milliseconds_member",
+      "accept": false,
+      "value": {
+        "type": "marker",
+        "markerName": "impact",
+        "offsetMs": 0,
+        "valueMs": 713
+      }
+    }
   ]
 }

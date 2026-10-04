@@ -1,21 +1,9 @@
-# MG-M3 readiness audit: pending
+# MG-M3 readiness: final342 scoped repair accepted
 
-This is a pre-audit limitation record, not an assertion that the full audit has begun, passed or been accepted. The inspected base is main `ad5cd0ca0514c7ed92d4f3dae9cf9444ef3ff9de` (completed issues38–47) plus the current issue48 branch. Issue48 final checks and exact published-head CI must finish before the independent Sol-medium readiness audit begins; that audit is required before MG-M4 work.
+Independent epic6 auditing of actual issues38–48 and living/public/core/renderer/desktop/history contracts began at immutable9173583. User-directed reconciliation cleanly replayed only the bounded repair onto merged main0d618ca1, preserving issue48 and inherited issue71 preview presets/audio/API/catalog/specifications. Authoring participation is disclosed; independent source/oracle reviews and quantitative reproductions establish evidence rather than issue checkbox closure.
 
-## Known remaining timestamp limitations
+Current342 inputs and211 native closure are frozen, zero drift. Actual applicable passes:fmt/strict Clippy/workspace/desktop; required126 animation including unchanged temporal39; full release golden unchanged references; full canonical397; lint; unit529 plus1 designated skip; fullMCP20/package17 unchanged deadlines/output validation; freshPython12+5; all ten native lifecycle/cache/report commands. Current rules all pass:9602625.396s,12805581.439s,19202854.157s;56 render operations and all five semantic states. Actual fresh final-binary SDK8 passes:existing isError/text/no structured core error,zero malformed dispatch,complete project/history bytes unchanged and revision1, bound to default-headless SHA934fd5a1de736667f81cc02cab66e956f407d686d79f04b0a0c751d8e0d353a6. Current rules/SDK proofs bind342 inputs and tool environment with zero drift.
 
-The issue48 nonaligned requested-origin correction reuses canonical CPU sampling for supported animated Rectangle/Shape/Media and existing shaped/PAM-capable Text, plus static explicit Transform2D Rectangle activity. Caption and unshaped legacy Text remain excluded: their existing nonaligned expression-time limitation is unresolved. Their prior paths/error behavior are preserved, without a new unsupported-source or missing-binding error. This is not a universal timestamp-fidelity claim.
+All earlier audit/runtime/golden/transport/canonical/unit failures remain preserved with exact source/proof identities. The three bounded test-client memo files reuse only identical serialized schemas through the unchanged installed default Ajv provider, preserving actual live validation and calls; no public/schema/codec/golden/timeout weakening occurred. Own Caption channels stay rejected; historical unshaped Text is not newly supported. Normal/affine Caption geometry and existing scene-end errors remain exact. No GUI audio or human review is inferred.
 
-The [temporal fixture guide](temporal-animation-fixtures.md) describes the corrected scope, independent oracles and unchanged tolerances. Issue48's active conformance record identifies its actual focused/native/GUI evidence and pending final gates. Passing issue48 fixtures does not by itself establish full motion-graphics readiness.
-
-## Required independent audit
-
-After issue48 exact-head CI passes, an independent Sol-medium audit must inspect the actual issues38–48 stack: core/render/desktop behavior, public contracts and ownership, retained history, presets/provenance, schema migrations and the complete mandatory gate evidence. It must inspect actual integrated inputs and outputs rather than assume readiness from issue closure or prior branch results.
-
-Verified gaps require bounded, explicitly approved fix specifications and reviewable PRs or an ordered stack, with relevant verification and exact-head CI. This record authorizes no merge/deployment, assumes no future issue closure, and does not replace the required independent audit or its eventual decision.
-
-## Status
-
-- Full audit: pending after issue48 exact-head verification.
-- Caption/unshaped-Text nonaligned timestamp limitations: tracked, unresolved.
-- MG-M4 readiness: not certified by this record.
+Current4 requirements/16 scenarios/24 tasks:24 done/0 pending. Both actual independent reviews and root formal verification accept the scoped implementation:4/4 requirements,16/16 scenarios,zero missing traces,no implementation critical or warning. Actual approved living synchronization/archive and postarchive Moon exit0/1.536s plus strict39/0 exit0/.426s complete6.1. All tracked repair tasks and scoped lifecycle acceptance are complete; designated human CODEOWNER review, ordinary draft publication and exact-head CI remain pending separately before delivery readiness. Main0d's own11-job CI passes; this repair's unpublished head is not claimed green. No merge/deployment or epic closure is authorized. See the active conformance record and [temporal fixture guide](temporal-animation-fixtures.md); old documents are preserved externally before this rewrite.

@@ -482,6 +482,17 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn raster_source(
+        &self,
+        _ffmpeg: &Path,
+        _source: &str,
+        _size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "sampled source rasterization is unavailable",
+        ))
+    }
     fn prepare_visual_stream(
         &self,
         _ffmpeg: &Path,
@@ -535,6 +546,109 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn raster_source(
+        &self,
+        ffmpeg: &Path,
+        source: &str,
+        size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        // Independently bound process output; canonical source/scene preflight runs first.
+        let expected = u64::from(size.0)
+            .checked_mul(u64::from(size.1))
+            .and_then(|pixels| pixels.checked_mul(4))
+            .filter(|bytes| {
+                size.0 > 0
+                    && size.1 > 0
+                    && size.0 <= 16384
+                    && size.1 <= 16384
+                    && *bytes <= 67_108_864
+            })
+            .and_then(|bytes| usize::try_from(bytes).ok())
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "source raster output exceeds limit",
+                )
+            })?;
+        let mut child = Command::new(ffmpeg)
+            .args([
+                "-v",
+                "error",
+                "-nostdin",
+                "-f",
+                "lavfi",
+                "-i",
+                source,
+                "-frames:v",
+                "1",
+                "-threads",
+                "1",
+                "-pix_fmt",
+                "rgba",
+                "-f",
+                "rawvideo",
+                "pipe:1",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|_| CoreError::render_failure("visual_prepare", None, None))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| CoreError::render_failure("visual_prepare", None, None))?;
+        let reader = thread::spawn(move || {
+            let mut tail = Vec::new();
+            let mut stream = stderr;
+            let mut block = [0; 4096];
+            while let Ok(n) = stream.read(&mut block) {
+                if n == 0 {
+                    break;
+                }
+                tail.extend_from_slice(&block[..n]);
+                if tail.len() > STDERR_TAIL_BYTES {
+                    tail.drain(..tail.len() - STDERR_TAIL_BYTES);
+                }
+            }
+            tail
+        });
+        let result = child
+            .stdout
+            .take()
+            .ok_or_else(|| CoreError::render_failure("visual_prepare", None, None))
+            .and_then(|stdout| {
+                let mut bytes = Vec::new();
+                bytes.try_reserve_exact(expected + 1).map_err(|_| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "source raster allocation failed",
+                    )
+                })?;
+                stdout
+                    .take(expected as u64 + 1)
+                    .read_to_end(&mut bytes)
+                    .map_err(|_| CoreError::render_failure("visual_prepare", None, None))?;
+                Ok(bytes)
+            });
+        if !matches!(&result, Ok(bytes) if bytes.len() == expected) {
+            let _ = child.kill();
+        }
+        let status = child
+            .wait()
+            .map_err(|_| CoreError::render_failure("visual_prepare", None, None));
+        let tail = reader.join().unwrap_or_default();
+        let bytes = result?;
+        let status = status?;
+        if !status.success() || bytes.len() != expected {
+            return Err(CoreError::render_failure(
+                "visual_prepare",
+                status.code(),
+                stderr_excerpt(&tail),
+            ));
+        }
+        Ok(bytes)
+    }
     fn prepare_visual_stream(
         &self,
         ffmpeg: &Path,
@@ -1345,5 +1459,49 @@ mod tests {
             assert!(advanced.windows(2).any(|v| v == ["-crf", "18"]));
             assert!(advanced.windows(2).any(|v| v == ["-preset", "medium"]));
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod raster_source_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    fn executable(root: &Path, body: &str) -> std::path::PathBuf {
+        let path = root.join("raster-port.sh");
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        path
+    }
+    #[test]
+    fn epic6_raster_port_requires_exact_rgba_and_propagates_exit_status() {
+        let root = tempfile::tempdir().unwrap();
+        let executor = SystemProcessExecutor;
+        let path = executable(root.path(), "printf '\\001\\002\\003\\004'");
+        assert_eq!(
+            executor.raster_source(&path, "source", (1, 1)).unwrap(),
+            [1, 2, 3, 4]
+        );
+        for body in [
+            "printf '\\001\\002\\003'",
+            "printf '\\001\\002\\003\\004\\005'",
+            "printf '\\001\\002\\003\\004'; printf 'invalid raster source' >&2; exit 7",
+        ] {
+            let path = executable(root.path(), body);
+            let error = executor.raster_source(&path, "source", (1, 1)).unwrap_err();
+            assert_eq!(error.code, ErrorCode::FfmpegFailed);
+        }
+        // A very large producer is stopped after exactly one overflow byte;
+        // neither stdout nor stderr may accumulate the complete child output.
+        let path = executable(
+            root.path(),
+            "dd if=/dev/zero bs=65536 count=32 2>/dev/null; printf 'bad source\\n' >&2",
+        );
+        assert_eq!(
+            executor
+                .raster_source(&path, "source", (1, 1))
+                .unwrap_err()
+                .code,
+            ErrorCode::FfmpegFailed
+        );
     }
 }

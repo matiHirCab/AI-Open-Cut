@@ -18,6 +18,9 @@ mod animation_lifecycle_regressions;
 
 #[path = "animation_edit_render.rs"]
 mod animation_edit_render;
+#[path = "epic6_requested_origin.rs"]
+mod epic6_requested_origin;
+
 #[path = "temporal_fixtures.rs"]
 mod temporal_fixtures;
 

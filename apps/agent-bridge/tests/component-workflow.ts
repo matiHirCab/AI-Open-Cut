@@ -30,6 +30,15 @@ export const verifyComponentWorkflow = async (
 ) => {
   await verifyRuleCardWorkflow(client, call, mediaDirectory, projectsDirectory);
   await verifyInstanceWorkflow(client, call, projectsDirectory);
+  await verifyComponentDefinitionWorkflow(client, call, mediaDirectory);
+  await verifySlotRegressionWorkflow(client, call, projectsDirectory);
+};
+
+export const verifyComponentDefinitionWorkflow = async (
+  client: Client,
+  call: Call,
+  mediaDirectory: string
+) => {
   const { projectId } = await call(
     "project_create",
     { name: "Components" },
@@ -467,10 +476,9 @@ export const verifyComponentWorkflow = async (
     (await call("project_open", { projectId }, projectStateSchema)).project
       .tracks
   ).toEqual(afterDuplicate.project.tracks);
-  await verifySlotRegressionWorkflow(client, call, projectsDirectory);
 };
 
-const verifySlotRegressionWorkflow = async (
+export const verifySlotRegressionWorkflow = async (
   client: Client,
   call: Call,
   projectsDirectory: string

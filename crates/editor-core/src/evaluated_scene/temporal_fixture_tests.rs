@@ -351,6 +351,7 @@ fn temporal_prepare_samples(
         } => (start_ms, end_ms, false),
         crate::render_plan::RenderIntent::Export => (0, scene.duration_ms, false),
     };
+    extended_visual::finalize_intrinsic_sources(&mut scene, start);
     extended_visual::preflight_samples(&scene, start, end, frame).unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let mut resources = PreparedRenderResources {
@@ -391,13 +392,16 @@ fn temporal_prepare_samples(
         workspace.path(),
         &mut resources,
         intent,
-        decode,
-        &|_, fps, count, produce| {
-            assert_eq!(fps, 10);
-            for n in 0..count {
-                captured.borrow_mut().push(produce(n)?);
-            }
-            Ok(())
+        &crate::render_artifact::extended_visual::VisualPreparation {
+            decode,
+            encode: &|_, fps, count, produce| {
+                assert_eq!(fps, 10);
+                for n in 0..count {
+                    captured.borrow_mut().push(produce(n)?);
+                }
+                Ok(())
+            },
+            caption: &|_, _, _| panic!("this fixture has no caption"),
         },
     )
     .unwrap();
@@ -514,7 +518,7 @@ fn temporal_requested_origin_eligibility_and_media_source_mapping_are_scoped() {
     }
     assert!(extended_visual::sampling_required(layer, u64::MAX, 10));
     layer.keyframes.clear();
-    assert!(!extended_visual::sampling_required(layer, 713, 10));
+    assert!(extended_visual::sampling_required(layer, 713, 10));
     layer.transform2d = Some(Default::default());
     assert!(extended_visual::sampling_required(layer, 713, 10));
     layer.source = EvaluatedVisualSource::Caption(EvaluatedCaption {
@@ -524,7 +528,7 @@ fn temporal_requested_origin_eligibility_and_media_source_mapping_are_scoped() {
         background_color: "#000000".into(),
         bottom_margin_px: 0,
     });
-    assert!(!extended_visual::sampling_required(layer, 713, 10));
+    assert!(extended_visual::sampling_required(layer, 713, 10));
     layer.source = EvaluatedVisualSource::Rectangle {
         color: "#ff0000".into(),
         width: 5,
@@ -765,5 +769,330 @@ fn temporal_requested_origin_opacity_only_rectangle_retains_intrinsic_pixels() {
         let (mass, x, y) = temporal_pam_alpha(&image);
         assert!((mass - 25.0 * 127.5).abs() <= 12.5);
         assert_eq!((x, y), (10.0, 7.0));
+    }
+}
+
+#[test]
+fn epic6_static_sources_use_requested_grid_and_canonical_local_dimensions() {
+    let mut p = project(false);
+    p.tracks[1].items.truncate(1);
+    p.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels
+        .clear();
+    let mut scene = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+    let base = scene.visual_layers[0].clone();
+    assert!(!extended_visual::required(&base));
+    for source in [
+        base.source.clone(),
+        EvaluatedVisualSource::SolidColor {
+            color: "#ff0000".into(),
+        },
+        EvaluatedVisualSource::Media {
+            asset_id: "asset".into(),
+            source_in_ms: 0,
+        },
+        EvaluatedVisualSource::Caption(EvaluatedCaption {
+            text: "HH : % \\".into(),
+            font_size: 12,
+            color: "#ff0000".into(),
+            background_color: "#000000".into(),
+            bottom_margin_px: 3,
+        }),
+    ] {
+        let mut layer = base.clone();
+        layer.source = source;
+        assert!(extended_visual::sampling_required(&layer, 713, 10));
+        assert!(extended_visual::sampling_required(&layer, 713, 30));
+        assert!(!extended_visual::sampling_required(&layer, 700, 10));
+        assert!(!extended_visual::sampling_required(&layer, 0, 10));
+    }
+    scene.visual_layers[0].source = EvaluatedVisualSource::Caption(EvaluatedCaption {
+        text: "HH".into(),
+        font_size: 12,
+        color: "#ff0000".into(),
+        background_color: "#000000".into(),
+        bottom_margin_px: 3,
+    });
+    scene.visual_layers[0].source_size = None;
+    extended_visual::finalize_intrinsic_sources(&mut scene, 713);
+    assert_eq!(scene.visual_layers[0].source_size, Some((64, 64)));
+    let instance = evaluate_project(&project(true), 64, 64, 10)
+        .unwrap()
+        .scene
+        .visual_layers[0]
+        .instance
+        .unwrap();
+    let mut instance = instance;
+    instance.canvas = (31, 23);
+    scene.visual_layers[0].instance = Some(instance);
+    extended_visual::finalize_intrinsic_sources(&mut scene, 713);
+    assert_eq!(scene.visual_layers[0].source_size, Some((31, 23)));
+    let caption = match &scene.visual_layers[0].source {
+        EvaluatedVisualSource::Caption(c) => c,
+        _ => unreachable!(),
+    };
+    assert_eq!(
+        caption_legacy_position(caption, (11, 13), (31, 23)),
+        (10.0, 19.0)
+    );
+    // Full-canvas plain paint owns its placement; do not center it a second time.
+    scene.visual_layers[0].instance = None;
+    let a = extended_visual::sample_transform(&mut scene.visual_layers[0], 713, (64, 64), (64, 64))
+        .unwrap();
+    assert_eq!(a.matrix, [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+    // Legacy raw facts stay unchanged; sampled preparation owns intrinsic enrichment.
+    let value = serde_json::to_value(&p.tracks[1].items[0]).unwrap();
+    let mut value = value;
+    value["type"] = serde_json::json!("solid_color");
+    value.as_object_mut().unwrap().remove("width");
+    value.as_object_mut().unwrap().remove("height");
+    p.tracks[1].items[0] = serde_json::from_value(value).unwrap();
+    let mut solid = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+    assert!(solid.visual_layers[0].source_size.is_none());
+    let raw = format!("{solid:?}");
+    extended_visual::finalize_intrinsic_sources(&mut solid, 700);
+    assert_eq!(format!("{solid:?}"), raw);
+    extended_visual::finalize_intrinsic_sources(&mut solid, 713);
+    assert_eq!(solid.visual_layers[0].source_size, Some((64, 64)));
+    extended_visual::preflight_samples(&solid, 713, 713, true).unwrap();
+    let mut local = solid.clone();
+    local.visual_layers[0].source_size = None;
+    local.visual_layers[0].instance = Some(instance);
+    extended_visual::finalize_intrinsic_sources(&mut local, 713);
+    assert_eq!(local.visual_layers[0].source_size, Some((31, 23)));
+    extended_visual::preflight_samples(&local, 713, 713, true).unwrap();
+    // A genuine already-measured raster is never replaced by canvas enrichment.
+    local.visual_layers[0].source_size = Some((16_385, 1));
+    extended_visual::finalize_intrinsic_sources(&mut local, 713);
+    assert_eq!(local.visual_layers[0].source_size, Some((16_385, 1)));
+    assert_eq!(
+        extended_visual::preflight_samples(&local, 713, 713, true)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+}
+
+#[test]
+fn epic6_caption_stream_caches_one_source_and_samples_half_open_activity() {
+    use crate::render_artifact::{FileSystemArtifactIo, PreparedRenderResources};
+    let mut p = project(false);
+    p.tracks[1].items.truncate(1);
+    p.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels
+        .clear();
+    let mut scene = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+    let layer = &mut scene.visual_layers[0];
+    layer.source = EvaluatedVisualSource::Caption(EvaluatedCaption {
+        text: "HH".into(),
+        font_size: 12,
+        color: "#ff0000".into(),
+        background_color: "#000000".into(),
+        bottom_margin_px: 3,
+    });
+    layer.span = EvaluatedTimeSpan {
+        start_ms: 713,
+        end_ms: 799,
+    };
+    extended_visual::finalize_intrinsic_sources(&mut scene, 713);
+    extended_visual::preflight_samples(&scene, 713, 913, false).unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let mut resources = PreparedRenderResources {
+        media_inputs: vec![],
+        media_paths: vec![],
+        text_layers: Default::default(),
+    };
+    let calls = std::cell::Cell::new(0);
+    let frames = std::cell::RefCell::new(vec![]);
+    crate::render_artifact::extended_visual::prepare(
+        &FileSystemArtifactIo,
+        &mut scene,
+        root.path(),
+        &mut resources,
+        crate::render_plan::RenderIntent::Range {
+            start_ms: 713,
+            end_ms: 913,
+            include_audio: false,
+        },
+        &crate::render_artifact::extended_visual::VisualPreparation {
+            decode: &|_, _, _| panic!("caption must not decode media"),
+            encode: &|_, fps, count, produce| {
+                assert_eq!((fps, count), (10, 2));
+                for n in 0..count {
+                    frames.borrow_mut().push(produce(n)?);
+                }
+                Ok(())
+            },
+            caption: &|_, _, size| {
+                calls.set(calls.get() + 1);
+                assert_eq!(size, (64, 64));
+                Ok([255, 0, 0, 255].repeat(64 * 64))
+            },
+        },
+    )
+    .unwrap();
+    assert_eq!(calls.get(), 1);
+    let images = frames.borrow();
+    assert_eq!(images.len(), 2);
+    assert_eq!(temporal_pam_alpha(&images[0]).0, 64.0 * 64.0 * 255.0);
+    let bytes = &images[1];
+    let header = b"ENDHDR\n";
+    let offset = bytes
+        .windows(header.len())
+        .position(|p| p == header)
+        .unwrap()
+        + header.len();
+    assert!(bytes[offset..].iter().all(|b| *b == 0));
+}
+
+#[test]
+fn epic6_source_limits_fail_before_source_callbacks_or_output() {
+    assert_eq!(
+        extended_visual::validate_sampled_source_size((4096, 4096)).unwrap(),
+        67_108_864
+    );
+    assert_eq!(
+        extended_visual::validate_sampled_source_size((16384, 1)).unwrap(),
+        65_536
+    );
+    for size in [
+        (0, 1),
+        (1, 0),
+        (16385, 1),
+        (4097, 4096),
+        (u32::MAX, u32::MAX),
+    ] {
+        assert_eq!(
+            extended_visual::validate_sampled_source_size(size)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::InvalidArgument
+        );
+    }
+    let mut p = project(false);
+    p.tracks[1].items.truncate(1);
+    p.tracks[1].items[0]
+        .visual_properties_mut()
+        .animation_channels
+        .clear();
+    let mut scene = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+    scene.visual_layers[0].source_size = Some((4097, 4096));
+    assert_eq!(
+        extended_visual::preflight_samples(&scene, 713, 913, false)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+    let executor = crate::render_process::SystemProcessExecutor;
+    for size in [(0, 1), (4097, 4096), (16385, 1)] {
+        assert_eq!(
+            crate::render_process::ProcessExecutor::raster_source(
+                &executor,
+                std::path::Path::new("/must-not-execute"),
+                "invalid",
+                size
+            )
+            .unwrap_err()
+            .code,
+            crate::ErrorCode::InvalidArgument
+        );
+    }
+}
+
+#[test]
+fn epic6_component_solid_uses_authored_leaf_canvas_with_fractional_retained_clock() {
+    let root = tempfile::tempdir().unwrap();
+    let f = fixture::seed(root.path(), true);
+    let p = f.project();
+    let original_ids: Vec<_> = evaluate_project(&p, 64, 64, 10)
+        .unwrap()
+        .scene
+        .visual_layers
+        .into_iter()
+        .map(|l| l.item_id)
+        .collect();
+    let leaf = p
+        .components
+        .iter()
+        .find(|c| c.name == "Temporal leaf")
+        .unwrap();
+    let mut tracks = serde_json::to_value(&leaf.tracks).unwrap();
+    let items = tracks[0]["items"].as_array_mut().unwrap();
+    let visible_ids: Vec<_> = items
+        .iter()
+        .filter(|item| {
+            item["type"] == "rectangle"
+                && item["hidden"] == false
+                && !item["animationChannels"].as_array().unwrap().is_empty()
+        })
+        .map(|item| item["id"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(visible_ids.len(), 1);
+    let backing = items[0].clone();
+    let item = items
+        .iter_mut()
+        .find(|item| item["id"] == visible_ids[0])
+        .unwrap();
+    assert_eq!(
+        item["animationChannels"][0]["clock"],
+        serde_json::json!({"offsetMs":250,"sourceDurationMs":1500})
+    );
+    item["type"] = serde_json::json!("solid_color");
+    item.as_object_mut().unwrap().remove("width");
+    item.as_object_mut().unwrap().remove("height");
+    let id = item["id"].as_str().unwrap().to_owned();
+    f.edit(serde_json::json!({"operation":"component_update","componentId":leaf.id,"name":leaf.name,"width":31,"height":23,"durationMs":leaf.duration_ms,"tracks":tracks,"slots":leaf.slots}));
+    let updated = f.project();
+    assert_eq!(
+        serde_json::to_value(
+            &updated
+                .components
+                .iter()
+                .find(|c| c.id == leaf.id)
+                .unwrap()
+                .tracks[0]
+                .items[0]
+        )
+        .unwrap(),
+        backing
+    );
+    let authored = updated
+        .components
+        .iter()
+        .find(|c| c.id == leaf.id)
+        .unwrap()
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .find(|item| item.id() == id)
+        .unwrap();
+    assert!(matches!(authored, TimelineItem::SolidColor(_)));
+    let scene = evaluate_project(&updated, 64, 64, 10).unwrap().scene;
+    assert_eq!(scene.visual_layers.len(), 3);
+    assert_eq!(
+        scene
+            .visual_layers
+            .iter()
+            .map(|l| l.item_id.clone())
+            .collect::<Vec<_>>(),
+        original_ids
+    );
+    for (j, layer) in scene.visual_layers.iter().enumerate() {
+        assert!(matches!(
+            layer.source,
+            EvaluatedVisualSource::SolidColor { .. }
+        ));
+        assert_eq!(layer.source_size, Some((31, 23)));
+        let clock = layer.instance.unwrap();
+        assert_eq!(clock.canvas, (31, 23));
+        assert_eq!(clock.rate, 0.75);
+        assert_eq!(
+            clock.rate * 713.0 + clock.offset + 250.0,
+            [644.75, 569.75, 494.75][j]
+        );
+        assert!(layer.visible_at(713));
+        assert!(!layer.visible_at(1300));
     }
 }

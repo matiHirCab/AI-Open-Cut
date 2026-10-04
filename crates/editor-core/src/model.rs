@@ -50,7 +50,8 @@ pub enum MarkerKind {
 #[serde(
     tag = "type",
     rename_all = "snake_case",
-    rename_all_fields = "camelCase"
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
 )]
 pub enum TimeExpression {
     Milliseconds { value_ms: u64 },
@@ -381,24 +382,43 @@ fn reject_styled_text_fields(value: &serde_json::Value) -> Result<(), String> {
     Ok(())
 }
 
-fn reject_animation_channels(value: &serde_json::Value) -> Result<(), String> {
+// ProjectDocument supplies root tracks or component-definition arrays. Only
+// actual tracks/items are model envelopes; dynamic slot maps are never visited.
+fn inspect_model_items(
+    value: &serde_json::Value,
+    inspect: &impl Fn(&serde_json::Value) -> Result<(), String>,
+) -> Result<(), String> {
     match value {
-        serde_json::Value::Object(object) => {
-            if object.contains_key("animationChannels") {
-                return Err("animation channels require schema 22".into());
-            }
-            for child in object.values() {
-                reject_animation_channels(child)?;
+        serde_json::Value::Array(values) => {
+            for value in values {
+                inspect_model_items(value, inspect)?;
             }
         }
-        serde_json::Value::Array(values) => {
-            for child in values {
-                reject_animation_channels(child)?;
+        serde_json::Value::Object(fields) => {
+            if let Some(items) = fields.get("items").and_then(serde_json::Value::as_array) {
+                for item in items {
+                    inspect(item)?;
+                }
+            }
+            if let Some(tracks) = fields.get("tracks") {
+                inspect_model_items(tracks, inspect)?;
+            }
+            if let Some(components) = fields.get("components") {
+                inspect_model_items(components, inspect)?;
             }
         }
         _ => {}
     }
     Ok(())
+}
+
+fn reject_animation_channels(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &|item| {
+        if item.get("animationChannels").is_some() {
+            return Err("animation channels require schema 22".into());
+        }
+        Ok(())
+    })
 }
 
 fn reject_parameterized_curves(value: &serde_json::Value) -> Result<(), String> {
@@ -463,23 +483,16 @@ fn reject_animation_loops(value: &serde_json::Value) -> Result<(), String> {
 }
 
 fn reject_inherited_timing(value: &serde_json::Value) -> Result<(), String> {
-    match value {
-        serde_json::Value::Object(object) => {
-            if object.contains_key("staggerMs") || object.contains_key("timeOffsetMs") {
-                return Err("inherited animation timing requires schema 26".into());
-            }
-            for child in object.values() {
-                reject_inherited_timing(child)?;
-            }
+    inspect_model_items(value, &|item| {
+        if item.get("staggerMs").is_some()
+            || item
+                .get("repeater")
+                .is_some_and(|repeater| repeater.get("timeOffsetMs").is_some())
+        {
+            return Err("inherited animation timing requires schema 26".into());
         }
-        serde_json::Value::Array(values) => {
-            for child in values {
-                reject_inherited_timing(child)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn reject_animation_clocks(value: &serde_json::Value) -> Result<(), String> {
@@ -575,62 +588,112 @@ pub(crate) fn reject_preset_provenance(value: &serde_json::Value) -> Result<(), 
 }
 
 pub(crate) fn reject_motion_blur_fields(value: &serde_json::Value) -> Result<(), String> {
-    match value {
-        serde_json::Value::Object(fields) => {
-            if fields.contains_key("motionBlur") {
-                return Err("motion blur requires schema 28".into());
-            }
-            for child in fields.values() {
-                reject_motion_blur_fields(child)?;
-            }
-        }
-        serde_json::Value::Array(values) => {
-            for child in values {
-                reject_motion_blur_fields(child)?;
-            }
-        }
-        _ => {}
+    inspect_model_items(value, &check_motion_blur_fields)
+}
+
+fn check_motion_blur_fields(item: &serde_json::Value) -> Result<(), String> {
+    if item.get("motionBlur").is_some() {
+        return Err("motion blur requires schema 28".into());
     }
     Ok(())
 }
 
 pub(crate) fn reject_extended_visual_fields(value: &serde_json::Value) -> Result<(), String> {
-    match value {
-        serde_json::Value::Object(fields) => {
-            if fields.contains_key("crop") || fields.contains_key("effects") {
-                return Err("extended visual properties require schema 27".into());
-            }
-            if let Some(property) = fields.get("property").and_then(|v| v.as_str())
-                && matches!(
-                    property,
-                    "transform.rotation_deg"
-                        | "media.crop_x"
-                        | "media.crop_y"
-                        | "media.crop_width"
-                        | "media.crop_height"
-                        | "graphic.path_points"
-                        | "graphic.path_trim"
-                        | "graphic.gradient_stops"
-                        | "effect.blur_radius"
-                        | "effect.glow_radius"
-                        | "effect.tint_color"
-                        | "effect.vignette_amount"
-                )
-            {
-                return Err("extended animation requires schema 27".into());
-            }
-            for child in fields.values() {
-                reject_extended_visual_fields(child)?;
-            }
-        }
-        serde_json::Value::Array(values) => {
-            for child in values {
-                reject_extended_visual_fields(child)?;
-            }
-        }
-        _ => {}
+    inspect_model_items(value, &check_extended_visual_fields)
+}
+
+fn check_extended_visual_fields(item: &serde_json::Value) -> Result<(), String> {
+    if item.get("crop").is_some() || item.get("effects").is_some() {
+        return Err("extended visual properties require schema 27".into());
+    }
+    if item
+        .get("animationChannels")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|channels| {
+            channels.iter().any(|channel| {
+                channel
+                    .get("property")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|property| {
+                        matches!(
+                            property,
+                            "transform.rotation_deg"
+                                | "media.crop_x"
+                                | "media.crop_y"
+                                | "media.crop_width"
+                                | "media.crop_height"
+                                | "graphic.path_points"
+                                | "graphic.path_trim"
+                                | "graphic.gradient_stops"
+                                | "effect.blur_radius"
+                                | "effect.glow_radius"
+                                | "effect.tint_color"
+                                | "effect.vignette_amount"
+                        )
+                    })
+            })
+        })
+    {
+        return Err("extended animation requires schema 27".into());
     }
     Ok(())
+}
+
+// Only typed operation owners are inspected. Slot names and values are data,
+// even when their keys match historical item fields.
+fn find_edit_fields(
+    operations: &[EditOperation],
+    inspect: &impl Fn(&serde_json::Value) -> Result<(), String>,
+    inspect_preset: &impl Fn(&AnimationPresetParameters) -> Result<(), String>,
+) -> Result<Option<String>, CoreError> {
+    for operation in operations {
+        let result = match operation {
+            EditOperation::UpdateItem { .. } | EditOperation::SetAnimationChannels { .. } => {
+                inspect(&serde_json::to_value(operation)?)
+            }
+            EditOperation::ComponentCreate { tracks, .. }
+            | EditOperation::ComponentUpdate { tracks, .. } => {
+                inspect_model_items(&serde_json::to_value(tracks)?, inspect)
+            }
+            EditOperation::ApplyAnimationPreset { parameters, .. } => inspect_preset(parameters),
+            _ => Ok(()),
+        };
+        if let Err(message) = result {
+            return Ok(Some(message));
+        }
+    }
+    Ok(None)
+}
+
+pub(crate) fn find_motion_blur_edit_fields(
+    operations: &[EditOperation],
+) -> Result<Option<String>, CoreError> {
+    find_edit_fields(
+        operations,
+        &check_motion_blur_fields,
+        &|parameters| match parameters {
+            AnimationPresetParameters::Pack(MotionPresetParameters::ImpactSlam {
+                motion_blur,
+                ..
+            }) => check_motion_blur_fields(&serde_json::json!({"motionBlur": motion_blur})),
+            _ => Ok(()),
+        },
+    )
+}
+
+pub(crate) fn find_extended_visual_edit_fields(
+    operations: &[EditOperation],
+) -> Result<Option<String>, CoreError> {
+    find_edit_fields(
+        operations,
+        &check_extended_visual_fields,
+        &|parameters| match parameters {
+            AnimationPresetParameters::Scalar(parameters) => check_extended_visual_fields(
+                &serde_json::json!({"animationChannels":[{"property": parameters.property}]}),
+            ),
+            _ => Ok(()),
+        },
+    )
 }
 
 fn is_zero_u64(value: &u64) -> bool {
@@ -638,23 +701,12 @@ fn is_zero_u64(value: &u64) -> bool {
 }
 
 fn reject_marker_start_times(value: &serde_json::Value) -> Result<(), String> {
-    match value {
-        serde_json::Value::Object(object) => {
-            if object.contains_key("startTime") {
-                return Err("marker-relative start times require schema 24".into());
-            }
-            for child in object.values() {
-                reject_marker_start_times(child)?;
-            }
+    inspect_model_items(value, &|item| {
+        if item.get("startTime").is_some() {
+            return Err("marker-relative start times require schema 24".into());
         }
-        serde_json::Value::Array(values) => {
-            for child in values {
-                reject_marker_start_times(child)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Result<(), String> {
@@ -3337,5 +3389,67 @@ impl Transform2D {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod historical_draft_guard_tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    fn operation(value: Value) -> EditOperation {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn typed_historical_draft_fields_preserve_direct_and_preset_owner_checks() {
+        for field in ["crop", "effects", "motionBlur"] {
+            let mut value = json!({"operation":"update_item","itemId":"target"});
+            value[field] = match field {
+                "crop" => json!({"x":0,"y":0,"width":1,"height":1}),
+                "effects" => json!([]),
+                _ => json!({"shutterAngleDeg":180,"sampleCount":4}),
+            };
+            let operations = [operation(value)];
+            assert_eq!(
+                find_extended_visual_edit_fields(&operations)
+                    .unwrap()
+                    .is_some(),
+                field != "motionBlur"
+            );
+            assert_eq!(
+                find_motion_blur_edit_fields(&operations).unwrap().is_some(),
+                field == "motionBlur"
+            );
+        }
+        let scalar = operation(
+            json!({"operation":"apply_animation_preset","itemId":"target","presetId":"scalar_tween","presetVersion":1,"parameters":{"property":"transform.rotation_deg","startMs":0,"durationMs":100,"from":0,"to":20}}),
+        );
+        assert_eq!(
+            find_extended_visual_edit_fields(&[scalar])
+                .unwrap()
+                .as_deref(),
+            Some("extended animation requires schema 27")
+        );
+        let impact = operation(
+            json!({"operation":"apply_animation_preset","itemId":"target","presetId":"impact_slam","presetVersion":1,"parameters":{"kind":"impact_slam","startMs":0,"durationMs":100,"centerX":0,"centerY":0,"shakeAmplitudePx":5,"scaleFrom":0.5,"scaleOvershoot":1.2,"scaleTo":1,"opacityFrom":0,"opacityTo":1,"flashOpacity":0.5,"motionBlur":{"shutterAngleDeg":180,"sampleCount":4}}}),
+        );
+        assert_eq!(
+            find_motion_blur_edit_fields(&[impact]).unwrap().as_deref(),
+            Some("motion blur requires schema 28")
+        );
+        let values: std::collections::BTreeMap<String, SlotValue> =
+            ["crop", "effects", "motionBlur", "animationChannels"]
+                .into_iter()
+                .map(|name| (name.to_owned(), SlotValue::Number(0.5)))
+                .collect();
+        let slots = operation(
+            json!({"operation":"component_instance_update","itemId":"target","componentId":"component","startMs":0,"durationMs":100,"trimStartMs":0,"timeScale":1,"slotValues":values}),
+        );
+        assert_eq!(
+            find_extended_visual_edit_fields(std::slice::from_ref(&slots)).unwrap(),
+            None
+        );
+        assert_eq!(find_motion_blur_edit_fields(&[slots]).unwrap(), None);
     }
 }

@@ -294,15 +294,32 @@ type FrameProducer<'a> = dyn FnMut(u64) -> Result<Vec<u8>, CoreError> + 'a;
 type VisualEncoder<'a> =
     dyn Fn(&Path, u32, u64, &mut FrameProducer<'_>) -> Result<(), CoreError> + 'a;
 
+pub(crate) type CaptionRasterizer<'a> = dyn Fn(
+        &crate::evaluated_scene::EvaluatedVisualLayer,
+        Option<&crate::render_plan::PreparedText>,
+        (u32, u32),
+    ) -> Result<Vec<u8>, CoreError>
+    + 'a;
+
+pub(crate) struct VisualPreparation<'a> {
+    pub(crate) decode: &'a VisualDecoder<'a>,
+    pub(crate) encode: &'a VisualEncoder<'a>,
+    pub(crate) caption: &'a CaptionRasterizer<'a>,
+}
+
 pub(crate) fn prepare(
     io: &dyn ArtifactIo,
     scene: &mut EvaluatedScene,
     workspace: &Path,
     resources: &mut PreparedRenderResources,
     intent: RenderIntent,
-    decode: &VisualDecoder<'_>,
-    encode: &VisualEncoder<'_>,
+    preparation: &VisualPreparation<'_>,
 ) -> Result<(), CoreError> {
+    let VisualPreparation {
+        decode,
+        encode,
+        caption,
+    } = preparation;
     let (start, end, frame) = sample_times(scene, intent);
     let canvas = (scene.canvas.width, scene.canvas.height);
     let fps = scene.canvas.fps;
@@ -328,6 +345,20 @@ pub(crate) fn prepare(
             format!("sampled-{index}.pam")
         } else {
             format!("sampled-{index}.mkv")
+        };
+        // One static source per layer; drop it after that layer's streamed output.
+        let caption_raster = if matches!(layer.source, EvaluatedVisualSource::Caption(_)) {
+            let size = layer
+                .source_size
+                .ok_or_else(|| invalid("sampled source measurement missing"))?;
+            extended_visual::validate_sampled_source_size(size)?;
+            Some(Raster::rgba(
+                size.0 as usize,
+                size.1 as usize,
+                &caption(layer, resources.text_layers.get(&layer.item_id), size)?,
+            )?)
+        } else {
+            None
         };
         let draw = |at| {
             let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
@@ -393,7 +424,13 @@ pub(crate) fn prepare(
                             1.0,
                         )
                     }
-                    _ => return Err(invalid("unsupported sampled visual source")),
+                    EvaluatedVisualSource::Caption(_) => (
+                        caption_raster
+                            .as_ref()
+                            .ok_or_else(|| invalid("caption sample raster unavailable"))?
+                            .clone(),
+                        1.0,
+                    ),
                 };
                 let mut budget = 0;
                 crate::evaluated_scene::extended_certification::effect_budget(

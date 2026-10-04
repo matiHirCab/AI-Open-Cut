@@ -2169,3 +2169,65 @@ fn motion_pack_headless_canonical_sources_aliases_and_history_survive_reopen() {
         );
     }
 }
+
+#[test]
+fn canonical_unknown_time_members_reject_standalone_and_aliased_batch_without_mutation() {
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/motion-graphics-v1.json")).unwrap();
+    // The governed public gate consumes every case through the owning native
+    // decoder, including supported variants, before exercising wire failures.
+    for fixture in catalog["timeExpressionCases"].as_array().unwrap() {
+        assert_eq!(
+            serde_json::from_value::<opencut_editor_core::TimeExpression>(fixture["value"].clone())
+                .is_ok(),
+            fixture["accept"].as_bool().unwrap(),
+            "{}",
+            fixture["id"]
+        );
+    }
+    let h = Harness::new();
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Closed time variants"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let added=result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":5,"height":5,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let item = added["changedIds"][0].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let files = || {
+        (
+            std::fs::read(dir.join("project.json")).unwrap(),
+            std::fs::read(dir.join("history.json")).unwrap(),
+            std::fs::read_dir(dir.join("assets")).map_or(0, |files| files.count()),
+        )
+    };
+    let before = files();
+    for fixture in catalog["timeExpressionCases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|v| v["accept"] == false)
+    {
+        for batch in [false, true] {
+            let edit = json!({"operation":"set_item_start_time","scope":"root","itemId":if batch{json!("@box")}else{item.clone()},"time":fixture["value"]});
+            let request = if batch {
+                json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[{"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":5,"height":5,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"box"},edit]})
+            } else {
+                json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":edit})
+            };
+            let error = event(&h.request(request));
+            assert_eq!(
+                error["error"]["code"], "INVALID_ARGUMENT",
+                "{} batch={batch}: {error}",
+                fixture["id"]
+            );
+            assert_eq!(error["error"]["retryable"], false);
+            assert_eq!(files(), before);
+        }
+    }
+    assert_eq!(
+        result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["revision"],
+        1
+    );
+}

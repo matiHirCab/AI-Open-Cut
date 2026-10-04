@@ -5451,6 +5451,17 @@ fn evaluated_easing_bounds(easing: EvaluatedEasing) -> (f64, f64) {
     crate::animation::curve_bounds(curve, 0.0, 1.0)
 }
 
+pub(crate) fn caption_legacy_position(
+    caption: &EvaluatedCaption,
+    source: (u32, u32),
+    canvas: (u32, u32),
+) -> (f64, f64) {
+    (
+        (f64::from(canvas.0) - f64::from(source.0)) / 2.0,
+        f64::from(canvas.1) - f64::from(source.1) - f64::from(caption.bottom_margin_px) + 12.0,
+    )
+}
+
 fn measure_layer_affine(
     layer: &EvaluatedVisualLayer,
     source: (u32, u32),
@@ -5485,9 +5496,7 @@ fn measure_layer_affine(
         let mut x = layer.transform.position_x;
         let mut y = layer.transform.position_y;
         if let EvaluatedVisualSource::Caption(caption) = &layer.source {
-            x = (f64::from(canvas.0) - f64::from(source.0)) / 2.0;
-            y = f64::from(canvas.1) - f64::from(source.1) - f64::from(caption.bottom_margin_px)
-                + 12.0;
+            (x, y) = caption_legacy_position(caption, source, canvas);
         }
         let scale = layer.transform.scale;
         let (ax, ay) = layer.legacy_anchor(source);

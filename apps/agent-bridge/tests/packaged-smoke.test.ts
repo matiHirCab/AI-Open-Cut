@@ -22,15 +22,21 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
-import { verifyComponentWorkflow } from "./component-workflow";
+import {
+  verifyComponentDefinitionWorkflow,
+  verifySlotRegressionWorkflow,
+} from "./component-workflow";
+import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyInstanceWorkflow } from "./instance-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
+import { verifyRuleCardWorkflow } from "./rule-card-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 
@@ -70,7 +76,11 @@ const headless = process.env.OPENCUT_TEST_HEADLESS_PATH;
 if (!(bridge && headless)) {
   throw new Error("packaged smoke paths were not provided by the build runner");
 }
-const client = new Client({ name: "packaged-smoke", version: "0.1.0" });
+const validator = memoizedSdkValidator();
+const client = new Client(
+  { name: "packaged-smoke", version: "0.1.0" },
+  { jsonSchemaValidator: validator }
+);
 const transport = new StdioClientTransport({
   command: bridge,
   env: {
@@ -115,8 +125,12 @@ const call = async <Output>(
 
 beforeAll(async () => await client.connect(transport));
 afterAll(async () => {
-  await client.close();
-  rmSync(root, { force: true, recursive: true });
+  try {
+    await client.close();
+  } finally {
+    validator.clear();
+    rmSync(root, { force: true, recursive: true });
+  }
 });
 
 it("completes packaged editing, draft, speech, and transcription flows", async () => {
@@ -458,12 +472,27 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("completes the packaged group workflow with aliases, rollback and history", async () => {
   await verifyGroupWorkflow(client, call);
-  await verifyComponentWorkflow(
+});
+
+it("completes the packaged rule-card workflow", async () => {
+  await verifyRuleCardWorkflow(
     client,
     call,
     directories.media,
     directories.projects
   );
+});
+
+it("completes the packaged instance workflow", async () => {
+  await verifyInstanceWorkflow(client, call, directories.projects);
+});
+
+it("completes the packaged component definition workflow", async () => {
+  await verifyComponentDefinitionWorkflow(client, call, directories.media);
+});
+
+it("completes the packaged slot regression workflow", async () => {
+  await verifySlotRegressionWorkflow(client, call, directories.projects);
 });
 
 it("exercises all shape contracts, atomic batches and retained history", async () => {
@@ -487,7 +516,7 @@ it("preserves rich text documents through MCP standalone and alias batches", asy
 });
 
 it("edits scoped markers and live item starts through packaged MCP", async () => {
-  await verifyMarkerWorkflow(client, call);
+  await verifyMarkerWorkflow(client, call, directories.projects);
 });
 
 it("preserves parameterized animation curves through packaged MCP edits", async () => {
