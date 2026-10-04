@@ -20,6 +20,16 @@
 /docs/extended-visual-animation.md @matiHirCab
 /docs/render-regression-fixtures.md @matiHirCab
 /contracts/ @matiHirCab
+/crates/editor-core/src/lib.rs @matiHirCab
+/crates/editor-core/tests/preview_review.rs @matiHirCab
+/apps/headless/src/worker.rs @matiHirCab
+/apps/agent-bridge/src/headless.ts @matiHirCab
+/apps/agent-bridge/src/jobs.ts @matiHirCab
+/apps/agent-bridge/src/render-worker.ts @matiHirCab
+/apps/agent-bridge/src/instructions.ts @matiHirCab
+/apps/agent-bridge/tests/preview-review.test.ts @matiHirCab
+/apps/agent-bridge/tests/preview-review-workflow.ts @matiHirCab
+/docs/preview-review.md @matiHirCab
 /crates/editor-core/src/model/font.rs @matiHirCab
 /crates/editor-core/src/fonts.rs @matiHirCab
 /crates/editor-core/src/fonts/ @matiHirCab

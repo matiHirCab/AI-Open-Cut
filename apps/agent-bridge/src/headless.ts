@@ -283,6 +283,7 @@ const ownedTemporaryPaths = (
   if (
     (request.operation === "render_preview" ||
       request.operation === "render_preview_range" ||
+      request.operation === "render_review_range" ||
       request.operation === "render_draft_preview") &&
     typeof request.projectId === "string" &&
     config.projectsDirectory
@@ -297,7 +298,7 @@ const ownedTemporaryPaths = (
         config.projectsDirectory,
         request.projectId,
         "previews",
-        `.opencut-${requestId}.${request.operation === "render_preview_range" ? "mp4" : "png"}`
+        `.opencut-${requestId}.${request.operation === "render_preview_range" || request.operation === "render_review_range" ? "mp4" : "png"}`
       ),
     ];
   }

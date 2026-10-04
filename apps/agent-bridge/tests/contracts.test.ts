@@ -59,7 +59,7 @@ import {
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
-  "c71445dceacfd12afb03126b00d835a92dfbe2c6010d3a2dc5278ce4e10f5dc0";
+  "181c60179f3d9f329417093315b0b6058a9093fd8e1c23e06cee83c4c19b2620";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
   readFileSync(
@@ -257,7 +257,7 @@ describe("canonical public contracts", () => {
     const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     expect(first).toEqual(second);
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(77);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(78);
     expect(
       createHash("sha256").update(JSON.stringify(first)).digest("hex")
     ).toBe(MCP_BASELINE_DIGEST);
@@ -435,6 +435,7 @@ describe("canonical public contracts", () => {
       render_draft_preview: true,
       render_preview: true,
       render_preview_range: true,
+      render_review_range: true,
       replace_generated_asset: true,
       resolve_asset_input: true,
       status: true,
@@ -507,6 +508,7 @@ describe("canonical public contracts", () => {
       "motion_blur_sampling_v1",
       "animation_presets_v1",
       "initial_motion_preset_pack_v1",
+      "preview_review_presets_v1",
       ARTIFACT_RESOURCES_CAPABILITY,
     ]);
     expect(Object.keys(status)).toEqual(

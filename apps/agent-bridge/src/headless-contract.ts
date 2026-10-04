@@ -35,6 +35,7 @@ export type RenderingCapability =
   | "transform2d"
   | "preview"
   | "preview_range"
+  | "preview_review_presets_v1"
   | "mp4_export"
   | typeof EVALUATED_SCENE_RENDERING_CAPABILITY;
 
@@ -399,6 +400,18 @@ export type HeadlessRequest =
     })
   | (Revisioned & { operation: "undo" | "redo" })
   | (Revisioned & { operation: "render_preview"; timeMs: number })
+  | (Revisioned & {
+      operation: "render_review_range";
+      startMs: number;
+      endMs: number;
+      resolution?:
+        | "540p"
+        | "720p"
+        | "project"
+        | { width: number; height: number };
+      fps?: number | undefined;
+      includeAudio?: boolean;
+    })
   | (Revisioned & {
       operation: "render_preview_range";
       startMs: number;

@@ -18,6 +18,7 @@ export const workerEventSchema = z
 const RENDER_OPERATIONS = new Set([
   "render_preview",
   "render_preview_range",
+  "render_review_range",
   "render_draft_preview",
   "export_video",
 ]);

@@ -38,6 +38,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
             "render_artifact",
             "render_plan",
             "render_process",
+            "validation",
         ],
     ),
     (

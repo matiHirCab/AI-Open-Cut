@@ -75,6 +75,95 @@ pub struct PreviewRangeOptions {
     pub include_audio: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub enum PreviewPreset {
+    #[serde(rename = "540p")]
+    P540,
+    #[serde(rename = "720p")]
+    P720,
+    #[default]
+    #[serde(rename = "project")]
+    Project,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewDimensions {
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum PreviewResolution {
+    Preset(PreviewPreset),
+    Custom(PreviewDimensions),
+}
+
+impl Default for PreviewResolution {
+    fn default() -> Self {
+        Self::Preset(PreviewPreset::Project)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct PreviewReviewOptions {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub resolution: PreviewResolution,
+    pub fps: Option<u32>,
+    pub include_audio: Option<bool>,
+}
+
+impl PreviewReviewOptions {
+    pub fn resolve(self, project: &Project) -> Result<PreviewRangeOptions, CoreError> {
+        let (width, height) = match self.resolution {
+            PreviewResolution::Custom(dimensions) => (dimensions.width, dimensions.height),
+            PreviewResolution::Preset(PreviewPreset::Project) => {
+                (project.settings.width, project.settings.height)
+            }
+            PreviewResolution::Preset(preset) => {
+                crate::validation::validate_project_settings(&project.settings)?;
+                let height = if preset == PreviewPreset::P540 {
+                    540
+                } else {
+                    720
+                };
+                let source_height = u64::from(project.settings.height);
+                let scaled = u64::from(project.settings.width) * u64::from(height);
+                let width = (2 * ((scaled + source_height) / (2 * source_height))).max(2);
+                let width = u32::try_from(width).map_err(|_| {
+                    CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "preview width is outside supported bounds",
+                    )
+                })?;
+                (width, height)
+            }
+        };
+        let fps = self.fps.unwrap_or(project.settings.fps);
+        crate::validation::validate_project_settings(&crate::ProjectSettings {
+            width,
+            height,
+            fps,
+        })?;
+        if self.start_ms >= self.end_ms || self.end_ms > project.duration_ms() {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "preview range options are invalid",
+            ));
+        }
+        Ok(PreviewRangeOptions {
+            start_ms: self.start_ms,
+            end_ms: self.end_ms,
+            width,
+            height,
+            fps,
+            include_audio: self.include_audio.unwrap_or(true),
+        })
+    }
+}
+
 struct PreparedRender {
     text_layouts: Vec<crate::TextLayoutDiagnostic>,
     plan: RenderPlan,
@@ -92,6 +181,16 @@ struct RenderPreflight {
 }
 
 impl Renderer {
+    pub fn render_review_range(
+        &self,
+        project: &Project,
+        project_dir: &Path,
+        options: PreviewReviewOptions,
+        on_progress: impl FnMut(RenderProgress),
+    ) -> Result<RenderArtifact, CoreError> {
+        let options = options.resolve(project)?;
+        self.render_preview_range(project, project_dir, options, on_progress)
+    }
     /// Scope temporary artifacts to one request while retaining shared raster bytes.
     pub fn with_request_id(mut self, request_id: &str) -> Result<Self, CoreError> {
         self.artifact_io = crate::render_artifact::with_request_id(self.artifact_io, request_id)?;
@@ -1010,6 +1109,56 @@ mod tests {
         project
     }
 
+    #[test]
+    fn bounded_review_preserves_above_bound_legacy_range_routing() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("unused", "unused", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        let project = visual_project();
+        let review = PreviewReviewOptions {
+            start_ms: 0,
+            end_ms: 1000,
+            resolution: PreviewResolution::Custom(PreviewDimensions {
+                width: 7682,
+                height: 180,
+            }),
+            fps: Some(15),
+            include_audio: Some(false),
+        };
+        assert_eq!(
+            renderer
+                .render_review_range(&project, root.path(), review, |_| {})
+                .unwrap_err()
+                .code,
+            ErrorCode::ValidationFailed
+        );
+        assert_no_render_side_effects(&artifact_io, &process);
+        renderer
+            .render_preview_range(
+                &project,
+                root.path(),
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 1000,
+                    width: 7682,
+                    height: 180,
+                    fps: 15,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap();
+        assert_eq!(process.executions.lock().unwrap().len(), 1);
+    }
+
     fn assert_no_render_side_effects(artifact_io: &LifecycleArtifactIo, process: &FakeProcess) {
         let events = artifact_io.events.lock().unwrap();
         assert!(
@@ -1027,6 +1176,24 @@ mod tests {
         root: &Path,
         expected: ErrorCode,
     ) {
+        let review_error = renderer
+            .render_review_range(
+                project,
+                root,
+                PreviewReviewOptions {
+                    start_ms: 0,
+                    end_ms: project.duration_ms().max(1),
+                    resolution: PreviewResolution::default(),
+                    fps: None,
+                    include_audio: None,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(review_error.code, expected);
+        assert_no_render_side_effects(artifact_io, process);
+        artifact_io.clear_events();
+
         let preview_error = renderer.render_preview(project, root, 0).unwrap_err();
         assert_eq!(preview_error.code, expected);
         assert_no_render_side_effects(artifact_io, process);
@@ -2663,20 +2830,39 @@ mod tests {
         let renderer = Renderer::new(&ffmpeg, ffprobe, Some(font_path));
         let preview = renderer.render_preview(&project, root.path(), 500).unwrap();
         let range = renderer
-            .render_preview_range(
+            .render_review_range(
                 &project,
                 root.path(),
-                PreviewRangeOptions {
+                PreviewReviewOptions {
                     start_ms: 0,
                     end_ms: 1_000,
-                    width: 160,
-                    height: 90,
-                    fps: 10,
-                    include_audio: true,
+                    resolution: PreviewResolution::default(),
+                    fps: None,
+                    include_audio: None,
                 },
                 |_| {},
             )
             .unwrap();
+        let silent = renderer
+            .render_review_range(
+                &project,
+                root.path(),
+                PreviewReviewOptions {
+                    start_ms: 0,
+                    end_ms: 1_000,
+                    resolution: PreviewResolution::default(),
+                    fps: None,
+                    include_audio: Some(false),
+                },
+                |_| {},
+            )
+            .unwrap();
+        assert!(
+            !renderer
+                .probe(&root.path().join(silent.relative_path))
+                .unwrap()
+                .has_audio
+        );
         let export_path = root.path().join("export.mp4");
         renderer
             .export_video(

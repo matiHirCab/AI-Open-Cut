@@ -3,12 +3,13 @@
   "maxLineBytes": 16777216,
   "startupTimeoutMs": 5000,
   "ready": { "type": "ready", "protocolVersion": 1 },
-  "operations": ["render_preview", "render_preview_range", "render_draft_preview", "export_video"],
+  "operations": ["render_preview", "render_preview_range", "render_draft_preview", "export_video", "render_review_range"],
   "requests": [
     {"requestId":"frame-1","request":{"operation":"render_preview","projectId":"project","expectedRevision":1,"timeMs":0}},
     {"requestId":"range-1","request":{"operation":"render_preview_range","projectId":"project","expectedRevision":1,"startMs":0,"endMs":1000,"width":160,"height":90,"fps":10,"includeAudio":true}},
     {"requestId":"draft-1","request":{"operation":"render_draft_preview","projectId":"project","draftId":"draft","timeMs":0}},
-    {"requestId":"export-1","request":{"operation":"export_video","projectId":"project","expectedRevision":1,"relativePath":"out.mp4","width":160,"height":90,"overwrite":false}}
+    {"requestId":"export-1","request":{"operation":"export_video","projectId":"project","expectedRevision":1,"relativePath":"out.mp4","width":160,"height":90,"overwrite":false}},
+    {"requestId":"review-1","request":{"operation":"render_review_range","projectId":"project","expectedRevision":1,"startMs":0,"endMs":1000,"resolution":"540p"}}
   ],
   "events": [
     {"requestId":"frame-1","event":{"type":"progress","progress":0.5}},
