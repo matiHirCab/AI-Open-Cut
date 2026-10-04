@@ -1,5 +1,5 @@
 #[path = "../../../crates/editor-core/tests/support/rule_card.rs"]
-mod fixture;
+pub(crate) mod fixture;
 
 use crate::{
     hierarchy::{Hierarchy, ROW_LIMIT, Selection, editable},

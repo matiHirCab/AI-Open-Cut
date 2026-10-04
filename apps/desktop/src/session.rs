@@ -78,6 +78,7 @@ pub(crate) struct Session {
     pub expanded: HashSet<Selection>,
     pub error: Option<String>,
     pub busy: bool,
+    pub needs_refresh: bool,
     generation: u64,
 }
 
@@ -109,8 +110,12 @@ impl Session {
                 self.expanded.retain(|s| s.resolve(&project).is_some());
                 self.project = Some(project);
                 self.error = None;
+                self.needs_refresh = false;
             }
             Err(error) => {
+                if error.code == opencut_editor_core::ErrorCode::RevisionConflict {
+                    self.needs_refresh = true;
+                }
                 let code = serde_json::to_value(error.code).expect("serialize error code");
                 self.error = Some(format!(
                     "{}: {} (retryable: {}). Refresh to read current state.",

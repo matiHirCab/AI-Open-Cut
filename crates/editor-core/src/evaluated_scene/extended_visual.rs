@@ -242,6 +242,39 @@ pub(crate) fn required(layer: &EvaluatedVisualLayer) -> bool {
         })
 }
 
+/// Keep codec/fidelity eligibility separate from requested-origin sampling.
+pub(crate) fn sampling_required(layer: &EvaluatedVisualLayer, start: u64, fps: u32) -> bool {
+    if required(layer) {
+        return true;
+    }
+    if (u128::from(start) * u128::from(fps)).is_multiple_of(1000) {
+        return false;
+    }
+    let supported = match &layer.source {
+        EvaluatedVisualSource::Rectangle { .. }
+        | EvaluatedVisualSource::Shape(_)
+        | EvaluatedVisualSource::Media { .. } => true,
+        EvaluatedVisualSource::Text(text) => text.shaped.is_some(),
+        _ => false,
+    };
+    supported
+        && (layer.keyframes.iter().any(|key| {
+            matches!(
+                key.property,
+                EvaluatedProperty::Position
+                    | EvaluatedProperty::PositionX
+                    | EvaluatedProperty::PositionY
+                    | EvaluatedProperty::Scale
+                    | EvaluatedProperty::ScaleX
+                    | EvaluatedProperty::ScaleY
+                    | EvaluatedProperty::Opacity
+            )
+        }) || layer.has_animated_ancestors()
+            || !layer.transitions.is_empty()
+            || (matches!(layer.source, EvaluatedVisualSource::Rectangle { .. })
+                && layer.transform2d.is_some()))
+}
+
 /// Validate requested samples and cumulative scene work before output inspection
 /// or workspace creation. This consumes the same facts as resource preparation.
 pub(crate) fn preflight_samples(
@@ -250,7 +283,11 @@ pub(crate) fn preflight_samples(
     end: u64,
     frame: bool,
 ) -> Result<(), CoreError> {
-    if !scene.visual_layers.iter().any(required) {
+    if !scene
+        .visual_layers
+        .iter()
+        .any(|layer| sampling_required(layer, start, scene.canvas.fps))
+    {
         return Ok(());
     }
     let has_blur = scene.visual_layers.iter().any(|l| {
@@ -284,7 +321,11 @@ pub(crate) fn preflight_samples(
         let mut work = 0;
         let mut segments = 0;
         let mut pixel_work = 0_u64;
-        for layer in scene.visual_layers.iter().filter(|l| required(l)) {
+        for layer in scene
+            .visual_layers
+            .iter()
+            .filter(|l| sampling_required(l, start, scene.canvas.fps))
+        {
             let times = layer
                 .extended
                 .as_ref()

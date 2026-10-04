@@ -1,0 +1,142 @@
+{
+  "recipeVersion": 1,
+  "identity": "issue48-independent-temporal-v1",
+  "provenance": "Synthetic authored core records; analytic expectations are independent of the canonical sampler. No reviewed golden generation is replaced.",
+  "canvas": {
+    "width": 64,
+    "height": 64,
+    "fps": 10,
+    "durationMs": 1300
+  },
+  "familyA": {
+    "lanesY": [
+      5,
+      14,
+      23,
+      32,
+      41,
+      50
+    ],
+    "rectangleSize": [
+      5,
+      5
+    ],
+    "unloopedKeys": [
+      [
+        0,
+        8
+      ],
+      [
+        1000,
+        20
+      ]
+    ],
+    "spring": {
+      "mass": 1,
+      "stiffness": 100,
+      "damping": 2,
+      "initialVelocity": 0
+    },
+    "bezier": {
+      "x1": 0.3333333333333333,
+      "y1": 0,
+      "x2": 0.6666666666666666,
+      "y2": 1
+    },
+    "repeatKeys": [
+      [
+        100,
+        8
+      ],
+      [
+        300,
+        20
+      ],
+      [
+        500,
+        8
+      ]
+    ],
+    "pingPongKeys": [
+      [
+        100,
+        8
+      ],
+      [
+        300,
+        20
+      ]
+    ],
+    "finiteIterations": 2,
+    "finiteExhaustionMs": 900
+  },
+  "familyB": {
+    "lanesY": [
+      8,
+      24,
+      40
+    ],
+    "sourceClockEquation": "((t-100)*1.5+50-100-20)*0.5+10-40 = 0.75*t-140",
+    "retainedClock": {
+      "offsetMs": 250,
+      "sourceDurationMs": 1500
+    },
+    "visibleLeafDurationMs": 1200,
+    "rootRepeaterTimeOffsetMs": 100,
+    "sourceEquation": "0.75*t+110-75*j, j=0,1,2",
+    "sourceTimesAt713Ms": [
+      644.75,
+      569.75,
+      494.75
+    ],
+    "activityStartsMs": [
+      186.66666666666666,
+      286.6666666666667,
+      386.6666666666667
+    ]
+  },
+  "native": {
+    "frameTimesMs": [
+      300,
+      500,
+      1000,
+      1200
+    ],
+    "rangeMs": [
+      300,
+      1300
+    ],
+    "fractionalRangeMs": [
+      713,
+      913
+    ],
+    "draftFrameMs": 1000,
+    "draftRangeMs": [
+      900,
+      1300
+    ],
+    "candidateEdits": {
+      "familyA": "spring final key20 to24",
+      "familyB": "repeater timeOffsetMs100 to120"
+    },
+    "actualRenderCount": 39,
+    "maximumRenderCount": 40,
+    "encodedReferenceMethod": "Independent static rectangles at every exact output sample, same render intent/profile/context; lossless direct analytic713 geometry retained",
+    "productionRenderBreakdown": {
+      "pngReferences": 10,
+      "additionalLossless713Actuals": 2,
+      "encodedSequenceReferences": 8,
+      "existingActuals": 19
+    },
+    "rgbMseExclusiveMaximum": 20,
+    "centroidDistanceExclusiveMaximum": 0.4,
+    "encodedProfiles": {
+      "range": "libx264 veryfast CRF28 yuv420p",
+      "export": "libx264 yuv420p using unchanged FFmpeg defaults; full encoder options must match actual/reference"
+    },
+    "fractionalComparedTimesMs": [
+      713,
+      813
+    ]
+  }
+}

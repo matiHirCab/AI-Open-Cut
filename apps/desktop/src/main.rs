@@ -3,6 +3,7 @@ use gpui::{
     WindowOptions, px, size,
 };
 
+mod animation_inspector;
 mod components;
 mod hierarchy;
 mod inspector_edit;

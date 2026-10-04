@@ -269,7 +269,7 @@ impl Renderer {
             project.settings.fps,
         )?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media)?;
+        let preflight = self.preflight_render(&evaluated, media, time_ms)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             time_ms,
@@ -322,7 +322,7 @@ impl Renderer {
         let evaluated =
             evaluate_project(project, options.width, options.height, project.settings.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media)?;
+        let preflight = self.preflight_render(&evaluated, media, 0)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             0,
@@ -395,7 +395,7 @@ impl Renderer {
         }
         let evaluated = evaluate_project(project, options.width, options.height, options.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media)?;
+        let preflight = self.preflight_render(&evaluated, media, options.start_ms)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             options.start_ms,
@@ -452,7 +452,15 @@ impl Renderer {
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
         self.materialize_render(
-            self.preflight_render(evaluated, media)?,
+            self.preflight_render(
+                evaluated,
+                media,
+                match intent {
+                    RenderIntent::Frame { at_ms } => at_ms,
+                    RenderIntent::Range { start_ms, .. } => start_ms,
+                    RenderIntent::Export => 0,
+                },
+            )?,
             project_dir,
             intent,
         )
@@ -462,6 +470,7 @@ impl Renderer {
         &self,
         evaluated: &EvaluatedSceneResult,
         media: PreparedMediaResources,
+        sample_start_ms: u64,
     ) -> Result<RenderPreflight, CoreError> {
         let mut warnings = Vec::new();
         let mut budget = crate::evaluated_scene::text_layout::GlyphBudget::default();
@@ -509,7 +518,13 @@ impl Renderer {
         }
         let mut asset_sizes = HashMap::new();
         for layer in &finalized.visual_layers {
-            if !layer.requires_affine() {
+            if !layer.requires_affine()
+                && !crate::evaluated_scene::extended_visual::sampling_required(
+                    layer,
+                    sample_start_ms,
+                    finalized.canvas.fps,
+                )
+            {
                 continue;
             }
             if let EvaluatedVisualSource::Media { asset_id, .. } = &layer.source {
@@ -3702,7 +3717,7 @@ mod tests {
         renderer.text_glyph_limit = Some(6);
         let media = prepare_media_resources(io.as_ref(), &evaluated, root.path()).unwrap();
         assert!(
-            renderer.preflight_render(&evaluated, media).is_ok(),
+            renderer.preflight_render(&evaluated, media, 0).is_ok(),
             "six glyphs fit exactly"
         );
         renderer.text_glyph_limit = Some(5);
@@ -3785,7 +3800,7 @@ mod tests {
                         .all(|v| v.affine.is_none())
                 );
                 let media = prepare_media_resources(io.as_ref(), &evaluated, root.path()).unwrap();
-                let result = renderer.preflight_render(&evaluated, media);
+                let result = renderer.preflight_render(&evaluated, media, 0);
                 if fail {
                     assert_eq!(result.err().unwrap().code, ErrorCode::UnsupportedMedia);
                 } else {
@@ -3947,5 +3962,231 @@ mod tests {
             ErrorCode::ExportExists
         );
         assert_eq!(*io.events.lock().unwrap(), vec!["exists"]);
+    }
+    #[derive(Debug, Default)]
+    struct TemporalMeasurementProcess {
+        geometry: GeometryProcess,
+        decoded: Mutex<Vec<(u64, (u32, u32))>>,
+    }
+    impl ProcessExecutor for TemporalMeasurementProcess {
+        fn readiness(&self, _: &Path, _: &Path) -> Result<(), CoreError> {
+            Ok(())
+        }
+        fn probe(&self, _: &Path, _: &Path) -> Result<ProbeResult, CoreError> {
+            panic!("geometry port required")
+        }
+        fn probe_render_geometry(
+            &self,
+            probe: &Path,
+            path: &Path,
+            kind: MediaType,
+        ) -> Result<(u32, u32), CoreError> {
+            self.geometry.probe_render_geometry(probe, path, kind)
+        }
+        fn decode_visual_frame(
+            &self,
+            _: &Path,
+            _: &Path,
+            at: u64,
+            size: (u32, u32),
+        ) -> Result<Vec<u8>, CoreError> {
+            self.decoded.lock().unwrap().push((at, size));
+            Ok([255, 0, 0, 255].repeat((size.0 * size.1) as usize))
+        }
+        fn prepare_visual_stream(
+            &self,
+            _: &Path,
+            output: &Path,
+            _: u32,
+            count: u64,
+            produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+        ) -> Result<(), CoreError> {
+            for n in 0..count {
+                let _ = produce(n)?;
+            }
+            std::fs::write(output, b"unit-only sampled sequence").unwrap();
+            Ok(())
+        }
+        fn execute(
+            &self,
+            _: &Path,
+            _: &RenderPlan,
+            _: &Path,
+            _: &Path,
+            _: &mut dyn FnMut(RenderProgress),
+        ) -> Result<(), CoreError> {
+            panic!("unit measurement must not render")
+        }
+    }
+    #[test]
+    fn temporal_normalized_media_measurement_precedes_requested_sampling_and_preserves_audio() {
+        use serde_json::json;
+        let root = tempdir().unwrap();
+        let source = root.path().join("source.mp4");
+        std::fs::write(&source, b"injected media port fixture").unwrap();
+        let core = crate::EditorCore::new(
+            crate::PathPolicy::new(
+                root.path().join("projects"),
+                [root.path()],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project(
+                "Actual normalized media",
+                ProjectSettings {
+                    width: 64,
+                    height: 64,
+                    fps: 10,
+                },
+            )
+            .unwrap()
+            .project_id;
+        let imported = core.import_asset(&id,0,&source,MediaType::Video,serde_json::from_value(json!({"durationMs":2000,"hasVideo":true,"hasAudio":true,"videoWidth":20,"videoHeight":40})).unwrap()).unwrap();
+        let project = core.get_project(&id).unwrap();
+        let track = project
+            .tracks
+            .iter()
+            .find(|t| t.track_type == TrackType::Video)
+            .unwrap()
+            .id
+            .clone();
+        let added = core.edit(&id,project.revision,serde_json::from_value(json!({"operation":"add_media","trackId":track,"assetId":imported.changed_ids[0],"startMs":0,"durationMs":1000,"sourceInMs":100})).unwrap()).unwrap();
+        let item = added.changed_ids[0].clone();
+        let dir = core.paths().project_dir(&id).unwrap();
+        for property in ["position", "scale", "opacity", "fade"] {
+            let mut p = core.get_project(&id).unwrap();
+            let keys = match property {
+                "position" => {
+                    json!([{"property":"position","timeMs":0,"value":{"type":"position","x":0,"y":0},"easing":"linear"},{"property":"position","timeMs":1000,"value":{"type":"position","x":10,"y":0},"easing":"linear"}])
+                }
+                "scale" => {
+                    json!([{"property":"scale","timeMs":0,"value":{"type":"scalar","value":1},"easing":"linear"},{"property":"scale","timeMs":1000,"value":{"type":"scalar","value":1.1},"easing":"linear"}])
+                }
+                _ => json!([]),
+            };
+            core.edit(
+                &id,
+                p.revision,
+                serde_json::from_value(
+                    json!({"operation":"set_keyframes","itemId":item,"keyframes":keys}),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            p = core.get_project(&id).unwrap();
+            if property == "opacity" {
+                core.edit(&id,p.revision,serde_json::from_value(json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"linear"},{"timeMs":900,"value":{"type":"scalar","value":0.5},"curve":"hold"}]}]})).unwrap()).unwrap();
+            } else {
+                core.edit(&id,p.revision,serde_json::from_value(json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[]})).unwrap()).unwrap();
+            }
+            p = core.get_project(&id).unwrap();
+            if property == "fade" {
+                core.edit(&id,p.revision,serde_json::from_value(json!({"operation":"add_transition","trackId":track,"fromItemId":item,"startMs":0,"durationMs":900,"transitionType":"fade"})).unwrap()).unwrap();
+            }
+            p = core.get_project(&id).unwrap();
+            let before = serde_json::to_value(&p).unwrap();
+            let evaluated = evaluate_project(&p, 64, 64, 10).unwrap();
+            let layer = &evaluated.scene.visual_layers[0];
+            assert!(!layer.requires_affine(), "{property}");
+            assert!(layer.source_size.is_none());
+            let audio = format!("{:?}", evaluated.scene.audio_layers);
+            for (origin, sample) in [(0, false), (300, false), (713, true)] {
+                let process = Arc::new(TemporalMeasurementProcess::default());
+                let io = Arc::new(LifecycleArtifactIo::default());
+                let renderer =
+                    Renderer::new("unit", "unit", None).with_adapters(process.clone(), io.clone());
+                let media = prepare_media_resources(io.as_ref(), &evaluated, &dir).unwrap();
+                let ready = renderer
+                    .preflight_render(&evaluated, media, origin)
+                    .unwrap();
+                assert_eq!(
+                    process.geometry.calls.lock().unwrap().len(),
+                    usize::from(sample)
+                );
+                assert_eq!(
+                    ready.scene.visual_layers[0].source_size,
+                    sample.then_some((20, 40))
+                );
+                assert!(ready.scene.visual_layers[0].affine.is_none());
+                assert_eq!(format!("{:?}", ready.scene.audio_layers), audio);
+                assert!(
+                    !io.events
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .any(|e| matches!(*e, "create_dir" | "write" | "rename"))
+                );
+                if sample {
+                    crate::evaluated_scene::extended_visual::preflight_samples(
+                        &ready.scene,
+                        713,
+                        913,
+                        false,
+                    )
+                    .unwrap();
+                    renderer
+                        .materialize_render(
+                            ready,
+                            &dir,
+                            RenderIntent::Range {
+                                start_ms: 713,
+                                end_ms: 913,
+                                include_audio: true,
+                            },
+                        )
+                        .unwrap();
+                    assert_eq!(
+                        *process.decoded.lock().unwrap(),
+                        vec![(813, (20, 40)), (913, (20, 40))]
+                    );
+                }
+            }
+            for (fps, expected_probe) in [(20, false), (30, true)] {
+                let overridden = evaluate_project(&p, 64, 64, fps).unwrap();
+                let process = Arc::new(TemporalMeasurementProcess::default());
+                let io = Arc::new(LifecycleArtifactIo::default());
+                let renderer =
+                    Renderer::new("unit", "unit", None).with_adapters(process.clone(), io.clone());
+                let media = prepare_media_resources(io.as_ref(), &overridden, &dir).unwrap();
+                renderer.preflight_render(&overridden, media, 750).unwrap();
+                assert_eq!(
+                    process.geometry.calls.lock().unwrap().len(),
+                    usize::from(expected_probe)
+                );
+            }
+            let process = Arc::new(TemporalMeasurementProcess {
+                geometry: GeometryProcess {
+                    fail: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+            let io = Arc::new(LifecycleArtifactIo::default());
+            let renderer =
+                Renderer::new("unit", "unit", None).with_adapters(process.clone(), io.clone());
+            let media = prepare_media_resources(io.as_ref(), &evaluated, &dir).unwrap();
+            assert_eq!(
+                renderer
+                    .preflight_render(&evaluated, media, 713)
+                    .err()
+                    .unwrap()
+                    .code,
+                ErrorCode::UnsupportedMedia
+            );
+            assert!(process.decoded.lock().unwrap().is_empty());
+            assert!(
+                !io.events
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|e| matches!(*e, "create_dir" | "write" | "rename" | "request_id"))
+            );
+            assert_eq!(
+                serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
+                before
+            );
+        }
     }
 }

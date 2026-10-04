@@ -50,30 +50,7 @@ pub(super) fn transform_magnification(
             };
             let mut maximum = frames.iter().map(|key| scalar(key)).fold(0.0, f64::max);
             for pair in frames.windows(2) {
-                use crate::{
-                    AnimationCurve as C, ParameterizedAnimationCurve as Curve,
-                    SimpleAnimationCurve as S,
-                };
-                let curve = match pair[0].easing {
-                    EvaluatedEasing::Spring {
-                        mass,
-                        stiffness,
-                        damping,
-                        initial_velocity,
-                    } => C::Parameterized(Curve::Spring {
-                        mass,
-                        stiffness,
-                        damping,
-                        initial_velocity,
-                    }),
-                    EvaluatedEasing::CubicBezier { x1, y1, x2, y2 } => {
-                        C::Parameterized(Curve::CubicBezier { x1, y1, x2, y2 })
-                    }
-                    EvaluatedEasing::Hold => C::Simple(S::Hold),
-                    // The legacy ease-in/out curves are monotonic and share this endpoint envelope.
-                    _ => C::Simple(S::Linear),
-                };
-                let (low, high) = crate::animation::curve_bounds(curve, 0.0, 1.0);
+                let (low, high) = evaluated_easing_bounds(pair[0].easing);
                 let first = scalar(pair[0]);
                 let delta = scalar(pair[1]) - first;
                 maximum = maximum

@@ -320,7 +320,7 @@ pub(crate) fn prepare(
         bindings.insert(input.item_id.clone(), (input.clone(), path.clone()));
     }
     for (index, layer) in scene.visual_layers.iter_mut().enumerate() {
-        if !extended_visual::required(layer) {
+        if !extended_visual::sampling_required(layer, start, fps) {
             continue;
         }
         let binding_id = format!("extended-sample-{index}");

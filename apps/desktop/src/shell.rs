@@ -2,6 +2,7 @@ use gpui::{Context, Entity, FocusHandle, KeyDownEvent, Window, div, prelude::*};
 use opencut_editor_core::{EditOperation, ParentReference};
 
 use crate::{
+    animation_inspector::{self, Cursor, DraftIdentity},
     hierarchy::{Selection, editable},
     inspector_edit::{self, Field},
     panels::{self, Preview},
@@ -17,7 +18,8 @@ pub(crate) struct Shell {
     pub inspector_focus: FocusHandle,
     pub inspector_field: Option<usize>,
     pub inspector_text: String,
-    inspector_source: Option<(Selection, u64)>,
+    inspector_source: Option<DraftIdentity>,
+    pub animation_cursor: Cursor,
     preview: Entity<Preview>,
 }
 
@@ -32,6 +34,7 @@ impl Shell {
             inspector_field: None,
             inspector_text: String::new(),
             inspector_source: None,
+            animation_cursor: Cursor::default(),
             preview: cx.new(|_| Preview),
         };
         shell.dispatch(Command::Refresh, cx);
@@ -39,6 +42,10 @@ impl Shell {
     }
 
     pub fn dispatch(&mut self, command: Command, cx: &mut Context<Self>) {
+        if self.session.needs_refresh && !matches!(&command, Command::Refresh) {
+            cx.notify();
+            return;
+        }
         let Some(startup) = self.startup.clone() else {
             return;
         };
@@ -66,6 +73,7 @@ impl Shell {
 
     pub fn select(&mut self, selection: Selection, cx: &mut Context<Self>) {
         self.session.selected = Some(selection);
+        self.animation_cursor = Cursor::default();
         self.reset_z_text();
         self.reset_inspector();
         cx.notify();
@@ -94,32 +102,107 @@ impl Shell {
         let Some(selection) = &self.session.selected else {
             return;
         };
-        if !selection.instance_path.is_empty() {
+        if !animation_inspector::editable(selection) {
             return;
         }
         let Some((_, item)) = selection.resolve(project) else {
             return;
         };
-        let Some(field) = inspector_edit::fields(item).get(index).cloned() else {
+        let Some(field) = self.inspector_fields(item).get(index).cloned() else {
             return;
         };
-        self.inspector_source = Some((selection.clone(), project.revision));
+        self.inspector_source = Some(DraftIdentity {
+            selection: selection.clone(),
+            revision: project.revision,
+            cursor: self.animation_cursor,
+        });
         self.inspector_field = Some(index);
         self.inspector_text = field.value;
         cx.notify();
     }
 
     fn active_inspector_field(&self) -> Option<(&opencut_editor_core::TimelineItem, Field)> {
-        let (selection, revision) = self.inspector_source.as_ref()?;
+        let identity = self.inspector_source.as_ref()?;
         let project = self.session.project.as_ref()?;
-        if project.revision != *revision || self.session.selected.as_ref()? != selection {
+        if !identity.matches(
+            project,
+            self.session.selected.as_ref(),
+            self.animation_cursor,
+        ) {
             return None;
         }
-        let (_, item) = selection.resolve(project)?;
-        let field = inspector_edit::fields(item)
+        let (_, item) = identity.selection.resolve(project)?;
+        let field = self
+            .inspector_fields(item)
             .get(self.inspector_field?)?
             .clone();
         Some((item, field))
+    }
+
+    pub(crate) fn inspector_fields(&self, item: &opencut_editor_core::TimelineItem) -> Vec<Field> {
+        let Some(project) = self.session.project.as_ref() else {
+            return vec![];
+        };
+        let Some(selection) = self.session.selected.as_ref() else {
+            return vec![];
+        };
+        if !animation_inspector::editable(selection) {
+            return vec![];
+        }
+        let mut fields = if editable(project, selection) {
+            inspector_edit::fields(item)
+        } else {
+            vec![]
+        };
+        fields.extend(animation_inspector::fields(
+            item,
+            self.animation_cursor,
+            animation_inspector::audio_only(project, item),
+        ));
+        fields
+    }
+
+    pub fn change_animation_cursor(&mut self, axis: u8, next: bool, cx: &mut Context<Self>) {
+        let Some((_, item)) = self
+            .session
+            .project
+            .as_ref()
+            .and_then(|p| self.session.selected.as_ref()?.resolve(p))
+        else {
+            return;
+        };
+        let (index, len) = match axis {
+            0 => (
+                &mut self.animation_cursor.channel,
+                item.visual_properties().animation_channels.len(),
+            ),
+            1 => (
+                &mut self.animation_cursor.key,
+                item.visual_properties()
+                    .animation_channels
+                    .get(
+                        self.animation_cursor.channel.min(
+                            item.visual_properties()
+                                .animation_channels
+                                .len()
+                                .saturating_sub(1),
+                        ),
+                    )
+                    .map_or(0, |c| c.keyframes.len()),
+            ),
+            _ => (&mut self.animation_cursor.legacy, item.keyframes().len()),
+        };
+        *index = (*index).min(len.saturating_sub(1));
+        *index = if next {
+            index.saturating_add(1).min(len.saturating_sub(1))
+        } else {
+            index.saturating_sub(1)
+        };
+        if axis == 0 {
+            self.animation_cursor.key = 0;
+        }
+        self.reset_inspector();
+        cx.notify();
     }
 
     pub fn apply_inspector(&mut self, cx: &mut Context<Self>) {
@@ -282,6 +365,9 @@ impl Render for Shell {
         }
         if self.session.busy {
             toolbar = toolbar.child("Working…");
+        }
+        if self.session.needs_refresh {
+            toolbar = toolbar.child(div().id("refresh-required").child("Refresh required"));
         }
         let mut view = div()
             .flex()

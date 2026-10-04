@@ -1,6 +1,6 @@
 use crate::{
+    animation_inspector,
     hierarchy::{editable, kind},
-    inspector_edit,
     shell::{Shell, button},
     theme::ActiveTheme,
 };
@@ -108,20 +108,69 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
         }
         _ => {}
     }
-    if !editable(project, selection) {
-        return panel.child(if selection.instance_path.is_empty() {
-            "No parent/z-index controls for this item kind."
-        } else {
-            "Component-local content · read-only"
-        });
+    panel = panel.child(
+        div()
+            .py_2()
+            .text_sm()
+            .child("Authored animation · source keys"),
+    );
+    for description in animation_inspector::descriptions(item, shell.animation_cursor) {
+        panel = panel.child(div().text_xs().py_1().child(description));
     }
-    let fields = inspector_edit::fields(item);
+    let channels = &item.visual_properties().animation_channels;
+    for (axis, len, previous_id, next_id, previous_label, next_label) in [
+        (
+            0,
+            channels.len(),
+            "animation-channel-prev",
+            "animation-channel-next",
+            "Previous channel",
+            "Next channel",
+        ),
+        (
+            1,
+            channels
+                .get(shell.animation_cursor.channel_index(item))
+                .map_or(0, |c| c.keyframes.len()),
+            "animation-key-prev",
+            "animation-key-next",
+            "Previous source key",
+            "Next source key",
+        ),
+        (
+            2,
+            item.keyframes().len(),
+            "animation-legacy-prev",
+            "animation-legacy-next",
+            "Previous legacy key",
+            "Next legacy key",
+        ),
+    ] {
+        if len > 1 {
+            panel = panel.child(
+                div()
+                    .flex()
+                    .gap_1()
+                    .child(button(previous_id, previous_label).on_click(cx.listener(
+                        move |this, _, _, cx| this.change_animation_cursor(axis, false, cx),
+                    )))
+                    .child(button(next_id, next_label).on_click(cx.listener(
+                        move |this, _, _, cx| this.change_animation_cursor(axis, true, cx),
+                    ))),
+            );
+        }
+    }
+    if !animation_inspector::editable(selection) {
+        return panel.child("Component-local content · read-only");
+    }
+    let fields = shell.inspector_fields(item);
+
     if !fields.is_empty() {
         panel = panel.child(
             div()
                 .py_2()
                 .text_sm()
-                .child("Vector and text fields · select one to edit"),
+                .child("Supported fields · select one to edit"),
         );
         for (index, field) in fields.iter().enumerate() {
             let label = format!("{}: {}", field.label, field.value);
@@ -133,6 +182,13 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
                     },
                 )),
             );
+        }
+        if shell
+            .inspector_field
+            .and_then(|i| fields.get(i))
+            .is_some_and(|f| f.update_key == "animationChannels")
+        {
+            panel = panel.child(div().py_2().child("Applying any animation field replaces the authored channel collection and clears all preset attribution on this item, even if the value is unchanged. Source clocks and untouched keys/channels are preserved."));
         }
         if shell.inspector_field.is_some() {
             panel = panel
@@ -166,6 +222,11 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
                     )),
                 );
         }
+    }
+    if !editable(project, selection) {
+        return panel.child(
+            "Audio-only item · gain animation controls only; visual fields are unavailable.",
+        );
     }
     panel = panel
         .child(
