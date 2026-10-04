@@ -8,6 +8,10 @@ pub(crate) enum FieldKind {
     Number,
     Integer,
     SignedInteger,
+    Milliseconds,
+    SignedMilliseconds,
+    LoopMode,
+    LoopIterations,
     OptionalNumber,
     HexColor,
     Boolean,
@@ -38,7 +42,7 @@ fn hex_color(value: &Value) -> Option<String> {
     ))
 }
 
-fn add(
+pub(crate) fn add(
     result: &mut Vec<Field>,
     source: &Value,
     label: impl Into<String>,
@@ -51,6 +55,7 @@ fn add(
     let value = match kind {
         FieldKind::HexColor => hex_color(value).unwrap_or_default(),
         FieldKind::Boolean => value.as_bool().unwrap_or(false).to_string(),
+        FieldKind::Milliseconds | FieldKind::SignedMilliseconds if value.is_null() => "0".into(),
         _ if value.is_null() => String::new(),
         _ => value
             .as_str()
@@ -361,6 +366,29 @@ pub(crate) fn fields(item: &TimelineItem) -> Vec<Field> {
         }
         _ => {}
     }
+    if matches!(
+        item,
+        TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+    ) {
+        add(
+            &mut result,
+            &source,
+            "Stagger · ms",
+            "/staggerMs",
+            "staggerMs",
+            FieldKind::Milliseconds,
+        );
+    }
+    if matches!(item, TimelineItem::Repeater(_)) {
+        add(
+            &mut result,
+            &source,
+            "Repeater time offset · signed ms",
+            "/repeater/timeOffsetMs",
+            "repeater",
+            FieldKind::SignedMilliseconds,
+        );
+    }
     result
 }
 
@@ -372,6 +400,28 @@ fn parsed_value(field: &Field, input: &str, original: &Value) -> Result<Value, S
     };
     match field.kind {
         FieldKind::Text => Ok(json!(input)),
+        FieldKind::Milliseconds => input
+            .parse::<u64>()
+            .map(|value| json!(value))
+            .map_err(|_| "Use a nonnegative integer in milliseconds.".into()),
+        FieldKind::SignedMilliseconds => input
+            .parse::<i64>()
+            .map(|value| json!(value))
+            .map_err(|_| "Use a signed integer in milliseconds.".into()),
+        FieldKind::LoopMode => ["none", "repeat", "ping_pong"]
+            .contains(&input)
+            .then(|| json!(input))
+            .ok_or_else(|| "Use none, repeat or ping_pong.".into()),
+        FieldKind::LoopIterations => {
+            if input == "infinite" {
+                Ok(json!("infinite"))
+            } else {
+                input
+                    .parse::<u32>()
+                    .map(|value| json!(value))
+                    .map_err(|_| "Use an integer count or infinite.".into())
+            }
+        }
         FieldKind::Integer => input
             .parse::<u32>()
             .map(|value| json!(value))
@@ -429,6 +479,21 @@ pub(crate) fn build(
     if field.path.starts_with("/style/layout/") && source.pointer("/style/layout").is_none() {
         source["style"]["layout"] = serde_json::to_value(TextLayout::default()).unwrap();
     }
+    if matches!(field.kind, FieldKind::LoopMode) {
+        let path = field.path.trim_end_matches("/mode");
+        let channel_path = path.trim_end_matches("/loop");
+        let channel = source
+            .pointer_mut(channel_path)
+            .ok_or("Selected channel no longer exists.")?;
+        if value == "none" {
+            channel.as_object_mut().unwrap().remove("loop");
+        } else if channel.get("loop").is_none() {
+            channel["loop"] = json!({"mode":value,"iterations":1});
+        } else {
+            channel["loop"]["mode"] = value;
+        }
+        return channel_edit(item, &source);
+    }
     let parts: Vec<_> = field.path.trim_start_matches('/').split('/').collect();
     let mut target = &mut source;
     for key in &parts[..parts.len() - 1] {
@@ -451,8 +516,15 @@ pub(crate) fn build(
     }
     // Document input recomputes the compatibility text in core; plain text input deliberately
     // uses the legacy one-run replacement rule.
+    if field.update_key == "animationChannels" {
+        return channel_edit(item, &source);
+    }
     let edit = json!({"operation":"update_item","itemId":item.id(),field.update_key:source[field.update_key]});
     serde_json::from_value(edit).map_err(|error| format!("Could not prepare edit: {error}"))
+}
+
+fn channel_edit(item: &TimelineItem, source: &Value) -> Result<EditOperation, String> {
+    serde_json::from_value(json!({"operation":"set_animation_channels","itemId":item.id(),"animationChannels":source["animationChannels"]})).map_err(|error| format!("Could not prepare animation edit: {error}"))
 }
 
 #[cfg(test)]

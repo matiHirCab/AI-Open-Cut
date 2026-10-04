@@ -10,6 +10,8 @@ pub(crate) mod extended_visual;
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
+#[cfg(test)]
+mod temporal_fixture_tests;
 pub(crate) mod text_bounds;
 pub(crate) mod text_layout;
 use crate::{
@@ -2783,6 +2785,10 @@ fn evaluate_flat_project(
                 return Err(invalid("Transform2D cannot use legacy transform keyframes"));
             }
         }
+        // Intrinsic rectangle dimensions are required by sampled opacity/transition paths too.
+        if let EvaluatedVisualSource::Rectangle { width, height, .. } = &layer.source {
+            layer.source_size = Some((*width, *height));
+        }
         if layer.requires_affine() {
             layer.source_size = match &layer.source {
                 EvaluatedVisualSource::Rectangle { width, height, .. } => Some((*width, *height)),
@@ -5420,6 +5426,31 @@ pub(crate) fn evaluate_layer_affine(
     measure_layer_affine(layer, source, canvas, layer.ancestors)
 }
 
+/// Full authored segment envelope; retained clocks and loops only select within it.
+fn evaluated_easing_bounds(easing: EvaluatedEasing) -> (f64, f64) {
+    use crate::{AnimationCurve as C, ParameterizedAnimationCurve as P, SimpleAnimationCurve as S};
+    let curve = match easing {
+        EvaluatedEasing::Spring {
+            mass,
+            stiffness,
+            damping,
+            initial_velocity,
+        } => C::Parameterized(P::Spring {
+            mass,
+            stiffness,
+            damping,
+            initial_velocity,
+        }),
+        EvaluatedEasing::CubicBezier { x1, y1, x2, y2 } => {
+            C::Parameterized(P::CubicBezier { x1, y1, x2, y2 })
+        }
+        EvaluatedEasing::Hold => C::Simple(S::Hold),
+        // Legacy ease-in/out curves are monotonic and share the endpoint envelope.
+        _ => C::Simple(S::Linear),
+    };
+    crate::animation::curve_bounds(curve, 0.0, 1.0)
+}
+
 fn measure_layer_affine(
     layer: &EvaluatedVisualLayer,
     source: (u32, u32),
@@ -5505,6 +5536,62 @@ fn measure_layer_affine(
                 _ => {}
             }
         }
+        // Include every segment's continuous extrema as well as the authored
+        // endpoints above. Spring interiors can travel beyond both endpoints.
+        for property in [
+            EvaluatedProperty::Position,
+            EvaluatedProperty::PositionX,
+            EvaluatedProperty::PositionY,
+            EvaluatedProperty::Scale,
+            EvaluatedProperty::ScaleX,
+            EvaluatedProperty::ScaleY,
+        ] {
+            let mut frames: Vec<_> = layer
+                .keyframes
+                .iter()
+                .filter(|key| key.property == property)
+                .collect();
+            frames.sort_by_key(|key| key.time_ms);
+            for pair in frames.windows(2) {
+                let (low, high) = evaluated_easing_bounds(pair[0].easing);
+                let bounds = |first: f64, last: f64, scale: bool| {
+                    [low, high].map(|progress| {
+                        let value = first + (last - first) * progress;
+                        if scale {
+                            value.clamp(0.000001, 100.0)
+                        } else {
+                            value
+                        }
+                    })
+                };
+                match (property, pair[0].value, pair[1].value) {
+                    (
+                        EvaluatedProperty::Position,
+                        EvaluatedKeyframeValue::Position { x: ax, y: ay },
+                        EvaluatedKeyframeValue::Position { x: bx, y: by },
+                    ) => {
+                        xs.extend(bounds(ax, bx, false));
+                        ys.extend(bounds(ay, by, false));
+                    }
+                    (
+                        _,
+                        EvaluatedKeyframeValue::Scalar { value: first },
+                        EvaluatedKeyframeValue::Scalar { value: last },
+                    ) => match property {
+                        EvaluatedProperty::PositionX => xs.extend(bounds(first, last, false)),
+                        EvaluatedProperty::PositionY => ys.extend(bounds(first, last, false)),
+                        EvaluatedProperty::Scale => {
+                            scales_x.extend(bounds(first, last, true));
+                            scales_y.extend(bounds(first, last, true));
+                        }
+                        EvaluatedProperty::ScaleX => scales_x.extend(bounds(first, last, true)),
+                        EvaluatedProperty::ScaleY => scales_y.extend(bounds(first, last, true)),
+                        _ => {}
+                    },
+                    _ => return Err(invalid("invalid animated geometry value")),
+                }
+            }
+        }
         let extremes = |values: &[f64], default: f64| {
             if values.is_empty() {
                 [default, default]
@@ -5519,8 +5606,8 @@ fn measure_layer_affine(
         let mut top = f64::INFINITY;
         let mut right = f64::NEG_INFINITY;
         let mut bottom = f64::NEG_INFINITY;
-        // Existing easings are bounded by endpoint values. This fixed-size envelope
-        // bounds all combinations without expanding animation into per-frame facts.
+        // The full source envelope bounds all clock/loop phases and Cartesian
+        // combinations without expanding animation into per-frame facts.
         for x in extremes(&xs, layer.transform.position_x) {
             for y in extremes(&ys, layer.transform.position_y) {
                 for scale_x in extremes(&scales_x, layer.transform.scale) {
@@ -5627,6 +5714,14 @@ pub(crate) fn finalize_affine_geometry(
         })
         .collect::<Result<Vec<_>, CoreError>>()?;
     for (layer, result) in scene.visual_layers.iter_mut().zip(resolved) {
+        if result.is_none() {
+            if matches!(layer.source, EvaluatedVisualSource::Media { .. })
+                && let Some(size) = measurements.get(&layer.item_id)
+            {
+                layer.source_size = Some(*size);
+            }
+            continue;
+        }
         if let Some((size, affine)) = result {
             layer.source_size = Some(size);
             layer.affine = Some(affine);

@@ -18,6 +18,8 @@ mod animation_lifecycle_regressions;
 
 #[path = "animation_edit_render.rs"]
 mod animation_edit_render;
+#[path = "temporal_fixtures.rs"]
+mod temporal_fixtures;
 
 #[path = "animation_edit_semantics.rs"]
 mod animation_edit_semantics;
