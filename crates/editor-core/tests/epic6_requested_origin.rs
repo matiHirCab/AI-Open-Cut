@@ -8,6 +8,15 @@ use std::path::{Path, PathBuf};
 fn op(v: Value) -> EditOperation {
     serde_json::from_value(v).unwrap()
 }
+fn check_tools(ffmpeg: &Path, ffprobe: &Path, font: &Path) -> Result<(), String> {
+    if !font.is_file() {
+        return Err("cannot read native audit font: configured font must be a file".into());
+    }
+    std::fs::read(font).map_err(|error| format!("cannot read native audit font: {error}"))?;
+    Renderer::new(ffmpeg, ffprobe, Some(font.to_path_buf()))
+        .readiness()
+        .map_err(|error| error.to_string())
+}
 fn tools() -> Option<(PathBuf, PathBuf, PathBuf)> {
     let paths = (
         std::env::var_os("OPENCUT_FFMPEG_PATH"),
@@ -28,8 +37,37 @@ fn tools() -> Option<(PathBuf, PathBuf, PathBuf)> {
         return None;
     };
     let result = (PathBuf::from(f), PathBuf::from(p), PathBuf::from(t));
-    assert!(result.0.is_file() && result.1.is_file() && result.2.is_file());
+    check_tools(&result.0, &result.1, &result.2)
+        .expect("configured requested-origin native tools and font must be usable");
     Some(result)
+}
+#[test]
+fn native_requested_origin_dependency_gate_rejects_unusable_tools_and_font() {
+    let Some((ffmpeg, ffprobe, font)) = tools() else {
+        return;
+    };
+    let root = tempfile::tempdir().unwrap();
+    let missing = root.path().join("missing-native-dependency");
+    assert!(
+        check_tools(&missing, &ffprobe, &font)
+            .unwrap_err()
+            .contains("cannot start FFmpeg")
+    );
+    assert!(
+        check_tools(&ffmpeg, &missing, &font)
+            .unwrap_err()
+            .contains("cannot start FFprobe")
+    );
+    assert!(
+        check_tools(&ffmpeg, &ffprobe, &missing)
+            .unwrap_err()
+            .contains("cannot read native audit font")
+    );
+    assert!(
+        check_tools(&ffmpeg, &ffprobe, root.path())
+            .unwrap_err()
+            .contains("configured font must be a file")
+    );
 }
 fn rgb(ffmpeg: &Path, path: &Path, index: u64) -> Vec<u8> {
     let out = std::process::Command::new(ffmpeg)
