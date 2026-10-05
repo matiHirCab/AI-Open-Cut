@@ -2052,6 +2052,11 @@ fn prepare_project_data(
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision)
             .unwrap_or(&project);
+        if (project.schema_version < 33 || base.schema_version < 33)
+            && let Some(message) = crate::find_mask_animation_edit_fields(&draft.operations)?
+        {
+            return Err(CoreError::new(ErrorCode::InvalidArgument, message));
+        }
         if project.schema_version < 32 || base.schema_version < 32 {
             let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
             if let Some(operations) = raw.get("operations") {
@@ -6530,7 +6535,7 @@ mod tests {
             let reopened = EditorCore::new(core.paths().clone());
             let current = reopened.get_project(&id).unwrap();
             assert_eq!(current.revision, 2, "{phase:?}");
-            assert_eq!(current.schema_version, 32);
+            assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
             assert_eq!(
                 current
                     .tracks
@@ -6549,7 +6554,7 @@ mod tests {
                     .undo
                     .iter()
                     .chain(&history.redo)
-                    .all(|p| p.schema_version == 32)
+                    .all(|p| p.schema_version == crate::PROJECT_SCHEMA_VERSION)
             );
             let stable = project_file_bytes(&dir);
             reopened.get_project(&id).unwrap();
@@ -6767,80 +6772,116 @@ mod tests {
     }
     #[test]
     fn staged_mask_draft_requests_preserve_journal_commit_boundaries() {
-        for action in ["create", "update", "rebase", "commit"] {
-            for phase in [
-                PersistencePhase::BeforeJournal,
-                PersistencePhase::AfterDraftUpdates,
-                PersistencePhase::AfterDraftCleanup,
-            ] {
-                if phase == PersistencePhase::AfterDraftCleanup && action != "commit" {
-                    continue;
-                }
-                let (core, _) = core();
-                let (id, item, dir) = preset_legacy_resource_fixture(&core);
-                let catalog: serde_json::Value =
-                    serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json"))
-                        .unwrap();
-                let mask = catalog["cases"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .find(|c| c["accepted"] == true)
-                    .unwrap()["value"]
-                    .clone();
-                let edit: EditOperation = serde_json::from_value(serde_json::json!({
-                    "operation":"update_item","itemId":item,"masks":[mask]
-                }))
-                .unwrap();
-                // Establish a valid current-base masked program, then require
-                // adoption of one unrelated legacy retained generation.
-                let draft = core.create_draft(&id, 1, vec![edit.clone()], None).unwrap();
-                let mut history: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap()).unwrap();
-                history["undo"][0]["schemaVersion"] = serde_json::json!(31);
-                std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
-                let before = project_file_bytes(&dir);
-                set_persistence_fault(&core, phase);
-                let result: Result<(), CoreError> = match action {
-                    "create" => core.create_draft(&id, 1, vec![edit], None).map(|_| ()),
-                    "update" => core
-                        .update_draft(&id, &draft.id, 1, vec![edit], Some("Updated".into()))
-                        .map(|_| ()),
-                    "rebase" => core.rebase_draft(&id, &draft.id, 1).map(|_| ()),
-                    "commit" => core.commit_draft(&id, &draft.id, 1).map(|_| ()),
-                    _ => unreachable!(),
-                };
-                if phase == PersistencePhase::BeforeJournal {
-                    assert_eq!(
-                        result.unwrap_err().code,
-                        ErrorCode::InternalError,
-                        "{action}"
-                    );
-                    assert_eq!(project_file_bytes(&dir), before, "{action}");
-                } else {
-                    result.unwrap();
-                    let reopened = EditorCore::new(core.paths().clone());
-                    let current = reopened.get_project(&id).unwrap();
-                    assert_eq!(current.schema_version, 32);
-                    assert_eq!(current.revision, if action == "commit" { 2 } else { 1 });
-                    let history: History = read_json(&history_path(&dir)).unwrap();
-                    assert!(
-                        history
-                            .undo
-                            .iter()
-                            .chain(&history.redo)
-                            .all(|p| p.schema_version == 32)
-                    );
-                    if action == "commit" {
-                        assert!(!draft_path(&dir, &draft.id).unwrap().exists());
-                    } else {
-                        assert_eq!(reopened.get_draft(&id, &draft.id).unwrap().version, 2);
+        for channels_only in [false, true] {
+            for action in ["create", "update", "rebase", "commit"] {
+                for phase in [
+                    PersistencePhase::BeforeJournal,
+                    PersistencePhase::AfterDraftUpdates,
+                    PersistencePhase::AfterDraftCleanup,
+                ] {
+                    if phase == PersistencePhase::AfterDraftCleanup && action != "commit" {
+                        continue;
                     }
-                    let stable = project_file_bytes(&dir);
-                    reopened.get_project(&id).unwrap();
-                    assert_eq!(project_file_bytes(&dir), stable);
+                    let (core, _) = core();
+                    let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                    let catalog: serde_json::Value = serde_json::from_str(include_str!(
+                        "../../../contracts/mask-models-v1.json"
+                    ))
+                    .unwrap();
+                    let mask = catalog["cases"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|c| c["accepted"] == true)
+                        .unwrap()["value"]
+                        .clone();
+                    let edit: EditOperation = serde_json::from_value(serde_json::json!({
+                        "operation":"update_item","itemId":item,"masks":[mask]
+                    }))
+                    .unwrap();
+                    // Both metadata edits and channel-only edits must select the
+                    // same staged transaction owner, including migrated drafts.
+                    let (base_revision, edit) = if channels_only {
+                        core.edit(&id, 1, edit).unwrap();
+                        (2, serde_json::from_value(serde_json::json!({
+                        "operation":"set_animation_channels","itemId":item,"animationChannels":[{
+                            "property":"mask.transform.opacity","target":{"kind":"mask","scope":"root","id":mask["id"]},
+                            "keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"linear"},
+                                {"timeMs":99,"value":{"type":"scalar","value":0.5},"curve":"linear"}]
+                        }]
+                    })).unwrap())
+                    } else {
+                        (1, edit)
+                    };
+                    // Establish a valid current-base masked program, then require
+                    // adoption of one unrelated legacy retained generation.
+                    let draft = core
+                        .create_draft(&id, base_revision, vec![edit.clone()], None)
+                        .unwrap();
+                    let mut history: serde_json::Value =
+                        serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap())
+                            .unwrap();
+                    history["undo"][0]["schemaVersion"] = serde_json::json!(31);
+                    std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap())
+                        .unwrap();
+                    let before = project_file_bytes(&dir);
+                    set_persistence_fault(&core, phase);
+                    let result: Result<(), CoreError> = match action {
+                        "create" => core
+                            .create_draft(&id, base_revision, vec![edit], None)
+                            .map(|_| ()),
+                        "update" => core
+                            .update_draft(
+                                &id,
+                                &draft.id,
+                                base_revision,
+                                vec![edit],
+                                Some("Updated".into()),
+                            )
+                            .map(|_| ()),
+                        "rebase" => core.rebase_draft(&id, &draft.id, base_revision).map(|_| ()),
+                        "commit" => core.commit_draft(&id, &draft.id, base_revision).map(|_| ()),
+                        _ => unreachable!(),
+                    };
+                    if phase == PersistencePhase::BeforeJournal {
+                        assert_eq!(
+                            result.unwrap_err().code,
+                            ErrorCode::InternalError,
+                            "{action}"
+                        );
+                        assert_eq!(project_file_bytes(&dir), before, "{action}");
+                    } else {
+                        result.unwrap();
+                        let reopened = EditorCore::new(core.paths().clone());
+                        let current = reopened.get_project(&id).unwrap();
+                        assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                        assert_eq!(
+                            current.revision,
+                            if action == "commit" {
+                                base_revision + 1
+                            } else {
+                                base_revision
+                            }
+                        );
+                        let history: History = read_json(&history_path(&dir)).unwrap();
+                        assert!(
+                            history
+                                .undo
+                                .iter()
+                                .chain(&history.redo)
+                                .all(|p| p.schema_version == crate::PROJECT_SCHEMA_VERSION)
+                        );
+                        if action == "commit" {
+                            assert!(!draft_path(&dir, &draft.id).unwrap().exists());
+                        } else {
+                            assert_eq!(reopened.get_draft(&id, &draft.id).unwrap().version, 2);
+                        }
+                        let stable = project_file_bytes(&dir);
+                        reopened.get_project(&id).unwrap();
+                        assert_eq!(project_file_bytes(&dir), stable);
+                    }
+                    assert_no_managed_transaction_files(&dir);
                 }
-                assert_no_managed_transaction_files(&dir);
             }
         }
     }

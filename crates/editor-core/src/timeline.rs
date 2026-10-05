@@ -176,7 +176,13 @@ pub(crate) fn resolve_operation_aliases(
             for channel in animation_channels {
                 if let Some(target) = &mut channel.target {
                     resolve_scope_alias(&mut target.scope, aliases)?;
-                    if target.scope == "root" && target.kind != crate::AnimationTargetKind::Effect {
+                    if target.scope == "root"
+                        && !channel.property.mask()
+                        && !matches!(
+                            target.kind,
+                            crate::AnimationTargetKind::Effect | crate::AnimationTargetKind::Mask
+                        )
+                    {
                         resolve_alias(&mut target.id, aliases)?;
                     }
                 }

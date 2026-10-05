@@ -1,4 +1,4 @@
-//! Canonical stored-mask ownership and metadata validation; no raster activation.
+//! Canonical stored-mask ownership and structural animation validation.
 use crate::{
     CoreError, EditOperation, ErrorCode, MAX_MASK_COMMANDS_PER_COMPOSITION,
     MAX_MASK_COMMANDS_PER_PROJECT, MAX_MASKS_PER_COMPOSITION, MAX_MASKS_PER_ITEM,
@@ -98,11 +98,127 @@ pub(crate) fn validate_operations(operations: &[EditOperation]) -> Result<(), Co
             } => {
                 validate_stack(masks)?;
             }
+            EditOperation::SetAnimationChannels {
+                animation_channels, ..
+            } => {
+                structural_channels(animation_channels)?;
+            }
             EditOperation::ComponentCreate { tracks, .. }
             | EditOperation::ComponentUpdate { tracks, .. } => {
                 composition(tracks, None)?;
+                for item in tracks.iter().flat_map(|t| &t.items) {
+                    structural_channels(&item.visual_properties().animation_channels)?;
+                }
             }
             _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn structural_channels(channels: &[crate::AnimationChannel]) -> Result<(), CoreError> {
+    use crate::{AnimationChannelProperty as P, AnimationChannelValue as V, AnimationTargetKind};
+    if channels.len() > 64 {
+        return Err(invalid("animation channel limit exceeded"));
+    }
+    let mut identities = BTreeSet::new();
+    for channel in channels {
+        if channel
+            .target
+            .as_ref()
+            .is_some_and(|t| t.kind == AnimationTargetKind::Mask)
+            && !channel.property.mask()
+        {
+            return Err(invalid("mask target requires a mask property"));
+        }
+        if !channel.property.mask() {
+            continue;
+        }
+        super::animation_channels::validate_loop_structure(channel)?;
+        let target = channel
+            .target
+            .as_ref()
+            .ok_or_else(|| invalid("mask channel requires target"))?;
+        if target.kind != AnimationTargetKind::Mask
+            || target.id.is_empty()
+            || target.id.len() > 128
+            || !(target.scope == "root"
+                || target
+                    .scope
+                    .strip_prefix("component:")
+                    .is_some_and(|id| !id.is_empty()))
+        {
+            return Err(invalid("mask animation target exceeds structural bounds"));
+        }
+        if !identities.insert((channel.property, target.scope.as_str(), target.id.as_str())) {
+            return Err(invalid("duplicate mask animation channel"));
+        }
+        if channel.keyframes.len() > 1000
+            || channel
+                .keyframes
+                .windows(2)
+                .any(|p| p[0].time_ms >= p[1].time_ms)
+        {
+            return Err(invalid("mask animation keyframes exceed bounds"));
+        }
+        if let Some(clock) = channel.clock {
+            super::animation_channels::validate_clock(clock, 1)?;
+            if channel.keyframes.is_empty()
+                || channel
+                    .keyframes
+                    .iter()
+                    .any(|k| k.time_ms >= clock.source_duration_ms)
+            {
+                return Err(invalid("mask retained source exceeds bounds"));
+            }
+        }
+        for (index, key) in channel.keyframes.iter().enumerate() {
+            super::animation_channels::validate_curve(
+                key.curve,
+                index + 1 == channel.keyframes.len(),
+            )?;
+            let okay = match (&key.value, channel.property) {
+                (V::PathPoints { points }, P::MaskPathPoints) => {
+                    points.len() <= 4096
+                        && points.iter().all(|p| {
+                            p.x.is_finite()
+                                && p.y.is_finite()
+                                && p.x.abs() <= 1_000_000.0
+                                && p.y.abs() <= 1_000_000.0
+                        })
+                }
+                (V::Rgba { r, g, b, a }, P::MaskPaintColor) => [r, g, b, a]
+                    .into_iter()
+                    .all(|v| v.is_finite() && (0.0..=1.0).contains(v)),
+                (V::GradientStops { stops }, P::MaskGradientStops) => {
+                    (2..=32).contains(&stops.len())
+                        && stops.first().is_some_and(|s| s.offset == 0.0)
+                        && stops.last().is_some_and(|s| s.offset == 1.0)
+                        && stops.windows(2).all(|p| p[0].offset < p[1].offset)
+                        && stops.iter().all(|s| {
+                            s.offset.is_finite()
+                                && (0.0..=1.0).contains(&s.offset)
+                                && s.color
+                                    .iter()
+                                    .all(|v| v.is_finite() && (0.0..=1.0).contains(v))
+                        })
+                }
+                (V::Scalar { value }, p) => {
+                    super::extended_visual::mask_scalar_bounds(p, crate::PositionUnit::Pixels)
+                        .is_some_and(|(lo, hi)| {
+                            value.is_finite()
+                                && if matches!(p, P::MaskTransformScaleX | P::MaskTransformScaleY) {
+                                    *value > 0.0 && *value <= hi
+                                } else {
+                                    (lo..=hi).contains(value)
+                                }
+                        })
+                }
+                _ => false,
+            };
+            if !okay {
+                return Err(invalid("mask animation value exceeds structural bounds"));
+            }
         }
     }
     Ok(())

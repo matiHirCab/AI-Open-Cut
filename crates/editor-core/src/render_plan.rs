@@ -3967,7 +3967,7 @@ mod tests {
     }
 
     #[test]
-    fn authored_masks_leave_scene_resources_and_full_plan_identical() {
+    fn authored_mask_facts_preserve_empty_identity_base_geometry_resources_and_semantic_plans() {
         let mut project = empty_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
         project.tracks = vec![Track {
@@ -4014,7 +4014,46 @@ mod tests {
         let masked = evaluate_project(&project, 64, 64, 10).unwrap();
         assert_ne!(baseline.revision, masked.revision);
         assert_eq!(baseline.project_id, masked.project_id);
-        assert_eq!(baseline.scene, masked.scene);
+        assert_ne!(baseline.scene, masked.scene);
+        assert_eq!(
+            masked.scene.visual_layers[0]
+                .extended
+                .as_ref()
+                .unwrap()
+                .masks
+                .len(),
+            1
+        );
+        // Activation can add canonical projection facts. Assert the source and
+        // geometric/timing invariants directly rather than erasing those facts
+        // and pretending the active scene must equal its unmasked input.
+        let original = &baseline.scene.visual_layers[0];
+        let active = &masked.scene.visual_layers[0];
+        assert_eq!(active.source, original.source);
+        assert_eq!(active.source_size, Some((20, 16)));
+        assert_eq!(active.source_size, original.source_size);
+        assert_eq!(active.span, original.span);
+        assert_eq!(active.transform, original.transform);
+        assert_eq!(active.transform2d, original.transform2d);
+        assert_eq!(active.order, original.order);
+        assert_eq!(active.keyframes, original.keyframes);
+        assert_eq!(active.transitions, original.transitions);
+        let ancestors = active.ancestors.unwrap();
+        assert_eq!(ancestors.matrix, [1., 0., 0., 1., 0., 0.]);
+        assert_eq!(ancestors.inverse, [1., 0., 0., 1., 0., 0.]);
+        assert_eq!(ancestors.opacity, 1.);
+        assert_eq!(ancestors.clip.start_ms, 0);
+        assert_eq!(ancestors.clip.end_ms, 600);
+        assert!(active.ancestor_stages.is_empty());
+        assert_eq!(masked.scene.instance_voiceover_intervals, Some(vec![]));
+        let mut empty_project = project.clone();
+        empty_project.tracks[0].items[0]
+            .visual_properties_mut()
+            .masks
+            .clear();
+        let empty = evaluate_project(&empty_project, 64, 64, 10).unwrap();
+        assert_eq!(baseline.scene, empty.scene);
+        assert_eq!(baseline.resource_bindings, empty.resource_bindings);
         assert_eq!(baseline.resource_bindings, masked.resource_bindings);
         assert!(
             !project.tracks[0].items[0]
@@ -4043,14 +4082,14 @@ mod tests {
                 )
                 .unwrap()
             };
-            // No path or geometry normalization: every graph/resource/clock fact
-            // is exactly equal, including each intent's actual parameters.
-            assert_eq!(build(&baseline.scene), build(&masked.scene));
+            // Absent and explicitly empty programs preserve complete scene and
+            // semantic-plan identity for every intent, without normalization.
+            assert_eq!(build(&baseline.scene), build(&empty.scene));
         }
     }
 
     #[test]
-    fn inactive_mask_metadata_preserves_missing_media_error() {
+    fn active_mask_metadata_preserves_missing_media_error() {
         let mut project = empty_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
         project.tracks = vec![Track {

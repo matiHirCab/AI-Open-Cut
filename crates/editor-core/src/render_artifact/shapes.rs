@@ -1,4 +1,6 @@
 //! Coverage rasterization of evaluated geometry; paint semantics stay explicit.
+#[cfg(test)]
+mod fill_allocation_tests;
 use crate::evaluated_scene::shapes::EvaluatedShape;
 use crate::{CoreError, ErrorCode, FillRule, LineCap, LineJoin, Paint, VectorColor, VectorPoint};
 
@@ -47,6 +49,100 @@ pub(super) fn paint_at(paint: &Paint, p: VectorPoint) -> [f64; 4] {
     let b = premul(b.color);
     std::array::from_fn(|i| a[i] + (b[i] - a[i]) * u)
 }
+/// Canonical tiny-skia filled contour AA, retained as scalar coverage.
+pub(super) fn fill_contours(
+    contours: &[crate::evaluated_scene::shapes::Contour],
+    fill_rule: FillRule,
+    origin: (f64, f64),
+    density: f64,
+    size: (u32, u32),
+) -> Result<Vec<f32>, CoreError> {
+    let fail = || {
+        CoreError::new(
+            ErrorCode::InvalidArgument,
+            "mask fill exceeds certified raster bounds",
+        )
+    };
+    if !density.is_finite()
+        || density < 1.0
+        || !origin.0.is_finite()
+        || !origin.1.is_finite()
+        || size.0 == 0
+        || size.1 == 0
+        || size.0 > 16384
+        || size.1 > 16384
+    {
+        return Err(fail());
+    }
+    let count = (size.0 as usize)
+        .checked_mul(size.1 as usize)
+        .filter(|p| *p <= 16777216)
+        .ok_or_else(fail)?;
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(count.checked_mul(4).ok_or_else(fail)?)
+        .map_err(|_| fail())?;
+    bytes.resize(count * 4, 0);
+    let mut pixmap = tiny_skia::Pixmap::from_vec(
+        bytes,
+        tiny_skia::IntSize::from_wh(size.0, size.1).ok_or_else(fail)?,
+    )
+    .ok_or_else(fail)?;
+    let point_capacity = contours
+        .iter()
+        .try_fold(0_usize, |total, c| total.checked_add(c.points.len()))
+        .ok_or_else(fail)?;
+    let verb_capacity = point_capacity
+        .checked_add(contours.len())
+        .ok_or_else(fail)?;
+    let mut builder = tiny_skia::PathBuilder::with_capacity(verb_capacity, point_capacity);
+    let convert = |p: VectorPoint| -> Result<(f32, f32), CoreError> {
+        let x = (p.x - origin.0) * density;
+        let y = (p.y - origin.1) * density;
+        let converted = (x as f32, y as f32);
+        if !x.is_finite()
+            || !y.is_finite()
+            || !converted.0.is_finite()
+            || !converted.1.is_finite()
+            || (x - f64::from(converted.0)).hypot(y - f64::from(converted.1)) > 0.25
+        {
+            return Err(fail());
+        }
+        Ok(converted)
+    };
+    for contour in contours {
+        if contour.points.len() < 3 {
+            continue;
+        }
+        let (x, y) = convert(contour.points[0])?;
+        builder.move_to(x, y);
+        for p in &contour.points[1..] {
+            let (x, y) = convert(*p)?;
+            builder.line_to(x, y);
+        }
+        // Filled subpaths close implicitly, matching the current canonical fill.
+        builder.close();
+    }
+    if let Some(path) = builder.finish() {
+        let mut paint = tiny_skia::Paint::default();
+        paint.set_color_rgba8(255, 255, 255, 255);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            match fill_rule {
+                FillRule::Nonzero => tiny_skia::FillRule::Winding,
+                FillRule::Evenodd => tiny_skia::FillRule::EvenOdd,
+            },
+            tiny_skia::Transform::identity(),
+            None,
+        );
+    }
+    let mut result = Vec::new();
+    result.try_reserve_exact(count).map_err(|_| fail())?;
+    result.extend(pixmap.pixels().iter().map(|p| f32::from(p.alpha()) / 255.0));
+    Ok(result)
+}
+
 fn coverage(shape: &EvaluatedShape, fill: &mut tiny_skia::Pixmap, stroke: &mut tiny_skia::Pixmap) {
     fill.fill(tiny_skia::Color::TRANSPARENT);
     stroke.fill(tiny_skia::Color::TRANSPARENT);

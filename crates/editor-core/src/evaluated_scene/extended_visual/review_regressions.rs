@@ -9,7 +9,8 @@ fn layer(channels: Vec<AnimationChannel>) -> EvaluatedVisualLayer {
             motion_blur: None,
             frame_rate: 30,
             effects: vec![],
-            channels,
+            masks: Default::default(),
+            channels: channels.into(),
         }),
         instance: None,
         item_id: "review".into(),
@@ -263,7 +264,7 @@ fn review_legacy_shape_affine_preserves_origin_for_identity_extensions() {
             if rotation {
                 let mut zero = ramp(0, "transform.rotation_deg");
                 zero.keyframes[1].value = V::Scalar { value: 0.0 };
-                original.extended.as_mut().unwrap().channels = vec![zero];
+                original.extended.as_mut().unwrap().channels = vec![zero].into();
             } else {
                 original.extended.as_mut().unwrap().effects = vec![VisualEffect::Vignette {
                     id: "identity".into(),
@@ -377,7 +378,7 @@ fn review_compound_paths_and_gradients_preserve_large_and_fractional_clocks() {
             (stops[0].offset, stops[1].offset, stops[2].offset),
             (0.0, 0.375, 1.0)
         );
-        for channel in &mut original.extended.as_mut().unwrap().channels {
+        for channel in original.extended.as_mut().unwrap().channels.make_mut() {
             channel.r#loop =
                 Some(serde_json::from_value(json!({"mode":"ping_pong","iterations":1})).unwrap());
         }

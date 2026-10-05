@@ -1,4 +1,4 @@
-//! Bounded authored mask metadata. Raster activation belongs to a later milestone.
+//! Bounded authored mask metadata. Schema-33 activates bounded owner-local mask rendering and animation.
 use crate::{
     CoreError, ErrorCode, Paint, PositionUnit, Transform2D, TransformAnchor, TransformPosition,
     VectorPath,
@@ -245,5 +245,18 @@ mod tests {
                 case["name"]
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod activation_wire_tests {
+    #[test]
+    fn approved_mask_animation_wire_is_closed_and_decodes() {
+        let value = serde_json::json!({"property":"mask.transform.opacity","target":{"kind":"mask","scope":"root","id":"reveal"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.25},"curve":"linear"}]});
+        let channel = serde_json::from_value::<crate::AnimationChannel>(value);
+        assert!(
+            channel.is_ok(),
+            "approved mask target/property must decode: {channel:?}"
+        );
     }
 }

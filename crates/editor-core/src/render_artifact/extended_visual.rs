@@ -440,12 +440,19 @@ pub(crate) fn prepare(
             );
         }
     }
+    let scene_has_masks = scene
+        .visual_layers
+        .iter()
+        .any(|l| l.extended.as_ref().is_some_and(|v| !v.masks.is_empty()));
     let mut produce = |n| {
         let at = start + n * 1000 / u64::from(fps);
         let mut composed = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
         composed.pixels.fill([0.0, 0.0, 0.0, 1.0]);
+        let mut mask_work = crate::evaluated_scene::masks::MaskFrameBudget::default();
+        let mut mask_segments = std::collections::HashMap::<u64, usize>::new();
+        let mut counted_occurrences = std::collections::HashSet::new();
         for layer in &scene.visual_layers {
-            let draw = |at| {
+            let mut draw = |at| {
                 let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
                 let result = if !layer.visible_at(at) {
                     (Raster::empty(1, 1)?, 0, 0)
@@ -535,6 +542,38 @@ pub(crate) fn prepare(
                     )?;
                     if let Some(crop) = crop {
                         raster = raster.crop(crop)?;
+                    }
+                    if scene_has_masks {
+                        let masks = extended_visual::sampled_masks(layer, at)?;
+                        let first = counted_occurrences.insert((at, layer.item_id.as_str()));
+                        let mut segments = *mask_segments.entry(at).or_default();
+                        if first && let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                            segments = segments
+                                .checked_add(shape.segments())
+                                .filter(|v| {
+                                    *v <= crate::evaluated_scene::shapes::MAX_SCENE_SEGMENTS
+                                })
+                                .ok_or_else(|| invalid("sampled mask scene segment overflow"))?;
+                        }
+                        if !masks.is_empty() {
+                            let mut certification_segments = if first { segments } else { 0 };
+                            let facts = crate::evaluated_scene::masks::certify_sampled_masks(
+                                &masks,
+                                crate::evaluated_scene::masks::MaskOwnerBasis {
+                                    size: (raster.width as u32, raster.height as u32),
+                                    density,
+                                },
+                                &mut mask_work,
+                                &mut certification_segments,
+                            )?;
+                            if first {
+                                segments = certification_segments;
+                            }
+                            super::masks::apply_stack(&mut raster.pixels, &facts)?;
+                        }
+                        if first {
+                            mask_segments.insert(at, segments);
+                        }
                     }
                     let bounds = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
                         Some([

@@ -89,6 +89,14 @@ pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreErr
 
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
     mask::validate_project(project)?;
+    validate_project_visual_projection(project)
+}
+
+// Detached component certification repeats a stored definition in root tracks.
+// Its canonical stored-project aggregate was checked before this projection;
+// retain every structural, ownership, and channel check without counting the
+// same authored definition twice as newly stored metadata.
+pub(crate) fn validate_project_visual_projection(project: &Project) -> Result<(), CoreError> {
     crate::markers::validate_project(project)?;
     validate_project_stacking(project)?;
     validate_parent_graph(project)?;

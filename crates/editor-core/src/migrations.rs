@@ -24,6 +24,26 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 33
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| {
+                i.visual_properties().animation_channels.iter().any(|c| {
+                    c.property.mask()
+                        || c.target
+                            .as_ref()
+                            .is_some_and(|t| t.kind == crate::AnimationTargetKind::Mask)
+                })
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "mask animation requires schema 33",
+        ));
+    }
     if project.schema_version < 32
         && project
             .tracks
@@ -283,7 +303,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=31 => {
+        9..=32 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

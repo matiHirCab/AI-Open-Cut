@@ -204,3 +204,27 @@
 
 /apps/agent-bridge/tests/fixtures/mask-mcp-projection.ts @matiHirCab
 /crates/editor-core/src/renderer/tests/raster_caching.rs @matiHirCab
+
+# Active mask rendering and animation contract consumers.
+/contracts/mask-rendering-v1.json @matiHirCab
+/contracts/animation-channels-v1.json @matiHirCab
+/contracts/mask-models-v1.json @matiHirCab
+/crates/editor-core/src/evaluated_scene/masks.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/shapes.rs @matiHirCab
+/crates/editor-core/src/render_artifact/masks.rs @matiHirCab
+/crates/editor-core/src/render_artifact/masks/tests.rs @matiHirCab
+/crates/editor-core/src/render_artifact/shapes.rs @matiHirCab
+/apps/agent-bridge/tests/mask-rendering.test.ts @matiHirCab
+/apps/agent-bridge/tests/mask-rendering-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/mask-rendering-projection.ts @matiHirCab
+/docs/mask-rendering.md @matiHirCab
+
+/apps/agent-bridge/tests/mask-rendering-native.test.ts @matiHirCab
+
+/apps/agent-bridge/tests/schemas.test.ts @matiHirCab
+
+/crates/editor-core/tests/mask_rendering.rs @matiHirCab
+
+/crates/editor-core/src/evaluated_scene/masks/tests.rs @matiHirCab
+
+/crates/editor-core/src/render_artifact/shapes/fill_allocation_tests.rs @matiHirCab

@@ -4,6 +4,7 @@
     "component_lifecycle",
     "evaluated_scene_rendering",
     "linear_light_compositing_v1",
+    "mask_rendering_v1",
     "shape_items",
     "shape_rendering",
     "svg_items",
@@ -22,6 +23,7 @@
     "inherited_animation_timing_v1",
     "extended_visual_animation_v1",
     "mask_models_v1",
+    "mask_animation_v1",
     "motion_blur_sampling_v1",
     "animation_presets_v1",
     "initial_motion_preset_pack_v1",
@@ -2228,7 +2230,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 32,
+            "const": 33,
             "type": "number"
           },
           "protocolVersion": {
@@ -13061,7 +13063,22 @@
           "effect.vignette_amount",
           "effect.particle_amount",
           "audio.gain_db",
-          "audio.pan"
+          "audio.pan",
+          "mask.path_points",
+          "mask.paint_color",
+          "mask.gradient_stops",
+          "mask.feather_px",
+          "mask.expansion_px",
+          "mask.transform.position_x",
+          "mask.transform.position_y",
+          "mask.transform.scale_x",
+          "mask.transform.scale_y",
+          "mask.transform.anchor_x",
+          "mask.transform.anchor_y",
+          "mask.transform.rotation_deg",
+          "mask.transform.skew_x_deg",
+          "mask.transform.skew_y_deg",
+          "mask.transform.opacity"
         ],
         "type": "string"
       },
@@ -13078,7 +13095,8 @@
               "graphic_geometry",
               "graphic_fill",
               "graphic_stroke",
-              "effect"
+              "effect",
+              "mask"
             ],
             "type": "string"
           },
@@ -25390,7 +25408,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 32,
+        "const": 33,
         "type": "number"
       },
       "settings": {

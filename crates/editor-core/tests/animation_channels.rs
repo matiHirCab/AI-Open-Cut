@@ -201,6 +201,41 @@ fn canonical_names_and_limits_match_rust_types() {
                     AnimationChannelProperty::VignetteAmount => {
                         json!({"valueType":"scalar","target":"effect_scoped","activation":"active","minimum":0,"maximum":1})
                     }
+                    AnimationChannelProperty::MaskPathPoints => {
+                        json!({"valueType":"path_points","target":"mask_scoped","activation":"active","minimum":-1000000,"maximum":1000000})
+                    }
+                    AnimationChannelProperty::MaskPaintColor => {
+                        json!({"valueType":"rgba","target":"mask_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::MaskGradientStops => {
+                        json!({"valueType":"gradient_stops","target":"mask_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::MaskFeatherPx => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":0,"maximum":128})
+                    }
+                    AnimationChannelProperty::MaskExpansionPx => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":-128,"maximum":128})
+                    }
+                    AnimationChannelProperty::MaskTransformPositionX
+                    | AnimationChannelProperty::MaskTransformPositionY => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":-1000000,"maximum":1000000})
+                    }
+                    AnimationChannelProperty::MaskTransformScaleX
+                    | AnimationChannelProperty::MaskTransformScaleY => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimumExclusive":0,"maximum":100})
+                    }
+                    AnimationChannelProperty::MaskTransformAnchorX
+                    | AnimationChannelProperty::MaskTransformAnchorY
+                    | AnimationChannelProperty::MaskTransformOpacity => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":0,"maximum":1})
+                    }
+                    AnimationChannelProperty::MaskTransformRotationDeg => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":-36000,"maximum":36000})
+                    }
+                    AnimationChannelProperty::MaskTransformSkewXDeg
+                    | AnimationChannelProperty::MaskTransformSkewYDeg => {
+                        json!({"valueType":"scalar","target":"mask_scoped","activation":"active","minimum":-80,"maximum":80})
+                    }
                     _ => panic!("catalog activated an unsupported property: {name}"),
                 };
                 assert_eq!(*metadata, expected, "active catalog metadata for {name}");
@@ -244,7 +279,7 @@ fn canonical_names_and_limits_match_rust_types() {
     assert_eq!(
         contract["active"].as_object().unwrap().len()
             + contract["inactive"].as_object().unwrap().len(),
-        29
+        44
     );
     assert!(
         serde_json::from_value::<AnimationChannel>(contract["examples"]["validChannel"].clone())

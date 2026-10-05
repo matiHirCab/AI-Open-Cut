@@ -1,0 +1,672 @@
+{
+  "contract": "mask-rendering-v1",
+  "version": 1,
+  "projectSchemaVersion": 33,
+  "capabilities": {
+    "editor": "mask_animation_v1",
+    "renderer": "mask_rendering_v1"
+  },
+  "reusedContracts": {
+    "model": "contracts/mask-models-v1.json",
+    "vector": "contracts/vector-primitives-v1.json",
+    "transform": "contracts/transform2d-v1.json",
+    "animation": "contracts/animation-channels-v1.json"
+  },
+  "properties": {
+    "mask.path_points": {
+      "valueType": "path_points",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "mask.paint_color": {
+      "valueType": "rgba",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mask.gradient_stops": {
+      "valueType": "gradient_stops",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mask.feather_px": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "mask.expansion_px": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -128,
+      "maximum": 128
+    },
+    "mask.transform.position_x": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "mask.transform.position_y": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "mask.transform.scale_x": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimumExclusive": 0,
+      "maximum": 100
+    },
+    "mask.transform.scale_y": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimumExclusive": 0,
+      "maximum": 100
+    },
+    "mask.transform.anchor_x": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mask.transform.anchor_y": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mask.transform.rotation_deg": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -36000,
+      "maximum": 36000
+    },
+    "mask.transform.skew_x_deg": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -80,
+      "maximum": 80
+    },
+    "mask.transform.skew_y_deg": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": -80,
+      "maximum": 80
+    },
+    "mask.transform.opacity": {
+      "valueType": "scalar",
+      "target": "mask_scoped",
+      "activation": "active",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "target": {
+    "kind": "mask",
+    "scopes": [
+      "root",
+      "component:<definition-id>"
+    ],
+    "idScope": "owning_item",
+    "maxIdBytes": 128,
+    "identity": [
+      "property",
+      "target"
+    ],
+    "missingIdError": "ITEM_NOT_FOUND",
+    "invalidError": "INVALID_ARGUMENT"
+  },
+  "applicability": {
+    "path_points": "exact_static_command_coordinate_order_and_count_max4096",
+    "paint_color": "solid_paint_only",
+    "gradient_stops": "linear_or_radial_matching_static_stop_count2_to32",
+    "transform_position": "static_unit_pixels_max_abs1000000_or_normalized_max_abs100",
+    "immutable": [
+      "source",
+      "path_topology",
+      "fillRule",
+      "paint_type",
+      "gradient_geometry",
+      "position_unit",
+      "channel",
+      "inverted",
+      "operation",
+      "id"
+    ]
+  },
+  "algorithm": {
+    "order": [
+      "geometric_fill",
+      "signed_expansion",
+      "original_coordinate_paint_channel",
+      "gaussian_feather",
+      "mask_affine_opacity",
+      "inversion",
+      "ordered_combination",
+      "source_rgba_multiplication"
+    ],
+    "fill": "tiny_skia_antialiased_alpha_byte_div255",
+    "density": "max(1,ownerDensity*maximum_singular_value(mask_linear))",
+    "ownerBasis": "post_crop_clip_pre_effect_top_left_zero",
+    "ownerLogicalExtent": "W/ownerDensity,H/ownerDensity",
+    "ownerPixelCenter": "((x+0.5)/ownerDensity,(y+0.5)/ownerDensity)",
+    "anchor": "sampled_unexpanded_analytic_path_bounds",
+    "paddingGridPixels": "ceil(abs(expansionPx)*rho)+ceil(3*featherPx*rho)+2",
+    "distance": {
+      "algorithm": "two_separable_exact_squared_euclidean_lower_envelopes",
+      "complexity": "O(P)",
+      "insideSeeds": "C>0",
+      "outsideSeeds": "C<1",
+      "partial": "d=C-0.5",
+      "full": "d=sqrt(D_O)-0.5",
+      "empty": "d=0.5-sqrt(D_I)",
+      "expanded": "clamp(0.5+d+expansionPx*rho,0,1)",
+      "zeroExpansion": "exact_bypass",
+      "noInsideSeeds": "zero_coverage",
+      "tie": "lower_index",
+      "noSeed": "absence_not_float_infinity"
+    },
+    "paintChannels": {
+      "alpha": "C_e*A",
+      "luma": "C_e*(0.2126*R+0.7152*G+0.0722*B)",
+      "colorSpace": "floating_premultiplied_linear",
+      "coordinates": "original_path_coordinates_no_gradient_stretch"
+    },
+    "feather": {
+      "sigma": "featherPx*rho",
+      "tapRadius": "ceil(3*sigma)",
+      "kernel": "normalized_exp(-0.5*(k/sigma)^2)",
+      "passes": [
+        "horizontal_left_to_right",
+        "vertical_top_to_bottom"
+      ],
+      "outside": "transparent_no_edge_renormalization",
+      "zeroSigma": "exact_bypass"
+    },
+    "sampling": "inverse_affine_bilinear_half_pixel_transparent_extension",
+    "opacity": "multiply_once_before_inversion",
+    "inversion": "1-B_within_owner_domain",
+    "seeds": {
+      "add": 0,
+      "exclude": 0,
+      "subtract": 1,
+      "intersect": 1
+    },
+    "combination": {
+      "add": "A+B-A*B",
+      "subtract": "A*(1-B)",
+      "intersect": "A*B",
+      "exclude": "A+B-2*A*B"
+    },
+    "source": "multiply_all_four_premultiplied_components_once_before_effects",
+    "emptyStack": "exact_identity_bypass"
+  },
+  "limits": {
+    "maxDimension": 16384,
+    "maxPixels": 16777216,
+    "maxExpandedOccurrences": 4096,
+    "maxSegmentsPerMask": 65536,
+    "maxSceneSegments": 1048576,
+    "contourToleranceGridPixels": 0.25,
+    "maxRasterConversionDisplacement": 0.25,
+    "maxMaskWorkUnitsPerOutputFrame": 268435456,
+    "maxLiveBytesPerRequest": 1073741824,
+    "cacheReservationBytes": 67108864,
+    "sharedContinuousNodes": 65536,
+    "coverageRoundoff": 1e-06
+  },
+  "work": {
+    "coverage": "4P+4S*H*(1+ceil(log2(max(S,1))))",
+    "paint": "P*(1+ceil(log2(N)))",
+    "nonzeroExpansion": "24P",
+    "nonzeroFeather": "2P*(2*ceil(3*featherPx*rho)+1)",
+    "sampleCombine": "5P_owner_per_mask",
+    "multiplySource": "4P_owner_once_per_owning_sample",
+    "scope": "all_occurrences_masks_actual_shutter_samples_per_output_frame",
+    "checkedArithmetic": true
+  },
+  "memory": {
+    "currentPixelLineScratch": "64P+16(W+H)",
+    "additiveKernelBytes": "4K where K=2*ceil(3*featherPx*rho)+1 for_nonzero_feather",
+    "ownerAccumulator": "4P_owner",
+    "retainedContours": "64*SUM(S_all_concurrently_retained_facts)",
+    "additionalRetainedMetadata": "checked_fact_headers_ID_UTF8_Paint_gradient_heap_Vec_descriptors_capacities_including_S0_no_grid",
+    "scope": "all_concurrent_stacks_scenes_shutter_facts_plus_existing_live_buffers_cache"
+  },
+  "channelCases": [
+    {
+      "name": "mask.path_points",
+      "accepted": true,
+      "channel": {
+        "property": "mask.path_points",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "path_points",
+              "points": [
+                {
+                  "x": 0,
+                  "y": 0
+                },
+                {
+                  "x": 4,
+                  "y": 0
+                },
+                {
+                  "x": 4,
+                  "y": 4
+                },
+                {
+                  "x": 0,
+                  "y": 4
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.paint_color",
+      "accepted": true,
+      "channel": {
+        "property": "mask.paint_color",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "rgba",
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.25
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.gradient_stops",
+      "accepted": true,
+      "channel": {
+        "property": "mask.gradient_stops",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "gradient_stops",
+              "stops": [
+                {
+                  "offset": 0,
+                  "color": [
+                    1,
+                    0,
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "offset": 1,
+                  "color": [
+                    0,
+                    0,
+                    1,
+                    1
+                  ]
+                }
+              ]
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.feather_px",
+      "accepted": true,
+      "channel": {
+        "property": "mask.feather_px",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.expansion_px",
+      "accepted": true,
+      "channel": {
+        "property": "mask.expansion_px",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.position_x",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.position_x",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.position_y",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.position_y",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.scale_x",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.scale_x",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.scale_y",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.scale_y",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.anchor_x",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.anchor_x",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.anchor_y",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.anchor_y",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.rotation_deg",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.rotation_deg",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.skew_x_deg",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.skew_x_deg",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.skew_y_deg",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.skew_y_deg",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    },
+    {
+      "name": "mask.transform.opacity",
+      "accepted": true,
+      "channel": {
+        "property": "mask.transform.opacity",
+        "target": {
+          "kind": "mask",
+          "scope": "root",
+          "id": "mask-0"
+        },
+        "keyframes": [
+          {
+            "timeMs": 0,
+            "value": {
+              "type": "scalar",
+              "value": 1
+            },
+            "curve": "hold"
+          }
+        ]
+      }
+    }
+  ],
+  "numericCases": [
+    {
+      "name": "partial_below_half_expansion",
+      "coverage": 0.25,
+      "expansionGrid": 0.5,
+      "expected": 0.75
+    },
+    {
+      "name": "zero_expansion_exact",
+      "coverage": 0.25,
+      "expansionGrid": 0,
+      "expected": 0.25
+    },
+    {
+      "name": "empty_seeds_stay_empty",
+      "coverage": 0,
+      "insideSeeds": [],
+      "expansionGrid": 8,
+      "expected": 0
+    }
+  ],
+  "compositionCases": [
+    {
+      "operation": "add",
+      "a": 0.25,
+      "b": 0.5,
+      "expected": 0.625
+    },
+    {
+      "operation": "subtract",
+      "a": 0.25,
+      "b": 0.5,
+      "expected": 0.125
+    },
+    {
+      "operation": "intersect",
+      "a": 0.25,
+      "b": 0.5,
+      "expected": 0.125
+    },
+    {
+      "operation": "exclude",
+      "a": 0.25,
+      "b": 0.5,
+      "expected": 0.5
+    }
+  ]
+}

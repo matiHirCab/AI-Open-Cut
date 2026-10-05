@@ -142,9 +142,27 @@ fn canonical_cases_and_ordered_stacks_use_the_public_owner_and_preserve_rejected
                 json!({"operation":"update_item","itemId":item,"masks":value}),
             );
             if case["accepted"] == true {
-                core.edit(&id, 1, decoded.unwrap())
-                    .unwrap_or_else(|error| panic!("{}: {error:?}", case["name"]));
-                assert_eq!(item_masks(&core, &id, &item), value, "{}", case["name"]);
+                // Model acceptance remains independent of schema-33 rendering
+                // certification. The canonical maximum feather/expansion vector
+                // is structurally valid but its discrete Gaussian work exceeds
+                // the unchanged output-frame rendering budget on this source.
+                for authored in value.as_array().unwrap() {
+                    serde_json::from_value::<opencut_editor_core::Mask>(authored.clone())
+                        .unwrap()
+                        .validate()
+                        .unwrap();
+                }
+                if case["name"] == "maximum-parameters" {
+                    let error = core.edit(&id, 1, decoded.unwrap()).unwrap_err();
+                    assert_eq!(error.code, opencut_editor_core::ErrorCode::InvalidArgument);
+                    assert!(!error.retryable);
+                    assert!(error.message.contains("work exceeds"));
+                    assert_eq!(inventory(&core, &id), before);
+                } else {
+                    core.edit(&id, 1, decoded.unwrap())
+                        .unwrap_or_else(|error| panic!("{}: {error:?}", case["name"]));
+                    assert_eq!(item_masks(&core, &id, &item), value, "{}", case["name"]);
+                }
             } else {
                 if let Ok(edit) = decoded {
                     assert!(core.edit(&id, 1, edit).is_err(), "{}", case["name"]);
@@ -317,7 +335,10 @@ fn predecessor_migration_adopts_current_undo_redo_and_applicable_draft_without_r
     let reopened = EditorCore::new(core.paths().clone());
     let current = serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap();
     assert_eq!(current, before);
-    assert_eq!(current["schemaVersion"], 32);
+    assert_eq!(
+        current["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(item_masks(&reopened, &id, &item), json!([]));
     assert_eq!(
         reopened
@@ -334,7 +355,10 @@ fn predecessor_migration_adopts_current_undo_redo_and_applicable_draft_without_r
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for side in ["undo", "redo"] {
         for snapshot in history[side].as_array().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 32);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
         }
     }
     let adopted = inventory(&reopened, &id);
@@ -451,7 +475,14 @@ fn inclusive_hidden_and_unused_composition_and_project_budgets_are_owned_by_core
             }
             std::fs::write(&path, serde_json::to_vec(&project).unwrap()).unwrap();
             assert!(
-                core.get_project(&id).is_ok(),
+                {
+                    let result = core.get_project(&id);
+                    assert!(
+                        result.is_ok(),
+                        "inclusive commands={commands}, project={project_scope}: {result:?}"
+                    );
+                    true
+                },
                 "inclusive commands={commands}, project={project_scope}"
             );
             if project_scope {
@@ -650,7 +681,7 @@ fn predecessor_migration_preserves_managed_resource_provenance_and_revision() {
 }
 
 #[test]
-fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_timing() {
+fn native_activated_masks_preserve_strict_frame_range_draft_export_witnesses() {
     use opencut_editor_core::{
         ExportOptions, MediaProbeFacts, MediaType, PreviewRangeOptions, Renderer,
     };
@@ -697,13 +728,25 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
     let audio_track = core.get_project(&id).unwrap().tracks[2].id.clone();
     core.edit(&id,2,op(json!({"operation":"add_media","trackId":audio_track,"assetId":asset,"startMs":0,"sourceInMs":0,"durationMs":600}))).unwrap();
     let baseline = core.get_project(&id).unwrap();
-    let mut destructive = mask("metadata-only");
+    let mut destructive = mask("black-control");
     destructive["source"]["paint"]["color"] = json!({"r":0,"g":0,"b":0,"a":0});
     destructive["operation"] = json!("intersect");
     destructive["inverted"] = json!(false);
-    destructive["featherPx"] = json!(128);
-    destructive["expansionPx"] = json!(-128);
-    let operation = update(&item, json!([destructive]));
+    destructive["featherPx"] = json!(0);
+    destructive["expansionPx"] = json!(0);
+    let black_draft = core
+        .create_draft(&id, 3, vec![update(&item, json!([destructive]))], None)
+        .unwrap();
+    let black_project = core.get_draft_state(&id, &black_draft.id).unwrap().project;
+    let mut reveal = mask("reveal");
+    reveal["source"]["paint"]["color"] = json!({"r":1,"g":1,"b":1,"a":0.5});
+    reveal["operation"] = json!("add");
+    reveal["inverted"] = json!(false);
+    reveal["featherPx"] = json!(0);
+    reveal["expansionPx"] = json!(0);
+    reveal["transform"] =
+        serde_json::to_value(opencut_editor_core::Transform2D::default()).unwrap();
+    let operation = update(&item, json!([reveal]));
     let draft = core
         .create_draft(
             &id,
@@ -750,10 +793,23 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
         assert!(result.status.success());
         serde_json::from_slice::<Value>(&result.stdout).unwrap()
     };
+    let black = renderer.render_preview(&black_project, &dir, 300).unwrap();
+    let black_pixels = decode(&dir.join(black.relative_path), false);
+    assert_eq!(black_pixels.len(), 64 * 64 * 3);
+    assert!(
+        black_pixels.iter().all(|v| *v == 0),
+        "zero-alpha mask must suppress every RGB channel"
+    );
+    let reopened = EditorCore::new(core.paths().clone())
+        .get_project(&id)
+        .unwrap();
     let mut frame_oracle = None;
-    let mut range_oracle = None;
-    let mut export_oracle = None;
-    for (index, project) in [&baseline, &candidate, &committed].into_iter().enumerate() {
+    let mut range_oracle: Option<(Vec<u8>, Vec<u8>, Value)> = None;
+    let mut export_oracle: Option<(Vec<u8>, Vec<u8>, Value)> = None;
+    for (index, project) in [&baseline, &candidate, &committed, &reopened]
+        .into_iter()
+        .enumerate()
+    {
         let frame = renderer.render_preview(project, &dir, 300).unwrap();
         let pixels = decode(&dir.join(frame.relative_path), false);
         assert_eq!(pixels.len(), 64 * 64 * 3);
@@ -766,7 +822,15 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
             "independent visible-red oracle failed"
         );
         if let Some(expected) = &frame_oracle {
-            assert_eq!(&pixels, expected, "frame/draft identity");
+            if index == 1 {
+                assert_ne!(&pixels, expected, "mask must change final appearance");
+                frame_oracle = Some(pixels);
+            } else {
+                assert_eq!(
+                    &pixels, expected,
+                    "same-mask frame/draft/commit/reopen identity"
+                );
+            }
         } else {
             frame_oracle = Some(pixels);
         }
@@ -799,10 +863,20 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
         );
         let range_result = (range_pixels, range_audio, probe(&range_path));
         if let Some(expected) = &range_oracle {
-            assert_eq!(
-                &range_result, expected,
-                "range/draft pixels/audio/timing identity"
-            );
+            if index == 1 {
+                assert_ne!(range_result.0, expected.0, "mask must change range pixels");
+                assert_eq!(range_result.1, expected.1, "mask must preserve range audio");
+                assert_eq!(
+                    range_result.2, expected.2,
+                    "mask must preserve range timing"
+                );
+                range_oracle = Some(range_result);
+            } else {
+                assert_eq!(
+                    &range_result, expected,
+                    "same-mask range/draft/commit/reopen identity"
+                );
+            }
         } else {
             range_oracle = Some(range_result);
         }
@@ -827,10 +901,26 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
         assert!(!export_audio.is_empty());
         let export_result = (export_pixels, export_audio, probe(&export_path));
         if let Some(expected) = &export_oracle {
-            assert_eq!(
-                &export_result, expected,
-                "export/draft pixels/audio/timing identity"
-            );
+            if index == 1 {
+                assert_ne!(
+                    export_result.0, expected.0,
+                    "mask must change export pixels"
+                );
+                assert_eq!(
+                    export_result.1, expected.1,
+                    "mask must preserve export audio"
+                );
+                assert_eq!(
+                    export_result.2, expected.2,
+                    "mask must preserve export timing"
+                );
+                export_oracle = Some(export_result);
+            } else {
+                assert_eq!(
+                    &export_result, expected,
+                    "same-mask export/draft/commit/reopen identity"
+                );
+            }
         } else {
             export_oracle = Some(export_result);
         }
@@ -978,7 +1068,10 @@ fn predecessor_drafts_are_validated_against_the_retained_base_before_any_migrati
             );
             assert_eq!(inventory(&core, &id), before);
         } else {
-            assert_eq!(reopened.get_project(&id).unwrap().schema_version, 32);
+            assert_eq!(
+                reopened.get_project(&id).unwrap().schema_version,
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(
                 reopened.get_draft_state(&id, &draft.id).unwrap_err().code,
                 ErrorCode::RevisionConflict

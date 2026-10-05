@@ -1202,6 +1202,13 @@ fn epic6_component_solid_uses_authored_leaf_canvas_with_fractional_retained_cloc
 
 #[test]
 fn linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_oracle() {
+    crop_mask_effect_affine_oracle(false);
+}
+#[test]
+fn crop_mask_then_ordered_effects_and_nonuniform_ancestor_have_independent_oracle() {
+    crop_mask_effect_affine_oracle(true);
+}
+fn crop_mask_effect_affine_oracle(masked: bool) {
     let mut scene = evaluate_project(&project(false), 64, 64, 10).unwrap().scene;
     scene.visual_layers.truncate(1);
     let layer = &mut scene.visual_layers[0];
@@ -1245,7 +1252,19 @@ fn linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_orac
         }),
         motion_blur: None,
         frame_rate: 10,
-        channels: vec![],
+        channels: Default::default(),
+        masks: extended_visual::SharedMasks::from(if masked {
+            vec![serde_json::from_value(serde_json::json!({
+            "id":"crop-local","source":{"type":"path","path":{"fillRule":"nonzero","commands":[
+                {"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":2,"y":0}},
+                {"type":"lineTo","to":{"x":2,"y":2}},{"type":"lineTo","to":{"x":0,"y":2}},{"type":"close"}]},
+                "paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":0.5}}},
+            "channel":"alpha","operation":"add","inverted":false,"featherPx":0,"expansionPx":0,
+            "transform":crate::Transform2D { opacity:0.5,..Default::default() }
+        })).unwrap()]
+        } else {
+            vec![]
+        }),
         effects: vec![
             crate::VisualEffect::GaussianBlur {
                 id: "blur".into(),
@@ -1295,6 +1314,17 @@ fn linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_orac
         for (col, w) in [0.0, 0.25, 0.75, 1.0].into_iter().enumerate() {
             for c in 0..4 {
                 cropped[row * 4 + col][c] = ends[row][0][c] * (1.0 - w) + ends[row][1][c] * w;
+            }
+        }
+    }
+    if masked {
+        // Independent geometric half-domain coverage, paint alpha .5 and mask
+        // opacity .5. Multiply all source components ONCE before local blur.
+        for row in 0..2 {
+            for col in 0..4 {
+                for component in &mut cropped[row * 4 + col] {
+                    *component *= if col < 2 { 0.25 } else { 0.0 };
+                }
             }
         }
     }
@@ -1371,11 +1401,23 @@ fn linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_orac
 
 #[test]
 fn native_linear_compositor_retains_nested_fractional_media_clock_and_source_in() {
+    native_fractional_video_mask_oracle(false);
+}
+#[test]
+fn native_mask_animation_retains_nested_fractional_video_source_and_pingpong_clock() {
+    native_fractional_video_mask_oracle(true);
+}
+fn native_fractional_video_mask_oracle(masked: bool) {
     use crate::render_process::ProcessExecutor;
     let (Ok(ffmpeg), Ok(ffprobe)) = (
         std::env::var("OPENCUT_FFMPEG_PATH"),
         std::env::var("OPENCUT_FFPROBE_PATH"),
     ) else {
+        assert_ne!(
+            std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+            Ok("1")
+        );
+        assert_ne!(std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref(), Ok("1"));
         return;
     };
     let root = tempfile::tempdir().unwrap();
@@ -1466,9 +1508,35 @@ fn native_linear_compositor_retains_nested_fractional_media_clock_and_source_in(
     layer.ancestor_stages.clear();
     layer.ancestors = None;
     layer.transform2d = Some(Default::default());
-    for (source_in, expected_time, expected_color) in
-        [(99, 99.25, [255, 0, 0]), (100, 100.25, [0, 255, 0])]
-    {
+    if masked {
+        layer.extended=Some(extended_visual::ExtendedVisual {
+            crop:None,motion_blur:None,frame_rate:10,effects:vec![],
+            masks:vec![serde_json::from_value(serde_json::json!({
+                "id":"fractional","source":{"type":"path","path":{"fillRule":"nonzero","commands":[
+                    {"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":2,"y":0}},
+                    {"type":"lineTo","to":{"x":2,"y":2}},{"type":"lineTo","to":{"x":0,"y":2}},{"type":"close"}]},
+                    "paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}}},
+                "channel":"alpha","operation":"add","inverted":false,"featherPx":0,"expansionPx":0,
+                "transform":crate::Transform2D::default()
+            })).unwrap()].into(),
+            channels:vec![serde_json::from_value(serde_json::json!({
+                "property":"mask.transform.opacity","target":{"kind":"mask","scope":"root","id":"fractional"},
+                "loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":0.25},"curve":"linear"},
+                    {"timeMs":1,"value":{"type":"scalar","value":0.75},"curve":"linear"}]
+            })).unwrap()].into(),
+        });
+    }
+    let mut samples = vec![
+        (187, 99, 99.25, [255, 0, 0]),
+        (187, 100, 100.25, [0, 255, 0]),
+    ];
+    if masked {
+        // Root189*.75-140=1.75ms reflects to .25ms on the ping-pong
+        // return lane, while source media itself continues to100.75ms.
+        samples.push((189, 99, 100.75, [0, 255, 0]));
+    }
+    for (at_ms, source_in, expected_time, expected_color) in samples {
         let mut current = scene.clone();
         current.visual_layers[0].source = EvaluatedVisualSource::Media {
             asset_id: "synthetic".into(),
@@ -1477,7 +1545,7 @@ fn native_linear_compositor_retains_nested_fractional_media_clock_and_source_in(
         let calls = std::cell::Cell::new(0);
         let (_, frames) = temporal_prepare_samples(
             current,
-            crate::render_plan::RenderIntent::Frame { at_ms: 187 },
+            crate::render_plan::RenderIntent::Frame { at_ms },
             &|_, time, size| {
                 assert_eq!(time, expected_time);
                 calls.set(calls.get() + 1);
@@ -1499,8 +1567,15 @@ fn native_linear_compositor_retains_nested_fractional_media_clock_and_source_in(
             + marker.len();
         let pixel = &bytes[offset..offset + 4];
         for c in 0..3 {
+            // Root187*.75-140=.25ms; pingpong first quarter gives .375
+            // alpha. Actual held source99.25ms is red,100.25ms is green.
+            let expected = if masked && expected_color[c] != 0 {
+                (255.0 * (1.055 * 0.375_f64.powf(1.0 / 2.4) - 0.055)).round() as u8
+            } else {
+                expected_color[c]
+            };
             assert!(
-                pixel[c].abs_diff(expected_color[c]) <= 1,
+                pixel[c].abs_diff(expected) <= 1,
                 "clock{expected_time}: {pixel:?}"
             );
         }
@@ -1578,4 +1653,165 @@ fn fractional_native_media_clock_certification_rejects_loss_before_resources() {
     }
     // No output/workspace/decode/raster operation participates in pure certification.
     assert_eq!(serde_json::to_vec(&authored).unwrap(), snapshot);
+}
+
+fn mask_budget_scene() -> EvaluatedScene {
+    let mut scene = evaluate_project(&project(false), 1, 1, 10).unwrap().scene;
+    scene.canvas.width = 1;
+    scene.canvas.height = 1;
+    let mut leaf = scene.visual_layers[0].clone();
+    leaf.source = EvaluatedVisualSource::Rectangle {
+        color: "#ff0000".into(),
+        width: 128,
+        height: 128,
+    };
+    leaf.source_size = Some((128, 128));
+    leaf.keyframes.clear();
+    leaf.instance = None;
+    leaf.ancestors = None;
+    leaf.ancestor_stages.clear();
+    leaf.transform2d = Some(Default::default());
+    let m:crate::Mask=serde_json::from_value(serde_json::json!({"id":"zero","source":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}}]},"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}}},"channel":"alpha","operation":"add","inverted":false,"transform":crate::Transform2D::default(),"featherPx":0,"expansionPx":0})).unwrap();
+    leaf.extended = Some(extended_visual::ExtendedVisual {
+        crop: None,
+        motion_blur: None,
+        frame_rate: 10,
+        effects: vec![],
+        masks: vec![m].into(),
+        channels: Default::default(),
+    });
+    scene.visual_layers = vec![leaf];
+    scene
+}
+#[test]
+fn mask_work_aggregates_actual_occurrences_and_shutter_samples_per_output_frame() {
+    // Rasterless masks still visit5*owner pixels and multiply4*owner once.
+    // 9*128^2=147456 units:1820 occurrences fit,1821 exceed268435456.
+    let mut scene = mask_budget_scene();
+    let leaf = scene.visual_layers[0].clone();
+    scene.visual_layers = (0..1820)
+        .map(|i| {
+            let mut l = leaf.clone();
+            l.item_id = format!("occurrence{i}");
+            l
+        })
+        .collect();
+    assert!(extended_visual::preflight_samples(&scene, 400, 400, true).is_ok());
+    let mut extra = leaf.clone();
+    extra.item_id = "excess".into();
+    scene.visual_layers.push(extra);
+    let error = extended_visual::preflight_samples(&scene, 400, 400, true).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::InvalidArgument);
+    assert!(error.message.contains("mask work"));
+    // Four actual shutter visits per occurrence:455 fit,456 exceed; no
+    // per-shutter budget reset may incorrectly admit the latter.
+    let mut leaf = leaf;
+    leaf.extended.as_mut().unwrap().motion_blur = Some(crate::MotionBlur {
+        shutter_angle_deg: 180.,
+        sample_count: 4,
+    });
+    scene.visual_layers = (0..455)
+        .map(|i| {
+            let mut l = leaf.clone();
+            l.item_id = format!("shutter{i}");
+            l
+        })
+        .collect();
+    assert!(extended_visual::preflight_samples(&scene, 400, 400, true).is_ok());
+    scene.visual_layers.push(leaf);
+    let error = extended_visual::preflight_samples(&scene, 400, 400, true).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::InvalidArgument);
+    assert!(error.message.contains("mask work"));
+}
+#[test]
+fn ordinary_and_mask_segments_share_each_sampled_scene_without_duplicate_shutter_charges() {
+    let mut scene = mask_budget_scene();
+    let mut masked = scene.visual_layers[0].clone();
+    masked.source = EvaluatedVisualSource::Rectangle {
+        color: "#ff0000".into(),
+        width: 1,
+        height: 1,
+    };
+    masked.source_size = Some((1, 1));
+    let ext = masked.extended.as_mut().unwrap();
+    let mut m = ext.masks[0].clone();
+    let crate::MaskSource::Path { path, .. } = &mut m.source;
+    path.commands = vec![
+        crate::PathCommand::MoveTo {
+            to: crate::VectorPoint { x: 0., y: 0. },
+        },
+        crate::PathCommand::LineTo {
+            to: crate::VectorPoint { x: 1., y: 0. },
+        },
+        crate::PathCommand::LineTo {
+            to: crate::VectorPoint { x: 1., y: 1. },
+        },
+        crate::PathCommand::LineTo {
+            to: crate::VectorPoint { x: 0., y: 1. },
+        },
+        crate::PathCommand::Close {},
+    ];
+    ext.masks = vec![m].into();
+    let settings = crate::MotionBlur {
+        shutter_angle_deg: 0.000001,
+        sample_count: 4,
+    };
+    ext.motion_blur = Some(settings);
+    // Tiny angle resolves roots399,399,400,400. Each scene owns its full
+    // ordinary+mask segment count once, despite duplicate actual MASK work
+    // visits. Ordinary geometry remains unblurred, preserving its legacy
+    // per-output-frame segment accounting.
+    scene.visual_layers.clear();
+    for i in 0..256 {
+        let segments = 4095;
+        let mut commands = vec![crate::PathCommand::MoveTo {
+            to: crate::VectorPoint { x: 0., y: 0. },
+        }];
+        commands.extend((0..segments).map(|n| crate::PathCommand::LineTo {
+            to: crate::VectorPoint {
+                x: (n % 2) as f64,
+                y: ((n / 2) % 2) as f64,
+            },
+        }));
+        let shape = shapes::EvaluatedShape::new(
+            crate::ShapeGeometry::Path {
+                path: crate::VectorPath {
+                    fill_rule: crate::FillRule::Nonzero,
+                    commands,
+                },
+            },
+            Some(
+                serde_json::from_value(
+                    serde_json::json!({"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}}),
+                )
+                .unwrap(),
+            ),
+            None,
+            1.,
+        )
+        .unwrap();
+        assert_eq!(shape.segments(), segments);
+        let mut ordinary = masked.clone();
+        ordinary.item_id = format!("ordinary{i}");
+        ordinary.source_size = Some(shape.size);
+        ordinary.source = EvaluatedVisualSource::Shape(Box::new(shape));
+        ordinary.extended.as_mut().unwrap().masks = Default::default();
+        ordinary.extended.as_mut().unwrap().motion_blur = None;
+        scene.visual_layers.push(ordinary);
+    }
+    for i in 0..64 {
+        let mut leaf = masked.clone();
+        leaf.item_id = format!("mask{i}");
+        scene.visual_layers.push(leaf);
+    }
+    extended_visual::preflight_samples(&scene, 400, 400, true)
+        .expect("256*4095 ordinary +64*4 mask equals1048576 per scene");
+    masked.item_id = "extra-mask".into();
+    scene.visual_layers.push(masked);
+    assert_eq!(
+        extended_visual::preflight_samples(&scene, 400, 400, true)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
 }

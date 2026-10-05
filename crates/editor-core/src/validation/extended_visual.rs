@@ -192,6 +192,22 @@ pub(crate) fn validate_target(
     if target.scope != scoped {
         return Err(invalid("animation target scope mismatch"));
     }
+    if channel.property.mask() {
+        let mask = mask_target(channel, item)?;
+        let crate::MaskSource::Path { paint, .. } = &mask.source;
+        if channel.property == P::MaskPaintColor && !matches!(paint, Paint::Solid { .. }) {
+            return Err(invalid("mask color target requires solid paint"));
+        }
+        if channel.property == P::MaskGradientStops
+            && !matches!(
+                paint,
+                Paint::LinearGradient { .. } | Paint::RadialGradient { .. }
+            )
+        {
+            return Err(invalid("mask gradient target requires gradient paint"));
+        }
+        return Ok(());
+    }
     match channel.property {
         PathPoints | PathTrim | GradientStops => {
             let TimelineItem::Shape(shape) = item else {
@@ -238,6 +254,108 @@ pub(crate) fn validate_target(
     Ok(())
 }
 
+pub(crate) fn mask_target<'a>(
+    channel: &AnimationChannel,
+    item: &'a TimelineItem,
+) -> Result<&'a crate::Mask, CoreError> {
+    if !matches!(
+        item,
+        TimelineItem::Media(_)
+            | TimelineItem::Text(_)
+            | TimelineItem::SolidColor(_)
+            | TimelineItem::Rectangle(_)
+            | TimelineItem::Shape(_)
+            | TimelineItem::Svg(_)
+            | TimelineItem::Grid(_)
+    ) {
+        return Err(invalid("mask animation requires an eligible visual leaf"));
+    }
+    let target = channel
+        .target
+        .as_ref()
+        .filter(|t| t.kind == K::Mask)
+        .ok_or_else(|| invalid("mask property requires mask target"))?;
+    if target.id.is_empty() || target.id.len() > 128 {
+        return Err(invalid("mask target ID exceeds UTF8 byte bounds"));
+    }
+    item.visual_properties()
+        .masks
+        .iter()
+        .find(|m| m.id == target.id)
+        .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "mask target missing"))
+}
+
+fn validate_mask_value(
+    channel: &AnimationChannel,
+    item: &TimelineItem,
+    value: &V,
+) -> Result<(), CoreError> {
+    let mask = mask_target(channel, item)?;
+    let crate::MaskSource::Path { path, paint } = &mask.source;
+    let valid = match (channel.property, value) {
+        (P::MaskPathPoints, V::PathPoints { points }) => {
+            points.len() == point_count(path)
+                && points.len() <= 4096
+                && points.iter().all(|p| {
+                    bounded(p.x, -1000000.0, 1000000.0) && bounded(p.y, -1000000.0, 1000000.0)
+                })
+        }
+        (P::MaskPaintColor, V::Rgba { r, g, b, a }) => {
+            matches!(paint, Paint::Solid { .. })
+                && [r, g, b, a].iter().all(|v| bounded(**v, 0.0, 1.0))
+        }
+        (P::MaskGradientStops, V::GradientStops { stops }) => {
+            let count = match paint {
+                Paint::LinearGradient { stops, .. } | Paint::RadialGradient { stops, .. } => {
+                    stops.len()
+                }
+                _ => 0,
+            };
+            stops.len() == count
+                && (2..=32).contains(&count)
+                && stops.first().is_some_and(|s| s.offset == 0.0)
+                && stops.last().is_some_and(|s| s.offset == 1.0)
+                && stops.windows(2).all(|s| s[0].offset < s[1].offset)
+                && stops.iter().all(|s| {
+                    bounded(s.offset, 0.0, 1.0) && s.color.iter().all(|v| bounded(*v, 0.0, 1.0))
+                })
+        }
+        (p, V::Scalar { value }) => mask_scalar_bounds(p, mask.transform.position.unit)
+            .is_some_and(|(low, high)| {
+                if matches!(p, P::MaskTransformScaleX | P::MaskTransformScaleY) {
+                    value.is_finite() && *value > 0.0 && *value <= high
+                } else {
+                    bounded(*value, low, high)
+                }
+            }),
+        _ => false,
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(invalid("mask channel value or topology exceeds bounds"))
+    }
+}
+
+pub(crate) fn mask_scalar_bounds(property: P, unit: crate::PositionUnit) -> Option<(f64, f64)> {
+    Some(match property {
+        P::MaskFeatherPx => (0.0, 128.0),
+        P::MaskExpansionPx => (-128.0, 128.0),
+        P::MaskTransformPositionX | P::MaskTransformPositionY => {
+            if unit == crate::PositionUnit::Normalized {
+                (-100.0, 100.0)
+            } else {
+                (-1000000.0, 1000000.0)
+            }
+        }
+        P::MaskTransformScaleX | P::MaskTransformScaleY => (0.000001, 100.0),
+        P::MaskTransformAnchorX | P::MaskTransformAnchorY | P::MaskTransformOpacity => (0.0, 1.0),
+        P::MaskTransformRotationDeg => (-36000.0, 36000.0),
+        P::MaskTransformSkewXDeg | P::MaskTransformSkewYDeg => (-80.0, 80.0),
+        _ => return None,
+    })
+}
+
 fn gradient<'a>(
     channel: &AnimationChannel,
     item: &'a TimelineItem,
@@ -263,6 +381,9 @@ pub(crate) fn validate_value(
     item: &TimelineItem,
     value: &V,
 ) -> Result<(), CoreError> {
+    if channel.property.mask() {
+        return validate_mask_value(channel, item, value);
+    }
     let within = match (channel.property, value) {
         (P::RotationDeg, V::Scalar { value }) => bounded(*value, -36000.0, 36000.0),
         (P::CropX | P::CropY | P::PathTrim | P::VignetteAmount, V::Scalar { value }) => {

@@ -1,10 +1,10 @@
 {
   "contract": "mask-models-v1",
   "version": 1,
-  "projectSchemaVersion": 32,
+  "projectSchemaVersion": 33,
   "capability": "mask_models_v1",
-  "status": "authoring_metadata_only",
-  "rendererStage": "identity_until_separately_approved_mask_rendering",
+  "status": "authoring_with_active_rendering_contract",
+  "rendererStage": "contracts/mask-rendering-v1.json",
   "fields": [
     "id",
     "source",
@@ -62,7 +62,7 @@
     "anchorBasis": "untransformed_path_geometric_bounds",
     "alpha": "painted_alpha",
     "luma": "0.2126*R+0.7152*G+0.0722*B on premultiplied linear RGB",
-    "order": "path_fill_paint, signed_expansion, feather, mask_affine_opacity, inversion, ordered_combination",
+    "order": "geometric_fill, signed_expansion, original_coordinate_paint_channel, feather, mask_affine_opacity, inversion, ordered_combination",
     "emptyStack": "identity1",
     "firstSeed": {
       "add": 0,
@@ -78,7 +78,7 @@
     },
     "feather": "local_Gaussian_sigma",
     "expansion": "positive_growth_negative_contraction",
-    "timing": "static_metadata_no_animation_targets"
+    "timing": "static_and_mask_targeted_animation"
   },
   "editSemantics": {
     "omitted": "preserve",

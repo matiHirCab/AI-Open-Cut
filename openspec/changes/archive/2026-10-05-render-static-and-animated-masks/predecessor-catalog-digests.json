@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "62c30eb224d36e0b0a73c88362e4423555a084f7",
+  "codec": "SHA256 UTF8 JSON.stringify recursively key.localeCompare-sorted object entries; arrays/scalars/all fields including descriptions retained",
+  "digests": {
+    "animation-channels-v1": "be551a8a32a265b29e305afbb86f21abd13544b571146da6814709547cd1c590",
+    "animation-presets-v1": "73c4024a0dabf1a8780a2315d0b3f82b37d3376ad04c3cc06ca0382df20fd86f",
+    "extended-visual-animation-v1": "015ffd5d1950e1039014455d0514994afcbe95af6b48013c5a52e290e9a90321",
+    "inherited-animation-timing-v1": "2bd375715f3e1dd29daf94f001acd0f01a49a0e61f29b2ad4b9c4f256d11f7b6",
+    "motion-blur-sampling-v1": "6f109c62b37cf3d29ae18f42619304dd07038621a4183904f2557b8290fac9ca",
+    "initial-motion-preset-pack-v1": "bacb44d097dc18a96b0e07f50741da6993bfdef6da24ce769cb8827b617b1ff2",
+    "mask-models-v1": "cbb2943e382c0a4c542f66c640e68d8fb5a15a5f589ab2bf3778570b30a3e972"
+  }
+}

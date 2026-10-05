@@ -15,7 +15,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(32);
+    expect(contract.projectSchemaVersion).toBe(33);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),
@@ -23,7 +23,7 @@ describe("governed animation channels", () => {
     expect(animationChannelPropertySchema.options.slice().sort()).toEqual(
       names
     );
-    expect(names).toHaveLength(29);
+    expect(names).toHaveLength(44);
     expect(contract.limits).toEqual({
       maxChannelsPerItem: 64,
       maxGradientStops: 32,

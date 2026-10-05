@@ -32,6 +32,7 @@ import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyInstanceWorkflow } from "./instance-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
+import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
@@ -614,4 +615,8 @@ it("reviews typed presets through real MCP without mutating state or history", a
 
 it("preserves mask metadata lifecycle through the packaged MCP runtime", async () => {
   await verifyMaskModelWorkflow(client, call);
+});
+
+it("authors all typed mask animation targets through actual MCP lifecycle", async () => {
+  await verifyMaskRenderingWorkflow(client, call);
 });

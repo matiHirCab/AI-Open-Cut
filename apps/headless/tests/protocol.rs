@@ -1313,11 +1313,13 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(capabilities.contains(&json!("projects")));
     assert!(capabilities.contains(&json!("timeline")));
     assert!(capabilities.contains(&json!("mask_models_v1")));
+    assert!(capabilities.contains(&json!("mask_animation_v1")));
+    assert!(!capabilities.contains(&json!("mask_rendering_v1")));
     assert_eq!(
         status["subsystems"]["editor"]["capabilities"],
         headless_contract()["status"]["editorCapabilities"]
     );
-    assert_eq!(status["projectSchemaVersion"], 32);
+    assert_eq!(status["projectSchemaVersion"], 33);
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
@@ -2324,7 +2326,7 @@ fn mask_metadata_roundtrips_aliases_order_clear_and_atomic_failure() {
     ]})));
     let item = added["aliases"]["leaf"].clone();
     let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(before["project"]["schemaVersion"], 32);
+    assert_eq!(before["project"]["schemaVersion"], 33);
     assert_eq!(before["project"]["tracks"][1]["items"][0]["masks"], masks);
     for request in [
         json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"masks":null}}),
@@ -2391,5 +2393,86 @@ fn canonical_raw_mask_duplicates_reject_single_batch_and_draft_before_publicatio
             assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before);
             assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), history);
         }
+    }
+}
+
+#[test]
+fn mask_animation_canonical_channels_roundtrip_and_raw_targets_reject_atomically() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/mask-rendering-v1.json")).unwrap();
+    let models: Value =
+        serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Typed mask channels","settings":{"width":64,"height":64,"fps":10}})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let mut mask = models["cases"][0]["value"].clone();
+    mask["id"] = json!("@paint");
+    mask["source"]["path"] = json!({"fillRule":"evenodd","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":4,"y":0}},{"type":"lineTo","to":{"x":4,"y":4}},{"type":"lineTo","to":{"x":0,"y":4}},{"type":"close"}]});
+    mask["transform"] = json!({"position":{"x":0,"y":0,"unit":"pixels"},"anchor":{"x":0,"y":0},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0,"opacity":1});
+    mask["featherPx"] = json!(0);
+    mask["expansionPx"] = json!(0);
+    let mut gradient = mask.clone();
+    gradient["id"] = json!("gradient");
+    gradient["source"]["paint"] = json!({"type":"linearGradient","start":{"x":0,"y":0},"end":{"x":4,"y":0},"stops":[{"offset":0,"color":{"r":1,"g":0,"b":0,"a":1}},{"offset":1,"color":{"r":0,"g":0,"b":1,"a":1}}]});
+    let channels: Vec<Value> = catalog["channelCases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|fixture| {
+            let mut channel = fixture["channel"].clone();
+            channel["target"]["id"] = if channel["property"] == "mask.gradient_stops" {
+                json!("gradient")
+            } else {
+                json!("@paint")
+            };
+            channel
+        })
+        .collect();
+    assert_eq!(channels.len(), 15);
+    let typed_channels: Vec<opencut_editor_core::AnimationChannel> =
+        serde_json::from_value(json!(channels)).unwrap();
+    let expected_channels = serde_json::to_value(typed_channels).unwrap();
+    let added = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":64,"height":64,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"leaf"},
+        {"operation":"update_item","itemId":"@leaf","masks":[mask,gradient]},
+        {"operation":"set_animation_channels","itemId":"@leaf","animationChannels":channels}
+    ]})));
+    let item = added["aliases"]["leaf"].clone();
+    let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][0]["animationChannels"],
+        expected_channels
+    );
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let project_bytes = std::fs::read(dir.join("project.json")).unwrap();
+    let history_bytes = std::fs::read(dir.join("history.json")).unwrap();
+    let raw_channel = r#"{"property":"mask.transform.opacity","target":{"kind":"mask","kind":"mask","scope":"root","id":"@paint"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":1},"curve":"hold"}]}"#;
+    let edit = format!(
+        r#"{{"operation":"set_animation_channels","itemId":{item},"animationChannels":[{raw_channel}]}}"#
+    );
+    let good =
+        serde_json::to_string(&json!({"operation":"update_item","itemId":item,"color":"#123456"}))
+            .unwrap();
+    for (operation, fields) in [
+        ("edit", format!(r#""edit":{edit}"#)),
+        ("edit_batch", format!(r#""operations":[{good},{edit}]"#)),
+        ("create_draft", format!(r#""operations":[{good},{edit}]"#)),
+    ] {
+        let raw = format!(
+            r#"{{"operation":"{operation}","projectId":{id},"expectedRevision":1,{fields}}}"#
+        );
+        let error = event(&h.request_raw(&raw));
+        assert_eq!(error["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(error["error"]["retryable"], false);
+        assert!(error.to_string().contains("duplicate field"), "{error}");
+        assert_eq!(
+            std::fs::read(dir.join("project.json")).unwrap(),
+            project_bytes
+        );
+        assert_eq!(
+            std::fs::read(dir.join("history.json")).unwrap(),
+            history_bytes
+        );
     }
 }

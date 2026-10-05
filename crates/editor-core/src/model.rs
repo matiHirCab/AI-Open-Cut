@@ -28,7 +28,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 32;
+pub const PROJECT_SCHEMA_VERSION: u32 = 33;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -144,6 +144,15 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 33 {
+            reject_mask_animation_fields(&value.tracks)
+                .map_err(|e| format!("{}{e}", crate::error::MASK_ACTIVATION_DECODE_ERROR_PREFIX))?;
+            if let Some(components) = &value.components {
+                reject_mask_animation_fields(components).map_err(|e| {
+                    format!("{}{e}", crate::error::MASK_ACTIVATION_DECODE_ERROR_PREFIX)
+                })?;
+            }
+        }
         if value.schema_version < 32 {
             reject_mask_fields(&value.tracks)?;
             if let Some(components) = &value.components {
@@ -716,7 +725,42 @@ fn check_mask_fields(value: &serde_json::Value) -> Result<(), String> {
 pub(crate) fn find_mask_edit_fields(
     operations: &[EditOperation],
 ) -> Result<Option<String>, CoreError> {
-    find_edit_fields(operations, &check_mask_fields, &|_| Ok(()))
+    find_edit_fields(
+        operations,
+        &|value| {
+            check_mask_fields(value)?;
+            check_mask_animation_fields(value)
+        },
+        &|_| Ok(()),
+    )
+}
+
+fn check_mask_animation_fields(value: &serde_json::Value) -> Result<(), String> {
+    if value
+        .get("animationChannels")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|channels| {
+            channels.iter().any(|c| {
+                c.get("property")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|p| p.starts_with("mask."))
+                    || c.get("target")
+                        .and_then(|t| t.get("kind"))
+                        .is_some_and(|k| k == "mask")
+            })
+        })
+    {
+        return Err("mask animation requires schema 33".into());
+    }
+    Ok(())
+}
+fn reject_mask_animation_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_mask_animation_fields)
+}
+pub(crate) fn find_mask_animation_edit_fields(
+    operations: &[EditOperation],
+) -> Result<Option<String>, CoreError> {
+    find_edit_fields(operations, &check_mask_animation_fields, &|_| Ok(()))
 }
 
 // Inspect original operation objects before omitted empty metadata can erase
