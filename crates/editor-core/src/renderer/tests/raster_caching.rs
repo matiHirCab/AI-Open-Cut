@@ -504,7 +504,7 @@ fn composed_parent_sampling_misses_but_translation_reuses() {
 }
 
 #[test]
-fn mask_metadata_and_omitted_updates_preserve_pixels_but_invalidate_revision_cache() {
+fn masks_preserve_cached_source_pam_and_omitted_updates_but_invalidate_revision_cache() {
     let (_root, core, project) = fixture();
     let dir = core.project_directory(&project.id).unwrap();
     let renderer = renderer(Arc::default());
@@ -551,9 +551,92 @@ fn mask_metadata_and_omitted_updates_preserve_pixels_but_invalidate_revision_cac
             .masks
             .is_empty()
     );
+    // These PAMs are cached source paint BEFORE masks. Final appearance and
+    // warm/fresh revision isolation are witnessed separately through native output.
     assert_eq!(baseline, rasters(&renderer, &masked, &dir));
     assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 3);
     assert_eq!(baseline, rasters(&renderer, &masked, &dir));
     assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 3);
     assert_eq!(renderer.raster_cache.hits.load(Ordering::Relaxed), 2);
+}
+
+#[test]
+fn unsafe_mask_public_render_fails_before_process_workspace_or_output_mutation() {
+    let (_root, core, mut project) = fixture();
+    let dir = core.project_directory(&project.id).unwrap();
+    // A canonical rectangle removes font-measurement work from the guard path.
+    let mut value = serde_json::to_value(&project).unwrap();
+    value["tracks"][1]["items"][0] = json!({"type":"rectangle","id":"bounded-source","startMs":0,"durationMs":1000,"stackOrder":0,"zIndex":0,"hidden":false,"keyframes":[],"width":1,"height":1,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"masks":[{
+        "id":"oversized-work","source":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":500,"y":0}},{"type":"lineTo","to":{"x":500,"y":500}},{"type":"lineTo","to":{"x":0,"y":500}},{"type":"close"}]},"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":1}}},"channel":"alpha","operation":"add","inverted":false,"transform":crate::Transform2D::default(),"featherPx":128,"expansionPx":0}]});
+    project = serde_json::from_value(value).unwrap();
+    let io = Arc::new(LifecycleArtifactIo::default());
+    let process = Arc::new(FakeProcess {
+        readiness_error: false,
+        probe_error: false,
+        run_failure: None,
+        executions: Mutex::new(vec![]),
+    });
+    let renderer = Renderer::new("unused-ffmpeg", "unused-ffprobe", None)
+        .with_adapters(process.clone(), io.clone());
+    fn inventory(path: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+        let mut out = std::collections::BTreeMap::new();
+        for entry in std::fs::read_dir(path).unwrap() {
+            let p = entry.unwrap().path();
+            if p.is_dir() {
+                out.extend(inventory(&p));
+            } else {
+                out.insert(p.clone(), std::fs::read(&p).unwrap());
+            }
+        }
+        out
+    }
+    let before = inventory(&dir);
+    let output = dir.join("must-not-create.mp4");
+    for action in [0, 1, 2] {
+        let error = match action {
+            0 => renderer.render_preview(&project, &dir, 400).unwrap_err(),
+            1 => renderer
+                .render_preview_range(
+                    &project,
+                    &dir,
+                    PreviewRangeOptions {
+                        start_ms: 100,
+                        end_ms: 900,
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                        include_audio: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err(),
+            _ => renderer
+                .export_video(
+                    &project,
+                    &dir,
+                    ExportOptions {
+                        output: &output,
+                        width: 64,
+                        height: 64,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err(),
+        };
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert!(error.message.contains("mask work"));
+        assert!(process.executions.lock().unwrap().is_empty());
+        assert!(!output.exists());
+        assert_eq!(inventory(&dir), before);
+        assert!(
+            !io.events
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|e| matches!(*e, "request_id" | "create_dir" | "write" | "remove_dir_all")),
+            "no workspace/output allocation before resource certification"
+        );
+    }
 }

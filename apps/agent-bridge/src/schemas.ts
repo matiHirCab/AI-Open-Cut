@@ -340,6 +340,21 @@ export const animationChannelPropertySchema = z.enum([
   "effect.particle_amount",
   "audio.gain_db",
   "audio.pan",
+  "mask.path_points",
+  "mask.paint_color",
+  "mask.gradient_stops",
+  "mask.feather_px",
+  "mask.expansion_px",
+  "mask.transform.position_x",
+  "mask.transform.position_y",
+  "mask.transform.scale_x",
+  "mask.transform.scale_y",
+  "mask.transform.anchor_x",
+  "mask.transform.anchor_y",
+  "mask.transform.rotation_deg",
+  "mask.transform.skew_x_deg",
+  "mask.transform.skew_y_deg",
+  "mask.transform.opacity",
 ]);
 
 export const animationChannelValueSchema = z.discriminatedUnion("type", [
@@ -437,10 +452,23 @@ export const animationChannelSchema = z
           "graphic_fill",
           "graphic_stroke",
           "effect",
+          "mask",
         ]),
         scope: z.string().min(1),
       })
       .strict()
+      .superRefine((target, context) => {
+        if (
+          target.kind === "mask" &&
+          new TextEncoder().encode(target.id).length > 128
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "Mask target ID exceeds 128 UTF-8 bytes",
+            path: ["id"],
+          });
+        }
+      })
       .optional(),
   })
   .strict();
@@ -604,7 +632,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(32).optional(),
+    projectSchemaVersion: z.literal(33).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1746,7 +1774,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(32),
+        schemaVersion: z.literal(33),
         settings: z
           .object({
             fps: z.int().positive(),

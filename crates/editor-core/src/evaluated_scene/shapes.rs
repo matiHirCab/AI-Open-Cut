@@ -413,6 +413,59 @@ fn compile_contours(
     Ok((c, fill_rule, work_segments))
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct CompiledMaskPath {
+    pub contours: Vec<Contour>,
+    pub fill_rule: FillRule,
+    pub analytic_bounds: [f64; 4],
+    pub segments: usize,
+    pub drawable_fill: bool,
+}
+
+pub(super) fn compile_mask_path(
+    path: &crate::VectorPath,
+    density: f64,
+    remaining_scene_segments: usize,
+) -> Result<CompiledMaskPath, CoreError> {
+    path.validate()?;
+    let (mut compiled, fill_rule, mut segments) = compile_contours(
+        &ShapeGeometry::Path { path: path.clone() },
+        &None,
+        density,
+        remaining_scene_segments,
+    )?;
+    let drawable_fill = compiled.contours.iter().any(|c| {
+        let Some(first) = c.points.first() else {
+            return false;
+        };
+        let Some(second) = c.points.iter().find(|p| p.x != first.x || p.y != first.y) else {
+            return false;
+        };
+        c.points.iter().any(|p| {
+            (second.x - first.x) * (p.y - first.y) != (second.y - first.y) * (p.x - first.x)
+        })
+    });
+    if drawable_fill {
+        for contour in &mut compiled.contours {
+            if contour.points.len() >= 3 && contour.points.first() != contour.points.last() {
+                segments = segments
+                    .checked_add(1)
+                    .filter(|v| *v <= MAX_SEGMENTS && *v <= remaining_scene_segments)
+                    .ok_or_else(|| invalid("mask implicit closure segment budget exceeded"))?;
+                contour.points.push(contour.points[0]);
+                contour.closed = true;
+            }
+        }
+    }
+    Ok(CompiledMaskPath {
+        contours: compiled.contours,
+        fill_rule,
+        analytic_bounds: compiled.bounds,
+        segments,
+        drawable_fill,
+    })
+}
+
 impl EvaluatedShape {
     /// A document awaiting occurrence transforms, never a rasterization input.
     pub(super) fn pending_svg(document: crate::SvgDocument) -> Self {

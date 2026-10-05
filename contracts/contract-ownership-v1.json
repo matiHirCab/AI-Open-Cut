@@ -588,6 +588,53 @@
         "crates/editor-core/src/renderer/tests/raster_caching.rs",
         "apps/agent-bridge/tests/packaged-smoke.test.ts"
       ]
+    },
+    "maskRendering": {
+      "canonical": "contracts/mask-rendering-v1.json",
+      "consumers": [
+        "contracts/animation-channels-v1.json",
+        "contracts/mask-models-v1.json",
+        "crates/editor-core/src/model/animation_channels.rs",
+        "crates/editor-core/src/validation/animation_channels.rs",
+        "crates/editor-core/src/animation.rs",
+        "crates/editor-core/src/evaluated_scene/masks.rs",
+        "crates/editor-core/src/evaluated_scene/extended_visual.rs",
+        "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+        "crates/editor-core/src/evaluated_scene/shapes.rs",
+        "crates/editor-core/src/render_artifact/masks.rs",
+        "crates/editor-core/src/render_artifact/masks/tests.rs",
+        "crates/editor-core/src/render_artifact/shapes.rs",
+        "crates/editor-core/src/render_artifact/extended_visual.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/drafts.rs",
+        "crates/editor-core/tests/mask_models.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/headless/tests/render_worker.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/mask-rendering.test.ts",
+        "apps/agent-bridge/tests/mask-rendering-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/tests/fixtures/mask-rendering-projection.ts",
+        "docs/mask-rendering.md",
+        "docs/mask-models.md",
+        "docs/animation-channels.md",
+        "apps/agent-bridge/package.json",
+        "apps/agent-bridge/tests/mask-rendering-native.test.ts",
+        "apps/agent-bridge/tests/schemas.test.ts",
+        "crates/editor-core/tests/mask_rendering.rs",
+        "crates/editor-core/src/evaluated_scene/masks/tests.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/src/validation/extended_visual.rs",
+        "crates/editor-core/src/validation/mask.rs",
+        "crates/editor-core/src/render_artifact/shapes/fill_allocation_tests.rs",
+        "crates/editor-core/src/error.rs"
+      ]
     }
   }
 }

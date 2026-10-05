@@ -8,13 +8,49 @@ use crate::{
 #[cfg(test)]
 mod review_regressions;
 
+macro_rules! shared_program {
+    ($name:ident, $value:ty, $empty:ident) => {
+        static $empty: Vec<$value> = Vec::new();
+        #[derive(Clone, Debug, Default, PartialEq)]
+        pub(crate) struct $name(Option<std::sync::Arc<Vec<$value>>>);
+        impl From<Vec<$value>> for $name {
+            fn from(values: Vec<$value>) -> Self {
+                Self((!values.is_empty()).then(|| std::sync::Arc::new(values)))
+            }
+        }
+        impl std::ops::Deref for $name {
+            type Target = Vec<$value>;
+            fn deref(&self) -> &Self::Target {
+                self.0.as_deref().unwrap_or(&$empty)
+            }
+        }
+        impl $name {
+            pub(super) fn identity(&self) -> Option<*const Vec<$value>> {
+                self.0.as_ref().map(std::sync::Arc::as_ptr)
+            }
+        }
+    };
+}
+shared_program!(SharedMasks, crate::Mask, EMPTY_MASKS);
+shared_program!(SharedChannels, AnimationChannel, EMPTY_CHANNELS);
+#[cfg(test)]
+impl SharedChannels {
+    pub(super) fn make_mut(&mut self) -> &mut Vec<AnimationChannel> {
+        std::sync::Arc::make_mut(
+            self.0
+                .get_or_insert_with(|| std::sync::Arc::new(Vec::new())),
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ExtendedVisual {
     pub crop: Option<MediaCrop>,
     pub motion_blur: Option<crate::MotionBlur>,
     pub frame_rate: u32,
     pub effects: Vec<VisualEffect>,
-    pub channels: Vec<AnimationChannel>,
+    pub masks: SharedMasks,
+    pub channels: SharedChannels,
 }
 
 pub(crate) fn authored(item: &TimelineItem, frame_rate: u32) -> Option<ExtendedVisual> {
@@ -26,6 +62,7 @@ pub(crate) fn authored(item: &TimelineItem, frame_rate: u32) -> Option<ExtendedV
         .cloned()
         .collect();
     (visual.crop.is_some()
+        || !visual.masks.is_empty()
         || !visual.effects.is_empty()
         || !channels.is_empty()
         || visual.motion_blur.is_some_and(crate::MotionBlur::enabled))
@@ -34,7 +71,8 @@ pub(crate) fn authored(item: &TimelineItem, frame_rate: u32) -> Option<ExtendedV
         motion_blur: visual.motion_blur,
         frame_rate,
         effects: visual.effects.clone(),
-        channels,
+        masks: visual.masks.clone().into(),
+        channels: channels.into(),
     })
 }
 
@@ -71,7 +109,10 @@ pub(crate) fn sample(
         None
     };
     let mut trim = 1.0;
-    for channel in &authored.channels {
+    for channel in authored.channels.iter() {
+        if channel.property.mask() {
+            continue;
+        }
         let value = time
             .sample(channel)
             .ok_or_else(|| invalid("non-finite extended sample"))?;
@@ -267,6 +308,7 @@ pub(crate) fn validate_sampled_source_size(
 /// Plain Caption paint already contains its local bottom-center placement.
 pub(crate) fn finalize_intrinsic_sources(scene: &mut EvaluatedScene, start: u64) {
     let canvas = (scene.canvas.width, scene.canvas.height);
+
     let fps = scene.canvas.fps;
     for layer in &mut scene.visual_layers {
         if (matches!(layer.source, EvaluatedVisualSource::Caption(_))
@@ -280,6 +322,27 @@ pub(crate) fn finalize_intrinsic_sources(scene: &mut EvaluatedScene, start: u64)
     }
 }
 
+pub(crate) fn sampled_masks(
+    layer: &EvaluatedVisualLayer,
+    at_ms: u64,
+) -> Result<Vec<crate::Mask>, CoreError> {
+    let Some(authored) = &layer.extended else {
+        return Ok(Vec::new());
+    };
+    if authored.masks.is_empty() {
+        return Ok(Vec::new());
+    }
+    super::masks::sample_masks(
+        &authored.masks,
+        &authored.channels,
+        crate::animation::SampleTime::local(
+            at_ms,
+            layer.span.start_ms,
+            layer.instance.map(|i| (i.rate, i.offset)),
+        ),
+    )
+}
+
 pub(crate) fn preflight_samples(
     scene: &EvaluatedScene,
     start: u64,
@@ -287,6 +350,15 @@ pub(crate) fn preflight_samples(
     frame: bool,
 ) -> Result<(), CoreError> {
     let canvas = (scene.canvas.width, scene.canvas.height);
+    let scene_has_masks = scene
+        .visual_layers
+        .iter()
+        .any(|l| l.extended.as_ref().is_some_and(|v| !v.masks.is_empty()));
+    let scene_program_bytes = if scene_has_masks {
+        super::masks::scene_program_bytes(scene)?
+    } else {
+        0
+    };
     if u64::from(canvas.0) * u64::from(canvas.1) > 16_777_216 {
         return Err(invalid("sampled output surface exceeds limits"));
     }
@@ -328,6 +400,9 @@ pub(crate) fn preflight_samples(
         let mut work = 0;
         let mut segments = 0;
         let mut pixel_work = 0_u64;
+        let mut mask_work = super::masks::MaskFrameBudget::default();
+        let mut sampled_segments = std::collections::HashMap::<u64, usize>::new();
+        let mut counted_occurrences = std::collections::HashSet::new();
         for layer in scene
             .visual_layers
             .iter()
@@ -391,7 +466,48 @@ pub(crate) fn preflight_samples(
                     )
                 };
                 super::extended_certification::effect_budget(size, &effects, density, &mut work)?;
-                certify_composition_memory(canvas, size, &effects, density)?;
+                let base_memory = certify_composition_memory(canvas, size, &effects, density)?;
+                if scene_has_masks {
+                    let masks = sampled_masks(layer, time)?;
+                    let first_occurrence =
+                        counted_occurrences.insert((time, layer.item_id.as_str()));
+                    let previous = *sampled_segments.entry(time).or_default();
+                    let mut scene_segments = previous;
+                    if first_occurrence && let EvaluatedVisualSource::Shape(shape) = &sampled.source
+                    {
+                        scene_segments = scene_segments
+                            .checked_add(shape.segments())
+                            .filter(|v| *v <= shapes::MAX_SCENE_SEGMENTS)
+                            .ok_or_else(|| invalid("sampled scene segment overflow"))?;
+                    }
+                    if !masks.is_empty() {
+                        let mut certification_segments =
+                            if first_occurrence { scene_segments } else { 0 };
+                        let facts = super::masks::certify_sampled_masks(
+                            &masks,
+                            super::masks::MaskOwnerBasis { size, density },
+                            &mut mask_work,
+                            &mut certification_segments,
+                        )?;
+                        if first_occurrence {
+                            scene_segments = certification_segments;
+                        }
+                        let mask_clones = super::masks::authored_mask_bytes(&masks)?
+                            .checked_mul(3)
+                            .ok_or_else(|| invalid("sampled mask memory overflow"))?;
+                        base_memory
+                            .checked_add(scene_program_bytes)
+                            .and_then(|v| v.checked_add(mask_clones))
+                            .and_then(|v| v.checked_add(facts.additional_live_bytes().ok()?))
+                            .filter(|v| *v <= MAX_COMPOSITION_BYTES)
+                            .ok_or_else(|| {
+                                invalid("mask composition live memory exceeds limits")
+                            })?;
+                    }
+                    if first_occurrence {
+                        sampled_segments.insert(time, scene_segments);
+                    }
+                }
                 sample_transform(&mut sampled, time, size, canvas)?;
             }
         }
@@ -447,7 +563,7 @@ pub(crate) fn certified_media_source_time(
 
 // Conservative peak, including rasterizer scratch, RGBA decode/serialization buffers,
 // three output working rasters (scene, shutter average, layer), and the shared cache.
-const MAX_COMPOSITION_BYTES: u64 = 1_073_741_824;
+pub(super) const MAX_COMPOSITION_BYTES: u64 = 1_073_741_824;
 const CACHE_RESERVATION_BYTES: u64 = 67_108_864;
 pub(crate) fn certify_composition_memory(
     canvas: (u32, u32),

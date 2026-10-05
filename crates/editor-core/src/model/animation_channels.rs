@@ -7,6 +7,7 @@ pub enum AnimationTargetKind {
     GraphicFill,
     GraphicStroke,
     Effect,
+    Mask,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -73,6 +74,36 @@ pub enum AnimationChannelProperty {
     VignetteAmount,
     #[serde(rename = "effect.particle_amount")]
     ParticleAmount,
+    #[serde(rename = "mask.path_points")]
+    MaskPathPoints,
+    #[serde(rename = "mask.paint_color")]
+    MaskPaintColor,
+    #[serde(rename = "mask.gradient_stops")]
+    MaskGradientStops,
+    #[serde(rename = "mask.feather_px")]
+    MaskFeatherPx,
+    #[serde(rename = "mask.expansion_px")]
+    MaskExpansionPx,
+    #[serde(rename = "mask.transform.position_x")]
+    MaskTransformPositionX,
+    #[serde(rename = "mask.transform.position_y")]
+    MaskTransformPositionY,
+    #[serde(rename = "mask.transform.scale_x")]
+    MaskTransformScaleX,
+    #[serde(rename = "mask.transform.scale_y")]
+    MaskTransformScaleY,
+    #[serde(rename = "mask.transform.anchor_x")]
+    MaskTransformAnchorX,
+    #[serde(rename = "mask.transform.anchor_y")]
+    MaskTransformAnchorY,
+    #[serde(rename = "mask.transform.rotation_deg")]
+    MaskTransformRotationDeg,
+    #[serde(rename = "mask.transform.skew_x_deg")]
+    MaskTransformSkewXDeg,
+    #[serde(rename = "mask.transform.skew_y_deg")]
+    MaskTransformSkewYDeg,
+    #[serde(rename = "mask.transform.opacity")]
+    MaskTransformOpacity,
     #[serde(rename = "audio.gain_db")]
     GainDb,
     #[serde(rename = "audio.pan")]
@@ -81,26 +112,48 @@ pub enum AnimationChannelProperty {
 
 impl AnimationChannelProperty {
     pub(crate) fn active(self) -> bool {
+        self.mask()
+            || matches!(
+                self,
+                Self::PositionX
+                    | Self::PositionY
+                    | Self::ScaleX
+                    | Self::ScaleY
+                    | Self::Opacity
+                    | Self::GainDb
+                    | Self::RotationDeg
+                    | Self::CropX
+                    | Self::CropY
+                    | Self::CropWidth
+                    | Self::CropHeight
+                    | Self::PathPoints
+                    | Self::PathTrim
+                    | Self::GradientStops
+                    | Self::BlurRadius
+                    | Self::GlowRadius
+                    | Self::TintColor
+                    | Self::VignetteAmount
+            )
+    }
+
+    pub(crate) fn mask(self) -> bool {
         matches!(
             self,
-            Self::PositionX
-                | Self::PositionY
-                | Self::ScaleX
-                | Self::ScaleY
-                | Self::Opacity
-                | Self::GainDb
-                | Self::RotationDeg
-                | Self::CropX
-                | Self::CropY
-                | Self::CropWidth
-                | Self::CropHeight
-                | Self::PathPoints
-                | Self::PathTrim
-                | Self::GradientStops
-                | Self::BlurRadius
-                | Self::GlowRadius
-                | Self::TintColor
-                | Self::VignetteAmount
+            Self::MaskPathPoints
+                | Self::MaskPaintColor
+                | Self::MaskGradientStops
+                | Self::MaskFeatherPx
+                | Self::MaskExpansionPx
+                | Self::MaskTransformPositionX
+                | Self::MaskTransformPositionY
+                | Self::MaskTransformScaleX
+                | Self::MaskTransformScaleY
+                | Self::MaskTransformAnchorX
+                | Self::MaskTransformAnchorY
+                | Self::MaskTransformRotationDeg
+                | Self::MaskTransformSkewXDeg
+                | Self::MaskTransformSkewYDeg
+                | Self::MaskTransformOpacity
         )
     }
 

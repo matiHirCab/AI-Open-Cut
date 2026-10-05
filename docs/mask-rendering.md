@@ -1,0 +1,37 @@
+# Static and animated painted masks
+
+Schema33 activates schema32 authored masks and adds fifteen typed mask channels. Existing stored masks retain all fields and deliberately acquire their mask appearance on atomic adoption. Absent/empty stacks retain exact previous visual/audio output. `mask_models_v1` detects stored-model support; `mask_animation_v1` detects editor animation support independently of native tools. `mask_rendering_v1` is reported only by a ready conforming renderer. Missing dependencies keep their existing typed errors.
+
+The algorithm and mask subset authority is `contracts/mask-rendering-v1.json`; global property/target/value/curve enumeration stays in `animation-channels-v1.json`, authoring fields/limits in `mask-models-v1.json`. Protocol1, existing tools and draft envelope2 remain unchanged. Strict schema32 consumers require upgrade to33. Migration validates all current/history/applicable draft generations before publishing, preserves valid unavailable-base drafts without replay, and leaves old authoritative/resource bytes intact on newly unsafe metadata.
+
+Mask coordinates use top-left(0,0) of the exact post-crop/clip pre-effect owner source raster. With raster W,H and density d pixels per local project pixel, normalized positions use W/d,H/d and owner pixel centers are((x+.5)/d,(y+.5)/d). Mask anchor uses sampled unexpanded analytic path bounds. Vector-source padding origins remain existing owner-anchor/effect facts and are never added again to masks. Owner and ancestor transforms stay separate.
+
+Canonical filled-path antialiasing produces geometry C (tiny-skia alpha byte/255). Density rho=max(1,ownerDensity*maximum singular value of mask affine). Bounds include ceil(abs(expansionPx)*rho)+ceil(3*featherPx*rho)+2 grid pixels of transparent padding. Expansion0 preserves C exactly. Otherwise exact separable squared-Euclidean distance fields use inside seeds C>0 and outside seeds C<1: partial d=C−.5, full d=sqrt(Doutside)−.5, empty d=.5−sqrt(Dinside); expanded coverage clamps(.5+d+expansionPx*rho). Empty seeds remain zero. This bounded O(P) alpha-aware grid algorithm retains thin coverage; it is not a continuous vector offset operation.
+
+Original-coordinate Paint follows geometric expansion without stretching gradients. Alpha is Cexpanded*A; luma is Cexpanded*(.2126R+.7152G+.0722B) in floating premultiplied linear RGB. Feather is a normalized Gaussian sigma=featherPx*rho, taps−ceil(3sigma)…ceil(3sigma), horizontal then vertical, transparent extension without edge renormalization; sigma0 bypasses. Inverse-affine bilinear sampling applies mask opacity once, then inversion1−B inside the owner domain. Ordered add/subtract/intersect/exclude use A+B−AB,A(1−B),AB,A+B−2AB, seeded0 for first add/exclude or1 for subtract/intersect. Combined coverage multiplies all four source components once before effects and owner/ancestor transforms. It cannot revive cropped pixels or extend owner support.
+
+`timeline_set_animation_channels` uses the existing `animationChannels` array:
+
+```json
+{
+  "projectId": "project-id", "expectedRevision": 2, "itemId": "leaf-id",
+  "animationChannels": [{
+    "property": "mask.transform.position_x",
+    "target": {"kind": "mask", "scope": "root", "id": "cutout"},
+    "keyframes": [
+      {"timeMs": 0, "value": {"type": "scalar", "value": 0}, "curve": "linear"},
+      {"timeMs": 500, "value": {"type": "scalar", "value": 20}, "curve": "hold"}
+    ]
+  }]
+}
+```
+
+The fifteen properties are mask.path_points, mask.paint_color, mask.gradient_stops, mask.feather_px, mask.expansion_px and mask.transform.{position_x,position_y,scale_x,scale_y,anchor_x,anchor_y,rotation_deg,skew_x_deg,skew_y_deg,opacity}. Target scope is root or component:<definition-id>; ID is literal, owning-item-local,1–128 UTF-8 bytes, including valid Unicode/@ identifiers. Different mask IDs may share a property; exact(property,target) duplicates reject. Reordering preserves references; deleting a referenced mask requires clearing/replacing channels in the final candidate. Missing references return ITEM_NOT_FOUND; wrong kind/scope/tag/paint/topology/count/bounds return nonretryable INVALID_ARGUMENT. Stale revision remains retryable REVISION_CONFLICT.
+
+Path channels preserve exact static command-coordinate count/order/topology with at most4096 points. Solid paint uses rgba; linear/radial paint uses matching2…32 gradient stops (static paints retain64 stops). Feather0…128, expansion−128…128 and transform scalars use unchanged authored units/bounds; sampled scale floor is .000001. Source/type/topology/gradient geometry/unit/channel/inversion/operation/ID remain static. Existing64-channel/1000-key limits, curves, retained clocks and fractional inherited/shutter samples apply. Empty channels restore static fallback. Invalid intermediate gradients or unsafe inverse/support fail before publication or render side effects, never repaired.
+
+Each output frame shares268435456 mask-work units across all occurrences/masks/shutter samples. Coverage charges4P+4S*H*(1+ceil(log2(max(S,1)))); paint P*(1+ceil(log2(N))); nonzero expansion24P; nonzero feather2P*(2ceil(3sigma)+1); sampling/combining5Powner per mask; source multiplication4Powner once per owner sample. Current pixel/line scratch reserves64P+16(W+H), kernel taps add4K, accumulator4Powner. All concurrently retained contour facts charge64SUM(S) plus checked headers/IDs/Paint-gradient heap/Vec capacities, including no-grid/S0 metadata. The shared filled-path backend on pinned tiny-skia0.11.4 additionally reserves `2048*(S+contourCount+64)+32*(W+H)` bytes for opaque Path storage, clipped edges, vector growth/reallocation, stable-sort scratch, sentinels and antialias rows. This conservative actual-storage reserve is additive to mandatory `64P+16(W+H)`, nonzero-feather kernel `4K`, the owner accumulator and retained `64SUM(S)` plus actual fact storage. Actual rendering and continuous preflight certificates charge these simultaneous allocations under the same existing1GiB live-buffer limit, including the64MiB cache reservation; the reserve creates no extra allowance. Existing surface/segment/effect/destination and shared65536-node continuous certification limits remain. Unsafe conversion above.25 grid pixels rejects; only1e−6 coverage roundoff may clamp. Range/export stream frames. Revision-scoped caches cannot reuse stale sampled masks.
+
+All production intents consume the same sampled mask facts. Contract review preserves exact schema33→32→31 predecessor projections and independent catalog pins; human CODEOWNER review remains a separate review requirement. Native conformance preserves independent RGB/PCM thresholds, fixed-width typed array iteration, exact same-input draft/commit/reopen and exact no-mask controls.
+
+The dedicated real MCP artifact witness runs with `OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1 bun x vitest run --config vitest.unit.config.ts tests/mask-rendering-native.test.ts` from apps/agent-bridge after building the default headless binary. It uses actual FFmpeg/FFprobe,64×64 decoded RGB, independent revealed-red/hidden-black controls at0/500ms, warm/fresh exact same-revision equivalence and a changed-color revision/fresh-process control. Required mode fails when tools/readiness are missing. Ordinary unit runs report this native witness as an explicit skip; that skip is not native execution evidence.

@@ -297,6 +297,9 @@ pub(crate) fn certify_scene(
             .filter(|v| *v <= crate::MotionBlur::MAX_PIXEL_WORK)
             .ok_or_else(|| invalid("motion blur scene pixel work exceeds limits"))?;
     }
+    let mut mask_work = super::masks::MaskFrameBudget::default();
+    let scene_program_bytes = super::masks::scene_program_bytes(scene)?;
+    let mut mask_retained = 0_u64;
     let mut work = 0;
     let mut segments: usize = scene
         .visual_layers
@@ -435,6 +438,56 @@ pub(crate) fn certify_scene(
             .map_or(1, |v| v.sample_count);
         for _ in 0..samples {
             effect_budget(size, &effects, density, &mut work)?;
+        }
+        if let Some(extended) = &layer.extended
+            && !extended.masks.is_empty()
+        {
+            let mut current_scratch = 0;
+            let mut current_retained = 0_u64;
+            for mask in extended.masks.iter() {
+                let envelope = super::masks::continuous_mask_envelope(
+                    mask,
+                    &extended.channels,
+                    super::masks::MaskOwnerBasis { size, density },
+                    nodes,
+                )?;
+                for _ in 0..samples {
+                    mask_work.charge(envelope.work)?;
+                }
+                segments = segments
+                    .checked_add(envelope.segments)
+                    .filter(|v| *v <= shapes::MAX_SCENE_SEGMENTS)
+                    .ok_or_else(|| invalid("ordinary and mask scene segments exceed limits"))?;
+                current_retained = current_retained
+                    .checked_add(envelope.retained)
+                    .ok_or_else(|| invalid("mask retained facts overflow"))?;
+                current_scratch = current_scratch.max(envelope.scratch);
+            }
+            for _ in 0..samples {
+                mask_work.charge(u64::from(size.0) * u64::from(size.1) * 4)?;
+            }
+            mask_retained = mask_retained
+                .checked_add(current_retained)
+                .ok_or_else(|| invalid("mask retained scene facts overflow"))?;
+            super::extended_visual::certify_composition_memory(
+                (scene.canvas.width, scene.canvas.height),
+                size,
+                &effects,
+                density,
+            )?
+            .checked_add(scene_program_bytes)
+            .and_then(|v| v.checked_add(mask_retained))
+            .and_then(|v| v.checked_add(current_scratch))
+            .and_then(|v| v.checked_add(u64::from(size.0) * u64::from(size.1) * 4))
+            .and_then(|v| {
+                v.checked_add(
+                    super::masks::authored_mask_bytes(&extended.masks)
+                        .ok()?
+                        .checked_mul(3)?,
+                )
+            })
+            .filter(|v| *v <= super::extended_visual::MAX_COMPOSITION_BYTES)
+            .ok_or_else(|| invalid("continuous mask composition memory exceeds limits"))?;
         }
         // A rotation changes direction, never the operator norm. Bounding each
         // ancestor's norm separately covers every combination of inherited clocks.
@@ -676,8 +729,8 @@ fn certify_interval(
             return Ok(false);
         }
     }
-    for channel in &extended.channels {
-        if channel.property != P::GradientStops {
+    for channel in extended.channels.iter() {
+        if !matches!(channel.property, P::GradientStops | P::MaskGradientStops) {
             continue;
         }
         if low == high {

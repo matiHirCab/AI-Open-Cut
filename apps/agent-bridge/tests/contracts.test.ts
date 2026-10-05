@@ -31,7 +31,9 @@ import type { HeadlessRequest } from "../src/headless-contract";
 import {
   EVALUATED_SCENE_RENDERING_CAPABILITY,
   LINEAR_LIGHT_COMPOSITING_CAPABILITY,
+  MASK_ANIMATION_CAPABILITY,
   MASK_MODELS_CAPABILITY,
+  MASK_RENDERING_CAPABILITY,
 } from "../src/headless-contract";
 import {
   closedSlotRecord,
@@ -64,6 +66,11 @@ import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
 import { projectMaskMcpPredecessor } from "./fixtures/mask-mcp-projection";
+import {
+  MASK_RENDERING_PREDECESSOR_PINS,
+  projectMaskRenderingCatalogPredecessor,
+  projectMaskRenderingMcpPredecessor,
+} from "./fixtures/mask-rendering-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import {
   assertMalformedPayloadRegressions,
@@ -74,6 +81,9 @@ const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 // Approved issue #49 additive capability; tool/schema baseline remains pinned below.
 const MCP_BASELINE_DIGEST =
   "88b55ff7be147cb4aadc016dd92f92342c3dc366f49ac139b8116513d5854830";
+const MCP_PRE_MASK_RENDERING_DIGEST = MCP_BASELINE_DIGEST;
+const MCP_CURRENT_DIGEST =
+  "803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170";
 const MCP_PRE_MASK_MODELS_DIGEST =
   "2a3fdf15aec5472e1cc2001f47659d4591de02e0f02bdeece3384584ea174503";
 const MCP_PRE_LINEAR_COMPOSITION_DIGEST =
@@ -321,7 +331,7 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(32);
+    expect(PRESETS.projectSchemaVersion).toBe(33);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -329,15 +339,19 @@ describe("canonical public contracts", () => {
     expect(PRESETS.examples.retiredProvenance.presetVersion).toBeGreaterThan(0);
   });
 
-  it("synchronizes exactly six current animation markers with pinned predecessor semantics", () => {
+  it("synchronizes six current animation markers with composed32 and31 predecessor semantics", () => {
     for (const {
       catalog,
       name,
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
-      expect(catalog.projectSchemaVersion, name).toBe(32);
-      const previous = projectActiveAnimationCatalogPredecessor(catalog);
-      expect(previous, name).toEqual({ ...catalog, projectSchemaVersion: 31 });
+      expect(catalog.projectSchemaVersion, name).toBe(33);
+      const schema32 = projectMaskRenderingCatalogPredecessor(name, catalog);
+      expect(animationCatalogDigest(schema32), name).toBe(
+        MASK_RENDERING_PREDECESSOR_PINS[name]
+      );
+      const previous = projectActiveAnimationCatalogPredecessor(schema32);
+      expect(previous, name).toEqual({ ...schema32, projectSchemaVersion: 31 });
       expect(animationCatalogDigest(previous), name).toBe(predecessorDigest);
       expect(() => projectActiveAnimationCatalogPredecessor(previous)).toThrow(
         "marker must be 32"
@@ -356,7 +370,9 @@ describe("canonical public contracts", () => {
         unauthorizedMarker: { projectSchemaVersion: 32 },
         version: "unapproved",
       };
-      const previous = projectActiveAnimationCatalogPredecessor(drift);
+      const previous = projectActiveAnimationCatalogPredecessor(
+        projectMaskRenderingCatalogPredecessor(name, drift)
+      );
       expect(previous.unauthorizedMarker, name).toEqual({
         projectSchemaVersion: 32,
       });
@@ -374,11 +390,19 @@ describe("canonical public contracts", () => {
     expect(Object.keys(first.toolDefinitions)).toHaveLength(78);
     expect(
       createHash("sha256").update(JSON.stringify(first)).digest("hex")
-    ).toBe(MCP_BASELINE_DIGEST);
+    ).toBe(MCP_CURRENT_DIGEST);
+    const schema32 = expandMcpSurfaceCatalog(
+      projectMaskRenderingMcpPredecessor(MCP_SURFACE_SOURCE)
+    );
+    expect(
+      createHash("sha256").update(JSON.stringify(schema32)).digest("hex")
+    ).toBe(MCP_PRE_MASK_RENDERING_DIGEST);
     // Issue #50 permits only the explicitly enumerated mask fields, definition,
     // editor capability and two schema-version literals in this projection.
     const previous = expandMcpSurfaceCatalog(
-      projectMaskMcpPredecessor(MCP_SURFACE_SOURCE)
+      projectMaskMcpPredecessor(
+        projectMaskRenderingMcpPredecessor(MCP_SURFACE_SOURCE)
+      )
     );
     expect(
       createHash("sha256").update(JSON.stringify(previous)).digest("hex")
@@ -416,7 +440,9 @@ describe("canonical public contracts", () => {
     const input = mutableTool(drift, "editor_get_status").inputSchema;
     (input.properties as Record<string, unknown>).masks = { type: "string" };
     mutableTool(drift, "timeline_update_item").annotations.readOnlyHint = true;
-    const projected = expandMcpSurfaceCatalog(projectMaskMcpPredecessor(drift));
+    const projected = expandMcpSurfaceCatalog(
+      projectMaskMcpPredecessor(projectMaskRenderingMcpPredecessor(drift))
+    );
     expect(projected.toolDefinitions).toHaveProperty(
       "editor_get_status.inputSchema.properties.masks",
       { type: "string" }
@@ -625,7 +651,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 32,
+      projectSchemaVersion: 33,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -652,6 +678,7 @@ describe("canonical public contracts", () => {
       LIFECYCLE.capability,
       EVALUATED_SCENE_RENDERING_CAPABILITY,
       LINEAR_LIGHT_COMPOSITING_CAPABILITY,
+      MASK_RENDERING_CAPABILITY,
       "shape_items",
       "shape_rendering",
       "svg_items",
@@ -670,6 +697,7 @@ describe("canonical public contracts", () => {
       "inherited_animation_timing_v1",
       "extended_visual_animation_v1",
       MASK_MODELS_CAPABILITY,
+      MASK_ANIMATION_CAPABILITY,
       "motion_blur_sampling_v1",
       "animation_presets_v1",
       "initial_motion_preset_pack_v1",
@@ -699,7 +727,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: 32,
+        projectSchemaVersion: 33,
         protocolVersion: 1,
         ready: true,
         subsystems: {

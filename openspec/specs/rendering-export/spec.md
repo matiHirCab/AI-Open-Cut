@@ -649,13 +649,13 @@ Protocol-version-1 capability reporting MUST add the unique `linear_light_compos
 - **WHEN** the same protocol-v1 conformance runs with OPENCUT_GOLDEN_REQUIRED=1
 - **THEN** readiness must be true, rendering capabilities equal the complete canonical list, the rendering error is null and the unique linear capability appears exactly once at top-level and rendering scope and never in editor scope
 
-### Requirement: Mask metadata preserves current evaluated rendering
-Schema32 authored masks MUST remain inactive at the mask stage introduced by linear-light-compositing. Valid nonempty metadata SHALL NOT alter evaluated scene ordering, clocks, local rasters, geometric/raster certification, resource requests, normalized render graphs, prepared visual samples, decoded pixels/audio, timing or artifact publication for otherwise identical frame, audiovisual range, draft preview or export requests. The shared mask stage MUST remain identity in every intent. Persisted/draft/snapshot and revision-scoped cache fingerprints MAY change when authored metadata commits a new revision. Existing revision-scoped cache invalidation MUST remain unchanged. Equal-identity/equal-revision fixture render plans MUST match exactly; before/after public-edit comparison MUST normalize only explicitly named revision/snapshot admission identities and established output/temp-path fields, with all geometry, source/resource selection, clock/effect/order semantics and normalized graph content equal. Model support SHALL NOT emit a mask-rendering capability or activate mask animation targets.
+### Requirement: Shared evaluated mask rendering
+Schema33 static/animated masks MUST execute mask-rendering semantics after source crop/clip before existing local effects and owner/ancestor transforms through the same evaluated scene in frame, audiovisual range, draft preview and export. Render samples MUST preserve existing source/owner clocks, requested origins, motion-blur/shutter averaging, effect support, layer ordering, inherited opacity and audio behavior. Model/animation capability SHALL NOT imply rendering readiness; complete renderer readiness MUST govern mask_rendering_v1. Existing schema 32 nonempty masks MUST intentionally change from identity to approved mask coverage after atomic adoption; absent/empty masks MUST retain exact prior geometry/clock/effect/resource/normalized-graph/lossless pixel/audio/timing output and existing budgets/failures. Persisted/snapshot/revision-cache fingerprints MAY change with normal metadata/channel edits; existing revision-scoped cache invalidation MUST remain. Public lifecycle comparisons MUST normalize only explicitly named revision/snapshot admission/output/temp identities, not authored render semantics or resource integrity.
 
-#### Scenario: Preserve every intent with authored masks
-- **WHEN** otherwise identical #49 scenes are rendered with masks omitted or valid nonempty painted alpha/luma stacks
-- **THEN** evaluated geometry/clock/effect/order/resource semantics and normalized graphs are equal under that explicit identity projection across frame/range/draft/export, lossless native pixels are equal, audio/timing remain equal and metadata stays persisted
+#### Scenario: Compare every production intent with animated masks
+- **WHEN** the same static/animated asymmetric painted masks are sampled through frame/range/draft/export at matching inherited/fractional/shutter clocks
+- **THEN** evaluated mask plans are identical, independent coverage/pixel oracles hold and existing SSIM≥0.99, PCM RMS≤0.0001 and timing≤one-frame tolerances remain
 
-#### Scenario: Keep render failures and budgets unchanged
-- **WHEN** unchanged media/dependency/renderer failure or existing excessive-render-work input is submitted with valid mask metadata
-- **THEN** existing typed failure, bounded-work and no-publication guarantees remain unchanged without rasterizing masks
+#### Scenario: Preserve no-mask output and failures
+- **WHEN** otherwise identical prior scenes omit/have empty masks or encounter existing media/dependency/process failures
+- **THEN** no-mask output remains exact under existing identity normalization and stable failure/cleanup guarantees remain, without partial artifact/state publication

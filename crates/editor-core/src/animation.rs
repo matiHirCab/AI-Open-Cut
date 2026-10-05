@@ -297,6 +297,34 @@ pub(crate) fn scalar_bounds_at(
     } else {
         (source_low, source_high)
     };
+    scalar_source_bounds(channel, low, high)
+}
+
+// Sampling clamps are pure interpolation semantics. Authoring validation stays
+// with its canonical owner; animation must not depend on a private validator.
+fn clamp_interpolated_mask_scalar(property: crate::AnimationChannelProperty, value: f64) -> f64 {
+    use crate::AnimationChannelProperty as P;
+    match property {
+        P::MaskFeatherPx => value.clamp(0.0, 128.0),
+        P::MaskExpansionPx => value.clamp(-128.0, 128.0),
+        P::MaskTransformPositionX | P::MaskTransformPositionY => {
+            value.clamp(-1_000_000.0, 1_000_000.0)
+        }
+        P::MaskTransformScaleX | P::MaskTransformScaleY => value.clamp(0.000001, 100.0),
+        P::MaskTransformAnchorX | P::MaskTransformAnchorY | P::MaskTransformOpacity => {
+            value.clamp(0.0, 1.0)
+        }
+        P::MaskTransformRotationDeg => value.clamp(-36000.0, 36000.0),
+        P::MaskTransformSkewXDeg | P::MaskTransformSkewYDeg => value.clamp(-80.0, 80.0),
+        _ => value,
+    }
+}
+
+pub(crate) fn scalar_source_bounds(
+    channel: &AnimationChannel,
+    low: SampleTime,
+    high: SampleTime,
+) -> Option<(f64, f64)> {
     let scalar = |v: &AnimationChannelValue| {
         if let AnimationChannelValue::Scalar { value } = v {
             Some(*value)
@@ -336,6 +364,7 @@ pub(crate) fn scalar_bounds_at(
             | crate::AnimationChannelProperty::VignetteAmount => value.clamp(0.0, 1.0),
             crate::AnimationChannelProperty::BlurRadius
             | crate::AnimationChannelProperty::GlowRadius => value.clamp(0.0, 128.0),
+            p if p.mask() => clamp_interpolated_mask_scalar(p, value),
             _ => value,
         };
         for t in [p, q] {
@@ -394,7 +423,8 @@ fn sample_scalar_channel_time(channel: &AnimationChannel, time_ms: SampleTime) -
                 }
             };
             let value = start_value + (end_value - start_value) * eased;
-            let value = if matches!(start.curve, AnimationCurve::Parameterized(_))
+            let value = if channel.property.mask()
+                || matches!(start.curve, AnimationCurve::Parameterized(_))
                 || matches!(
                     channel.property,
                     crate::AnimationChannelProperty::CropWidth
@@ -418,6 +448,7 @@ fn sample_scalar_channel_time(channel: &AnimationChannel, time_ms: SampleTime) -
                     | crate::AnimationChannelProperty::VignetteAmount => value.clamp(0.0, 1.0),
                     crate::AnimationChannelProperty::BlurRadius
                     | crate::AnimationChannelProperty::GlowRadius => value.clamp(0.0, 128.0),
+                    p if p.mask() => clamp_interpolated_mask_scalar(p, value),
                     _ => value,
                 }
             } else {

@@ -209,23 +209,7 @@ pub(crate) fn validate_channels(
         if channel.keyframes.len() > 1_000 {
             return Err(invalid("maxKeyframesPerChannel exceeded"));
         }
-        if let Some(loop_spec) = channel.r#loop {
-            if channel.keyframes.len() < 2 {
-                return Err(invalid("animation loop requires two keyframes"));
-            }
-            if matches!(
-                loop_spec.iterations,
-                AnimationLoopIterations::Finite(0 | 10_001..)
-            ) {
-                return Err(invalid("animation loop iterations exceed bounds"));
-            }
-            if loop_spec.mode == AnimationLoopMode::Repeat
-                && channel.keyframes.first().map(|keyframe| &keyframe.value)
-                    != channel.keyframes.last().map(|keyframe| &keyframe.value)
-            {
-                return Err(invalid("repeat loop endpoints must match"));
-            }
-        }
+        validate_loop_structure(channel)?;
         let source_duration = channel
             .clock
             .map_or(item.duration_ms(), |clock| clock.source_duration_ms);
@@ -309,6 +293,27 @@ pub(crate) fn validate_scalar_value(
     };
     if !value.is_finite() || !within {
         return Err(invalid("animation channel value exceeds finite bounds"));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_loop_structure(channel: &AnimationChannel) -> Result<(), CoreError> {
+    if let Some(loop_spec) = channel.r#loop {
+        if channel.keyframes.len() < 2 {
+            return Err(invalid("animation loop requires two keyframes"));
+        }
+        if matches!(
+            loop_spec.iterations,
+            AnimationLoopIterations::Finite(0 | 10_001..)
+        ) {
+            return Err(invalid("animation loop iterations exceed bounds"));
+        }
+        if loop_spec.mode == AnimationLoopMode::Repeat
+            && channel.keyframes.first().map(|keyframe| &keyframe.value)
+                != channel.keyframes.last().map(|keyframe| &keyframe.value)
+        {
+            return Err(invalid("repeat loop endpoints must match"));
+        }
     }
     Ok(())
 }

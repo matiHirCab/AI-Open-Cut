@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 32,
+  "projectSchemaVersion": 33,
   "limits": {
     "maxChannelsPerItem": 64,
     "maxKeyframesPerChannel": 1000,
@@ -26,7 +26,22 @@
     "effect.blur_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 128 },
     "effect.glow_radius": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 128 },
     "effect.tint_color": { "valueType": "rgba", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 1 },
-    "effect.vignette_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 1 }
+    "effect.vignette_amount": { "valueType": "scalar", "target": "effect_scoped", "activation": "active", "minimum": 0, "maximum": 1 },
+    "mask.path_points": {"valueType": "path_points", "target": "mask_scoped", "activation": "active", "minimum": -1000000, "maximum": 1000000},
+    "mask.paint_color": {"valueType": "rgba", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 1},
+    "mask.gradient_stops": {"valueType": "gradient_stops", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 1},
+    "mask.feather_px": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 128},
+    "mask.expansion_px": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -128, "maximum": 128},
+    "mask.transform.position_x": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -1000000, "maximum": 1000000},
+    "mask.transform.position_y": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -1000000, "maximum": 1000000},
+    "mask.transform.scale_x": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimumExclusive": 0, "maximum": 100},
+    "mask.transform.scale_y": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimumExclusive": 0, "maximum": 100},
+    "mask.transform.anchor_x": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 1},
+    "mask.transform.anchor_y": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 1},
+    "mask.transform.rotation_deg": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -36000, "maximum": 36000},
+    "mask.transform.skew_x_deg": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -80, "maximum": 80},
+    "mask.transform.skew_y_deg": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": -80, "maximum": 80},
+    "mask.transform.opacity": {"valueType": "scalar", "target": "mask_scoped", "activation": "active", "minimum": 0, "maximum": 1}
   },
   "inactive": {
     "transform.skew_x_deg": { "valueType": "scalar", "target": "visual", "activation": "inactive", "bounds": "deferred" },
@@ -89,6 +104,7 @@
     "invalidBezier": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "cubic_bezier", "x1": 0.75, "y1": 0.1, "x2": 0.25, "y2": 1 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] },
     "invalidSpring": { "property": "transform.position_x", "keyframes": [{ "timeMs": 0, "value": { "type": "scalar", "value": 0 }, "curve": { "type": "spring", "mass": 0, "stiffness": 170, "damping": 26, "initialVelocity": 0 } }, { "timeMs": 500, "value": { "type": "scalar", "value": 100 }, "curve": "hold" }] }
   },
+  "maskTarget": {"kind":"mask","scope":["root","component:<definition-id>"],"idScope":"owning_item","maxIdBytes":128,"activationSchemaVersion":33,"applicabilityContract":"contracts/mask-rendering-v1.json"},
   "operation": "set_animation_channels",
   "mcpTool": "timeline_set_animation_channels",
   "capability": "typed_animation_channels_v1",

@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
+pub(crate) mod masks;
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
@@ -99,8 +100,9 @@ pub(crate) fn evaluate_project(
             }
         }
     }
+    masks::certify_authored_program_memory(project)?;
     shapes::preflight_svg_documents(project)?;
-    let mut result = evaluate_project_inner(project, width, height, fps, true)?;
+    let mut result = evaluate_project_inner(project, width, height, fps, true, false)?;
     result.resource_bindings.retained_fonts = project.fonts.clone();
     shapes::refine_scene(&mut result.scene)?;
     Ok(result)
@@ -109,6 +111,7 @@ pub(crate) fn evaluate_project(
 /// Validate inherited retained facts without allocating generated visual copies or
 /// performing resource/backend work. Store calls this after staging the final candidate.
 pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreError> {
+    masks::certify_authored_program_memory(project)?;
     let extended_nodes = extended_certification::certify_project(project)?;
     let affected = project
         .tracks
@@ -139,6 +142,7 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
         project.settings.width,
         project.settings.height,
         project.settings.fps,
+        false,
         false,
     )
     .map(|_| ())
@@ -172,6 +176,7 @@ fn preflight_extended_scenes(
     faces: Option<&std::collections::BTreeMap<String, Vec<u8>>>,
     mut nodes: usize,
 ) -> Result<(), CoreError> {
+    crate::validation::validate_project_visual_properties(project)?;
     let virtual_projects = project.components.iter().map(|component| {
         let mut local = project.clone();
         local.tracks = component.tracks.clone();
@@ -222,6 +227,7 @@ fn preflight_extended_scenes(
             context.settings.height,
             context.settings.fps,
             true,
+            true,
         )?;
         shapes::refine_scene(&mut evaluated.scene)?;
         if let Some(faces) = faces {
@@ -271,6 +277,7 @@ fn evaluate_project_inner(
     height: u32,
     fps: u32,
     materialize: bool,
+    certification_projection: bool,
 ) -> Result<EvaluatedSceneResult, CoreError> {
     let definitions = project
         .components
@@ -311,7 +318,11 @@ fn evaluate_project_inner(
             false,
         );
     }
-    crate::validation::validate_project_visual_properties(project)?;
+    if certification_projection {
+        crate::validation::validate_project_visual_projection(project)?;
+    } else {
+        crate::validation::validate_project_visual_properties(project)?;
+    }
     let duration_ms = checked_project_duration(project)?.max(1);
     let mut result = EvaluatedSceneResult {
         project_id: project.id.clone(),
@@ -5890,7 +5901,8 @@ mod instance_tests {
             crop: None,
             motion_blur: None,
             frame_rate: 30,
-            channels: vec![],
+            channels: Default::default(),
+            masks: Default::default(),
             effects: vec![crate::VisualEffect::GaussianBlur {
                 id: "blur".into(),
                 radius_px: 128.0,

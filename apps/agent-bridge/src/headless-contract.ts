@@ -31,6 +31,8 @@ export const EVALUATED_SCENE_RENDERING_CAPABILITY =
 export const LINEAR_LIGHT_COMPOSITING_CAPABILITY =
   "linear_light_compositing_v1" as const;
 export const MASK_MODELS_CAPABILITY = "mask_models_v1" as const;
+export const MASK_ANIMATION_CAPABILITY = "mask_animation_v1" as const;
+export const MASK_RENDERING_CAPABILITY = "mask_rendering_v1" as const;
 export type RenderingCapability =
   | "shape_rendering"
   | "svg_rendering"
@@ -42,7 +44,8 @@ export type RenderingCapability =
   | "preview_review_presets_v1"
   | "mp4_export"
   | typeof EVALUATED_SCENE_RENDERING_CAPABILITY
-  | typeof LINEAR_LIGHT_COMPOSITING_CAPABILITY;
+  | typeof LINEAR_LIGHT_COMPOSITING_CAPABILITY
+  | typeof MASK_RENDERING_CAPABILITY;
 
 interface Revisioned {
   expectedRevision: number;
