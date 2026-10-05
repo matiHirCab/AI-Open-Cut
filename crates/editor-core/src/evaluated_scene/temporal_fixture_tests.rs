@@ -8,6 +8,81 @@ fn project(b: bool) -> Project {
     fixture::seed(root.path(), b).project()
 }
 #[test]
+fn linear_composition_memory_and_empty_canvas_fail_before_resources() {
+    assert!(extended_visual::certify_composition_memory((64, 64), (5, 5), &[], 1.0).is_ok());
+    assert!(
+        extended_visual::certify_composition_memory((3840, 2160), (3840, 2160), &[], 1.0).is_ok()
+    );
+    assert_eq!(
+        extended_visual::certify_composition_memory((4096, 4096), (4096, 4096), &[], 1.0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+    assert_eq!(
+        extended_visual::certify_composition_memory(
+            (u32::MAX, u32::MAX),
+            (u32::MAX, u32::MAX),
+            &[],
+            1.0
+        )
+        .unwrap_err()
+        .code,
+        crate::ErrorCode::InvalidArgument
+    );
+    let mut scene = evaluate_project(&project(false), 64, 64, 10).unwrap().scene;
+    scene.visual_layers.clear();
+    assert!(extended_visual::preflight_samples(&scene, 0, 1000, false).is_ok());
+    scene.canvas.width = 7680;
+    scene.canvas.height = 4320;
+    assert_eq!(
+        extended_visual::preflight_samples(&scene, 0, 1000, false)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+    scene.canvas.width = 64;
+    scene.canvas.height = 64;
+    let layer = evaluate_project(&project(false), 64, 64, 10)
+        .unwrap()
+        .scene
+        .visual_layers[0]
+        .clone();
+    scene.visual_layers = vec![layer; 4097];
+    assert_eq!(
+        extended_visual::preflight_samples(&scene, 0, 0, true)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+    let mut ordinary = evaluate_project(&project(false), 256, 256, 10)
+        .unwrap()
+        .scene;
+    let mut leaf = ordinary.visual_layers.remove(0);
+    leaf.source = EvaluatedVisualSource::Rectangle {
+        color: "#ffffff".into(),
+        width: 1,
+        height: 1,
+    };
+    leaf.source_size = Some((1, 1));
+    leaf.extended = None;
+    leaf.keyframes.clear();
+    leaf.instance = None;
+    leaf.ancestors = None;
+    leaf.ancestor_stages.clear();
+    leaf.transform2d = Some(Default::default());
+    ordinary.visual_layers = vec![leaf; 4096];
+    // Exact per-output-frame ordinary work limit, without any shutter/effect.
+    assert!(extended_visual::preflight_samples(&ordinary, 0, 0, true).is_ok());
+    ordinary.canvas.height = 257;
+    assert_eq!(
+        extended_visual::preflight_samples(&ordinary, 0, 0, true)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::InvalidArgument
+    );
+}
+#[test]
 fn temporal_independent_curves_and_loop_boundaries() {
     assert_eq!(recipe::family_a()[0]["items"].as_array().unwrap().len(), 6);
     for lane in 0..6 {
@@ -336,7 +411,7 @@ fn temporal_spring_scale_envelope_retains_existing_resource_rejection() {
 }
 
 type TemporalDecoder<'a> =
-    dyn Fn(&std::path::Path, u64, (u32, u32)) -> Result<Vec<u8>, CoreError> + 'a;
+    dyn Fn(&std::path::Path, f64, (u32, u32)) -> Result<Vec<u8>, CoreError> + 'a;
 fn temporal_prepare_samples(
     mut scene: EvaluatedScene,
     intent: crate::render_plan::RenderIntent,
@@ -364,7 +439,7 @@ fn temporal_prepare_samples(
             layer.source,
             EvaluatedVisualSource::Media { .. } | EvaluatedVisualSource::Text(_)
         ) {
-            layer.source_size = Some((5, 5));
+            layer.source_size = Some(layer.source_size.unwrap_or((5, 5)));
             let path = workspace
                 .path()
                 .join(format!("input-{}.pam", layer.item_id));
@@ -401,7 +476,10 @@ fn temporal_prepare_samples(
                 }
                 Ok(())
             },
-            caption: &|_, _, _| panic!("this fixture has no caption"),
+            caption: &|layer, _, size| {
+                assert!(matches!(layer.source, EvaluatedVisualSource::Text(_)));
+                Ok([255, 0, 0, 255].repeat((size.0 * size.1) as usize))
+            },
         },
     )
     .unwrap();
@@ -432,7 +510,16 @@ fn temporal_pam_alpha(bytes: &[u8]) -> (f64, f64, f64) {
     assert_eq!(pixels.len(), 64 * 64 * 4);
     let (mut mass, mut x, mut y) = (0.0, 0.0, 0.0);
     for (i, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
-        let a = f64::from(p[3]);
+        // The final scene is opaque black behind this pure-red source.
+        // Independently undo sRGB encoding to observe original linear coverage.
+        assert_eq!(p[3], 255);
+        let s = f64::from(p[0]) / 255.0;
+        let a = 255.0
+            * if s <= 0.04045 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            };
         mass += a;
         x += (i % 64) as f64 * a;
         y += (i / 64) as f64 * a;
@@ -510,11 +597,11 @@ fn temporal_requested_origin_eligibility_and_media_source_mapping_are_scoped() {
     let mut scene = evaluate_project(&project(false), 64, 64, 10).unwrap().scene;
     scene.visual_layers.truncate(1);
     let layer = &mut scene.visual_layers[0];
-    layer.source_size = Some((5, 5));
+    layer.source_size = Some(layer.source_size.unwrap_or((5, 5)));
     assert!(!extended_visual::required(layer));
     assert!(extended_visual::sampling_required(layer, 713, 10));
     for start in [0, 300, 500, 1000] {
-        assert!(!extended_visual::sampling_required(layer, start, 10));
+        assert!(extended_visual::sampling_required(layer, start, 10));
     }
     assert!(extended_visual::sampling_required(layer, u64::MAX, 10));
     layer.keyframes.clear();
@@ -601,7 +688,7 @@ fn temporal_requested_origin_eligibility_and_media_source_mapping_are_scoped() {
             Ok([255, 0, 0, 255].repeat(25))
         },
     );
-    assert_eq!(*calls.borrow(), vec![813, 913]);
+    assert_eq!(*calls.borrow(), vec![813.0, 913.0]);
     assert_eq!(after.audio_layers, audio);
 }
 #[test]
@@ -644,7 +731,7 @@ fn temporal_requested_origin_text_requires_existing_shaped_pam_binding() {
         style: evaluate_text_style(&crate::TextStyle::default()).unwrap(),
     };
     scene.visual_layers[0].source = EvaluatedVisualSource::Text(Box::new(text.clone()));
-    assert!(!extended_visual::sampling_required(
+    assert!(extended_visual::sampling_required(
         &scene.visual_layers[0],
         713,
         10
@@ -654,7 +741,8 @@ fn temporal_requested_origin_text_requires_existing_shaped_pam_binding() {
         crate::render_plan::RenderIntent::Frame { at_ms: 713 },
         &|_, _, _| panic!(),
     );
-    assert!(excluded.is_empty());
+    assert_eq!(excluded.len(), 1);
+    assert!(temporal_pam_alpha(&excluded[0]).0 > 0.0);
     text.shaped = Some(crate::fonts::shaping::ShapedText {
         layout: None,
         glyphs: vec![],
@@ -686,7 +774,7 @@ fn temporal_requested_origin_legacy_scale_uses_exact713_and813_pixels() {
     let mut scene = evaluate_project(&project(false), 64, 64, 10).unwrap().scene;
     scene.visual_layers.truncate(1);
     let layer = &mut scene.visual_layers[0];
-    layer.source_size = Some((5, 5));
+    layer.source_size = Some(layer.source_size.unwrap_or((5, 5)));
     layer.keyframes = vec![
         EvaluatedKeyframe {
             property: EvaluatedProperty::Scale,
@@ -762,13 +850,23 @@ fn temporal_requested_origin_opacity_only_rectangle_retains_intrinsic_pixels() {
                 .as_chunks::<4>()
                 .0
                 .iter()
-                .filter(|p| p[3] > 0)
+                .filter(|p| p[0] > 0)
                 .count(),
             25
         );
         let (mass, x, y) = temporal_pam_alpha(&image);
-        assert!((mass - 25.0 * 127.5).abs() <= 12.5);
-        assert_eq!((x, y), (10.0, 7.0));
+        // Half-coverage white/red over black encodes to188, independently of
+        // the old8-bit leaf-alpha quantization. Keep one-byte output tolerance.
+        assert!(
+            image[offset..]
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .filter(|p| p[0] > 0)
+                .all(|p| (i16::from(p[0]) - 188).abs() <= 1)
+        );
+        assert!(mass > 0.0);
+        assert!((x - 10.0).abs() < 1e-12 && (y - 7.0).abs() < 1e-12);
     }
 }
 
@@ -804,8 +902,8 @@ fn epic6_static_sources_use_requested_grid_and_canonical_local_dimensions() {
         layer.source = source;
         assert!(extended_visual::sampling_required(&layer, 713, 10));
         assert!(extended_visual::sampling_required(&layer, 713, 30));
-        assert!(!extended_visual::sampling_required(&layer, 700, 10));
-        assert!(!extended_visual::sampling_required(&layer, 0, 10));
+        assert!(extended_visual::sampling_required(&layer, 700, 10));
+        assert!(extended_visual::sampling_required(&layer, 0, 10));
     }
     scene.visual_layers[0].source = EvaluatedVisualSource::Caption(EvaluatedCaption {
         text: "HH".into(),
@@ -850,9 +948,8 @@ fn epic6_static_sources_use_requested_grid_and_canonical_local_dimensions() {
     p.tracks[1].items[0] = serde_json::from_value(value).unwrap();
     let mut solid = evaluate_project(&p, 64, 64, 10).unwrap().scene;
     assert!(solid.visual_layers[0].source_size.is_none());
-    let raw = format!("{solid:?}");
     extended_visual::finalize_intrinsic_sources(&mut solid, 700);
-    assert_eq!(format!("{solid:?}"), raw);
+    assert_eq!(solid.visual_layers[0].source_size, Some((64, 64)));
     extended_visual::finalize_intrinsic_sources(&mut solid, 713);
     assert_eq!(solid.visual_layers[0].source_size, Some((64, 64)));
     extended_visual::preflight_samples(&solid, 713, 713, true).unwrap();
@@ -944,7 +1041,13 @@ fn epic6_caption_stream_caches_one_source_and_samples_half_open_activity() {
         .position(|p| p == header)
         .unwrap()
         + header.len();
-    assert!(bytes[offset..].iter().all(|b| *b == 0));
+    assert!(
+        bytes[offset..]
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|p| *p == [0, 0, 0, 255])
+    );
 }
 
 #[test]
@@ -1095,4 +1198,384 @@ fn epic6_component_solid_uses_authored_leaf_canvas_with_fractional_retained_cloc
         assert!(layer.visible_at(713));
         assert!(!layer.visible_at(1300));
     }
+}
+
+#[test]
+fn linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_oracle() {
+    let mut scene = evaluate_project(&project(false), 64, 64, 10).unwrap().scene;
+    scene.visual_layers.truncate(1);
+    let layer = &mut scene.visual_layers[0];
+    layer.source = EvaluatedVisualSource::Media {
+        asset_id: "synthetic".into(),
+        source_in_ms: 100,
+    };
+    layer.span = EvaluatedTimeSpan {
+        start_ms: 0,
+        end_ms: 1300,
+    };
+    layer.instance = None;
+    layer.keyframes.clear();
+    layer.source_size = Some((4, 2));
+    layer.transform2d = Some(crate::Transform2D {
+        position: crate::TransformPosition {
+            x: 5.0,
+            y: 5.0,
+            unit: crate::PositionUnit::Pixels,
+        },
+        anchor: crate::TransformAnchor { x: 0.25, y: 0.75 },
+        rotation_deg: 90.0,
+        opacity: 0.6,
+        ..Default::default()
+    });
+    layer.ancestors = None;
+    layer.ancestor_stages = vec![EvaluatedAncestorStage {
+        scope: 0,
+        item_id: "oracle-parent".into(),
+        matrix: [2.0, 0.0, 0.0, 1.0, 2.0, 1.0],
+        inverse: [0.5, 0.0, 0.0, 1.0, -1.0, -1.0],
+        opacity: 0.5,
+        animation: None,
+    }];
+    layer.extended = Some(extended_visual::ExtendedVisual {
+        crop: Some(crate::MediaCrop {
+            x: 0.5,
+            y: 0.0,
+            width: 0.5,
+            height: 1.0,
+        }),
+        motion_blur: None,
+        frame_rate: 10,
+        channels: vec![],
+        effects: vec![
+            crate::VisualEffect::GaussianBlur {
+                id: "blur".into(),
+                radius_px: 1.0,
+            },
+            crate::VisualEffect::ColorTint {
+                id: "tint".into(),
+                color: crate::VectorColor {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 1.0,
+                    a: 0.25,
+                },
+            },
+        ],
+    });
+    let raw = [
+        255, 255, 0, 255, 255, 0, 255, 255, 255, 0, 0, 128, 0, 255, 0, 255, 0, 255, 255, 255, 255,
+        128, 0, 255, 0, 0, 255, 255, 255, 255, 255, 64,
+    ];
+    let (_, frames) = temporal_prepare_samples(
+        scene,
+        crate::render_plan::RenderIntent::Frame { at_ms: 0 },
+        &|_, _, size| {
+            assert_eq!(size, (4, 2));
+            Ok(raw.to_vec())
+        },
+    );
+    let bytes = &frames[0];
+    let marker = b"ENDHDR\n";
+    let offset = bytes
+        .windows(marker.len())
+        .position(|v| v == marker)
+        .unwrap()
+        + marker.len();
+    let observed = &bytes[offset..];
+    // Independent crop remap: the right half expands to four columns with
+    // edge-clamped quarter weights, retaining both asymmetric alpha rows.
+    let a = 128.0 / 255.0;
+    let d = 64.0 / 255.0;
+    let ends = [
+        [[a, 0.0, 0.0, a], [0.0, 1.0, 0.0, 1.0]],
+        [[0.0, 0.0, 1.0, 1.0], [d, d, d, d]],
+    ];
+    let mut cropped = [[0.0_f64; 4]; 8];
+    for row in 0..2 {
+        for (col, w) in [0.0, 0.25, 0.75, 1.0].into_iter().enumerate() {
+            for c in 0..4 {
+                cropped[row * 4 + col][c] = ends[row][0][c] * (1.0 - w) + ends[row][1][c] * w;
+            }
+        }
+    }
+    let mut kernel = [0.0_f64; 7];
+    for (i, w) in kernel.iter_mut().enumerate() {
+        *w = (-0.5 * (i as f64 - 3.0).powi(2)).exp();
+    }
+    let sum: f64 = kernel.iter().sum();
+    for w in &mut kernel {
+        *w /= sum;
+    }
+    let mut padded = [[0.0_f64; 4]; 80];
+    for y in 0..8 {
+        for x in 0..10 {
+            for sy in 0..2 {
+                for sx in 0..4 {
+                    let dx = x as i32 - (sx + 3) as i32;
+                    let dy = y as i32 - (sy + 3) as i32;
+                    if dx.abs() <= 3 && dy.abs() <= 3 {
+                        for c in 0..4 {
+                            padded[y * 10 + x][c] += cropped[sy * 4 + sx][c]
+                                * kernel[(dx + 3) as usize]
+                                * kernel[(dy + 3) as usize];
+                        }
+                    }
+                }
+            }
+            for c in 0..3 {
+                padded[y * 10 + x][c] = padded[y * 10 + x][c] * 0.75
+                    + if c == 2 {
+                        padded[y * 10 + x][3] * 0.25
+                    } else {
+                        0.0
+                    };
+            }
+        }
+    }
+    for y in 0..64 {
+        for x in 0..64 {
+            // Inverse of nonuniform parent scale/translation and 90-degree local transform about
+            // anchor(1,1.5), evaluated at destination centers; add effect pad3.
+            let u = y as f64 - 2.0;
+            let v = 9.75 - 0.5 * x as f64;
+            let mut sampled = [0.0_f64; 4];
+            for sy in [v.floor() as i32, v.floor() as i32 + 1] {
+                for sx in [u.floor() as i32, u.floor() as i32 + 1] {
+                    if (0..10).contains(&sx) && (0..8).contains(&sy) {
+                        let w =
+                            (1.0 - (u - f64::from(sx)).abs()) * (1.0 - (v - f64::from(sy)).abs());
+                        for c in 0..4 {
+                            sampled[c] += padded[sy as usize * 10 + sx as usize][c] * w;
+                        }
+                    }
+                }
+            }
+            for c in 0..3 {
+                let linear = sampled[c] * 0.3;
+                let encoded = if linear <= 0.0031308 {
+                    linear * 12.92
+                } else {
+                    1.055 * linear.powf(1.0 / 2.4) - 0.055
+                };
+                let expected = (encoded * 255.0).round() as u8;
+                assert!(
+                    observed[(y * 64 + x) * 4 + c].abs_diff(expected) <= 1,
+                    "({x},{y}) channel{c}: {} != {expected}",
+                    observed[(y * 64 + x) * 4 + c]
+                );
+            }
+            assert_eq!(observed[(y * 64 + x) * 4 + 3], 255);
+        }
+    }
+}
+
+#[test]
+fn native_linear_compositor_retains_nested_fractional_media_clock_and_source_in() {
+    use crate::render_process::ProcessExecutor;
+    let (Ok(ffmpeg), Ok(ffprobe)) = (
+        std::env::var("OPENCUT_FFMPEG_PATH"),
+        std::env::var("OPENCUT_FFPROBE_PATH"),
+    ) else {
+        return;
+    };
+    let root = tempfile::tempdir().unwrap();
+    let raw = root.path().join("clock.rgb");
+    std::fs::write(
+        &raw,
+        [[255, 0, 0], [0, 255, 0], [0, 0, 255]]
+            .into_iter()
+            .flat_map(|p| p.repeat(4))
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    let source = root.path().join("clock.mp4");
+    let result = std::process::Command::new(&ffmpeg)
+        .args([
+            "-v",
+            "error",
+            "-nostdin",
+            "-f",
+            "rawvideo",
+            "-pixel_format",
+            "rgb24",
+            "-video_size",
+            "2x2",
+            "-framerate",
+            "10",
+            "-i",
+        ])
+        .arg(&raw)
+        .args([
+            "-vf",
+            "settb=1/1000000,setpts='if(eq(N,0),0,if(eq(N,1),100250,300500))'",
+            "-fps_mode",
+            "passthrough",
+            "-c:v",
+            "libx264",
+            "-qp",
+            "0",
+            "-g",
+            "10",
+            "-pix_fmt",
+            "yuv444p",
+            "-enc_time_base",
+            "1/1000000",
+            "-video_track_timescale",
+            "1000000",
+            "-y",
+        ])
+        .arg(&source)
+        .status()
+        .unwrap();
+    assert!(result.success());
+    let probe = std::process::Command::new(ffprobe)
+        .args([
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "frame=best_effort_timestamp",
+            "-of",
+            "json",
+        ])
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(probe.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&probe.stdout).unwrap();
+    assert_eq!(
+        value["frames"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v["best_effort_timestamp"].as_u64().unwrap())
+            .collect::<Vec<_>>(),
+        [0, 100250, 300500]
+    );
+    let mut scene = evaluate_project(&project(true), 64, 64, 10).unwrap().scene;
+    scene.visual_layers.truncate(1);
+    let layer = &mut scene.visual_layers[0];
+    // These retained facts come from actual nested component/repeater evaluation.
+    assert_eq!(layer.instance.unwrap().rate, 0.75);
+    assert_eq!(layer.instance.unwrap().offset, -140.0);
+    assert_eq!(layer.span.start_ms, 0);
+    layer.source_size = Some((2, 2));
+    layer.keyframes.clear();
+    layer.extended = None;
+    layer.ancestor_stages.clear();
+    layer.ancestors = None;
+    layer.transform2d = Some(Default::default());
+    for (source_in, expected_time, expected_color) in
+        [(99, 99.25, [255, 0, 0]), (100, 100.25, [0, 255, 0])]
+    {
+        let mut current = scene.clone();
+        current.visual_layers[0].source = EvaluatedVisualSource::Media {
+            asset_id: "synthetic".into(),
+            source_in_ms: source_in,
+        };
+        let calls = std::cell::Cell::new(0);
+        let (_, frames) = temporal_prepare_samples(
+            current,
+            crate::render_plan::RenderIntent::Frame { at_ms: 187 },
+            &|_, time, size| {
+                assert_eq!(time, expected_time);
+                calls.set(calls.get() + 1);
+                crate::render_process::SystemProcessExecutor.decode_visual_frame_at(
+                    std::path::Path::new(&ffmpeg),
+                    &source,
+                    time,
+                    size,
+                )
+            },
+        );
+        assert_eq!(calls.get(), 1);
+        let marker = b"ENDHDR\n";
+        let bytes = &frames[0];
+        let offset = bytes
+            .windows(marker.len())
+            .position(|v| v == marker)
+            .unwrap()
+            + marker.len();
+        let pixel = &bytes[offset..offset + 4];
+        for c in 0..3 {
+            assert!(
+                pixel[c].abs_diff(expected_color[c]) <= 1,
+                "clock{expected_time}: {pixel:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn fractional_native_media_clock_certification_rejects_loss_before_resources() {
+    let authored = project(false);
+    let snapshot = serde_json::to_vec(&authored).unwrap();
+    let mut scene = evaluate_project(&authored, 64, 64, 10).unwrap().scene;
+    scene.visual_layers.truncate(1);
+    let layer = &mut scene.visual_layers[0];
+    layer.span = EvaluatedTimeSpan {
+        start_ms: 0,
+        end_ms: 1300,
+    };
+    layer.source_size = Some((1, 1));
+    layer.keyframes.clear();
+    layer.extended = None;
+    let clock = |offset| EvaluatedInstance {
+        rate: 1.0,
+        offset,
+        start_ms: 0.0,
+        end_ms: 1300.0,
+        canvas: (64, 64),
+    };
+    layer.instance = Some(clock(0.25));
+    for source_in in [9_007_199_254_740_000, 1_099_511_627_776] {
+        // .25 vanishes at Java-safe maximum; .1 is partially quantized at2^40.
+        let fraction = if source_in > 2_000_000_000_000 {
+            0.25
+        } else {
+            0.1
+        };
+        scene.visual_layers[0].instance = Some(clock(fraction));
+        scene.visual_layers[0].source = EvaluatedVisualSource::Media {
+            asset_id: "unsafe-video".into(),
+            source_in_ms: source_in,
+        };
+        let error = extended_visual::preflight_samples(&scene, 0, 0, true).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert!(error.message.contains("precision"));
+    }
+    for fraction in [0.1, 0.25, 0.5] {
+        scene.visual_layers[0].instance = Some(clock(fraction));
+        scene.visual_layers[0].source = EvaluatedVisualSource::Media {
+            asset_id: "ordinary-video".into(),
+            source_in_ms: 12345,
+        };
+        assert!(extended_visual::preflight_samples(&scene, 0, 0, true).is_ok());
+        assert!(
+            (extended_visual::certified_media_source_time(&scene.visual_layers[0], 0, 12345)
+                .unwrap()
+                - (12345.0 + fraction))
+                .abs()
+                <= 0.000001
+        );
+    }
+    scene.visual_layers[0].instance = Some(clock(1.0));
+    scene.visual_layers[0].source = EvaluatedVisualSource::Media {
+        asset_id: "whole-video".into(),
+        source_in_ms: 9_007_199_254_740_000,
+    };
+    assert!(extended_visual::preflight_samples(&scene, 0, 0, true).is_ok());
+    for invalid in [f64::NAN, f64::INFINITY] {
+        scene.visual_layers[0].instance = Some(clock(invalid));
+        assert_eq!(
+            extended_visual::certified_media_source_time(&scene.visual_layers[0], 0, 100)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::InvalidArgument
+        );
+    }
+    // No output/workspace/decode/raster operation participates in pure certification.
+    assert_eq!(serde_json::to_vec(&authored).unwrap(), snapshot);
 }

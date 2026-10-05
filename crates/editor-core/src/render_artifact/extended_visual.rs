@@ -181,6 +181,60 @@ impl Raster {
         }
         Ok(result)
     }
+    fn source_over_at(&mut self, source: &Self, left: usize, top: usize) -> Result<(), CoreError> {
+        if left
+            .checked_add(source.width)
+            .is_none_or(|v| v > self.width)
+            || top
+                .checked_add(source.height)
+                .is_none_or(|v| v > self.height)
+        {
+            return Err(invalid("composition raster bounds differ"));
+        }
+        for y in 0..source.height {
+            let start = (top + y) * self.width + left;
+            for (destination, source) in self.pixels[start..start + source.width]
+                .iter_mut()
+                .zip(&source.pixels[y * source.width..(y + 1) * source.width])
+            {
+                let mut source = *source;
+                let alpha = source[3];
+                if !alpha.is_finite()
+                    || !(-1e-6..=1.0 + 1e-6).contains(&alpha)
+                    || source[..3]
+                        .iter()
+                        .any(|v| !v.is_finite() || *v < -1e-6 || *v > alpha + 1e-6)
+                {
+                    return Err(invalid("invalid premultiplied source pixel"));
+                }
+                source[3] = alpha.clamp(0.0, 1.0);
+                for c in 0..3 {
+                    source[c] = source[c].clamp(0.0, source[3]);
+                }
+                for c in 0..4 {
+                    destination[c] = source[c] + destination[c] * (1.0 - source[3]);
+                }
+                let alpha = destination[3];
+                if !alpha.is_finite()
+                    || !(-1e-6..=1.0 + 1e-6).contains(&alpha)
+                    || destination[..3]
+                        .iter()
+                        .any(|v| !v.is_finite() || *v < -1e-6 || *v > alpha + 1e-6)
+                {
+                    return Err(invalid("non-finite or invalid premultiplied composition"));
+                }
+                destination[3] = alpha.clamp(0.0, 1.0);
+                for c in 0..3 {
+                    destination[c] = destination[c].clamp(0.0, destination[3]);
+                }
+            }
+        }
+        Ok(())
+    }
+    #[cfg(test)]
+    fn source_over(&mut self, source: &Self) -> Result<(), CoreError> {
+        self.source_over_at(source, 0, 0)
+    }
     fn pam_bytes(&self) -> Vec<u8> {
         let mut bytes = format!(
             "P7\nWIDTH {}\nHEIGHT {}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n",
@@ -223,6 +277,9 @@ fn effects(
     bounds: Option<[f64; 4]>,
 ) -> Result<(Raster, usize), CoreError> {
     let pad = support(effects, density);
+    if effects.is_empty() {
+        return Ok((raster, 0));
+    }
     let bounds = bounds.unwrap_or([0.0, 0.0, raster.width as f64, raster.height as f64]);
     raster = raster.padded(pad)?;
     for effect in effects {
@@ -289,7 +346,7 @@ fn sample_times(scene: &EvaluatedScene, intent: RenderIntent) -> (u64, u64, bool
     }
 }
 
-type VisualDecoder<'a> = dyn Fn(&Path, u64, (u32, u32)) -> Result<Vec<u8>, CoreError> + 'a;
+type VisualDecoder<'a> = dyn Fn(&Path, f64, (u32, u32)) -> Result<Vec<u8>, CoreError> + 'a;
 type FrameProducer<'a> = dyn FnMut(u64) -> Result<Vec<u8>, CoreError> + 'a;
 type VisualEncoder<'a> =
     dyn Fn(&Path, u32, u64, &mut FrameProducer<'_>) -> Result<(), CoreError> + 'a;
@@ -320,6 +377,9 @@ pub(crate) fn prepare(
         encode,
         caption,
     } = preparation;
+    if scene.visual_layers.is_empty() {
+        return Ok(());
+    } // Exact opaque black is supplied by the existing final encoder source.
     let (start, end, frame) = sample_times(scene, intent);
     let canvas = (scene.canvas.width, scene.canvas.height);
     let fps = scene.canvas.fps;
@@ -336,151 +396,211 @@ pub(crate) fn prepare(
     for (input, path) in resources.media_inputs.iter().zip(&resources.media_paths) {
         bindings.insert(input.item_id.clone(), (input.clone(), path.clone()));
     }
-    for (index, layer) in scene.visual_layers.iter_mut().enumerate() {
-        if !extended_visual::sampling_required(layer, start, fps) {
-            continue;
-        }
-        let binding_id = format!("extended-sample-{index}");
-        let file = if frame {
-            format!("sampled-{index}.pam")
-        } else {
-            format!("sampled-{index}.mkv")
-        };
-        // One static source per layer; drop it after that layer's streamed output.
-        let caption_raster = if matches!(layer.source, EvaluatedVisualSource::Caption(_)) {
+    let binding_id = "linear-scene".to_owned();
+    let file = if frame {
+        "linear-scene.pam"
+    } else {
+        "linear-scene.mkv"
+    };
+    // Source-local paint resources are disposable files, never an unbounded decoded-source cache.
+    for (index, layer) in scene.visual_layers.iter().enumerate() {
+        if matches!(&layer.source, EvaluatedVisualSource::Caption(_))
+            || matches!(&layer.source, EvaluatedVisualSource::Text(text) if text.shaped.is_none())
+        {
             let size = layer
                 .source_size
-                .ok_or_else(|| invalid("sampled source measurement missing"))?;
-            extended_visual::validate_sampled_source_size(size)?;
-            Some(Raster::rgba(
-                size.0 as usize,
-                size.1 as usize,
-                &caption(layer, resources.text_layers.get(&layer.item_id), size)?,
-            )?)
-        } else {
-            None
-        };
-        let draw = |at| {
-            let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
-            let result = if !layer.visible_at(at) {
-                Raster::empty(canvas.0 as usize, canvas.1 as usize)?
-            } else {
-                let (mut raster, density) = match &sampled.source {
-                    EvaluatedVisualSource::Shape(shape) => (
-                        Raster::pam(&super::shapes::rasterize(shape)?)?,
-                        shape.density,
-                    ),
-                    EvaluatedVisualSource::SolidColor { color }
-                    | EvaluatedVisualSource::Rectangle { color, .. } => {
-                        let size = sampled.source_size.unwrap_or(canvas);
-                        let mut raster = Raster::empty(size.0 as usize, size.1 as usize)?;
-                        let rgb = [
-                            u8::from_str_radix(&color[1..3], 16).unwrap(),
-                            u8::from_str_radix(&color[3..5], 16).unwrap(),
-                            u8::from_str_radix(&color[5..7], 16).unwrap(),
-                        ];
-                        let pixel = [
-                            linear(rgb[0] as f64 / 255.0) as f32,
-                            linear(rgb[1] as f64 / 255.0) as f32,
-                            linear(rgb[2] as f64 / 255.0) as f32,
-                            1.0,
-                        ];
-                        raster.pixels.fill(pixel);
-                        (raster, 1.0)
-                    }
-                    EvaluatedVisualSource::Text(_) => {
-                        let (_, path) = bindings
-                            .get(&layer.item_id)
-                            .ok_or_else(|| invalid("text sample raster unavailable"))?;
-                        (
-                            Raster::pam(&io.read(path).map_err(|_| {
-                                CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
-                            })?)?,
-                            1.0,
-                        )
-                    }
-                    EvaluatedVisualSource::Media { source_in_ms, .. } => {
-                        let (input, path) = bindings
-                            .get(&layer.item_id)
-                            .ok_or_else(|| invalid("media sample binding unavailable"))?;
-                        let size = sampled
-                            .source_size
-                            .ok_or_else(|| invalid("media sample geometry unavailable"))?;
-                        let local = layer
-                            .instance
-                            .map_or(at as f64, |i| i.rate * at as f64 + i.offset)
-                            - layer.span.start_ms as f64;
-                        let time = if input.media_type == MediaType::Image {
-                            0
-                        } else {
-                            source_in_ms + local.max(0.0).floor() as u64
-                        };
-                        (
-                            Raster::rgba(
-                                size.0 as usize,
-                                size.1 as usize,
-                                &decode(path, time, size)?,
-                            )?,
-                            1.0,
-                        )
-                    }
-                    EvaluatedVisualSource::Caption(_) => (
-                        caption_raster
-                            .as_ref()
-                            .ok_or_else(|| invalid("caption sample raster unavailable"))?
-                            .clone(),
-                        1.0,
-                    ),
-                };
-                let mut budget = 0;
-                crate::evaluated_scene::extended_certification::effect_budget(
-                    (raster.width as u32, raster.height as u32),
-                    &effect_stack,
-                    density,
-                    &mut budget,
-                )?;
-                let affine = extended_visual::sample_transform(
-                    &mut sampled,
-                    at,
-                    (raster.width as u32, raster.height as u32),
-                    canvas,
-                )?;
-                if let Some(crop) = crop {
-                    raster = raster.crop(crop)?;
-                }
-                let bounds = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
-                    Some([
-                        (shape.bounds[0] - shape.origin.0) * density,
-                        (shape.bounds[1] - shape.origin.1) * density,
-                        (shape.bounds[2] - shape.origin.0) * density,
-                        (shape.bounds[3] - shape.origin.1) * density,
-                    ])
+                .ok_or_else(|| invalid("local source measurement missing"))?;
+            let bytes = caption(layer, resources.text_layers.get(&layer.item_id), size)?;
+            if bytes.len() != extended_visual::validate_sampled_source_size(size)? {
+                return Err(invalid("local decoded raster size mismatch"));
+            }
+            let mut pam = format!(
+                "P7\nWIDTH {}\nHEIGHT {}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n",
+                size.0, size.1
+            )
+            .into_bytes();
+            pam.extend_from_slice(&bytes);
+            let path = workspace.join(format!("local-source-{index}.pam"));
+            io.write(&path, &pam)
+                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+            bindings.insert(
+                layer.item_id.clone(),
+                (
+                    MediaInputRequest {
+                        item_id: layer.item_id.clone(),
+                        asset_id: layer.item_id.clone(),
+                        project_relative_path: path.clone(),
+                        media_type: MediaType::Image,
+                        source_in_ms: 0,
+                        duration_ms: duration,
+                        input_index: 0,
+                    },
+                    path,
+                ),
+            );
+        }
+    }
+    let mut produce = |n| {
+        let at = start + n * 1000 / u64::from(fps);
+        let mut composed = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
+        composed.pixels.fill([0.0, 0.0, 0.0, 1.0]);
+        for layer in &scene.visual_layers {
+            let draw = |at| {
+                let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
+                let result = if !layer.visible_at(at) {
+                    (Raster::empty(1, 1)?, 0, 0)
                 } else {
-                    None
-                };
-                let (raster, pad) = effects(raster, &effect_stack, density, bounds)?;
-                let mut output = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
-                let [a, b, c, d, tx, ty] = affine.inverse;
-                let opacity = (affine.opacity * layer.transition_gain(at)) as f32;
-                for y in 0..output.height {
-                    for x in 0..output.width {
-                        let (px, py) = (x as f64 + 0.5, y as f64 + 0.5);
-                        let mut pixel = raster.bilinear(
-                            a * px + c * py + tx + pad as f64,
-                            b * px + d * py + ty + pad as f64,
-                        );
-                        for component in &mut pixel {
-                            *component *= opacity;
+                    let (mut raster, density) = match &sampled.source {
+                        EvaluatedVisualSource::Shape(shape) => {
+                            let bytes = if sampled.source == layer.source {
+                                if let Some((_, path)) = bindings.get(&layer.item_id) {
+                                    io.read(path).map_err(|_| {
+                                        CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
+                                    })?
+                                } else {
+                                    super::shapes::rasterize(shape)?
+                                }
+                            } else {
+                                super::shapes::rasterize(shape)?
+                            };
+                            (Raster::pam(&bytes)?, shape.density)
                         }
-                        output.pixels[y * output.width + x] = pixel;
+                        EvaluatedVisualSource::SolidColor { color }
+                        | EvaluatedVisualSource::Rectangle { color, .. } => {
+                            let size = sampled.source_size.unwrap_or(canvas);
+                            let mut raster = Raster::empty(size.0 as usize, size.1 as usize)?;
+                            let rgb = [
+                                u8::from_str_radix(&color[1..3], 16).unwrap(),
+                                u8::from_str_radix(&color[3..5], 16).unwrap(),
+                                u8::from_str_radix(&color[5..7], 16).unwrap(),
+                            ];
+                            let pixel = [
+                                linear(rgb[0] as f64 / 255.0) as f32,
+                                linear(rgb[1] as f64 / 255.0) as f32,
+                                linear(rgb[2] as f64 / 255.0) as f32,
+                                1.0,
+                            ];
+                            raster.pixels.fill(pixel);
+                            (raster, 1.0)
+                        }
+                        EvaluatedVisualSource::Text(_) | EvaluatedVisualSource::Caption(_) => {
+                            let (_, path) = bindings
+                                .get(&layer.item_id)
+                                .ok_or_else(|| invalid("text sample raster unavailable"))?;
+                            (
+                                Raster::pam(&io.read(path).map_err(|_| {
+                                    CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
+                                })?)?,
+                                1.0,
+                            )
+                        }
+                        EvaluatedVisualSource::Media { source_in_ms, .. } => {
+                            let (input, path) = bindings
+                                .get(&layer.item_id)
+                                .ok_or_else(|| invalid("media sample binding unavailable"))?;
+                            let size = sampled
+                                .source_size
+                                .ok_or_else(|| invalid("media sample geometry unavailable"))?;
+                            let time = if input.media_type == MediaType::Image {
+                                0.0
+                            } else {
+                                extended_visual::certified_media_source_time(
+                                    layer,
+                                    at,
+                                    *source_in_ms,
+                                )?
+                            };
+                            (
+                                Raster::rgba(
+                                    size.0 as usize,
+                                    size.1 as usize,
+                                    &decode(path, time, size)?,
+                                )?,
+                                1.0,
+                            )
+                        }
+                    };
+                    let mut budget = 0;
+                    crate::evaluated_scene::extended_certification::effect_budget(
+                        (raster.width as u32, raster.height as u32),
+                        &effect_stack,
+                        density,
+                        &mut budget,
+                    )?;
+                    let affine = extended_visual::sample_transform(
+                        &mut sampled,
+                        at,
+                        (raster.width as u32, raster.height as u32),
+                        canvas,
+                    )?;
+                    if let Some(crop) = crop {
+                        raster = raster.crop(crop)?;
                     }
-                }
-                output
+                    let bounds = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                        Some([
+                            (shape.bounds[0] - shape.origin.0) * density,
+                            (shape.bounds[1] - shape.origin.1) * density,
+                            (shape.bounds[2] - shape.origin.0) * density,
+                            (shape.bounds[3] - shape.origin.1) * density,
+                        ])
+                    } else {
+                        None
+                    };
+                    let (raster, pad) = effects(raster, &effect_stack, density, bounds)?;
+                    // Visit only the conservative transformed support, including
+                    // the transparent bilinear border; certification counts the full canvas.
+                    let [ma, mb, mc, md, mtx, mty] = affine.matrix;
+                    let corners = [
+                        (-1.0 - pad as f64, -1.0 - pad as f64),
+                        (raster.width as f64 - pad as f64 + 1.0, -1.0 - pad as f64),
+                        (-1.0 - pad as f64, raster.height as f64 - pad as f64 + 1.0),
+                        (
+                            raster.width as f64 - pad as f64 + 1.0,
+                            raster.height as f64 - pad as f64 + 1.0,
+                        ),
+                    ];
+                    let xs = corners.map(|(x, y)| ma * x + mc * y + mtx);
+                    let ys = corners.map(|(x, y)| mb * x + md * y + mty);
+                    let left = xs
+                        .into_iter()
+                        .fold(f64::INFINITY, f64::min)
+                        .floor()
+                        .clamp(0.0, canvas.0 as f64) as usize;
+                    let top = ys
+                        .into_iter()
+                        .fold(f64::INFINITY, f64::min)
+                        .floor()
+                        .clamp(0.0, canvas.1 as f64) as usize;
+                    let right =
+                        xs.into_iter()
+                            .fold(f64::NEG_INFINITY, f64::max)
+                            .ceil()
+                            .clamp(left as f64, canvas.0 as f64) as usize;
+                    let bottom =
+                        ys.into_iter()
+                            .fold(f64::NEG_INFINITY, f64::max)
+                            .ceil()
+                            .clamp(top as f64, canvas.1 as f64) as usize;
+                    let mut output = Raster::empty(right - left, bottom - top)?;
+                    let [a, b, c, d, tx, ty] = affine.inverse;
+                    let opacity = (affine.opacity * layer.transition_gain(at)) as f32;
+                    for y in 0..output.height {
+                        for x in 0..output.width {
+                            let (px, py) = ((x + left) as f64 + 0.5, (y + top) as f64 + 0.5);
+                            let mut pixel = raster.bilinear(
+                                a * px + c * py + tx + pad as f64,
+                                b * px + d * py + ty + pad as f64,
+                            );
+                            for component in &mut pixel {
+                                *component *= opacity;
+                            }
+                            output.pixels[y * output.width + x] = pixel;
+                        }
+                    }
+                    (output, left, top)
+                };
+                Ok::<(Raster, usize, usize), CoreError>(result)
             };
-            Ok::<Raster, CoreError>(result)
-        };
-        let mut produce = |n| {
-            let at = start + n * 1000 / u64::from(fps);
             let times = if let Some(settings) = layer.extended.as_ref().and_then(|v| v.motion_blur)
             {
                 settings.sample_times(at, layer.extended.as_ref().unwrap().frame_rate, duration)?
@@ -488,49 +608,56 @@ pub(crate) fn prepare(
                 vec![at]
             };
             if times.len() == 1 {
-                return Ok(draw(times[0])?.pam_bytes());
-            }
-            let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
-            let weight = 1.0 / times.len() as f32;
-            for time in times {
-                let raster = draw(time)?;
-                for (dst, src) in averaged.pixels.iter_mut().zip(raster.pixels) {
-                    for c in 0..4 {
-                        dst[c] += src[c] * weight;
+                if layer.visible_at(times[0]) {
+                    let (raster, left, top) = draw(times[0])?;
+                    composed.source_over_at(&raster, left, top)?;
+                }
+            } else {
+                let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
+                let weight = 1.0 / times.len() as f32;
+                for time in times {
+                    let (raster, left, top) = draw(time)?;
+                    for y in 0..raster.height {
+                        for x in 0..raster.width {
+                            let src = raster.pixels[y * raster.width + x];
+                            let dst = &mut averaged.pixels[(top + y) * averaged.width + left + x];
+                            for c in 0..4 {
+                                dst[c] += src[c] * weight;
+                            }
+                        }
                     }
                 }
+                composed.source_over_at(&averaged, 0, 0)?;
             }
-            Ok(averaged.pam_bytes())
-        };
-        if frame {
-            io.write(&workspace.join(&file), &produce(0)?)
-                .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
-        } else {
-            encode(
-                &workspace.join(&file),
-                scene.canvas.fps,
-                frames,
-                &mut produce,
-            )?;
         }
-        resources.media_inputs.push(MediaInputRequest {
-            item_id: binding_id.clone(),
-            asset_id: binding_id.clone(),
-            project_relative_path: file.clone().into(),
-            media_type: if frame {
-                MediaType::Image
-            } else {
-                MediaType::Video
-            },
-            source_in_ms: 0,
-            duration_ms: if frame {
-                scene.duration_ms
-            } else {
-                end - start
-            },
-            input_index: resources.media_inputs.len() + 2,
-        });
-        resources.media_paths.push(workspace.join(file));
+        Ok(composed.pam_bytes())
+    };
+    if frame {
+        io.write(&workspace.join(file), &produce(0)?)
+            .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
+    } else {
+        encode(
+            &workspace.join(file),
+            scene.canvas.fps,
+            frames,
+            &mut produce,
+        )?;
+    }
+    resources.media_inputs.push(MediaInputRequest {
+        item_id: binding_id.clone(),
+        asset_id: binding_id.clone(),
+        project_relative_path: file.into(),
+        media_type: if frame {
+            MediaType::Image
+        } else {
+            MediaType::Video
+        },
+        source_in_ms: 0,
+        duration_ms: end - start,
+        input_index: resources.media_inputs.len() + 2,
+    });
+    resources.media_paths.push(workspace.join(file));
+    if let Some(layer) = scene.visual_layers.first_mut() {
         layer.sampled_input = Some((binding_id, if frame { 0 } else { start }));
     }
     Ok(())
@@ -539,6 +666,57 @@ pub(crate) fn prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rejects_invalid_source_even_when_opaque_destination_would_hide_it() {
+        for pixel in [
+            [0.0, 0.0, 0.0, -0.1],
+            [0.8, 0.0, 0.0, 0.5],
+            [f32::NAN, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, f32::INFINITY],
+        ] {
+            let mut destination = Raster::empty(1, 1).unwrap();
+            destination.pixels[0] = [0.0, 0.0, 0.0, 1.0];
+            let mut source = Raster::empty(1, 1).unwrap();
+            source.pixels[0] = pixel;
+            assert_eq!(
+                destination.source_over(&source).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+        }
+        let mut destination = Raster::empty(1, 1).unwrap();
+        let mut source = Raster::empty(1, 1).unwrap();
+        source.pixels[0] = [0.5000005, -0.0000005, 0.0, 0.5];
+        destination.source_over(&source).unwrap();
+        assert_eq!(destination.pixels[0], [0.5, 0.0, 0.0, 0.5]);
+    }
+
+    #[test]
+    fn linear_source_over_matches_independent_alpha_oracle() {
+        let mut destination = Raster::empty(1, 1).unwrap();
+        destination.pixels[0] = [0.0, 0.0, 0.0, 1.0];
+        let mut source = Raster::empty(1, 1).unwrap();
+        source.pixels[0] = [0.5, 0.5, 0.5, 0.5];
+        destination.source_over(&source).unwrap();
+        assert_eq!(destination.pixels[0], [0.5, 0.5, 0.5, 1.0]);
+        let bytes = destination.pam_bytes();
+        assert_eq!(&bytes[bytes.len() - 4..], &[188, 188, 188, 255]);
+        let mut lower = Raster::empty(1, 1).unwrap();
+        lower.pixels[0] = [0.25, 0.0, 0.0, 0.5];
+        source.pixels[0] = [0.0, 0.0, 0.5, 0.5];
+        lower.source_over(&source).unwrap();
+        assert_eq!(lower.pixels[0], [0.125, 0.0, 0.5, 0.75]);
+    }
+
+    #[test]
+    fn hidden_rgb_cannot_contaminate_linear_transparent_edges() {
+        let source = Raster::rgba(2, 1, &[255, 0, 0, 0, 255, 255, 255, 255]).unwrap();
+        assert_eq!(source.pixels[0], [0.0; 4]);
+        assert_eq!(source.bilinear(1.0, 0.5), [0.5; 4]);
+        let gray = Raster::rgba(1, 1, &[128, 128, 128, 128]).unwrap();
+        let expected = ((128.0_f64 / 255.0 + 0.055) / 1.055).powf(2.4) * (128.0 / 255.0);
+        assert!((gray.pixels[0][0] as f64 - expected).abs() < 1e-6);
+    }
+
     #[test]
     fn asymmetric_crop_excludes_outside_source_and_preserves_destination_extent() {
         let source = Raster::rgba(2, 1, &[255, 0, 0, 255, 0, 255, 0, 255]).unwrap();

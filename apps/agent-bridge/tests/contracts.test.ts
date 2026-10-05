@@ -23,7 +23,10 @@ import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
 import type { HeadlessRequest } from "../src/headless-contract";
-import { EVALUATED_SCENE_RENDERING_CAPABILITY } from "../src/headless-contract";
+import {
+  EVALUATED_SCENE_RENDERING_CAPABILITY,
+  LINEAR_LIGHT_COMPOSITING_CAPABILITY,
+} from "../src/headless-contract";
 import {
   closedSlotRecord,
   componentDefinitionSchema,
@@ -32,6 +35,7 @@ import {
   headlessStatusSchema,
   schemas,
   slotValueSchema,
+  statusSchema,
   synthesizedSpeechMetadataSchema,
   templateSlotSchema,
   timeExpressionSchema,
@@ -59,7 +63,10 @@ import {
 } from "./fixtures/motion-graphics-contract";
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
+// Approved issue #49 additive capability; tool/schema baseline remains pinned below.
 const MCP_BASELINE_DIGEST =
+  "2a3fdf15aec5472e1cc2001f47659d4591de02e0f02bdeece3384584ea174503";
+const MCP_PRE_LINEAR_COMPOSITION_DIGEST =
   "181c60179f3d9f329417093315b0b6058a9093fd8e1c23e06cee83c4c19b2620";
 
 const LIFECYCLE: typeof LIFECYCLE_CATALOG = JSON.parse(
@@ -254,7 +261,7 @@ describe("canonical public contracts", () => {
     expect(PRESETS.examples.retiredProvenance.presetVersion).toBeGreaterThan(0);
   });
 
-  it("expands the compact MCP catalog deterministically to the legacy catalog", () => {
+  it("expands the approved additive MCP capability catalog deterministically", () => {
     const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     expect(first).toEqual(second);
@@ -262,6 +269,20 @@ describe("canonical public contracts", () => {
     expect(
       createHash("sha256").update(JSON.stringify(first)).digest("hex")
     ).toBe(MCP_BASELINE_DIGEST);
+    // Issue #49 authorizes only this additive capability identifier. Removing
+    // it must reproduce the prior expanded catalog, including every schema.
+    const previous = structuredClone(first);
+    expect(
+      previous.capabilityIdentifiers.filter(
+        (capability) => capability === LINEAR_LIGHT_COMPOSITING_CAPABILITY
+      )
+    ).toHaveLength(1);
+    previous.capabilityIdentifiers = previous.capabilityIdentifiers.filter(
+      (capability) => capability !== LINEAR_LIGHT_COMPOSITING_CAPABILITY
+    );
+    expect(
+      createHash("sha256").update(JSON.stringify(previous)).digest("hex")
+    ).toBe(MCP_PRE_LINEAR_COMPOSITION_DIGEST);
   });
 
   it("rejects missing, cyclic, malformed, non-local, and unused MCP definitions", () => {
@@ -489,6 +510,7 @@ describe("canonical public contracts", () => {
       "marker_relative_timing",
       LIFECYCLE.capability,
       EVALUATED_SCENE_RENDERING_CAPABILITY,
+      LINEAR_LIGHT_COMPOSITING_CAPABILITY,
       "shape_items",
       "shape_rendering",
       "svg_items",
@@ -516,6 +538,89 @@ describe("canonical public contracts", () => {
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
     );
   });
+
+  it.each([true, false])(
+    "preserves readiness-gated linear composition in live MCP status (ready=%s)",
+    async (ready) => {
+      const renderingCapabilities = ready
+        ? HEADLESS_CONTRACT.status.renderingCapabilities
+        : [];
+      const error = ready
+        ? null
+        : {
+            code: "DEPENDENCY_UNAVAILABLE",
+            message: "rendering unavailable",
+            retryable: false,
+          };
+      const status = headlessStatusSchema.parse({
+        capabilities: [
+          ...HEADLESS_CONTRACT.status.editorCapabilities,
+          ...renderingCapabilities,
+        ],
+        projectSchemaVersion: 31,
+        protocolVersion: 1,
+        ready: true,
+        subsystems: {
+          editor: {
+            capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
+            error: null,
+            ready: true,
+          },
+          rendering: { capabilities: renderingCapabilities, error, ready },
+        },
+        textLayoutVersion: 2,
+        version: "0.1.0",
+      });
+      const handlers = new Map<
+        string,
+        (
+          input: Record<string, unknown>
+        ) => Promise<{ structuredContent: unknown }>
+      >();
+      const server = {
+        registerTool: (
+          name: string,
+          _definition: unknown,
+          registeredHandler: (
+            input: Record<string, unknown>
+          ) => Promise<{ structuredContent: unknown }>
+        ) => handlers.set(name, registeredHandler),
+      } as unknown as Server;
+      const injected = {
+        ...dependencies,
+        headless: { call: () => Promise.resolve(status) },
+      } as unknown as ServerDependencies;
+      registerProjectTools(server, injected);
+      const handler = handlers.get("editor_get_status");
+      if (!handler) {
+        throw new Error("Missing MCP status handler");
+      }
+      const response = await handler({ protocolVersion: 1 });
+      const reported = statusSchema.parse(response.structuredContent);
+      expect(reported.ready).toBe(true);
+      expect(reported.protocolVersion).toBe(1);
+      expect(reported.subsystems.rendering).toEqual(
+        status.subsystems.rendering
+      );
+      expect(reported.capabilities).toEqual([
+        ...status.capabilities,
+        ARTIFACT_RESOURCES_CAPABILITY,
+      ]);
+      for (const capabilities of [
+        reported.capabilities,
+        reported.subsystems.rendering.capabilities,
+      ]) {
+        expect(
+          capabilities.filter(
+            (capability) => capability === LINEAR_LIGHT_COMPOSITING_CAPABILITY
+          )
+        ).toHaveLength(ready ? 1 : 0);
+      }
+      expect(MCP_SURFACE.capabilityIdentifiers).toContain(
+        LINEAR_LIGHT_COMPOSITING_CAPABILITY
+      );
+    }
+  );
 
   it("governs the version-2 artifact content policy independently of headless", () => {
     expect(ARTIFACT_DELIVERY.version).toBe(2);

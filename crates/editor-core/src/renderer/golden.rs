@@ -29,11 +29,12 @@ use uuid::Uuid;
 const POINTER_VERSION: u32 = 1;
 const MANIFEST_VERSION: u32 = 1;
 const FIXTURE_ID: &str = "flat-scene-av-v1";
-const FIXTURE_REVISION: u32 = 3;
+const FIXTURE_REVISION: u32 = 4;
 const PERFORMANCE_SCHEMA_VERSION: u32 = 3;
-const MIGRATION_FIXTURE_REVISION: u32 = 2;
-const MIGRATION_PERFORMANCE_SCHEMA_VERSION: u32 = 2;
-const STAGE_DEFINITION_VERSION: u32 = 1;
+const MIGRATION_FIXTURE_REVISION: u32 = 3;
+const MIGRATION_PERFORMANCE_SCHEMA_VERSION: u32 = 3;
+const STAGE_DEFINITION_VERSION: u32 = 2;
+const MIGRATION_STAGE_DEFINITION_VERSION: u32 = 1;
 const WARMUP_SAMPLES: u32 = 1;
 const MEASURED_SAMPLES: u32 = 3;
 const MEMORY_SAMPLE_INTERVAL: Duration = Duration::from_millis(5);
@@ -48,6 +49,7 @@ const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod grids;
 mod inherited_timing;
+mod linear;
 mod raster_caching;
 mod repeaters;
 mod rich_text;
@@ -196,40 +198,6 @@ where
     D: Deserializer<'de>,
 {
     Option::<String>::deserialize(deserializer)
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyPerformanceBaseline {
-    schema_version: u32,
-    fixture_id: String,
-    fixture_revision: u32,
-    git_revision: serde_json::Value,
-    os: String,
-    architecture: String,
-    ffmpeg_version: String,
-    ffprobe_version: String,
-    font_sha256: String,
-    units: BaselineUnits,
-    warmup_samples: u32,
-    measured_samples: u32,
-    memory_scope: String,
-    timing_aggregation: String,
-    memory_aggregation: String,
-    timings_ms: LegacyPhaseTimings,
-    peak_resident_working_set_bytes: u64,
-    comparison_policy: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LegacyPhaseTimings {
-    scene_evaluation: f64,
-    filter_graph_construction: f64,
-    frame_rendering: f64,
-    audiovisual_range_rendering: f64,
-    export_rendering: f64,
-    total: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -679,6 +647,8 @@ fn benchmark_intent(
     let evaluated = evaluate_project(project, WIDTH, HEIGHT, FPS)?;
     let scene_evaluation = evaluation_started.elapsed();
 
+    // Stage definition 2: directly observe the full source/resource preparation,
+    // linear scene materialization and stream generation plus graph construction.
     let filter_started = Instant::now();
     let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, project_root)?;
     let built = renderer.prepare_render(&evaluated, media, project_root, intent)?;
@@ -708,6 +678,8 @@ fn benchmark_intent(
         .remove(&encoded_output)
         .map_err(|error| CoreError::io("remove encoded benchmark output", error))?;
 
+    // These non-additive probes observe final prepared-input decode and opaque
+    // backend routing, not isolated CPU source decode or linear composition.
     let decoding = if let Some(mut command) =
         build_decode_benchmark_command(&renderer.ffmpeg_path, &built.plan)
     {
@@ -755,7 +727,12 @@ fn benchmark_intent(
         work: StageWork {
             decoded_inputs: built.plan.media_inputs.len() as u64,
             rasterized_layers: 0,
-            composited_layers: evaluated.scene.visual_layers.len() as u64,
+            composited_layers: built
+                .plan
+                .media_inputs
+                .iter()
+                .filter(|input| input.media_type != MediaType::Audio)
+                .count() as u64,
             encoded_video_streams: 1,
             encoded_audio_streams,
         },
@@ -1411,72 +1388,49 @@ fn validate_current_performance_bytes(bytes: &[u8]) -> Result<(), String> {
 }
 
 fn validate_legacy_performance_bytes(bytes: &[u8]) -> Result<(), String> {
-    let baseline: LegacyPerformanceBaseline = serde_json::from_slice(bytes)
+    let baseline: PerformanceBaseline = serde_json::from_slice(bytes)
         .map_err(|_| "golden migration performance report is malformed")?;
     validate_legacy_performance_baseline(&baseline)
 }
 
-fn validate_legacy_performance_baseline(
-    baseline: &LegacyPerformanceBaseline,
-) -> Result<(), String> {
-    let valid_git_revision = baseline.git_revision.is_null()
-        || baseline
-            .git_revision
-            .as_str()
-            .is_some_and(|revision| !revision.trim().is_empty());
-    if baseline.schema_version != MIGRATION_PERFORMANCE_SCHEMA_VERSION
-        || baseline.fixture_id != FIXTURE_ID
-        || baseline.fixture_revision != MIGRATION_FIXTURE_REVISION
-        || !valid_git_revision
-        || baseline.os.trim().is_empty()
-        || baseline.architecture.trim().is_empty()
-        || baseline.ffmpeg_version.trim().is_empty()
-        || baseline.ffprobe_version.trim().is_empty()
-        || baseline.units.timing != "milliseconds"
-        || baseline.units.memory != "bytes"
-        || baseline.warmup_samples != WARMUP_SAMPLES
-        || baseline.measured_samples != MEASURED_SAMPLES
-        || baseline.memory_scope != "process_tree"
-        || baseline.timing_aggregation != "median"
-        || baseline.memory_aggregation != "maximum"
-        || baseline.comparison_policy != "report_only_compare_matching_environment_identity"
-    {
-        return Err("golden migration performance report is incomplete or unsupported".into());
-    }
-    validate_hash(&baseline.font_sha256)?;
-    let timings = &baseline.timings_ms;
-    let values = [
-        timings.scene_evaluation,
-        timings.filter_graph_construction,
-        timings.frame_rendering,
-        timings.audiovisual_range_rendering,
-        timings.export_rendering,
-        timings.total,
-    ];
-    if values
-        .iter()
-        .any(|value| !value.is_finite() || *value < 0.0)
-    {
-        return Err("golden migration timings are non-finite or negative".into());
-    }
-    Ok(())
+fn validate_legacy_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), String> {
+    validate_performance_baseline_for_definition(
+        baseline,
+        MIGRATION_PERFORMANCE_SCHEMA_VERSION,
+        MIGRATION_FIXTURE_REVISION,
+        MIGRATION_STAGE_DEFINITION_VERSION,
+    )
 }
 
 fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), String> {
+    validate_performance_baseline_for_definition(
+        baseline,
+        PERFORMANCE_SCHEMA_VERSION,
+        FIXTURE_REVISION,
+        STAGE_DEFINITION_VERSION,
+    )
+}
+
+fn validate_performance_baseline_for_definition(
+    baseline: &PerformanceBaseline,
+    schema_version: u32,
+    fixture_revision: u32,
+    stage_definition_version: u32,
+) -> Result<(), String> {
     let valid_git_revision = baseline
         .git_revision
         .as_ref()
         .is_none_or(|revision| !revision.trim().is_empty());
-    if baseline.schema_version != PERFORMANCE_SCHEMA_VERSION
+    if baseline.schema_version != schema_version
         || baseline.fixture_id != FIXTURE_ID
-        || baseline.fixture_revision != FIXTURE_REVISION
+        || baseline.fixture_revision != fixture_revision
         || !valid_git_revision
         || baseline.warmup_samples != WARMUP_SAMPLES
         || baseline.measured_samples != MEASURED_SAMPLES
         || baseline.memory_scope != "process_tree"
         || baseline.timing_aggregation != "median"
         || baseline.memory_aggregation != "maximum"
-        || baseline.stage_definition_version != STAGE_DEFINITION_VERSION
+        || baseline.stage_definition_version != stage_definition_version
         || !baseline.non_additive_stage_timings
         || baseline.os.trim().is_empty()
         || baseline.architecture.trim().is_empty()
@@ -1494,7 +1448,7 @@ fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), S
         if !intents.insert(observation.intent.as_str()) {
             return Err("performance baseline contains a duplicate intent".into());
         }
-        let expected_work = expected_stage_work(&observation.intent)?;
+        let expected_work = expected_stage_work(&observation.intent, stage_definition_version)?;
         let timings = &observation.timings_ms;
         let values = [
             timings.scene_evaluation,
@@ -1524,16 +1478,21 @@ fn validate_performance_baseline(baseline: &PerformanceBaseline) -> Result<(), S
     Ok(())
 }
 
-fn expected_stage_work(intent: &str) -> Result<StageWork, String> {
+fn expected_stage_work(intent: &str, stage_definition_version: u32) -> Result<StageWork, String> {
     let encoded_audio_streams = match intent {
         "framePreview" => 0,
         "audiovisualRangePreview" | "finalExport" => 1,
         _ => return Err("performance baseline contains an unknown intent".into()),
     };
+    let (decoded_inputs, composited_layers) = match stage_definition_version {
+        STAGE_DEFINITION_VERSION => (2, 1),
+        MIGRATION_STAGE_DEFINITION_VERSION => (1, 2),
+        _ => return Err("performance baseline contains an unknown stage definition".into()),
+    };
     Ok(StageWork {
-        decoded_inputs: 1,
+        decoded_inputs,
         rasterized_layers: 0,
-        composited_layers: 2,
+        composited_layers,
         encoded_video_streams: 1,
         encoded_audio_streams,
     })
@@ -2614,7 +2573,7 @@ fn manifest_rejects_invalid_metadata_before_rendering() {
 }
 
 #[test]
-fn fixture_update_accepts_a_complete_schema_two_migration_source() {
+fn fixture_update_accepts_a_complete_schema_three_stage_one_migration_source() {
     let root = tempdir().unwrap();
     let container = root.path().join("golden");
     let source = container.join("source");
@@ -2669,8 +2628,8 @@ fn legacy_performance_validation_is_strict_and_complete() {
     assert!(validate_legacy_performance_bytes(&serde_json::to_vec(&unknown).unwrap()).is_err());
 
     for (field, value) in [
-        ("schemaVersion", serde_json::Value::from(3)),
-        ("fixtureRevision", serde_json::Value::from(3)),
+        ("schemaVersion", serde_json::Value::from(2)),
+        ("fixtureRevision", serde_json::Value::from(2)),
         ("fixtureId", serde_json::Value::from("other")),
         ("warmupSamples", serde_json::Value::from(2)),
         ("measuredSamples", serde_json::Value::from(2)),
@@ -2690,11 +2649,151 @@ fn legacy_performance_validation_is_strict_and_complete() {
     invalid_units.units.timing = "seconds".into();
     assert!(validate_legacy_performance_baseline(&invalid_units).is_err());
     let mut negative = legacy.clone();
-    negative.timings_ms.total = -1.0;
+    negative.intent_observations[0].timings_ms.end_to_end = -1.0;
     assert!(validate_legacy_performance_baseline(&negative).is_err());
     let mut non_finite = legacy;
-    non_finite.timings_ms.frame_rendering = f64::INFINITY;
+    non_finite.intent_observations[0].timings_ms.encoding = f64::INFINITY;
     assert!(validate_legacy_performance_baseline(&non_finite).is_err());
+}
+
+#[test]
+fn benchmark_stage_versions_and_work_counts_are_exact_and_incompatible() {
+    let current = test_performance();
+    let legacy = test_legacy_performance();
+    assert_eq!(
+        (
+            current.fixture_revision,
+            current.schema_version,
+            current.stage_definition_version
+        ),
+        (4, 3, 2)
+    );
+    assert_eq!(
+        (
+            legacy.fixture_revision,
+            legacy.schema_version,
+            legacy.stage_definition_version
+        ),
+        (3, 3, 1)
+    );
+    for (baseline, decoded, composited, validator) in [
+        (
+            &current,
+            2,
+            1,
+            validate_current_performance_bytes as fn(&[u8]) -> Result<(), String>,
+        ),
+        (
+            &legacy,
+            1,
+            2,
+            validate_legacy_performance_bytes as fn(&[u8]) -> Result<(), String>,
+        ),
+    ] {
+        let json = serde_json::to_value(baseline).unwrap();
+        assert!(validator(&serde_json::to_vec(&json).unwrap()).is_ok());
+        for (intent_index, audio) in [0, 1, 1].into_iter().enumerate() {
+            let expected = [decoded, 0, composited, 1, audio];
+            for (field, expected) in [
+                "decodedInputs",
+                "rasterizedLayers",
+                "compositedLayers",
+                "encodedVideoStreams",
+                "encodedAudioStreams",
+            ]
+            .into_iter()
+            .zip(expected)
+            {
+                assert_eq!(
+                    json["intentObservations"][intent_index]["work"][field],
+                    expected
+                );
+                for wrong in if expected == 0 {
+                    vec![1, 2]
+                } else {
+                    vec![0, expected + 1]
+                } {
+                    let mut invalid = json.clone();
+                    invalid["intentObservations"][intent_index]["work"][field] = wrong.into();
+                    assert!(
+                        validator(&serde_json::to_vec(&invalid).unwrap()).is_err(),
+                        "accepted {field}={wrong} for intent {intent_index}"
+                    );
+                }
+            }
+        }
+        // Every top-level and nested schema-3 field must be present in either version.
+        for field in json.as_object().unwrap().keys() {
+            let mut missing = json.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(
+                validator(&serde_json::to_vec(&missing).unwrap()).is_err(),
+                "accepted missing {field}"
+            );
+        }
+        for intent_index in 0..3 {
+            for field in [
+                "sceneEvaluation",
+                "rasterization",
+                "filterGraphConstruction",
+                "decoding",
+                "compositing",
+                "encoding",
+                "endToEnd",
+            ] {
+                let mut invalid = json.clone();
+                invalid["intentObservations"][intent_index]["timingsMs"][field] = (-1).into();
+                assert!(validator(&serde_json::to_vec(&invalid).unwrap()).is_err());
+                invalid["intentObservations"][intent_index]["timingsMs"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove(field);
+                assert!(validator(&serde_json::to_vec(&invalid).unwrap()).is_err());
+            }
+        }
+        for (field, values) in [
+            ("schemaVersion", vec![1, 2, 4]),
+            ("fixtureRevision", vec![1, 2, 5]),
+            ("stageDefinitionVersion", vec![0, 3]),
+        ] {
+            for wrong in values {
+                let mut invalid = json.clone();
+                invalid[field] = wrong.into();
+                assert!(validator(&serde_json::to_vec(&invalid).unwrap()).is_err());
+            }
+        }
+    }
+    assert!(validate_performance_baseline(&legacy).is_err());
+    assert!(validate_legacy_performance_baseline(&current).is_err());
+    let mut mismatched = current.clone();
+    mismatched.stage_definition_version = 1;
+    assert!(validate_performance_baseline(&mismatched).is_err());
+    mismatched = legacy.clone();
+    mismatched.stage_definition_version = 2;
+    assert!(validate_legacy_performance_baseline(&mismatched).is_err());
+}
+
+#[test]
+fn cleanup_recognizes_only_complete_immediately_previous_stage_one_evidence() {
+    let root = tempdir().unwrap();
+    let mut manifest = write_capture_set(
+        root.path(),
+        &test_tools(),
+        &test_capture(),
+        &test_performance(),
+    );
+    manifest.fixture_revision = MIGRATION_FIXTURE_REVISION;
+    replace_performance_reference(root.path(), &mut manifest, &test_legacy_performance());
+    assert!(validate_recognized_generation(root.path(), &manifest).is_ok());
+    for unsupported_revision in [1, 2, 5] {
+        let mut invalid = manifest.clone();
+        invalid.fixture_revision = unsupported_revision;
+        assert!(validate_recognized_generation(root.path(), &invalid).is_err());
+    }
+    let mut malformed = test_legacy_performance();
+    malformed.intent_observations[0].work.decoded_inputs = 2;
+    replace_performance_reference(root.path(), &mut manifest, &malformed);
+    assert!(validate_recognized_generation(root.path(), &manifest).is_err());
 }
 
 #[test]
@@ -2972,9 +3071,9 @@ fn test_intent_observations(value: f64) -> Vec<IntentObservation> {
             end_to_end: value,
         },
         work: StageWork {
-            decoded_inputs: 1,
+            decoded_inputs: 2,
             rasterized_layers: 0,
-            composited_layers: 2,
+            composited_layers: 1,
             encoded_video_streams: 1,
             encoded_audio_streams,
         },
@@ -3010,43 +3109,22 @@ fn test_performance() -> PerformanceBaseline {
     }
 }
 
-fn test_legacy_performance() -> LegacyPerformanceBaseline {
-    LegacyPerformanceBaseline {
-        schema_version: MIGRATION_PERFORMANCE_SCHEMA_VERSION,
-        fixture_id: FIXTURE_ID.into(),
-        fixture_revision: MIGRATION_FIXTURE_REVISION,
-        git_revision: serde_json::Value::Null,
-        os: "test".into(),
-        architecture: "test".into(),
-        ffmpeg_version: "test".into(),
-        ffprobe_version: "test".into(),
-        font_sha256: "a".repeat(64),
-        units: BaselineUnits {
-            timing: "milliseconds".into(),
-            memory: "bytes".into(),
-        },
-        warmup_samples: WARMUP_SAMPLES,
-        measured_samples: MEASURED_SAMPLES,
-        memory_scope: "process_tree".into(),
-        timing_aggregation: "median".into(),
-        memory_aggregation: "maximum".into(),
-        timings_ms: LegacyPhaseTimings {
-            scene_evaluation: 1.0,
-            filter_graph_construction: 2.0,
-            frame_rendering: 3.0,
-            audiovisual_range_rendering: 4.0,
-            export_rendering: 5.0,
-            total: 6.0,
-        },
-        peak_resident_working_set_bytes: 1,
-        comparison_policy: "report_only_compare_matching_environment_identity".into(),
+fn test_legacy_performance() -> PerformanceBaseline {
+    let mut baseline = test_performance();
+    baseline.schema_version = MIGRATION_PERFORMANCE_SCHEMA_VERSION;
+    baseline.fixture_revision = MIGRATION_FIXTURE_REVISION;
+    baseline.stage_definition_version = MIGRATION_STAGE_DEFINITION_VERSION;
+    for observation in &mut baseline.intent_observations {
+        observation.work.decoded_inputs = 1;
+        observation.work.composited_layers = 2;
     }
+    baseline
 }
 
 fn replace_performance_reference(
     root: &Path,
     manifest: &mut GoldenManifest,
-    baseline: &LegacyPerformanceBaseline,
+    baseline: &PerformanceBaseline,
 ) {
     let reference = manifest
         .references
@@ -3652,10 +3730,10 @@ fn failed_startup_cleanup_is_non_fatal_and_keeps_selected_generation() {
 }
 
 #[test]
-fn checked_in_stage_observability_generation_digest_is_unchanged() {
+fn checked_in_linear_light_generation_digest_is_reviewed() {
     assert_eq!(
         load_pointer(&fixture_container_root()).unwrap().generation,
-        "259e3521eddf4d1ed46113dee7d9e0c5bd0ed218948755b2d43c9c6eaaa4c708"
+        "715fbd6bd4c0ed8aa2b07b7e9fbe790c68ef079b658360b383fec40fcc4e1489"
     );
 }
 
@@ -4067,6 +4145,37 @@ struct RecordingBenchmarkProcess {
 }
 
 impl ProcessExecutor for RecordingBenchmarkProcess {
+    fn raster_source(&self, _: &Path, _: &str, size: (u32, u32)) -> Result<Vec<u8>, CoreError> {
+        crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+        Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+    }
+    fn decode_visual_frame(
+        &self,
+        _: &Path,
+        _: &Path,
+        _: u64,
+        size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+        Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+    }
+    fn prepare_visual_stream(
+        &self,
+        _: &Path,
+        output: &Path,
+        _: u32,
+        count: u64,
+        produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+    ) -> Result<(), CoreError> {
+        // Bounded adapter double records first/last content; native tests verify the real complete encoder.
+        let bytes = produce(0)?;
+        std::fs::write(output, bytes).unwrap();
+        if count > 1 {
+            let _ = produce(count - 1)?;
+        }
+        Ok(())
+    }
+
     fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
         Ok(())
     }
@@ -4176,6 +4285,19 @@ fn benchmark_mode_collects_every_intent_and_probe_in_order() {
             .collect::<Vec<_>>(),
         vec!["framePreview", "audiovisualRangePreview", "finalExport"]
     );
+    for (observation, audio) in observations.iter().zip([0, 1, 1]) {
+        assert_eq!(
+            observation.work,
+            StageWork {
+                decoded_inputs: 2,
+                rasterized_layers: 0,
+                composited_layers: 1,
+                encoded_video_streams: 1,
+                encoded_audio_streams: audio
+            }
+        );
+        assert_eq!(observation.timings_ms.rasterization, 0.0);
+    }
     assert_eq!(
         *calls.lock().unwrap(),
         vec![

@@ -368,19 +368,32 @@ fn inspect_geometry(
             let row = i / 64;
             if (y - 3..y + 8).contains(&row) {
                 // Isolate the authored color, removing neighboring color/chroma bleed.
-                let on = (0..3).filter(|k| color[*k]).map(|k| p[k]).min().unwrap();
+                // Observe authored hue in physical linear intensity. Applying
+                // the output transfer first would overweigh dim chroma bleed.
+                let intensity = p.map(|byte| {
+                    let v = f64::from(byte) / 255.0;
+                    255.0
+                        * if v <= 0.04045 {
+                            v / 12.92
+                        } else {
+                            ((v + 0.055) / 1.055).powf(2.4)
+                        }
+                });
+                let on = (0..3)
+                    .filter(|k| color[*k])
+                    .map(|k| intensity[k])
+                    .fold(f64::INFINITY, f64::min);
                 let off = (0..3)
                     .filter(|k| !color[*k])
-                    .map(|k| p[k])
-                    .max()
-                    .unwrap_or(0);
-                let weight = f64::from(on.saturating_sub(off));
+                    .map(|k| intensity[k])
+                    .fold(0.0, f64::max);
+                let weight = (on - off).max(0.0);
                 w += weight;
                 x += (i % 64) as f64 * weight;
                 yy += row as f64 * weight;
                 for k in 0..3 {
                     if weight > 0.0 {
-                        mass[k] += f64::from(p[k]);
+                        mass[k] += intensity[k];
                     }
                     squared += f64::from(p[k]).powi(2);
                 }

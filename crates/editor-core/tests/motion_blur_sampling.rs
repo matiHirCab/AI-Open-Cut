@@ -399,7 +399,16 @@ fn native_five_midpoint_held_parent_matches_independent_frame_range_draft_export
             } else {
                 0
             };
-            pam.extend_from_slice(&[255, 255, 255, alpha]);
+            // White premultiplied linear coverage, averaged 3/5 or2/5,
+            // composed over opaque black before the sole sRGB encoding.
+            let gain = f64::from(alpha) / 255.0;
+            let encoded = if gain <= 0.0031308 {
+                12.92 * gain
+            } else {
+                1.055 * gain.powf(1.0 / 2.4) - 0.055
+            };
+            let byte = (encoded * 255.0).round() as u8;
+            pam.extend_from_slice(&[byte, byte, byte, 255]);
         }
     }
     let oracle = root.path().join("oracle.pam");
@@ -965,12 +974,14 @@ fn native_inherited_shutter_matches_independent_pixels_and_range_export() {
                 })
                 .sum::<f64>()
                 / 4.0;
-            pam.extend_from_slice(&[
-                if alpha == 0.0 { 0 } else { 255 },
-                0,
-                0,
-                (alpha * 255.0).round() as u8,
-            ]);
+            // Encode the independently averaged linear red coverage only
+            // after source-over onto opaque black; no8bit alpha roundtrip.
+            let encoded = if alpha <= 0.0031308 {
+                12.92 * alpha
+            } else {
+                1.055 * alpha.powf(1.0 / 2.4) - 0.055
+            };
+            pam.extend_from_slice(&[(encoded * 255.0).round() as u8, 0, 0, 255]);
         }
     }
     let oracle = root.path().join("oracle.pam");

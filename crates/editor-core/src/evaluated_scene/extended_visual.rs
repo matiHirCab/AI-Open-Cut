@@ -243,21 +243,8 @@ pub(crate) fn required(layer: &EvaluatedVisualLayer) -> bool {
 }
 
 /// Keep codec/fidelity eligibility separate from requested-origin sampling.
-pub(crate) fn sampling_required(layer: &EvaluatedVisualLayer, start: u64, fps: u32) -> bool {
-    if required(layer) {
-        return true;
-    }
-    if (u128::from(start) * u128::from(fps)).is_multiple_of(1000) {
-        return false;
-    }
-    match &layer.source {
-        EvaluatedVisualSource::Rectangle { .. }
-        | EvaluatedVisualSource::SolidColor { .. }
-        | EvaluatedVisualSource::Shape(_)
-        | EvaluatedVisualSource::Media { .. }
-        | EvaluatedVisualSource::Caption(_) => true,
-        EvaluatedVisualSource::Text(text) => text.shaped.is_some(),
-    }
+pub(crate) fn sampling_required(_layer: &EvaluatedVisualLayer, _start: u64, _fps: u32) -> bool {
+    true // All visual sources share the normative linear composition pipeline.
 }
 
 /// Validate requested samples and cumulative scene work before output inspection
@@ -299,22 +286,13 @@ pub(crate) fn preflight_samples(
     end: u64,
     frame: bool,
 ) -> Result<(), CoreError> {
-    if !scene
-        .visual_layers
-        .iter()
-        .any(|layer| sampling_required(layer, start, scene.canvas.fps))
-    {
-        return Ok(());
-    }
-    let has_blur = scene.visual_layers.iter().any(|l| {
-        l.extended
-            .as_ref()
-            .and_then(|v| v.motion_blur)
-            .is_some_and(crate::MotionBlur::enabled)
-    });
     let canvas = (scene.canvas.width, scene.canvas.height);
     if u64::from(canvas.0) * u64::from(canvas.1) > 16_777_216 {
         return Err(invalid("sampled output surface exceeds limits"));
+    }
+    certify_composition_memory(canvas, (1, 1), &[], 1.0)?;
+    if scene.visual_layers.len() > 4096 {
+        return Err(invalid("composition visual occurrence limit exceeded"));
     }
     for layer in scene
         .visual_layers
@@ -369,7 +347,7 @@ pub(crate) fn preflight_samples(
                         )
                     },
                 )?;
-            if has_blur {
+            {
                 pixel_work = pixel_work
                     .checked_add(
                         u64::from(canvas.0)
@@ -377,12 +355,25 @@ pub(crate) fn preflight_samples(
                             .and_then(|v| v.checked_mul(times.len() as u64))
                             .ok_or_else(|| invalid("motion blur pixel work overflow"))?,
                     )
-                    .filter(|v| *v <= crate::MotionBlur::MAX_PIXEL_WORK)
-                    .ok_or_else(|| invalid("motion blur scene pixel work exceeds limits"))?;
+                    .filter(|v| *v <= 268_435_456)
+                    .ok_or_else(|| {
+                        invalid("linear composition output-frame pixel work exceeds limits")
+                    })?;
             }
             for time in times {
                 if !layer.visible_at(time) {
                     continue;
+                }
+                if let EvaluatedVisualSource::Media {
+                    asset_id,
+                    source_in_ms,
+                } = &layer.source
+                    && !scene
+                        .resources
+                        .iter()
+                        .any(|r| r.asset_id == *asset_id && r.kind == EvaluatedMediaKind::Image)
+                {
+                    certified_media_source_time(layer, time, *source_in_ms)?;
                 }
                 let (mut sampled, _, effects) = sample(layer, time)?;
                 let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
@@ -400,11 +391,116 @@ pub(crate) fn preflight_samples(
                     )
                 };
                 super::extended_certification::effect_budget(size, &effects, density, &mut work)?;
+                certify_composition_memory(canvas, size, &effects, density)?;
                 sample_transform(&mut sampled, time, size, canvas)?;
             }
         }
     }
     Ok(())
+}
+
+// Preserve authored validity while certifying the floating native timestamp
+// boundary. TwoSum measures loss, including partial quantization of a fraction.
+pub(crate) fn certified_media_source_time(
+    layer: &EvaluatedVisualLayer,
+    at: u64,
+    source_in: u64,
+) -> Result<f64, CoreError> {
+    let local = layer
+        .instance
+        .map_or(at.saturating_sub(layer.span.start_ms) as f64, |i| {
+            let relative = (i128::from(at) - i128::from(layer.span.start_ms)) as f64;
+            i.rate.mul_add(
+                relative,
+                i.rate.mul_add(
+                    layer.span.start_ms as f64,
+                    i.offset - layer.span.start_ms as f64,
+                ),
+            )
+        });
+    if !local.is_finite() {
+        return Err(invalid("invalid native media source clock"));
+    }
+    let local = local.max(0.0);
+    let whole = source_in as f64;
+    let sum = whole + local;
+    if !sum.is_finite() {
+        return Err(invalid("invalid native media source clock"));
+    }
+    if local.fract() != 0.0 {
+        let virtual_local = sum - whole;
+        let residual = (whole - (sum - virtual_local)) + (local - virtual_local);
+        let seconds = sum / 1000.0;
+        let recovered = seconds * 1000.0;
+        let conversion = (recovered - sum) + seconds.mul_add(1000.0, -recovered);
+        // Original PTS*TB comparison and native seconds use binary64. Bound
+        // their rounding precision even when a seconds roundtrip is exact.
+        let comparison = (seconds.next_up() - seconds) * 1000.0;
+        if residual.abs() + conversion.abs() + comparison > 0.000001 {
+            return Err(invalid(
+                "fractional native media source clock exceeds precision limits",
+            ));
+        }
+    }
+    Ok(sum)
+}
+
+// Conservative peak, including rasterizer scratch, RGBA decode/serialization buffers,
+// three output working rasters (scene, shutter average, layer), and the shared cache.
+const MAX_COMPOSITION_BYTES: u64 = 1_073_741_824;
+const CACHE_RESERVATION_BYTES: u64 = 67_108_864;
+pub(crate) fn certify_composition_memory(
+    canvas: (u32, u32),
+    source: (u32, u32),
+    effects: &[VisualEffect],
+    density: f64,
+) -> Result<u64, CoreError> {
+    let pad = effects
+        .iter()
+        .map(|effect| match effect {
+            VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
+                (3.0 * radius_px * density).ceil()
+            }
+            _ => 0.0,
+        })
+        .sum::<f64>();
+    if !pad.is_finite() || !(0.0..=16384.0).contains(&pad) {
+        return Err(invalid("composition effect support exceeds limits"));
+    }
+    let pad = (pad as u64)
+        .checked_mul(2)
+        .ok_or_else(|| invalid("composition support overflow"))?;
+    let pixels = |size: (u32, u32)| u64::from(size.0).checked_mul(u64::from(size.1));
+    let expanded = u64::from(source.0)
+        .checked_add(pad)
+        .and_then(|w| {
+            u64::from(source.1)
+                .checked_add(pad)
+                .and_then(|h| w.checked_mul(h))
+        })
+        .ok_or_else(|| invalid("composition memory overflow"))?;
+    // Empty effects return the existing raster without allocating padding or
+    // convolution scratch. Reserve one f32 expanded raster in that case; active
+    // effects reserve three f32 rasters plus serialization/coverage scratch.
+    // 48/source pixel separately bounds source/crop rasters, decoder buffers
+    // and SVG rasterization, including their simultaneous allocation phases.
+    let expanded_bytes_per_pixel = if effects.is_empty() { 16 } else { 64 };
+    let bytes = pixels(canvas)
+        .and_then(|p| p.checked_mul(3 * 16 + 2 * 4))
+        .and_then(|b| {
+            expanded
+                .checked_mul(expanded_bytes_per_pixel)
+                .and_then(|v| b.checked_add(v))
+        })
+        .and_then(|b| {
+            pixels(source)
+                .and_then(|p| p.checked_mul(48))
+                .and_then(|v| b.checked_add(v))
+        })
+        .and_then(|b| b.checked_add(CACHE_RESERVATION_BYTES + 1_048_576))
+        .filter(|b| *b <= MAX_COMPOSITION_BYTES)
+        .ok_or_else(|| invalid("linear composition live memory exceeds limits"))?;
+    Ok(bytes)
 }
 
 pub(crate) fn sample_transform(

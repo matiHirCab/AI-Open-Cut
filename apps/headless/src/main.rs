@@ -787,6 +787,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "preview_review_presets_v1",
         "mp4_export",
         "evaluated_scene_rendering",
+        "linear_light_compositing_v1",
         "shape_rendering",
         "svg_rendering",
         "grid_rendering",

@@ -181,7 +181,7 @@ pub(super) fn conformance(tools: &NativeTools) {
             assert!(frame_rgb[(20 * 240 + 20) * 3] > 70);
             for channel in &frame_rgb[(75 * 240 + 190) * 3..(75 * 240 + 190) * 3 + 3] {
                 assert!(
-                    channel.abs_diff(128) <= 1,
+                    channel.abs_diff(188) <= 1,
                     "fractional grid edge: {channel}"
                 );
             }

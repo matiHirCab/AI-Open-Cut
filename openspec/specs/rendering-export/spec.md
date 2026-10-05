@@ -132,7 +132,7 @@ Frame preview, audiovisual range preview, materialized draft preview, and final 
 - **THEN** editor-core returns the existing typed validation failure before graphics preparation, filesystem path resolution, backend execution, or artifact publication
 
 ### Requirement: Shared complete Transform2D rendering
-Frame preview, audiovisual range preview, materialized draft preview, and final export MUST consume the same evaluated affine facts for every supported visual source. The adapter MUST preserve transformed source offsets and transparency, interpolate premultiplied alpha, clip to the composition, and apply Transform2D opacity once. It MUST preserve existing audio semantics and legacy rendering when transform2d is absent. No backend SHALL approximate or omit unsupported transform components.
+Frame preview, audiovisual range preview, materialized draft preview, and final export MUST consume the same evaluated affine facts for every supported visual source. The adapter MUST preserve transformed source offsets and transparency, interpolate premultiplied alpha, clip to the composition, and apply Transform2D opacity once. It MUST preserve existing audio, geometry and timing semantics when transform2d is absent; all current visuals MUST use linear premultiplied scene composition, intentionally correcting encoded-space translucent blending. No backend SHALL approximate or omit unsupported transform components.
 
 #### Scenario: Render all transformed visual kinds
 - **WHEN** asymmetric media, text, solid, rectangle, and caption fixtures use anchor, both scales, both skews, rotation, units, and opacity
@@ -144,7 +144,7 @@ Frame preview, audiovisual range preview, materialized draft preview, and final 
 
 #### Scenario: Preserve old rendered fixtures
 - **WHEN** migrated legacy fixtures with non-default transform, animation, captions, and transitions render without Transform2D
-- **THEN** their prior output and existing tolerance guarantees remain unchanged
+- **THEN** their geometry, clocks, Caption placement, transition activity and audio remain equivalent; unaffected opaque identity pixels remain equivalent and translucent colors/resampled edges match independent linear premultiplied expectations within existing output tolerance
 
 ### Requirement: Fail closed before affine rendering
 If no configured local backend can execute the complete affine scene, rendering MUST fail with DEPENDENCY_UNAVAILABLE before rasterization, process execution, or artifact publication. Resource paths MUST retain existing managed/path-safe preparation and no raw expressions, executable SVG, or network resources SHALL be accepted as Transform2D input.
@@ -618,3 +618,33 @@ Accepted image Media with the reviewed off-grid interval[713,799) MUST preserve 
 #### Scenario: Preserve video mapping and unsupported transition errors
 - **WHEN** video, missing resource/input, unaffected aligned static image, or an attempted Shape/SVG/Grid transition endpoint reaches existing owning behavior
 - **THEN** video/source-clock/audio and static graph identity remain unchanged, established errors/order are retained, unsupported endpoints retain INVALID_ARGUMENT without project/history changes, and no new public acceptance or resource fallback occurs
+
+### Requirement: Shared complete linear scene rendering
+Frame preview, audiovisual range preview, materialized draft preview and final export MUST consume identical evaluated sample clocks, paint order and the full linear premultiplied stage semantics for every existing visual source. Equivalent decoded output MUST satisfy visual SSIM at least 0.99, float-PCM RMS error at most 0.0001 and timing alignment within one output frame. Render-intent routing MUST NOT choose encoded-space blending for ordinary or opaque sources. Existing public operations, authored request/project/error declarations and schema version MUST remain unchanged; only an additive readiness-gated capability MUST distinguish support. Render preparation MUST remain read-only over the immutable project revision; valid standalone/batch edits, alias resolution, stale revision errors, rollback, undo/redo and reopen MUST preserve their existing core semantics.
+
+#### Scenario: Compare all production intents
+- **WHEN** a mixed-source translucent scene is rendered at matched sample times through frame, range, draft and export paths
+- **THEN** the same independently verified linear overlap colors and scene ordering are observed within documented visual/audio/timing tolerance
+
+#### Scenario: Preserve editing and persistence behavior
+- **WHEN** an existing project receives valid standalone or batch edits, failed missing-reference or stale-revision edits, undo/redo and reopen before repeated rendering
+- **THEN** accepted states render deterministically, failed edits preserve state/history/revision and no new authored fields, migration or operation are required
+
+### Requirement: Readiness-gated linear composition capability
+Protocol-version-1 capability reporting MUST add the unique `linear_light_compositing_v1` capability only when the configured local renderer can execute the complete currently supported scene with the normative linear premultiplied pipeline. An absent or unusable renderer MUST omit that capability while preserving existing readiness errors. Canonical headless/MCP capability catalogs and every governed Rust/TypeScript consumer and parity test MUST agree; existing simple clients MUST remain valid and no authored or persisted contract shape MUST change. Ordinary hermetic protocol conformance MUST validate both returned readiness outcomes without assuming media dependencies are installed; explicitly required native conformance using OPENCUT_GOLDEN_REQUIRED=1 MUST additionally require rendering readiness true and MUST NOT skip unavailable dependencies.
+
+#### Scenario: Detect ready corrected rendering
+- **WHEN** a client queries protocol-v1 information with a conforming ready renderer
+- **THEN** the capability list contains `linear_light_compositing_v1` and the canonical catalogs/consumer parity agree
+
+#### Scenario: Omit unsupported capability
+- **WHEN** the renderer executable, required local dependency or complete pipeline is unavailable
+- **THEN** protocol information omits `linear_light_compositing_v1` and render requests retain their stable `DEPENDENCY_UNAVAILABLE` behavior without degraded fallback
+
+#### Scenario: Verify unavailable dependencies in hermetic conformance
+- **WHEN** protocol-v1 conformance runs with unavailable media executables without explicitly required native mode
+- **THEN** it executes exact editor-only top-level capability checks, empty rendering capabilities, boolean readiness false and nonretryable DEPENDENCY_UNAVAILABLE, with no linear capability in editor or rendering lists
+
+#### Scenario: Require configured native readiness evidence
+- **WHEN** the same protocol-v1 conformance runs with OPENCUT_GOLDEN_REQUIRED=1
+- **THEN** readiness must be true, rendering capabilities equal the complete canonical list, the rendering error is null and the unique linear capability appears exactly once at top-level and rendering scope and never in editor scope

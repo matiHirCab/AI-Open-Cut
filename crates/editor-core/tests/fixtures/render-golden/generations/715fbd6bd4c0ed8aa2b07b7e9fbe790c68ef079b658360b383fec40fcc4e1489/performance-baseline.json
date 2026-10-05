@@ -1,12 +1,12 @@
 {
   "schemaVersion": 3,
   "fixtureId": "flat-scene-av-v1",
-  "fixtureRevision": 3,
-  "gitRevision": "7ed09d30ceaf2ad9fcdb9596fa4b4425f4e7cc5a",
+  "fixtureRevision": 4,
+  "gitRevision": "67a35d05acb5df0e0ca8da1ee9b1e93637fd99b1",
   "os": "linux",
   "architecture": "x86_64",
-  "ffmpegVersion": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
-  "ffprobeVersion": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+  "ffmpegVersion": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "ffprobeVersion": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers",
   "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
   "units": {
     "timing": "milliseconds",
@@ -17,24 +17,24 @@
   "memoryScope": "process_tree",
   "timingAggregation": "median",
   "memoryAggregation": "maximum",
-  "stageDefinitionVersion": 1,
+  "stageDefinitionVersion": 2,
   "nonAdditiveStageTimings": true,
   "intentObservations": [
     {
       "intent": "framePreview",
       "timingsMs": {
-        "sceneEvaluation": 0.046198,
+        "sceneEvaluation": 0.229066,
         "rasterization": 0.0,
-        "filterGraphConstruction": 0.947095,
-        "decoding": 48.339636,
-        "compositing": 113.68186,
-        "encoding": 132.036201,
-        "endToEnd": 133.035397
+        "filterGraphConstruction": 90.608493,
+        "decoding": 77.925438,
+        "compositing": 101.974512,
+        "encoding": 113.424447,
+        "endToEnd": 204.278461
       },
       "work": {
-        "decodedInputs": 1,
+        "decodedInputs": 2,
         "rasterizedLayers": 0,
-        "compositedLayers": 2,
+        "compositedLayers": 1,
         "encodedVideoStreams": 1,
         "encodedAudioStreams": 0
       }
@@ -42,18 +42,18 @@
     {
       "intent": "audiovisualRangePreview",
       "timingsMs": {
-        "sceneEvaluation": 0.049458,
+        "sceneEvaluation": 0.20619099999999999,
         "rasterization": 0.0,
-        "filterGraphConstruction": 0.755432,
-        "decoding": 48.595111,
-        "compositing": 126.50777599999999,
-        "encoding": 168.656449,
-        "endToEnd": 169.42173799999998
+        "filterGraphConstruction": 312.700733,
+        "decoding": 92.541624,
+        "compositing": 92.631403,
+        "encoding": 157.91560399999997,
+        "endToEnd": 470.83701
       },
       "work": {
-        "decodedInputs": 1,
+        "decodedInputs": 2,
         "rasterizedLayers": 0,
-        "compositedLayers": 2,
+        "compositedLayers": 1,
         "encodedVideoStreams": 1,
         "encodedAudioStreams": 1
       }
@@ -61,23 +61,23 @@
     {
       "intent": "finalExport",
       "timingsMs": {
-        "sceneEvaluation": 0.044026,
+        "sceneEvaluation": 0.219112,
         "rasterization": 0.0,
-        "filterGraphConstruction": 0.775389,
-        "decoding": 48.505222,
-        "compositing": 128.65664199999998,
-        "encoding": 167.156574,
-        "endToEnd": 167.983002
+        "filterGraphConstruction": 325.636979,
+        "decoding": 72.392019,
+        "compositing": 122.33173,
+        "encoding": 131.607229,
+        "endToEnd": 458.335604
       },
       "work": {
-        "decodedInputs": 1,
+        "decodedInputs": 2,
         "rasterizedLayers": 0,
-        "compositedLayers": 2,
+        "compositedLayers": 1,
         "encodedVideoStreams": 1,
         "encodedAudioStreams": 1
       }
     }
   ],
-  "peakResidentWorkingSetBytes": 86515712,
+  "peakResidentWorkingSetBytes": 83615744,
   "comparisonPolicy": "report_only_compare_matching_environment_identity"
 }

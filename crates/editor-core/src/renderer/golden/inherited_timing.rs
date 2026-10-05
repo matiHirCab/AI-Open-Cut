@@ -1,6 +1,15 @@
 //! Native temporal and inherited-transform evidence shared by every render intent.
 use super::*;
 use serde_json::json;
+// Independent output transfer oracle; never calls compositor production helpers.
+fn encoded_linear_coverage(alpha: f64) -> f64 {
+    255.0
+        * if alpha <= 0.0031308 {
+            12.92 * alpha
+        } else {
+            1.055 * alpha.powf(1.0 / 2.4) - 0.055
+        }
+}
 
 fn fixture() -> Project {
     let mut project = fixture_project();
@@ -136,7 +145,7 @@ fn native_inherited_timing_render_conformance() {
     // Independent matrix/clock oracle at t=500:
     // ordinary parent samples 500ms; copy samples 300ms; blue's branch samples
     // 400ms and 200ms respectively, so its ordinary half-open span has ended.
-    for (x, y, channel, expected) in [(47, 30, 0, 175), (94, 28, 0, 207), (94, 64, 2, 207)] {
+    for (x, y, channel, expected) in [(47, 30, 0, 216), (94, 28, 0, 233), (94, 64, 2, 233)] {
         let rgb = pixel(x, y);
         assert!(
             (i32::from(rgb[channel]) - expected).abs() <= 12,
@@ -257,7 +266,7 @@ fn assert_nested_pixels(rgb: &[u8], t: u64) {
             let expected_alpha = parent_alpha * source_alpha;
             assert!(
                 pixel.iter().all(|value| (i32::from(*value)
-                    - (255.0 * expected_alpha).round() as i32)
+                    - (encoded_linear_coverage(expected_alpha)).round() as i32)
                     .abs()
                     <= 12),
                 "opacity t={t}: {pixel:?}"
@@ -280,7 +289,13 @@ fn assert_nested_pixels(rgb: &[u8], t: u64) {
         let phase = ping_phase(outer);
         let alpha = 0.2 + 0.8 * phase;
         let source = if frame.is_multiple_of(2) { 240.0 } else { 80.0 };
-        let value = (source * alpha).round() as i32;
+        let s: f64 = source / 255.0;
+        let linear = if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        };
+        let value = encoded_linear_coverage(linear * alpha).round() as i32;
         let expected = [value, value, value];
         let x = (expected_parent_x(t) + 14.0) as usize;
         let pixel =
@@ -730,7 +745,9 @@ fn native_inherited_timing_fractional_loop_seams() {
                     );
                     let center = x.floor() as usize + 5;
                     assert!(
-                        (f64::from(rgb[(24 * 200 + center) * 3]) - 255.0 * alpha).abs() <= 12.0,
+                        (f64::from(rgb[(24 * 200 + center) * 3]) - encoded_linear_coverage(alpha))
+                            .abs()
+                            <= 12.0,
                         "independent opacity t={t} signed={signed:?} copy={copy}"
                     );
                 }

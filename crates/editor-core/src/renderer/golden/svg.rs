@@ -52,9 +52,11 @@ fn oracle(moved: bool) -> Vec<u8> {
             }
         }
     }
-    // PAM alpha is rounded once; existing FFmpeg layer opacity then applies once.
-    let alpha = ((1. - (254_f64 / 255.).powi(500)) * 255.).round();
-    let red = (alpha * 0.5).floor() as u8;
+    // Local source alpha is quantized once; item opacity and destination blend
+    // then operate in linear light, independently of the compositor helpers.
+    let alpha = ((1. - (254_f64 / 255.).powi(500)) * 255.).round() / 255.0;
+    let linear = alpha * 0.5;
+    let red = (255.0 * (1.055 * linear.powf(1.0 / 2.4) - 0.055)).round() as u8;
     for y in 70..90 {
         for x in 180..200 {
             rgb[(y * 240 + x) * 3] = red;
