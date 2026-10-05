@@ -21,6 +21,7 @@
     "animation_loops_v1",
     "inherited_animation_timing_v1",
     "extended_visual_animation_v1",
+    "mask_models_v1",
     "motion_blur_sampling_v1",
     "animation_presets_v1",
     "initial_motion_preset_pack_v1",
@@ -2227,7 +2228,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 31,
+            "const": 32,
             "type": "number"
           },
           "protocolVersion": {
@@ -8357,6 +8358,13 @@
             "minLength": 1,
             "type": "string"
           },
+          "masks": {
+            "items": {
+              "$ref": "#/$defs/MaskModelRecord"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
           "motionBlur": {
             "additionalProperties": false,
             "properties": {
@@ -11174,6 +11182,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -12098,6 +12113,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -18127,6 +18149,13 @@
         "minLength": 1,
         "type": "string"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -18465,6 +18494,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -18862,6 +18898,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19243,6 +19286,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19490,6 +19540,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -19894,6 +19951,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20271,6 +20335,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20645,6 +20716,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -21013,6 +21091,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -21376,6 +21461,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -21994,6 +22086,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -22593,6 +22692,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -22873,6 +22979,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -24459,6 +24572,13 @@
         "minLength": 1,
         "type": "string"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -25270,7 +25390,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 31,
+        "const": 32,
         "type": "number"
       },
       "settings": {
@@ -25951,6 +26071,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26343,6 +26470,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26719,6 +26853,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26961,6 +27102,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -27360,6 +27508,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -27732,6 +27887,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28101,6 +28263,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28464,6 +28633,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28822,6 +28998,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -29438,6 +29621,13 @@
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
       },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 16,
+        "type": "array"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -29694,6 +29884,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -30954,6 +31151,13 @@
       },
       "legacyAnimationClock": {
         "$ref": "#/$defs/AnimationClock"
+      },
+      "masks": {
+        "items": {
+          "$ref": "#/$defs/MaskModelRecord"
+        },
+        "maxItems": 0,
+        "type": "array"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -32704,6 +32908,167 @@
           "type": "object"
         }
       ]
+    },
+    "MaskModelRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "enum": [
+            "alpha",
+            "luma"
+          ],
+          "type": "string"
+        },
+        "expansionPx": {
+          "maximum": 128,
+          "minimum": -128,
+          "type": "number"
+        },
+        "featherPx": {
+          "maximum": 128,
+          "minimum": 0,
+          "type": "number"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "inverted": {
+          "type": "boolean"
+        },
+        "operation": {
+          "enum": [
+            "add",
+            "subtract",
+            "intersect",
+            "exclude"
+          ],
+          "type": "string"
+        },
+        "source": {
+          "additionalProperties": false,
+          "properties": {
+            "paint": {
+              "$ref": "#/$defs/ShapePropertiesFillAnyOfVariant0"
+            },
+            "path": {
+              "$ref": "#/$defs/PathPropertiesPath"
+            },
+            "type": {
+              "const": "path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "paint",
+            "path",
+            "type"
+          ],
+          "type": "object"
+        },
+        "transform": {
+          "additionalProperties": false,
+          "properties": {
+            "anchor": {
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "y": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y"
+              ],
+              "type": "object"
+            },
+            "opacity": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "position": {
+              "additionalProperties": false,
+              "properties": {
+                "unit": {
+                  "enum": [
+                    "pixels",
+                    "normalized"
+                  ],
+                  "type": "string"
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "unit",
+                "x",
+                "y"
+              ],
+              "type": "object"
+            },
+            "rotationDeg": {
+              "maximum": 36000,
+              "minimum": -36000,
+              "type": "number"
+            },
+            "scaleX": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "type": "number"
+            },
+            "scaleY": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "type": "number"
+            },
+            "skewXDeg": {
+              "maximum": 80,
+              "minimum": -80,
+              "type": "number"
+            },
+            "skewYDeg": {
+              "maximum": 80,
+              "minimum": -80,
+              "type": "number"
+            }
+          },
+          "required": [
+            "anchor",
+            "opacity",
+            "position",
+            "rotationDeg",
+            "scaleX",
+            "scaleY",
+            "skewXDeg",
+            "skewYDeg"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "channel",
+        "expansionPx",
+        "featherPx",
+        "id",
+        "inverted",
+        "operation",
+        "source",
+        "transform"
+      ],
+      "type": "object"
     }
   }
 }

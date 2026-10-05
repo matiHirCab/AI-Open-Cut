@@ -1312,6 +1312,12 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     let capabilities = status["capabilities"].as_array().unwrap();
     assert!(capabilities.contains(&json!("projects")));
     assert!(capabilities.contains(&json!("timeline")));
+    assert!(capabilities.contains(&json!("mask_models_v1")));
+    assert_eq!(
+        status["subsystems"]["editor"]["capabilities"],
+        headless_contract()["status"]["editorCapabilities"]
+    );
+    assert_eq!(status["projectSchemaVersion"], 32);
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
@@ -2299,4 +2305,91 @@ fn canonical_unknown_time_members_reject_standalone_and_aliased_batch_without_mu
         result(&h.request(json!({"operation":"get_state","projectId":id})))["project"]["revision"],
         1
     );
+}
+
+#[test]
+fn mask_metadata_roundtrips_aliases_order_clear_and_atomic_failure() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Mask metadata"})))["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let typed_masks: Vec<opencut_editor_core::Mask> =
+        serde_json::from_value(catalog["stackCases"][1]["value"].clone()).unwrap();
+    let masks = serde_json::to_value(typed_masks).unwrap();
+    let added = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"leaf"},
+        {"operation":"update_item","itemId":"@leaf","masks":masks}
+    ]})));
+    let item = added["aliases"]["leaf"].clone();
+    let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(before["project"]["schemaVersion"], 32);
+    assert_eq!(before["project"]["tracks"][1]["items"][0]["masks"], masks);
+    for request in [
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"masks":null}}),
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[{"operation":"update_item","itemId":item,"masks":[]},{"operation":"delete_item","itemId":"missing"}]}),
+    ] {
+        assert!(!h.request(request).status.success());
+        assert_eq!(
+            result(&h.request(json!({"operation":"open_project","projectId":id}))),
+            before
+        );
+    }
+    let reversed: Vec<_> = masks.as_array().unwrap().iter().rev().cloned().collect();
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"masks":reversed}})));
+    let ordered = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        ordered["project"]["tracks"][1]["items"][0]["masks"],
+        json!(reversed)
+    );
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{"operation":"update_item","itemId":item,"masks":[]}})));
+    let cleared = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert!(
+        cleared["project"]["tracks"][1]["items"][0]
+            .get("masks")
+            .is_none()
+    );
+}
+
+#[test]
+fn canonical_raw_mask_duplicates_reject_single_batch_and_draft_before_publication() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Raw mask rejection"})))
+        ["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let added = result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let item = added["changedIds"][0].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let before = std::fs::read(dir.join("project.json")).unwrap();
+    let history = std::fs::read(dir.join("history.json")).unwrap();
+    for case in catalog["rawRejectedCases"].as_array().unwrap() {
+        let mask = case["json"].as_str().unwrap();
+        let edit = format!(r#"{{"operation":"update_item","itemId":{item},"masks":[{mask}]}}"#);
+        let good = serde_json::to_string(
+            &json!({"operation":"update_item","itemId":item,"color":"#123456"}),
+        )
+        .unwrap();
+        for (operation, fields) in [
+            ("edit", format!(r#""edit":{edit}"#)),
+            ("edit_batch", format!(r#""operations":[{good},{edit}]"#)),
+            ("create_draft", format!(r#""operations":[{good},{edit}]"#)),
+        ] {
+            let request = format!(
+                r#"{{"operation":"{operation}","projectId":{id},"expectedRevision":1,{fields}}}"#
+            );
+            let output = h.request_raw(&request);
+            assert!(!output.status.success(), "{}", case["name"]);
+            let error = event(&output);
+            assert_eq!(error["error"]["code"], "INVALID_ARGUMENT", "{error}");
+            assert_eq!(error["error"]["retryable"], false);
+            assert!(error.to_string().contains("duplicate field"), "{error}");
+            assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before);
+            assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), history);
+        }
+    }
 }

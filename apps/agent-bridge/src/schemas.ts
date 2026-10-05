@@ -12,7 +12,11 @@ import {
   fontCatalogSchema,
   fontStepsSchema,
 } from "./text-layout";
-import { paintSchema, strokeSchema } from "./vector-primitives";
+import {
+  paintSchema,
+  strokeSchema,
+  vectorPathSchema,
+} from "./vector-primitives";
 
 const id = z.string().min(1).max(128);
 const milliseconds = z.int().nonnegative();
@@ -141,6 +145,30 @@ export const transform2dSchema = z
       Math.abs(value.position.x) <= limit && Math.abs(value.position.y) <= limit
     );
   }, "Transform2D position exceeds its unit bounds");
+
+// Structural transport contract; core owns target eligibility, identity and aggregate budgets.
+export const maskSchema = z.strictObject({
+  channel: z.enum(["alpha", "luma"]),
+  expansionPx: finite.min(-128).max(128),
+  featherPx: finite.min(0).max(128),
+  id: z
+    .string()
+    .min(1)
+    .max(128)
+    .refine(
+      (value) => new TextEncoder().encode(value).length <= 128,
+      "Mask ID exceeds 128 UTF-8 bytes"
+    ),
+  inverted: z.boolean(),
+  operation: z.enum(["add", "subtract", "intersect", "exclude"]),
+  source: z.strictObject({
+    paint: paintSchema,
+    path: vectorPathSchema,
+    type: z.literal("path"),
+  }),
+  transform: transform2dSchema,
+});
+export const maskStackSchema = z.array(maskSchema).max(16);
 
 export const audioSchema = z
   .object({
@@ -576,7 +604,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(31).optional(),
+    projectSchemaVersion: z.literal(32).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1057,6 +1085,7 @@ const mediaItemSchema = z
     id,
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     sourceInMs: milliseconds,
@@ -1087,6 +1116,7 @@ const textItemSchema = z
     id,
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1113,6 +1143,7 @@ const solidColorItemSchema = z
     id,
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1172,6 +1203,7 @@ const repeaterItemSchema = z.strictObject({
   hidden: z.boolean(),
   id,
   legacyAnimationClock: animationClockSchema.optional(),
+  masks: maskStackSchema.max(0).optional(),
   motionBlur: motionBlurSchema.optional(),
   parent: parentReferenceSchema.nullable().optional(),
   repeater: repeaterDescriptorSchema,
@@ -1217,6 +1249,7 @@ const captionItemSchema = z
     hidden: z.boolean(),
     id,
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.max(0).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     source: z
@@ -1262,6 +1295,7 @@ const transitionItemSchema = z
     hidden: z.boolean(),
     id,
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.max(0).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1287,6 +1321,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       hidden: z.boolean(),
       id,
       legacyAnimationClock: animationClockSchema.optional(),
+      masks: maskStackSchema.max(0).optional(),
       motionBlur: motionBlurSchema.optional(),
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1478,6 +1513,7 @@ export const componentInstanceSchema = z
     hidden: z.boolean(),
     id,
     legacyAnimationClock: animationClockSchema.optional(),
+    masks: maskStackSchema.max(0).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     slotValues: slotValuesSchema,
@@ -1710,7 +1746,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(31),
+        schemaVersion: z.literal(32),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2029,6 +2065,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      masks: maskStackSchema.optional(),
       motionBlur: motionBlurSchema.optional(),
       operation: z.literal("update_item"),
       repeater: repeaterEditDescriptorSchema.optional(),
@@ -2564,6 +2601,7 @@ export const schemas = {
       grid: gridDescriptorSchema.optional(),
       height: z.int().positive().max(4320).optional(),
       itemId: id,
+      masks: maskStackSchema.optional(),
       motionBlur: motionBlurSchema.optional(),
       repeater: repeaterDescriptorSchema.optional(),
       staggerMs: z.int().min(0).max(60_000).optional(),

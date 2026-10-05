@@ -192,3 +192,15 @@
 /apps/agent-bridge/tests/preset-workflow.ts @matiHirCab
 
 /contracts/initial-motion-preset-pack-v1.json @matiHirCab
+
+# Mask model contract consumers.
+/crates/editor-core/src/model/mask.rs @matiHirCab
+/crates/editor-core/src/validation/mask.rs @matiHirCab
+/crates/editor-core/src/model/buffered.rs @matiHirCab
+/crates/editor-core/tests/mask_models.rs @matiHirCab
+/apps/agent-bridge/tests/mask-models.test.ts @matiHirCab
+/apps/agent-bridge/tests/mask-model-workflow.ts @matiHirCab
+/docs/mask-models.md @matiHirCab
+
+/apps/agent-bridge/tests/fixtures/mask-mcp-projection.ts @matiHirCab
+/crates/editor-core/src/renderer/tests/raster_caching.rs @matiHirCab

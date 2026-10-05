@@ -32,7 +32,8 @@
         "apps/agent-bridge/tests/extended-visual-workflow.ts",
         "docs/animation-channels.md",
         "docs/extended-visual-animation.md",
-        "docs/render-regression-fixtures.md"
+        "docs/render-regression-fixtures.md",
+        "apps/agent-bridge/tests/contracts.test.ts"
       ]
     },
     "inheritedAnimationTiming": {
@@ -68,7 +69,8 @@
         "apps/agent-bridge/tests/animation-channels.test.ts",
         "apps/agent-bridge/tests/animation-edit-workflow.ts",
         "apps/agent-bridge/tests/pack-clock-migration-workflow.ts",
-        "docs/animation-channels.md"
+        "docs/animation-channels.md",
+        "apps/agent-bridge/tests/contracts.test.ts"
       ]
     },
     "renderWorker": {
@@ -461,7 +463,8 @@
         "apps/agent-bridge/tests/extended-visual-workflow.ts",
         "crates/editor-core/tests/animation_channels.rs",
         "apps/headless/tests/render_worker.rs",
-        "apps/agent-bridge/tests/smoke.test.ts"
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/contracts.test.ts"
       ]
     },
     "animationPresets": {
@@ -557,6 +560,33 @@
         "apps/agent-bridge/tests/packaged-smoke.test.ts",
         "docs/agent-bridge.md",
         "apps/agent-bridge/package.json"
+      ]
+    },
+    "maskModels": {
+      "canonical": "contracts/mask-models-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/mask.rs",
+        "crates/editor-core/src/validation/mask.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/model/buffered.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/tests/mask_models.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/mask-models.test.ts",
+        "apps/agent-bridge/tests/mask-model-workflow.ts",
+        "docs/mask-models.md",
+        "apps/agent-bridge/tests/fixtures/mask-mcp-projection.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "crates/editor-core/src/validation.rs",
+        "crates/editor-core/src/render_plan.rs",
+        "crates/editor-core/src/renderer/tests/raster_caching.rs",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts"
       ]
     }
   }

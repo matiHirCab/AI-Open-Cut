@@ -6,6 +6,8 @@ pub use animation_channels::*;
 pub use animation_presets::*;
 mod motion_blur;
 pub use motion_blur::*;
+mod mask;
+pub use mask::*;
 mod visual_effects;
 pub use visual_effects::*;
 mod font;
@@ -26,7 +28,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 31;
+pub const PROJECT_SCHEMA_VERSION: u32 = 32;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -142,6 +144,12 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 32 {
+            reject_mask_fields(&value.tracks)?;
+            if let Some(components) = &value.components {
+                reject_mask_fields(components)?;
+            }
+        }
         if value.schema_version < 31 {
             reject_animation_clocks(&value.tracks)?;
             if let Some(components) = &value.components {
@@ -696,6 +704,43 @@ pub(crate) fn find_extended_visual_edit_fields(
     )
 }
 
+pub(crate) fn reject_mask_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_mask_fields)
+}
+fn check_mask_fields(value: &serde_json::Value) -> Result<(), String> {
+    if value.get("masks").is_some() {
+        return Err("mask models require schema 32".into());
+    }
+    Ok(())
+}
+pub(crate) fn find_mask_edit_fields(
+    operations: &[EditOperation],
+) -> Result<Option<String>, CoreError> {
+    find_edit_fields(operations, &check_mask_fields, &|_| Ok(()))
+}
+
+// Inspect original operation objects before omitted empty metadata can erase
+// presence. Only canonical operation owners are visited; slot data is untouched.
+pub(crate) fn reject_raw_mask_edit_fields(value: &serde_json::Value) -> Result<(), String> {
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("update_item") => check_mask_fields(operation)?,
+                Some("component_create" | "component_update") => {
+                    if let Some(tracks) = operation.get("tracks") {
+                        reject_mask_fields(tracks)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
 fn is_zero_u64(value: &u64) -> bool {
     *value == 0
 }
@@ -1215,6 +1260,8 @@ pub struct VisualProperties {
     pub motion_blur: Option<MotionBlur>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<VisualEffect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub masks: Vec<Mask>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1247,6 +1294,7 @@ impl VisualProperties {
             crop: None,
             motion_blur: None,
             effects: Vec::new(),
+            masks: Vec::new(),
             start_time: None,
             animation_channels: Vec::new(),
             animation_preset_provenance: Default::default(),
@@ -2194,6 +2242,12 @@ pub enum EditOperation {
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
+        masks: Option<Vec<Mask>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         motion_blur: Option<MotionBlur>,
         #[serde(
             default,
@@ -2264,7 +2318,7 @@ pub enum EditOperation {
         )]
         font_path: Option<Option<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        style: Option<TextStyle>,
+        style: Option<Box<TextStyle>>,
     },
     MoveItem {
         item_id: String,
@@ -2589,6 +2643,12 @@ enum EditOperationDef {
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
+        masks: Option<Vec<Mask>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         motion_blur: Option<MotionBlur>,
         #[serde(
             default,
@@ -2659,7 +2719,7 @@ enum EditOperationDef {
         )]
         font_path: Option<Option<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        style: Option<TextStyle>,
+        style: Option<Box<TextStyle>>,
     },
     MoveItem {
         item_id: String,
@@ -3451,5 +3511,39 @@ mod historical_draft_guard_tests {
             None
         );
         assert_eq!(find_motion_blur_edit_fields(&[slots]).unwrap(), None);
+    }
+}
+
+#[cfg(test)]
+mod mask_wire_red_tests {
+    use super::*;
+    #[test]
+    fn mask_catalog_missing_fields_and_raw_duplicates_reject_wire_requests() {
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+        for case in catalog["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|case| case["name"].as_str().unwrap().starts_with("missing-"))
+        {
+            let request = serde_json::json!({"operation":"update_item","itemId":"leaf","masks":[case["value"].clone()]});
+            assert!(
+                serde_json::from_value::<EditOperation>(request).is_err(),
+                "{}",
+                case["name"]
+            );
+        }
+        for case in catalog["rawRejectedCases"].as_array().unwrap() {
+            let raw = format!(
+                "{{\"operation\":\"update_item\",\"itemId\":\"leaf\",\"masks\":[{}]}}",
+                case["json"].as_str().unwrap()
+            );
+            assert!(
+                serde_json::from_str::<EditOperation>(&raw).is_err(),
+                "{}",
+                case["name"]
+            );
+        }
     }
 }
