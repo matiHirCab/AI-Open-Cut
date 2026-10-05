@@ -506,6 +506,27 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
             "lossless sampled visual preparation is unavailable",
         ))
     }
+    fn decode_visual_frame_at(
+        &self,
+        ffmpeg: &Path,
+        path: &Path,
+        at_ms: f64,
+        size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        if !at_ms.is_finite() || at_ms < 0.0 {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "invalid visual source time",
+            ));
+        }
+        if at_ms.fract() != 0.0 {
+            return Err(CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                "fractional visual decoding is unavailable",
+            ));
+        }
+        self.decode_visual_frame(ffmpeg, path, at_ms as u64, size)
+    }
     fn decode_visual_frame(
         &self,
         _ffmpeg_path: &Path,
@@ -553,23 +574,7 @@ impl ProcessExecutor for SystemProcessExecutor {
         size: (u32, u32),
     ) -> Result<Vec<u8>, CoreError> {
         // Independently bound process output; canonical source/scene preflight runs first.
-        let expected = u64::from(size.0)
-            .checked_mul(u64::from(size.1))
-            .and_then(|pixels| pixels.checked_mul(4))
-            .filter(|bytes| {
-                size.0 > 0
-                    && size.1 > 0
-                    && size.0 <= 16384
-                    && size.1 <= 16384
-                    && *bytes <= 67_108_864
-            })
-            .and_then(|bytes| usize::try_from(bytes).ok())
-            .ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::InvalidArgument,
-                    "source raster output exceeds limit",
-                )
-            })?;
+        let expected = crate::render_plan::decoded_visual_rgba_bytes(size)?;
         let mut child = Command::new(ffmpeg)
             .args([
                 "-v",
@@ -740,40 +745,122 @@ impl ProcessExecutor for SystemProcessExecutor {
     }
     fn decode_visual_frame(
         &self,
-        ffmpeg_path: &Path,
+        ffmpeg: &Path,
         path: &Path,
         at_ms: u64,
         size: (u32, u32),
     ) -> Result<Vec<u8>, CoreError> {
-        let expected = size.0 as usize * size.1 as usize * 4;
-        if expected > 67_108_864 {
+        self.decode_visual_frame_at(ffmpeg, path, at_ms as f64, size)
+    }
+    fn decode_visual_frame_at(
+        &self,
+        ffmpeg: &Path,
+        path: &Path,
+        at_ms: f64,
+        size: (u32, u32),
+    ) -> Result<Vec<u8>, CoreError> {
+        let expected = crate::render_plan::decoded_visual_rgba_bytes(size)?;
+        if !at_ms.is_finite() || at_ms < 0.0 {
             return Err(CoreError::new(
                 ErrorCode::InvalidArgument,
-                "decoded visual raster exceeds limit",
+                "invalid visual source time",
             ));
         }
-        let output = Command::new(ffmpeg_path)
-            .args(["-v", "error", "-nostdin", "-ss", &seconds(at_ms), "-i"])
+        // Seek backward to the preceding keyframe without discarding held frames.
+        // Compare eligibility in the original timebase, before any AVTB rounding.
+        // The first future frame receives an EOF marker at least one second
+        // beyond the target; trim therefore stops near the preceding GOP.
+        // Its 2us margin admits eligible timestamps rounded up by AVTB and
+        // FFmpeg's exclusive, integer-microsecond trim boundary. No future
+        // frame can enter through that margin because classification came first.
+        // Retain only two bounded raw frames, never the complete decoded sequence.
+        let mut command = Command::new(ffmpeg);
+        command.args(["-v", "error", "-nostdin"]);
+        if at_ms > 0.0 {
+            command.args([
+                "-ss",
+                &format!("{:.17}", at_ms / 1000.0),
+                "-noaccurate_seek",
+                "-copyts",
+                "-start_at_zero",
+            ]);
+        }
+        let mut child = command
+            .arg("-i")
             .arg(path)
             .args([
-                "-frames:v",
-                "1",
+                "-an",
                 "-vf",
-                &format!("scale={}:{},format=rgba", size.0, size.1),
+                &format!(
+                    "{}setpts='if(lte(PTS*TB,{:.17}),PTS,ceil(({:.17}+1)/TB))',settb=AVTB,trim=end={:.17},scale={}:{},format=rgba",
+                    if at_ms == 0.0 {
+                        "setpts=PTS-STARTPTS,"
+                    } else {
+                        ""
+                    },
+                    at_ms / 1000.0,
+                    at_ms / 1000.0,
+                    at_ms / 1000.0 + 0.000002,
+                    size.0,
+                    size.1
+                ),
+                "-fps_mode",
+                "passthrough",
                 "-f",
                 "rawvideo",
                 "pipe:1",
             ])
-            .output()
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .map_err(|_| CoreError::render_failure("visual_decode", None, None))?;
-        if !output.status.success() || output.stdout.len() != expected {
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| CoreError::render_failure("visual_decode", None, None))?;
+        let reader = thread::spawn(move || read_bounded_tail(stderr, STDERR_TAIL_BYTES));
+        let result = (|| {
+            let mut output = child
+                .stdout
+                .take()
+                .ok_or_else(|| CoreError::render_failure("visual_decode", None, None))?;
+            let mut latest = vec![0; expected];
+            let mut buffer = vec![0; expected];
+            let mut saw_frame = false;
+            loop {
+                match output.read(&mut buffer[..1]) {
+                    Ok(0) => break,
+                    Ok(_) => {}
+                    Err(_) => return Err(CoreError::render_failure("visual_decode", None, None)),
+                }
+                output
+                    .read_exact(&mut buffer[1..])
+                    .map_err(|_| CoreError::render_failure("visual_decode", None, None))?;
+                std::mem::swap(&mut latest, &mut buffer);
+                saw_frame = true;
+            }
+            if !saw_frame {
+                return Err(CoreError::render_failure("visual_decode", None, None));
+            }
+            Ok(latest)
+        })();
+        if result.is_err() {
+            let _ = child.kill();
+        }
+        let status = child
+            .wait()
+            .map_err(|_| CoreError::render_failure("visual_decode", None, None));
+        let tail = reader.join().ok().and_then(Result::ok).unwrap_or_default();
+        let bytes = result?;
+        let status = status?;
+        if !status.success() {
             return Err(CoreError::render_failure(
                 "visual_decode",
-                output.status.code(),
-                None,
+                status.code(),
+                stderr_excerpt(&tail),
             ));
         }
-        Ok(output.stdout)
+        Ok(bytes)
     }
     fn probe_render_geometry(
         &self,

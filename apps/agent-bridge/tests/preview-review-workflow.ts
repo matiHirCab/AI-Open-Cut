@@ -27,9 +27,10 @@ export const verifyPreviewReviewWorkflow = async (
     "preview_review_presets_v1"
   );
   expect(status.capabilities).toContain("preview_review_presets_v1");
+  // Portrait geometry bounds CPU work for every fixed-height review preset.
   const { projectId } = await call(
     "project_create",
-    { fps: 10, height: 180, name: "Preset review", width: 320 },
+    { fps: 10, height: 64, name: "Preset review", width: 16 },
     writeResultSchema
   );
   const read = () => call("project_open", { projectId }, projectStateSchema);

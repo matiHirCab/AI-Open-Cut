@@ -257,6 +257,130 @@ fn center_red(path: &Path, seconds: f64) -> u8 {
     assert_eq!(decoded.stdout.len(), 64 * 64 * 3);
     decoded.stdout[(32 * 64 + 32) * 3]
 }
+// Independent fixed geometry/color and documented final encoding. This does
+// not invoke scene evaluation, renderer preparation, or production color math.
+fn independently_encoded_transition_red(
+    label: &str,
+    at: u64,
+    intent: &str,
+    range_start: u64,
+) -> i16 {
+    // Independent authored clock equations, including both retained repeater
+    // occurrences. No facts come from an evaluated scene or rendered output.
+    let fade = |local: f64| {
+        if local < 0.0 {
+            0.0
+        } else {
+            (1.0 - local / 500.0).clamp(0.0, 1.0)
+        }
+    };
+    let gain_at = |t: u64| {
+        let local = t as f64 - 1000.0;
+        match label {
+            "root" => fade(t as f64),
+            "scaled" => fade(0.75 * local),
+            "nested" => fade(1.5 * (0.5 * local - 100.0)),
+            "repeated" => {
+                let first = fade(local);
+                let copy = fade(local - 200.0);
+                copy + first * (1.0 - copy)
+            }
+            "offset" => fade(local),
+            _ => unreachable!(),
+        }
+    };
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("independent-linear.rgba");
+    let start = if intent == "range" { range_start } else { 0 };
+    let end = match label {
+        "root" => 1000,
+        "nested" => 3000,
+        _ => 2000,
+    };
+    let times = if intent == "frame" {
+        vec![at]
+    } else {
+        (start..end).step_by(50).collect()
+    };
+    let mut bytes = Vec::new();
+    for time in times {
+        let gain = gain_at(time);
+        let ideal = (255.0
+            * if gain <= 0.0031308 {
+                12.92 * gain
+            } else {
+                1.055 * gain.powf(1.0 / 2.4) - 0.055
+            })
+        .round() as u8;
+        for y in 0..64 {
+            for x in 0..64 {
+                bytes.extend_from_slice(&[
+                    if (16..48).contains(&x) && (16..48).contains(&y) {
+                        ideal
+                    } else {
+                        0
+                    },
+                    0,
+                    0,
+                    255,
+                ]);
+            }
+        }
+    }
+    std::fs::write(&source, bytes).unwrap();
+    let output = root.path().join(if intent == "frame" {
+        "reference.png"
+    } else {
+        "reference.mp4"
+    });
+    let mut command = Command::new(std::env::var_os("OPENCUT_FFMPEG_PATH").unwrap());
+    command
+        .args([
+            "-v",
+            "error",
+            "-nostdin",
+            "-f",
+            "rawvideo",
+            "-pixel_format",
+            "rgba",
+            "-video_size",
+            "64x64",
+            "-framerate",
+            "20",
+            "-i",
+        ])
+        .arg(source)
+        .args(["-vf", "format=yuv420p"]);
+    if intent == "frame" {
+        command.args(["-frames:v", "1"]);
+    } else {
+        command.args(["-c:v", "libx264"]);
+        if intent == "range" {
+            command.args(["-preset", "veryfast", "-crf", "28"]);
+        }
+        command.args(["-pix_fmt", "yuv420p"]);
+    }
+    let result = command.arg(&output).output().unwrap();
+    assert!(
+        result.status.success(),
+        "independent final encoding: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let encoded = i16::from(center_red(
+        &output,
+        if intent == "frame" {
+            0.0
+        } else {
+            (at - start) as f64 / 1000.0
+        },
+    ));
+    eprintln!(
+        "independent label={label} at={at} gain={} intent={intent} encoded={encoded}",
+        gain_at(at)
+    );
+    encoded
+}
+
 #[test]
 fn native_lifecycle_offset_transition_preserves_analytic_gain_in_all_intents() {
     let Some(renderer) = native_renderer() else {
@@ -330,9 +454,10 @@ fn native_lifecycle_offset_transition_preserves_analytic_gain_in_all_intents() {
             ("export", output, 1.25),
         ] {
             let red = center_red(&path, time);
+            let expected = independently_encoded_transition_red("offset", 1250, intent, 1000);
             assert!(
-                (i16::from(red) - 127).abs() <= 4,
-                "{label} {intent}: analytic half gain expected red 127, got {red}"
+                (i16::from(red) - expected).abs() <= 4,
+                "{label} {intent}: analytic linear half gain after {intent} encoding expected{expected}, got{red}"
             );
         }
     }
@@ -346,12 +471,20 @@ fn native_lifecycle_scaled_nested_and_repeated_transitions_match_legacy_and_anal
     };
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("previews")).unwrap();
-    for (label, at, expected) in [
-        ("root", 250, 127),
-        ("scaled", 1250, 159),
-        ("nested", 1350, 197),
-        ("repeated", 1450, 140),
+    for (label, at, gain) in [
+        ("root", 250, 0.5_f64),
+        ("scaled", 1250, 0.625),
+        ("nested", 1350, 0.775),
+        ("repeated", 1450, 0.55),
     ] {
+        let expected_gain = match label {
+            "root" => 0.5,
+            "scaled" => 1.0 - 0.75 * 250.0 / 500.0,
+            "nested" => 1.0 - 1.5 * (0.5 * 350.0 - 100.0) / 500.0,
+            "repeated" => 0.5 + 0.1 * (1.0 - 0.5),
+            _ => unreachable!(),
+        };
+        assert!((gain - expected_gain).abs() < 1e-12);
         let mut value = transition_project();
         match label {
             "root" => {
@@ -385,6 +518,7 @@ fn native_lifecycle_scaled_nested_and_repeated_transitions_match_legacy_and_anal
         for (variant, project) in [("legacy", &legacy), ("extended", &extended)] {
             let frame = renderer.render_preview(project, root.path(), at).unwrap();
             let red = center_red(&root.path().join(frame.relative_path), 0.0);
+            let expected = independently_encoded_transition_red(label, at, "frame", 0);
             assert!(
                 (i16::from(red) - expected).abs() <= 5,
                 "{label} {variant}: expected {expected}, got {red}"
@@ -423,6 +557,7 @@ fn native_lifecycle_scaled_nested_and_repeated_transitions_match_legacy_and_anal
                 ("export", output),
             ] {
                 let red = center_red(&path, at as f64 / 1000.0);
+                let expected = independently_encoded_transition_red(label, at, intent, 0);
                 assert!(
                     (i16::from(red) - expected).abs() <= 5,
                     "{label} {variant} {intent}: expected {expected}, got {red}"

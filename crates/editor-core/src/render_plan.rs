@@ -21,6 +21,12 @@ use crate::{
     animation::positive_scalar_ranges,
 };
 
+// The process owner consumes this checked planning fact rather than importing
+// scene/domain validation. Both source paint and decode use canonical limits.
+pub(crate) fn decoded_visual_rgba_bytes(size: (u32, u32)) -> Result<usize, CoreError> {
+    crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct MediaInputRequest {
     pub(crate) item_id: String,
@@ -130,6 +136,9 @@ pub(crate) fn build_render_plan(
                 "[{current_video}][{prepared}]overlay=format=auto:x=0:y=0:eof_action=pass[{composited}]"
             ));
             current_video = composited;
+            if binding == "linear-scene" {
+                break; // A fully composed opaque sample already contains every evaluated visual.
+            }
             continue;
         }
         if let Some(affine) = &layer.affine {
@@ -1586,6 +1595,66 @@ fn affine_caption_source(
         caption.font_size,
         caption.color
     )
+}
+
+pub(crate) fn text_raster_source(
+    text: &crate::evaluated_scene::EvaluatedText,
+    prepared: &PreparedText,
+    size: (u32, u32),
+) -> String {
+    let (sw, sh) = size;
+    let fps = 1;
+    let duration = "1";
+    if let Some(runs) = &prepared.rich_runs {
+        let mut source = format!(
+            "color=c={}@{}:s={sw}x{sh}:r={fps}:d={duration},format=rgba",
+            text.style.background_color, text.style.background_opacity
+        );
+        for run in runs {
+            let font = run
+                .font_path
+                .as_ref()
+                .map(|p| format!("fontfile='{}':", escape_filter_path(p)))
+                .unwrap_or_default();
+            source.push_str(&format!(",drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:x={:.17}:y={:.17}",
+                        escape_filter_path(&run.file_path),text.font_size,run.color,text.style.outline_width_px,text.style.outline_color,
+                        text.style.shadow.offset_x,text.style.shadow.offset_y,text.style.shadow.color,text.style.shadow.opacity,run.x,run.y));
+        }
+        source
+    } else {
+        let font = prepared
+            .font_path
+            .as_ref()
+            .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+            .unwrap_or_default();
+        let padding = &text.style.padding;
+        let alignment = match text.style.alignment {
+            EvaluatedTextAlignment::Left => "L",
+            EvaluatedTextAlignment::Center => "C",
+            EvaluatedTextAlignment::Right => "R",
+        };
+        format!(
+            "color=c=black@0:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:borderw={}:bordercolor={}:shadowx={}:shadowy={}:shadowcolor={}@{}:box=1:boxcolor={}@{}:boxborderw={}|{}|{}|{}:line_spacing={}:text_align={alignment}:x={}:y={}",
+            escape_filter_path(&prepared.file_path),
+            text.font_size,
+            text.color,
+            text.style.outline_width_px,
+            text.style.outline_color,
+            text.style.shadow.offset_x,
+            text.style.shadow.offset_y,
+            text.style.shadow.color,
+            text.style.shadow.opacity,
+            text.style.background_color,
+            text.style.background_opacity,
+            padding.top,
+            padding.right,
+            padding.bottom,
+            padding.left,
+            text.style.line_spacing_px,
+            prepared.text_x,
+            prepared.text_y
+        )
+    }
 }
 
 /// A source-equivalent static bitmap; animation and activity are sampled elsewhere.

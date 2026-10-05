@@ -1161,8 +1161,8 @@ fn native_each_visual_channel_changes_output_and_static_values_survive() {
     let opacity = render(Some(("transform.opacity", 0.5)));
     let half = rgb_at(&ffmpeg, &opacity, None, 5, 5)[0];
     assert!(
-        (70..180).contains(&half),
-        "half-opacity red component {half}"
+        (i16::from(half) - 188).abs() <= 4,
+        "independent linear half-opacity red expected188, got{half}"
     );
     let restored = render(None);
     assert!(red_at(&ffmpeg, &restored, None, 5));

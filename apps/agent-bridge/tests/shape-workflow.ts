@@ -24,9 +24,10 @@ export async function verifyShapeWorkflow(
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.capabilities).toContain("shape_items");
   expect(status.capabilities).toContain("shape_rendering");
+  // This workflow checks contracts and jobs, so keep CPU scene preparation small.
   const created = await call(
     "project_create",
-    { name: "Shape smoke" },
+    { fps: 10, height: 64, name: "Shape smoke", width: 64 },
     writeResultSchema
   );
   const { projectId } = created;

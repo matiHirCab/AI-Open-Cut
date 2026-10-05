@@ -45,6 +45,21 @@ if (mode === "ffprobe") {
   let dimensions;
   if (args.includes("-vf")) {
     dimensions = /^scale=([0-9]+):([0-9]+),format=rgba$/.exec(filter ?? "");
+    if (!dimensions) {
+      const sampled =
+        /^(?:setpts=PTS-STARTPTS,)?setpts='if\(lte\(PTS\*TB,([0-9]+\.[0-9]{17})\),PTS,ceil\(\(\1\+1\)\/TB\)\)',settb=AVTB,trim=end=([0-9]+\.[0-9]{17}),scale=([0-9]+):([0-9]+),format=rgba$/.exec(
+          filter ?? ""
+        );
+      if (
+        sampled &&
+        Number.isFinite(Number(sampled[1])) &&
+        Number.isFinite(Number(sampled[2])) &&
+        Number(sampled[2]) ===
+          Number((Number(sampled[1]) + 0.000_002).toFixed(17))
+      ) {
+        dimensions = [sampled[0], sampled[3], sampled[4]];
+      }
+    }
   } else if (
     args.some((arg, index) => arg === "-f" && args[index + 1] === "lavfi") &&
     args.includes("-i") &&

@@ -823,16 +823,20 @@ fn independent_caption_canvas(source: &[u8]) -> Vec<u8> {
         }
         assert!(sum.iter().all(|v| v.is_finite()));
         for (channel, value) in output[..3].iter_mut().enumerate() {
-            let color = if sum[3] > 0.0 {
-                srgb(sum[channel] / sum[3])
-            } else {
-                0.0
-            };
+            // The independently interpolated premultiplied linear color is
+            // composed over opaque black before the single output conversion.
+            let color = srgb(sum[channel]);
             *value = (color.clamp(0.0, 1.0) * 255.0 + 0.5).floor() as u8;
         }
-        output[3] = (sum[3].clamp(0.0, 1.0) * 255.0 + 0.5).floor() as u8;
+        output[3] = 255;
     }
-    assert!(canvas[..53 * 96 * 4].iter().all(|b| *b == 0));
+    assert!(
+        canvas[..53 * 96 * 4]
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|p| *p == [0, 0, 0, 255])
+    );
     assert!(
         canvas
             .as_chunks::<4>()

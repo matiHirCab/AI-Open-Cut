@@ -1193,6 +1193,54 @@ fn canonical_status_requests_negotiate_protocol_version_and_capabilities() {
 }
 
 #[test]
+fn ready_renderer_advertises_canonical_linear_composition_in_protocol_v1() {
+    let harness = Harness::new();
+    let contract = headless_contract();
+    for request_name in ["statusDefault", "statusCurrent"] {
+        let status = result(&harness.request(contract["requests"][request_name].clone()));
+        assert_eq!(status["protocolVersion"], 1);
+        assert_eq!(status["subsystems"]["rendering"]["ready"], true, "{status}");
+        assert_eq!(status["subsystems"]["rendering"]["error"], Value::Null);
+        assert_eq!(
+            status["subsystems"]["rendering"]["capabilities"],
+            contract["status"]["renderingCapabilities"]
+        );
+        let mut expected = contract["status"]["editorCapabilities"]
+            .as_array()
+            .unwrap()
+            .clone();
+        expected.extend(
+            contract["status"]["renderingCapabilities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .cloned(),
+        );
+        assert_eq!(status["capabilities"], json!(expected));
+        for capabilities in [
+            &status["capabilities"],
+            &status["subsystems"]["rendering"]["capabilities"],
+        ] {
+            assert_eq!(
+                capabilities
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|capability| **capability == json!("linear_light_compositing_v1"))
+                    .count(),
+                1
+            );
+        }
+        assert!(
+            !status["subsystems"]["editor"]["capabilities"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("linear_light_compositing_v1"))
+        );
+    }
+}
+
+#[test]
 fn canonical_unsupported_version_and_unknown_field_are_stable_errors() {
     let harness = Harness::new();
     let contract = headless_contract();
@@ -1251,6 +1299,11 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
+    assert!(!capabilities.contains(&json!("linear_light_compositing_v1")));
+    assert_eq!(
+        status["subsystems"]["rendering"]["error"]["code"],
+        "DEPENDENCY_UNAVAILABLE"
+    );
     assert!(!capabilities.contains(&json!("preview_review_presets_v1")));
     assert_eq!(status["subsystems"]["rendering"]["capabilities"], json!([]));
     assert!(capabilities.contains(&json!("shape_items")));

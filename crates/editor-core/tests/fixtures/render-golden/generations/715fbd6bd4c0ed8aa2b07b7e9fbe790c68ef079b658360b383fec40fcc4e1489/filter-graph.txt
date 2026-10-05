@@ -1,0 +1,6 @@
+[0:v]format=yuv420p[base0];
+[3:v]fps=10,settb=AVTB,setpts=PTS-STARTPTS+0.000/TB,format=rgba[sampled1];
+[base0][sampled1]overlay=format=auto:x=0:y=0:eof_action=pass[base1];
+[2:a]atrim=duration=1.000,asetpts=PTS-STARTPTS,volume='(1.000000)*(1.000000)':eval=frame,asetpts=PTS+0.000/TB,volume='1':eval=frame[audio1];
+[base1]scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2,format=yuv420p[video];
+[1:a][audio1]amix=inputs=2:duration=longest:normalize=0[audio]

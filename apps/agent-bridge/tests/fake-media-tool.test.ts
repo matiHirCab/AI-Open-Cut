@@ -70,6 +70,46 @@ it("emits exact opaque RGBA decoder bytes without progress or artifacts", () => 
   expect(readdirSync(result.root)).toEqual([]);
 });
 
+const sampledFilter = (size: string, at: number, normalize = false) => {
+  const time = at.toFixed(17);
+  return `${normalize ? "setpts=PTS-STARTPTS," : ""}setpts='if(lte(PTS*TB,${time}),PTS,ceil((${time}+1)/TB))',settb=AVTB,trim=end=${(at + 0.000_002).toFixed(17)},scale=${size},format=rgba`;
+};
+const decodeFilter = (filter: string) => {
+  const args = decoder("2:3");
+  args[args.indexOf("-vf") + 1] = filter;
+  return run(args);
+};
+
+it.each([0, 0.05, 9_007_199_254_740.99])(
+  "accepts the precision-safe sampled decoder at %s seconds",
+  (at) => {
+    const result = decodeFilter(sampledFilter("2:3", at, at === 0));
+    expect(result.status).toBe(0);
+    expect(result.stderr.length).toBe(0);
+    expect(result.stdout).toEqual(
+      Buffer.alloc(24, Buffer.from([255, 0, 0, 255]))
+    );
+    expect(readdirSync(result.root)).toEqual([]);
+  }
+);
+
+it.each([
+  sampledFilter("16385:1", 0.05),
+  sampledFilter("8192:4096", 0.05),
+  sampledFilter("2:3", 0.05).replace("settb=AVTB", "settb=1/1000"),
+  sampledFilter("2:3", 0.05).replace("ceil((0.050", "ceil((0.060"),
+  sampledFilter("2:3", 0.05).replace(
+    "trim=end=0.05000200000000000",
+    "trim=end=0.00000000000000000"
+  ),
+  `${sampledFilter("2:3", 0.05)},hflip`,
+])("rejects malformed or over-budget sampled decoder filter %s", (filter) => {
+  const result = decodeFilter(filter);
+  expect(result.status).not.toBe(0);
+  expect(result.stdout.length).toBe(0);
+  expect(readdirSync(result.root)).toEqual([]);
+});
+
 it.each(["black@0", "0x203060@0.75"])(
   "derives dimensions from the canonical %s Caption source",
   (color) => {

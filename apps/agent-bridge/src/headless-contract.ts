@@ -27,6 +27,8 @@ import type { Paint, Stroke } from "./vector-primitives";
 
 export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
+export const LINEAR_LIGHT_COMPOSITING_CAPABILITY =
+  "linear_light_compositing_v1" as const;
 export type RenderingCapability =
   | "shape_rendering"
   | "svg_rendering"
@@ -37,7 +39,8 @@ export type RenderingCapability =
   | "preview_range"
   | "preview_review_presets_v1"
   | "mp4_export"
-  | typeof EVALUATED_SCENE_RENDERING_CAPABILITY;
+  | typeof EVALUATED_SCENE_RENDERING_CAPABILITY
+  | typeof LINEAR_LIGHT_COMPOSITING_CAPABILITY;
 
 interface Revisioned {
   expectedRevision: number;

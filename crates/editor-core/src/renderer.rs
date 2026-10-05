@@ -552,6 +552,13 @@ impl Renderer {
                 measurements.insert(layer.item_id.clone(), size);
             }
         }
+        for layer in &mut finalized.visual_layers {
+            if layer.source_size.is_none()
+                && !matches!(layer.source, EvaluatedVisualSource::Caption(_))
+            {
+                layer.source_size = measurements.get(&layer.item_id).copied();
+            }
+        }
         finalize_affine_geometry(&mut finalized, &measurements)?;
         crate::evaluated_scene::extended_visual::finalize_intrinsic_sources(
             &mut finalized,
@@ -627,8 +634,12 @@ impl Renderer {
             intent,
             &crate::render_artifact::extended_visual::VisualPreparation {
                 decode: &|path, time, size| {
-                    self.process_executor
-                        .decode_visual_frame(&self.ffmpeg_path, path, time, size)
+                    self.process_executor.decode_visual_frame_at(
+                        &self.ffmpeg_path,
+                        path,
+                        time,
+                        size,
+                    )
                 },
                 encode: &|path, fps, frames, produce| {
                     self.process_executor.prepare_visual_stream(
@@ -640,12 +651,25 @@ impl Renderer {
                     )
                 },
                 caption: &|layer, prepared, size| {
-                    let source = crate::render_plan::caption_raster_source(
-                        layer,
-                        prepared,
-                        self.default_font_path.as_deref(),
-                        size,
-                    )?;
+                    let source = if let EvaluatedVisualSource::Text(text) = &layer.source {
+                        crate::render_plan::text_raster_source(
+                            text,
+                            prepared.ok_or_else(|| {
+                                CoreError::new(
+                                    ErrorCode::InternalError,
+                                    "missing local text resource",
+                                )
+                            })?,
+                            size,
+                        )
+                    } else {
+                        crate::render_plan::caption_raster_source(
+                            layer,
+                            prepared,
+                            self.default_font_path.as_deref(),
+                            size,
+                        )?
+                    };
                     self.process_executor
                         .raster_source(&self.ffmpeg_path, &source, size)
                 },
@@ -794,17 +818,21 @@ mod tests {
                 .prepare_render(&evaluated, media, &dir, intent)
                 .unwrap();
             assert!(!built.plan.filter_graph.contains("drawtext"));
+            let local_inputs = built
+                .plan
+                .media_inputs
+                .iter()
+                .filter(|i| i.item_id != "linear-scene")
+                .cloned()
+                .collect::<Vec<_>>();
             assert!(
-                built
-                    .plan
-                    .media_inputs
+                local_inputs
                     .windows(2)
                     .all(|pair| pair[0].item_id < pair[1].item_id)
             );
-            let semantic = (
-                built.plan.filter_graph.clone(),
-                built.plan.media_inputs.clone(),
-            );
+            // Source glyph plans/resources are identical; full-scene sampled
+            // binding and requested sample clocks deliberately vary by intent.
+            let semantic = local_inputs;
             if let Some(expected) = &expected {
                 assert_eq!(&semantic, expected);
             } else {
@@ -828,6 +856,37 @@ mod tests {
     }
 
     impl ProcessExecutor for FakeProcess {
+        fn raster_source(&self, _: &Path, _: &str, size: (u32, u32)) -> Result<Vec<u8>, CoreError> {
+            crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+            Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+        }
+        fn decode_visual_frame(
+            &self,
+            _: &Path,
+            _: &Path,
+            _: u64,
+            size: (u32, u32),
+        ) -> Result<Vec<u8>, CoreError> {
+            crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+            Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+        }
+        fn prepare_visual_stream(
+            &self,
+            _: &Path,
+            output: &Path,
+            _: u32,
+            count: u64,
+            produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+        ) -> Result<(), CoreError> {
+            // Bounded adapter double records first/last content; native tests verify the real complete encoder.
+            let bytes = produce(0)?;
+            std::fs::write(output, bytes).unwrap();
+            if count > 1 {
+                let _ = produce(count - 1)?;
+            }
+            Ok(())
+        }
+
         fn readiness(&self, _ffmpeg_path: &Path, _ffprobe_path: &Path) -> Result<(), CoreError> {
             if self.readiness_error {
                 Err(CoreError::new(
@@ -1910,7 +1969,8 @@ mod tests {
                 .count(),
             3
         );
-        assert_eq!(events.iter().filter(|event| **event == "write").count(), 3);
+        // Three filter scripts plus the full-scene frame PAM.
+        assert_eq!(events.iter().filter(|event| **event == "write").count(), 4);
         assert_eq!(
             events
                 .iter()
@@ -3608,6 +3668,37 @@ mod tests {
         fail: bool,
     }
     impl ProcessExecutor for GeometryProcess {
+        fn raster_source(&self, _: &Path, _: &str, size: (u32, u32)) -> Result<Vec<u8>, CoreError> {
+            crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+            Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+        }
+        fn decode_visual_frame(
+            &self,
+            _: &Path,
+            _: &Path,
+            _: u64,
+            size: (u32, u32),
+        ) -> Result<Vec<u8>, CoreError> {
+            crate::evaluated_scene::extended_visual::validate_sampled_source_size(size)?;
+            Ok([255, 0, 0, 255].repeat((size.0 as usize) * (size.1 as usize)))
+        }
+        fn prepare_visual_stream(
+            &self,
+            _: &Path,
+            output: &Path,
+            _: u32,
+            count: u64,
+            produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+        ) -> Result<(), CoreError> {
+            // Bounded adapter double records first/last content; native tests verify the real complete encoder.
+            let bytes = produce(0)?;
+            std::fs::write(output, bytes).unwrap();
+            if count > 1 {
+                let _ = produce(count - 1)?;
+            }
+            Ok(())
+        }
+
         fn readiness(&self, _: &Path, _: &Path) -> Result<(), CoreError> {
             Ok(())
         }
@@ -4108,7 +4199,7 @@ mod tests {
             assert!(!layer.requires_affine(), "{property}");
             assert!(layer.source_size.is_none());
             let audio = format!("{:?}", evaluated.scene.audio_layers);
-            for (origin, sample) in [(0, false), (300, false), (713, true)] {
+            for (origin, sample) in [(0, true), (300, true), (713, true)] {
                 let process = Arc::new(TemporalMeasurementProcess::default());
                 let io = Arc::new(LifecycleArtifactIo::default());
                 let renderer =
@@ -4159,7 +4250,7 @@ mod tests {
                     );
                 }
             }
-            for (fps, expected_probe) in [(20, false), (30, true)] {
+            for (fps, expected_probe) in [(20, true), (30, true)] {
                 let overridden = evaluate_project(&p, 64, 64, fps).unwrap();
                 let process = Arc::new(TemporalMeasurementProcess::default());
                 let io = Arc::new(LifecycleArtifactIo::default());

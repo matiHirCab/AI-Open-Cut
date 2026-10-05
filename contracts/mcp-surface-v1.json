@@ -3,6 +3,7 @@
     "marker_relative_timing",
     "component_lifecycle",
     "evaluated_scene_rendering",
+    "linear_light_compositing_v1",
     "shape_items",
     "shape_rendering",
     "svg_items",

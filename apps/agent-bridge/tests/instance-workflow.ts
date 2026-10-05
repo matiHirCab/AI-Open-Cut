@@ -20,9 +20,10 @@ export const verifyInstanceWorkflow = async (
   call: Call,
   projectsDirectory: string
 ) => {
+  // This workflow checks contracts and jobs, so keep CPU scene preparation small.
   const { projectId } = await call(
     "project_create",
-    { name: "Rendered instances" },
+    { fps: 10, height: 64, name: "Rendered instances", width: 64 },
     writeResultSchema
   );
   const read = () =>
