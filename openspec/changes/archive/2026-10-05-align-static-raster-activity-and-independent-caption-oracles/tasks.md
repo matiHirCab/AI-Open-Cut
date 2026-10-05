@@ -1,0 +1,29 @@
+## 1. Causal evidence and approved scope
+
+- [x] 1.1 Preserve exact hosted and isolated6.1.1 failure logs, source/package identities, static secondary PTS counterfactual and independent Caption raw-pixel matrix derivation; distinguish diagnostic evidence from required gate success.
+- [x] 1.2 Record resolved public own-opacity cadence reachability and precise root-span/time-varying-property/transition guard scope, complete all artifacts, obtain actual independent specification/design approval and record delegated provenance without human-review claims before executable edits.
+
+## 2. Owned renderer and independent tests
+
+- [x] 2.1 Add source-cadence selection using the precise root visibility endpoints and reachable local time-varying key/transition expressions for affine Shape/SVG/Grid, preserve existing animated-ancestor behavior and unaffected fullscene/aligned-boundary graph identity; add checked fractional-root/boundary compatibility coverage.
+- [x] 2.2 Verify all eight existing static activity families to completion under6.1.1, including inactive700/799/800, active713/726/798, existing ranges and immutable Undo/Redo/reopen checks; independently cover aligned range700..900 and export Shape/SVG/Grid activity plus public fullspan own Shape opacity/geometry cadence controls without widening bounds.
+- [x] 2.3 Retain exact Caption713/813 phase constants, use matching context authored constant controls, add independent intrinsic-RGBA/manually authored matrix pixel oracle without production sampling helpers, and preserve separate aligned legacy source-paint/immutable-state evidence and existing encoded checks.
+- [x] 2.4 Obtain actual independent source/oracle review; freeze source/tool/environment manifests and record affected verification closure and every reuse limitation.
+
+- [x] 2.5 Preserve the Media capture/counterfactual and sevenPASS/twoFAIL cutoff; obtain actual independent complete amendment approval before image Media executable changes. Correct only reviewed image Media cadence after existing nonaffine/affine timestamp mapping, preserve video/source clocks/audio/error/graph identity, and cover classification/order/compatibility in unit tests.
+- [x] 2.6 Complete aligned image Media activity and own-expression/accepted-transition independent controls; independently derive reviewed fade alpha bytes and preserve rational phase, verify raw/comparable exact700/800 pixels and matching encoded sequences after actual causal proof and delegated clarification approval, replace unsupported Shape transition success assumptions with atomic stable-error checks for Shape/SVG/Grid. Obtain actual source review and freeze a new final input identity before fresh focused and mandatory gates.
+
+## 3. Required implementation verification
+
+- [x] 3.1 Run `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace`, `cargo test -p opencut-desktop` and `cargo build -p opencut-desktop` on frozen inputs.
+- [x] 3.2 Run `cargo test -p opencut-editor-core --test animation_channels -- --nocapture` with BOTH `OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1` and `OPENCUT_GOLDEN_REQUIRED=1`, deterministic font and actual configured7.1.5 tools; repeat required animation under isolated6.1.1 tools, explicitly retaining its ancillary-host-library limitation and every failure.
+- [x] 3.3 Run full `bun run contracts:check`, `bun run typecheck`, `bun run lint`, `bun run test:unit`, `bun run test:integration` and `bun run test:smoke` from apps/agent-bridge as affected; preserve configured timeout budgets. Run root `bun run apps/agent-bridge/scripts/run-python-tests.ts` or record independently approved exact unchanged Python-only closure reuse.
+- [x] 3.4 Run required unchanged `cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture`, preserving raw semantic plans/graphs/references/comparators and writing a new diagnostic performance report. Run all three PR resolution conformance commands `cargo test --release -p opencut-editor-core --lib renderer::golden::rules_screen::native_rules_screen_resolution_conformance -- --exact --nocapture` with `OPENCUT_GOLDEN_REQUIRED=1`, `OPENCUT_RULES_SCREEN_SCOPE=pr` and each960x540/1280x720/1920x1080 selection, preserving25/25/6 render counts.
+- [x] 3.5 Run required native headless lifecycle (`cargo test -p opencut-headless native_render_lifecycle_survives_edit_undo_redo_reopen_and_isolates_drafts -- --exact`), transform2d/font_resolution integration suites, `cargo test -p opencut-editor-core --lib raster_cach`, cache-hook render_worker suite/build/required bridge native opt-in, restore default headless build/test, and external performance-report validation using unchanged workflow flags/commands. Preserve actual per-command output/exit/input identity and required opt-in execution.
+
+## 4. Formal conformance and lifecycle
+
+- [x] 4.1 Run pinned OpenSpec strict all validation and prearchive `moon run root:openspec-validate`; only this named active-change rejection is expected and must be recorded as rejection rather than PASS. Complete `$openspec-verify-change` and actual independent final conformance reviews with requirements/scenarios/tasks/source/gates mapped.
+- [x] 4.2 Synchronize only approved delta requirements with verified living-spec preimages, archive with pinned workflow and preserved artifact bytes, then pass unchanged postarchive Moon protected gate, strict all validation and diff checks; accurately complete lifecycle tasks and document remaining human review/hosted-CI delivery separately.
+
+Authorized commit/bundle/publication and hosted acceptance are tracked separately in `delivery-checklist.md` and the external evidence checkpoint. They do not represent implementation task completion before they happen. This avoids publication or post-CI task edits requiring another source-head mutation.

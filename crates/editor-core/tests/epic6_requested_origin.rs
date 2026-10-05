@@ -696,12 +696,357 @@ fn native_retained_solid_finite_phase_and_draft_candidates_have_independent_cont
     }
 }
 
+// This oracle derives paint and geometry only from the authored constants below.
+// Native source/color conversion is shared; animation, hierarchy and interpolation are not.
+fn independent_caption_intrinsic(ffmpeg: &Path, font: &Path, directory: &Path) -> Vec<u8> {
+    let literal = directory.join("independent-caption-literal.txt");
+    std::fs::write(&literal, r"HH % : \ sample").unwrap();
+    assert_eq!(
+        std::fs::read(&literal)
+            .unwrap()
+            .iter()
+            .filter(|b| **b == b'\\')
+            .count(),
+        1
+    );
+    let quote = |path: &Path| {
+        path.to_str()
+            .unwrap()
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'")
+    };
+    // Authored glyph advances at16px plus24px insets yield153×43; neither
+    // dimensions nor placement are read from the evaluated or rendered scene.
+    let source = format!(
+        "color=c=#203060@0.75:s=153x43:r=1:d=1,format=rgba,drawtext=fontfile='{}':textfile='{}':expansion=none:fontsize=16:fontcolor=#ff0000:x=12:y=12",
+        quote(font),
+        quote(&literal)
+    );
+    let output = std::process::Command::new(ffmpeg)
+        .args([
+            "-v",
+            "error",
+            "-nostdin",
+            "-f",
+            "lavfi",
+            "-i",
+            &source,
+            "-frames:v",
+            "1",
+            "-threads",
+            "1",
+            "-pix_fmt",
+            "rgba",
+            "-f",
+            "rawvideo",
+            "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "independent Caption source: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout.len(), 153 * 43 * 4);
+    assert_eq!(&output.stdout[..4], &[32, 48, 96, 191]);
+    assert!(
+        output
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| **p == [32, 48, 96, 191])
+            .count()
+            > 1000
+    );
+    assert!(
+        output
+            .stdout
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[0] > 200 && p[1] < 20 && p[2] < 20 && p[3] > 240)
+            .count()
+            > 100
+    );
+    output.stdout
+}
+
+fn independent_caption_canvas(source: &[u8]) -> Vec<u8> {
+    assert_eq!(source.len(), 153 * 43 * 4);
+    let linear = |v: f64| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let srgb = |v: f64| {
+        if v <= 0.0031308 {
+            12.92 * v
+        } else {
+            1.055 * v.powf(1.0 / 2.4) - 0.055
+        }
+    };
+    let mut canvas = vec![0; 96 * 96 * 4];
+    for (index, output) in canvas.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        let x = (index % 96) as f64;
+        let y = (index / 96) as f64;
+        // ParentT(6.5,0)*S(1.25,1)*CaptionT(-28.5,53):
+        // forward=(1.25*sx-29.125,sy+53), inverted at pixel centers.
+        let sx = (x + 0.5 + 29.125) / 1.25 - 0.5;
+        let sy = y - 53.0;
+        let ix = sx.floor() as i64;
+        let iy = sy.floor() as i64;
+        let fx = sx - ix as f64;
+        let fy = sy - iy as f64;
+        let mut sum = [0.0; 4];
+        for (dx, dy, weight) in [
+            (0, 0, (1.0 - fx) * (1.0 - fy)),
+            (1, 0, fx * (1.0 - fy)),
+            (0, 1, (1.0 - fx) * fy),
+            (1, 1, fx * fy),
+        ] {
+            let xx = ix + dx;
+            let yy = iy + dy;
+            if !(0..153).contains(&xx) || !(0..43).contains(&yy) {
+                continue;
+            }
+            let offset = (yy as usize * 153 + xx as usize) * 4;
+            let alpha = f64::from(source[offset + 3]) / 255.0;
+            for (channel, value) in sum[..3].iter_mut().enumerate() {
+                *value += linear(f64::from(source[offset + channel]) / 255.0) * alpha * weight;
+            }
+            sum[3] += alpha * weight;
+        }
+        assert!(sum.iter().all(|v| v.is_finite()));
+        for (channel, value) in output[..3].iter_mut().enumerate() {
+            let color = if sum[3] > 0.0 {
+                srgb(sum[channel] / sum[3])
+            } else {
+                0.0
+            };
+            *value = (color.clamp(0.0, 1.0) * 255.0 + 0.5).floor() as u8;
+        }
+        output[3] = (sum[3].clamp(0.0, 1.0) * 255.0 + 0.5).floor() as u8;
+    }
+    assert!(canvas[..53 * 96 * 4].iter().all(|b| *b == 0));
+    assert!(
+        canvas
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|p| p[3] > 0 && p[2] > p[0])
+    );
+    assert!(
+        canvas
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|p| p[0] > 200 && p[1] < 20)
+    );
+    canvas
+}
+
+fn independent_caption_pixel_reference(
+    ffmpeg: &Path,
+    directory: &Path,
+    canvas: &[u8],
+    at: u64,
+    encoded: bool,
+) -> PathBuf {
+    let pam = directory.join("independent-caption-canvas.pam");
+    let mut bytes =
+        b"P7\nWIDTH 96\nHEIGHT 96\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n".to_vec();
+    assert_eq!(canvas.len(), 96 * 96 * 4);
+    bytes.extend_from_slice(canvas);
+    std::fs::write(&pam, bytes).unwrap();
+    let offset = if encoded { "0.713" } else { "0.000" };
+    // Explicit matching outer pixel conversion only. This graph contains no
+    // production scene/graph import, curves, clocks, affine lowering or sampler.
+    let graph = format!(
+        "[0:v]format=yuv420p[black];[1:v]fps=10,settb=AVTB,setpts=PTS-STARTPTS+{offset}/TB,format=rgba[pixels];[black][pixels]overlay=format=auto:x=0:y=0:eof_action=pass[paint];[paint]scale=96:96:force_original_aspect_ratio=decrease,pad=96:96:(ow-iw)/2:(oh-ih)/2,format=yuv420p[video]"
+    );
+    let output = directory.join(format!(
+        "independent-caption-{at}.{}",
+        if encoded { "mp4" } else { "png" }
+    ));
+    let mut command = std::process::Command::new(ffmpeg);
+    command
+        .args([
+            "-v",
+            "error",
+            "-nostdin",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=96x96:r=10:d=1.000",
+            "-loop",
+            "1",
+            "-t",
+            "1.000",
+            "-i",
+        ])
+        .arg(&pam)
+        .args([
+            "-filter_complex",
+            &graph,
+            "-ss",
+            &format!("{:.3}", at as f64 / 1000.0),
+            "-map",
+            "[video]",
+        ]);
+    if encoded {
+        command.args([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "28",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-t",
+            "0.200",
+        ]);
+    } else {
+        command.args(["-frames:v", "1"]);
+    }
+    let result = command.arg(&output).output().unwrap();
+    assert!(
+        result.status.success(),
+        "independent Caption conversion: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    output
+}
+
+// This separate static Media reference checks Caption-specific source/layout
+// against matching legacy affine interpolation. It deliberately shares that
+// backend; the independent713/813 numeric oracle above validates geometry math.
+fn independent_aligned_caption_media(
+    renderer: &Renderer,
+    ffmpeg: &Path,
+    intrinsic: &[u8],
+) -> Vec<u8> {
+    let reference = seed("media", ffmpeg, "");
+    reference
+        .edit(json!({"operation":"set_item_visibility","itemId":reference.item,"hidden":true}));
+    let directory = reference._root.path().join("media");
+    let pam = directory.join("authored-caption-source.pam");
+    let png = directory.join("authored-caption-source.png");
+    let mut bytes =
+        b"P7\nWIDTH 153\nHEIGHT 43\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n".to_vec();
+    assert_eq!(intrinsic.len(), 153 * 43 * 4);
+    bytes.extend_from_slice(intrinsic);
+    std::fs::write(&pam, bytes).unwrap();
+    let output = std::process::Command::new(ffmpeg)
+        .args(["-v", "error", "-nostdin", "-i"])
+        .arg(&pam)
+        .args(["-frames:v", "1", "-threads", "1", "-pix_fmt", "rgba"])
+        .arg(&png)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "independent aligned source PNG: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let decoded = std::process::Command::new(ffmpeg)
+        .args(["-v", "error", "-nostdin", "-i"])
+        .arg(&png)
+        .args([
+            "-frames:v",
+            "1",
+            "-threads",
+            "1",
+            "-pix_fmt",
+            "rgba",
+            "-f",
+            "rawvideo",
+            "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        decoded.status.success(),
+        "independent aligned PNG decode: {}",
+        String::from_utf8_lossy(&decoded.stderr)
+    );
+    assert_eq!(
+        decoded.stdout, intrinsic,
+        "independent153x43 PNG must preserve exact authored RGBA"
+    );
+    let asset = reference
+        .core
+        .import_asset(
+            &reference.id,
+            reference.project().revision,
+            &png,
+            MediaType::Image,
+            MediaProbeFacts {
+                has_video: true,
+                video_width: Some(153),
+                video_height: Some(43),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let media = reference.edit(json!({"operation":"add_media",
+        "trackId":reference.project().tracks[0].id,"assetId":asset,
+        "sourceInMs":0,"startMs":0,"durationMs":1000}))[0]
+        .clone();
+    // Independently composed CaptionT(-28.5,53), then parentT(6.5,0)S(1.25,1).
+    // No expected fields are read from an actual scene or rendered output.
+    reference.edit(
+        json!({"operation":"update_item","itemId":media,"transform2d":{
+        "position":{"x":-29.125,"y":53.0,"unit":"pixels"},"anchor":{"x":0.0,"y":0.0},
+        "scaleX":1.25,"scaleY":1.0,"rotationDeg":0.0,"skewXDeg":0.0,"skewYDeg":0.0,"opacity":1.0}}),
+    );
+    let before = reference.bytes();
+    let image = rgb(
+        ffmpeg,
+        &frame(renderer, &reference, &reference.project(), 700),
+        0,
+    );
+    assert_independent_caption_paint(&image, "aligned700 independent Media");
+    assert_eq!(
+        reference.bytes(),
+        before,
+        "aligned independent Media observation changed durable state"
+    );
+    image
+}
+
+fn assert_independent_caption_paint(rgb: &[u8], label: &str) {
+    assert!(mass(rgb).0 > 1000.0, "{label}: missing paint");
+    assert!(
+        rgb.as_chunks::<3>().0.iter().any(|p| p[0] > 100
+            && p[0] > p[1].saturating_add(40)
+            && p[0] > p[2].saturating_add(40)),
+        "{label}: missing red glyph"
+    );
+    assert!(
+        rgb.as_chunks::<3>()
+            .0
+            .iter()
+            .any(|p| p[2] > p[0].saturating_add(10) && p[2] > p[1]),
+        "{label}: missing blue background"
+    );
+}
+
 #[test]
 fn native_caption_fractional_inherited_transform_and_colored_literal_source_preserve_edges() {
     let Some((ffmpeg, ffprobe, font)) = tools() else {
         return;
     };
-    let renderer = Renderer::new(&ffmpeg, &ffprobe, Some(font));
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, Some(font.clone()));
     let f = seed_with_caption_style("caption", &ffmpeg, r"HH % : \ sample", "#203060");
     f.edit(json!({"operation":"trim_item","itemId":f.item,"startMs":0,"durationMs":1000}));
     assert_eq!(
@@ -726,19 +1071,51 @@ fn native_caption_fractional_inherited_transform_and_colored_literal_source_pres
     let before = f.bytes();
     let actual = [713, 813].map(|at| rgb(&ffmpeg, &frame(&renderer, &f, &source, at), 0));
     let range_actual = range(&renderer, &f, &source, 713, 913);
+    assert_eq!(
+        f.bytes(),
+        before,
+        "animated Caption observations changed durable state"
+    );
     let constant = |property: &str, value: f64| json!({"property":property,"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":value},"curve":"hold"}]});
     f.edit(json!({"operation":"set_animation_channels","itemId":group,"animationChannels":[constant("transform.position_x",6.5),constant("transform.scale_x",1.25)]}));
     let expected = f.project();
-    let reference = rgb(&ffmpeg, &frame(&renderer, &f, &expected, 700), 0);
+    let intrinsic = independent_caption_intrinsic(&ffmpeg, &font, f._root.path());
+    let numeric_canvas = independent_caption_canvas(&intrinsic);
+    // The authored impulses have midpoint phase at713/813, independently:
+    for (at, lo, hi) in [(713_u64, 700_u64, 726_u64), (813, 800, 826)] {
+        let phase = (at - lo) as f64 / (hi - lo) as f64;
+        assert_eq!(phase, 0.5);
+        assert_eq!(13.0 * phase, 6.5);
+        assert_eq!(1.0 + 0.5 * phase, 1.25);
+    }
+    let control_before = f.bytes();
     for (at, image) in [713, 813].into_iter().zip(actual) {
+        let reference = rgb(&ffmpeg, &frame(&renderer, &f, &expected, at), 0);
         compare(
             &image,
             &reference,
             true,
-            &format!("caption fractional geometry{at}"),
+            &format!("caption matching-origin phase{at}"),
+        );
+        let numeric = independent_caption_pixel_reference(
+            &ffmpeg,
+            f._root.path(),
+            &numeric_canvas,
+            at,
+            false,
+        );
+        let numeric = rgb(&ffmpeg, &numeric, 0);
+        assert_independent_caption_paint(&numeric, "independent numeric Caption");
+        compare(
+            &image,
+            &numeric,
+            true,
+            &format!("caption independent pixel geometry{at}"),
         );
     }
     let range_reference = range(&renderer, &f, &expected, 713, 913);
+    let numeric_range =
+        independent_caption_pixel_reference(&ffmpeg, f._root.path(), &numeric_canvas, 713, true);
     for n in 0..2 {
         compare(
             &rgb(&ffmpeg, &range_actual, n),
@@ -746,11 +1123,26 @@ fn native_caption_fractional_inherited_transform_and_colored_literal_source_pres
             true,
             &format!("caption fractional encoded{n}"),
         );
+        compare(
+            &rgb(&ffmpeg, &range_actual, n),
+            &rgb(&ffmpeg, &numeric_range, n),
+            true,
+            &format!("caption independent encoded pixels{n}"),
+        );
     }
+    // Aligned legacy paint remains a separate source/style observation. Its
+    // gamma/edge interpolation is not a cross-context temporal geometry oracle.
+    let aligned = rgb(&ffmpeg, &frame(&renderer, &f, &expected, 700), 0);
+    assert_independent_caption_paint(&aligned, "aligned700 legacy Caption");
+    let aligned_reference = independent_aligned_caption_media(&renderer, &ffmpeg, &intrinsic);
+    compare(
+        &aligned,
+        &aligned_reference,
+        true,
+        "aligned700 independently authored Media paint/layout",
+    );
     assert_ne!(f.bytes(), before);
-    let current = f.bytes();
-    let _ = frame(&renderer, &f, &expected, 713);
-    assert_eq!(f.bytes(), current);
+    assert_eq!(f.bytes(), control_before);
 }
 
 fn finite_opacity_channel(mode: &str) -> Value {
@@ -1052,5 +1444,206 @@ fn native_fullscene_endpoint_errors_and_retained_phase_preserve_reviewed_policy(
             );
             assert_eq!(f.bytes(), authoritative);
         }
+    }
+}
+
+#[test]
+fn native_aligned_static_raster_ranges_and_export_preserve_half_open_activity() {
+    let Some((ffmpeg, ffprobe, font)) = tools() else {
+        return;
+    };
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, Some(font));
+    let black = vec![0; 96 * 96 * 3];
+    for kind in ["shape", "svg", "grid", "media"] {
+        let f = seed(kind, &ffmpeg, "HH");
+        let source = f.project();
+        let before = f.bytes();
+        let aligned = range(&renderer, &f, &source, 700, 900);
+        for n in 0..2 {
+            compare(
+                &rgb(&ffmpeg, &aligned, n),
+                &black,
+                false,
+                &format!("{kind} aligned range{}", 700 + n * 100),
+            );
+        }
+        let global = exported(&renderer, &f, &source, "aligned-static-global");
+        // No10fps global sample falls inside the independently authored[713,799).
+        for n in 0..10 {
+            compare(
+                &rgb(&ffmpeg, &global, n),
+                &black,
+                false,
+                &format!("{kind} global inactive{}", n * 100),
+            );
+        }
+        assert_eq!(
+            f.bytes(),
+            before,
+            "{kind} aligned observations changed durable state"
+        );
+    }
+}
+
+#[test]
+fn native_aligned_own_raster_expressions_match_independent_hold_sequences() {
+    let Some((ffmpeg, ffprobe, font)) = tools() else {
+        return;
+    };
+    let renderer = Renderer::new(&ffmpeg, &ffprobe, Some(font));
+    // Independently derived from the existing opaque8bit fade arithmetic at
+    //10fps over900ms: factor=65535-floor(n*65535/9), alpha round-half-up.
+    // This models authored phase/byte conversion, never sampled actual output.
+    let fade_alpha = |n: u64| ((255 * (65535 - n * 65535 / 9) + 32768) >> 16) as u8;
+    assert_eq!(
+        (0..10).map(fade_alpha).collect::<Vec<_>>(),
+        [255, 227, 198, 170, 142, 113, 85, 57, 28, 0]
+    );
+    for (at_ms, expected_gain) in [(700.0, 2.0 / 9.0), (800.0, 1.0 / 9.0)] {
+        assert!((1.0_f64 - at_ms / 900.0 - expected_gain).abs() < 1e-12);
+    }
+    for (kind, case) in [
+        ("shape", "opacity"),
+        ("shape", "position_x"),
+        ("shape", "scale_x"),
+        ("media", "opacity"),
+        ("media", "position_x"),
+        ("media", "scale_x"),
+        ("media", "transition_out"),
+    ] {
+        let f = seed(kind, &ffmpeg, "HH");
+        f.edit(json!({"operation":"trim_item","itemId":f.item,"startMs":0,"durationMs":1000}));
+        f.edit(json!({"operation":"update_item","itemId":f.item,"transform2d":null}));
+        let property = match case {
+            "position_x" => "transform.position_x",
+            "scale_x" => "transform.scale_x",
+            _ => "transform.opacity",
+        };
+        let authored = |n: u64| match case {
+            "position_x" => n as f64,
+            "scale_x" => 1.0 + n as f64 / 10.0,
+            "transition_out" => match fade_alpha(n) {
+                0 => 0.0,
+                255 => 1.0,
+                // Interior of the target GEQ byte bin survives its six-decimal
+                // serialization and truncation. Paint/encoder are shared; only
+                // expected alpha arithmetic is independent of production fade.
+                alpha => (f64::from(alpha) + 0.25) / 255.0,
+            },
+            _ => n as f64 / 10.0,
+        };
+        let transition = if case == "transition_out" {
+            Some(f.edit(json!({"operation":"add_transition","trackId":f.project().tracks[1].id,
+                "fromItemId":f.item,"toItemId":null,"startMs":0,"durationMs":900,"transitionType":"fade"}))[0].clone())
+        } else {
+            f.edit(json!({"operation":"set_animation_channels","itemId":f.item,
+                "animationChannels":[{"property":property,"keyframes":[
+                    {"timeMs":0,"value":{"type":"scalar","value":authored(0)},"curve":"linear"},
+                    {"timeMs":900,"value":{"type":"scalar","value":authored(9)},"curve":"hold"}]}]}));
+            None
+        };
+        let source = f.project();
+        let before = f.bytes();
+        let at700 = rgb(&ffmpeg, &frame(&renderer, &f, &source, 700), 0);
+        let at800 = (case == "transition_out")
+            .then(|| rgb(&ffmpeg, &frame(&renderer, &f, &source, 800), 0));
+        let aligned = range(&renderer, &f, &source, 700, 900);
+        let global = exported(&renderer, &f, &source, "aligned-own-global");
+        assert_eq!(
+            f.bytes(),
+            before,
+            "{case} source observations changed durable state"
+        );
+        if let Some(id) = transition {
+            f.edit(json!({"operation":"delete_item","itemId":id}));
+        }
+        // The reference contains only authored global-grid held values. It has
+        // no ramps, transitions, loops, inherited clocks or sampled actual data.
+        let keys: Vec<Value> = (0..10)
+            .map(|n| {
+                json!({"timeMs":n*100,
+            "value":{"type":"scalar","value":authored(n)},"curve":"hold"})
+            })
+            .collect();
+        f.edit(json!({"operation":"set_animation_channels","itemId":f.item,
+            "animationChannels":[{"property":property,"keyframes":keys}]}));
+        let expected = f.project();
+        let control_before = f.bytes();
+        let constant700 = rgb(&ffmpeg, &frame(&renderer, &f, &expected, 700), 0);
+        compare(
+            &at700,
+            &constant700,
+            true,
+            &format!("{case} authored frame700"),
+        );
+        if case == "opacity" || case == "transition_out" {
+            assert_eq!(
+                at700, constant700,
+                "{kind}/{case}700 must match independently authored opacity/alpha pixels exactly"
+            );
+        }
+        if let Some(at800) = at800 {
+            assert_eq!(
+                at800,
+                rgb(&ffmpeg, &frame(&renderer, &f, &expected, 800), 0),
+                "image fade800 must match independently derived alpha28 pixels exactly"
+            );
+        }
+        let range_reference = range(&renderer, &f, &expected, 700, 900);
+        for n in 0..2 {
+            compare(
+                &rgb(&ffmpeg, &aligned, n),
+                &rgb(&ffmpeg, &range_reference, n),
+                true,
+                &format!("{case} authored aligned range{}", 700 + n * 100),
+            );
+        }
+        let global_reference = exported(&renderer, &f, &expected, "aligned-own-held-reference");
+        for n in 0..10 {
+            let active = property != "transform.opacity" || authored(n) > 0.0;
+            compare(
+                &rgb(&ffmpeg, &global, n),
+                &rgb(&ffmpeg, &global_reference, n),
+                active,
+                &format!("{case} authored global{}", n * 100),
+            );
+        }
+        assert_eq!(
+            f.bytes(),
+            control_before,
+            "{case} control observations changed durable state"
+        );
+    }
+}
+
+#[test]
+fn unsupported_raster_transition_endpoints_preserve_atomic_errors() {
+    let Some((ffmpeg, _, _)) = tools() else {
+        return;
+    };
+    for kind in ["shape", "svg", "grid"] {
+        let f = seed(kind, &ffmpeg, "HH");
+        let before = f.bytes();
+        let project = f.project();
+        let error = f
+            .core
+            .edit(
+                &f.id,
+                project.revision,
+                op(json!({
+                    "operation":"add_transition", "trackId":project.tracks[1].id,
+                    "fromItemId":f.item,"toItemId":null,"startMs":713,"durationMs":50,
+                    "transitionType":"fade"
+                })),
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert_eq!(error.message, "groups cannot be transition endpoints");
+        assert!(!error.retryable);
+        assert_eq!(
+            f.bytes(),
+            before,
+            "{kind} unsupported transition changed project/history"
+        );
     }
 }
