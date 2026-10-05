@@ -1662,13 +1662,15 @@ fn prepare_project_data(
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision)
             .unwrap_or(&project);
-        if base.schema_version < 28 {
-            crate::reject_motion_blur_fields(&serde_json::to_value(&draft.operations)?)
-                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        if base.schema_version < 28
+            && let Some(message) = crate::find_motion_blur_edit_fields(&draft.operations)?
+        {
+            return Err(CoreError::new(ErrorCode::InvalidArgument, message));
         }
-        if base.schema_version < 27 {
-            crate::reject_extended_visual_fields(&serde_json::to_value(&draft.operations)?)
-                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        if base.schema_version < 27
+            && let Some(message) = crate::find_extended_visual_edit_fields(&draft.operations)?
+        {
+            return Err(CoreError::new(ErrorCode::InvalidArgument, message));
         }
     }
     let schema_migrated = migrate_project_documents(&mut project, &mut history)?;
@@ -1745,8 +1747,7 @@ fn prepare_project_data(
             // the matching revision, never the unrelated current project.
             let Some(base) = base else { continue };
             if schema_migrated
-                || crate::reject_extended_visual_fields(&serde_json::to_value(&draft.operations)?)
-                    .is_err()
+                || crate::find_extended_visual_edit_fields(&draft.operations)?.is_some()
                 || crate::reject_extended_visual_fields(&serde_json::to_value(base)?).is_err()
             {
                 let mut candidate = base.clone();
@@ -5436,6 +5437,82 @@ mod tests {
                 "mixed schema versions after recovery from {phase:?}"
             );
             assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
+    fn historical_slot_collision_migration_faults_preserve_generations() {
+        mod seed {
+            use crate as audit_core;
+            mod implementation {
+                include!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/tests/support/historical_animation_seed.rs"
+                ));
+            }
+            pub(super) use implementation::{historical, inventory, seed, slot_generation, write};
+        }
+        for version in [21, 23, 25, 26, 27] {
+            for phase in [
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterProject,
+            ] {
+                let (_root, core, id, current) = seed::seed();
+                let undo = seed::slot_generation(current.clone(), 0.2);
+                let redo = seed::slot_generation(current.clone(), 0.9);
+                let dir = core.paths().project_dir(&id).unwrap();
+                seed::write(
+                    &dir,
+                    &seed::historical(current.clone(), version),
+                    &seed::historical(undo.clone(), version),
+                    &seed::historical(redo.clone(), version),
+                );
+                let before = seed::inventory(&dir);
+                set_persistence_fault(&core, phase);
+                let result = core.get_project(&id);
+                if phase == PersistencePhase::BeforeJournal {
+                    assert_eq!(result.unwrap_err().code, ErrorCode::InternalError);
+                    assert_eq!(seed::inventory(&dir), before);
+                    assert_no_managed_transaction_files(&dir);
+                } else {
+                    // A durable journal commits the generation. The existing load
+                    // API returns its complete prepared snapshot while disk replay
+                    // remains pending; it does not turn that committed result into
+                    // a pre-commit failure.
+                    assert_eq!(serde_json::to_value(result.unwrap()).unwrap(), current);
+                    let journal: ProjectTransaction = read_json(&transaction_path(&dir)).unwrap();
+                    assert_eq!(serde_json::to_value(&journal.project).unwrap(), current);
+                    assert_eq!(
+                        serde_json::to_value(&journal.history).unwrap(),
+                        serde_json::json!({"undo":[undo],"redo":[redo]})
+                    );
+                    let published: serde_json::Value = read_json(&project_path(&dir)).unwrap();
+                    assert_eq!(published, current);
+                    assert_eq!(
+                        std::fs::read(history_path(&dir)).unwrap(),
+                        before[&history_path(&dir)]
+                    );
+                    let mut remaining_before = before.clone();
+                    remaining_before.remove(&project_path(&dir));
+                    remaining_before.remove(&history_path(&dir));
+                    let mut remaining_after = seed::inventory(&dir);
+                    remaining_after.remove(&project_path(&dir));
+                    remaining_after.remove(&history_path(&dir));
+                    remaining_after.remove(&transaction_path(&dir));
+                    assert_eq!(remaining_after, remaining_before);
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                assert_eq!(
+                    serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap(),
+                    current
+                );
+                let history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+                assert_eq!(history, serde_json::json!({"undo":[undo],"redo":[redo]}));
+                assert_no_managed_transaction_files(&dir);
+                let stable = seed::inventory(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(seed::inventory(&dir), stable);
+            }
         }
     }
 

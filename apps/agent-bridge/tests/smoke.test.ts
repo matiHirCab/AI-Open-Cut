@@ -1218,10 +1218,19 @@ it("authors extended animation and motion blur through standalone and alias MCP 
   await verifyExtendedVisualWorkflow(client, call);
 });
 
-it("exercises all shape contracts, atomic batches and retained history", async () => {
+it("exercises shape contracts, atomic batches and retained history", async () => {
   await verifyShapeWorkflow(client, call, projects);
+});
+
+it("exercises SVG contracts, atomic batches and retained history", async () => {
   await verifySvgWorkflow(client, call);
+});
+
+it("exercises grid contracts, atomic batches and retained history", async () => {
   await verifyGridWorkflow(client, call);
+});
+
+it("exercises repeater contracts, atomic batches and retained history", async () => {
   await verifyRepeaterWorkflow(client, call, media);
 });
 
@@ -1230,7 +1239,7 @@ it("preserves rich text documents through MCP standalone and alias batches", asy
 });
 
 it("edits scoped markers and live item starts through MCP", async () => {
-  await verifyMarkerWorkflow(client, call);
+  await verifyMarkerWorkflow(client, call, projects);
 });
 
 it("compiles versioned presets through real MCP with aliases, rollback, and reopen", async () => {

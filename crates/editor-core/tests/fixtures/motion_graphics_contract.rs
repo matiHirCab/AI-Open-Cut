@@ -23,8 +23,17 @@ struct CatalogEnvelope {
     managed_resources: Vec<ManagedAssetReference>,
     semantics: Value,
     status: String,
+    time_expression_cases: Vec<TimeExpressionCase>,
     valid_fixtures: Vec<ValidFixtureEnvelope>,
     version: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TimeExpressionCase {
+    id: String,
+    accept: bool,
+    value: Value,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
@@ -2131,6 +2140,20 @@ fn validate_closed_envelope(catalog: &Value) -> Result<(), String> {
         &parsed.status,
         parsed.version,
     );
+    if parsed.time_expression_cases.is_empty() {
+        return Err("timeExpressionCases must not be empty".into());
+    }
+    let mut timing_ids = BTreeSet::new();
+    for case in &parsed.time_expression_cases {
+        if case.id.is_empty() || !timing_ids.insert(&case.id) {
+            return Err("time expression case IDs must be nonempty and unique".into());
+        }
+        if serde_json::from_value::<opencut_editor_core::TimeExpression>(case.value.clone()).is_ok()
+            != case.accept
+        {
+            return Err(format!("native time expression case differs: {}", case.id));
+        }
+    }
     for fixture in &parsed.valid_fixtures {
         let _ = (
             &fixture.concept,

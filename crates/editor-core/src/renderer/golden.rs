@@ -2424,6 +2424,27 @@ fn assert_deterministic_references_match(
 }
 
 #[test]
+fn native_epic6_reviewed_baseline_capture_is_compatible() {
+    let Some(tools) = configured_native_tools() else {
+        return;
+    };
+    let container = fixture_container_root();
+    let _lock = GoldenFixtureLock::exclusive(&container).expect("acquire reviewed golden lock");
+    let reconciliation = reconcile_fixture_container(&container, false, CleanupFault::None)
+        .expect("reconcile reviewed generation");
+    let (root, manifest) = reconciliation
+        .selected
+        .expect("reviewed generation must be selected");
+    assert_eq!(
+        manifest.environment.font_sha256, tools.font_sha256,
+        "configured font differs from reviewed golden"
+    );
+    let observed = capture(&tools, CaptureMode::Conformance);
+    compare_capture(&root, &manifest, &observed)
+        .expect("baseline differs from unchanged reviewed golden");
+}
+
+#[test]
 fn native_golden_render_conformance() {
     let Some(tools) = configured_native_tools() else {
         return;

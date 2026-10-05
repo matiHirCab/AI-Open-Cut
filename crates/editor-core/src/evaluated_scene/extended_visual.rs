@@ -250,33 +250,49 @@ pub(crate) fn sampling_required(layer: &EvaluatedVisualLayer, start: u64, fps: u
     if (u128::from(start) * u128::from(fps)).is_multiple_of(1000) {
         return false;
     }
-    let supported = match &layer.source {
+    match &layer.source {
         EvaluatedVisualSource::Rectangle { .. }
+        | EvaluatedVisualSource::SolidColor { .. }
         | EvaluatedVisualSource::Shape(_)
-        | EvaluatedVisualSource::Media { .. } => true,
+        | EvaluatedVisualSource::Media { .. }
+        | EvaluatedVisualSource::Caption(_) => true,
         EvaluatedVisualSource::Text(text) => text.shaped.is_some(),
-        _ => false,
-    };
-    supported
-        && (layer.keyframes.iter().any(|key| {
-            matches!(
-                key.property,
-                EvaluatedProperty::Position
-                    | EvaluatedProperty::PositionX
-                    | EvaluatedProperty::PositionY
-                    | EvaluatedProperty::Scale
-                    | EvaluatedProperty::ScaleX
-                    | EvaluatedProperty::ScaleY
-                    | EvaluatedProperty::Opacity
-            )
-        }) || layer.has_animated_ancestors()
-            || !layer.transitions.is_empty()
-            || (matches!(layer.source, EvaluatedVisualSource::Rectangle { .. })
-                && layer.transform2d.is_some()))
+    }
 }
 
 /// Validate requested samples and cumulative scene work before output inspection
 /// or workspace creation. This consumes the same facts as resource preparation.
+/// Same source limits as the existing local raster allocation, before side effects.
+pub(crate) fn validate_sampled_source_size(
+    (width, height): (u32, u32),
+) -> Result<usize, CoreError> {
+    u64::from(width)
+        .checked_mul(u64::from(height))
+        .filter(|pixels| {
+            width > 0 && height > 0 && width <= 16384 && height <= 16384 && *pixels <= 16_777_216
+        })
+        .and_then(|pixels| pixels.checked_mul(4))
+        .and_then(|bytes| usize::try_from(bytes).ok())
+        .ok_or_else(|| invalid("sampled source raster exceeds limits"))
+}
+
+/// Populate strict intrinsic dimensions only when sampled paint consumes them.
+/// Plain Caption paint already contains its local bottom-center placement.
+pub(crate) fn finalize_intrinsic_sources(scene: &mut EvaluatedScene, start: u64) {
+    let canvas = (scene.canvas.width, scene.canvas.height);
+    let fps = scene.canvas.fps;
+    for layer in &mut scene.visual_layers {
+        if (matches!(layer.source, EvaluatedVisualSource::Caption(_))
+            || (matches!(layer.source, EvaluatedVisualSource::SolidColor { .. })
+                && layer.source_size.is_none()))
+            && !layer.requires_affine()
+            && sampling_required(layer, start, fps)
+        {
+            layer.source_size = Some(layer.instance.map_or(canvas, |i| i.canvas));
+        }
+    }
+}
+
 pub(crate) fn preflight_samples(
     scene: &EvaluatedScene,
     start: u64,
@@ -299,6 +315,19 @@ pub(crate) fn preflight_samples(
     let canvas = (scene.canvas.width, scene.canvas.height);
     if u64::from(canvas.0) * u64::from(canvas.1) > 16_777_216 {
         return Err(invalid("sampled output surface exceeds limits"));
+    }
+    for layer in scene
+        .visual_layers
+        .iter()
+        .filter(|l| sampling_required(l, start, scene.canvas.fps))
+    {
+        let size = match &layer.source {
+            EvaluatedVisualSource::Shape(shape) => shape.size,
+            _ => layer
+                .source_size
+                .ok_or_else(|| invalid("sampled source measurement missing"))?,
+        };
+        validate_sampled_source_size(size)?;
     }
     let count = if frame {
         1
@@ -393,6 +422,23 @@ pub(crate) fn sample_transform(
     let scalar = |property, default| {
         sample_scalar(&layer.keyframes, property, time, false).unwrap_or(default)
     };
+    let caption_position = if let EvaluatedVisualSource::Caption(caption) = &layer.source {
+        if layer.transform2d.is_none() {
+            Some(if layer.requires_affine() {
+                caption_legacy_position(
+                    caption,
+                    source,
+                    layer.instance.map_or(canvas, |i| i.canvas),
+                )
+            } else {
+                (0.0, 0.0)
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let mut transform = layer.transform2d.unwrap_or(crate::Transform2D {
         position: crate::TransformPosition {
             x: layer.transform.position_x,
@@ -433,6 +479,10 @@ pub(crate) fn sample_transform(
             scalar(EvaluatedProperty::Scale, layer.transform.scale),
         );
         transform.opacity = scalar(EvaluatedProperty::Opacity, layer.transform.opacity);
+    }
+    if let Some((x, y)) = caption_position {
+        transform.position.x = x;
+        transform.position.y = y;
     }
     if let Some(channel) = layer.extended.as_ref().and_then(|e| {
         e.channels

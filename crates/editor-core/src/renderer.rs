@@ -553,6 +553,10 @@ impl Renderer {
             }
         }
         finalize_affine_geometry(&mut finalized, &measurements)?;
+        crate::evaluated_scene::extended_visual::finalize_intrinsic_sources(
+            &mut finalized,
+            sample_start_ms,
+        );
         measured.retain(|id, _| {
             finalized
                 .visual_layers
@@ -621,18 +625,30 @@ impl Renderer {
             workspace.path(),
             &mut resources,
             intent,
-            &|path, time, size| {
-                self.process_executor
-                    .decode_visual_frame(&self.ffmpeg_path, path, time, size)
-            },
-            &|path, fps, frames, produce| {
-                self.process_executor.prepare_visual_stream(
-                    &self.ffmpeg_path,
-                    path,
-                    fps,
-                    frames,
-                    produce,
-                )
+            &crate::render_artifact::extended_visual::VisualPreparation {
+                decode: &|path, time, size| {
+                    self.process_executor
+                        .decode_visual_frame(&self.ffmpeg_path, path, time, size)
+                },
+                encode: &|path, fps, frames, produce| {
+                    self.process_executor.prepare_visual_stream(
+                        &self.ffmpeg_path,
+                        path,
+                        fps,
+                        frames,
+                        produce,
+                    )
+                },
+                caption: &|layer, prepared, size| {
+                    let source = crate::render_plan::caption_raster_source(
+                        layer,
+                        prepared,
+                        self.default_font_path.as_deref(),
+                        size,
+                    )?;
+                    self.process_executor
+                        .raster_source(&self.ffmpeg_path, &source, size)
+                },
             },
         )?;
         let filter_path = workspace.path().join("filter.txt");

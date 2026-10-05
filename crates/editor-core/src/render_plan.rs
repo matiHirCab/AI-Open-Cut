@@ -190,8 +190,13 @@ pub(crate) fn build_render_plan(
                     "T",
                 );
                 let fade = evaluated_transition_filters(&layer.transitions);
+                let sampling_rate = if image_media_needs_scene_cadence(layer, scene) {
+                    format!(",fps={fps}")
+                } else {
+                    String::new()
+                };
                 filters.push(format!(
-                    "[{input}:v]setpts=PTS-STARTPTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{fade}[{prepared}]",
+                    "[{input}:v]setpts=PTS-STARTPTS+{}/TB{sampling_rate},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{fade}[{prepared}]",
                     seconds(layer.span.start_ms)
                 ));
                 filters.push(format!(
@@ -302,8 +307,37 @@ pub(crate) fn build_render_plan(
                     layer.span.start_ms,
                 );
                 let transition = evaluated_transition_filters(&layer.transitions);
-                filters.push(format!("color=c={}:s={width}x{height}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(color), seconds(layer.span.end_ms - layer.span.start_ms), seconds(layer.span.start_ms)));
-                filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(layer.span.start_ms), seconds(layer.span.end_ms)));
+                let historical = historical_fullscene_synthetic(layer, scene, intent);
+                let source = if historical {
+                    format!(
+                        "color=c={}:s={width}x{height}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB",
+                        ffmpeg_color(color),
+                        seconds(layer.span.end_ms - layer.span.start_ms),
+                        seconds(layer.span.start_ms)
+                    )
+                } else {
+                    let (first, count) =
+                        synthetic_frame_window(layer.span.start_ms, layer.span.end_ms, fps)?;
+                    format!(
+                        "color=c={}:s={width}x{height}:r={fps},trim=end_frame={count},format=rgba,setpts=PTS+{first}",
+                        ffmpeg_color(color)
+                    )
+                };
+                filters.push(format!("{source},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]"));
+                let activity = if historical {
+                    format!(
+                        "between(t,{},{})",
+                        seconds(layer.span.start_ms),
+                        seconds(layer.span.end_ms)
+                    )
+                } else {
+                    format!(
+                        "gte(t,{})*lt(t,{})",
+                        seconds(layer.span.start_ms),
+                        seconds(layer.span.end_ms)
+                    )
+                };
+                filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='{activity}'[{composited}]"));
                 current_video = composited;
             }
             EvaluatedVisualSource::Shape(_) => {
@@ -346,26 +380,48 @@ pub(crate) fn build_render_plan(
                     layer.span.start_ms,
                 );
                 let transition = evaluated_transition_filters(&layer.transitions);
-                filters.push(format!("color=c={}:s={}x{}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB,scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]", ffmpeg_color(color), layer_width, layer_height, seconds(layer.span.end_ms - layer.span.start_ms), seconds(layer.span.start_ms)));
-                filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='between(t,{},{})'[{composited}]", seconds(layer.span.start_ms), seconds(layer.span.end_ms)));
+                let historical = historical_fullscene_synthetic(layer, scene, intent);
+                let source = if historical {
+                    format!(
+                        "color=c={}:s={layer_width}x{layer_height}:r={fps}:d={},format=rgba,setpts=PTS+{}/TB",
+                        ffmpeg_color(color),
+                        seconds(layer.span.end_ms - layer.span.start_ms),
+                        seconds(layer.span.start_ms)
+                    )
+                } else {
+                    let (first, count) =
+                        synthetic_frame_window(layer.span.start_ms, layer.span.end_ms, fps)?;
+                    format!(
+                        "color=c={}:s={layer_width}x{layer_height}:r={fps},trim=end_frame={count},format=rgba,setpts=PTS+{first}",
+                        ffmpeg_color(color)
+                    )
+                };
+                filters.push(format!("{source},scale=w='iw*({scale})':h='ih*({scale})':eval=frame,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({opacity})'{transition}[{prepared}]"));
+                let activity = if historical {
+                    format!(
+                        "between(t,{},{})",
+                        seconds(layer.span.start_ms),
+                        seconds(layer.span.end_ms)
+                    )
+                } else {
+                    format!(
+                        "gte(t,{})*lt(t,{})",
+                        seconds(layer.span.start_ms),
+                        seconds(layer.span.end_ms)
+                    )
+                };
+                filters.push(format!("[{current_video}][{prepared}]overlay=x='{x}':y='{y}':enable='{activity}'[{composited}]"));
                 current_video = composited;
             }
             EvaluatedVisualSource::Caption(caption) => {
                 visual_count += 1;
                 let composited = format!("base{visual_count}");
-                let font = default_font_path
-                    .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
-                    .unwrap_or_default();
+                let draw = caption_drawtext(caption, default_font_path);
                 filters.push(format!(
-                        "[{current_video}]drawtext={font}text='{}':fontsize={}:fontcolor={}:box=1:boxcolor={}@0.75:boxborderw=12:x='(w-text_w)/2':y='h-text_h-{}':enable='between(t,{},{})'[{composited}]",
-                        escape_filter(&caption.text),
-                        caption.font_size,
-                        caption.color,
-                        caption.background_color,
-                        caption.bottom_margin_px,
-                        seconds(layer.span.start_ms),
-                        seconds(layer.span.end_ms)
-                    ));
+                    "[{current_video}]{draw}:enable='between(t,{},{})'[{composited}]",
+                    seconds(layer.span.start_ms),
+                    seconds(layer.span.end_ms)
+                ));
                 current_video = composited;
             }
         }
@@ -418,6 +474,74 @@ pub(crate) fn build_render_plan(
         media_inputs,
         media_paths,
     })
+}
+
+// Preserve the reviewed zero-origin graph only inside its uncut root scene.
+// Endpoints and every mapped/clipped/partial source retain corrected lowering.
+fn historical_fullscene_synthetic(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    scene: &EvaluatedScene,
+    intent: RenderIntent,
+) -> bool {
+    if !matches!(
+        layer.source,
+        EvaluatedVisualSource::SolidColor { .. } | EvaluatedVisualSource::Rectangle { .. }
+    ) || layer.requires_affine()
+        || layer.instance.is_some()
+        || layer.ancestors.is_some()
+        || !layer.ancestor_stages.is_empty()
+        || layer.sampled_input.is_some()
+        || layer.span.start_ms != 0
+        || layer.span.end_ms != scene.duration_ms
+        || scene.duration_ms == 0
+        || scene.canvas.fps == 0
+    {
+        return false;
+    }
+    match intent {
+        RenderIntent::Frame { at_ms } => {
+            at_ms < scene.duration_ms
+                && u128::from(at_ms)
+                    .checked_mul(u128::from(scene.canvas.fps))
+                    .is_some_and(|ticks| ticks.is_multiple_of(1000))
+        }
+        RenderIntent::Range {
+            start_ms, end_ms, ..
+        } => {
+            start_ms < end_ms
+                && end_ms <= scene.duration_ms
+                && u128::from(start_ms)
+                    .checked_mul(u128::from(scene.canvas.fps))
+                    .is_some_and(|ticks| ticks.is_multiple_of(1000))
+        }
+        RenderIntent::Export => true,
+    }
+}
+
+// A synthetic source uses the output grid, including its one possible prefix cell.
+// Integer frame ticks avoid floating second-to-timebase truncation at split seams.
+fn synthetic_frame_window(start_ms: u64, end_ms: u64, fps: u32) -> Result<(i64, i64), CoreError> {
+    let invalid = || CoreError::new(ErrorCode::InvalidArgument, "invalid synthetic frame window");
+    if fps == 0 || end_ms <= start_ms {
+        return Err(invalid());
+    }
+    let first = u128::from(start_ms)
+        .checked_mul(u128::from(fps))
+        .ok_or_else(invalid)?
+        / 1000;
+    let last = u128::from(end_ms)
+        .checked_mul(u128::from(fps))
+        .and_then(|n| n.checked_add(999))
+        .ok_or_else(invalid)?
+        / 1000;
+    let count = last
+        .checked_sub(first)
+        .filter(|n| *n > 0)
+        .ok_or_else(invalid)?;
+    let first = i64::try_from(first).map_err(|_| invalid())?;
+    let _last = i64::try_from(last).map_err(|_| invalid())?;
+    let count = i64::try_from(count).map_err(|_| invalid())?;
+    Ok((first, count))
 }
 
 fn append_audio_layer(
@@ -1423,6 +1547,114 @@ fn format_curve_number(value: f64) -> String {
     format!("{value:.17}")
 }
 
+/// Preserve the existing direct Caption paint and literal escaping verbatim.
+fn caption_drawtext(
+    caption: &crate::evaluated_scene::EvaluatedCaption,
+    font_path: Option<&Path>,
+) -> String {
+    let font = font_path
+        .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+        .unwrap_or_default();
+    format!(
+        "drawtext={font}text='{}':fontsize={}:fontcolor={}:box=1:boxcolor={}@0.75:boxborderw=12:x='(w-text_w)/2':y='h-text_h-{}'",
+        escape_filter(&caption.text),
+        caption.font_size,
+        caption.color,
+        caption.background_color,
+        caption.bottom_margin_px
+    )
+}
+
+fn affine_caption_source(
+    caption: &crate::evaluated_scene::EvaluatedCaption,
+    prepared: &PreparedText,
+    size: (u32, u32),
+    fps: u32,
+    duration: &str,
+) -> String {
+    let font = prepared
+        .font_path
+        .as_ref()
+        .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
+        .unwrap_or_default();
+    format!(
+        "color=c={}@0.75:s={}x{}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:x=12:y=12",
+        caption.background_color,
+        size.0,
+        size.1,
+        escape_filter_path(&prepared.file_path),
+        caption.font_size,
+        caption.color
+    )
+}
+
+/// A source-equivalent static bitmap; animation and activity are sampled elsewhere.
+pub(crate) fn caption_raster_source(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    prepared: Option<&PreparedText>,
+    default_font_path: Option<&Path>,
+    size: (u32, u32),
+) -> Result<String, CoreError> {
+    let EvaluatedVisualSource::Caption(caption) = &layer.source else {
+        return Err(CoreError::new(
+            ErrorCode::InternalError,
+            "caption raster source kind mismatch",
+        ));
+    };
+    if layer.requires_affine() {
+        let prepared = prepared
+            .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing affine caption"))?;
+        Ok(affine_caption_source(caption, prepared, size, 1, "1"))
+    } else {
+        Ok(format!(
+            "color=c=black@0:s={}x{}:r=1:d=1,format=rgba,{}",
+            size.0,
+            size.1,
+            caption_drawtext(caption, default_font_path)
+        ))
+    }
+}
+
+fn affine_shape_needs_scene_cadence(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    fps: u32,
+) -> bool {
+    if layer.has_animated_ancestors()
+        || !layer.transitions.is_empty()
+        || layer.keyframes.iter().enumerate().any(|(index, key)| {
+            layer.keyframes[..index]
+                .iter()
+                .any(|previous| previous.property == key.property)
+        })
+    {
+        return true;
+    }
+    if let Some(clock) = layer.instance {
+        [clock.start_ms, clock.end_ms].into_iter().any(|root_ms| {
+            let tick = root_ms * f64::from(fps) / 1000.0;
+            !tick.is_finite() || tick.fract() != 0.0
+        })
+    } else {
+        let span = layer.visible_span();
+        [span.start_ms, span.end_ms]
+            .into_iter()
+            .any(|root_ms| !(u128::from(root_ms) * u128::from(fps)).is_multiple_of(1000))
+    }
+}
+
+fn image_media_needs_scene_cadence(
+    layer: &crate::evaluated_scene::EvaluatedVisualLayer,
+    scene: &EvaluatedScene,
+) -> bool {
+    let EvaluatedVisualSource::Media { asset_id, .. } = &layer.source else {
+        return false;
+    };
+    scene.resources.iter().any(|resource| {
+        resource.asset_id == *asset_id
+            && resource.kind == crate::evaluated_scene::EvaluatedMediaKind::Image
+    }) && affine_shape_needs_scene_cadence(layer, scene.canvas.fps)
+}
+
 fn append_affine_layer(
     filters: &mut Vec<String>,
     layer: &crate::evaluated_scene::EvaluatedVisualLayer,
@@ -1448,7 +1680,9 @@ fn append_affine_layer(
             let start = layer.instance.map_or(layer.span.start_ms as f64, |c| {
                 c.root_ms(layer.span.start_ms)
             });
-            let sampling_rate = if layer.has_animated_ancestors() {
+            let sampling_rate = if layer.has_animated_ancestors()
+                || image_media_needs_scene_cadence(layer, scene)
+            {
                 format!(",fps={fps}")
             } else {
                 String::new()
@@ -1462,7 +1696,7 @@ fn append_affine_layer(
             let input = input_indexes
                 .get(layer.item_id.as_str())
                 .ok_or_else(|| CoreError::new(ErrorCode::InternalError, "missing shape input"))?;
-            if layer.has_animated_ancestors() {
+            if affine_shape_needs_scene_cadence(layer, fps) {
                 format!("[{input}:v]fps={fps},setpts=PTS-STARTPTS,format=rgba")
             } else {
                 format!("[{input}:v]setpts=PTS-STARTPTS,format=rgba")
@@ -1537,18 +1771,7 @@ fn append_affine_layer(
             let prepared = text_layers.get(&layer.item_id).ok_or_else(|| {
                 CoreError::new(ErrorCode::InternalError, "missing affine caption")
             })?;
-            let font = prepared
-                .font_path
-                .as_ref()
-                .map(|path| format!("fontfile='{}':", escape_filter_path(path)))
-                .unwrap_or_default();
-            format!(
-                "color=c={}@0.75:s={sw}x{sh}:r={fps}:d={duration},format=rgba,drawtext={font}textfile='{}':expansion=none:fontsize={}:fontcolor={}:x=12:y=12",
-                caption.background_color,
-                escape_filter_path(&prepared.file_path),
-                caption.font_size,
-                caption.color
-            )
+            affine_caption_source(caption, prepared, (sw, sh), fps, &duration)
         }
     };
     if let Some(tiles) = &layer.sampling_tiles
@@ -2002,6 +2225,737 @@ mod tests {
         TextStyle, Track, TrackType, Transform, TransitionItem, TransitionType,
         evaluated_scene::evaluate_project, render_artifact::media_input_requests,
     };
+
+    fn affine_shape_cadence_scene() -> EvaluatedScene {
+        let mut project = empty_project();
+        let item: TimelineItem = serde_json::from_value(serde_json::json!({
+            "type":"shape","id":"cadence-shape","startMs":0,"durationMs":1000,
+            "geometry":{"type":"rectangle","width":5,"height":5},
+            "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},
+            "keyframes":[]
+        }))
+        .unwrap();
+        project.tracks.push(Track {
+            id: "cadence-track".into(),
+            name: "Cadence".into(),
+            track_type: TrackType::Overlay,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![item],
+        });
+        evaluate_project(&project, 64, 64, 10).unwrap().scene
+    }
+
+    #[test]
+    fn affine_shape_cadence_classifies_exact_integer_and_fractional_root_endpoints() {
+        use crate::evaluated_scene::{EvaluatedInstance, EvaluatedTimeSpan};
+        let scene = affine_shape_cadence_scene();
+        let mut layer = scene.visual_layers[0].clone();
+        // Direct-root visibility uses the local span only without a clip/instance.
+        layer.ancestors = None;
+        layer.instance = None;
+        for fps in [10, 24, 30, 120] {
+            for (start, end, expected) in [
+                (0, 1000, false),
+                (1000, 2000, false),
+                (1, 1000, true),
+                (0, 999, true),
+                (713, 799, true),
+            ] {
+                layer.span = EvaluatedTimeSpan {
+                    start_ms: start,
+                    end_ms: end,
+                };
+                assert_eq!(
+                    affine_shape_needs_scene_cadence(&layer, fps),
+                    expected,
+                    "integer {fps}: {start}..{end}"
+                );
+            }
+            // These finite integer endpoints exceed f64's exact integer range.
+            // The owning integer path must retain divisibility without overflow.
+            layer.span = EvaluatedTimeSpan {
+                start_ms: u64::MAX - 615,
+                end_ms: u64::MAX - 615,
+            };
+            assert!(!affine_shape_needs_scene_cadence(&layer, fps));
+            layer.span.end_ms = u64::MAX;
+            assert!(affine_shape_needs_scene_cadence(&layer, fps));
+            for (start, end, expected) in [
+                (0.0, 1000.0, false),
+                (0.25, 1000.0, true),
+                (0.0, 999.75, true),
+                (-1000.0, 0.0, false),
+                (-0.25, 1000.0, true),
+                (1000.0 - f64::EPSILON * 1024.0, 2000.0, true),
+                (1000.0 + f64::EPSILON * 1024.0, 2000.0, true),
+                (f64::NAN, 1000.0, true),
+                (0.0, f64::INFINITY, true),
+                (f64::MAX, 1000.0, true),
+            ] {
+                layer.instance = Some(EvaluatedInstance {
+                    rate: 1.5,
+                    offset: 17.25,
+                    start_ms: start,
+                    end_ms: end,
+                    canvas: (64, 64),
+                });
+                assert_eq!(
+                    affine_shape_needs_scene_cadence(&layer, fps),
+                    expected,
+                    "fractional {fps}: {start}..{end}"
+                );
+            }
+            // Exact root endpoints override a deliberately off-grid local span.
+            layer.instance = Some(EvaluatedInstance {
+                rate: 1.5,
+                offset: 17.25,
+                start_ms: 0.0,
+                end_ms: 1000.0,
+                canvas: (64, 64),
+            });
+            assert!(!affine_shape_needs_scene_cadence(&layer, fps));
+            layer.instance = None;
+        }
+    }
+
+    #[test]
+    fn affine_shape_cadence_uses_clipped_root_span_and_same_property_keys() {
+        use crate::evaluated_scene::{EvaluatedAncestors, EvaluatedTimeSpan};
+        let scene = affine_shape_cadence_scene();
+        let mut layer = scene.visual_layers[0].clone();
+        let identity = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        layer.ancestors = Some(EvaluatedAncestors {
+            matrix: identity,
+            inverse: identity,
+            opacity: 1.0,
+            clip: EvaluatedTimeSpan {
+                start_ms: 713,
+                end_ms: 799,
+            },
+        });
+        assert!(affine_shape_needs_scene_cadence(&layer, 10));
+        layer.ancestors.as_mut().unwrap().clip = EvaluatedTimeSpan {
+            start_ms: 0,
+            end_ms: 1000,
+        };
+        assert!(!affine_shape_needs_scene_cadence(&layer, 10));
+        let key = |property, time_ms| EvaluatedKeyframe {
+            property,
+            time_ms,
+            value: EvaluatedKeyframeValue::Scalar { value: 0.7 },
+            easing: EvaluatedEasing::Hold,
+            r#loop: None,
+            clock: None,
+        };
+        layer.keyframes = vec![key(EvaluatedProperty::Opacity, 0)];
+        assert!(!affine_shape_needs_scene_cadence(&layer, 10));
+        layer.keyframes.push(key(EvaluatedProperty::Scale, 0));
+        assert!(!affine_shape_needs_scene_cadence(&layer, 10));
+        for property in [
+            EvaluatedProperty::Position,
+            EvaluatedProperty::PositionX,
+            EvaluatedProperty::PositionY,
+            EvaluatedProperty::Scale,
+            EvaluatedProperty::ScaleX,
+            EvaluatedProperty::ScaleY,
+            EvaluatedProperty::Opacity,
+        ] {
+            layer.keyframes = vec![key(property, 0), key(property, 900)];
+            assert!(affine_shape_needs_scene_cadence(&layer, 10), "{property:?}");
+        }
+        layer.keyframes.clear();
+        layer.transitions.push(EvaluatedTransition {
+            role: EvaluatedTransitionRole::In,
+            kind: crate::evaluated_scene::EvaluatedTransitionKind::Fade,
+            span: EvaluatedTimeSpan {
+                start_ms: 0,
+                end_ms: 900,
+            },
+        });
+        assert!(affine_shape_needs_scene_cadence(&layer, 10));
+    }
+
+    #[test]
+    fn affine_shape_cadence_preserves_static_source_graph_and_missing_input_error() {
+        let mut scene = affine_shape_cadence_scene();
+        let mut original = scene.visual_layers[0].clone();
+        original.ancestors = None;
+        original.instance = None;
+        let affine = crate::evaluated_scene::evaluate_layer_affine(
+            &original,
+            original.source_size.unwrap(),
+            (64, 64),
+        )
+        .unwrap();
+        let indexes = HashMap::from([(original.item_id.as_str(), 0)]);
+        let source_graph = |layer: &crate::evaluated_scene::EvaluatedVisualLayer| {
+            let mut filters = vec![];
+            append_affine_layer(
+                &mut filters,
+                layer,
+                &affine,
+                &scene,
+                &HashMap::new(),
+                &indexes,
+                ("base", "output", 0),
+            )
+            .unwrap();
+            filters[0].clone()
+        };
+        let unchanged = source_graph(&original);
+        assert!(unchanged.starts_with("[0:v]setpts=PTS-STARTPTS,format=rgba"));
+        assert!(!unchanged.starts_with("[0:v]fps="));
+        let mut changed = original.clone();
+        changed.span.start_ms = 713;
+        assert!(source_graph(&changed).starts_with("[0:v]fps=10,setpts=PTS-STARTPTS,format=rgba"));
+        let mut filters = vec![];
+        changed.source_size = None;
+        let error = append_affine_layer(
+            &mut filters,
+            &changed,
+            &affine,
+            &scene,
+            &HashMap::new(),
+            &HashMap::new(),
+            ("base", "output", 0),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert_eq!(error.message, "missing affine source size");
+        changed.source_size = original.source_size;
+        let error = append_affine_layer(
+            &mut filters,
+            &changed,
+            &affine,
+            &scene,
+            &HashMap::new(),
+            &HashMap::new(),
+            ("base", "output", 0),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert_eq!(error.message, "missing shape input");
+        assert!(filters.is_empty());
+        // The existing ancestor predicate remains an independent reason to
+        // normalize even when local keys and both root endpoints are static.
+        let mut project = empty_project();
+        project.tracks.push(Track { id:"ancestors".into(),name:"Ancestors".into(),track_type:TrackType::Overlay,locked:false,hidden:false,muted:false,audio_role:AudioTrackRole::Unassigned,ducking:None,items:vec![serde_json::from_value(serde_json::json!({"type":"group","id":"parent","startMs":0,"durationMs":1000,"animationChannels":[{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.7},"curve":"hold"}]}]})).unwrap(),serde_json::from_value(serde_json::json!({"type":"shape","id":"child","startMs":0,"durationMs":1000,"stackOrder":1,"geometry":{"type":"rectangle","width":5,"height":5},"fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,"parent":{"scope":"root","id":"parent"},"keyframes":[]})).unwrap()] });
+        scene = evaluate_project(&project, 64, 64, 10).unwrap().scene;
+        assert!(scene.visual_layers[0].has_animated_ancestors());
+        assert!(affine_shape_needs_scene_cadence(
+            &scene.visual_layers[0],
+            10
+        ));
+        scene.visual_layers[0].source = EvaluatedVisualSource::Media {
+            asset_id: "video-asset".into(),
+            source_in_ms: 0,
+        };
+        scene.resources.clear(); // No image-resource reason is present.
+        let layer = &scene.visual_layers[0];
+        let affine = crate::evaluated_scene::evaluate_layer_affine(
+            layer,
+            layer.source_size.unwrap(),
+            (64, 64),
+        )
+        .unwrap();
+        let inputs = HashMap::from([(layer.item_id.as_str(), 2)]);
+        let mut filters = vec![];
+        append_affine_layer(
+            &mut filters,
+            layer,
+            &affine,
+            &scene,
+            &HashMap::new(),
+            &inputs,
+            ("base", "output", 0),
+        )
+        .unwrap();
+        assert!(filters[0].contains("/TB,fps=10,format=rgba"));
+    }
+
+    fn image_media_cadence_scene(
+        kind: Option<crate::evaluated_scene::EvaluatedMediaKind>,
+    ) -> EvaluatedScene {
+        let mut scene = affine_shape_cadence_scene();
+        let layer = &mut scene.visual_layers[0];
+        layer.ancestors = None;
+        layer.instance = None;
+        layer.affine = None;
+        layer.source = EvaluatedVisualSource::Media {
+            asset_id: "image-asset".into(),
+            source_in_ms: 25,
+        };
+        scene.resources = kind
+            .into_iter()
+            .map(|kind| crate::evaluated_scene::EvaluatedMediaResource {
+                asset_id: "image-asset".into(),
+                kind,
+                has_audio: false,
+            })
+            .collect();
+        scene
+    }
+
+    fn image_media_cadence_plan(scene: &EvaluatedScene, intent: RenderIntent) -> RenderPlan {
+        build_render_plan(
+            scene,
+            &HashMap::new(),
+            vec![MediaInputRequest {
+                item_id: scene.visual_layers[0].item_id.clone(),
+                asset_id: "image-asset".into(),
+                project_relative_path: "assets/image.png".into(),
+                media_type: MediaType::Image,
+                source_in_ms: 25,
+                duration_ms: 1000,
+                input_index: 2,
+            }],
+            vec![],
+            None,
+            intent,
+            &mut vec![],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn image_media_cadence_requires_actual_image_resource_and_precise_raster_reason() {
+        use crate::evaluated_scene::EvaluatedMediaKind;
+        for kind in [
+            Some(EvaluatedMediaKind::Image),
+            Some(EvaluatedMediaKind::Video),
+            Some(EvaluatedMediaKind::Audio),
+            None,
+        ] {
+            let mut scene = image_media_cadence_scene(kind);
+            assert!(!image_media_needs_scene_cadence(
+                &scene.visual_layers[0],
+                &scene
+            ));
+            scene.visual_layers[0].span.start_ms = 713;
+            assert_eq!(
+                image_media_needs_scene_cadence(&scene.visual_layers[0], &scene),
+                kind == Some(EvaluatedMediaKind::Image)
+            );
+            scene.visual_layers[0].span.start_ms = 0;
+            let key = |time_ms| EvaluatedKeyframe {
+                property: EvaluatedProperty::Opacity,
+                time_ms,
+                value: EvaluatedKeyframeValue::Scalar { value: 0.7 },
+                easing: EvaluatedEasing::Hold,
+                r#loop: None,
+                clock: None,
+            };
+            scene.visual_layers[0].keyframes = vec![key(0)];
+            assert!(!image_media_needs_scene_cadence(
+                &scene.visual_layers[0],
+                &scene
+            ));
+            scene.visual_layers[0].keyframes.push(key(900));
+            assert_eq!(
+                image_media_needs_scene_cadence(&scene.visual_layers[0], &scene),
+                kind == Some(EvaluatedMediaKind::Image)
+            );
+            scene.visual_layers[0].keyframes.clear();
+            scene.visual_layers[0]
+                .transitions
+                .push(EvaluatedTransition {
+                    role: EvaluatedTransitionRole::Out,
+                    kind: crate::evaluated_scene::EvaluatedTransitionKind::Fade,
+                    span: crate::evaluated_scene::EvaluatedTimeSpan {
+                        start_ms: 700,
+                        end_ms: 900,
+                    },
+                });
+            assert_eq!(
+                image_media_needs_scene_cadence(&scene.visual_layers[0], &scene),
+                kind == Some(EvaluatedMediaKind::Image)
+            );
+            if let Some(resource) = scene.resources.first_mut() {
+                resource.asset_id = "different-asset".into();
+            }
+            assert!(!image_media_needs_scene_cadence(
+                &scene.visual_layers[0],
+                &scene
+            ));
+        }
+    }
+
+    #[test]
+    fn image_media_cadence_direct_graph_preserves_mapping_static_identity_and_inclusive_end() {
+        use crate::evaluated_scene::EvaluatedMediaKind;
+        let mut image = image_media_cadence_scene(Some(EvaluatedMediaKind::Image));
+        let mut video = image_media_cadence_scene(Some(EvaluatedMediaKind::Video));
+        let intents = [
+            RenderIntent::Frame { at_ms: 700 },
+            RenderIntent::Range {
+                start_ms: 700,
+                end_ms: 900,
+                include_audio: false,
+            },
+            RenderIntent::Export,
+        ];
+        for intent in intents {
+            let baseline = image_media_cadence_plan(&image, intent);
+            assert_eq!(
+                baseline.filter_graph,
+                image_media_cadence_plan(&video, intent).filter_graph
+            );
+            assert!(
+                baseline
+                    .filter_graph
+                    .contains("[2:v]setpts=PTS-STARTPTS+0.000/TB,scale=")
+            );
+            image.visual_layers[0].span.start_ms = 713;
+            image.visual_layers[0].span.end_ms = 799;
+            video.visual_layers[0].span = image.visual_layers[0].span;
+            let corrected = image_media_cadence_plan(&image, intent);
+            assert!(
+                corrected
+                    .filter_graph
+                    .contains("[2:v]setpts=PTS-STARTPTS+0.713/TB,fps=10,scale=")
+            );
+            let unchanged_video = image_media_cadence_plan(&video, intent);
+            assert!(
+                unchanged_video
+                    .filter_graph
+                    .contains("[2:v]setpts=PTS-STARTPTS+0.713/TB,scale=")
+            );
+            assert!(!unchanged_video.filter_graph.contains(",fps=10"));
+            assert_eq!(corrected.media_inputs[0].source_in_ms, 25);
+            image.resources.clear();
+            assert_eq!(
+                image_media_cadence_plan(&image, intent).filter_graph,
+                unchanged_video.filter_graph
+            );
+            image.resources = image_media_cadence_scene(Some(EvaluatedMediaKind::Image)).resources;
+            image.visual_layers[0].span.start_ms = 700;
+            image.visual_layers[0].span.end_ms = 800;
+            video.visual_layers[0].span = image.visual_layers[0].span;
+            let endpoint = image_media_cadence_plan(&image, intent).filter_graph;
+            assert_eq!(
+                endpoint,
+                image_media_cadence_plan(&video, intent).filter_graph
+            );
+            assert!(endpoint.contains("enable='between(t,0.700,0.800)'"));
+            assert!(!endpoint.contains(",fps=10"));
+            image.visual_layers[0].span.start_ms = 0;
+            image.visual_layers[0].span.end_ms = 1000;
+            video.visual_layers[0].span = image.visual_layers[0].span;
+        }
+        let error = build_render_plan(
+            &image,
+            &HashMap::new(),
+            vec![],
+            vec![],
+            None,
+            RenderIntent::Export,
+            &mut vec![],
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert_eq!(error.message, "renderer input mapping is missing");
+    }
+
+    #[test]
+    fn image_media_cadence_affine_graph_preserves_rate_start_video_and_input_errors() {
+        use crate::evaluated_scene::{EvaluatedInstance, EvaluatedMediaKind};
+        let mut scene = image_media_cadence_scene(Some(EvaluatedMediaKind::Image));
+        let layer = &mut scene.visual_layers[0];
+        layer.span.start_ms = 713;
+        layer.span.end_ms = 799;
+        layer.instance = Some(EvaluatedInstance {
+            rate: 2.0,
+            offset: 13.0,
+            start_ms: 713.25,
+            end_ms: 799.75,
+            canvas: (64, 64),
+        });
+        let affine = crate::evaluated_scene::evaluate_layer_affine(
+            layer,
+            layer.source_size.unwrap(),
+            (64, 64),
+        )
+        .unwrap();
+        let source = |scene: &EvaluatedScene| {
+            let layer = &scene.visual_layers[0];
+            let mut filters = vec![];
+            let inputs = HashMap::from([(layer.item_id.as_str(), 2)]);
+            append_affine_layer(
+                &mut filters,
+                layer,
+                &affine,
+                scene,
+                &HashMap::new(),
+                &inputs,
+                ("base", "output", 0),
+            )
+            .unwrap();
+            filters[0].clone()
+        };
+        let normalized = source(&scene);
+        assert!(normalized.starts_with("[2:v]setpts=(PTS-STARTPTS)/2.00000000000000000+0.34999999999999998/TB,fps=10,format=rgba"));
+        scene.resources[0].kind = EvaluatedMediaKind::Video;
+        let video = source(&scene);
+        assert!(!video.contains(",fps=10"));
+        assert_eq!(normalized.replacen(",fps=10", "", 1), video);
+        scene.resources.clear();
+        assert_eq!(source(&scene), video);
+        let mut filters = vec![];
+        let error = append_affine_layer(
+            &mut filters,
+            &scene.visual_layers[0],
+            &affine,
+            &scene,
+            &HashMap::new(),
+            &HashMap::new(),
+            ("base", "output", 0),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InternalError);
+        assert_eq!(error.message, "missing affine media input");
+        assert!(filters.is_empty());
+        scene.visual_layers[0].instance = None;
+        scene.visual_layers[0].span = crate::evaluated_scene::EvaluatedTimeSpan {
+            start_ms: 0,
+            end_ms: 1000,
+        };
+        scene.resources = image_media_cadence_scene(Some(EvaluatedMediaKind::Image)).resources;
+        let static_image = source(&scene);
+        assert!(static_image.starts_with(
+            "[2:v]setpts=(PTS-STARTPTS)/1.00000000000000000+0.00000000000000000/TB,format=rgba"
+        ));
+        assert!(!static_image.contains(",fps=10"));
+        scene.resources[0].kind = EvaluatedMediaKind::Video;
+        assert_eq!(source(&scene), static_image);
+    }
+
+    #[test]
+    fn epic6_fullscene_synthetic_compatibility_is_structural_and_intent_qualified() {
+        let mut p = empty_project();
+        p.tracks.push(Track {
+            id: "plain".into(),
+            name: "plain".into(),
+            track_type: TrackType::Overlay,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::SolidColor(SolidColorItem {
+                id: "solid".into(),
+                color: "#ff0000".into(),
+                start_ms: 0,
+                duration_ms: 1000,
+                visual_properties: crate::VisualProperties::new(Transform::default(), false),
+                keyframes: vec![],
+            })],
+        });
+        let scene = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+        assert!(scene.visual_layers[0].source_size.is_none());
+        let intents = [
+            RenderIntent::Frame { at_ms: 500 },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 1000,
+                include_audio: true,
+            },
+            RenderIntent::Export,
+        ];
+        let mut graphs = vec![];
+        for intent in intents {
+            assert!(historical_fullscene_synthetic(
+                &scene.visual_layers[0],
+                &scene,
+                intent
+            ));
+            let graph = build_render_plan(
+                &scene,
+                &HashMap::new(),
+                vec![],
+                vec![],
+                None,
+                intent,
+                &mut vec![],
+            )
+            .unwrap()
+            .filter_graph;
+            assert!(
+                graph.contains(
+                    "color=c=0xff0000:s=64x64:r=10:d=1.000,format=rgba,setpts=PTS+0.000/TB"
+                )
+            );
+            assert!(graph.contains("enable='between(t,0.000,1.000)'"));
+            assert!(!graph.contains("trim=end_frame="));
+            graphs.push(graph);
+        }
+        assert!(graphs.windows(2).all(|pair| pair[0] == pair[1]));
+        for intent in [
+            RenderIntent::Frame { at_ms: 1000 },
+            RenderIntent::Frame { at_ms: 713 },
+            RenderIntent::Range {
+                start_ms: 713,
+                end_ms: 913,
+                include_audio: false,
+            },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 0,
+                include_audio: false,
+            },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 1001,
+                include_audio: false,
+            },
+        ] {
+            assert!(!historical_fullscene_synthetic(
+                &scene.visual_layers[0],
+                &scene,
+                intent
+            ));
+        }
+        let endpoint = build_render_plan(
+            &scene,
+            &HashMap::new(),
+            vec![],
+            vec![],
+            None,
+            RenderIntent::Frame { at_ms: 1000 },
+            &mut vec![],
+        )
+        .unwrap()
+        .filter_graph;
+        assert!(endpoint.contains("trim=end_frame=10"));
+        assert!(endpoint.contains("enable='gte(t,0.000)*lt(t,1.000)'"));
+        for (start, end) in [(0, 800), (713, 1000), (1, 1000)] {
+            let mut layer = scene.visual_layers[0].clone();
+            layer.span.start_ms = start;
+            layer.span.end_ms = end;
+            assert!(!historical_fullscene_synthetic(
+                &layer,
+                &scene,
+                RenderIntent::Export
+            ));
+        }
+        let mut layer = scene.visual_layers[0].clone();
+        layer.ancestors = Some(crate::evaluated_scene::EvaluatedAncestors {
+            matrix: [1., 0., 0., 1., 0., 0.],
+            inverse: [1., 0., 0., 1., 0., 0.],
+            opacity: 1.,
+            clip: layer.span,
+        });
+        assert!(!historical_fullscene_synthetic(
+            &layer,
+            &scene,
+            RenderIntent::Export
+        ));
+        let mut layer = scene.visual_layers[0].clone();
+        layer.instance = Some(crate::evaluated_scene::EvaluatedInstance {
+            rate: 0.751,
+            offset: 0.,
+            start_ms: 0.,
+            end_ms: 1000.,
+            canvas: (31, 23),
+        });
+        assert!(!historical_fullscene_synthetic(
+            &layer,
+            &scene,
+            RenderIntent::Export
+        ));
+        let mut layer = scene.visual_layers[0].clone();
+        layer.sampled_input = Some(("prepared".into(), 0));
+        assert!(!historical_fullscene_synthetic(
+            &layer,
+            &scene,
+            RenderIntent::Export
+        ));
+        let mut layer = scene.visual_layers[0].clone();
+        layer.transform2d = Some(crate::Transform2D::default());
+        assert!(!historical_fullscene_synthetic(
+            &layer,
+            &scene,
+            RenderIntent::Export
+        ));
+        // Valid retained clocks do not alter this topology decision or their phase expression.
+        if let TimelineItem::SolidColor(solid) = &mut p.tracks[0].items[0] {
+            solid.visual_properties.animation_channels=vec![serde_json::from_value(serde_json::json!({"property":"transform.opacity","clock":{"offsetMs":700,"sourceDurationMs":1700},"loop":{"mode":"repeat","iterations":4},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.2},"curve":"linear"},{"timeMs":100,"value":{"type":"scalar","value":0.8},"curve":"linear"},{"timeMs":200,"value":{"type":"scalar","value":0.2},"curve":"hold"}]})).unwrap()];
+        }
+        let retained = evaluate_project(&p, 64, 64, 10).unwrap().scene;
+        let layer = &retained.visual_layers[0];
+        assert!(historical_fullscene_synthetic(
+            layer,
+            &retained,
+            RenderIntent::Export
+        ));
+        let graph = build_render_plan(
+            &retained,
+            &HashMap::new(),
+            vec![],
+            vec![],
+            None,
+            RenderIntent::Export,
+            &mut vec![],
+        )
+        .unwrap()
+        .filter_graph;
+        let expression = evaluated_scalar_expression_for(
+            &layer.keyframes,
+            EvaluatedProperty::Opacity,
+            layer.transform.opacity,
+            0,
+            "T",
+        );
+        assert!(graph.contains(&format!("alpha(X,Y)*({expression})")));
+        assert_eq!(
+            crate::animation::sample_scalar_channel(
+                &p.tracks[0].items[0].visual_properties().animation_channels[0],
+                100
+            ),
+            Some(0.2)
+        );
+    }
+
+    #[test]
+    fn epic6_synthetic_frame_windows_cover_exact_global_cells_and_fail_closed() {
+        for (fps, first, count) in [(10, 7, 2), (24, 17, 3), (30, 21, 4), (120, 85, 13)] {
+            assert_eq!(
+                synthetic_frame_window(713, 813, fps).unwrap(),
+                (first, count)
+            );
+            // Every generated tick encloses the interval; there is at most one
+            // prefix tick and the next tick is beyond the exclusive end.
+            assert!((first as u128) * 1000 <= 713 * u128::from(fps));
+            assert!(((first + count) as u128) * 1000 >= 813 * u128::from(fps));
+            assert!(((first + 1) as u128) * 1000 > 713 * u128::from(fps));
+        }
+        assert_eq!(synthetic_frame_window(700, 800, 10).unwrap(), (7, 1));
+        assert_eq!(synthetic_frame_window(713, 799, 10).unwrap(), (7, 1));
+        // This interval has no visible export-grid tick: its sole source cell
+        // is the inactive700ms prefix, not a fabricated713ms output sample.
+        assert_eq!(synthetic_frame_window(1, 2, 120).unwrap(), (0, 1));
+        for fps in [10, 24, 30, 120] {
+            let (first, count) = synthetic_frame_window(u64::MAX - 1, u64::MAX, fps).unwrap();
+            assert!(first > 0 && count > 0);
+        }
+        for (start, end, fps) in [
+            (0, 0, 10),
+            (2, 1, 10),
+            (0, 1, 0),
+            (u64::MAX - 1, u64::MAX, u32::MAX),
+            (0, u64::MAX, u32::MAX),
+        ] {
+            assert_eq!(
+                synthetic_frame_window(start, end, fps).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+        }
+    }
 
     #[test]
     fn native_retained_clock_expressions_match_independent_source_functions() {

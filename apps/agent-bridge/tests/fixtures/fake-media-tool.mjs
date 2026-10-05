@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 
 const [mode, ...args] = process.argv.slice(2);
@@ -37,7 +37,56 @@ if (mode === "ffprobe") {
   console.log(
     " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... "
   );
+} else if (
+  args.at(-1) === "pipe:1" &&
+  args.some((arg, index) => arg === "-f" && args[index + 1] === "rawvideo")
+) {
+  const filter = args[args.indexOf("-vf") + 1];
+  let dimensions;
+  if (args.includes("-vf")) {
+    dimensions = /^scale=([0-9]+):([0-9]+),format=rgba$/.exec(filter ?? "");
+  } else if (
+    args.some((arg, index) => arg === "-f" && args[index + 1] === "lavfi") &&
+    args.includes("-i") &&
+    args.includes("-pix_fmt") &&
+    args[args.indexOf("-pix_fmt") + 1] === "rgba"
+  ) {
+    const source = args[args.indexOf("-i") + 1] ?? "";
+    dimensions =
+      /^color=c=[^:]+:s=([0-9]+)x([0-9]+):r=1:d=1,format=rgba(?:,drawtext=|$)/.exec(
+        source
+      );
+  }
+  const width = Number(dimensions?.[1]);
+  const height = Number(dimensions?.[2]);
+  const pixels = width * height;
+  const bytes = pixels * 4;
+  if (
+    !(Number.isSafeInteger(width) && Number.isSafeInteger(height)) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > 16_384 ||
+    height > 16_384 ||
+    !Number.isSafeInteger(pixels) ||
+    pixels > 16_777_216 ||
+    !Number.isSafeInteger(bytes) ||
+    bytes > 67_108_864
+  ) {
+    process.stderr.write("invalid fixture RGBA dimensions\n");
+    process.exit(2);
+  }
+  const rgba = Buffer.alloc(bytes, Buffer.from([255, 0, 0, 255]));
+  let offset = 0;
+  while (offset < rgba.length) {
+    offset += writeSync(1, rgba, offset, rgba.length - offset);
+  }
 } else {
+  // Stream-discard only the actual image2pipe input, before producing output.
+  if (args.some((arg, index) => arg === "-i" && args[index + 1] === "pipe:0")) {
+    for await (const _chunk of process.stdin) {
+      // Consume chunks through EOF without retaining a timeline buffer.
+    }
+  }
   // Render commands can append a discarded audio output after the PNG/MP4.
   let output = args.at(-1);
   if (args.includes("-filter_complex_script")) {

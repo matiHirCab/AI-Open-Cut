@@ -241,6 +241,15 @@ const catalogSchema = z.strictObject({
     wireFieldCase: z.literal("lower_camel_case"),
   }),
   status: z.literal("fixture_only"),
+  timeExpressionCases: z
+    .array(
+      z.strictObject({
+        accept: z.boolean(),
+        id: z.string().min(1),
+        value: z.unknown(),
+      })
+    )
+    .min(1),
   validFixtures: z.array(
     z.strictObject({
       concept: z.enum(concepts),
