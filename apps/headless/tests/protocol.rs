@@ -1199,23 +1199,39 @@ fn ready_renderer_advertises_canonical_linear_composition_in_protocol_v1() {
     for request_name in ["statusDefault", "statusCurrent"] {
         let status = result(&harness.request(contract["requests"][request_name].clone()));
         assert_eq!(status["protocolVersion"], 1);
-        assert_eq!(status["subsystems"]["rendering"]["ready"], true, "{status}");
-        assert_eq!(status["subsystems"]["rendering"]["error"], Value::Null);
+        let ready = status["subsystems"]["rendering"]["ready"]
+            .as_bool()
+            .expect("rendering readiness must be a boolean");
+        if std::env::var("OPENCUT_GOLDEN_REQUIRED").as_deref() == Ok("1") {
+            assert!(ready, "required native renderer is unavailable: {status}");
+        }
+        let rendering_capabilities = if ready {
+            assert_eq!(status["subsystems"]["rendering"]["error"], Value::Null);
+            contract["status"]["renderingCapabilities"].clone()
+        } else {
+            assert_eq!(
+                status["subsystems"]["rendering"]["error"]["code"],
+                "DEPENDENCY_UNAVAILABLE"
+            );
+            assert_eq!(
+                status["subsystems"]["rendering"]["error"]["retryable"],
+                false
+            );
+            json!([])
+        };
         assert_eq!(
             status["subsystems"]["rendering"]["capabilities"],
-            contract["status"]["renderingCapabilities"]
+            rendering_capabilities
+        );
+        assert_eq!(
+            status["subsystems"]["editor"]["capabilities"],
+            contract["status"]["editorCapabilities"]
         );
         let mut expected = contract["status"]["editorCapabilities"]
             .as_array()
             .unwrap()
             .clone();
-        expected.extend(
-            contract["status"]["renderingCapabilities"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .cloned(),
-        );
+        expected.extend(rendering_capabilities.as_array().unwrap().iter().cloned());
         assert_eq!(status["capabilities"], json!(expected));
         for capabilities in [
             &status["capabilities"],
@@ -1228,7 +1244,7 @@ fn ready_renderer_advertises_canonical_linear_composition_in_protocol_v1() {
                     .iter()
                     .filter(|capability| **capability == json!("linear_light_compositing_v1"))
                     .count(),
-                1
+                usize::from(ready)
             );
         }
         assert!(
