@@ -277,14 +277,10 @@ fn assert_nested_pixels(rgb: &[u8], t: u64) {
     }
     // Rank-three media delay is 150 local ms; source samples are 10 fps markers.
     if (100.0..800.0).contains(&t) && raw_leaf >= 150.0 {
-        // Final video resampling rounds source presentation timestamps to the
-        // output frame grid (FFmpeg fps default round=near). Affine clocks
-        // themselves stay fractional: frame f has root PTS=(100*f+250)/.75.
-        // Select the last source PTS whose rounded grid timestamp is reached.
-        let frame = (0usize..10)
-            .take_while(|f| (((100.0 * *f as f64 + 250.0) / 0.75) / 100.0).round() <= t / 100.0)
-            .last()
-            .unwrap_or(0);
+        // Hold the last source presentation timestamp at or before the exact
+        // mapped media clock, independently subtracting the rank-three delay.
+        // At root 700 ms, source 275 ms holds frame 2 rather than future frame 3.
+        let frame = ((raw_leaf - 150.0) / 100.0).floor() as usize;
         let outer = (t - 100.0) * 1.5 + 50.0;
         let phase = ping_phase(outer);
         let alpha = 0.2 + 0.8 * phase;

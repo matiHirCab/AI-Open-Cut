@@ -775,10 +775,19 @@ fn native_long_distance_motion_tiles_reentry_and_draft_agree() {
     };
     let frame = renderer.render_preview(&p, &dir, 250).unwrap();
     let reference = decode(&dir.join(&frame.relative_path), "0");
-    let check_seam = |pixels: &[u8], tolerance: u8| {
+    // Half-opacity red over opaque black is linear red 0.5, encoded only once.
+    let expected_red = (255.0 * (1.055 * 0.5_f64.powf(1.0 / 2.4) - 0.055)).round() as u8;
+    let check_seam = |pixels: &[u8], tolerance: u8, color_tolerance: u8| {
         let red = |x: usize| pixels[(5 * 4200 + x) * 3];
-        assert!((100..155).contains(&red(4095)));
-        assert!((100..155).contains(&red(4096)));
+        for x in [4095, 4096] {
+            let pixel = &pixels[(5 * 4200 + x) * 3..(5 * 4200 + x) * 3 + 3];
+            for (actual, expected) in pixel.iter().zip([expected_red, 0, 0]) {
+                assert!(
+                    actual.abs_diff(expected) <= color_tolerance,
+                    "linear half-red at {x}: {pixel:?}, expected [{expected_red}, 0, 0]"
+                );
+            }
+        }
         assert!(
             red(4095).abs_diff(red(4096)) <= tolerance,
             "seam: {} / {}",
@@ -789,7 +798,7 @@ fn native_long_distance_motion_tiles_reentry_and_draft_agree() {
         assert!(red(4115) < 10);
     };
     // Lossless pixels must be continuous; encoded video permits codec rounding.
-    check_seam(&reference, 3);
+    check_seam(&reference, 3, 1);
     let range = renderer
         .render_preview_range(
             &p,
@@ -820,8 +829,8 @@ fn native_long_distance_motion_tiles_reentry_and_draft_agree() {
         )
         .unwrap();
     for path in [dir.join(range.relative_path), export] {
-        check_seam(&decode(&path, "0.25"), 15);
-        check_seam(&decode(&path, "0.75"), 15);
+        check_seam(&decode(&path, "0.25"), 15, 15);
+        check_seam(&decode(&path, "0.75"), 15, 15);
         assert!(decode(&path, "0.5").iter().all(|v| *v < 10));
         let comparison=std::process::Command::new(&ffmpeg).args(["-v","info","-i"]).arg(dir.join(&frame.relative_path)).args(["-ss","0.25","-i"]).arg(&path).args(["-lavfi","[0:v]scale=in_range=auto:out_range=tv,format=yuv420p[a];[1:v]scale=in_range=auto:out_range=tv,format=yuv420p[b];[a][b]ssim","-frames:v","1","-f","null","-"]).output().unwrap();
         assert!(comparison.status.success());

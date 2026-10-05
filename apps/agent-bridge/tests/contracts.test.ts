@@ -384,25 +384,24 @@ describe("canonical public contracts", () => {
   });
 
   it("expands the approved additive MCP capability catalog deterministically", () => {
-    const first = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
+    const first = MCP_SURFACE;
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
-    expect(first).toEqual(second);
+    const firstSerialized = JSON.stringify(first);
+    expect(firstSerialized).toBe(JSON.stringify(second));
     expect(Object.keys(first.toolDefinitions)).toHaveLength(78);
-    expect(
-      createHash("sha256").update(JSON.stringify(first)).digest("hex")
-    ).toBe(MCP_CURRENT_DIGEST);
-    const schema32 = expandMcpSurfaceCatalog(
-      projectMaskRenderingMcpPredecessor(MCP_SURFACE_SOURCE)
+    expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
+      MCP_CURRENT_DIGEST
     );
+    const schema32Source =
+      projectMaskRenderingMcpPredecessor(MCP_SURFACE_SOURCE);
+    const schema32 = expandMcpSurfaceCatalog(schema32Source);
     expect(
       createHash("sha256").update(JSON.stringify(schema32)).digest("hex")
     ).toBe(MCP_PRE_MASK_RENDERING_DIGEST);
     // Issue #50 permits only the explicitly enumerated mask fields, definition,
     // editor capability and two schema-version literals in this projection.
     const previous = expandMcpSurfaceCatalog(
-      projectMaskMcpPredecessor(
-        projectMaskRenderingMcpPredecessor(MCP_SURFACE_SOURCE)
-      )
+      projectMaskMcpPredecessor(schema32Source)
     );
     expect(
       createHash("sha256").update(JSON.stringify(previous)).digest("hex")
