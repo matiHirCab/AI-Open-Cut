@@ -759,7 +759,9 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
         assert_eq!(pixels.len(), 64 * 64 * 3);
         assert!(
             pixels
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .any(|p| p[0] > 100 && p[1] < 30 && p[2] < 30),
             "independent visible-red oracle failed"
         );
@@ -790,8 +792,10 @@ fn native_masks_are_metadata_only_for_frame_range_draft_export_pixels_audio_and_
         assert!(!range_audio.is_empty());
         assert!(
             range_audio
-                .chunks_exact(4)
-                .any(|b| f32::from_le_bytes(b.try_into().unwrap()).abs() > 0.01)
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .any(|b| f32::from_le_bytes(*b).abs() > 0.01)
         );
         let range_result = (range_pixels, range_audio, probe(&range_path));
         if let Some(expected) = &range_oracle {
