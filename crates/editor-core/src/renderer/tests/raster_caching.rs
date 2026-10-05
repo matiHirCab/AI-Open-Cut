@@ -502,3 +502,58 @@ fn composed_parent_sampling_misses_but_translation_reuses() {
         assert_eq!(misses, warm.raster_cache.misses.load(Ordering::Relaxed));
     }
 }
+
+#[test]
+fn mask_metadata_and_omitted_updates_preserve_pixels_but_invalidate_revision_cache() {
+    let (_root, core, project) = fixture();
+    let dir = core.project_directory(&project.id).unwrap();
+    let renderer = renderer(Arc::default());
+    let baseline = rasters(&renderer, &project, &dir);
+    assert_eq!(baseline, rasters(&renderer, &project, &dir));
+    assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 1);
+    let item = project.tracks[1].items[0].id().to_owned();
+    core.edit(
+        &project.id,
+        project.revision,
+        serde_json::from_value(json!({
+            "operation":"update_item","itemId":item
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let omitted = core.get_project(&project.id).unwrap();
+    assert_eq!(omitted.revision, project.revision + 1);
+    assert_eq!(baseline, rasters(&renderer, &omitted, &dir));
+    assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 2);
+    let catalog: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../../contracts/mask-models-v1.json")).unwrap();
+    let mask = catalog["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["accepted"] == true)
+        .unwrap()["value"]
+        .clone();
+    core.edit(
+        &project.id,
+        omitted.revision,
+        serde_json::from_value(json!({
+            "operation":"update_item","itemId":item,"masks":[mask]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let masked = core.get_project(&project.id).unwrap();
+    assert_eq!(masked.revision, omitted.revision + 1);
+    assert!(
+        !masked.tracks[1].items[0]
+            .visual_properties()
+            .masks
+            .is_empty()
+    );
+    assert_eq!(baseline, rasters(&renderer, &masked, &dir));
+    assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 3);
+    assert_eq!(baseline, rasters(&renderer, &masked, &dir));
+    assert_eq!(renderer.raster_cache.misses.load(Ordering::Relaxed), 3);
+    assert_eq!(renderer.raster_cache.hits.load(Ordering::Relaxed), 2);
+}

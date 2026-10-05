@@ -45,6 +45,17 @@ use crate::persistence::{
     TRANSACTION_VERSION,
 };
 
+enum MaskDraftRequest {
+    Rebase,
+    Preview,
+    Commit,
+}
+enum MaskDraftResult {
+    Draft(EditDraft),
+    State(ProjectState),
+    Write(WriteResult),
+}
+
 const DRAFT_LIMIT: usize = 100;
 const EDIT_LIMIT: usize = 100;
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -699,8 +710,10 @@ impl EditorCore {
         expected_revision: u64,
         operation: EditOperation,
     ) -> Result<WriteResult, CoreError> {
-        if matches!(operation, EditOperation::ApplyAnimationPreset { .. }) {
-            return self.edit_presets(
+        if matches!(operation, EditOperation::ApplyAnimationPreset { .. })
+            || crate::find_mask_edit_fields(std::slice::from_ref(&operation))?.is_some()
+        {
+            return self.edit_with_staged_migration(
                 project_id,
                 expected_revision,
                 vec![BatchEditOperation {
@@ -756,11 +769,24 @@ impl EditorCore {
             ));
         }
         let operations: Vec<BatchEditOperation> = operations.into_iter().map(Into::into).collect();
-        if operations
-            .iter()
-            .any(|op| matches!(op.edit, EditOperation::ApplyAnimationPreset { .. }))
+        let has_masks = crate::find_mask_edit_fields(
+            &operations
+                .iter()
+                .map(|op| op.edit.clone())
+                .collect::<Vec<_>>(),
+        )?
+        .is_some();
+        if has_masks
+            || operations
+                .iter()
+                .any(|op| matches!(op.edit, EditOperation::ApplyAnimationPreset { .. }))
         {
-            return self.edit_presets(project_id, expected_revision, operations, true);
+            return self.edit_with_staged_migration(
+                project_id,
+                expected_revision,
+                operations,
+                true,
+            );
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
@@ -800,7 +826,7 @@ impl EditorCore {
         Ok(result)
     }
 
-    fn edit_presets(
+    fn edit_with_staged_migration(
         &self,
         project_id: &str,
         expected_revision: u64,
@@ -907,6 +933,9 @@ impl EditorCore {
         crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
+        if crate::find_mask_edit_fields(&operations)?.is_some() {
+            return self.write_mask_draft(project_id, None, expected_revision, operations, label);
+        }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
         let (project, _) = load_project_data(
@@ -981,8 +1010,30 @@ impl EditorCore {
         crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
+        if crate::find_mask_edit_fields(&operations)?.is_some() {
+            return self.write_mask_draft(
+                project_id,
+                Some(draft_id),
+                expected_revision,
+                operations,
+                label,
+            );
+        }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
+        if let Ok(existing) = read_draft(self.storage.as_ref(), &dir, draft_id)
+            && crate::find_mask_edit_fields(&existing.operations)?.is_some()
+        {
+            drop(_lock);
+            return self.write_mask_draft(
+                project_id,
+                Some(draft_id),
+                expected_revision,
+                operations,
+                label,
+            );
+        }
+
         let (project, _) = load_project_data(
             self.storage.as_ref(),
             &self.persistence_faults,
@@ -1029,6 +1080,295 @@ impl EditorCore {
         Ok(draft)
     }
 
+    // Mask-bearing requests stage migration and their draft document in the
+    // same existing journal, so failed domain checks cannot publish adoption.
+    fn write_mask_draft(
+        &self,
+        project_id: &str,
+        draft_id: Option<&str>,
+        expected_revision: u64,
+        operations: Vec<EditOperation>,
+        label: Option<String>,
+    ) -> Result<EditDraft, CoreError> {
+        let dir = self.existing_project_dir(project_id)?;
+        let _lock = self.storage.lock_exclusive(&dir)?;
+        let mut rollback = crate::assets::UncommittedResources::default();
+        let result = (|| {
+            let mut prepared = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &self.font_config,
+                Some(expected_revision),
+                Some(&mut rollback),
+            )?;
+            let now = now_ms()?;
+            let (mut draft, retained) = if let Some(id) = draft_id {
+                let mut draft: EditDraft = if let Some(bytes) = prepared.draft_updates.get(id) {
+                    serde_json::from_slice(bytes)?
+                } else {
+                    read_draft(self.storage.as_ref(), &dir, id)?
+                };
+                if draft.base_revision != expected_revision {
+                    return Err(CoreError::new(
+                        ErrorCode::RevisionConflict,
+                        format!(
+                            "draft is based on revision {}, current revision is {expected_revision}",
+                            draft.base_revision
+                        ),
+                    ));
+                }
+                validate_operations(&draft.operations)?;
+                let mut bindings = vec![];
+                replay_font_draft(&mut prepared.project.clone(), &draft, |state, operation| {
+                    bindings.push(crate::assets::fonts::component_font_bindings(
+                        state, operation,
+                    ));
+                })?;
+                let steps =
+                    crate::assets::fonts::align_draft_font_steps(&draft, &operations, bindings)?;
+                draft.operations = operations;
+                draft.font_steps = None;
+                draft.label = label;
+                draft.updated_at_ms = now;
+                (draft, Some(steps))
+            } else {
+                let drafts = draft_dir(&dir);
+                if self.storage.storage_path_exists(&drafts)
+                    && count_drafts(self.storage.as_ref(), &drafts)? >= DRAFT_LIMIT
+                {
+                    return Err(CoreError::new(
+                        ErrorCode::DraftLimitReached,
+                        "project has reached the retained draft limit",
+                    ));
+                }
+                (
+                    EditDraft {
+                        font_catalog: None,
+                        font_steps: None,
+                        version: DRAFT_VERSION,
+                        id: Uuid::new_v4().to_string(),
+                        project_id: project_id.into(),
+                        base_revision: expected_revision,
+                        label,
+                        operations,
+                        created_at_ms: now,
+                        updated_at_ms: now,
+                    },
+                    None,
+                )
+            };
+            validate_operations_against(&prepared.project, &draft.operations)?;
+            prepare_draft_fonts(
+                self.storage.as_ref(),
+                &dir,
+                &prepared.project,
+                &self.font_config,
+                &mut draft,
+                &mut prepared.fonts,
+                retained.as_ref(),
+            )?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+            }
+            crate::assets::fonts::publish_fonts_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &prepared.fonts,
+                &mut rollback,
+            )?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+            }
+            self.storage
+                .create_dir_all(&draft_dir(&dir))
+                .map_err(|error| CoreError::io("cannot create draft directory", error))?;
+            prepared
+                .draft_updates
+                .insert(draft.id.clone(), serde_json::to_vec(&draft)?);
+            let warnings = match crate::persistence::persist_transaction_with_drafts(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &prepared.project,
+                &prepared.history,
+                None,
+                prepared.draft_updates,
+            ) {
+                Ok(warnings) => warnings,
+                Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
+                    vec![PERSISTENCE_RECOVERY_PENDING.into()]
+                }
+                Err(error) => return Err(error),
+            };
+            finish_persistence(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &prepared.project,
+                &prepared.history,
+                warnings,
+            );
+            Ok(draft)
+        })();
+        result.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            }
+            error
+        })
+    }
+
+    fn mask_draft_request(
+        &self,
+        dir: &Path,
+        draft_id: &str,
+        expected_revision: Option<u64>,
+        request: MaskDraftRequest,
+    ) -> Result<MaskDraftResult, CoreError> {
+        let mut rollback = crate::assets::UncommittedResources::default();
+        let result = (|| {
+            let mut prepared = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                dir,
+                &self.font_config,
+                expected_revision,
+                Some(&mut rollback),
+            )?;
+            let mut draft: EditDraft = if let Some(bytes) = prepared.draft_updates.get(draft_id) {
+                serde_json::from_slice(bytes)?
+            } else {
+                read_draft(self.storage.as_ref(), dir, draft_id)?
+            };
+            validate_single_draft_assets(&prepared.project, &draft)?;
+            if matches!(
+                request,
+                MaskDraftRequest::Preview | MaskDraftRequest::Commit
+            ) {
+                check_revision(&prepared.project, draft.base_revision)?;
+            }
+            validate_operations_against(&prepared.project, &draft.operations)?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+            }
+            crate::assets::fonts::publish_fonts_tracked(
+                self.storage.as_ref(),
+                dir,
+                &prepared.fonts,
+                &mut rollback,
+            )?;
+            if prepared.changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+            }
+            let mut candidate = prepared.project.clone();
+            let changed_ids =
+                materialize_font_draft(self.storage.as_ref(), dir, &mut candidate, &draft)?;
+            crate::evaluated_scene::preflight_inherited_project(&candidate)?;
+            let (output, committed_draft_id, publish) = match request {
+                MaskDraftRequest::Rebase => {
+                    draft.base_revision = prepared.project.revision;
+                    draft.updated_at_ms = now_ms()?;
+                    prepared
+                        .draft_updates
+                        .insert(draft.id.clone(), serde_json::to_vec(&draft)?);
+                    (MaskDraftResult::Draft(draft), None, true)
+                }
+                MaskDraftRequest::Preview => {
+                    let duration_ms = candidate.duration_ms();
+                    (
+                        MaskDraftResult::State(ProjectState {
+                            project: candidate,
+                            duration_ms,
+                        }),
+                        None,
+                        prepared.changed,
+                    )
+                }
+                MaskDraftRequest::Commit => {
+                    let previous = prepared.project.clone();
+                    prepared.project = candidate;
+                    crate::assets::fonts::prepare_fonts(
+                        self.storage.as_ref(),
+                        dir,
+                        &mut prepared.project,
+                        &self.font_config,
+                        &mut prepared.fonts,
+                    )?;
+                    crate::evaluated_scene::preflight_inherited_project(&prepared.project)?;
+                    crate::evaluated_scene::preflight_extended_fonts(
+                        &prepared.project,
+                        &prepared.fonts,
+                    )?;
+                    crate::assets::fonts::publish_fonts_tracked(
+                        self.storage.as_ref(),
+                        dir,
+                        &prepared.fonts,
+                        &mut rollback,
+                    )?;
+                    push_undo(&mut prepared.history, &previous);
+                    bump_revision(&mut prepared.project)?;
+                    // A committed draft is removed; publishing its migration
+                    // update again would revive it after cleanup.
+                    prepared.draft_updates.remove(draft_id);
+                    (
+                        MaskDraftResult::Write(write_result(
+                            &prepared.project,
+                            changed_ids,
+                            "Committed edit draft",
+                        )),
+                        Some(draft_id),
+                        true,
+                    )
+                }
+            };
+            if publish {
+                let warnings = match crate::persistence::persist_transaction_with_drafts(
+                    self.storage.as_ref(),
+                    &self.persistence_faults,
+                    dir,
+                    &prepared.project,
+                    &prepared.history,
+                    committed_draft_id,
+                    prepared.draft_updates,
+                ) {
+                    Ok(warnings) => warnings,
+                    Err(_) if self.storage.storage_path_exists(&transaction_path(dir)) => {
+                        vec![PERSISTENCE_RECOVERY_PENDING.into()]
+                    }
+                    Err(error) => return Err(error),
+                };
+                let warnings = finish_persistence(
+                    self.storage.as_ref(),
+                    &self.persistence_faults,
+                    dir,
+                    &prepared.project,
+                    &prepared.history,
+                    warnings,
+                );
+                if let MaskDraftResult::Write(mut result) = output {
+                    result.warnings = warnings;
+                    return Ok(MaskDraftResult::Write(result));
+                }
+            }
+            Ok(output)
+        })();
+        result.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            }
+            error
+        })
+    }
+
     pub fn rebase_draft(
         &self,
         project_id: &str,
@@ -1037,6 +1377,23 @@ impl EditorCore {
     ) -> Result<EditDraft, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
+        // Selection must not bypass recovery or the existing revision/error
+        // precedence when a draft is missing or has invalid wire structure.
+        if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id)
+            && crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+        {
+            let MaskDraftResult::Draft(result) = self.mask_draft_request(
+                &dir,
+                draft_id,
+                Some(expected_revision),
+                MaskDraftRequest::Rebase,
+            )?
+            else {
+                unreachable!()
+            };
+            return Ok(result);
+        }
+
         let (project, _) = load_project_data(
             self.storage.as_ref(),
             &self.persistence_faults,
@@ -1063,6 +1420,19 @@ impl EditorCore {
     ) -> Result<ProjectState, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
+        // Selection must not bypass recovery or the existing revision/error
+        // precedence when a draft is missing or has invalid wire structure.
+        if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id)
+            && crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+        {
+            let MaskDraftResult::State(result) =
+                self.mask_draft_request(&dir, draft_id, None, MaskDraftRequest::Preview)?
+            else {
+                unreachable!()
+            };
+            return Ok(result);
+        }
+
         let (mut project, _) = load_project_data(
             self.storage.as_ref(),
             &self.persistence_faults,
@@ -1090,6 +1460,23 @@ impl EditorCore {
     ) -> Result<WriteResult, CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
+        // Selection must not bypass recovery or the existing revision/error
+        // precedence when a draft is missing or has invalid wire structure.
+        if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id)
+            && crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+        {
+            let MaskDraftResult::Write(result) = self.mask_draft_request(
+                &dir,
+                draft_id,
+                Some(expected_revision),
+                MaskDraftRequest::Commit,
+            )?
+            else {
+                unreachable!()
+            };
+            return Ok(result);
+        }
+
         let (mut project, mut history) = load_project_data(
             self.storage.as_ref(),
             &self.persistence_faults,
@@ -1447,6 +1834,7 @@ impl EditorCore {
 }
 
 fn validate_operations(operations: &[EditOperation]) -> Result<(), CoreError> {
+    crate::validation::mask::validate_operations(operations)?;
     if operations.is_empty() || operations.len() > EDIT_LIMIT {
         return Err(CoreError::new(
             ErrorCode::ValidationFailed,
@@ -1656,12 +2044,21 @@ fn prepare_project_data(
         History::default()
     };
 
-    for draft in read_all_drafts(storage, dir)? {
+    let retained_drafts = read_all_drafts(storage, dir)?;
+    for draft in &retained_drafts {
+        crate::validation::mask::validate_operations(&draft.operations)?;
         let base = std::iter::once(&project)
             .chain(history.undo.iter())
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision)
             .unwrap_or(&project);
+        if project.schema_version < 32 || base.schema_version < 32 {
+            let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
+            if let Some(operations) = raw.get("operations") {
+                crate::reject_raw_mask_edit_fields(operations)
+                    .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+            }
+        }
         if base.schema_version < 28
             && let Some(message) = crate::find_motion_blur_edit_fields(&draft.operations)?
         {
@@ -1685,6 +2082,19 @@ fn prepare_project_data(
         .chain(history.redo.iter())
     {
         crate::evaluated_scene::preflight_inherited_project(snapshot)?;
+    }
+    // Certify every mask-bearing retained candidate against its own matching
+    // generation before any managed asset/font staging or publication. An
+    // evicted base stays stale; its known metadata has already been validated.
+    for draft in &retained_drafts {
+        if crate::find_mask_edit_fields(&draft.operations)?.is_some()
+            && let Some(base) = std::iter::once(&project)
+                .chain(history.undo.iter())
+                .chain(history.redo.iter())
+                .find(|p| p.revision == draft.base_revision)
+        {
+            validate_operations_against(base, &draft.operations)?;
+        }
     }
     let mut asset_copies = Vec::new();
     for snapshot in std::iter::once(&mut project)
@@ -1712,7 +2122,7 @@ fn prepare_project_data(
         crate::evaluated_scene::preflight_extended_fonts(snapshot, &staged)?;
     }
     let mut draft_updates = BTreeMap::new();
-    for mut draft in read_all_drafts(storage, dir)? {
+    for mut draft in retained_drafts {
         crate::validation::styled_text::validate_draft_text(&draft.operations)?;
         if draft.version == 1 {
             let base = std::iter::once(&project)
@@ -3557,11 +3967,10 @@ mod tests {
             );
             let error = core.get_project(&created.project_id).unwrap_err();
             assert_eq!(error.code, ErrorCode::ProjectRecoveryFailed);
-            assert!(
-                error
-                    .message
-                    .contains("unsupported project schema version 32")
-            );
+            assert!(error.message.contains(&format!(
+                "unsupported project schema version {}",
+                PROJECT_SCHEMA_VERSION + 1
+            )));
             assert_eq!(
                 before,
                 (
@@ -6068,5 +6477,371 @@ mod tests {
             core.get_project(&created.project_id).unwrap().revision,
             before.revision
         );
+    }
+    #[test]
+    fn mask_migration_publication_preserves_precommit_and_recovery_generations() {
+        for phase in [
+            PersistencePhase::BeforeFontPublish,
+            PersistencePhase::AfterFontPublish,
+            PersistencePhase::BeforeJournal,
+            PersistencePhase::AfterJournal,
+            PersistencePhase::AfterProject,
+            PersistencePhase::AfterHistory,
+            PersistencePhase::AfterDraftUpdates,
+            PersistencePhase::AfterDraftCleanup,
+            PersistencePhase::AfterJournalCleanup,
+        ] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            let before = project_file_bytes(&dir);
+            let catalog: serde_json::Value =
+                serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json"))
+                    .unwrap();
+            let mask = catalog["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["accepted"] == true)
+                .unwrap()["value"]
+                .clone();
+            let edit: EditOperation = serde_json::from_value(serde_json::json!({
+                "operation":"update_item","itemId":item,"masks":[mask]
+            }))
+            .unwrap();
+            set_persistence_fault(&core, phase);
+            let result = core.edit(&id, 1, edit.clone());
+            if matches!(
+                phase,
+                PersistencePhase::BeforeFontPublish
+                    | PersistencePhase::AfterFontPublish
+                    | PersistencePhase::BeforeJournal
+            ) {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    ErrorCode::InternalError,
+                    "{phase:?}"
+                );
+                assert_eq!(project_file_bytes(&dir), before, "{phase:?}");
+                assert!(!transaction_path(&dir).exists());
+                core.edit(&id, 1, edit).unwrap();
+            } else {
+                assert_eq!(result.unwrap().revision, 2, "{phase:?}");
+            }
+            let reopened = EditorCore::new(core.paths().clone());
+            let current = reopened.get_project(&id).unwrap();
+            assert_eq!(current.revision, 2, "{phase:?}");
+            assert_eq!(current.schema_version, 32);
+            assert_eq!(
+                current
+                    .tracks
+                    .iter()
+                    .flat_map(|t| &t.items)
+                    .find(|i| i.id() == item)
+                    .unwrap()
+                    .visual_properties()
+                    .masks
+                    .len(),
+                1
+            );
+            let history: History = read_json(&history_path(&dir)).unwrap();
+            assert!(
+                history
+                    .undo
+                    .iter()
+                    .chain(&history.redo)
+                    .all(|p| p.schema_version == 32)
+            );
+            let stable = project_file_bytes(&dir);
+            reopened.get_project(&id).unwrap();
+            assert_eq!(project_file_bytes(&dir), stable, "{phase:?}");
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+    #[test]
+    fn mask_edits_reject_on_legacy_resources_without_migration_writes() {
+        let (core, _) = core();
+        let (id, item, dir) = preset_legacy_resource_fixture(&core);
+        let before = project_file_bytes(&dir);
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+        let mask = catalog["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["accepted"] == true)
+            .unwrap()["value"]
+            .clone();
+        let edit = |id: &str, value: serde_json::Value| -> EditOperation {
+            serde_json::from_value(serde_json::json!({
+                "operation":"update_item","itemId":id,"masks":[value]
+            }))
+            .unwrap()
+        };
+        let mut invalid = mask.clone();
+        invalid["featherPx"] = serde_json::json!(129);
+        for (revision, operation, code) in [
+            (1, edit(&item, invalid), ErrorCode::InvalidArgument),
+            (0, edit(&item, mask.clone()), ErrorCode::RevisionConflict),
+            (1, edit("absent", mask.clone()), ErrorCode::ItemNotFound),
+        ] {
+            assert_eq!(core.edit(&id, revision, operation).unwrap_err().code, code);
+            assert_eq!(project_file_bytes(&dir), before);
+        }
+        assert_eq!(
+            core.edit_batch(
+                &id,
+                1,
+                vec![edit(&item, mask.clone()), edit("absent", mask)]
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::ItemNotFound
+        );
+        assert_eq!(project_file_bytes(&dir), before);
+        assert_no_managed_transaction_files(&dir);
+    }
+    #[test]
+    fn mask_draft_create_and_update_failures_preserve_legacy_envelope_resources() {
+        let (core, _) = core();
+        let (id, _item, dir) = preset_legacy_resource_fixture(&core);
+        let draft_path = std::fs::read_dir(draft_dir(&dir))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let mut retained: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&draft_path).unwrap()).unwrap();
+        retained["baseRevision"] = serde_json::json!(1);
+        std::fs::write(&draft_path, serde_json::to_vec(&retained).unwrap()).unwrap();
+        let draft_id = retained["id"].as_str().unwrap();
+        let before = project_file_bytes(&dir);
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+        let mask = catalog["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["accepted"] == true)
+            .unwrap()["value"]
+            .clone();
+        let operation: EditOperation = serde_json::from_value(serde_json::json!({
+            "operation":"update_item","itemId":"missing","masks":[mask]
+        }))
+        .unwrap();
+        assert_eq!(
+            core.create_draft(&id, 1, vec![operation.clone()], None)
+                .unwrap_err()
+                .code,
+            ErrorCode::ItemNotFound
+        );
+        assert_eq!(project_file_bytes(&dir), before);
+        assert_eq!(
+            core.update_draft(&id, draft_id, 1, vec![operation], None)
+                .unwrap_err()
+                .code,
+            ErrorCode::ItemNotFound
+        );
+        assert_eq!(project_file_bytes(&dir), before);
+        assert_no_managed_transaction_files(&dir);
+    }
+
+    #[test]
+    fn mask_draft_failures_do_not_publish_unrelated_retained_migration() {
+        for action in ["update", "rebase", "preview", "commit"] {
+            let (core, _) = core();
+            let id = core
+                .create_project(
+                    "Draft atomicity",
+                    ProjectSettings {
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                    },
+                )
+                .unwrap()
+                .project_id;
+            let track = core.get_project(&id).unwrap().tracks[1].id.clone();
+            let item = core
+                .edit(
+                    &id,
+                    0,
+                    serde_json::from_value(serde_json::json!({
+                        "operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":600,
+                        "width":20,"height":16,"color":"#cc3311",
+                        "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+                    }))
+                    .unwrap(),
+                )
+                .unwrap()
+                .changed_ids[0]
+                .clone();
+            let catalog: serde_json::Value =
+                serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json"))
+                    .unwrap();
+            let mask = catalog["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["accepted"] == true)
+                .unwrap()["value"]
+                .clone();
+            let draft = core
+                .create_draft(
+                    &id,
+                    1,
+                    vec![
+                        serde_json::from_value(serde_json::json!({
+                            "operation":"update_item","itemId":item,"masks":[mask]
+                        }))
+                        .unwrap(),
+                    ],
+                    None,
+                )
+                .unwrap();
+            if action != "update" {
+                core.edit(
+                    &id,
+                    1,
+                    serde_json::from_value(serde_json::json!({
+                        "operation":"delete_item","itemId":item
+                    }))
+                    .unwrap(),
+                )
+                .unwrap();
+            }
+            let dir = core.project_directory(&id).unwrap();
+            let mut history: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap()).unwrap();
+            history["undo"][0]["schemaVersion"] = serde_json::json!(31);
+            std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
+            let before = project_file_bytes(&dir);
+            let error = match action {
+                "update" => core
+                    .update_draft(
+                        &id,
+                        &draft.id,
+                        1,
+                        vec![
+                            serde_json::from_value(serde_json::json!({
+                                "operation":"update_item","itemId":"missing","color":"#ffffff"
+                            }))
+                            .unwrap(),
+                        ],
+                        None,
+                    )
+                    .unwrap_err(),
+                "rebase" => core.rebase_draft(&id, &draft.id, 2).unwrap_err(),
+                "preview" => core.get_draft_state(&id, &draft.id).unwrap_err(),
+                "commit" => core.commit_draft(&id, &draft.id, 2).unwrap_err(),
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                error.code,
+                if action == "update" || action == "rebase" {
+                    ErrorCode::ItemNotFound
+                } else {
+                    ErrorCode::RevisionConflict
+                },
+                "{action}"
+            );
+            assert_eq!(project_file_bytes(&dir), before, "{action}");
+            assert_no_managed_transaction_files(&dir);
+        }
+    }
+
+    #[test]
+    fn mask_draft_selector_preserves_missing_draft_stale_revision_precedence() {
+        let (core, _) = core();
+        let id = core
+            .create_project("Missing draft", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        for error in [
+            core.rebase_draft(&id, "missing", 9).unwrap_err(),
+            core.commit_draft(&id, "missing", 9).unwrap_err(),
+        ] {
+            assert_eq!(error.code, ErrorCode::RevisionConflict);
+            assert!(error.retryable);
+        }
+    }
+    #[test]
+    fn staged_mask_draft_requests_preserve_journal_commit_boundaries() {
+        for action in ["create", "update", "rebase", "commit"] {
+            for phase in [
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+            ] {
+                if phase == PersistencePhase::AfterDraftCleanup && action != "commit" {
+                    continue;
+                }
+                let (core, _) = core();
+                let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                let catalog: serde_json::Value =
+                    serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json"))
+                        .unwrap();
+                let mask = catalog["cases"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|c| c["accepted"] == true)
+                    .unwrap()["value"]
+                    .clone();
+                let edit: EditOperation = serde_json::from_value(serde_json::json!({
+                    "operation":"update_item","itemId":item,"masks":[mask]
+                }))
+                .unwrap();
+                // Establish a valid current-base masked program, then require
+                // adoption of one unrelated legacy retained generation.
+                let draft = core.create_draft(&id, 1, vec![edit.clone()], None).unwrap();
+                let mut history: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap()).unwrap();
+                history["undo"][0]["schemaVersion"] = serde_json::json!(31);
+                std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
+                let before = project_file_bytes(&dir);
+                set_persistence_fault(&core, phase);
+                let result: Result<(), CoreError> = match action {
+                    "create" => core.create_draft(&id, 1, vec![edit], None).map(|_| ()),
+                    "update" => core
+                        .update_draft(&id, &draft.id, 1, vec![edit], Some("Updated".into()))
+                        .map(|_| ()),
+                    "rebase" => core.rebase_draft(&id, &draft.id, 1).map(|_| ()),
+                    "commit" => core.commit_draft(&id, &draft.id, 1).map(|_| ()),
+                    _ => unreachable!(),
+                };
+                if phase == PersistencePhase::BeforeJournal {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InternalError,
+                        "{action}"
+                    );
+                    assert_eq!(project_file_bytes(&dir), before, "{action}");
+                } else {
+                    result.unwrap();
+                    let reopened = EditorCore::new(core.paths().clone());
+                    let current = reopened.get_project(&id).unwrap();
+                    assert_eq!(current.schema_version, 32);
+                    assert_eq!(current.revision, if action == "commit" { 2 } else { 1 });
+                    let history: History = read_json(&history_path(&dir)).unwrap();
+                    assert!(
+                        history
+                            .undo
+                            .iter()
+                            .chain(&history.redo)
+                            .all(|p| p.schema_version == 32)
+                    );
+                    if action == "commit" {
+                        assert!(!draft_path(&dir, &draft.id).unwrap().exists());
+                    } else {
+                        assert_eq!(reopened.get_draft(&id, &draft.id).unwrap().version, 2);
+                    }
+                    let stable = project_file_bytes(&dir);
+                    reopened.get_project(&id).unwrap();
+                    assert_eq!(project_file_bytes(&dir), stable);
+                }
+                assert_no_managed_transaction_files(&dir);
+            }
+        }
     }
 }

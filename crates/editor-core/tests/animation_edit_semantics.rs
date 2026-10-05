@@ -257,7 +257,10 @@ fn schema29_migrates_root_components_and_all_retained_history_atomically() {
     std::fs::write(&history_file, serde_json::to_vec(&history).unwrap()).unwrap();
     let reopened = EditorCore::new(core.paths().clone());
     let migrated = reopened.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 31);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         serde_json::to_value(
             &migrated
@@ -281,7 +284,10 @@ fn schema29_migrates_root_components_and_all_retained_history_atomically() {
     for name in ["undo", "redo"] {
         assert!(!actual[name].as_array().unwrap().is_empty());
         for snapshot in actual[name].as_array().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 31);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(snapshot["components"], json!([component]));
         }
     }
@@ -324,7 +330,9 @@ fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =
                         json!({"offsetMs":0,"sourceDurationMs":2400});
                 }
-                "future" => target["schemaVersion"] = json!(32),
+                "future" => {
+                    target["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1)
+                }
                 "old_clock" => {
                     target["schemaVersion"] = json!(29);
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =

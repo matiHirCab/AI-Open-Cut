@@ -3966,6 +3966,131 @@ mod tests {
         assert!(!legacy.contains("0.12345678901234566"));
     }
 
+    #[test]
+    fn authored_masks_leave_scene_resources_and_full_plan_identical() {
+        let mut project = empty_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.tracks = vec![Track {
+            id: "visuals".into(),
+            name: "Visuals".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![],
+        }];
+        crate::timeline::apply_operation(
+            &mut project,
+            serde_json::from_value(serde_json::json!({
+                "operation":"add_rectangle", "trackId":"visuals", "startMs":0,
+                "durationMs":600, "width":20, "height":16, "color":"#cc3311",
+                "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let baseline = evaluate_project(&project, 64, 64, 10).unwrap();
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+        let mask = catalog["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["accepted"] == true)
+            .unwrap()["value"]
+            .clone();
+        let item = project.tracks[0].items[0].id().to_owned();
+        crate::timeline::apply_operation(
+            &mut project,
+            serde_json::from_value(serde_json::json!({
+                "operation":"update_item", "itemId":item, "masks":[mask]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        project.revision += 1;
+        let masked = evaluate_project(&project, 64, 64, 10).unwrap();
+        assert_ne!(baseline.revision, masked.revision);
+        assert_eq!(baseline.project_id, masked.project_id);
+        assert_eq!(baseline.scene, masked.scene);
+        assert_eq!(baseline.resource_bindings, masked.resource_bindings);
+        assert!(
+            !project.tracks[0].items[0]
+                .visual_properties()
+                .masks
+                .is_empty()
+        );
+        for intent in [
+            RenderIntent::Frame { at_ms: 100 },
+            RenderIntent::Range {
+                start_ms: 0,
+                end_ms: 600,
+                include_audio: true,
+            },
+            RenderIntent::Export,
+        ] {
+            let build = |scene: &EvaluatedScene| {
+                build_render_plan(
+                    scene,
+                    &HashMap::new(),
+                    vec![],
+                    vec![],
+                    None,
+                    intent,
+                    &mut vec![],
+                )
+                .unwrap()
+            };
+            // No path or geometry normalization: every graph/resource/clock fact
+            // is exactly equal, including each intent's actual parameters.
+            assert_eq!(build(&baseline.scene), build(&masked.scene));
+        }
+    }
+
+    #[test]
+    fn inactive_mask_metadata_preserves_missing_media_error() {
+        let mut project = empty_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.tracks = vec![Track {
+            id: "visuals".into(),
+            name: "Visuals".into(),
+            track_type: TrackType::Video,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Unassigned,
+            ducking: None,
+            items: vec![TimelineItem::Media(MediaItem {
+                id: "leaf".into(),
+                asset_id: "absent".into(),
+                start_ms: 0,
+                duration_ms: 600,
+                source_in_ms: 0,
+                visual_properties: crate::VisualProperties::default(),
+                audio: AudioSettings::default(),
+                keyframes: vec![],
+            })],
+        }];
+        let before = evaluate_project(&project, 64, 64, 10).unwrap_err();
+        assert_eq!(before.code, ErrorCode::AssetNotFound);
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/mask-models-v1.json")).unwrap();
+        let mask = catalog["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["accepted"] == true)
+            .unwrap()["value"]
+            .clone();
+        project.tracks[0].items[0].visual_properties_mut().masks =
+            vec![serde_json::from_value(mask).unwrap()];
+        let after = evaluate_project(&project, 64, 64, 10).unwrap_err();
+        assert_eq!(after.code, before.code);
+        assert_eq!(after.message, before.message);
+    }
+
     fn empty_project() -> Project {
         Project {
             markers: Vec::new(),

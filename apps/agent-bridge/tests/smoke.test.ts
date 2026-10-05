@@ -29,6 +29,7 @@ import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
+import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
@@ -1250,4 +1251,8 @@ it("compiles versioned presets through real MCP with aliases, rollback, and reop
 
 it("reviews typed presets through real MCP without mutating state or history", async () => {
   await verifyPreviewReviewWorkflow(client, call, projects);
+});
+
+it("authors mask metadata through actual MCP aliases, replacement, history and drafts", async () => {
+  await verifyMaskModelWorkflow(client, call);
 });

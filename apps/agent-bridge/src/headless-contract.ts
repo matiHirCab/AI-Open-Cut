@@ -13,6 +13,7 @@ import type {
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
+  maskSchema,
   mediaCropSchema,
   motionBlurSchema,
   richTextDocumentSchema,
@@ -29,6 +30,7 @@ export const EVALUATED_SCENE_RENDERING_CAPABILITY =
   "evaluated_scene_rendering" as const;
 export const LINEAR_LIGHT_COMPOSITING_CAPABILITY =
   "linear_light_compositing_v1" as const;
+export const MASK_MODELS_CAPABILITY = "mask_models_v1" as const;
 export type RenderingCapability =
   | "shape_rendering"
   | "svg_rendering"
@@ -190,6 +192,7 @@ export type HeadlessEdit =
       crop?: z.infer<typeof mediaCropSchema> | undefined;
       motionBlur?: z.infer<typeof motionBlurSchema> | undefined;
       effects?: z.infer<typeof visualEffectSchema>[] | undefined;
+      masks?: z.infer<typeof maskSchema>[] | undefined;
       staggerMs?: number | undefined;
       geometry?: ShapeGeometry | undefined;
       grid?: GridDescriptor | undefined;

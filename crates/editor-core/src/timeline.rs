@@ -414,6 +414,7 @@ fn apply_operation_inner(
                 crop: None,
                 motion_blur: None,
                 effects: Vec::new(),
+                masks: Vec::new(),
                 start_time: None,
                 animation_channels: Vec::new(),
                 animation_preset_provenance: Default::default(),
@@ -1086,6 +1087,7 @@ fn apply_operation_inner(
             item_id,
             crop,
             effects,
+            masks,
             motion_blur,
             grid,
             repeater,
@@ -1128,6 +1130,9 @@ fn apply_operation_inner(
                 value.validate()?;
                 animation_presets::blur_changed(item.visual_properties_mut(), value);
                 item.visual_properties_mut().motion_blur = Some(value);
+            }
+            if let Some(value) = masks {
+                item.visual_properties_mut().masks = value;
             }
             if let Some(value) = effects {
                 item.visual_properties_mut().effects = value;
@@ -1346,7 +1351,7 @@ fn apply_operation_inner(
                 }
                 if let Some(value) = style {
                     validate_text_style(&value)?;
-                    text.style = value;
+                    text.style = *value;
                 }
             }
             Ok((vec![item_id], "Updated timeline item"))
