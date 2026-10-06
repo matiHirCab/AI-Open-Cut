@@ -5,6 +5,32 @@ use crate::render_plan::{MediaInputRequest, RenderIntent};
 use crate::{CoreError, ErrorCode, MediaCrop, MediaType, VisualEffect};
 use std::{collections::HashMap, path::Path};
 
+fn matte_sample(
+    raster: Raster,
+    left: usize,
+    top: usize,
+    gain: f32,
+) -> super::mattes::LeafSamplePlane {
+    let plane = if raster.width == 0 || raster.height == 0 {
+        super::mattes::LinearPlane {
+            left: 0,
+            top: 0,
+            width: 0,
+            height: 0,
+            pixels: Vec::new(),
+        }
+    } else {
+        super::mattes::LinearPlane {
+            left,
+            top,
+            width: raster.width,
+            height: raster.height,
+            pixels: raster.pixels,
+        }
+    };
+    super::mattes::LeafSamplePlane { plane, gain }
+}
+
 fn invalid(message: &str) -> CoreError {
     CoreError::new(ErrorCode::InvalidArgument, message)
 }
@@ -451,222 +477,245 @@ pub(crate) fn prepare(
         let mut mask_work = crate::evaluated_scene::masks::MaskFrameBudget::default();
         let mut mask_segments = std::collections::HashMap::<u64, usize>::new();
         let mut counted_occurrences = std::collections::HashSet::new();
-        for layer in &scene.visual_layers {
-            let mut draw = |at| {
-                let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
-                let result = if !layer.visible_at(at) {
-                    (Raster::empty(1, 1)?, 0, 0)
-                } else {
-                    let (mut raster, density) = match &sampled.source {
-                        EvaluatedVisualSource::Shape(shape) => {
-                            let bytes = if sampled.source == layer.source {
-                                if let Some((_, path)) = bindings.get(&layer.item_id) {
-                                    io.read(path).map_err(|_| {
-                                        CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
-                                    })?
-                                } else {
-                                    super::shapes::rasterize(shape)?
-                                }
+        let mut draw = |layer_index: usize, at, apply_gain: bool| {
+            let layer = &scene.visual_layers[layer_index];
+            let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
+            let result = if !layer.visible_at(at) {
+                (Raster::empty(1, 1)?, 0, 0, 1.0f32)
+            } else {
+                let (mut raster, density) = match &sampled.source {
+                    EvaluatedVisualSource::Shape(shape) => {
+                        let bytes = if sampled.source == layer.source {
+                            if let Some((_, path)) = bindings.get(&layer.item_id) {
+                                io.read(path).map_err(|_| {
+                                    CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
+                                })?
                             } else {
                                 super::shapes::rasterize(shape)?
-                            };
-                            (Raster::pam(&bytes)?, shape.density)
-                        }
-                        EvaluatedVisualSource::SolidColor { color }
-                        | EvaluatedVisualSource::Rectangle { color, .. } => {
-                            let size = sampled.source_size.unwrap_or(canvas);
-                            let mut raster = Raster::empty(size.0 as usize, size.1 as usize)?;
-                            let rgb = [
-                                u8::from_str_radix(&color[1..3], 16).unwrap(),
-                                u8::from_str_radix(&color[3..5], 16).unwrap(),
-                                u8::from_str_radix(&color[5..7], 16).unwrap(),
-                            ];
-                            let pixel = [
-                                linear(rgb[0] as f64 / 255.0) as f32,
-                                linear(rgb[1] as f64 / 255.0) as f32,
-                                linear(rgb[2] as f64 / 255.0) as f32,
-                                1.0,
-                            ];
-                            raster.pixels.fill(pixel);
-                            (raster, 1.0)
-                        }
-                        EvaluatedVisualSource::Text(_) | EvaluatedVisualSource::Caption(_) => {
-                            let (_, path) = bindings
-                                .get(&layer.item_id)
-                                .ok_or_else(|| invalid("text sample raster unavailable"))?;
-                            (
-                                Raster::pam(&io.read(path).map_err(|_| {
-                                    CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
-                                })?)?,
-                                1.0,
-                            )
-                        }
-                        EvaluatedVisualSource::Media { source_in_ms, .. } => {
-                            let (input, path) = bindings
-                                .get(&layer.item_id)
-                                .ok_or_else(|| invalid("media sample binding unavailable"))?;
-                            let size = sampled
-                                .source_size
-                                .ok_or_else(|| invalid("media sample geometry unavailable"))?;
-                            let time = if input.media_type == MediaType::Image {
-                                0.0
-                            } else {
-                                extended_visual::certified_media_source_time(
-                                    layer,
-                                    at,
-                                    *source_in_ms,
-                                )?
-                            };
-                            (
-                                Raster::rgba(
-                                    size.0 as usize,
-                                    size.1 as usize,
-                                    &decode(path, time, size)?,
-                                )?,
-                                1.0,
-                            )
-                        }
-                    };
-                    let mut budget = 0;
-                    crate::evaluated_scene::extended_certification::effect_budget(
-                        (raster.width as u32, raster.height as u32),
-                        &effect_stack,
-                        density,
-                        &mut budget,
-                    )?;
-                    let affine = extended_visual::sample_transform(
-                        &mut sampled,
-                        at,
-                        (raster.width as u32, raster.height as u32),
-                        canvas,
-                    )?;
-                    if let Some(crop) = crop {
-                        raster = raster.crop(crop)?;
-                    }
-                    if scene_has_masks {
-                        let masks = extended_visual::sampled_masks(layer, at)?;
-                        let first = counted_occurrences.insert((at, layer.item_id.as_str()));
-                        let mut segments = *mask_segments.entry(at).or_default();
-                        if first && let EvaluatedVisualSource::Shape(shape) = &sampled.source {
-                            segments = segments
-                                .checked_add(shape.segments())
-                                .filter(|v| {
-                                    *v <= crate::evaluated_scene::shapes::MAX_SCENE_SEGMENTS
-                                })
-                                .ok_or_else(|| invalid("sampled mask scene segment overflow"))?;
-                        }
-                        if !masks.is_empty() {
-                            let mut certification_segments = if first { segments } else { 0 };
-                            let facts = crate::evaluated_scene::masks::certify_sampled_masks(
-                                &masks,
-                                crate::evaluated_scene::masks::MaskOwnerBasis {
-                                    size: (raster.width as u32, raster.height as u32),
-                                    density,
-                                },
-                                &mut mask_work,
-                                &mut certification_segments,
-                            )?;
-                            if first {
-                                segments = certification_segments;
                             }
-                            super::masks::apply_stack(&mut raster.pixels, &facts)?;
-                        }
-                        if first {
-                            mask_segments.insert(at, segments);
-                        }
+                        } else {
+                            super::shapes::rasterize(shape)?
+                        };
+                        (Raster::pam(&bytes)?, shape.density)
                     }
-                    let bounds = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
-                        Some([
-                            (shape.bounds[0] - shape.origin.0) * density,
-                            (shape.bounds[1] - shape.origin.1) * density,
-                            (shape.bounds[2] - shape.origin.0) * density,
-                            (shape.bounds[3] - shape.origin.1) * density,
-                        ])
-                    } else {
-                        None
-                    };
-                    let (raster, pad) = effects(raster, &effect_stack, density, bounds)?;
-                    // Visit only the conservative transformed support, including
-                    // the transparent bilinear border; certification counts the full canvas.
-                    let [ma, mb, mc, md, mtx, mty] = affine.matrix;
-                    let corners = [
-                        (-1.0 - pad as f64, -1.0 - pad as f64),
-                        (raster.width as f64 - pad as f64 + 1.0, -1.0 - pad as f64),
-                        (-1.0 - pad as f64, raster.height as f64 - pad as f64 + 1.0),
+                    EvaluatedVisualSource::SolidColor { color }
+                    | EvaluatedVisualSource::Rectangle { color, .. } => {
+                        let size = sampled.source_size.unwrap_or(canvas);
+                        let mut raster = Raster::empty(size.0 as usize, size.1 as usize)?;
+                        let rgb = [
+                            u8::from_str_radix(&color[1..3], 16).unwrap(),
+                            u8::from_str_radix(&color[3..5], 16).unwrap(),
+                            u8::from_str_radix(&color[5..7], 16).unwrap(),
+                        ];
+                        let pixel = [
+                            linear(rgb[0] as f64 / 255.0) as f32,
+                            linear(rgb[1] as f64 / 255.0) as f32,
+                            linear(rgb[2] as f64 / 255.0) as f32,
+                            1.0,
+                        ];
+                        raster.pixels.fill(pixel);
+                        (raster, 1.0)
+                    }
+                    EvaluatedVisualSource::Text(_) | EvaluatedVisualSource::Caption(_) => {
+                        let (_, path) = bindings
+                            .get(&layer.item_id)
+                            .ok_or_else(|| invalid("text sample raster unavailable"))?;
                         (
-                            raster.width as f64 - pad as f64 + 1.0,
-                            raster.height as f64 - pad as f64 + 1.0,
-                        ),
-                    ];
-                    let xs = corners.map(|(x, y)| ma * x + mc * y + mtx);
-                    let ys = corners.map(|(x, y)| mb * x + md * y + mty);
-                    let left = xs
-                        .into_iter()
-                        .fold(f64::INFINITY, f64::min)
-                        .floor()
-                        .clamp(0.0, canvas.0 as f64) as usize;
-                    let top = ys
-                        .into_iter()
-                        .fold(f64::INFINITY, f64::min)
-                        .floor()
-                        .clamp(0.0, canvas.1 as f64) as usize;
-                    let right =
-                        xs.into_iter()
-                            .fold(f64::NEG_INFINITY, f64::max)
-                            .ceil()
-                            .clamp(left as f64, canvas.0 as f64) as usize;
-                    let bottom =
-                        ys.into_iter()
-                            .fold(f64::NEG_INFINITY, f64::max)
-                            .ceil()
-                            .clamp(top as f64, canvas.1 as f64) as usize;
-                    let mut output = Raster::empty(right - left, bottom - top)?;
-                    let [a, b, c, d, tx, ty] = affine.inverse;
-                    let opacity = (affine.opacity * layer.transition_gain(at)) as f32;
-                    for y in 0..output.height {
-                        for x in 0..output.width {
-                            let (px, py) = ((x + left) as f64 + 0.5, (y + top) as f64 + 0.5);
-                            let mut pixel = raster.bilinear(
-                                a * px + c * py + tx + pad as f64,
-                                b * px + d * py + ty + pad as f64,
-                            );
-                            for component in &mut pixel {
+                            Raster::pam(&io.read(path).map_err(|_| {
+                                CoreError::render_failure(GRAPH_BUILD_STAGE, None, None)
+                            })?)?,
+                            1.0,
+                        )
+                    }
+                    EvaluatedVisualSource::Media { source_in_ms, .. } => {
+                        let (input, path) = bindings
+                            .get(&layer.item_id)
+                            .ok_or_else(|| invalid("media sample binding unavailable"))?;
+                        let size = sampled
+                            .source_size
+                            .ok_or_else(|| invalid("media sample geometry unavailable"))?;
+                        let time = if input.media_type == MediaType::Image {
+                            0.0
+                        } else {
+                            extended_visual::certified_media_source_time(layer, at, *source_in_ms)?
+                        };
+                        (
+                            Raster::rgba(
+                                size.0 as usize,
+                                size.1 as usize,
+                                &decode(path, time, size)?,
+                            )?,
+                            1.0,
+                        )
+                    }
+                };
+                let mut budget = 0;
+                crate::evaluated_scene::extended_certification::effect_budget(
+                    (raster.width as u32, raster.height as u32),
+                    &effect_stack,
+                    density,
+                    &mut budget,
+                )?;
+                let affine = extended_visual::sample_transform(
+                    &mut sampled,
+                    at,
+                    (raster.width as u32, raster.height as u32),
+                    canvas,
+                )?;
+                if let Some(crop) = crop {
+                    raster = raster.crop(crop)?;
+                }
+                if scene_has_masks {
+                    let masks = extended_visual::sampled_masks(layer, at)?;
+                    let first = counted_occurrences.insert((at, layer.item_id.as_str()));
+                    let mut segments = *mask_segments.entry(at).or_default();
+                    if first && let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                        segments = segments
+                            .checked_add(shape.segments())
+                            .filter(|v| *v <= crate::evaluated_scene::shapes::MAX_SCENE_SEGMENTS)
+                            .ok_or_else(|| invalid("sampled mask scene segment overflow"))?;
+                    }
+                    if !masks.is_empty() {
+                        let mut certification_segments = if first { segments } else { 0 };
+                        let facts = crate::evaluated_scene::masks::certify_sampled_masks(
+                            &masks,
+                            crate::evaluated_scene::masks::MaskOwnerBasis {
+                                size: (raster.width as u32, raster.height as u32),
+                                density,
+                            },
+                            &mut mask_work,
+                            &mut certification_segments,
+                        )?;
+                        if first {
+                            segments = certification_segments;
+                        }
+                        super::masks::apply_stack(&mut raster.pixels, &facts)?;
+                    }
+                    if first {
+                        mask_segments.insert(at, segments);
+                    }
+                }
+                let bounds = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                    Some([
+                        (shape.bounds[0] - shape.origin.0) * density,
+                        (shape.bounds[1] - shape.origin.1) * density,
+                        (shape.bounds[2] - shape.origin.0) * density,
+                        (shape.bounds[3] - shape.origin.1) * density,
+                    ])
+                } else {
+                    None
+                };
+                let (raster, pad) = effects(raster, &effect_stack, density, bounds)?;
+                // Visit only the conservative transformed support, including
+                // the transparent bilinear border; certification counts the full canvas.
+                let [ma, mb, mc, md, mtx, mty] = affine.matrix;
+                let corners = [
+                    (-1.0 - pad as f64, -1.0 - pad as f64),
+                    (raster.width as f64 - pad as f64 + 1.0, -1.0 - pad as f64),
+                    (-1.0 - pad as f64, raster.height as f64 - pad as f64 + 1.0),
+                    (
+                        raster.width as f64 - pad as f64 + 1.0,
+                        raster.height as f64 - pad as f64 + 1.0,
+                    ),
+                ];
+                let xs = corners.map(|(x, y)| ma * x + mc * y + mtx);
+                let ys = corners.map(|(x, y)| mb * x + md * y + mty);
+                let left = xs
+                    .into_iter()
+                    .fold(f64::INFINITY, f64::min)
+                    .floor()
+                    .clamp(0.0, canvas.0 as f64) as usize;
+                let top = ys
+                    .into_iter()
+                    .fold(f64::INFINITY, f64::min)
+                    .floor()
+                    .clamp(0.0, canvas.1 as f64) as usize;
+                let right = xs
+                    .into_iter()
+                    .fold(f64::NEG_INFINITY, f64::max)
+                    .ceil()
+                    .clamp(left as f64, canvas.0 as f64) as usize;
+                let bottom = ys
+                    .into_iter()
+                    .fold(f64::NEG_INFINITY, f64::max)
+                    .ceil()
+                    .clamp(top as f64, canvas.1 as f64) as usize;
+                let mut output = Raster::empty(right - left, bottom - top)?;
+                let [a, b, c, d, tx, ty] = affine.inverse;
+                let opacity = (affine.opacity * layer.transition_gain(at)) as f32;
+                for y in 0..output.height {
+                    for x in 0..output.width {
+                        let (px, py) = ((x + left) as f64 + 0.5, (y + top) as f64 + 0.5);
+                        let mut pixel = raster.bilinear(
+                            a * px + c * py + tx + pad as f64,
+                            b * px + d * py + ty + pad as f64,
+                        );
+                        for component in &mut pixel {
+                            if apply_gain {
                                 *component *= opacity;
                             }
-                            output.pixels[y * output.width + x] = pixel;
                         }
+                        output.pixels[y * output.width + x] = pixel;
                     }
-                    (output, left, top)
-                };
-                Ok::<(Raster, usize, usize), CoreError>(result)
-            };
-            let times = if let Some(settings) = layer.extended.as_ref().and_then(|v| v.motion_blur)
-            {
-                settings.sample_times(at, layer.extended.as_ref().unwrap().frame_rate, duration)?
-            } else {
-                vec![at]
-            };
-            if times.len() == 1 {
-                if layer.visible_at(times[0]) {
-                    let (raster, left, top) = draw(times[0])?;
-                    composed.source_over_at(&raster, left, top)?;
                 }
-            } else {
-                let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
-                let weight = 1.0 / times.len() as f32;
-                for time in times {
-                    let (raster, left, top) = draw(time)?;
-                    for y in 0..raster.height {
-                        for x in 0..raster.width {
-                            let src = raster.pixels[y * raster.width + x];
-                            let dst = &mut averaged.pixels[(top + y) * averaged.width + left + x];
-                            for c in 0..4 {
-                                dst[c] += src[c] * weight;
+                (output, left, top, opacity)
+            };
+            Ok::<(Raster, usize, usize, f32), CoreError>(result)
+        };
+        if scene.mattes.is_some() {
+            let schedule = crate::evaluated_scene::mattes::frame_schedule(scene, at)?;
+            super::mattes::compose_frame(&schedule, &mut composed.pixels, &mut |index, time| {
+                let layer = &scene.visual_layers[index];
+                if !layer.visible_at(time) {
+                    return Ok(super::mattes::LeafSamplePlane {
+                        plane: super::mattes::LinearPlane {
+                            left: 0,
+                            top: 0,
+                            width: 0,
+                            height: 0,
+                            pixels: Vec::new(),
+                        },
+                        gain: 1.,
+                    });
+                }
+                let (raster, left, top, gain) = draw(index, time, false)?;
+                Ok(matte_sample(raster, left, top, gain))
+            })?;
+        } else {
+            for (layer_index, layer) in scene.visual_layers.iter().enumerate() {
+                let times =
+                    if let Some(settings) = layer.extended.as_ref().and_then(|v| v.motion_blur) {
+                        settings.sample_times(
+                            at,
+                            layer.extended.as_ref().unwrap().frame_rate,
+                            duration,
+                        )?
+                    } else {
+                        vec![at]
+                    };
+                if times.len() == 1 {
+                    if layer.visible_at(times[0]) {
+                        let (raster, left, top, _) = draw(layer_index, times[0], true)?;
+                        composed.source_over_at(&raster, left, top)?;
+                    }
+                } else {
+                    let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
+                    let weight = 1.0 / times.len() as f32;
+                    for time in times {
+                        let (raster, left, top, _) = draw(layer_index, time, true)?;
+                        for y in 0..raster.height {
+                            for x in 0..raster.width {
+                                let src = raster.pixels[y * raster.width + x];
+                                let dst =
+                                    &mut averaged.pixels[(top + y) * averaged.width + left + x];
+                                for c in 0..4 {
+                                    dst[c] += src[c] * weight;
+                                }
                             }
                         }
                     }
+                    composed.source_over_at(&averaged, 0, 0)?;
                 }
-                composed.source_over_at(&averaged, 0, 0)?;
             }
         }
         Ok(composed.pam_bytes())
@@ -705,6 +754,24 @@ pub(crate) fn prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn zero_area_affine_support_is_canonical_at_matte_callback_seam() {
+        for (width, height, left, top) in [(0, 16, 64, 12), (24, 0, 8, 64), (0, 0, 64, 64)] {
+            let sample = matte_sample(Raster::empty(width, height).unwrap(), left, top, 0.5);
+            assert_eq!(
+                (
+                    sample.plane.left,
+                    sample.plane.top,
+                    sample.plane.width,
+                    sample.plane.height
+                ),
+                (0, 0, 0, 0)
+            );
+            assert!(sample.plane.pixels.is_empty());
+            assert_eq!(sample.gain, 0.5);
+        }
+    }
+
     #[test]
     fn rejects_invalid_source_even_when_opaque_destination_would_hide_it() {
         for pixel in [

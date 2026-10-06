@@ -3,6 +3,7 @@ use thiserror::Error;
 
 // Serde erases typed errors while buffering nested project and operation values.
 // Only the layout field deserializer emits this anchored internal classification.
+pub(crate) const MATTE_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_MATTE_DECODE:";
 pub(crate) const MASK_ACTIVATION_DECODE_ERROR_PREFIX: &str =
     "\u{1e}OPENCUT_MASK_ACTIVATION_DECODE:";
 pub(crate) const LAYOUT_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_LAYOUT_DECODE:";
@@ -81,6 +82,12 @@ impl CoreError {
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
         let message = error.to_string();
+        if let Some(detail) = message.strip_prefix(MATTE_DECODE_ERROR_PREFIX) {
+            return Self::new(
+                ErrorCode::InvalidArgument,
+                format!("invalid track matte metadata: {detail}"),
+            );
+        }
         if let Some(detail) = message.strip_prefix(MASK_ACTIVATION_DECODE_ERROR_PREFIX) {
             return Self::new(
                 ErrorCode::InvalidArgument,

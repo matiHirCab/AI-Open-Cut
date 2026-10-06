@@ -1,0 +1,8 @@
+{
+  "scope": "Verification-only raw-scene/final-codec boundary clarification; before affected native helper edits; all16requirements39scenarios24tasks and acceptance limits unchanged",
+  "files": {
+    "native-boundary-verification.md": "f04992eb3479aeded2607cb1ea7b7bba8c5c4c49c99774d7dfaabfce0b835ce0",
+    "design.md": "50324456979370f4c4490aaf06ef55a570bb3940e9c98559513d9e7d458a3bd7",
+    "verification-plan.md": "cdf2cd7ba0e19b78e5cb033a07082ca0aafd2b6bf3584fa0db15d5f0932ef70a"
+  }
+}

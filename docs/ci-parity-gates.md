@@ -67,7 +67,7 @@ cargo test -p opencut-editor-core --test font_resolution
 cargo test -p opencut-editor-core renderer::golden::validate_external_performance_report -- --ignored --exact
 ```
 
-The policy validator parses the workflow, canonical `bunfig.toml`, Moon project/workspace/toolchains, `.prototools`, global-task inventory, and direct OpenSpec change inventory structurally. It fails if the archive-only state, bootstrap isolation flags, Bun configuration, bootstrap versions or order, a stable job, aggregate dependency, result or attestation assertion, closed protected sequence, exact Moon policy task, mandatory real-Moon regression, approved step property or environment, authoritative command, working directory, failure-propagation rule, deterministic render setting, validation order, or exact upload path is weakened. Critical steps retain exact fail-closed bodies and cannot opt into `continue-on-error`. The existing native conformance step declares exactly its five approved environment variables; the cache step declares exactly FFmpeg, FFprobe, font path, OPENCUT_GOLDEN_REQUIRED=1 and OPENCUT_RASTER_CACHE_TESTS_REQUIRED=1; the report validator only its report path, and the aggregate exactly its six result bindings, completion output, and final duration assertion. A failed, cancelled, skipped, unattested, or over-budget execution therefore reaches a failing aggregate.
+The policy validator parses the workflow, canonical `bunfig.toml`, Moon project/workspace/toolchains, `.prototools`, global-task inventory, and direct OpenSpec change inventory structurally. It fails if the archive-only state, bootstrap isolation flags, Bun configuration, bootstrap versions or order, a stable job, aggregate dependency, result or attestation assertion, closed protected sequence, exact Moon policy task, mandatory real-Moon regression, approved step property or environment, authoritative command, working directory, failure-propagation rule, deterministic render setting, validation order, or exact upload path is weakened. Critical steps retain exact fail-closed bodies and cannot opt into `continue-on-error`. The existing native conformance step declares exactly its six approved environment variables; the cache step declares exactly FFmpeg, FFprobe, font path, OPENCUT_GOLDEN_REQUIRED=1 and OPENCUT_RASTER_CACHE_TESTS_REQUIRED=1; the report validator only its report path, and the aggregate exactly its six result bindings, completion output, and final duration assertion. A failed, cancelled, skipped, unattested, or over-budget execution therefore reaches a failing aggregate.
 
 ## Mandatory native raster-cache evidence
 
@@ -85,3 +85,15 @@ cargo test -p opencut-headless
 This executes cold/warm/fresh native cache conformance and actual avoided raster work across worker/bridge requests. The default rebuild precedes ordinary transport verification; packaged integration/smoke retain their separate default build. Missing tools, font or instrumentation fail the dedicated run. The closed policy rejects removal, substitution, error masking, missing required flags and reordered restoration. Ordinary hermetic unit runs may still skip opt-in native tests; they are not substitutes for this required step.
 
 For local Windows reproduction, use the compatible FFmpeg/FFprobe 7.1.1 executable paths and reviewed `crates/editor-core/tests/fixtures/fonts/DejaVuSans.ttf`, with the same two required flags. Local Windows success does not assert a Linux GitHub Actions run or prove POSIX process containment. Report remote execution separately; do not regenerate goldens to hide environment differences.
+
+## Mandatory native track-matte evidence
+
+The existing native audiovisual/lifecycle step executes these additional commands immediately after font-resolution conformance, on the exact CI head:
+
+```sh
+cargo test -p opencut-editor-core --test track_mattes_native -- --nocapture
+cargo build -p opencut-headless
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts
+```
+
+The unchanged six-key environment supplies FFmpeg, FFprobe, font, both required native flags and the golden report path. The default headless build precedes the actual MCP artifact test; its ordinary opt-in skip is not native evidence. The exact protected command validator rejects omission, substitution, successful failure masking and an instrumented build. Existing native/raster-cache commands, default restoration, reports, step sequence, timeouts and duration budgets remain unchanged. These commands require actual execution on the PR head; their presence alone is not a native pass.

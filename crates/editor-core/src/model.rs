@@ -8,6 +8,8 @@ mod motion_blur;
 pub use motion_blur::*;
 mod mask;
 pub use mask::*;
+mod matte;
+pub use matte::*;
 mod visual_effects;
 pub use visual_effects::*;
 mod font;
@@ -28,7 +30,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 33;
+pub const PROJECT_SCHEMA_VERSION: u32 = 34;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -144,6 +146,14 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 34 {
+            reject_matte_fields(&value.tracks)
+                .map_err(|e| format!("{}{e}", crate::error::MATTE_DECODE_ERROR_PREFIX))?;
+            if let Some(components) = &value.components {
+                reject_matte_fields(components)
+                    .map_err(|e| format!("{}{e}", crate::error::MATTE_DECODE_ERROR_PREFIX))?;
+            }
+        }
         if value.schema_version < 33 {
             reject_mask_animation_fields(&value.tracks)
                 .map_err(|e| format!("{}{e}", crate::error::MASK_ACTIVATION_DECODE_ERROR_PREFIX))?;
@@ -713,6 +723,35 @@ pub(crate) fn find_extended_visual_edit_fields(
     )
 }
 
+pub(crate) fn reject_matte_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_matte_fields)
+}
+fn check_matte_fields(value: &serde_json::Value) -> Result<(), String> {
+    if value.get("matte").is_some() || value.get("matteOnly").is_some() {
+        return Err("track mattes require schema 34".into());
+    }
+    Ok(())
+}
+pub(crate) fn reject_raw_matte_edit_fields(value: &serde_json::Value) -> Result<(), String> {
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("update_item") => check_matte_fields(operation)?,
+                Some("component_create" | "component_update") => {
+                    if let Some(tracks) = operation.get("tracks") {
+                        reject_matte_fields(tracks)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn reject_mask_fields(value: &serde_json::Value) -> Result<(), String> {
     inspect_model_items(value, &check_mask_fields)
 }
@@ -728,6 +767,7 @@ pub(crate) fn find_mask_edit_fields(
     find_edit_fields(
         operations,
         &|value| {
+            check_matte_fields(value)?;
             check_mask_fields(value)?;
             check_mask_animation_fields(value)
         },
@@ -1306,6 +1346,14 @@ pub struct VisualProperties {
     pub effects: Vec<VisualEffect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub masks: Vec<Mask>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub matte: Option<MatteReference>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub matte_only: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_time: Option<TimeExpression>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1339,6 +1387,8 @@ impl VisualProperties {
             motion_blur: None,
             effects: Vec::new(),
             masks: Vec::new(),
+            matte: None,
+            matte_only: false,
             start_time: None,
             animation_channels: Vec::new(),
             animation_preset_provenance: Default::default(),
@@ -2289,6 +2339,18 @@ pub enum EditOperation {
         masks: Option<Vec<Mask>>,
         #[serde(
             default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        matte: Option<Option<MatteReference>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        matte_only: Option<bool>,
+        #[serde(
+            default,
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
@@ -2688,6 +2750,18 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         masks: Option<Vec<Mask>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        matte: Option<Option<MatteReference>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        matte_only: Option<bool>,
         #[serde(
             default,
             deserialize_with = "deserialize_present",

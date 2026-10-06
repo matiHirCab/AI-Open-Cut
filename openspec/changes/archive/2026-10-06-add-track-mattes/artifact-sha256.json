@@ -1,0 +1,22 @@
+{
+  "scope": "Exact promoted pre-approval planning artifacts; self excluded; implementation not started",
+  "files": {
+    ".openspec.yaml": "c956e2a907cf0aa23d948e300827f91e46ab77d64e288d98285dfe990bb0d989",
+    "core-implementation-interface.md": "995ed9e1471cdb74b7bd8615da9fe95a7753e7bd66c361e4f36f7a17d87be4ab",
+    "design.md": "f9dc9bf5e9f2816a7a8209208ce1ae9872df1c58c9c4235b82a11b6baab33157",
+    "mcp-addition-whitelist.json": "14558f4916de4049600fe39fe34b62d980495ac155a34986d44ddbccde186d90",
+    "predecessor-catalog-digests.json": "117d417c82c6a34388f6fb55e6d7e760e30f8b762f798e7b8ad5bc1b798f7706",
+    "predecessor-mcp-field-locations.json": "ae52c79bede8e339ba6bf9561f2e95721cea30d9d873d3641dcec56b296be19d",
+    "proposal.md": "89231884746df771696dceee0869bf6d353fa58ccce7a2ff9520a831c73cad27",
+    "proposed-track-mattes-v1.json": "00901582fece3b3a6e359e00b1620ab3d627a419b65fddf8dd5c5d044b007bbb",
+    "reconciliation-notes.md": "59ecd5fd3e77730ddb778e21eaa07cd73b95a9bbd271d2c74a14ee05588eadaa",
+    "specs/contract-governance/spec.md": "5e59818a237981e4cc955e605a31e036a049feaf884e23feb0eb29d51c7b1f8f",
+    "specs/linear-light-compositing/spec.md": "c162478c943f3ae0e4d983917440e08e7b60973df5c880a6c1ea3d65e84d3a2f",
+    "specs/motion-graphics-architecture/spec.md": "f0f2a951e8be7272876316587f08309e55e0ceaf012a7cc68ef191edc8ea0b44",
+    "specs/project-persistence/spec.md": "c12e30901268cdd1b1c32e1104322df1c557d100e3da0519e846f4f6681ef769",
+    "specs/rendering-export/spec.md": "0912d56e6f26dd9d994a11b8165989c9b56c10be40cdc779e07b6893289e557d",
+    "specs/track-mattes/spec.md": "f3e3aa169ee61ea666bebb3892126825ecedc97050a2151edb35c34f06eb50c9",
+    "tasks.md": "d2df278a142360de12e598491aacbbc6ff635a4e619a24a84fd4d8d610c4e032",
+    "verification-plan.md": "c84cfc02af307b3159081b8967860f46af4a574f4668fc1312feb8df013f17d2"
+  }
+}

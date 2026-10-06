@@ -5,8 +5,12 @@ mod request_scope;
 pub(crate) use request_scope::with_request_id;
 pub(crate) mod extended_visual;
 mod masks;
+mod mattes;
 mod shapes;
+#[cfg(test)]
+pub(crate) use shapes::fill_allocation_tests::observe as observe_allocations;
 mod text;
+pub(crate) mod text_measurement_memory;
 use std::{
     collections::HashMap,
     env,
@@ -38,6 +42,39 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn create_dir(&self, path: &Path) -> std::io::Result<()>;
     fn remove_dir_all(&self, path: &Path) -> std::io::Result<()>;
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>>;
+    /// The admitted active-matte reader may allocate at most `capacity` bytes,
+    /// once, with no moving growth. Alternate ports must explicitly own this
+    /// contract; generic read/read_font is not a permitted fallback.
+    fn read_admitted_font(
+        &self,
+        _path: &Path,
+        _size: u64,
+        _capacity: usize,
+    ) -> std::io::Result<Vec<u8>> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "bounded font read unavailable",
+        ))
+    }
+    /// Active-only streaming lookup. Implementations must admit all cursor,
+    /// ancestor, entry and path-normalization heap before opening/advancing.
+    fn admitted_font_lookup(
+        &self,
+        _root: &Path,
+        _family: &str,
+        _remaining: u64,
+    ) -> std::io::Result<Option<PathBuf>> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "admitted font lookup unavailable",
+        ))
+    }
+    fn media_digest(&self, _path: &Path) -> std::io::Result<(String, u64)> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "bounded media fingerprint unavailable",
+        ))
+    }
     fn read_font(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         self.read(path)
     }
@@ -49,6 +86,136 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn remove(&self, path: &Path) -> std::io::Result<()>;
     fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
     fn size(&self, path: &Path) -> std::io::Result<u64>;
+}
+
+/// Active-only legacy measurement adapter. Rich-run measurement can retain
+/// one face Vec while measuring the same run with a second Vec; all other
+/// generic-read measurement paths are sequential. The caller reserves two
+/// maximum bounded faces before invoking any of these legacy helpers.
+#[derive(Debug)]
+pub(crate) struct MatteMeasurementIo<'a> {
+    inner: &'a dyn ArtifactIo,
+    failure: std::sync::Mutex<Option<CoreError>>,
+}
+impl<'a> MatteMeasurementIo<'a> {
+    pub(crate) fn new(inner: &'a dyn ArtifactIo) -> Self {
+        Self {
+            inner,
+            failure: std::sync::Mutex::new(None),
+        }
+    }
+    fn rejected(&self, code: ErrorCode, message: &str) -> std::io::Error {
+        let mut failure = self.failure.lock().unwrap_or_else(|p| p.into_inner());
+        if failure.is_none() {
+            *failure = Some(CoreError::new(code, message));
+        }
+        std::io::Error::other(message)
+    }
+    pub(crate) fn finish(&self) -> Result<(), CoreError> {
+        self.failure
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .take()
+            .map_or(Ok(()), Err)
+    }
+}
+#[cfg(test)]
+thread_local! { static MEASUREMENT_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+pub(crate) fn observed_measurement_reads(reset: bool) -> usize {
+    MEASUREMENT_READS.with(|n| {
+        let value = n.get();
+        if reset {
+            n.set(0);
+        }
+        value
+    })
+}
+impl ArtifactIo for MatteMeasurementIo<'_> {
+    fn request_id(&self) -> String {
+        self.inner.request_id()
+    }
+    fn create_dir(&self, p: &Path) -> std::io::Result<()> {
+        self.inner.create_dir(p)
+    }
+    fn remove_dir_all(&self, p: &Path) -> std::io::Result<()> {
+        self.inner.remove_dir_all(p)
+    }
+    fn read(&self, p: &Path) -> std::io::Result<Vec<u8>> {
+        #[cfg(test)]
+        MEASUREMENT_READS.with(|n| n.set(n.get() + 1));
+        let size = self.inner.size(p)?;
+        if size > crate::MAX_FONT_BYTES as u64 {
+            return Err(self.rejected(
+                ErrorCode::InvalidArgument,
+                "matte measurement font exceeds bounded size",
+            ));
+        }
+        let capacity = usize::try_from(size).map_err(|_| {
+            self.rejected(
+                ErrorCode::InvalidArgument,
+                "matte measurement font size overflow",
+            )
+        })?;
+        let bytes = self
+            .inner
+            .read_admitted_font(p, size, capacity)
+            .map_err(|error| {
+                self.rejected(
+                    if error.kind() == std::io::ErrorKind::Unsupported {
+                        ErrorCode::DependencyUnavailable
+                    } else {
+                        ErrorCode::AssetIntegrityFailed
+                    },
+                    "matte measurement font cannot be read within admission",
+                )
+            })?;
+        if bytes.capacity() > capacity || bytes.len() as u64 != size {
+            return Err(self.rejected(
+                ErrorCode::InvalidArgument,
+                "matte measurement font exceeded admitted payload",
+            ));
+        }
+        Ok(bytes)
+    }
+    fn read_admitted_font(&self, p: &Path, s: u64, c: usize) -> std::io::Result<Vec<u8>> {
+        self.inner.read_admitted_font(p, s, c)
+    }
+    fn admitted_font_lookup(
+        &self,
+        root: &Path,
+        family: &str,
+        remaining: u64,
+    ) -> std::io::Result<Option<PathBuf>> {
+        self.inner.admitted_font_lookup(root, family, remaining)
+    }
+    fn media_digest(&self, p: &Path) -> std::io::Result<(String, u64)> {
+        self.inner.media_digest(p)
+    }
+    fn write(&self, p: &Path, b: &[u8]) -> std::io::Result<()> {
+        self.inner.write(p, b)
+    }
+    fn list(&self, p: &Path) -> std::io::Result<Vec<PathBuf>> {
+        self.inner.list(p)
+    }
+    fn entry_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
+        self.inner.entry_kind(p)
+    }
+    fn canonicalize_artifact_path(&self, p: &Path) -> std::io::Result<PathBuf> {
+        self.inner.canonicalize_artifact_path(p)
+    }
+    fn artifact_path_exists(&self, p: &Path) -> bool {
+        self.inner.artifact_path_exists(p)
+    }
+    fn remove(&self, p: &Path) -> std::io::Result<()> {
+        self.inner.remove(p)
+    }
+    fn rename(&self, p: &Path, q: &Path) -> std::io::Result<()> {
+        self.inner.rename(p, q)
+    }
+    fn size(&self, p: &Path) -> std::io::Result<u64> {
+        self.inner.size(p)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,6 +232,8 @@ pub(crate) struct PreparedRenderResources {
 }
 
 pub(crate) struct PreparedMediaResources {
+    pub(crate) matte_integrity: Vec<crate::evaluated_scene::MatteMediaIntegrityBinding>,
+    pub(crate) matte_font_payload_bytes: u64,
     pub(crate) font_faces: std::collections::BTreeMap<String, Vec<u8>>,
     pub(crate) media_inputs: Vec<MediaInputRequest>,
     pub(crate) media_paths: Vec<PathBuf>,
@@ -74,6 +243,54 @@ pub(crate) struct PreparedMediaResources {
 pub(crate) struct FileSystemArtifactIo;
 
 impl ArtifactIo for FileSystemArtifactIo {
+    fn read_admitted_font(
+        &self,
+        path: &Path,
+        size: u64,
+        capacity: usize,
+    ) -> std::io::Result<Vec<u8>> {
+        use std::io::Read;
+        let size =
+            usize::try_from(size).map_err(|_| std::io::Error::other("font size overflow"))?;
+        if size > crate::MAX_FONT_BYTES || size > capacity {
+            return Err(std::io::Error::other("font capacity admission exceeded"));
+        }
+        let mut bytes = vec![0u8; size];
+        let mut file = std::fs::File::open(path)?;
+        file.read_exact(&mut bytes)?;
+        let mut extra = [0u8; 1];
+        if file.read(&mut extra)? != 0 {
+            return Err(std::io::Error::other("font size changed"));
+        }
+        Ok(bytes)
+    }
+    fn admitted_font_lookup(
+        &self,
+        root: &Path,
+        family: &str,
+        remaining: u64,
+    ) -> std::io::Result<Option<PathBuf>> {
+        text_measurement_memory::admitted_font_lookup(root, family, remaining)
+    }
+    fn media_digest(&self, path: &Path) -> std::io::Result<(String, u64)> {
+        use sha2::{Digest, Sha256};
+        use std::io::Read;
+        let mut file = std::fs::File::open(path)?;
+        let mut digest = Sha256::new();
+        let mut size = 0u64;
+        let mut buffer = [0u8; 65_536];
+        loop {
+            let count = file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            size = size
+                .checked_add(count as u64)
+                .ok_or_else(|| std::io::Error::other("media size overflow"))?;
+            digest.update(&buffer[..count]);
+        }
+        Ok((format!("{:x}", digest.finalize()), size))
+    }
     fn request_id(&self) -> String {
         env::var("OPENCUT_REQUEST_ID")
             .ok()
@@ -387,6 +604,14 @@ pub(crate) fn prepare_media_resources(
         media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
     }
     let mut font_faces = std::collections::BTreeMap::new();
+    let font_limit = if evaluated.scene.mattes.is_some() {
+        Some(crate::evaluated_scene::mattes::font_payload_admission(
+            &evaluated.scene,
+        )?)
+    } else {
+        None
+    };
+    let mut font_payload = 0u64;
     for catalog in std::iter::once(&evaluated.resource_bindings.retained_fonts).chain(
         evaluated
             .resource_bindings
@@ -416,17 +641,66 @@ pub(crate) fn prepare_media_resources(
                     "managed font size changed",
                 ));
             }
-            let bytes = io.read_font(&path).map_err(|_| {
-                CoreError::new(
-                    ErrorCode::AssetIntegrityFailed,
-                    "managed font cannot be read",
-                )
-            })?;
+            let bytes = if let Some(limit) = font_limit {
+                if font_payload
+                    .checked_add(face.size_bytes)
+                    .is_none_or(|n| n > limit)
+                {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte font read exceeds shared memory bounds",
+                    ));
+                }
+                let capacity = usize::try_from(face.size_bytes).map_err(|_| {
+                    CoreError::new(ErrorCode::InvalidArgument, "matte font read size overflow")
+                })?;
+                let bytes = io
+                    .read_admitted_font(&path, face.size_bytes, capacity)
+                    .map_err(|error| {
+                        CoreError::new(
+                            if error.kind() == std::io::ErrorKind::Unsupported {
+                                ErrorCode::DependencyUnavailable
+                            } else {
+                                ErrorCode::AssetIntegrityFailed
+                            },
+                            "managed font cannot be read within admission",
+                        )
+                    })?;
+                if bytes.capacity() > capacity {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte font reader exceeded admitted capacity",
+                    ));
+                }
+                bytes
+            } else {
+                io.read_font(&path).map_err(|_| {
+                    CoreError::new(
+                        ErrorCode::AssetIntegrityFailed,
+                        "managed font cannot be read",
+                    )
+                })?
+            };
             crate::fonts::verify_bytes(face, &bytes)?;
+            if let Some(limit) = font_limit {
+                font_payload = font_payload
+                    .checked_add(bytes.capacity() as u64)
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::InvalidArgument, "matte font payload overflow")
+                    })?;
+                if font_payload > limit {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte font payload exceeds shared memory bounds",
+                    ));
+                }
+            }
             font_faces.insert(hash.clone(), bytes);
         }
     }
     Ok(PreparedMediaResources {
+        matte_integrity: evaluated.resource_bindings.matte_integrity.clone(),
+        matte_font_payload_bytes: font_payload,
         font_faces,
         media_inputs,
         media_paths,
@@ -588,6 +862,40 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
     font_faces: &std::collections::BTreeMap<String, Vec<u8>>,
     layout_work: &mut crate::evaluated_scene::text_layout::GlyphBudget,
 ) -> Result<HashMap<String, MeasuredText>, CoreError> {
+    measure_evaluated_text_layers_with_admission(
+        io,
+        evaluated,
+        default_font_path,
+        font_roots,
+        warnings,
+        font_faces,
+        (layout_work, None),
+    )
+}
+
+pub(crate) fn measure_evaluated_text_layers_with_admission(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    default_font_path: Option<&Path>,
+    font_roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+    font_faces: &std::collections::BTreeMap<String, Vec<u8>>,
+    admission: (
+        &mut crate::evaluated_scene::text_layout::GlyphBudget,
+        Option<&mut text_measurement_memory::MeasurementMemory>,
+    ),
+) -> Result<HashMap<String, MeasuredText>, CoreError> {
+    let (layout_work, mut memory) = admission;
+    let binding_bytes = if let Some(memory) = memory.as_deref_mut() {
+        let bytes = text_measurement_memory::map_bytes::<&str, &FontResourceBinding>(
+            evaluated.resource_bindings.fonts.len(),
+        )?;
+        memory.admit(bytes)?;
+        memory.adopt(bytes)?;
+        bytes
+    } else {
+        0
+    };
     let font_bindings = evaluated
         .resource_bindings
         .fonts
@@ -597,9 +905,46 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
     let mut result = HashMap::new();
     let mut shaped_cache = HashMap::new();
     for layer in &evaluated.scene.visual_layers {
+        if !matches!(layer.source, EvaluatedVisualSource::Text(_))
+            && !(matches!(layer.source, EvaluatedVisualSource::Caption(_))
+                && layer.requires_affine())
+        {
+            continue;
+        }
+
+        let layer_scratch = if let Some(memory) = memory.as_deref_mut() {
+            let scratch = text_measurement_memory::key_scratch(layer)?;
+            let growth =
+                text_measurement_memory::map_bytes::<String, MeasuredText>(result.len() + 1)?
+                    .checked_add(text_measurement_memory::map_bytes::<
+                        String,
+                        crate::fonts::shaping::ShapedText,
+                    >(shaped_cache.len() + 1)?)
+                    .and_then(|n| n.checked_add(scratch))
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::InvalidArgument, "matte text map memory overflow")
+                    })?;
+            memory.admit(growth)?;
+            growth
+        } else {
+            0
+        };
         if let EvaluatedVisualSource::Caption(caption) = &layer.source
             && layer.requires_affine()
         {
+            if let Some(memory) = memory.as_deref_mut() {
+                let clone = default_font_path
+                    .map_or(0, |p| p.as_os_str().len() as u64)
+                    .checked_mul(3)
+                    .and_then(|n| n.checked_add(layer_scratch))
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "caption font path clone overflow",
+                        )
+                    })?;
+                memory.admit(clone)?;
+            }
             let metrics =
                 measure_text_block(io, &caption.text, caption.font_size, default_font_path);
             let width = (metrics.width.ceil() as u32).max(1).saturating_add(24);
@@ -622,9 +967,25 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
                     content: caption.text.clone(),
                 },
             );
+            adopt_text_measurement(
+                &mut memory,
+                &result,
+                &shaped_cache,
+                warnings,
+                binding_bytes,
+                layer_scratch,
+            )?;
             continue;
         }
         let EvaluatedVisualSource::Text(text) = &layer.source else {
+            adopt_text_measurement(
+                &mut memory,
+                &result,
+                &shaped_cache,
+                warnings,
+                binding_bytes,
+                layer_scratch,
+            )?;
             continue;
         };
         if let Some(binding) = &text.font_binding {
@@ -644,11 +1005,76 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
             ))
             .map_err(|_| CoreError::new(ErrorCode::InternalError, "cannot identify text layout"))?;
             let shaped = if text.style.layout.is_some() {
-                crate::evaluated_scene::text_layout::resolve(text, font_faces, layout_work)?
+                {
+                    if let Some(memory) = memory.as_deref_mut() {
+                        let remaining =
+                            memory
+                                .remaining()?
+                                .checked_sub(layer_scratch)
+                                .ok_or_else(|| {
+                                    CoreError::new(
+                                        ErrorCode::InvalidArgument,
+                                        "matte text scratch memory overflow",
+                                    )
+                                })?;
+                        memory.admit(
+                            layer_scratch
+                                .checked_add(text_measurement_memory::shaping_scratch(
+                                    text, font_faces, remaining,
+                                )?)
+                                .ok_or_else(|| {
+                                    CoreError::new(
+                                        ErrorCode::InvalidArgument,
+                                        "matte text scratch memory overflow",
+                                    )
+                                })?,
+                        )?;
+                        crate::evaluated_scene::text_layout::resolve_admitted(
+                            text,
+                            font_faces,
+                            layout_work,
+                        )?
+                    } else {
+                        crate::evaluated_scene::text_layout::resolve(text, font_faces, layout_work)?
+                    }
+                }
             } else if let Some(shaped) = shaped_cache.get(&cache_key) {
-                Clone::clone(shaped)
+                if let Some(memory) = memory.as_deref_mut() {
+                    text_measurement_memory::clone_cached_shape(memory, shaped, layer_scratch)?
+                } else {
+                    Clone::clone(shaped)
+                }
             } else {
-                let shaped = crate::fonts::shaping::shape(
+                if let Some(memory) = memory.as_deref_mut() {
+                    let remaining =
+                        memory
+                            .remaining()?
+                            .checked_sub(layer_scratch)
+                            .ok_or_else(|| {
+                                CoreError::new(
+                                    ErrorCode::InvalidArgument,
+                                    "matte text scratch memory overflow",
+                                )
+                            })?;
+                    memory.admit(
+                        layer_scratch
+                            .checked_add(text_measurement_memory::shaping_scratch(
+                                text, font_faces, remaining,
+                            )?)
+                            .ok_or_else(|| {
+                                CoreError::new(
+                                    ErrorCode::InvalidArgument,
+                                    "matte text scratch memory overflow",
+                                )
+                            })?,
+                    )?;
+                }
+                let shape = if memory.is_some() {
+                    crate::fonts::shaping::shape_admitted
+                } else {
+                    crate::fonts::shaping::shape
+                };
+                let shaped = shape(
                     &document,
                     binding,
                     font_faces,
@@ -665,6 +1091,14 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
                 text::measure(shaped, text, font_faces)?,
             );
             warnings.extend(binding.warnings.clone());
+            adopt_text_measurement(
+                &mut memory,
+                &result,
+                &shaped_cache,
+                warnings,
+                binding_bytes,
+                layer_scratch,
+            )?;
             continue;
         }
         let binding = text
@@ -680,17 +1114,62 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
             })
             .transpose()?;
         let path = PathBuf::from(format!("text-{}.txt", layer.item_id));
-        let font_path = resolve_evaluated_font(
-            io,
-            &layer.item_id,
-            binding,
-            default_font_path,
-            font_roots,
-            warnings,
-        );
+        let font_path = if let Some(memory) = memory.as_deref_mut() {
+            resolve_evaluated_font_admitted(
+                io,
+                &layer.item_id,
+                binding,
+                default_font_path,
+                font_roots,
+                warnings,
+                (memory, layer_scratch),
+            )?
+        } else {
+            resolve_evaluated_font(
+                io,
+                &layer.item_id,
+                binding,
+                default_font_path,
+                font_roots,
+                warnings,
+            )
+        };
+        if let Some(memory) = memory.as_deref_mut() {
+            let path_bytes = font_path.as_ref().map_or(0, |p| p.capacity() as u64);
+            let characters = text.text.chars().count() as u64;
+            let per_run = path_bytes
+                .checked_add(layer.item_id.capacity() as u64)
+                .and_then(|n| n.checked_add(256))
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "legacy font path memory overflow",
+                    )
+                })?;
+            let scratch = characters
+                .checked_add(1)
+                .and_then(|n| n.checked_mul(per_run))
+                .and_then(|n| n.checked_mul(6))
+                .and_then(|n| n.checked_add(layer_scratch))
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "legacy text run memory overflow",
+                    )
+                })?;
+            memory.admit(scratch)?;
+        }
         if let Some(runs) = &text.rich_runs {
             let measured = measure_rich_text(io, &layer.item_id, text, runs, font_path.as_deref())?;
             result.insert(layer.item_id.clone(), measured);
+            adopt_text_measurement(
+                &mut memory,
+                &result,
+                &shaped_cache,
+                warnings,
+                binding_bytes,
+                layer_scratch,
+            )?;
             continue;
         }
         let content = wrap_text_with_io(
@@ -770,8 +1249,200 @@ pub(crate) fn measure_evaluated_text_layers_with_budget(
                 },
             },
         );
+        adopt_text_measurement(
+            &mut memory,
+            &result,
+            &shaped_cache,
+            warnings,
+            binding_bytes,
+            layer_scratch,
+        )?;
+    }
+    drop(shaped_cache);
+    drop(font_bindings);
+    if let Some(memory) = memory {
+        memory.adopt(
+            text_measurement_memory::measured_bytes(&result)?
+                .checked_add(text_measurement_memory::warnings_bytes(warnings)?)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte text result memory overflow",
+                    )
+                })?,
+        )?;
     }
     Ok(result)
+}
+
+fn adopt_text_measurement(
+    memory: &mut Option<&mut text_measurement_memory::MeasurementMemory>,
+    result: &HashMap<String, MeasuredText>,
+    cache: &HashMap<String, crate::fonts::shaping::ShapedText>,
+    warnings: &Vec<String>,
+    binding_bytes: u64,
+    transient: u64,
+) -> Result<(), CoreError> {
+    if let Some(memory) = memory.as_deref_mut() {
+        let actual = text_measurement_memory::measured_bytes(result)?
+            .checked_add(text_measurement_memory::shaped_cache_bytes(cache)?)
+            .and_then(|n| n.checked_add(binding_bytes))
+            .and_then(|n| n.checked_add(text_measurement_memory::warnings_bytes(warnings).ok()?))
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "matte text adoption memory overflow",
+                )
+            })?;
+        memory.adopt(actual)?;
+        memory.admit(transient)?;
+    }
+    Ok(())
+}
+
+fn admitted_font_metadata<T>(result: std::io::Result<T>) -> Result<Option<T>, CoreError> {
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::OutOfMemory | std::io::ErrorKind::Unsupported
+            ) =>
+        {
+            Err(CoreError::new(
+                if error.kind() == std::io::ErrorKind::OutOfMemory {
+                    ErrorCode::InvalidArgument
+                } else {
+                    ErrorCode::DependencyUnavailable
+                },
+                "font resolver resource operation failed",
+            ))
+        }
+        Err(_) => Ok(None),
+    }
+}
+fn resolve_evaluated_font_admitted(
+    io: &dyn ArtifactIo,
+    item_id: &str,
+    binding: Option<&FontResourceBinding>,
+    default: Option<&Path>,
+    roots: &[PathBuf],
+    warnings: &mut Vec<String>,
+    admission: (&mut text_measurement_memory::MeasurementMemory, u64),
+) -> Result<Option<PathBuf>, CoreError> {
+    let (memory, layer_scratch) = admission;
+    let binding_payload = if let Some(binding) = binding {
+        binding
+            .requested_path
+            .as_ref()
+            .map_or(0, |s| s.capacity() as u64)
+            .checked_add(
+                binding
+                    .requested_family
+                    .as_ref()
+                    .map_or(0, |s| s.capacity() as u64),
+            )
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "requested font payload overflow",
+                )
+            })?
+    } else {
+        0
+    };
+    let path_payload =
+        roots
+            .iter()
+            .try_fold(default.map_or(0, |p| p.as_os_str().len() as u64), |n, p| {
+                n.checked_add(p.capacity() as u64).ok_or_else(|| {
+                    CoreError::new(ErrorCode::InvalidArgument, "font resolver path overflow")
+                })
+            })?;
+    let scratch = path_payload
+        .checked_add(binding_payload)
+        .and_then(|n| n.checked_mul(16))
+        .and_then(|n| n.checked_add(layer_scratch))
+        .and_then(|n| n.checked_add(262144))
+        .ok_or_else(|| {
+            CoreError::new(ErrorCode::InvalidArgument, "font resolver scratch overflow")
+        })?;
+    memory.admit(scratch)?;
+    if let Some(requested) = binding.and_then(|b| b.requested_path.as_deref()) {
+        let payload = scratch
+            .checked_add((requested.len() as u64).checked_mul(16).ok_or_else(|| {
+                CoreError::new(ErrorCode::InvalidArgument, "requested font path overflow")
+            })?)
+            .ok_or_else(|| {
+                CoreError::new(ErrorCode::InvalidArgument, "requested font path overflow")
+            })?;
+        memory.admit(payload)?;
+        let requested = Path::new(requested);
+        for root in roots {
+            let candidate = if requested.is_absolute() {
+                requested.to_path_buf()
+            } else {
+                root.join(requested)
+            };
+            if let Some(found) = admitted_font_metadata(io.canonicalize_artifact_path(&candidate))?
+                && admitted_font_metadata(io.entry_kind(&found))? == Some(ArtifactEntryKind::File)
+            {
+                let mut permitted = false;
+                for root in roots {
+                    if let Some(root) = admitted_font_metadata(io.canonicalize_artifact_path(root))?
+                        && found.starts_with(root)
+                    {
+                        permitted = true;
+                        break;
+                    }
+                }
+                if permitted {
+                    memory.admit(payload.checked_add(found.capacity() as u64).ok_or_else(
+                        || CoreError::new(ErrorCode::InvalidArgument, "font path overflow"),
+                    )?)?;
+                    return Ok(Some(found));
+                }
+            }
+            if requested.is_absolute() {
+                break;
+            }
+        }
+        warnings.push(format!(
+            "Text item {item_id} requested a font path that could not be resolved; using fallback"
+        ));
+    }
+    if let Some(family) = binding.and_then(|b| b.requested_family.as_deref()) {
+        let needle = family.to_lowercase().replace([' ', '-', '_'], "");
+        let remaining = memory.remaining()?.checked_sub(scratch).ok_or_else(|| {
+            CoreError::new(ErrorCode::InvalidArgument, "font lookup memory excess")
+        })?;
+        for root in roots {
+            let found = io
+                .admitted_font_lookup(root, &needle, remaining)
+                .map_err(|error| {
+                    CoreError::new(
+                        if error.kind() == std::io::ErrorKind::OutOfMemory {
+                            ErrorCode::InvalidArgument
+                        } else {
+                            ErrorCode::DependencyUnavailable
+                        },
+                        "admitted font lookup failed",
+                    )
+                })?;
+            if let Some(found) = found {
+                memory.admit(
+                    scratch
+                        .checked_add(found.capacity() as u64)
+                        .ok_or_else(|| {
+                            CoreError::new(ErrorCode::InvalidArgument, "font path overflow")
+                        })?,
+                )?;
+                return Ok(Some(found));
+            }
+        }
+        warnings.push(format!("Text item {item_id} requested font family {family:?} that could not be resolved; using fallback"));
+    }
+    Ok(default.map(Path::to_path_buf))
 }
 
 fn resolve_evaluated_font(
@@ -1061,6 +1732,40 @@ pub(crate) fn publish_output_with(
         let _ = io.remove(temporary);
         CoreError::render_failure(PUBLISH_STAGE, None, None)
     })
+}
+
+pub(crate) fn verify_matte_media_integrity(
+    io: &dyn ArtifactIo,
+    media: &PreparedMediaResources,
+    project_dir: &Path,
+) -> Result<(), CoreError> {
+    for pin in &media.matte_integrity {
+        // Retained hidden/inactive pins are resource obligations even when no
+        // decoder input is published for their zero-coverage occurrence.
+        let path = resolve_project_asset(io, project_dir, Path::new(&pin.project_relative_path))?;
+        let (digest, size) = io.media_digest(&path).map_err(|error| {
+            CoreError::new(
+                if error.kind() == std::io::ErrorKind::Unsupported {
+                    ErrorCode::DependencyUnavailable
+                } else {
+                    ErrorCode::AssetIntegrityFailed
+                },
+                "managed matte media cannot be fingerprinted",
+            )
+        })?;
+        if pin
+            .sha256
+            .as_ref()
+            .is_some_and(|expected| *expected != digest)
+            || pin.size_bytes.is_some_and(|expected| expected != size)
+        {
+            return Err(CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "asset content hash or size does not match project metadata",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn resolve_project_asset(
@@ -1416,5 +2121,132 @@ mod tests {
                 .as_deref(),
             Some(PUBLISH_STAGE)
         );
+    }
+    #[test]
+    fn matte_measurement_font_port_is_bounded_and_latches_swallowed_errors() {
+        let root = tempfile::tempdir().unwrap();
+        let regular = root.path().join("font.ttf");
+        std::fs::write(&regular, b"bounded font bytes").unwrap();
+        let io = MatteMeasurementIo::new(&FileSystemArtifactIo);
+        let bytes = io.read(&regular).unwrap();
+        assert_eq!(bytes, b"bounded font bytes");
+        assert_eq!(bytes.capacity(), bytes.len());
+        io.finish().unwrap();
+        let oversized = root.path().join("oversized.ttf");
+        std::fs::File::create(&oversized)
+            .unwrap()
+            .set_len(crate::MAX_FONT_BYTES as u64 + 1)
+            .unwrap();
+        let io = MatteMeasurementIo::new(&FileSystemArtifactIo);
+        // Legacy measurement may swallow this I/O error. The owner must still
+        // fail before publishing approximate glyph facts or any raster output.
+        assert!(io.read(&oversized).is_err());
+        let error = io.finish().unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert_eq!(
+            std::fs::metadata(oversized).unwrap().len(),
+            crate::MAX_FONT_BYTES as u64 + 1
+        );
+    }
+    #[derive(Debug)]
+    struct SpareMeasurementFontIo;
+    impl ArtifactIo for SpareMeasurementFontIo {
+        fn request_id(&self) -> String {
+            "spare-measurement".into()
+        }
+        fn read_admitted_font(
+            &self,
+            _: &Path,
+            size: u64,
+            capacity: usize,
+        ) -> std::io::Result<Vec<u8>> {
+            assert_eq!(size as usize, capacity);
+            let mut bytes = Vec::with_capacity(capacity + 1);
+            bytes.resize(capacity, 0);
+            Ok(bytes)
+        }
+        fn create_dir(&self, p: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.create_dir(p)
+        }
+        fn remove_dir_all(&self, p: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.remove_dir_all(p)
+        }
+        fn read(&self, p: &Path) -> std::io::Result<Vec<u8>> {
+            FileSystemArtifactIo.read(p)
+        }
+        fn write(&self, p: &Path, b: &[u8]) -> std::io::Result<()> {
+            FileSystemArtifactIo.write(p, b)
+        }
+        fn list(&self, p: &Path) -> std::io::Result<Vec<PathBuf>> {
+            FileSystemArtifactIo.list(p)
+        }
+        fn entry_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
+            FileSystemArtifactIo.entry_kind(p)
+        }
+        fn canonicalize_artifact_path(&self, p: &Path) -> std::io::Result<PathBuf> {
+            FileSystemArtifactIo.canonicalize_artifact_path(p)
+        }
+        fn artifact_path_exists(&self, p: &Path) -> bool {
+            FileSystemArtifactIo.artifact_path_exists(p)
+        }
+        fn remove(&self, p: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.remove(p)
+        }
+        fn rename(&self, p: &Path, q: &Path) -> std::io::Result<()> {
+            FileSystemArtifactIo.rename(p, q)
+        }
+        fn size(&self, p: &Path) -> std::io::Result<u64> {
+            FileSystemArtifactIo.size(p)
+        }
+    }
+    #[test]
+    fn matte_measurement_font_spare_capacity_is_rejected_before_metric_fallback() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("font.ttf");
+        std::fs::write(&path, b"face").unwrap();
+        let io = MatteMeasurementIo::new(&SpareMeasurementFontIo);
+        assert!(io.read(&path).is_err());
+        let error = io.finish().unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert_eq!(std::fs::read(path).unwrap(), b"face");
+    }
+    #[test]
+    fn retained_matte_media_pin_without_decoder_input_is_verified_before_cache() {
+        use sha2::{Digest, Sha256};
+        let root = tempfile::tempdir().unwrap();
+        let assets = root.path().join("assets");
+        std::fs::create_dir(&assets).unwrap();
+        let path = assets.join("retained-provider.bin");
+        let original = b"retained hidden or inactive provider payload";
+        std::fs::write(&path, original).unwrap();
+        let media = PreparedMediaResources {
+            matte_integrity: vec![crate::evaluated_scene::MatteMediaIntegrityBinding {
+                asset_id: "retained-only".into(),
+                project_relative_path: "assets/retained-provider.bin".into(),
+                sha256: Some(format!("{:x}", Sha256::digest(original))),
+                size_bytes: Some(original.len() as u64),
+            }],
+            matte_font_payload_bytes: 0,
+            font_faces: Default::default(),
+            media_inputs: vec![],
+            media_paths: vec![],
+        };
+        // Zero-span retained providers intentionally have no decoder input.
+        verify_matte_media_integrity(&FileSystemArtifactIo, &media, root.path()).unwrap();
+        verify_matte_media_integrity(&FileSystemArtifactIo, &media, root.path()).unwrap();
+        let mut changed = original.to_vec();
+        *changed.last_mut().unwrap() ^= 1;
+        std::fs::write(&path, &changed).unwrap();
+        for _ in 0..2 {
+            let error = verify_matte_media_integrity(&FileSystemArtifactIo, &media, root.path())
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::AssetIntegrityFailed);
+            assert!(!error.retryable);
+            assert_eq!(std::fs::read(&path).unwrap(), changed);
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+            assert_eq!(std::fs::read_dir(&assets).unwrap().count(), 1);
+        }
     }
 }

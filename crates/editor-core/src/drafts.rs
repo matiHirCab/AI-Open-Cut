@@ -73,6 +73,11 @@ pub(crate) fn read_draft(
         ));
     }
     let draft: EditDraft = read_json(storage, &path)?;
+    validate_draft_envelope(&draft)?;
+    Ok(draft)
+}
+
+pub(crate) fn validate_draft_envelope(draft: &EditDraft) -> Result<(), CoreError> {
     reject_preset_intents(&draft.operations)?;
     if !matches!(draft.version, 1 | DRAFT_VERSION) {
         return Err(CoreError::new(
@@ -98,7 +103,7 @@ pub(crate) fn read_draft(
             "draft font bindings are incomplete",
         ));
     }
-    Ok(draft)
+    Ok(())
 }
 
 pub(crate) fn remove_draft(
@@ -111,6 +116,28 @@ pub(crate) fn remove_draft(
         .map_err(|error| CoreError::io("cannot discard draft", error))
 }
 
+fn is_draft_json_file(storage: &dyn Storage, path: &Path) -> bool {
+    storage.entry_kind(path).ok() == Some(StorageEntryKind::File)
+        && path.extension().and_then(|value| value.to_str()) == Some("json")
+}
+
+/// Select draft envelope paths in the durable-draft owner. Callers that must
+/// inspect source envelopes before typed decoding share the same file filter;
+/// no project/domain policy belongs to this primitive selection.
+pub(crate) fn draft_file_paths(
+    storage: &dyn Storage,
+    project_dir: &Path,
+) -> Result<Vec<PathBuf>, CoreError> {
+    let directory = draft_dir(project_dir);
+    if !storage.storage_path_exists(&directory) {
+        return Ok(vec![]);
+    }
+    let mut paths = list_paths(storage, &directory)?;
+    paths.sort();
+    paths.retain(|path| is_draft_json_file(storage, path));
+    Ok(paths)
+}
+
 pub(crate) fn read_all_drafts(
     storage: &dyn Storage,
     project_dir: &Path,
@@ -120,10 +147,10 @@ pub(crate) fn read_all_drafts(
         return Ok(vec![]);
     }
     let mut draft_ids = Vec::new();
+    // Preserve the existing typed-loader iteration and invalid-ID error
+    // ordering; only the raw-source guard asks for sorted envelope paths.
     for path in list_paths(storage, &directory)? {
-        if storage.entry_kind(&path).ok() != Some(StorageEntryKind::File)
-            || path.extension().and_then(|value| value.to_str()) != Some("json")
-        {
+        if !is_draft_json_file(storage, &path) {
             continue;
         }
         let id = path

@@ -14,9 +14,8 @@ use crate::{
     },
     render_artifact::{
         ArtifactIo, FileSystemArtifactIo, GRAPH_BUILD_STAGE, MeasuredText, PreparedMediaResources,
-        RenderArtifact, RenderWorkspace, artifact_with, measure_evaluated_text_layers_with_budget,
-        prepare_media_resources, prepare_render_resources, publish_output_with, temporary_output,
-        write_filter_script,
+        RenderArtifact, RenderWorkspace, artifact_with, prepare_media_resources,
+        prepare_render_resources, publish_output_with, temporary_output, write_filter_script,
     },
     render_plan::{RenderIntent, RenderPlan, build_render_plan},
     render_process::{
@@ -178,6 +177,19 @@ struct RenderPreflight {
     media: PreparedMediaResources,
     measured: HashMap<String, MeasuredText>,
     warnings: Vec<String>,
+}
+
+fn finalized_measurement_fonts(evaluated: &EvaluatedSceneResult) -> bool {
+    evaluated.scene.mattes.is_some()
+        && evaluated
+            .scene
+            .visual_layers
+            .iter()
+            .any(|layer| match &layer.source {
+                EvaluatedVisualSource::Caption(_) => layer.requires_affine(),
+                EvaluatedVisualSource::Text(text) => text.font_binding.is_none(),
+                _ => false,
+            })
 }
 
 impl Renderer {
@@ -478,21 +490,261 @@ impl Renderer {
         if let Some(limit) = self.text_glyph_limit {
             budget = crate::evaluated_scene::text_layout::GlyphBudget::with_limit(limit);
         }
-        let mut measured = measure_evaluated_text_layers_with_budget(
-            self.artifact_io.as_ref(),
-            evaluated,
-            self.default_font_path.as_deref(),
-            &self.font_roots,
-            &mut warnings,
-            &media.font_faces,
-            &mut budget,
-        )?;
-        let mut finalized = evaluated.scene.clone();
-        for layer in &mut finalized.visual_layers {
-            if let EvaluatedVisualSource::Text(text) = &mut layer.source {
-                text.shaped = measured
-                    .get(&layer.item_id)
-                    .and_then(|m| m.shaped.as_ref().map(|(s, _)| s.clone()));
+        let caller_heap = if evaluated.scene.mattes.is_some() {
+            let heap = crate::evaluated_scene::mattes::admit_caller_scene_clone(&evaluated.scene)?;
+            let configured_paths = self.font_roots.iter().try_fold(
+                (self.font_roots.capacity() as u64)
+                    .checked_mul(std::mem::size_of::<PathBuf>() as u64)
+                    .and_then(|n| {
+                        n.checked_add(
+                            self.default_font_path
+                                .as_ref()
+                                .map_or(0, |p| p.capacity() as u64),
+                        )
+                    })
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "configured font memory overflow",
+                        )
+                    })?,
+                |n, p| {
+                    n.checked_add(p.capacity() as u64).ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "configured font memory overflow",
+                        )
+                    })
+                },
+            )?;
+            let clone_and_resources = heap
+                .checked_add(configured_paths)
+                .and_then(|n| n.checked_add(media.matte_font_payload_bytes))
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte caller/font memory overflow",
+                    )
+                })?;
+            if clone_and_resources
+                > crate::evaluated_scene::mattes::font_payload_admission(&evaluated.scene)?
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "matte caller/font clone exceeds shared memory bounds",
+                ));
+            }
+            Some((heap, configured_paths))
+        } else {
+            None
+        };
+        let mut matte_finalized = None;
+        if let Some((heap, configured_paths)) = caller_heap {
+            let mut finalized = evaluated.scene.clone();
+            let graph = finalized.mattes.as_mut().unwrap();
+            graph.resource_live_bytes = graph
+                .resource_live_bytes
+                .checked_add(heap)
+                .and_then(|n| n.checked_add(configured_paths))
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::InvalidArgument, "matte caller memory overflow")
+                })?;
+            crate::evaluated_scene::mattes::adopt_font_payload(
+                &mut finalized,
+                media.matte_font_payload_bytes,
+            )?;
+            matte_finalized = Some(finalized);
+        }
+        let external_fonts = finalized_measurement_fonts(evaluated);
+        if let Some(scene) = &mut matte_finalized
+            && external_fonts
+        {
+            let reserve = (crate::MAX_FONT_BYTES as u64)
+                .checked_mul(2)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte measurement font reserve overflow",
+                    )
+                })?;
+            let graph = scene.mattes.as_mut().unwrap();
+            graph.resource_live_bytes =
+                graph
+                    .resource_live_bytes
+                    .checked_add(reserve)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte measurement font reserve overflow",
+                        )
+                    })?;
+            crate::evaluated_scene::mattes::adopt_font_payload(
+                scene,
+                media.matte_font_payload_bytes,
+            )?;
+        }
+        let measurement_io = matte_finalized
+            .as_ref()
+            .filter(|_| external_fonts)
+            .map(|_| crate::render_artifact::MatteMeasurementIo::new(self.artifact_io.as_ref()));
+        let measurement_port: &dyn ArtifactIo = measurement_io
+            .as_ref()
+            .map_or(self.artifact_io.as_ref(), |io| io);
+        let mut measurement_memory = matte_finalized
+            .as_ref()
+            .map(|scene| {
+                let available = crate::evaluated_scene::mattes::font_payload_admission(scene)?
+                    .checked_sub(scene.mattes.as_ref().unwrap().font_payload_bytes)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte text remaining memory overflow",
+                        )
+                    })?;
+                Ok::<_, CoreError>(
+                    crate::render_artifact::text_measurement_memory::MeasurementMemory::new(
+                        available,
+                    ),
+                )
+            })
+            .transpose()?;
+        let measured_result = if let Some(memory) = measurement_memory.as_mut() {
+            crate::render_artifact::measure_evaluated_text_layers_with_admission(
+                measurement_port,
+                evaluated,
+                self.default_font_path.as_deref(),
+                &self.font_roots,
+                &mut warnings,
+                &media.font_faces,
+                (&mut budget, Some(memory)),
+            )
+        } else {
+            crate::render_artifact::measure_evaluated_text_layers_with_budget(
+                measurement_port,
+                evaluated,
+                self.default_font_path.as_deref(),
+                &self.font_roots,
+                &mut warnings,
+                &media.font_faces,
+                &mut budget,
+            )
+        };
+        if let Some(io) = &measurement_io {
+            io.finish()?;
+        }
+        let mut measured = measured_result?;
+        let mut finalized = matte_finalized.unwrap_or_else(|| evaluated.scene.clone());
+        if let Some(memory) = measurement_memory {
+            let graph = finalized.mattes.as_mut().unwrap();
+            graph.resource_live_bytes = graph
+                .resource_live_bytes
+                .checked_add(memory.retained)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte measured resource memory overflow",
+                    )
+                })?;
+        }
+        for index in 0..finalized.visual_layers.len() {
+            let shaped = measured
+                .get(&finalized.visual_layers[index].item_id)
+                .and_then(|m| m.shaped.as_ref().map(|(s, _)| s));
+            if let Some(shaped) = shaped
+                && finalized.mattes.is_some()
+            {
+                let clone = crate::evaluated_scene::mattes::shaped_heap_bytes(shaped)?
+                    .checked_mul(3)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte finalized glyph memory overflow",
+                        )
+                    })?;
+                let available = crate::evaluated_scene::mattes::font_payload_admission(&finalized)?
+                    .checked_sub(finalized.mattes.as_ref().unwrap().font_payload_bytes)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte finalized glyph memory overflow",
+                        )
+                    })?;
+                if clone > available {
+                    return Err(CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte finalized glyph memory exceeds shared bounds",
+                    ));
+                }
+            }
+            if let EvaluatedVisualSource::Text(text) = &mut finalized.visual_layers[index].source {
+                text.shaped = shaped.cloned();
+            }
+        }
+        if let Some(graph) = finalized.mattes.as_ref() {
+            let font_payload_bytes = graph.font_payload_bytes;
+            let mut maps = crate::render_artifact::text_measurement_memory::map_bytes::<
+                String,
+                (u32, u32),
+            >(measured.len())?
+            .checked_add(
+                crate::render_artifact::text_measurement_memory::map_bytes::<String, (u32, u32)>(
+                    finalized.visual_layers.len(),
+                )?,
+            )
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "matte geometry map memory overflow",
+                )
+            })?;
+            for layer in &finalized.visual_layers {
+                let mut keys = layer.item_id.capacity() as u64;
+                if let EvaluatedVisualSource::Media { asset_id, .. } = &layer.source {
+                    keys = keys
+                        .checked_add(asset_id.capacity() as u64)
+                        .ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::InvalidArgument,
+                                "matte geometry key memory overflow",
+                            )
+                        })?;
+                }
+                maps = maps
+                    .checked_add(keys.checked_mul(3).ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte geometry key memory overflow",
+                        )
+                    })?)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte geometry key memory overflow",
+                        )
+                    })?;
+            }
+            let available = crate::evaluated_scene::mattes::font_payload_admission(&finalized)?
+                .checked_sub(font_payload_bytes)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "matte geometry remaining memory overflow",
+                    )
+                })?;
+            if maps > available {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "matte geometry maps exceed shared memory bounds",
+                ));
+            }
+            if let Some(graph) = finalized.mattes.as_mut() {
+                graph.resource_live_bytes =
+                    graph.resource_live_bytes.checked_add(maps).ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte geometry map memory overflow",
+                        )
+                    })?;
             }
         }
         let mut measurements: HashMap<String, (u32, u32)> = measured
@@ -581,10 +833,11 @@ impl Renderer {
                 "affine backend cannot address this source raster",
             ));
         }
-        if finalized
-            .visual_layers
-            .iter()
-            .any(|layer| layer.affine.is_some())
+        if finalized.mattes.is_none()
+            && finalized
+                .visual_layers
+                .iter()
+                .any(|layer| layer.affine.is_some())
         {
             self.readiness()?;
         }
@@ -610,6 +863,16 @@ impl Renderer {
             measured,
             mut warnings,
         } = preflight;
+        // Complete active-matte request certification is performed by every
+        // caller before this seam. Readiness must not run ahead of those guards.
+        if finalized.mattes.is_some() {
+            crate::render_artifact::verify_matte_media_integrity(
+                self.artifact_io.as_ref(),
+                &media,
+                project_dir,
+            )?;
+            self.readiness()?;
+        }
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut resources = prepare_render_resources(
             self.artifact_io.as_ref(),
@@ -4295,5 +4558,319 @@ mod tests {
                 before
             );
         }
+    }
+    #[test]
+    fn active_matte_caption_measurement_admits_real_font_and_rejects_oversize_before_output() {
+        let root = tempdir().unwrap();
+        let mut p = visual_project();
+        let items = &mut p.tracks.last_mut().unwrap().items;
+        items[0].visual_properties_mut().matte_only = true;
+        let mut receiver = items[0].clone();
+        if let TimelineItem::SolidColor(item) = &mut receiver {
+            item.id = "receiver".into();
+        }
+        receiver.visual_properties_mut().matte_only = false;
+        receiver.visual_properties_mut().stack_order = 1;
+        receiver.visual_properties_mut().matte = Some(crate::MatteReference {
+            source_id: "background".into(),
+            channel: crate::MatteChannel::Alpha,
+        });
+        items.push(receiver);
+        let mut evaluated = evaluate_project(&p, 320, 180, 15).unwrap();
+        let mut caption = evaluated.scene.visual_layers[1].clone();
+        caption.item_id = "caption".into();
+        caption.extended = None;
+        caption.transform2d = Some(crate::Transform2D::default());
+        caption.source_size = None;
+        caption.source = EvaluatedVisualSource::Caption(crate::evaluated_scene::EvaluatedCaption {
+            text: "Bounded caption".into(),
+            font_size: 20,
+            color: "#ffffff".into(),
+            background_color: "#000000".into(),
+            bottom_margin_px: 10,
+        });
+        evaluated.scene.visual_layers.push(caption);
+        evaluated.scene.mattes.as_mut().unwrap().roles.push(
+            crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                group: None,
+                provider: None,
+                matte_only: false,
+                contributes: true,
+            },
+        );
+        let font =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fonts/DejaVuSans.ttf");
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(Vec::new()),
+        });
+        let renderer = Renderer::new("unused", "unused", Some(font))
+            .with_adapters(process.clone(), Arc::new(FileSystemArtifactIo));
+        let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+            .unwrap();
+        let prepared = renderer.preflight_render(&evaluated, media, 0).unwrap();
+        assert!(prepared.measured["caption"].prepared.layer_width > 0);
+        assert!(process.executions.lock().unwrap().is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        // A configured path is already live before the scene clone. This
+        // crafted fixed ledger leaves the old scene clone alone admissible,
+        // while that clone plus the existing configuration exceeds the cap.
+        let long_path = PathBuf::from("x".repeat(2 * 1024 * 1024));
+        let guarded = Renderer::new("unused", "unused", Some(long_path.clone()))
+            .with_adapters(process.clone(), Arc::new(FileSystemArtifactIo));
+        let mut near = evaluated.clone();
+        let available =
+            crate::evaluated_scene::mattes::font_payload_admission(&near.scene).unwrap();
+        let heap = crate::evaluated_scene::mattes::admit_caller_scene_clone(&near.scene).unwrap();
+        near.scene.mattes.as_mut().unwrap().resource_live_bytes +=
+            available - heap - long_path.capacity() as u64 + 1;
+        let media =
+            prepare_media_resources(guarded.artifact_io.as_ref(), &near, root.path()).unwrap();
+        crate::render_artifact::observed_measurement_reads(true);
+        let (peak, _, _) = crate::render_artifact::observe_allocations(|| {
+            let error = guarded.preflight_render(&near, media, 0).err().unwrap();
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(!error.retryable);
+            drop(error);
+        });
+        assert!(
+            peak < 512,
+            "pre-clone failure may allocate only its small diagnostic, peak={peak}"
+        );
+        assert_eq!(crate::render_artifact::observed_measurement_reads(false), 0);
+        // Exercise the actual Caption measurement branch with insufficient
+        // room for its additional configured-path clone, independent of the
+        // renderer's fixed/configuration guard above.
+        let path = PathBuf::from("x".repeat(128 * 1024));
+        let mut captions = evaluated.clone();
+        captions
+            .scene
+            .visual_layers
+            .retain(|layer| matches!(layer.source, EvaluatedVisualSource::Caption(_)));
+        let scratch = crate::render_artifact::text_measurement_memory::key_scratch(
+            &captions.scene.visual_layers[0],
+        )
+        .unwrap();
+        let mut memory = crate::render_artifact::text_measurement_memory::MeasurementMemory::new(
+            scratch + 32768,
+        );
+        let io = crate::render_artifact::MatteMeasurementIo::new(&FileSystemArtifactIo);
+        crate::render_artifact::observed_measurement_reads(true);
+        let (peak, _, _) = crate::render_artifact::observe_allocations(|| {
+            let error = crate::render_artifact::measure_evaluated_text_layers_with_admission(
+                &io,
+                &captions,
+                Some(&path),
+                &[],
+                &mut Vec::new(),
+                &Default::default(),
+                (&mut Default::default(), Some(&mut memory)),
+            )
+            .err()
+            .unwrap();
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            drop(error);
+        });
+        assert!(
+            peak < 512,
+            "Caption must reject before cloning the128KiB path, peak={peak}"
+        );
+        assert_eq!(crate::render_artifact::observed_measurement_reads(false), 0);
+        assert!(process.executions.lock().unwrap().is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        let oversized = root.path().join("oversized-font.ttf");
+        File::create(&oversized)
+            .unwrap()
+            .set_len(crate::MAX_FONT_BYTES as u64 + 1)
+            .unwrap();
+        let renderer = Renderer::new("unused", "unused", Some(oversized))
+            .with_adapters(process.clone(), Arc::new(FileSystemArtifactIo));
+        let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+            .unwrap();
+        let error = renderer
+            .preflight_render(&evaluated, media, 0)
+            .err()
+            .unwrap();
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert!(error.message.contains("measurement font"));
+        assert!(process.executions.lock().unwrap().is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+        let mut near_limit = evaluated.clone();
+        let available =
+            crate::evaluated_scene::mattes::font_payload_admission(&near_limit.scene).unwrap();
+        near_limit
+            .scene
+            .mattes
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += available - 1;
+        let media = prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+            .unwrap();
+        assert_eq!(
+            renderer
+                .preflight_render(&near_limit, media, 0)
+                .err()
+                .unwrap()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert!(process.executions.lock().unwrap().is_empty());
+    }
+    #[test]
+    fn active_matte_pinned_text_glyph_memory_rejects_before_shaping_or_output() {
+        let root = tempdir().unwrap();
+        let mut p = visual_project();
+        let items = &mut p.tracks.last_mut().unwrap().items;
+        items[0].visual_properties_mut().matte_only = true;
+        let mut receiver = items[0].clone();
+        if let TimelineItem::SolidColor(item) = &mut receiver {
+            item.id = "receiver".into();
+        }
+        receiver.visual_properties_mut().matte_only = false;
+        receiver.visual_properties_mut().stack_order = 1;
+        receiver.visual_properties_mut().matte = Some(crate::MatteReference {
+            source_id: "background".into(),
+            channel: crate::MatteChannel::Alpha,
+        });
+        items.push(receiver);
+        let mut evaluated = evaluate_project(&p, 64, 64, 10).unwrap();
+        let (text, faces) =
+            crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
+        let mut layer = evaluated.scene.visual_layers[1].clone();
+        layer.item_id = "pinned-text".into();
+        layer.source = EvaluatedVisualSource::Text(Box::new(text));
+        layer.extended = None;
+        layer.source_size = None;
+        evaluated.scene.visual_layers.push(layer);
+        evaluated.scene.mattes.as_mut().unwrap().roles.push(
+            crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                group: None,
+                provider: None,
+                matte_only: false,
+                contributes: true,
+            },
+        );
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(Vec::new()),
+        });
+        let renderer = Renderer::new("unused", "unused", None)
+            .with_adapters(process.clone(), Arc::new(FileSystemArtifactIo));
+        let mut media =
+            prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+                .unwrap();
+        media.matte_font_payload_bytes = faces
+            .iter()
+            .map(|(key, bytes)| key.capacity() as u64 + bytes.capacity() as u64 + 256)
+            .sum();
+        media.font_faces = faces.clone();
+        crate::fonts::shaping::observed_shape_calls(true);
+        let fitting = renderer.preflight_render(&evaluated, media, 0).unwrap();
+        assert!(
+            !fitting.measured["pinned-text"]
+                .shaped
+                .as_ref()
+                .unwrap()
+                .0
+                .glyphs
+                .is_empty()
+        );
+        assert!(crate::fonts::shaping::observed_shape_calls(true) > 0);
+        assert!(fitting.scene.visual_layers.iter().any(|layer| matches!(&layer.source, EvaluatedVisualSource::Text(text) if text.shaped.is_some())));
+        let mut cached = evaluated.clone();
+        if let EvaluatedVisualSource::Text(text) =
+            &mut cached.scene.visual_layers.last_mut().unwrap().source
+        {
+            text.style.layout = None;
+        }
+        for id in ["cached-identical", "cached-painted"] {
+            let mut layer = cached.scene.visual_layers[2].clone();
+            layer.item_id = id.into();
+            if id == "cached-painted"
+                && let EvaluatedVisualSource::Text(text) = &mut layer.source
+            {
+                text.spans = Some(
+                    vec![crate::TextSpan {
+                        start: 0,
+                        end: 2,
+                        style: crate::TextSpanStyle {
+                            paint_layers: Some(
+                                (0..16)
+                                    .map(|_| crate::TextPaintLayer::Fill {
+                                        color: "#ff0011".into(),
+                                        opacity: 0.5,
+                                    })
+                                    .collect(),
+                            ),
+                            ..Default::default()
+                        },
+                    }]
+                    .into_boxed_slice(),
+                );
+            }
+            cached.scene.visual_layers.push(layer);
+            cached.scene.mattes.as_mut().unwrap().roles.push(
+                crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                    group: None,
+                    provider: None,
+                    matte_only: false,
+                    contributes: true,
+                },
+            );
+        }
+        let mut cached_media =
+            prepare_media_resources(renderer.artifact_io.as_ref(), &cached, root.path()).unwrap();
+        cached_media.font_faces = faces.clone();
+        cached_media.matte_font_payload_bytes = cached_media
+            .font_faces
+            .iter()
+            .map(|(k, v)| k.capacity() as u64 + v.capacity() as u64 + 256)
+            .sum();
+        let cached_ready = renderer.preflight_render(&cached, cached_media, 0).unwrap();
+        assert_eq!(
+            crate::fonts::shaping::observed_shape_calls(true),
+            2,
+            "identical cache hit must clone without reshaping; painted document shapes separately"
+        );
+        assert_eq!(
+            cached_ready.measured["pinned-text"].shaped,
+            cached_ready.measured["cached-identical"].shaped
+        );
+        assert!(
+            cached_ready.measured["cached-painted"]
+                .shaped
+                .as_ref()
+                .unwrap()
+                .0
+                .glyphs
+                .iter()
+                .all(|g| g.paint_layers.as_ref().unwrap().len() == 16)
+        );
+        let mut near = evaluated.clone();
+        let available =
+            crate::evaluated_scene::mattes::font_payload_admission(&near.scene).unwrap();
+        near.scene.mattes.as_mut().unwrap().resource_live_bytes += available - 16 * 1024 * 1024;
+        let mut media =
+            prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
+                .unwrap();
+        media.matte_font_payload_bytes = faces
+            .iter()
+            .map(|(key, bytes)| key.capacity() as u64 + bytes.capacity() as u64 + 256)
+            .sum();
+        media.font_faces = faces;
+        let error = renderer
+            .preflight_render(&near, media, 0)
+            .err()
+            .expect("glyph scratch must be rejected before opaque shape allocation");
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert_eq!(crate::fonts::shaping::observed_shape_calls(false), 0);
+        assert!(process.executions.lock().unwrap().is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
 }

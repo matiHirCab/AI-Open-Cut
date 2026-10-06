@@ -104,7 +104,7 @@ pub(super) fn transform_magnification(
     Ok(Some(maximum))
 }
 
-fn charge(nodes: &mut usize) -> Result<(), CoreError> {
+pub(super) fn charge(nodes: &mut usize) -> Result<(), CoreError> {
     if *nodes == MAX_NODES {
         return Err(invalid(
             "maxCandidateAnalysisNodes exhausted with unresolved extended safety",
@@ -269,6 +269,15 @@ pub(crate) fn certify_scene(
     project: &Project,
     nodes: &mut usize,
 ) -> Result<(), CoreError> {
+    let active_mattes = scene.mattes.is_some();
+    if active_mattes {
+        super::mattes::admit_continuous_metadata(scene)?;
+    }
+    let mut continuous_costs = if active_mattes {
+        vec![(0_u64, 0_u64, 0_u64); scene.visual_layers.len()]
+    } else {
+        Vec::new()
+    };
     let mut pixel_work = 0_u64;
     let has_blur = scene.visual_layers.iter().any(|l| {
         l.extended
@@ -279,7 +288,7 @@ pub(crate) fn certify_scene(
     for layer in scene
         .visual_layers
         .iter()
-        .filter(|l| has_blur && super::extended_visual::required(l))
+        .filter(|l| !active_mattes && has_blur && super::extended_visual::required(l))
     {
         let count = layer
             .extended
@@ -313,10 +322,11 @@ pub(crate) fn certify_scene(
             }
         })
         .sum();
-    for layer in scene
+    for (layer_index, layer) in scene
         .visual_layers
         .iter()
-        .filter(|l| super::extended_visual::required(l))
+        .enumerate()
+        .filter(|(_, l)| super::extended_visual::required(l))
     {
         charge(nodes)?;
         let size = match &layer.source {
@@ -387,6 +397,9 @@ pub(crate) fn certify_scene(
                     Ok(true)
                 })?;
             }
+            if active_mattes {
+                continuous_costs[layer_index].2 = maximum_segments as u64;
+            }
             segments = segments
                 .checked_add(
                     maximum_segments
@@ -396,7 +409,13 @@ pub(crate) fn certify_scene(
                                 .as_ref()
                                 .and_then(|v| v.motion_blur)
                                 .filter(|v| v.enabled())
-                                .map_or(1, |v| v.sample_count as usize),
+                                .map_or(1, |v| {
+                                    if active_mattes {
+                                        1
+                                    } else {
+                                        v.sample_count as usize
+                                    }
+                                }),
                         )
                         .ok_or_else(|| invalid("motion blur geometry work overflow"))?,
                 )
@@ -436,8 +455,17 @@ pub(crate) fn certify_scene(
             .and_then(|v| v.motion_blur)
             .filter(|v| v.enabled())
             .map_or(1, |v| v.sample_count);
-        for _ in 0..samples {
-            effect_budget(size, &effects, density, &mut work)?;
+        if active_mattes {
+            effect_budget(
+                size,
+                &effects,
+                density,
+                &mut continuous_costs[layer_index].0,
+            )?;
+        } else {
+            for _ in 0..samples {
+                effect_budget(size, &effects, density, &mut work)?;
+            }
         }
         if let Some(extended) = &layer.extended
             && !extended.masks.is_empty()
@@ -451,8 +479,15 @@ pub(crate) fn certify_scene(
                     super::masks::MaskOwnerBasis { size, density },
                     nodes,
                 )?;
-                for _ in 0..samples {
-                    mask_work.charge(envelope.work)?;
+                if active_mattes {
+                    continuous_costs[layer_index].1 = continuous_costs[layer_index]
+                        .1
+                        .checked_add(envelope.work)
+                        .ok_or_else(|| invalid("continuous mask work overflow"))?;
+                } else {
+                    for _ in 0..samples {
+                        mask_work.charge(envelope.work)?;
+                    }
                 }
                 segments = segments
                     .checked_add(envelope.segments)
@@ -463,8 +498,19 @@ pub(crate) fn certify_scene(
                     .ok_or_else(|| invalid("mask retained facts overflow"))?;
                 current_scratch = current_scratch.max(envelope.scratch);
             }
-            for _ in 0..samples {
-                mask_work.charge(u64::from(size.0) * u64::from(size.1) * 4)?;
+            let owner_work = u64::from(size.0)
+                .checked_mul(u64::from(size.1))
+                .and_then(|v| v.checked_mul(4))
+                .ok_or_else(|| invalid("continuous mask owner work overflow"))?;
+            if active_mattes {
+                continuous_costs[layer_index].1 = continuous_costs[layer_index]
+                    .1
+                    .checked_add(owner_work)
+                    .ok_or_else(|| invalid("continuous mask work overflow"))?;
+            } else {
+                for _ in 0..samples {
+                    mask_work.charge(owner_work)?;
+                }
             }
             mask_retained = mask_retained
                 .checked_add(current_retained)
@@ -528,6 +574,45 @@ pub(crate) fn certify_scene(
                 ));
             }
         }
+    }
+    if active_mattes {
+        // Ordinary sources outside the extended dispatch still participate in
+        // actual uncached transitive visits, without inventing masked geometry.
+        for (index, layer) in scene.visual_layers.iter().enumerate() {
+            if !super::extended_visual::required(layer)
+                && let EvaluatedVisualSource::Shape(shape) = &layer.source
+            {
+                continuous_costs[index].2 = shape.segments() as u64;
+            }
+        }
+        super::mattes::certify_continuous_requests(scene, nodes, |visits| {
+            let mut effects = 0_u64;
+            let mut masks = super::masks::MaskFrameBudget::default();
+            let mut ordinary_segments = 0_u64;
+            for (count, (effect, mask, geometry)) in visits.iter().zip(&continuous_costs) {
+                effects = effects
+                    .checked_add(
+                        effect
+                            .checked_mul(*count)
+                            .ok_or_else(|| invalid("continuous effect work overflow"))?,
+                    )
+                    .filter(|v| *v <= MAX_EFFECT_PASSES)
+                    .ok_or_else(|| invalid("maxPixelPassesPerSample exceeded"))?;
+                masks.charge(
+                    mask.checked_mul(*count)
+                        .ok_or_else(|| invalid("continuous mask work overflow"))?,
+                )?;
+                ordinary_segments = ordinary_segments
+                    .checked_add(
+                        geometry
+                            .checked_mul(*count)
+                            .ok_or_else(|| invalid("continuous ordinary work overflow"))?,
+                    )
+                    .filter(|v| *v <= shapes::MAX_SCENE_SEGMENTS as u64)
+                    .ok_or_else(|| invalid("extended scene segment envelope exceeded"))?;
+            }
+            Ok(())
+        })?;
     }
     Ok(())
 }

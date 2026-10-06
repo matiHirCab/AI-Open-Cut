@@ -336,7 +336,11 @@ pub(crate) fn recover_transaction(
     storage: &dyn Storage,
     faults: &PersistenceFaults,
     dir: &Path,
-    validate_sources: impl Fn(&Project, &History) -> Result<(), CoreError>,
+    validate_sources: impl Fn(
+        &Project,
+        &History,
+        &std::collections::BTreeMap<String, Vec<u8>>,
+    ) -> Result<(), CoreError>,
 ) -> Result<(), CoreError> {
     cleanup_orphaned_transaction_temps(storage, dir)?;
     let path = transaction_path(dir);
@@ -345,7 +349,12 @@ pub(crate) fn recover_transaction(
     }
     let transaction = read_transaction(storage, &path)?;
     validate_transaction(dir, &transaction)?;
-    validate_sources(&transaction.project, &transaction.history).map_err(as_recovery_error)?;
+    validate_sources(
+        &transaction.project,
+        &transaction.history,
+        &transaction.draft_updates,
+    )
+    .map_err(as_recovery_error)?;
     replay_transaction(storage, faults, dir, &transaction)
 }
 

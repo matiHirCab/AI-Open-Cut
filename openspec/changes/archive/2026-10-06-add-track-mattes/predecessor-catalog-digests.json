@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "5f456618b9335a5f87519c5c4375a49e7f52c2d3",
+  "sourceState": "verified archived issue51 predecessor; all eight semantic catalogs and expanded MCP independently matched exact commit and working tree",
+  "projectSchemaVersion": 33,
+  "codec": "SHA256 UTF8 JSON.stringify recursively key.localeCompare-sorted object entries; arrays/scalars/all fields including descriptions retained",
+  "mcpExpandedDigest": "803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170",
+  "digests": {
+    "animation-channels-v1": "c4758e1b0d3417a590fc9c15a2b4f2b3dd56df2924a9afb9abce6c85f42e21a5",
+    "animation-presets-v1": "257af56dde84a19b6b59b12e68673c7487bbd96131e1ccadf36900f37030df81",
+    "extended-visual-animation-v1": "cc101cfc95359306f4208f645c2144bd0e29b06eae262f92ae8adcb9613eb857",
+    "inherited-animation-timing-v1": "d5b7e1f79c1107a85221a8b016881699bbd8257e3ed81504f3f74e7e87eecc5f",
+    "motion-blur-sampling-v1": "0435ce749017c161eb7ee7fa75fe7844ce66f24b25354acd59eeef83d7fe8137",
+    "initial-motion-preset-pack-v1": "791fe0e2c97a9f607d7d69f93a7c198249d672e90653a0ae9e0cdd114f5b876a",
+    "mask-models-v1": "ec58d0c4437020fa4df539c9390c5854ca5409850f748917de1a6bfcf75757ef",
+    "mask-rendering-v1": "dafc860180d583b00f2976275630b15a29dc83bedd0b2f7d08eedb3887826a5d"
+  }
+}

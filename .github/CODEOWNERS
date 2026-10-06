@@ -228,3 +228,36 @@
 /crates/editor-core/src/evaluated_scene/masks/tests.rs @matiHirCab
 
 /crates/editor-core/src/render_artifact/shapes/fill_allocation_tests.rs @matiHirCab
+
+# Scoped track matte contract consumers.
+/contracts/track-mattes-v1.json @matiHirCab
+/contracts/headless-protocol-v1.json @matiHirCab
+/contracts/mcp-surface-v1.json @matiHirCab
+/crates/editor-core/src/model/matte.rs @matiHirCab
+/crates/editor-core/src/validation/matte.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/mattes.rs @matiHirCab
+/crates/editor-core/src/render_artifact/mattes.rs @matiHirCab
+/apps/agent-bridge/tests/track-mattes.test.ts @matiHirCab
+/apps/agent-bridge/tests/track-matte-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/track-matte-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/track-matte-additions.json @matiHirCab
+/apps/agent-bridge/package.json @matiHirCab
+/docs/track-mattes.md @matiHirCab
+/crates/editor-core/tests/track_mattes.rs @matiHirCab
+/crates/editor-core/src/render_artifact.rs @matiHirCab
+/crates/editor-core/src/render_artifact/mattes/tests.rs @matiHirCab
+/apps/agent-bridge/tests/track-matte-native.test.ts @matiHirCab
+/crates/editor-core/tests/track_mattes_native.rs @matiHirCab
+/contracts/animation-presets-v1.json @matiHirCab
+/contracts/extended-visual-animation-v1.json @matiHirCab
+/contracts/inherited-animation-timing-v1.json @matiHirCab
+/contracts/motion-blur-sampling-v1.json @matiHirCab
+/apps/agent-bridge/tests/animation-channels.test.ts @matiHirCab
+/apps/agent-bridge/tests/inherited-animation-timing.test.ts @matiHirCab
+/apps/agent-bridge/tests/animation-edit-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/rich-text-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/pack-clock-migration-workflow.ts @matiHirCab
+
+/crates/editor-core/src/persistence.rs @matiHirCab
+
+/crates/editor-core/src/render_artifact/text_measurement_memory.rs @matiHirCab

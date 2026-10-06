@@ -38,6 +38,7 @@ import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
+import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -1260,4 +1261,8 @@ it("authors mask metadata through actual MCP aliases, replacement, history and d
 
 it("authors all typed mask animation targets through actual MCP lifecycle", async () => {
   await verifyMaskRenderingWorkflow(client, call);
+});
+
+it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and drafts", async () => {
+  await verifyTrackMatteWorkflow(client, call);
 });

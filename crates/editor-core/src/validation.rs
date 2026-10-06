@@ -8,6 +8,7 @@ pub(crate) mod animation_presets;
 pub(crate) mod extended_visual;
 pub(crate) mod grid;
 pub(crate) mod mask;
+pub(crate) mod matte;
 pub(crate) mod repeater;
 pub(crate) mod styled_text;
 pub(crate) mod svg;
@@ -88,6 +89,13 @@ pub(crate) fn validate_project_stacking(project: &Project) -> Result<(), CoreErr
 }
 
 pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<(), CoreError> {
+    matte::validate_project(project)?;
+    validate_project_visual_properties_without_mattes(project)
+}
+
+pub(crate) fn validate_project_visual_properties_without_mattes(
+    project: &Project,
+) -> Result<(), CoreError> {
     mask::validate_project(project)?;
     validate_project_visual_projection(project)
 }

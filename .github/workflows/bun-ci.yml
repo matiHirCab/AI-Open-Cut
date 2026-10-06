@@ -129,6 +129,9 @@ jobs:
           cargo test -p opencut-editor-core --test transform2d
           cargo test -p opencut-editor-core --test animation_channels
           cargo test -p opencut-editor-core --test font_resolution
+          cargo test -p opencut-editor-core --test track_mattes_native -- --nocapture
+          cargo build -p opencut-headless
+          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts
       - name: Native raster-cache parity
         env:
           OPENCUT_FFMPEG_PATH: ffmpeg

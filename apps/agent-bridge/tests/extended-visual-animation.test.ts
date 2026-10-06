@@ -9,7 +9,7 @@ import {
 
 describe("extended visual contracts", () => {
   it("governs the activated properties and bounded core certification", () => {
-    expect(contract.projectSchemaVersion).toBe(33);
+    expect(contract.projectSchemaVersion).toBe(34);
     expect(contract.limits.maxCandidateAnalysisNodes).toBe(65_536);
     expect(contract.candidateCertification.unresolvedAtLimit).toBe(
       "INVALID_ARGUMENT"

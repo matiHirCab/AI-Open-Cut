@@ -1,0 +1,406 @@
+{
+  "contract": "track-mattes-v1",
+  "version": 1,
+  "projectSchemaVersion": 34,
+  "capabilities": {
+    "editor": "matte_models_v1",
+    "renderer": "track_mattes_v1"
+  },
+  "reusedContracts": {
+    "masks": "contracts/mask-rendering-v1.json",
+    "model": "contracts/mask-models-v1.json",
+    "animation": "contracts/animation-channels-v1.json",
+    "transform": "contracts/transform2d-v1.json"
+  },
+  "fields": {
+    "matte": {
+      "requiredReferenceFields": [
+        "sourceId",
+        "channel"
+      ],
+      "sourceIdUtf8Bytes": {
+        "minimum": 1,
+        "maximum": 128
+      },
+      "channels": [
+        "alpha",
+        "luma"
+      ],
+      "storedPresence": "optional_nonnull",
+      "updatePresence": "omitted_preserves_object_replaces_null_clears",
+      "unknownFields": "reject"
+    },
+    "matteOnly": {
+      "default": false,
+      "storedPresence": "optional_boolean",
+      "updatePresence": "omitted_preserves_boolean_sets_null_rejects"
+    },
+    "ineligibleStoredFields": {
+      "matte": "absent_only",
+      "matteOnly": "optional_false_only"
+    }
+  },
+  "eligibleKinds": [
+    "image",
+    "video",
+    "text",
+    "solid_color",
+    "rectangle",
+    "shape",
+    "svg",
+    "grid"
+  ],
+  "ineligibleKinds": [
+    "audio",
+    "caption",
+    "group",
+    "repeater",
+    "component_instance",
+    "template_instance",
+    "transition"
+  ],
+  "limits": {
+    "edgesPerComposition": 2048,
+    "edgesPerProject": 4096,
+    "providerPathDepth": 32,
+    "providerRequestsPerFrame": 4096,
+    "matteWorkUnitsPerFrame": 268435456,
+    "peakLiveBytes": 1073741824,
+    "rasterCacheReserveBytes": 67108864,
+    "surfaceAxis": 16384,
+    "surfacePixels": 16777216,
+    "expandedVisualOccurrences": 4096
+  },
+  "semantics": {
+    "scope": "owning_root_or_component_definition",
+    "graphDirection": "recipient_to_provider",
+    "validation": "iterative_all_hidden_unused_disjoint_final_atomic_candidate",
+    "providerPipeline": [
+      "source",
+      "crop_clip",
+      "sampled_masks",
+      "ordered_effects",
+      "local_affine",
+      "nearest_to_outer_ancestor_affine",
+      "own_matte",
+      "inherited_opacity_transition_gain",
+      "copy_shutter_average",
+      "ordered_transparent_copy_source_over"
+    ],
+    "recipientPipeline": [
+      "source",
+      "crop_clip",
+      "sampled_masks",
+      "ordered_effects",
+      "local_affine",
+      "nearest_to_outer_ancestor_affine",
+      "provider_coverage",
+      "inherited_opacity_transition_gain",
+      "copy_shutter_average",
+      "destination_source_over"
+    ],
+    "alpha": "A",
+    "lumaCoefficients": [
+      0.2126,
+      0.7152,
+      0.0722
+    ],
+    "lumaInput": "premultiplied_linear_rgb",
+    "providerBackground": "transparent",
+    "hiddenInactiveCoverage": 0,
+    "matteOnly": "suppress_direct_draw_preserve_provider_audio_timing",
+    "defaultBypass": "all_matte_none_and_all_matteOnly_false",
+    "copyAverageBeforeAggregate": true,
+    "directProviderCopies": "draw_each_completed_copy_once_never_aggregate_per_copy",
+    "providerTime": "each_recipient_sample_honors_provider_own_shutter_once",
+    "memoization": "exact_composition_occurrence_provider_id_sample_time_request",
+    "premultipliedTolerance": 1e-06,
+    "requestCounter": "every_uncached_materialization_including_repeated_key_after_eviction_or_no_memo_live_exact_hit_only_avoids_new_request_unit",
+    "memoHitGuards": "source_integrity_and_complete_certification_remain_mandatory"
+  },
+  "work": {
+    "aggregation": "4*P",
+    "channelAndRecipient": "5*P",
+    "sourceBudgets": "charge_existing_source_mask_effect_affine_per_actual_sample",
+    "nestedMultiplicity": "reject_before_request_tree_materialization",
+    "memory": "all_live_16P_planes_4P_coverage_accumulators_and_actual_descriptor_capacities_plus_existing_shared_reservations"
+  },
+  "validReferences": [
+    {
+      "sourceId": "provider",
+      "channel": "alpha"
+    },
+    {
+      "sourceId": "同一-local",
+      "channel": "luma"
+    },
+    {
+      "sourceId": "@backward-provider",
+      "channel": "alpha"
+    }
+  ],
+  "invalidReferences": [
+    {},
+    {
+      "sourceId": "p"
+    },
+    {
+      "channel": "alpha"
+    },
+    {
+      "sourceId": "",
+      "channel": "alpha"
+    },
+    {
+      "sourceId": "p",
+      "channel": "red"
+    },
+    {
+      "sourceId": "p",
+      "channel": "alpha",
+      "inverted": false
+    },
+    null
+  ],
+  "rawDuplicateReferences": [
+    "{\"sourceId\":\"a\",\"sourceId\":\"b\",\"channel\":\"alpha\"}",
+    "{\"sourceId\":\"p\",\"channel\":\"alpha\",\"channel\":\"luma\"}"
+  ],
+  "numericCases": [
+    {
+      "name": "red_half_alpha",
+      "providerPremultipliedLinear": [
+        0.5,
+        0,
+        0,
+        0.5
+      ],
+      "channel": "alpha",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0.5,
+      "expectedRecipient": [
+        0.1,
+        0.2,
+        0.3,
+        0.4
+      ]
+    },
+    {
+      "name": "red_half_luma",
+      "providerPremultipliedLinear": [
+        0.5,
+        0,
+        0,
+        0.5
+      ],
+      "channel": "luma",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0.1063,
+      "expectedRecipient": [
+        0.02126,
+        0.04252,
+        0.06378,
+        0.08504
+      ]
+    },
+    {
+      "name": "green_half_luma",
+      "providerPremultipliedLinear": [
+        0,
+        0.5,
+        0,
+        0.5
+      ],
+      "channel": "luma",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0.3576,
+      "expectedRecipient": [
+        0.07152,
+        0.14304,
+        0.21455999999999997,
+        0.28608
+      ]
+    },
+    {
+      "name": "blue_half_luma",
+      "providerPremultipliedLinear": [
+        0,
+        0,
+        0.5,
+        0.5
+      ],
+      "channel": "luma",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0.0361,
+      "expectedRecipient": [
+        0.007220000000000001,
+        0.014440000000000001,
+        0.02166,
+        0.028880000000000003
+      ]
+    },
+    {
+      "name": "transparent",
+      "providerPremultipliedLinear": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "channel": "luma",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0,
+      "expectedRecipient": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "opaque_dark_red",
+      "providerPremultipliedLinear": [
+        0.21404114048223255,
+        0,
+        0,
+        1
+      ],
+      "channel": "luma",
+      "recipientPremultipliedLinear": [
+        0.2,
+        0.4,
+        0.6,
+        0.8
+      ],
+      "expectedCoverage": 0.04550514646652264,
+      "expectedRecipient": [
+        0.00910102929330453,
+        0.01820205858660906,
+        0.027303087879913583,
+        0.03640411717321812
+      ]
+    }
+  ],
+  "copyAverageCases": [
+    {
+      "name": "overlapping_alternating_halves",
+      "copyAlphaSamples": [
+        [
+          0.5,
+          0
+        ],
+        [
+          0,
+          0.5
+        ]
+      ],
+      "expectedCompletedCopyAlpha": [
+        0.25,
+        0.25
+      ],
+      "expectedProviderAlpha": 0.4375,
+      "forbiddenAggregateBeforeAverageAlpha": 0.5
+    }
+  ],
+  "graphCases": [
+    {
+      "name": "chain",
+      "edges": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "b",
+          "c"
+        ]
+      ],
+      "valid": true,
+      "depth": 2
+    },
+    {
+      "name": "self",
+      "edges": [
+        [
+          "a",
+          "a"
+        ]
+      ],
+      "valid": false,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "name": "cycle",
+      "edges": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "b",
+          "a"
+        ]
+      ],
+      "valid": false,
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "name": "missing",
+      "edges": [
+        [
+          "a",
+          "missing"
+        ]
+      ],
+      "valid": false,
+      "error": "ITEM_NOT_FOUND"
+    }
+  ],
+  "migration": {
+    "sourceVersion": 33,
+    "targetVersion": 34,
+    "preTargetRawPresenceReject": [
+      "matte",
+      "matteOnly"
+    ],
+    "guardNullAndFalse": true,
+    "allRetainedGenerations": true,
+    "unavailableBase": "preserve_bytes_revision_conflict_no_current_replay"
+  },
+  "nativeTolerances": {
+    "ssimMinimum": 0.99,
+    "pcmRmsMaximum": 0.0001,
+    "alignmentOutputFramesMaximum": 1,
+    "sameIntentLossless": "exact",
+    "numericAbsolute": 1e-06,
+    "uncompressedByteMaximum": 1
+  },
+  "normativeSpecs": {
+    "linear": "openspec/specs/linear-light-compositing/spec.md"
+  }
+}

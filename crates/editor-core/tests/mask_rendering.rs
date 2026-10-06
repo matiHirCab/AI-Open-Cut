@@ -407,7 +407,10 @@ fn schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back(
         std::fs::write(p, serde_json::to_vec(&value).unwrap()).unwrap();
     }
     let before = core.get_project(&id).unwrap();
-    assert_eq!(before.schema_version, 33);
+    assert_eq!(
+        before.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         before
             .find_item(&item)
@@ -418,7 +421,10 @@ fn schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back(
         1
     );
     let adopted = core.get_draft_state(&id, &draft.id).unwrap().project;
-    assert_eq!(adopted.schema_version, 33);
+    assert_eq!(
+        adopted.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         adopted.find_item(&item).unwrap().visual_properties().masks[0]
             .transform
@@ -434,11 +440,17 @@ fn schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back(
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for side in ["undo", "redo"] {
         for snapshot in history[side].as_array().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 33);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
         }
     }
     core.redo(&id, 4).unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 33);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let (_root, core, id, item) = setup();
     install(&core, &id, &item, mask());
     let p = core.paths().project_dir(&id).unwrap().join("project.json");
