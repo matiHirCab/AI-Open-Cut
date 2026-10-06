@@ -517,6 +517,69 @@ describe("canonical public contracts", () => {
     expect(JSON.stringify(source)).toBe(original);
   });
 
+  it("preserves own keys, scalar identity and independent nested reference copies", () => {
+    const shared = Object.fromEntries([
+      ["last", { values: [null, false, "value", -0, { leaf: 7 }] }],
+      ["__proto__", { data: ["literal"] }],
+      ["first", true],
+    ]);
+    const source = {
+      $defs: { Shared: shared },
+      capabilityIdentifiers: [],
+      prompts: [],
+      resources: [],
+      toolDefinitions: {
+        example: {
+          annotations: {},
+          inputSchema: { $ref: "#/$defs/Shared" },
+          outputSchema: { $ref: "#/$defs/Shared" },
+        },
+      },
+      tools: ["example"],
+      version: 1,
+    };
+    const original = JSON.stringify(source);
+    const first = expandMcpSurfaceCatalog(source).toolDefinitions
+      .example as NonNullable<typeof MCP_SURFACE.toolDefinitions.example>;
+    const second = expandMcpSurfaceCatalog(source).toolDefinitions
+      .example as NonNullable<typeof MCP_SURFACE.toolDefinitions.example>;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    const input = first.inputSchema;
+    for (const copy of [input, first.outputSchema, second.inputSchema]) {
+      expect(Object.keys(copy)).toEqual(["last", "__proto__", "first"]);
+      expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+      expect(Object.getOwnPropertyDescriptor(copy, "__proto__")).toEqual({
+        configurable: true,
+        enumerable: true,
+        value: { data: ["literal"] },
+        writable: true,
+      });
+      expect(JSON.stringify(copy)).toBe(JSON.stringify(shared));
+      const nested = copy.last as { values: unknown[] };
+      expect(Object.is(nested.values[3], -0)).toBe(true);
+      expect(copy).not.toBe(shared);
+      expect(nested).not.toBe(shared.last);
+    }
+    const nested = input.last as { values: unknown[] };
+    const sibling = first.outputSchema.last as { values: unknown[] };
+    expect(input).not.toBe(first.outputSchema);
+    expect(nested).not.toBe(sibling);
+    expect(nested.values).not.toBe(sibling.values);
+    expect(nested.values[4]).not.toBe(sibling.values[4]);
+    (nested.values[4] as { leaf: number }).leaf = 99;
+    nested.values[3] = 0;
+    const ownData = Object.getOwnPropertyDescriptor(input, "__proto__")
+      ?.value as { data: string[] };
+    ownData.data[0] = "changed";
+    expect(JSON.stringify(first.outputSchema)).toBe(JSON.stringify(shared));
+    expect(JSON.stringify(second.inputSchema)).toBe(JSON.stringify(shared));
+    expect(JSON.stringify(source)).toBe(original);
+    expect(
+      Object.is((shared.last as { values: unknown[] }).values[3], -0)
+    ).toBe(true);
+  });
+
   it("governs every mask model fixture in the canonical contract gate", () => {
     expect(MASK_MODELS.capability).toBe(MASK_MODELS_CAPABILITY);
     expect(HEADLESS_CONTRACT.status.editorCapabilities).toContain(

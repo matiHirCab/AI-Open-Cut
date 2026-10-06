@@ -44,9 +44,22 @@ const cloneExpanded = (value: unknown): unknown => {
   if (value === null || typeof value !== "object") {
     return value;
   }
-  return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, cloneExpanded(child)])
-  );
+  const source = value as JsonRecord;
+  const copy: JsonRecord = {};
+  for (const key of Object.keys(source)) {
+    const child = cloneExpanded(source[key]);
+    if (key === "__proto__") {
+      Object.defineProperty(copy, key, {
+        configurable: true,
+        enumerable: true,
+        value: child,
+        writable: true,
+      });
+    } else {
+      copy[key] = child;
+    }
+  }
+  return copy;
 };
 
 export const expandMcpSurfaceCatalog = (source: unknown): McpSurfaceCatalog => {
