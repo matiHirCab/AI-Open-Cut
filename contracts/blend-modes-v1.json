@@ -1,0 +1,1443 @@
+{
+  "contract": "blend-modes-v1",
+  "version": 1,
+  "projectSchemaVersion": 35,
+  "capabilities": {
+    "editor": "blend_models_v1",
+    "renderer": "blend_modes_v1"
+  },
+  "fields": {
+    "blendMode": {
+      "values": [
+        "normal",
+        "multiply",
+        "screen",
+        "overlay",
+        "add",
+        "darken",
+        "lighten"
+      ],
+      "default": "normal",
+      "storedPresence": "optional_nonnull_enum_default_normal_omitted",
+      "ineligibleStoredPresence": "optional_literal_normal_only",
+      "updatePresence": "omitted_preserves_enum_sets_null_rejects",
+      "unknownFields": "reject"
+    }
+  },
+  "eligibleKinds": [
+    "image",
+    "video",
+    "text",
+    "solid_color",
+    "rectangle",
+    "shape",
+    "svg",
+    "grid",
+    "caption"
+  ],
+  "ineligibleKinds": [
+    "audio",
+    "group",
+    "repeater",
+    "component_instance",
+    "transition"
+  ],
+  "limits": {
+    "nonNormalBlendWorkUnitsPerFrame": 268435456,
+    "unitsPerDirectDestinationVisit": 32,
+    "peakLiveBytes": 1073741824,
+    "rasterCacheReserveBytes": 67108864,
+    "expandedVisualOccurrences": 4096,
+    "surfaceAxis": 16384,
+    "surfacePixels": 16777216,
+    "unchangedProviderAggregateRequestsPerFrame": 4096
+  },
+  "semantics": {
+    "initialSceneDestination": "opaque_linear_black",
+    "normal": "exact_existing_f32_source_over",
+    "working": "premultiplied_linear_rgba",
+    "validation": "same_canonical_f32_epsilon_and_arithmetic_then_f32_clamp_before_f64_unassociation",
+    "alphaTolerance": 1e-06,
+    "alphaEpsilonCutoff": false,
+    "overlayBranch": "backdrop_d_le_half",
+    "add": "min_1_straight_s_plus_d_not_plus_lighter",
+    "outputColor": "(1-As)*Cd+(1-Ad)*Cs+As*Ad*B",
+    "outputAlpha": "As+Ad-As*Ad",
+    "caption": "whole_existing_source_plane_including_all_glyph_lines_and_background_then_one_blend",
+    "shutter": "complete_own_source_samples_average_then_one_destination_blend",
+    "providerAggregate": "normal_source_over_completed_copies_ignores_blend_and_backdrop",
+    "matteOnly": "no_direct_blend_work_or_draw_audio_unchanged",
+    "resourceAdmission": "same_shared_composition_ledger_independent_optional_real_matte_graph",
+    "providerRequestCount": "only_actual_aggregate_provider_materializations_not_leaf_sample_average_or_direct",
+    "sourceStageOrder": [
+      "source_raster_decode_and_source_local_caption_text_assembly",
+      "crop_clip",
+      "sampled_masks",
+      "ordered_local_effects",
+      "local_affine",
+      "nearest_to_outer_ancestor_affine",
+      "own_matte",
+      "inherited_opacity_transition_gain",
+      "own_copy_shutter_average",
+      "final_destination_blend"
+    ]
+  },
+  "acceptedSelections": [
+    {
+      "name": "normal",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "normal",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "multiply",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "multiply",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "screen",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "screen",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "overlay",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "overlay",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "add",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "add",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "darken",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "darken",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "lighten",
+      "operation": {
+        "itemId": "visual",
+        "blendMode": "lighten",
+        "operation": "update_item"
+      }
+    },
+    {
+      "name": "omission_preserves",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual"
+      },
+      "existingMode": "multiply",
+      "expectedMode": "multiply"
+    },
+    {
+      "name": "normal_resets",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": "normal"
+      },
+      "existingMode": "screen",
+      "expectedMode": "normal"
+    }
+  ],
+  "rejectedSelections": [
+    {
+      "name": "null",
+      "value": null,
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": null
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "name": "unknown",
+      "value": "plus_lighter",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": "plus_lighter"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "name": "uppercase",
+      "value": "MULTIPLY",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": "MULTIPLY"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "name": "numeric",
+      "value": 1,
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": 1
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "name": "array",
+      "value": [
+        "multiply"
+      ],
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": [
+          "multiply"
+        ]
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "name": "object",
+      "value": {
+        "mode": "multiply"
+      },
+      "operation": {
+        "operation": "update_item",
+        "itemId": "visual",
+        "blendMode": {
+          "mode": "multiply"
+        }
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    }
+  ],
+  "numericOracles": {
+    "status": "independently authored canonical expected values; actual consumer conformance requires executed tests",
+    "formulaVersion": "planned-seven-modes-premul-linear-f32-canonical-before-f64",
+    "modes": [
+      "normal",
+      "multiply",
+      "screen",
+      "overlay",
+      "add",
+      "darken",
+      "lighten"
+    ],
+    "translucentColored": {
+      "source": {
+        "values": [
+          0.375,
+          0.125,
+          0.0625,
+          0.5
+        ],
+        "f32Bits": [
+          1052770304,
+          1040187392,
+          1031798784,
+          1056964608
+        ]
+      },
+      "backdrop": {
+        "values": [
+          0.125,
+          0.4375,
+          0.25,
+          0.625
+        ],
+        "f32Bits": [
+          1040187392,
+          1054867456,
+          1048576000,
+          1059061760
+        ]
+      },
+      "expected": {
+        "normal": {
+          "unroundedF64": [
+            0.4375,
+            0.34375,
+            0.1875,
+            0.8125
+          ],
+          "outputF32": [
+            0.4375,
+            0.34375,
+            0.1875,
+            0.8125
+          ]
+        },
+        "multiply": {
+          "unroundedF64": [
+            0.25,
+            0.3203125,
+            0.1640625,
+            0.8125
+          ],
+          "outputF32": [
+            0.25,
+            0.3203125,
+            0.1640625,
+            0.8125
+          ]
+        },
+        "screen": {
+          "unroundedF64": [
+            0.453125,
+            0.5078125,
+            0.296875,
+            0.8125
+          ],
+          "outputF32": [
+            0.453125,
+            0.5078125,
+            0.296875,
+            0.8125
+          ]
+        },
+        "overlay": {
+          "unroundedF64": [
+            0.296875,
+            0.4375,
+            0.1796875,
+            0.8125
+          ],
+          "outputF32": [
+            0.296875,
+            0.4375,
+            0.1796875,
+            0.8125
+          ]
+        },
+        "add": {
+          "unroundedF64": [
+            0.5,
+            0.5625,
+            0.3125,
+            0.8125
+          ],
+          "outputF32": [
+            0.5,
+            0.5625,
+            0.3125,
+            0.8125
+          ]
+        },
+        "darken": {
+          "unroundedF64": [
+            0.265625,
+            0.34375,
+            0.1875,
+            0.8125
+          ],
+          "outputF32": [
+            0.265625,
+            0.34375,
+            0.1875,
+            0.8125
+          ]
+        },
+        "lighten": {
+          "unroundedF64": [
+            0.4375,
+            0.484375,
+            0.2734375,
+            0.8125
+          ],
+          "outputF32": [
+            0.4375,
+            0.484375,
+            0.2734375,
+            0.8125
+          ]
+        }
+      },
+      "expectedAlpha": 0.8125
+    },
+    "nativeAuthoredColored": {
+      "sourceHex": "#e06020",
+      "sourceOpacity": 0.5,
+      "opaqueBackdropHex": "#80c040",
+      "source": {
+        "values": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          0.5
+        ],
+        "f32Bits": [
+          1052693199,
+          1030721105,
+          1005364703,
+          1056964608
+        ]
+      },
+      "backdrop": {
+        "values": [
+          0.2158605009317398,
+          0.5271151065826416,
+          0.05126945674419403,
+          1.0
+        ],
+        "f32Bits": [
+          1046284937,
+          1057419524,
+          1028784108,
+          1065353216
+        ]
+      },
+      "expected": {
+        "normal": {
+          "unroundedF64": [
+            0.48063233494758606,
+            0.32204288244247437,
+            0.03285665065050125,
+            1.0
+          ],
+          "outputF32": [
+            0.48063233494758606,
+            0.32204288244247437,
+            0.03285665065050125,
+            1.0
+          ]
+        },
+        "multiply": {
+          "unroundedF64": [
+            0.18838191072868282,
+            0.2943860557640088,
+            0.02600499238008539,
+            1.0
+          ],
+          "outputF32": [
+            0.18838191032409668,
+            0.2943860590457916,
+            0.026004992425441742,
+            1.0
+          ]
+        },
+        "screen": {
+          "unroundedF64": [
+            0.5081109326012236,
+            0.5547719369863975,
+            0.0581211145489486,
+            1.0
+          ],
+          "outputF32": [
+            0.5081109404563904,
+            0.5547719597816467,
+            0.05812111496925354,
+            1.0
+          ]
+        },
+        "overlay": {
+          "unroundedF64": [
+            0.26883357099149574,
+            0.34598632068147417,
+            0.026375256388073767,
+            1.0
+          ],
+          "outputF32": [
+            0.26883357763290405,
+            0.3459863066673279,
+            0.02637525647878647,
+            1.0
+          ]
+        },
+        "add": {
+          "unroundedF64": [
+            0.5885625928640366,
+            0.5856004394590855,
+            0.05849137855693698,
+            1.0
+          ],
+          "outputF32": [
+            0.5885626077651978,
+            0.5856004357337952,
+            0.05849137902259827,
+            1.0
+          ]
+        },
+        "darken": {
+          "unroundedF64": [
+            0.2158605009317398,
+            0.32204288616776466,
+            0.032856650184839964,
+            1.0
+          ],
+          "outputF32": [
+            0.2158605009317398,
+            0.32204288244247437,
+            0.03285665065050125,
+            1.0
+          ]
+        },
+        "lighten": {
+          "unroundedF64": [
+            0.48063234239816666,
+            0.5271151065826416,
+            0.05126945674419403,
+            1.0
+          ],
+          "outputF32": [
+            0.48063233494758606,
+            0.5271151065826416,
+            0.05126945674419403,
+            1.0
+          ]
+        }
+      },
+      "rawSrgb8BeforeFinalCodec": {
+        "normal": [
+          184,
+          154,
+          51
+        ],
+        "multiply": [
+          120,
+          148,
+          45
+        ],
+        "screen": [
+          189,
+          196,
+          68
+        ],
+        "overlay": [
+          142,
+          159,
+          45
+        ],
+        "add": [
+          202,
+          201,
+          68
+        ],
+        "darken": [
+          128,
+          154,
+          51
+        ],
+        "lighten": [
+          184,
+          192,
+          64
+        ]
+      }
+    },
+    "noncommutingOrder": {
+      "base": {
+        "values": [
+          0.125,
+          0.5,
+          0.75,
+          1.0
+        ],
+        "f32Bits": [
+          1040187392,
+          1056964608,
+          1061158912,
+          1065353216
+        ]
+      },
+      "multiplyLayerA": {
+        "values": [
+          0.4000000059604645,
+          0.05000000074505806,
+          0.10000000149011612,
+          0.5
+        ],
+        "f32Bits": [
+          1053609165,
+          1028443341,
+          1036831949,
+          1056964608
+        ]
+      },
+      "screenLayerB": {
+        "values": [
+          0.05000000074505806,
+          0.30000001192092896,
+          0.10000000149011612,
+          0.375
+        ],
+        "f32Bits": [
+          1028443341,
+          1050253722,
+          1036831949,
+          1052770304
+        ]
+      },
+      "aThenB": [
+        0.15687499940395355,
+        0.4925000071525574,
+        0.5049999952316284,
+        1.0
+      ],
+      "bThenA": [
+        0.15187500417232513,
+        0.35749998688697815,
+        0.4649999737739563,
+        1.0
+      ],
+      "difference": [
+        0.00499999414198099,
+        0.13500002544373274,
+        0.04000000324100261,
+        0.0
+      ]
+    },
+    "overlayBackdropBranches": {
+      "sourceStraight": 0.75,
+      "sourceAlpha": 0.5,
+      "backdropAlpha": 1.0,
+      "cases": [
+        {
+          "backdropStraight": 0.25,
+          "expected": 0.3125,
+          "wrongSourceBranch": 0.4375
+        },
+        {
+          "backdropStraight": 0.5,
+          "expected": 0.625,
+          "wrongSourceBranch": 0.625
+        },
+        {
+          "backdropStraight": 0.75,
+          "expected": 0.8125,
+          "wrongSourceBranch": 0.8125
+        }
+      ]
+    },
+    "tinyAlphaCanonicalEndpoint": {
+      "epsilonF32": 9.999999974752427e-07,
+      "source": {
+        "values": [
+          1.0010001005866798e-06,
+          1.0010001005866798e-06,
+          1.0010001005866798e-06,
+          1.0000462680181954e-09
+        ],
+        "f32Bits": [
+          897997338,
+          897997338,
+          897997338,
+          814313984
+        ]
+      },
+      "correctedSource": {
+        "values": [
+          1.0000462680181954e-09,
+          1.0000462680181954e-09,
+          1.0000462680181954e-09,
+          1.0000462680181954e-09
+        ],
+        "f32Bits": [
+          814313984,
+          814313984,
+          814313984,
+          814313984
+        ]
+      },
+      "backdrop": {
+        "values": [
+          0.5,
+          0.5,
+          0.5,
+          1.0
+        ],
+        "f32Bits": [
+          1056964608,
+          1056964608,
+          1056964608,
+          1065353216
+        ]
+      },
+      "sourceBoundaryBits": 897997338,
+      "nextPositiveBits": 897997339,
+      "nextPositiveValue": 1.0010002142735175e-06,
+      "nextPositiveRejected": true,
+      "freshF64Boundary": 1.001000043743261e-06,
+      "freshF64ComparisonWouldRejectAccepted": true,
+      "correctScreenUnroundedF64": [
+        0.5000000005000231,
+        0.5000000005000231,
+        0.5000000005000231,
+        1.0
+      ],
+      "correctScreenF32": [
+        0.5,
+        0.5,
+        0.5,
+        1.0
+      ],
+      "wrongNoClampF32": [
+        0.5000004768371582,
+        0.5000004768371582,
+        0.5000004768371582,
+        1.0
+      ],
+      "wrongError": [
+        4.76837158203125e-07,
+        4.76837158203125e-07,
+        4.76837158203125e-07,
+        0.0
+      ],
+      "requiredAbsTolerance": 1e-08,
+      "alphaSelection": "nextup(f32(1e-9),417), frozen bits814313984; intentionally produces upward-rounded f32 tolerance boundary",
+      "wrongMustFailAtTolerance": true
+    },
+    "tinyAlphaNegativeRoundoff": {
+      "source": {
+        "values": [
+          -9.99999993922529e-09,
+          -9.99999993922529e-09,
+          -9.99999993922529e-09,
+          1.0000462680181954e-09
+        ],
+        "f32Bits": [
+          2989214839,
+          2989214839,
+          2989214839,
+          814313984
+        ]
+      },
+      "correctedSource": {
+        "values": [
+          0.0,
+          0.0,
+          0.0,
+          1.0000462680181954e-09
+        ],
+        "f32Bits": [
+          0,
+          0,
+          0,
+          814313984
+        ]
+      },
+      "correctMultiply": [
+        0.5,
+        0.5,
+        0.5,
+        1.0
+      ],
+      "opaqueBlackScreenCorrect": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "wrongNoClampOpaqueBlackScreen": [
+        -9.99999993922529e-09,
+        -9.99999993922529e-09,
+        -9.99999993922529e-09,
+        1.0
+      ],
+      "negativeRoundoffOracle": "exact canonical zero; broad1e-6 tolerance would conceal forbidden negative output",
+      "nextBelowNegativeEpsilon": -1.0000001111620804e-06,
+      "nextBelowRejected": true
+    },
+    "boundedAddSaturation": {
+      "source": [
+        0.375,
+        0.375,
+        0.375,
+        0.5
+      ],
+      "backdrop": [
+        0.75,
+        0.75,
+        0.75,
+        1.0
+      ],
+      "expected": [
+        0.875,
+        0.875,
+        0.875,
+        1.0
+      ],
+      "wrongUnboundedRgb": [
+        1.125,
+        1.125,
+        1.125,
+        1.0
+      ]
+    },
+    "shutterAverageBeforeAdd": {
+      "sourceOpaqueSamples": [
+        0.0,
+        1.0
+      ],
+      "meanSource": 0.5,
+      "opaqueBackdrop": 0.75,
+      "correctAddAfterAverage": 1.0,
+      "wrongAverageAfterAdd": 0.875
+    },
+    "captionWholeOccurrence": {
+      "opaqueLinearBackdrop": 0.4000000059604645,
+      "boxBlackAlpha": 0.75,
+      "glyphOpaqueWhite": 1.0,
+      "correctWholePlaneGlyphMultiply": 0.4000000059604645,
+      "correctOutsideGlyphMultiply": 0.10000000149011612,
+      "wrongFragmentWiseGlyphMultiply": 0.10000000149011612,
+      "glyphVsFragmentDifference": 0.30000000447034836,
+      "rawSrgb8Glyph": 170,
+      "rawSrgb8OutsideGlyph": 89
+    },
+    "zeroAlphaPureOnly": {
+      "sourceZero": {
+        "normal": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "multiply": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "screen": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "overlay": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "add": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "darken": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        },
+        "lighten": {
+          "unroundedF64": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ],
+          "outputF32": [
+            0.125,
+            0.4375,
+            0.25,
+            0.625
+          ]
+        }
+      },
+      "backdropZero": {
+        "normal": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "multiply": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "screen": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "overlay": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "add": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "darken": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        },
+        "lighten": {
+          "unroundedF64": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ],
+          "outputF32": [
+            0.375,
+            0.125,
+            0.0625,
+            0.5
+          ]
+        }
+      },
+      "bothZero": {
+        "normal": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "multiply": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "screen": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "overlay": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "add": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "darken": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "lighten": {
+          "unroundedF64": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "outputF32": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    "firstLayerBlack": {
+      "normal": {
+        "unroundedF64": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ],
+        "outputF32": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ]
+      },
+      "multiply": {
+        "unroundedF64": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "outputF32": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "screen": {
+        "unroundedF64": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ],
+        "outputF32": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ]
+      },
+      "overlay": {
+        "unroundedF64": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "outputF32": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "add": {
+        "unroundedF64": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ],
+        "outputF32": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ]
+      },
+      "darken": {
+        "unroundedF64": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "outputF32": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "lighten": {
+        "unroundedF64": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ],
+        "outputF32": [
+          0.37270209193229675,
+          0.05848533287644386,
+          0.0072219218127429485,
+          1.0
+        ]
+      }
+    },
+    "nativePublicOrder": {
+      "backdropHex": "#80c040",
+      "multiplyHex": "#e06020",
+      "multiplyOpacity": 0.5,
+      "screenHex": "#2080e0",
+      "screenOpacity": 0.375,
+      "multiplyThenScreen": [
+        0.19277799129486084,
+        0.3515038788318634,
+        0.29826247692108154,
+        1.0
+      ],
+      "screenThenMultiply": [
+        0.19208849966526031,
+        0.31576427817344666,
+        0.16051790118217468,
+        1.0
+      ],
+      "provenance": "independent published equations and authored f32 inputs; no actual rendered pixels used"
+    }
+  },
+  "sourceMigration": {
+    "predecessor": 34,
+    "current": 35,
+    "default": "normal",
+    "pre35FieldPresence": "reject_even_normal_or_null_before_typed_defaults_current_history_components_draft_own_base",
+    "unavailableBaseDraft": "preserve_read_edit_discard_available_preview_apply_commit_unavailable",
+    "unavailableBaseDraftError": {
+      "code": "REVISION_CONFLICT",
+      "retryable": true
+    },
+    "retainedCurrentHistoryComponentsDrafts": "one_atomic_complete_generation_no_incidental_adoption_from_failed_draft_create_update"
+  },
+  "provenance": "Manually authored issue53 schema35 authority against independently verified schema34 predecessor65e89d637d882d56aa98735aae9374de6a0da9fe; approved add-blend-modes scope. Expected independent oracle values are not generated from production implementations or runtime registrations.",
+  "blendFunctions": {
+    "normal": "mathematical B=s; execution MUST dispatch unchanged f32 source_over_at",
+    "multiply": "s*d",
+    "screen": "s+d-s*d",
+    "overlay": "2*s*d if d<=0.5 else 1-2*(1-s)*(1-d)",
+    "add": "min(1,s+d)",
+    "darken": "min(s,d)",
+    "lighten": "max(s,d)"
+  },
+  "unsupportedSelectionCases": [
+    {
+      "itemKind": "audio",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "multiply"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "itemKind": "group",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "multiply"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "itemKind": "repeater",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "multiply"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "itemKind": "component_instance",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "multiply"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "itemKind": "transition",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "multiply"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    }
+  ],
+  "defaultUnsupportedCases": [
+    {
+      "itemKind": "audio",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "normal"
+      },
+      "expectedMode": "normal",
+      "expectedIsolation": "none"
+    },
+    {
+      "itemKind": "group",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "normal"
+      },
+      "expectedMode": "normal",
+      "expectedIsolation": "none"
+    },
+    {
+      "itemKind": "repeater",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "normal"
+      },
+      "expectedMode": "normal",
+      "expectedIsolation": "none"
+    },
+    {
+      "itemKind": "component_instance",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "normal"
+      },
+      "expectedMode": "normal",
+      "expectedIsolation": "none"
+    },
+    {
+      "itemKind": "transition",
+      "operation": {
+        "operation": "update_item",
+        "itemId": "unsupported",
+        "blendMode": "normal"
+      },
+      "expectedMode": "normal",
+      "expectedIsolation": "none"
+    }
+  ],
+  "rawDuplicateCases": [
+    {
+      "rawOperation": "{\"operation\":\"update_item\",\"itemId\":\"visual\",\"blendMode\":\"multiply\",\"blendMode\":\"screen\"}",
+      "boundaries": [
+        "core_raw_serde",
+        "headless_raw_json_lines"
+      ],
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      },
+      "parsedMcpDuplicateDetectionClaim": false
+    }
+  ],
+  "missingTargetCase": {
+    "operation": {
+      "operation": "update_item",
+      "itemId": "absent",
+      "blendMode": "multiply"
+    },
+    "expectedError": {
+      "code": "ITEM_NOT_FOUND",
+      "retryable": false
+    }
+  },
+  "staleRevisionCase": {
+    "operation": {
+      "operation": "update_item",
+      "itemId": "visual",
+      "blendMode": "multiply"
+    },
+    "executionContext": {
+      "revisionRelation": "stale"
+    },
+    "expectedError": {
+      "code": "REVISION_CONFLICT",
+      "retryable": true
+    }
+  },
+  "transportRejectionBoundary": {
+    "coreHeadlessAndDomain": "canonical error code and retryability",
+    "mcpSdkStructural": "established SDK isError/text envelope; before handler; state/resources unchanged",
+    "rawMcpDuplicates": "unobservable after parsing; not promised"
+  },
+  "unsupportedDiscriminatorCases": [
+    {
+      "itemKind": "template_instance",
+      "blendMode": null,
+      "expected": "existing_strict_discriminator_decode_rejection"
+    },
+    {
+      "itemKind": "template_instance",
+      "blendMode": "normal",
+      "expected": "existing_strict_discriminator_decode_rejection"
+    },
+    {
+      "itemKind": "template_instance",
+      "blendMode": "multiply",
+      "expected": "existing_strict_discriminator_decode_rejection"
+    }
+  ]
+}

@@ -441,6 +441,7 @@ fn apply_operation_inner(
                 ));
             }
             let visual_properties = crate::VisualProperties {
+                blend_mode: crate::BlendMode::Normal,
                 legacy_animation_clock: None,
                 crop: None,
                 motion_blur: None,
@@ -1123,6 +1124,7 @@ fn apply_operation_inner(
             masks,
             matte,
             matte_only,
+            blend_mode,
             motion_blur,
             grid,
             repeater,
@@ -1174,6 +1176,9 @@ fn apply_operation_inner(
             }
             if let Some(value) = matte_only {
                 item.visual_properties_mut().matte_only = value;
+            }
+            if let Some(value) = blend_mode {
+                item.visual_properties_mut().blend_mode = value;
             }
             if let Some(value) = masks {
                 item.visual_properties_mut().masks = value;

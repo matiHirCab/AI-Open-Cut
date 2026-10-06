@@ -294,3 +294,69 @@ fn text_dependencies_and_scope_are_complete() {
     b.field(&"c").unwrap();
     assert_ne!(a.finish(), b.finish());
 }
+
+#[test]
+fn blend_mode_is_final_occurrence_semantics_while_source_text_key_remains_reusable() {
+    let (_root, core, project) = fixture();
+    let dir = core.project_directory(&project.id).unwrap();
+    let normal = crate::evaluated_scene::evaluate_project(&project, 160, 90, 10).unwrap();
+    let media =
+        render_artifact::prepare_media_resources(&FileSystemArtifactIo, &normal, &dir).unwrap();
+    let measured = render_artifact::measure_evaluated_text_layers_with_budget(
+        &FileSystemArtifactIo,
+        &normal,
+        None,
+        &[],
+        &mut Vec::new(),
+        &media.font_faces,
+        &mut Default::default(),
+    )
+    .unwrap();
+    let normal_text = &normal.scene.visual_layers[0];
+    let m = &measured[&normal_text.item_id];
+    let (shaped, style) = m.shaped.as_ref().unwrap();
+    let crate::evaluated_scene::EvaluatedVisualSource::Text(text) = &normal_text.source else {
+        panic!("actual text fixture");
+    };
+    let key = text_key(scope(&normal).unwrap(), text, shaped, &m.prepared).unwrap();
+    let cache = RasterCache::default();
+    let pixels = cache
+        .raster(key, || {
+            render_artifact::text::rasterize(shaped, &media.font_faces, &m.prepared, style)
+        })
+        .unwrap();
+    let mut candidate = project.clone();
+    candidate.tracks[1].items[0]
+        .visual_properties_mut()
+        .blend_mode = crate::BlendMode::Multiply;
+    let blend = crate::evaluated_scene::evaluate_project(&candidate, 160, 90, 10).unwrap();
+    assert!(blend.scene.mattes.is_none());
+    assert!(blend.scene.composition_resources.is_some());
+    assert_ne!(
+        format!("{:?}", normal.scene.visual_layers),
+        format!("{:?}", blend.scene.visual_layers)
+    );
+    assert_eq!(scope(&normal).unwrap(), scope(&blend).unwrap());
+    let crate::evaluated_scene::EvaluatedVisualSource::Text(blend_text) =
+        &blend.scene.visual_layers[0].source
+    else {
+        panic!("actual text fixture");
+    };
+    let blend_key = text_key(scope(&blend).unwrap(), blend_text, shaped, &m.prepared).unwrap();
+    assert_eq!(key, blend_key);
+    assert_eq!(
+        &*cache
+            .raster(blend_key, || panic!(
+                "static mode cannot invalidate source-only pixels"
+            ))
+            .unwrap(),
+        &*pixels
+    );
+    let schedule = crate::evaluated_scene::mattes::frame_schedule(&blend.scene, 400);
+    // Unmeasured Text still requires the ordinary typed preparation: source-only
+    // reuse cannot authorize a missing owning raster measurement/certificate.
+    assert_eq!(
+        schedule.unwrap_err().code,
+        crate::ErrorCode::InvalidArgument
+    );
+}

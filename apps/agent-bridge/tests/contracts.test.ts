@@ -67,6 +67,10 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import {
+  projectBlendCatalogPredecessor,
+  projectBlendMcpPredecessor,
+} from "./fixtures/blend-mode-projection";
 import { projectMaskMcpPredecessor } from "./fixtures/mask-mcp-projection";
 import {
   MASK_RENDERING_PREDECESSOR_PINS,
@@ -91,10 +95,15 @@ const projectMaskRenderingCatalogPredecessor = (
 ) =>
   projectMaskRenderingCatalogPredecessor51(
     name,
-    projectTrackMatteCatalogPredecessor(name, source)
+    projectTrackMatteCatalogPredecessor(
+      name,
+      projectBlendCatalogPredecessor(name, source)
+    )
   );
 const projectMaskRenderingMcpPredecessor = (source: unknown) =>
-  projectMaskRenderingMcpPredecessor51(projectTrackMatteMcpPredecessor(source));
+  projectMaskRenderingMcpPredecessor51(
+    projectTrackMatteMcpPredecessor(projectBlendMcpPredecessor(source))
+  );
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 // Approved issue #49 additive capability; tool/schema baseline remains pinned below.
@@ -102,7 +111,7 @@ const MCP_BASELINE_DIGEST =
   "88b55ff7be147cb4aadc016dd92f92342c3dc366f49ac139b8116513d5854830";
 const MCP_PRE_MASK_RENDERING_DIGEST = MCP_BASELINE_DIGEST;
 const MCP_CURRENT_DIGEST =
-  "9d15133960b94806ee92cd9482d10c9481b902f957501fc4742c58b992d73949";
+  "0f413e33c216b52383e201880409d987c705b52d132e1da3b211dd355929737f";
 const MCP_PRE_TRACK_MATTES_DIGEST =
   "803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170";
 const MCP_PRE_MASK_MODELS_DIGEST =
@@ -352,7 +361,7 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(34);
+    expect(PRESETS.projectSchemaVersion).toBe(35);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -366,7 +375,7 @@ describe("canonical public contracts", () => {
       name,
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
-      expect(catalog.projectSchemaVersion, name).toBe(34);
+      expect(catalog.projectSchemaVersion, name).toBe(35);
       const schema32 = projectMaskRenderingCatalogPredecessor(name, catalog);
       expect(animationCatalogDigest(schema32), name).toBe(
         MASK_RENDERING_PREDECESSOR_PINS[name]
@@ -413,7 +422,13 @@ describe("canonical public contracts", () => {
     expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
       MCP_CURRENT_DIGEST
     );
-    const schema33Source = projectTrackMatteMcpPredecessor(MCP_SURFACE_SOURCE);
+    const schema34Source = projectBlendMcpPredecessor(MCP_SURFACE_SOURCE);
+    expect(
+      createHash("sha256")
+        .update(JSON.stringify(expandMcpSurfaceCatalog(schema34Source)))
+        .digest("hex")
+    ).toBe("9d15133960b94806ee92cd9482d10c9481b902f957501fc4742c58b992d73949");
+    const schema33Source = projectTrackMatteMcpPredecessor(schema34Source);
     const schema33 = expandMcpSurfaceCatalog(schema33Source);
     expect(
       createHash("sha256").update(JSON.stringify(schema33)).digest("hex")
@@ -727,7 +742,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 34,
+      projectSchemaVersion: 35,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -781,6 +796,8 @@ describe("canonical public contracts", () => {
       ARTIFACT_RESOURCES_CAPABILITY,
       MATTE_MODELS_CAPABILITY,
       TRACK_MATTES_CAPABILITY,
+      "blend_models_v1",
+      "blend_modes_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -805,7 +822,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: 34,
+        projectSchemaVersion: 35,
         protocolVersion: 1,
         ready: true,
         subsystems: {

@@ -8,6 +8,8 @@ mod motion_blur;
 pub use motion_blur::*;
 mod mask;
 pub use mask::*;
+mod blend;
+pub use blend::*;
 mod matte;
 pub use matte::*;
 mod visual_effects;
@@ -30,7 +32,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 34;
+pub const PROJECT_SCHEMA_VERSION: u32 = 35;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -146,6 +148,14 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 35 {
+            reject_blend_fields(&value.tracks)
+                .map_err(|e| format!("{}{e}", crate::error::BLEND_DECODE_ERROR_PREFIX))?;
+            if let Some(components) = &value.components {
+                reject_blend_fields(components)
+                    .map_err(|e| format!("{}{e}", crate::error::BLEND_DECODE_ERROR_PREFIX))?;
+            }
+        }
         if value.schema_version < 34 {
             reject_matte_fields(&value.tracks)
                 .map_err(|e| format!("{}{e}", crate::error::MATTE_DECODE_ERROR_PREFIX))?;
@@ -723,6 +733,35 @@ pub(crate) fn find_extended_visual_edit_fields(
     )
 }
 
+pub(crate) fn reject_blend_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_blend_fields)
+}
+fn check_blend_fields(value: &serde_json::Value) -> Result<(), String> {
+    if value.get("blendMode").is_some() {
+        return Err("blend modes require schema 35".into());
+    }
+    Ok(())
+}
+pub(crate) fn reject_raw_blend_edit_fields(value: &serde_json::Value) -> Result<(), String> {
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("update_item") => check_blend_fields(operation)?,
+                Some("component_create" | "component_update") => {
+                    if let Some(tracks) = operation.get("tracks") {
+                        reject_blend_fields(tracks)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn reject_matte_fields(value: &serde_json::Value) -> Result<(), String> {
     inspect_model_items(value, &check_matte_fields)
 }
@@ -767,6 +806,7 @@ pub(crate) fn find_mask_edit_fields(
     find_edit_fields(
         operations,
         &|value| {
+            check_blend_fields(value)?;
             check_matte_fields(value)?;
             check_mask_fields(value)?;
             check_mask_animation_fields(value)
@@ -1324,6 +1364,8 @@ impl TimelineItem {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VisualProperties {
+    #[serde(default, skip_serializing_if = "BlendMode::is_normal")]
+    pub blend_mode: BlendMode,
     #[serde(
         default,
         deserialize_with = "deserialize_present",
@@ -1382,6 +1424,7 @@ pub struct VisualProperties {
 impl VisualProperties {
     pub fn new(transform: Transform, hidden: bool) -> Self {
         Self {
+            blend_mode: BlendMode::Normal,
             legacy_animation_clock: None,
             crop: None,
             motion_blur: None,
@@ -2354,6 +2397,12 @@ pub enum EditOperation {
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
+        blend_mode: Option<BlendMode>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
         motion_blur: Option<MotionBlur>,
         #[serde(
             default,
@@ -2762,6 +2811,12 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         matte_only: Option<bool>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_present",
+            skip_serializing_if = "Option::is_none"
+        )]
+        blend_mode: Option<BlendMode>,
         #[serde(
             default,
             deserialize_with = "deserialize_present",

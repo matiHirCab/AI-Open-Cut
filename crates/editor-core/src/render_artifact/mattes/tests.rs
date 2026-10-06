@@ -1,7 +1,7 @@
 use super::*;
 use crate::MatteChannel;
 use crate::evaluated_scene::mattes::{
-    MATTE_CACHE_RESERVATION, MatteFrameCertificate, MatteTask, MatteTaskId,
+    DirectDraw, MATTE_CACHE_RESERVATION, MatteFrameCertificate, MatteTask, MatteTaskId,
 };
 use std::mem::size_of;
 fn id(n: usize) -> MatteTaskId {
@@ -46,7 +46,7 @@ fn fixture(
                 provider: Some((p, _)),
                 ..
             } => last_uses[p.0] = i,
-            MatteTask::AverageCopy { samples }
+            MatteTask::AverageCopy { samples, .. }
             | MatteTask::AggregateProvider { copies: samples } => {
                 for p in samples {
                     last_uses[p.0] = i
@@ -58,16 +58,43 @@ fn fixture(
     for (i, p) in direct_draw.iter().enumerate() {
         last_uses[p.0] = tasks.len() + i;
     }
+    let owner_count = tasks
+        .iter()
+        .filter_map(|task| match task {
+            MatteTask::LeafSample { layer_index, .. }
+            | MatteTask::AverageCopy { layer_index, .. } => Some(*layer_index + 1),
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0);
+    let owner_modes = vec![crate::BlendMode::Normal; owner_count];
+    let direct_draw = direct_draw
+        .into_iter()
+        .map(|task| {
+            let layer_index = match tasks[task.0] {
+                MatteTask::LeafSample { layer_index, .. }
+                | MatteTask::AverageCopy { layer_index, .. } => layer_index,
+                _ => 0,
+            };
+            DirectDraw {
+                task,
+                layer_index,
+                blend_mode: crate::BlendMode::Normal,
+                destination_visits: u64::from(canvas.0) * u64::from(canvas.1),
+            }
+        })
+        .collect::<Vec<_>>();
     let descriptor = size_of::<MatteFrameSchedule>()
         + tasks.capacity() * size_of::<MatteTask>()
-        + direct_draw.capacity() * size_of::<MatteTaskId>()
+        + direct_draw.capacity() * size_of::<DirectDraw>()
+        + owner_modes.capacity() * size_of::<crate::BlendMode>()
         + last_uses.capacity() * size_of::<usize>()
         + size_of::<Vec<Option<LinearPlane>>>()
         + 128 * tasks.len()
         + tasks
             .iter()
             .map(|t| match t {
-                MatteTask::AverageCopy { samples }
+                MatteTask::AverageCopy { samples, .. }
                 | MatteTask::AggregateProvider { copies: samples } => {
                     samples.capacity() * size_of::<MatteTaskId>()
                 }
@@ -95,10 +122,12 @@ fn fixture(
         canvas,
         tasks,
         direct_draw,
+        owner_modes,
         last_uses,
         certificate: MatteFrameCertificate {
             provider_requests: requests,
             matte_work_units: work,
+            blend_work_units: 0,
             fixed_live_bytes: fixed,
             descriptor_bytes: descriptor as u64,
             peak_live_bytes: peak,
@@ -130,6 +159,7 @@ fn alpha_and_linear_luma_have_independent_color_oracles() {
                 },
                 leaf(1, 0, Some((id(1), channel))),
                 MatteTask::AverageCopy {
+                    layer_index: 1,
                     samples: vec![id(2)],
                 },
             ],
@@ -161,9 +191,11 @@ fn overlapping_copies_average_before_aggregation_and_draw_individuals_once() {
         leaf(1, 0, None),
         leaf(1, 1, None),
         MatteTask::AverageCopy {
+            layer_index: 0,
             samples: vec![id(0), id(1)],
         },
         MatteTask::AverageCopy {
+            layer_index: 1,
             samples: vec![id(2), id(3)],
         },
         MatteTask::AggregateProvider {
@@ -171,6 +203,7 @@ fn overlapping_copies_average_before_aggregation_and_draw_individuals_once() {
         },
         leaf(2, 0, Some((id(6), MatteChannel::Alpha))),
         MatteTask::AverageCopy {
+            layer_index: 2,
             samples: vec![id(7)],
         },
     ];
@@ -379,6 +412,7 @@ fn weighted_duplicate_samples_and_exact_live_task_reuse_do_not_resample() {
             leaf(0, large, None),
             leaf(0, large + 1, None),
             MatteTask::AverageCopy {
+                layer_index: 0,
                 samples: vec![id(0), id(0), id(1)],
             },
             MatteTask::AggregateProvider {
@@ -507,6 +541,7 @@ fn out_of_canvas_size_mismatch_empty_shape_and_forward_task_references_fail_clos
     }
     let mut s = fixture((1, 1), vec![leaf(0, 0, None)], vec![id(0)]);
     s.tasks[0] = MatteTask::AverageCopy {
+        layer_index: 0,
         samples: vec![id(0)],
     };
     let mut calls = 0;
@@ -627,6 +662,7 @@ fn sample_gain_is_applied_before_own_copy_average_and_disjoint_union_stays_trans
             leaf(0, 0, None),
             leaf(0, 1, None),
             MatteTask::AverageCopy {
+                layer_index: 0,
                 samples: vec![id(0), id(1)],
             },
             MatteTask::AggregateProvider {
@@ -693,10 +729,13 @@ fn zero_alpha_accepted_roundoff_and_alpha_endpoints_use_existing_f32_domain() {
 fn actual_outer_and_nested_schedule_capacities_cannot_be_hidden_by_len() {
     let mut tasks = Vec::with_capacity(129);
     tasks.push(leaf(0, 0, None));
-    tasks.push(leaf(1, 0, None));
+    tasks.push(leaf(0, 1, None));
     let mut samples = Vec::with_capacity(65);
     samples.extend([id(0), id(1)]);
-    tasks.push(MatteTask::AverageCopy { samples });
+    tasks.push(MatteTask::AverageCopy {
+        layer_index: 0,
+        samples,
+    });
     let mut direct = Vec::with_capacity(67);
     direct.push(id(2));
     let mut original = fixture((1, 1), tasks, direct);
@@ -751,8 +790,9 @@ fn last_use_releases_unused_planes_and_keeps_dependencies_through_peak() {
         (1, 1),
         vec![
             leaf(0, 0, None),
-            leaf(1, 0, None),
+            leaf(0, 1, None),
             MatteTask::AverageCopy {
+                layer_index: 0,
                 samples: vec![id(0), id(1)],
             },
         ],
@@ -877,8 +917,8 @@ fn duplicate_direct_draw_aggregate_draw_and_invalid_destination_fail_before_call
             vec![id(0)],
         );
         match kind {
-            0 => s.direct_draw.push(id(0)),
-            1 => s.direct_draw = vec![id(1)],
+            0 => s.direct_draw.push(s.direct_draw[0]),
+            1 => s.direct_draw[0].task = id(1),
             _ => {
                 s.tasks[1] = MatteTask::AggregateProvider {
                     copies: vec![id(0), id(0)],
@@ -909,4 +949,268 @@ fn duplicate_direct_draw_aggregate_draw_and_invalid_destination_fail_before_call
     );
     assert_eq!(calls, 0);
     assert_eq!(dst.map(|p| p.map(f32::to_bits)), before);
+}
+
+fn blend_fixture(mode: crate::BlendMode) -> MatteFrameSchedule {
+    let mut schedule = fixture((1, 1), vec![leaf(0, 0, None)], vec![id(0)]);
+    schedule.owner_modes[0] = mode;
+    schedule.direct_draw[0].blend_mode = mode;
+    schedule.certificate.blend_work_units = if mode.is_normal() { 0 } else { 32 };
+    schedule
+}
+fn blend_contract() -> serde_json::Value {
+    serde_json::from_str(include_str!("../../../../../contracts/blend-modes-v1.json")).unwrap()
+}
+fn rgba(value: &serde_json::Value) -> [f32; 4] {
+    std::array::from_fn(|i| value[i].as_f64().unwrap() as f32)
+}
+fn bits_rgba(value: &serde_json::Value) -> [f32; 4] {
+    std::array::from_fn(|i| f32::from_bits(value[i].as_u64().unwrap() as u32))
+}
+#[test]
+fn canonical_seven_modes_match_independent_partial_alpha_and_black_oracles() {
+    let contract = blend_contract();
+    for name in contract["fields"]["blendMode"]["values"]
+        .as_array()
+        .unwrap()
+    {
+        let mode = serde_json::from_value(name.clone()).unwrap();
+        let oracle = &contract["numericOracles"]["translucentColored"];
+        let source = bits_rgba(&oracle["source"]["f32Bits"]);
+        let backdrop = bits_rgba(&oracle["backdrop"]["f32Bits"]);
+        let expected = rgba(&oracle["expected"][name.as_str().unwrap()]["unroundedF64"]);
+        let mut destination = [backdrop];
+        compose_frame(&blend_fixture(mode), &mut destination, &mut |_, _| {
+            Ok(plane(0, 0, 1, 1, source, 1.0))
+        })
+        .unwrap();
+        for c in 0..4 {
+            assert!(
+                (destination[0][c] - expected[c]).abs() <= f32::EPSILON,
+                "{name} channel{c}: {:?}",
+                destination[0]
+            );
+        }
+        let mut destination = [[0.0, 0.0, 0.0, 1.0]];
+        compose_frame(&blend_fixture(mode), &mut destination, &mut |_, _| {
+            Ok(plane(
+                0,
+                0,
+                1,
+                1,
+                bits_rgba(
+                    &contract["numericOracles"]["nativeAuthoredColored"]["source"]["f32Bits"],
+                ),
+                1.0,
+            ))
+        })
+        .unwrap();
+        let expected = rgba(
+            &contract["numericOracles"]["firstLayerBlack"][name.as_str().unwrap()]["outputF32"],
+        );
+        assert_eq!(destination[0], expected, "first layer {name}");
+    }
+}
+#[test]
+fn nonnormal_tiny_alpha_uses_original_f32_boundary_then_clamps_before_f64() {
+    let contract = blend_contract();
+    let oracle = &contract["numericOracles"]["tinyAlphaCanonicalEndpoint"];
+    let source = bits_rgba(&oracle["source"]["f32Bits"]);
+    let backdrop = bits_rgba(&oracle["backdrop"]["f32Bits"]);
+    let mut destination = [backdrop];
+    compose_frame(
+        &blend_fixture(crate::BlendMode::Screen),
+        &mut destination,
+        &mut |_, _| Ok(plane(0, 0, 1, 1, source, 1.0)),
+    )
+    .unwrap();
+    let expected = rgba(&oracle["correctScreenF32"]);
+    for c in 0..4 {
+        assert!((destination[0][c] - expected[c]).abs() <= 1e-8);
+    }
+    assert_ne!(destination[0], rgba(&oracle["wrongNoClampF32"]));
+    let mut invalid = source;
+    invalid[0] = f32::from_bits(oracle["nextPositiveBits"].as_u64().unwrap() as u32);
+    let before = destination;
+    assert!(
+        compose_frame(
+            &blend_fixture(crate::BlendMode::Screen),
+            &mut destination,
+            &mut |_, _| Ok(plane(0, 0, 1, 1, invalid, 1.0))
+        )
+        .is_err()
+    );
+    assert_eq!(destination, before);
+    let negative =
+        bits_rgba(&contract["numericOracles"]["tinyAlphaNegativeRoundoff"]["source"]["f32Bits"]);
+    let mut destination = [[0.0, 0.0, 0.0, 1.0]];
+    compose_frame(
+        &blend_fixture(crate::BlendMode::Screen),
+        &mut destination,
+        &mut |_, _| Ok(plane(0, 0, 1, 1, negative, 1.0)),
+    )
+    .unwrap();
+    assert_eq!(destination, [[0.0, 0.0, 0.0, 1.0]]);
+}
+#[test]
+fn add_blends_after_own_shutter_average_once() {
+    let mut schedule = fixture(
+        (1, 1),
+        vec![
+            leaf(0, 0, None),
+            leaf(0, 1, None),
+            MatteTask::AverageCopy {
+                layer_index: 0,
+                samples: vec![id(0), id(1)],
+            },
+        ],
+        vec![id(2)],
+    );
+    schedule.owner_modes[0] = crate::BlendMode::Add;
+    schedule.direct_draw[0].blend_mode = crate::BlendMode::Add;
+    schedule.certificate.blend_work_units = 32;
+    let mut destination = [[0.75, 0.75, 0.75, 1.0]];
+    compose_frame(&schedule, &mut destination, &mut |_, time| {
+        Ok(plane(
+            0,
+            0,
+            1,
+            1,
+            if time == 0 {
+                [0.0, 0.0, 0.0, 1.0]
+            } else {
+                [1.0; 4]
+            },
+            1.0,
+        ))
+    })
+    .unwrap();
+    assert_eq!(destination, [[1.0; 4]]);
+    assert_ne!(destination, [[0.875, 0.875, 0.875, 1.0]]);
+}
+#[test]
+fn owning_mode_owner_and_blend_work_forgeries_fail_before_callbacks() {
+    for kind in 0..6 {
+        let mut schedule = blend_fixture(crate::BlendMode::Multiply);
+        match kind {
+            0 => schedule.direct_draw[0].blend_mode = crate::BlendMode::Screen,
+            1 => schedule.direct_draw[0].layer_index = 1,
+            2 => schedule.tasks[0] = leaf(1, 0, None),
+            3 => schedule.certificate.blend_work_units = 31,
+            4 => schedule.certificate.blend_work_units = 268_435_457,
+            _ => schedule.direct_draw[0].destination_visits = u64::MAX,
+        }
+        let mut calls = 0;
+        let mut destination = [[0.25, 0.5, 0.75, 1.0]];
+        let before = destination;
+        assert!(
+            compose_frame(&schedule, &mut destination, &mut |_, _| {
+                calls += 1;
+                Ok(plane(0, 0, 1, 1, [1.0; 4], 1.0))
+            })
+            .is_err()
+        );
+        assert_eq!(calls, 0);
+        assert_eq!(destination, before);
+    }
+}
+
+#[test]
+fn graph_free_4096_owning_averages_execute_all65536_callbacks_without_providers() {
+    let items=(0..4096).map(|index|serde_json::json!({"type":"rectangle","id":format!("ordinary-{index}"),"color":"#ffffff","width":1,"height":1,"startMs":0,"durationMs":1000,"blendMode":"screen","motionBlur":{"shutterAngleDeg":360,"sampleCount":16},"stackOrder":index,"zIndex":0,"keyframes":[]})).collect::<Vec<_>>();
+    let project:crate::Project=serde_json::from_value(serde_json::json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"p","revision":0,"name":"Callbacks","createdAtMs":1,"updatedAtMs":1,"settings":{"width":1,"height":1,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],"tracks":[{"id":"t","name":"Track","trackType":"overlay","items":items}]})).unwrap();
+    let evaluated = crate::evaluated_scene::evaluate_project(&project, 1, 1, 10).unwrap();
+    assert!(evaluated.scene.mattes.is_none());
+    let schedule = crate::evaluated_scene::mattes::frame_schedule(&evaluated.scene, 400).unwrap();
+    assert_eq!(schedule.certificate.provider_requests, 0);
+    let mut calls = vec![0; 4096];
+    let mut destination = vec![[0., 0., 0., 1.]];
+    compose_frame(&schedule, &mut destination, &mut |owner, time| {
+        calls[owner] += 1;
+        assert!((350..450).contains(&time));
+        Ok(LeafSamplePlane {
+            plane: LinearPlane {
+                left: 0,
+                top: 0,
+                width: 1,
+                height: 1,
+                pixels: vec![[0.5, 0.5, 0.5, 1.]],
+            },
+            gain: 1.,
+        })
+    })
+    .unwrap();
+    assert!(calls.iter().all(|count| *count == 16));
+    assert_eq!(calls.iter().sum::<usize>(), 65536);
+    assert_eq!(destination, vec![[1., 1., 1., 1.]]);
+}
+
+#[test]
+fn independent_zero_alpha_overlay_backdrop_branches_and_bounded_add_oracles() {
+    let contract = blend_contract();
+    let numeric = &contract["numericOracles"];
+    for name in contract["fields"]["blendMode"]["values"]
+        .as_array()
+        .unwrap()
+    {
+        let mode = serde_json::from_value(name.clone()).unwrap();
+        let source = bits_rgba(&numeric["translucentColored"]["source"]["f32Bits"]);
+        let backdrop = bits_rgba(&numeric["translucentColored"]["backdrop"]["f32Bits"]);
+        for (case, source, backdrop) in [
+            ("sourceZero", [0.; 4], backdrop),
+            ("backdropZero", source, [0.; 4]),
+            ("bothZero", [0.; 4], [0.; 4]),
+        ] {
+            let mut destination = [backdrop];
+            compose_frame(&blend_fixture(mode), &mut destination, &mut |_, _| {
+                Ok(plane(0, 0, 1, 1, source, 1.))
+            })
+            .unwrap();
+            assert_eq!(
+                destination[0],
+                rgba(&numeric["zeroAlphaPureOnly"][case][name.as_str().unwrap()]["outputF32"])
+            );
+        }
+    }
+    let branch = &numeric["overlayBackdropBranches"];
+    let straight = branch["sourceStraight"].as_f64().unwrap() as f32;
+    let alpha = branch["sourceAlpha"].as_f64().unwrap() as f32;
+    for case in branch["cases"].as_array().unwrap() {
+        let backdrop = case["backdropStraight"].as_f64().unwrap() as f32;
+        let mut destination = [[backdrop, backdrop, backdrop, 1.]];
+        compose_frame(
+            &blend_fixture(crate::BlendMode::Overlay),
+            &mut destination,
+            &mut |_, _| {
+                Ok(plane(
+                    0,
+                    0,
+                    1,
+                    1,
+                    [straight * alpha, straight * alpha, straight * alpha, alpha],
+                    1.,
+                ))
+            },
+        )
+        .unwrap();
+        let expected = case["expected"].as_f64().unwrap() as f32;
+        assert_eq!(destination[0], [expected, expected, expected, 1.]);
+        if backdrop < 0.5 {
+            assert_ne!(
+                destination[0][0],
+                case["wrongSourceBranch"].as_f64().unwrap() as f32
+            );
+        }
+    }
+    let add = &numeric["boundedAddSaturation"];
+    let mut destination = [rgba(&add["backdrop"])];
+    let source = rgba(&add["source"]);
+    compose_frame(
+        &blend_fixture(crate::BlendMode::Add),
+        &mut destination,
+        &mut |_, _| Ok(plane(0, 0, 1, 1, source, 1.)),
+    )
+    .unwrap();
+    assert_eq!(destination[0], rgba(&add["expected"]));
+    assert_ne!(destination[0], rgba(&add["wrongUnboundedRgb"]));
 }

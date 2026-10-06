@@ -1,7 +1,7 @@
 {
   "contract": "track-mattes-v1",
   "version": 1,
-  "projectSchemaVersion": 34,
+  "projectSchemaVersion": 35,
   "capabilities": {
     "editor": "matte_models_v1",
     "renderer": "track_mattes_v1"

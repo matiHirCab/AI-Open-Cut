@@ -5,6 +5,7 @@
 
 pub(crate) mod animation_channels;
 pub(crate) mod animation_presets;
+pub(crate) mod blend;
 pub(crate) mod extended_visual;
 pub(crate) mod grid;
 pub(crate) mod mask;
@@ -120,6 +121,7 @@ pub(crate) fn validate_project_visual_projection(project: &Project) -> Result<()
         )
         .flat_map(|track| &track.items)
     {
+        blend::validate_item(item, project)?;
         extended_visual::validate_static(item, project)?;
         animation_presets::validate_provenance(item)?;
         match item {

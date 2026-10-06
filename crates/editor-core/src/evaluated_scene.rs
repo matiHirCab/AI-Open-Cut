@@ -5,6 +5,7 @@
 //! separate path-bearing resource-binding sidecar.
 use std::collections::{HashMap, HashSet};
 
+pub(crate) mod composition_resources;
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
 pub(crate) mod masks;
@@ -104,7 +105,7 @@ pub(crate) fn evaluate_project(
     masks::certify_authored_program_memory(project)?;
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps, true, false)?;
-    if let Some(graph) = &mut result.scene.mattes {
+    if let Some(graph) = &mut result.scene.composition_resources {
         // Admit index, sidecar geometric capacity and temporary clone overlaps
         // before cloning any asset identity/hash/path strings.
         let extra = (project.assets.len() as u64)
@@ -266,6 +267,7 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
         .any(|item| {
             item.visual_properties().matte.is_some()
                 || item.visual_properties().matte_only
+                || !item.visual_properties().blend_mode.is_normal()
                 || extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
@@ -440,6 +442,7 @@ fn evaluate_project_inner(
         .flat_map(|track| &track.items)
         .any(|item| {
             item.visual_properties().matte.is_some() || item.visual_properties().matte_only
+                || !item.visual_properties().blend_mode.is_normal()
                 || extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Repeater(_))
                 || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
@@ -477,6 +480,7 @@ fn evaluate_project_inner(
         revision: project.revision,
         scene: EvaluatedScene {
             mattes: None,
+            composition_resources: None,
             instance_voiceover_intervals: Some(vec![]),
             voiceover_activity_range_count: 0,
             canvas: EvaluatedCanvas { width, height, fps },
@@ -493,19 +497,30 @@ fn evaluate_project_inner(
             fonts: vec![],
         },
     };
-    if project
+    let (has_matte, has_blend) = project
         .tracks
         .iter()
         .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|t| &t.items)
-        .any(|i| i.visual_properties().matte.is_some() || i.visual_properties().matte_only)
-    {
+        .fold((false, false), |(matte, blend), item| {
+            let visual = item.visual_properties();
+            (
+                matte || visual.matte.is_some() || visual.matte_only,
+                blend || !visual.blend_mode.is_normal(),
+            )
+        });
+    if has_matte || has_blend {
+        result.scene.composition_resources =
+            Some(composition_resources::CompositionResourceFacts {
+                resource_live_bytes: matte_font_live_bytes(project)?,
+                font_payload_bytes: matte_font_payload_bytes(project)?,
+            });
+    }
+    if has_matte {
         result.scene.mattes = Some(mattes::EvaluatedMatteGraph {
             groups: Vec::new(),
             roles: Vec::new(),
             provider_first: Vec::new(),
-            resource_live_bytes: matte_font_live_bytes(project)?,
-            font_payload_bytes: matte_font_payload_bytes(project)?,
         });
     }
     let clock = EvaluatedInstance {
@@ -545,9 +560,12 @@ fn evaluate_project_inner(
                             groups: Vec::new(),
                             roles: Vec::new(),
                             provider_first: Vec::new(),
-                            resource_live_bytes: 0,
-                            font_payload_bytes: 0,
                         }),
+                    composition_resources: result
+                        .scene
+                        .composition_resources
+                        .as_ref()
+                        .map(|_| Default::default()),
                     instance_voiceover_intervals: Some(vec![]),
                     voiceover_activity_range_count: 0,
                     canvas: EvaluatedCanvas {
@@ -612,14 +630,14 @@ fn evaluate_project_inner(
                 &mut projection,
             )?;
             validate_projection(project, &domain, &projection)?;
-            if result.scene.mattes.is_some() {
+            if result.scene.composition_resources.is_some() {
                 // An uninstantiated definition has no published decoder input,
                 // but its actual scoped matte participants remain pinned source
                 // obligations. Reuse the validated projection and canonical
                 // bindings; do not resolve a second authored DAG here.
                 for binding in &domain.resource_bindings.media {
                     let participating = projection.iter().any(|copy| {
-                        copy.matte_group.is_some()
+                        (copy.matte_group.is_some() || !domain.scene.visual_layers[copy.base_index].blend_mode.is_normal())
                             && matches!(&domain.scene.visual_layers[copy.base_index].source,
                                 EvaluatedVisualSource::Media { asset_id, .. } if *asset_id == binding.asset_id)
                     });
@@ -637,12 +655,8 @@ fn evaluate_project_inner(
                         .and_then(|bytes| bytes.checked_mul(3))
                         .and_then(|bytes| bytes.checked_add(1024))
                         .ok_or_else(|| invalid("retained matte binding memory overflow"))?;
-                    let transient = mattes::scene_heap_bytes(&domain.scene)?
-                        .checked_add(mattes::graph_heap_bytes(
-                            domain.scene.mattes.as_ref().unwrap(),
-                        )?)
-                        .ok_or_else(|| invalid("retained matte domain memory overflow"))?;
-                    if let Some(graph) = result.scene.mattes.as_mut() {
+                    let transient = composition_resources::composition_heap_bytes(&domain.scene)?;
+                    if let Some(graph) = result.scene.composition_resources.as_mut() {
                         graph.resource_live_bytes = graph
                             .resource_live_bytes
                             .checked_add(reserve)
@@ -652,7 +666,7 @@ fn evaluate_project_inner(
                     // Admission includes the still-live private domain, old/new
                     // binding-vector growth and nested String clone overlap.
                     certify_matte_projection_memory(&result.scene, &[])?;
-                    if let Some(graph) = result.scene.mattes.as_mut() {
+                    if let Some(graph) = result.scene.composition_resources.as_mut() {
                         graph.resource_live_bytes -= transient;
                     }
                     result.resource_bindings.media.push(binding.clone());
@@ -737,7 +751,7 @@ fn evaluate_project_inner(
             .scene
             .resources
             .retain(|resource| media.contains(resource.asset_id.as_str()));
-        if result.scene.mattes.is_none() {
+        if result.scene.composition_resources.is_none() {
             result
                 .resource_bindings
                 .media
@@ -1374,7 +1388,7 @@ fn certify_matte_projection_memory(
     scene: &EvaluatedScene,
     projection: &[ProjectedVisualCopy],
 ) -> Result<(), CoreError> {
-    if scene.mattes.is_none() {
+    if scene.composition_resources.is_none() {
         return Ok(());
     }
     let add = |a: u64, b: u64| {
@@ -1386,12 +1400,8 @@ fn certify_matte_projection_memory(
             .ok_or_else(|| invalid("matte projection memory overflow"))
     };
     let mut live = add(
-        mattes::scene_heap_bytes(scene)?,
+        composition_resources::composition_heap_bytes(scene)?,
         mattes::MATTE_CACHE_RESERVATION,
-    )?;
-    live = add(
-        live,
-        mattes::graph_heap_bytes(scene.mattes.as_ref().unwrap())?,
     )?;
     live = add(
         live,
@@ -1434,7 +1444,10 @@ fn certify_matte_projection_memory(
         for stage in &copy.stages {
             live = add(live, stage.item_id.capacity() as u64)?;
             if let Some(animation) = &stage.animation {
-                live = add(live, mattes::channel_heap(&animation.channels)?)?;
+                live = add(
+                    live,
+                    composition_resources::channel_heap(&animation.channels)?,
+                )?;
                 live = add(
                     live,
                     mul(
@@ -1449,7 +1462,7 @@ fn certify_matte_projection_memory(
             live = add(
                 live,
                 mul(
-                    mattes::layer_heap_bytes(&scene.visual_layers[copy.base_index])?,
+                    composition_resources::layer_heap_bytes(&scene.visual_layers[copy.base_index])?,
                     2,
                 )?,
             )?;
@@ -2340,6 +2353,7 @@ impl std::fmt::Debug for EvaluatedScene {
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
     pub(crate) mattes: Option<mattes::EvaluatedMatteGraph>,
+    pub(crate) composition_resources: Option<composition_resources::CompositionResourceFacts>,
     pub(crate) instance_voiceover_intervals: Option<Vec<(f64, f64)>>,
     voiceover_activity_range_count: usize,
     pub(crate) canvas: EvaluatedCanvas,
@@ -2519,6 +2533,7 @@ pub(crate) struct EvaluatedAncestorStage {
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedVisualLayer {
+    pub(crate) blend_mode: crate::BlendMode,
     pub(crate) sampled_input: Option<(String, u64)>,
     pub(crate) extended: Option<extended_visual::ExtendedVisual>,
     pub(crate) instance: Option<EvaluatedInstance>,
@@ -2546,6 +2561,9 @@ impl std::fmt::Debug for EvaluatedVisualLayer {
             .field("order", &self.order)
             .field("span", &self.span)
             .field("transform", &self.transform);
+        if !self.blend_mode.is_normal() {
+            layer.field("blend_mode", &self.blend_mode);
+        }
         if let Some(value) = self.transform2d {
             layer.field("transform2d", &value);
         }
@@ -2871,6 +2889,7 @@ fn evaluate_flat_project(
                     let transform = evaluate_transform(&media.transform)?;
                     if asset.media_type != MediaType::Audio {
                         visual_layers.push(EvaluatedVisualLayer {
+                            blend_mode: item.visual_properties().blend_mode,
                             extended: extended_visual::authored(item, project.settings.fps),
                             sampled_input: None,
                             instance: None,
@@ -2951,6 +2970,7 @@ fn evaluate_flat_project(
                         });
                     }
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -2989,6 +3009,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::SolidColor(color) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3015,6 +3036,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Rectangle(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3043,6 +3065,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Shape(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3074,6 +3097,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Svg(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3100,6 +3124,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Grid(rectangle) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3126,6 +3151,7 @@ fn evaluate_flat_project(
                 }
                 TimelineItem::Caption(caption) => {
                     visual_layers.push(EvaluatedVisualLayer {
+                        blend_mode: item.visual_properties().blend_mode,
                         extended: extended_visual::authored(item, project.settings.fps),
                         sampled_input: None,
                         instance: None,
@@ -3209,6 +3235,7 @@ fn evaluate_flat_project(
         revision: project.revision,
         scene: EvaluatedScene {
             mattes: None,
+            composition_resources: None,
             instance_voiceover_intervals: None,
             voiceover_activity_range_count: preflight.voiceover_activity_range_count,
             canvas: EvaluatedCanvas { width, height, fps },

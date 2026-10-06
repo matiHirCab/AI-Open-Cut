@@ -48,23 +48,33 @@ The render architecture SHALL retain FFmpeg for media decode, audio processing, 
 - **THEN** readiness or rendering fails with `DEPENDENCY_UNAVAILABLE` before graphics rasterization, FFmpeg execution, or artifact publication and no partial or degraded artifact is published
 
 ### Requirement: Normative coordinate and compositing semantics
-Motion-graphics evaluation MUST use a top-left coordinate origin with positive X rightward and positive Y downward, integer-millisecond half-open time intervals, explicit coordinate units, deterministic bottom-to-top layer ordering, documented transform/mask/effect/matte pipeline, premultiplied alpha and linear-light compositing before output-color conversion. Schema33/34 masks MUST retain mask-models ownership/coordinate rules and mask-rendering raster/sample semantics before effects. Model/animation capability support SHALL NOT substitute for complete mask/matte-rendering readiness. Authored matte references MUST resolve in composition-scoped finite DAGs and bind providers to the same unique composition occurrence/exact temporal requests. Provider coverage MUST sample isolated transparent source planes, independent of destination/background and direct-draw suppression by matteOnly.
+Motion-graphics evaluation MUST use top-left origin with positive X right/Y down, integer-millisecond half-open intervals, explicit units, deterministic bottom-to-top ordering, documented mask/effect/matte/opacity/shutter/blend pipeline, premultiplied alpha and linear-light compositing before output conversion. Active masks MUST retain mask-models coordinate ownership and mask-rendering raster/sample rules before effects. Matte references MUST retain scoped finite DAG/occurrence/exact temporal semantics and isolated transparent provider coverage independent of destination and blend. Schema35 eligible visual occurrences including Caption MUST apply their closed seven-mode blend once after source assembly/shutter averaging against the existing opaque-black-backed current destination; normal/default SHALL remain exact. Model/animation capability support MUST NOT substitute for complete mask/matte/blend readiness.
+
+The sole inward evaluated composition-resource owner MUST publish shared resource admission independently of the optional real matte DAG, together with canonical immutable completed-copy owner/mode facts for pure execution. Existing glyph/font/cursor/live-capacity rules MUST be reused without parallel policy or reverse authored/transport traversal; private owner inventory and architecture evidence MUST be updated together.
 
 #### Scenario: Resolve equal z-index layers
-- **WHEN** multiple visual items in one track have the same explicit z-index
-- **THEN** evaluation orders them by stable item array order and uses stable item ID only as a final deterministic tie-break for synthesized or otherwise equivalent inputs
+- **WHEN** multiple visual items in one track share explicit z-index
+- **THEN** stable item array order determines paint order and stable item ID remains only the final deterministic tie-break for synthesized/equivalent inputs
 
 #### Scenario: Evaluate an inherited visual
-- **WHEN** a visual has crop, clip, active masks, effects, transform, matte, opacity, blend and ancestor transforms
-- **THEN** evaluation applies source rasterization, crop/clip, masks, effects, local anchor/scale/skew/rotation/position, nearest-to-outer ancestors, matte, inherited opacity and destination blend in that order
+- **WHEN** a visual has supported crop/clip/masks/effects/transforms/matte/opacity/blend and ancestors
+- **THEN** source rasterization, crop/clip, masks, effects, local affine, nearest-to-outer ancestors, matte, inherited opacity/transition, owning shutter average and final declared destination blend occur in that order
 
 #### Scenario: Distinguish current and future pipeline stages
-- **WHEN** current visuals carry absent or authored schema33/34 static/animated masks and schema34 typed track mattes, while evaluated rendering does not activate non-normal blend modes
-- **THEN** authored masks and typed mattes execute their approved semantics and absent masks/mattes remain explicit identity stages; destination blending is normal linear premultiplied source-over, and the later blend milestone retains its typed activation requirements
+- **WHEN** current visuals carry absent or authored schema33/34/35 static/animated masks and schema34/35 typed track mattes, while schema35 activates the seven typed blend selections
+- **THEN** authored masks and typed mattes execute their approved semantics and absent masks/mattes remain explicit identity stages; normal destination blending remains exact linear premultiplied source-over, and non-normal blending executes only its approved typed activation after owning source shutter averaging
+
+#### Scenario: Preserve active defaults and complete readiness
+- **WHEN** visuals carry active masks/mattes/blend selections or omit those fields
+- **THEN** authored stages execute only approved typed semantics, absent mask/matte stages remain identity and absent/normal blend retains exact source-over/opaque-black behavior; incomplete backend support cannot degrade silently
 
 #### Scenario: Keep scope occurrence and paint order independent
-- **WHEN** matte providers appear above/below recipients or local IDs repeat in two differently transformed component instances
-- **THEN** DAG dependency execution is scoped to each occurrence, coverage is evaluated before recipient drawing and final destination paint order remains canonical
+- **WHEN** matte providers lie above/below recipients or repeated local IDs occur in differently transformed component instances
+- **THEN** scoped dependency execution prepares isolated coverage without blend, then each direct eligible occurrence blends once in unchanged final destination paint order
+
+#### Scenario: Keep Caption source assembly as one blend unit
+- **WHEN** one Caption contains multiple lines, glyphs and background-box fragments
+- **THEN** existing source-local assembly produces one owning occurrence plane and its declared mode applies once without per-line/glyph/background blending or new group isolation
 
 ### Requirement: Presets compile to canonical primitives
 Every motion-graphics preset MUST be a pure bounded editor-core compilation from a versioned preset identifier and typed finite parameters to canonical primitives, and a successful preset mutation MUST persist the resolved primitives with optional non-authoritative provenance through the same atomic revision and history behavior as low-level edits.

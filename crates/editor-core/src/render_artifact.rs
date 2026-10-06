@@ -3,6 +3,7 @@
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;
+mod blend;
 pub(crate) mod extended_visual;
 mod masks;
 mod mattes;
@@ -604,10 +605,12 @@ pub(crate) fn prepare_media_resources(
         media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
     }
     let mut font_faces = std::collections::BTreeMap::new();
-    let font_limit = if evaluated.scene.mattes.is_some() {
-        Some(crate::evaluated_scene::mattes::font_payload_admission(
-            &evaluated.scene,
-        )?)
+    let font_limit = if evaluated.scene.composition_resources.is_some() {
+        Some(
+            crate::evaluated_scene::composition_resources::font_payload_admission(
+                &evaluated.scene,
+            )?,
+        )
     } else {
         None
     };

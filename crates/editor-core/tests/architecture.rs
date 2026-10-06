@@ -1898,3 +1898,30 @@ fn owners_exclude_outer_layers_and_reviewed_responsibilities() {
         );
     }
 }
+
+#[test]
+fn blend_siblings_remain_inside_the_existing_private_ownership_graph() {
+    for (file, owner) in [
+        ("model/blend.rs", "model"),
+        ("validation/blend.rs", "validation"),
+        (
+            "evaluated_scene/composition_resources.rs",
+            "evaluated_scene",
+        ),
+        ("render_artifact/blend.rs", "render_artifact"),
+    ] {
+        let allowed = OWNER_MATRIX
+            .iter()
+            .find(|(name, _)| *name == owner)
+            .unwrap()
+            .1;
+        validate_owner_dependencies(owner, allowed, &read_source(file)).unwrap();
+    }
+    let adr = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/adr/0003-editor-core-module-boundaries.md"),
+    )
+    .unwrap();
+    assert!(adr.contains("single resource/live/font admission ledger"));
+    assert!(adr.contains("Provider aggregation remains Normal"));
+}

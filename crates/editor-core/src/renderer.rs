@@ -180,7 +180,7 @@ struct RenderPreflight {
 }
 
 fn finalized_measurement_fonts(evaluated: &EvaluatedSceneResult) -> bool {
-    evaluated.scene.mattes.is_some()
+    evaluated.scene.composition_resources.is_some()
         && evaluated
             .scene
             .visual_layers
@@ -490,8 +490,10 @@ impl Renderer {
         if let Some(limit) = self.text_glyph_limit {
             budget = crate::evaluated_scene::text_layout::GlyphBudget::with_limit(limit);
         }
-        let caller_heap = if evaluated.scene.mattes.is_some() {
-            let heap = crate::evaluated_scene::mattes::admit_caller_scene_clone(&evaluated.scene)?;
+        let caller_heap = if evaluated.scene.composition_resources.is_some() {
+            let heap = crate::evaluated_scene::composition_resources::admit_caller_scene_clone(
+                &evaluated.scene,
+            )?;
             let configured_paths = self.font_roots.iter().try_fold(
                 (self.font_roots.capacity() as u64)
                     .checked_mul(std::mem::size_of::<PathBuf>() as u64)
@@ -527,7 +529,9 @@ impl Renderer {
                     )
                 })?;
             if clone_and_resources
-                > crate::evaluated_scene::mattes::font_payload_admission(&evaluated.scene)?
+                > crate::evaluated_scene::composition_resources::font_payload_admission(
+                    &evaluated.scene,
+                )?
             {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
@@ -541,7 +545,7 @@ impl Renderer {
         let mut matte_finalized = None;
         if let Some((heap, configured_paths)) = caller_heap {
             let mut finalized = evaluated.scene.clone();
-            let graph = finalized.mattes.as_mut().unwrap();
+            let graph = finalized.composition_resources.as_mut().unwrap();
             graph.resource_live_bytes = graph
                 .resource_live_bytes
                 .checked_add(heap)
@@ -549,7 +553,7 @@ impl Renderer {
                 .ok_or_else(|| {
                     CoreError::new(ErrorCode::InvalidArgument, "matte caller memory overflow")
                 })?;
-            crate::evaluated_scene::mattes::adopt_font_payload(
+            crate::evaluated_scene::composition_resources::adopt_font_payload(
                 &mut finalized,
                 media.matte_font_payload_bytes,
             )?;
@@ -567,7 +571,7 @@ impl Renderer {
                         "matte measurement font reserve overflow",
                     )
                 })?;
-            let graph = scene.mattes.as_mut().unwrap();
+            let graph = scene.composition_resources.as_mut().unwrap();
             graph.resource_live_bytes =
                 graph
                     .resource_live_bytes
@@ -578,7 +582,7 @@ impl Renderer {
                             "matte measurement font reserve overflow",
                         )
                     })?;
-            crate::evaluated_scene::mattes::adopt_font_payload(
+            crate::evaluated_scene::composition_resources::adopt_font_payload(
                 scene,
                 media.matte_font_payload_bytes,
             )?;
@@ -593,14 +597,21 @@ impl Renderer {
         let mut measurement_memory = matte_finalized
             .as_ref()
             .map(|scene| {
-                let available = crate::evaluated_scene::mattes::font_payload_admission(scene)?
-                    .checked_sub(scene.mattes.as_ref().unwrap().font_payload_bytes)
-                    .ok_or_else(|| {
-                        CoreError::new(
-                            ErrorCode::InvalidArgument,
-                            "matte text remaining memory overflow",
+                let available =
+                    crate::evaluated_scene::composition_resources::font_payload_admission(scene)?
+                        .checked_sub(
+                            scene
+                                .composition_resources
+                                .as_ref()
+                                .unwrap()
+                                .font_payload_bytes,
                         )
-                    })?;
+                        .ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::InvalidArgument,
+                                "matte text remaining memory overflow",
+                            )
+                        })?;
                 Ok::<_, CoreError>(
                     crate::render_artifact::text_measurement_memory::MeasurementMemory::new(
                         available,
@@ -635,7 +646,7 @@ impl Renderer {
         let mut measured = measured_result?;
         let mut finalized = matte_finalized.unwrap_or_else(|| evaluated.scene.clone());
         if let Some(memory) = measurement_memory {
-            let graph = finalized.mattes.as_mut().unwrap();
+            let graph = finalized.composition_resources.as_mut().unwrap();
             graph.resource_live_bytes = graph
                 .resource_live_bytes
                 .checked_add(memory.retained)
@@ -651,18 +662,28 @@ impl Renderer {
                 .get(&finalized.visual_layers[index].item_id)
                 .and_then(|m| m.shaped.as_ref().map(|(s, _)| s));
             if let Some(shaped) = shaped
-                && finalized.mattes.is_some()
+                && finalized.composition_resources.is_some()
             {
-                let clone = crate::evaluated_scene::mattes::shaped_heap_bytes(shaped)?
-                    .checked_mul(3)
-                    .ok_or_else(|| {
-                        CoreError::new(
-                            ErrorCode::InvalidArgument,
-                            "matte finalized glyph memory overflow",
-                        )
-                    })?;
-                let available = crate::evaluated_scene::mattes::font_payload_admission(&finalized)?
-                    .checked_sub(finalized.mattes.as_ref().unwrap().font_payload_bytes)
+                let clone =
+                    crate::evaluated_scene::composition_resources::shaped_heap_bytes(shaped)?
+                        .checked_mul(3)
+                        .ok_or_else(|| {
+                            CoreError::new(
+                                ErrorCode::InvalidArgument,
+                                "matte finalized glyph memory overflow",
+                            )
+                        })?;
+                let available =
+                    crate::evaluated_scene::composition_resources::font_payload_admission(
+                        &finalized,
+                    )?
+                    .checked_sub(
+                        finalized
+                            .composition_resources
+                            .as_ref()
+                            .unwrap()
+                            .font_payload_bytes,
+                    )
                     .ok_or_else(|| {
                         CoreError::new(
                             ErrorCode::InvalidArgument,
@@ -680,7 +701,7 @@ impl Renderer {
                 text.shaped = shaped.cloned();
             }
         }
-        if let Some(graph) = finalized.mattes.as_ref() {
+        if let Some(graph) = finalized.composition_resources.as_ref() {
             let font_payload_bytes = graph.font_payload_bytes;
             let mut maps = crate::render_artifact::text_measurement_memory::map_bytes::<
                 String,
@@ -723,21 +744,22 @@ impl Renderer {
                         )
                     })?;
             }
-            let available = crate::evaluated_scene::mattes::font_payload_admission(&finalized)?
-                .checked_sub(font_payload_bytes)
-                .ok_or_else(|| {
-                    CoreError::new(
-                        ErrorCode::InvalidArgument,
-                        "matte geometry remaining memory overflow",
-                    )
-                })?;
+            let available =
+                crate::evaluated_scene::composition_resources::font_payload_admission(&finalized)?
+                    .checked_sub(font_payload_bytes)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "matte geometry remaining memory overflow",
+                        )
+                    })?;
             if maps > available {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
                     "matte geometry maps exceed shared memory bounds",
                 ));
             }
-            if let Some(graph) = finalized.mattes.as_mut() {
+            if let Some(graph) = finalized.composition_resources.as_mut() {
                 graph.resource_live_bytes =
                     graph.resource_live_bytes.checked_add(maps).ok_or_else(|| {
                         CoreError::new(
@@ -833,7 +855,7 @@ impl Renderer {
                 "affine backend cannot address this source raster",
             ));
         }
-        if finalized.mattes.is_none()
+        if finalized.composition_resources.is_none()
             && finalized
                 .visual_layers
                 .iter()
@@ -865,7 +887,7 @@ impl Renderer {
         } = preflight;
         // Complete active-matte request certification is performed by every
         // caller before this seam. Readiness must not run ahead of those guards.
-        if finalized.mattes.is_some() {
+        if finalized.composition_resources.is_some() {
             crate::render_artifact::verify_matte_media_integrity(
                 self.artifact_io.as_ref(),
                 &media,
@@ -4560,7 +4582,108 @@ mod tests {
         }
     }
     #[test]
+    fn later_requested_blend_overflow_rejects_before_workspace_or_process_even_after_warm_preview()
+    {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("previews")).unwrap();
+        let mut project = visual_project();
+        project.settings = crate::ProjectSettings {
+            width: 256,
+            height: 256,
+            fps: 10,
+        };
+        let mut template = project.tracks.last().unwrap().items[0].clone();
+        template.visual_properties_mut().blend_mode = crate::BlendMode::Multiply;
+        template.visual_properties_mut().animation_channels=serde_json::from_value(serde_json::json!([{"property":"transform.position_x","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":512},"curve":"hold"},{"timeMs":100,"value":{"type":"scalar","value":0},"curve":"hold"}]}])).unwrap();
+        project.tracks.last_mut().unwrap().items = (0..129)
+            .map(|index| {
+                let mut item = template.clone();
+                if let TimelineItem::SolidColor(item) = &mut item {
+                    item.id = format!("blend-{index}");
+                    item.visual_properties.stack_order = index;
+                }
+                item
+            })
+            .collect();
+        let evaluated = evaluate_project(&project, 256, 256, 10).unwrap();
+        assert_eq!(
+            crate::evaluated_scene::mattes::frame_schedule(&evaluated.scene, 0)
+                .unwrap()
+                .certificate
+                .blend_work_units,
+            0
+        );
+        assert_eq!(
+            crate::evaluated_scene::mattes::frame_schedule(&evaluated.scene, 100)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(Vec::new()),
+        });
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        for warm in [false, true] {
+            if warm {
+                renderer.render_preview(&project, root.path(), 0).unwrap();
+                process.executions.lock().unwrap().clear();
+                io.clear_events();
+            }
+            let error = renderer
+                .render_preview_range(
+                    &project,
+                    root.path(),
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 200,
+                        width: 256,
+                        height: 256,
+                        fps: 10,
+                        include_audio: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(error.message.contains("blend work"));
+            assert_no_render_side_effects(&io, &process);
+            io.clear_events();
+            let output = root.path().join("must-not-exist.mp4");
+            let error = renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &output,
+                        width: 256,
+                        height: 256,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(!output.exists());
+            assert_no_render_side_effects(&io, &process);
+            io.clear_events();
+        }
+    }
+    #[test]
     fn active_matte_caption_measurement_admits_real_font_and_rejects_oversize_before_output() {
+        bounded_caption_measurement_admits_real_font_and_rejects_oversize_before_output(false);
+    }
+    #[test]
+    fn graph_free_blend_caption_measurement_admits_real_font_and_rejects_oversize_before_output() {
+        bounded_caption_measurement_admits_real_font_and_rejects_oversize_before_output(true);
+    }
+    fn bounded_caption_measurement_admits_real_font_and_rejects_oversize_before_output(
+        graph_free: bool,
+    ) {
         let root = tempdir().unwrap();
         let mut p = visual_project();
         let items = &mut p.tracks.last_mut().unwrap().items;
@@ -4576,7 +4699,17 @@ mod tests {
             channel: crate::MatteChannel::Alpha,
         });
         items.push(receiver);
+        if graph_free {
+            for item in items {
+                let visual = item.visual_properties_mut();
+                visual.matte = None;
+                visual.matte_only = false;
+                visual.blend_mode = crate::BlendMode::Multiply;
+            }
+        }
         let mut evaluated = evaluate_project(&p, 320, 180, 15).unwrap();
+        assert_eq!(evaluated.scene.mattes.is_none(), graph_free);
+        assert!(evaluated.scene.composition_resources.is_some());
         let mut caption = evaluated.scene.visual_layers[1].clone();
         caption.item_id = "caption".into();
         caption.extended = None;
@@ -4590,14 +4723,16 @@ mod tests {
             bottom_margin_px: 10,
         });
         evaluated.scene.visual_layers.push(caption);
-        evaluated.scene.mattes.as_mut().unwrap().roles.push(
-            crate::evaluated_scene::mattes::EvaluatedMatteRole {
-                group: None,
-                provider: None,
-                matte_only: false,
-                contributes: true,
-            },
-        );
+        if let Some(graph) = evaluated.scene.mattes.as_mut() {
+            graph
+                .roles
+                .push(crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                    group: None,
+                    provider: None,
+                    matte_only: false,
+                    contributes: true,
+                });
+        }
         let font =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fonts/DejaVuSans.ttf");
         let process = Arc::new(FakeProcess {
@@ -4622,10 +4757,16 @@ mod tests {
             .with_adapters(process.clone(), Arc::new(FileSystemArtifactIo));
         let mut near = evaluated.clone();
         let available =
-            crate::evaluated_scene::mattes::font_payload_admission(&near.scene).unwrap();
-        let heap = crate::evaluated_scene::mattes::admit_caller_scene_clone(&near.scene).unwrap();
-        near.scene.mattes.as_mut().unwrap().resource_live_bytes +=
-            available - heap - long_path.capacity() as u64 + 1;
+            crate::evaluated_scene::composition_resources::font_payload_admission(&near.scene)
+                .unwrap();
+        let heap =
+            crate::evaluated_scene::composition_resources::admit_caller_scene_clone(&near.scene)
+                .unwrap();
+        near.scene
+            .composition_resources
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += available - heap - long_path.capacity() as u64 + 1;
         let media =
             prepare_media_resources(guarded.artifact_io.as_ref(), &near, root.path()).unwrap();
         crate::render_artifact::observed_measurement_reads(true);
@@ -4699,11 +4840,13 @@ mod tests {
         assert!(process.executions.lock().unwrap().is_empty());
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
         let mut near_limit = evaluated.clone();
-        let available =
-            crate::evaluated_scene::mattes::font_payload_admission(&near_limit.scene).unwrap();
+        let available = crate::evaluated_scene::composition_resources::font_payload_admission(
+            &near_limit.scene,
+        )
+        .unwrap();
         near_limit
             .scene
-            .mattes
+            .composition_resources
             .as_mut()
             .unwrap()
             .resource_live_bytes += available - 1;
@@ -4721,6 +4864,13 @@ mod tests {
     }
     #[test]
     fn active_matte_pinned_text_glyph_memory_rejects_before_shaping_or_output() {
+        bounded_pinned_text_glyph_memory_rejects_before_shaping_or_output(false);
+    }
+    #[test]
+    fn graph_free_blend_pinned_text_glyph_memory_rejects_before_shaping_or_output() {
+        bounded_pinned_text_glyph_memory_rejects_before_shaping_or_output(true);
+    }
+    fn bounded_pinned_text_glyph_memory_rejects_before_shaping_or_output(graph_free: bool) {
         let root = tempdir().unwrap();
         let mut p = visual_project();
         let items = &mut p.tracks.last_mut().unwrap().items;
@@ -4736,7 +4886,17 @@ mod tests {
             channel: crate::MatteChannel::Alpha,
         });
         items.push(receiver);
+        if graph_free {
+            for item in items {
+                let visual = item.visual_properties_mut();
+                visual.matte = None;
+                visual.matte_only = false;
+                visual.blend_mode = crate::BlendMode::Multiply;
+            }
+        }
         let mut evaluated = evaluate_project(&p, 64, 64, 10).unwrap();
+        assert_eq!(evaluated.scene.mattes.is_none(), graph_free);
+        assert!(evaluated.scene.composition_resources.is_some());
         let (text, faces) =
             crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
         let mut layer = evaluated.scene.visual_layers[1].clone();
@@ -4745,14 +4905,16 @@ mod tests {
         layer.extended = None;
         layer.source_size = None;
         evaluated.scene.visual_layers.push(layer);
-        evaluated.scene.mattes.as_mut().unwrap().roles.push(
-            crate::evaluated_scene::mattes::EvaluatedMatteRole {
-                group: None,
-                provider: None,
-                matte_only: false,
-                contributes: true,
-            },
-        );
+        if let Some(graph) = evaluated.scene.mattes.as_mut() {
+            graph
+                .roles
+                .push(crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                    group: None,
+                    provider: None,
+                    matte_only: false,
+                    contributes: true,
+                });
+        }
         let process = Arc::new(FakeProcess {
             readiness_error: false,
             probe_error: false,
@@ -4814,14 +4976,16 @@ mod tests {
                 );
             }
             cached.scene.visual_layers.push(layer);
-            cached.scene.mattes.as_mut().unwrap().roles.push(
-                crate::evaluated_scene::mattes::EvaluatedMatteRole {
-                    group: None,
-                    provider: None,
-                    matte_only: false,
-                    contributes: true,
-                },
-            );
+            if let Some(graph) = cached.scene.mattes.as_mut() {
+                graph
+                    .roles
+                    .push(crate::evaluated_scene::mattes::EvaluatedMatteRole {
+                        group: None,
+                        provider: None,
+                        matte_only: false,
+                        contributes: true,
+                    });
+            }
         }
         let mut cached_media =
             prepare_media_resources(renderer.artifact_io.as_ref(), &cached, root.path()).unwrap();
@@ -4853,8 +5017,13 @@ mod tests {
         );
         let mut near = evaluated.clone();
         let available =
-            crate::evaluated_scene::mattes::font_payload_admission(&near.scene).unwrap();
-        near.scene.mattes.as_mut().unwrap().resource_live_bytes += available - 16 * 1024 * 1024;
+            crate::evaluated_scene::composition_resources::font_payload_admission(&near.scene)
+                .unwrap();
+        near.scene
+            .composition_resources
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += available - 16 * 1024 * 1024;
         let mut media =
             prepare_media_resources(renderer.artifact_io.as_ref(), &evaluated, root.path())
                 .unwrap();

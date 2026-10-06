@@ -9,6 +9,7 @@ import type {
   addSvgSchema,
   animationChannelSchema,
   animationPresetParametersSchema,
+  blendModeSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
   componentInstanceUpdateSchema,
@@ -34,6 +35,8 @@ export const MASK_MODELS_CAPABILITY = "mask_models_v1" as const;
 export const MASK_ANIMATION_CAPABILITY = "mask_animation_v1" as const;
 export const MASK_RENDERING_CAPABILITY = "mask_rendering_v1" as const;
 export const MATTE_MODELS_CAPABILITY = "matte_models_v1" as const;
+export const BLEND_MODELS_CAPABILITY = "blend_models_v1" as const;
+export const BLEND_MODES_CAPABILITY = "blend_modes_v1" as const;
 export const TRACK_MATTES_CAPABILITY = "track_mattes_v1" as const;
 export type RenderingCapability =
   | "shape_rendering"
@@ -48,7 +51,8 @@ export type RenderingCapability =
   | typeof EVALUATED_SCENE_RENDERING_CAPABILITY
   | typeof LINEAR_LIGHT_COMPOSITING_CAPABILITY
   | typeof MASK_RENDERING_CAPABILITY
-  | typeof TRACK_MATTES_CAPABILITY;
+  | typeof TRACK_MATTES_CAPABILITY
+  | typeof BLEND_MODES_CAPABILITY;
 
 interface Revisioned {
   expectedRevision: number;
@@ -195,6 +199,7 @@ export type HeadlessEdit =
     }
   | {
       operation: "update_item";
+      blendMode?: z.infer<typeof blendModeSchema> | undefined;
       crop?: z.infer<typeof mediaCropSchema> | undefined;
       motionBlur?: z.infer<typeof motionBlurSchema> | undefined;
       effects?: z.infer<typeof visualEffectSchema>[] | undefined;

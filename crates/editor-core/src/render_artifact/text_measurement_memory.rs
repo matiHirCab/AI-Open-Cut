@@ -139,7 +139,7 @@ pub(super) fn shaping_scratch(
         .iter()
         .try_fold(0u64, |n, r| add(n, r.text.len() as u64))?;
     let d = add(
-        crate::evaluated_scene::mattes::text_heap(text)?,
+        crate::evaluated_scene::composition_resources::text_heap(text)?,
         size_of::<EvaluatedText>() as u64,
     )?;
     let mut face_bytes = 0;
@@ -161,7 +161,8 @@ pub(super) fn shaping_scratch(
                 color = color.max(c.capacity() as u64);
             }
             if let Some(p) = &span.style.paint_layers {
-                paints = paints.max(crate::evaluated_scene::mattes::text_paints_heap(p)?);
+                paints =
+                    paints.max(crate::evaluated_scene::composition_resources::text_paints_heap(p)?);
             }
         }
     }
@@ -197,7 +198,7 @@ pub(super) fn clone_cached_shape(
     shaped: &crate::fonts::shaping::ShapedText,
     transient: u64,
 ) -> Result<crate::fonts::shaping::ShapedText, CoreError> {
-    let required = crate::evaluated_scene::mattes::shaped_heap_bytes(shaped)?
+    let required = crate::evaluated_scene::composition_resources::shaped_heap_bytes(shaped)?
         .checked_mul(3)
         .and_then(|n| n.checked_add(transient))
         .ok_or_else(|| {
@@ -257,7 +258,7 @@ pub(super) fn shaped_cache_bytes(
             bytes,
             add(
                 key.capacity() as u64,
-                crate::evaluated_scene::mattes::shaped_heap_bytes(value)?,
+                crate::evaluated_scene::composition_resources::shaped_heap_bytes(value)?,
             )?,
         )?;
     }
@@ -276,8 +277,8 @@ pub(super) fn measured_bytes(
             bytes = add(
                 bytes,
                 add(
-                    crate::evaluated_scene::mattes::shaped_heap_bytes(shaped)?,
-                    crate::evaluated_scene::mattes::text_style_heap_bytes(style)?,
+                    crate::evaluated_scene::composition_resources::shaped_heap_bytes(shaped)?,
+                    crate::evaluated_scene::composition_resources::text_style_heap_bytes(style)?,
                 )?,
             )?;
         }
@@ -318,7 +319,7 @@ pub(super) fn warnings_bytes(warnings: &Vec<String>) -> Result<u64, CoreError> {
 pub(crate) fn key_scratch(
     layer: &crate::evaluated_scene::EvaluatedVisualLayer,
 ) -> Result<u64, CoreError> {
-    let heap = crate::evaluated_scene::mattes::layer_heap_bytes(layer)?;
+    let heap = crate::evaluated_scene::composition_resources::layer_heap_bytes(layer)?;
     add(mul(24, heap)?, 65536)
 }
 
@@ -893,7 +894,7 @@ mod tests {
             crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
         text.text = "\u{1}".repeat(4096);
         text.rich_runs = Some(crate::RichTextDocument::plain(text.text.clone()).runs);
-        let owned = crate::evaluated_scene::mattes::text_heap(&text).unwrap()
+        let owned = crate::evaluated_scene::composition_resources::text_heap(&text).unwrap()
             + size_of::<EvaluatedText>() as u64;
         let bound = 24 * owned + 65536;
         let (peak, _, _) = super::super::shapes::fill_allocation_tests::observe(|| {
@@ -954,7 +955,8 @@ mod tests {
                 .iter()
                 .all(|g| g.paint_layers.as_ref().unwrap().len() == 16)
         );
-        let heap = crate::evaluated_scene::mattes::shaped_heap_bytes(&shaped).unwrap();
+        let heap =
+            crate::evaluated_scene::composition_resources::shaped_heap_bytes(&shaped).unwrap();
         let (peak, _, _) = super::super::shapes::fill_allocation_tests::observe(|| {
             let first = shaped.clone();
             let second = first.clone();
@@ -966,7 +968,10 @@ mod tests {
         spare.glyphs[0].face.reserve(100);
         spare.glyphs[0].color.reserve(100);
         spare.glyphs[0].paint_layers.as_mut().unwrap().reserve(100);
-        assert!(crate::evaluated_scene::mattes::shaped_heap_bytes(&spare).unwrap() > heap);
+        assert!(
+            crate::evaluated_scene::composition_resources::shaped_heap_bytes(&spare).unwrap()
+                > heap
+        );
         let mut cache = std::collections::HashMap::with_capacity(100);
         cache.insert("painted".into(), spare);
         let retained = shaped_cache_bytes(&cache).unwrap();
@@ -1025,7 +1030,9 @@ mod tests {
             .unwrap()
             .checked_add(measured_bytes(&results).unwrap())
             .unwrap();
-        let heap = crate::evaluated_scene::mattes::shaped_heap_bytes(&cache["painted"]).unwrap();
+        let heap =
+            crate::evaluated_scene::composition_resources::shaped_heap_bytes(&cache["painted"])
+                .unwrap();
         let scratch = 1024;
         let required = 3 * heap + scratch;
         let before = cache["painted"].clone();

@@ -30,7 +30,9 @@
     "preview_review_presets_v1",
     "artifact_resources_v2",
     "matte_models_v1",
-    "track_mattes_v1"
+    "track_mattes_v1",
+    "blend_models_v1",
+    "blend_modes_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2232,7 +2234,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 34,
+            "const": 35,
             "type": "number"
           },
           "protocolVersion": {
@@ -8113,6 +8115,18 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "blendMode": {
+            "enum": [
+              "normal",
+              "multiply",
+              "screen",
+              "overlay",
+              "add",
+              "darken",
+              "lighten"
+            ],
+            "type": "string"
+          },
           "color": {
             "pattern": "^#[0-9a-fA-F]{6}$",
             "type": "string"
@@ -11172,6 +11186,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -11745,6 +11771,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "color": {
         "type": "string"
@@ -17951,6 +17989,18 @@
       "type": "object"
     },
     "InputPropertiesOperationsItemsOneOfUpdateItemProperties": {
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -18527,6 +18577,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -18932,6 +18994,10 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -19217,6 +19283,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -19593,6 +19671,10 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -19898,6 +19980,18 @@
           "volume"
         ],
         "type": "object"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -20279,6 +20373,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
@@ -20670,6 +20776,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -21053,6 +21171,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -21430,6 +21560,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -21809,6 +21951,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "color": {
         "type": "string"
@@ -22782,6 +22936,10 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -23076,6 +23234,10 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
       },
       "componentId": {
         "maxLength": 128,
@@ -24464,6 +24626,18 @@
       "type": "object"
     },
     "OutputPropertiesOperationsItemsOneOfUpdateItemProperties": {
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -25539,7 +25713,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 34,
+        "const": 35,
         "type": "number"
       },
       "settings": {
@@ -26194,6 +26368,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -26595,6 +26781,10 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -26875,6 +27065,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -27246,6 +27448,10 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -27546,6 +27752,18 @@
           "volume"
         ],
         "type": "object"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -27922,6 +28140,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
@@ -28308,6 +28538,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -28686,6 +28928,18 @@
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
       },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -29058,6 +29312,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -29437,6 +29703,18 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "enum": [
+          "normal",
+          "multiply",
+          "screen",
+          "overlay",
+          "add",
+          "darken",
+          "lighten"
+        ],
+        "type": "string"
       },
       "color": {
         "type": "string"
@@ -30065,6 +30343,10 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -31344,6 +31626,10 @@
       },
       "animationPresetProvenance": {
         "$ref": "#/$defs/AnimationPresetProvenanceMap"
+      },
+      "blendMode": {
+        "const": "normal",
+        "type": "string"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"

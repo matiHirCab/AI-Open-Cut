@@ -273,7 +273,8 @@ pub(crate) fn sample(
 }
 
 pub(crate) fn required(layer: &EvaluatedVisualLayer) -> bool {
-    layer.extended.is_some()
+    !layer.blend_mode.is_normal()
+        || layer.extended.is_some()
         || layer.ancestor_stages.iter().any(|s| {
             s.animation.as_ref().is_some_and(|a| {
                 a.channels
@@ -397,7 +398,7 @@ pub(crate) fn preflight_samples(
                     / u64::from(scene.canvas.fps),
             )
             .ok_or_else(|| invalid("sample time overflow"))?;
-        if scene.mattes.is_some() {
+        if scene.composition_resources.is_some() {
             // The schedule's sampled owner certifies every actual uncached leaf,
             // sharing the whole-frame counters before any materialization.
             super::mattes::frame_schedule(scene, time)?;
@@ -975,4 +976,76 @@ fn sample_scalar(
         }
     }
     scalar(frames.last()?)
+}
+
+/// Destination footprint of the independently sampled owning occurrence, before callbacks.
+pub(crate) fn certified_destination_bounds(
+    layer: &EvaluatedVisualLayer,
+    at: u64,
+    canvas: (u32, u32),
+) -> Result<[u32; 4], CoreError> {
+    let (mut sampled, _, effects) = sample(layer, at)?;
+    let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+        (shape.size, shape.density)
+    } else {
+        (
+            sampled
+                .source_size
+                .ok_or_else(|| invalid("blend source measurement missing"))?,
+            1.0,
+        )
+    };
+    let affine = sample_transform(&mut sampled, at, size, canvas)?;
+    let pad = effects
+        .iter()
+        .map(|effect| match effect {
+            VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
+                (3.0 * radius_px * density).ceil()
+            }
+            _ => 0.0,
+        })
+        .sum::<f64>();
+    if !pad.is_finite() || !(0.0..=16384.0).contains(&pad) {
+        return Err(invalid("blend effect support invalid"));
+    }
+    let [a, b, c, d, tx, ty] = affine.matrix;
+    let corners = [
+        (-1.0 - pad, -1.0 - pad),
+        (f64::from(size.0) + pad + 1.0, -1.0 - pad),
+        (-1.0 - pad, f64::from(size.1) + pad + 1.0),
+        (f64::from(size.0) + pad + 1.0, f64::from(size.1) + pad + 1.0),
+    ];
+    let xs = corners.map(|(x, y)| a * x + c * y + tx);
+    let ys = corners.map(|(x, y)| b * x + d * y + ty);
+    let left = xs
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+        .floor()
+        .clamp(0.0, f64::from(canvas.0));
+    let top = ys
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+        .floor()
+        .clamp(0.0, f64::from(canvas.1));
+    let right = xs
+        .into_iter()
+        .fold(f64::NEG_INFINITY, f64::max)
+        .ceil()
+        .clamp(left, f64::from(canvas.0));
+    let bottom = ys
+        .into_iter()
+        .fold(f64::NEG_INFINITY, f64::max)
+        .ceil()
+        .clamp(top, f64::from(canvas.1));
+    Ok([left as u32, top as u32, right as u32, bottom as u32])
+}
+pub(crate) fn certified_destination_visits(
+    layer: &EvaluatedVisualLayer,
+    at: u64,
+    canvas: (u32, u32),
+) -> Result<u64, CoreError> {
+    let [left, top, right, bottom] = certified_destination_bounds(layer, at, canvas)?;
+    u64::from(right - left)
+        .checked_mul(u64::from(bottom - top))
+        .ok_or_else(|| invalid("blend destination footprint overflow"))
 }
