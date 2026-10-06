@@ -159,6 +159,7 @@ pub(crate) fn effect_budget(
     let pixels = (w * h) as u64;
     for effect in effects {
         let passes = match effect {
+            VisualEffect::ColorAdjustment { .. } => 3,
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. }
                 if *radius_px > 0.0 =>
             {
@@ -1037,6 +1038,26 @@ mod tests {
             ErrorCode::InvalidArgument
         );
         assert_eq!(nodes, MAX_NODES);
+    }
+    #[test]
+    fn color_adjustment_identity_reserves_three_passes_at_exact_budget_boundary() {
+        let effect = VisualEffect::ColorAdjustment {
+            id: "grade".into(),
+            exposure_stops: 0.0,
+            contrast: 1.0,
+            saturation: 1.0,
+        };
+        let mut work = MAX_EFFECT_PASSES - 3;
+        effect_budget((1, 1), std::slice::from_ref(&effect), 1.0, &mut work).unwrap();
+        assert_eq!(work, MAX_EFFECT_PASSES);
+        let mut work = MAX_EFFECT_PASSES - 2;
+        assert_eq!(
+            effect_budget((1, 1), &[effect], 1.0, &mut work)
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(work, MAX_EFFECT_PASSES - 2);
     }
     #[test]
     fn scene_effect_work_is_cumulative_and_overflow_fails_closed() {

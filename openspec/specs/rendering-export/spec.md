@@ -708,3 +708,18 @@ Already-supported declared effects MUST have concrete public native evidence thr
 #### Scenario: Preserve independently predicted expanded effect support
 - **WHEN** the asymmetric32×24red shape with quarter-turn/noncentral unstroked anchor uses blue glow sigma1/intensity0.6 and green tint alpha0.5 in opposite orders at owner opacity0.5
 - **THEN** independent normalized kernel k=.3004748601737725 at local(-0.5,8.5)→world(29.5,11.5) predicts premultiplied RGB(0,.15k,.15k) versus(0,0,.3k), same alpha.3k and encoded raw RGB(0,60,60) versus(0,0,85); local(-3.5,8.5)→world(29.5,8.5) has zero support and local(-2.5,8.5)→world(29.5,9.5) retains g3=.004433048175243745; actual raw and complete independently authored full-plate native route match within one byte, with existing shape gutter preserving the unstroked anchor and no codec tolerance widening
+
+### Requirement: Independent parameterized effect render-intent conformance
+Actual native frame, nonzero-origin range, draft and final export MUST consume existing shared evaluated scenes for color controls and nonzero Gaussian blur. Independent full prepared raster and conversion-boundary plates MUST prove nonlinear encoded-to-linear source handling, color equations/final clamp/alpha and nonzero normalized7tap sigma1 Gaussian transparent-edge convolution, support/anchor and declared order. Identity SHALL remain pixel-identical. Existing quarter-turn/noncentral anchor and scoped inherited transforms/clocks MUST retain semantics. Lossless1byte and lossySSIM≥.99, PCM RMS≤.0001/alignment≤1frame/frame-grid/duration bounds MUST remain. Actual same-intent decoded PCM and positive audio MUST be measured; fake media/helper-only fixtures or widened tolerances are insufficient.
+
+#### Scenario: Prove new color controls across all intents
+- **WHEN** independently authored asymmetric source uses identity/nonidentity/negative-intermediate controls, opposite tint order, draft-before-commit and current/history/reopen
+- **THEN** full native frame/range/export and draft resources match independent context-matched plates and intended generations, with source alpha/support/anchor and unrelated project/audio unchanged
+
+#### Scenario: Prove positive Gaussian with the existing effect set
+- **WHEN** Gaussian sigma1 and identity sigma0 share canonical asymmetric content and inherited transform/anchor across render intents
+- **THEN** independently normalized convolution predicts full prepared/conversion plates, expanded transparent support and unchanged original clock, and all older glow/tint/vignette witnesses remain protected
+
+#### Scenario: Preserve admission failure and artifacts
+- **WHEN** hidden/retained/expanded/component color work exceeds existing exact pixel/surface/memory limits or parameters fail before native execution
+- **THEN** owning preflight preserves destination artifacts and state/resources without clipping work, widened limits or fallback

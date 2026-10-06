@@ -46,6 +46,12 @@ pub enum VisualEffect {
         id: String,
         amount: f64,
     },
+    ColorAdjustment {
+        id: String,
+        exposure_stops: f64,
+        contrast: f64,
+        saturation: f64,
+    },
 }
 
 impl VisualEffect {
@@ -54,7 +60,8 @@ impl VisualEffect {
             Self::GaussianBlur { id, .. }
             | Self::Glow { id, .. }
             | Self::ColorTint { id, .. }
-            | Self::Vignette { id, .. } => id,
+            | Self::Vignette { id, .. }
+            | Self::ColorAdjustment { id, .. } => id,
         }
     }
 }

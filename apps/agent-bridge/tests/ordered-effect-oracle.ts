@@ -2,7 +2,10 @@ type Pixel = [number, number, number, number];
 interface Effect {
   amount?: number;
   color?: { r: number; g: number; b: number; a: number };
+  contrast?: number;
+  exposureStops?: number;
   radiusPx?: number;
+  saturation?: number;
   type: string;
 }
 const SIDE = 48,
@@ -90,6 +93,28 @@ const glow = (source: Pixel[]) => {
     p[3] += behind;
   }
 };
+const adjustment = (
+  source: Pixel[],
+  exposureStops: number,
+  contrast: number,
+  saturation: number
+) => {
+  for (const p of source) {
+    if (p[3] === 0) {
+      p[0] = 0;
+      p[1] = 0;
+      p[2] = 0;
+      continue;
+    }
+    const rgb = [p[0], p[1], p[2]].map(
+      (v) => 0.18 + contrast * ((v / p[3]) * 2 ** exposureStops - 0.18)
+    );
+    const y = 0.2126 * at(rgb, 0) + 0.7152 * at(rgb, 1) + 0.0722 * at(rgb, 2);
+    for (const c of [0, 1, 2] as const) {
+      p[c] = Math.min(1, Math.max(0, y + saturation * (at(rgb, c) - y))) * p[3];
+    }
+  }
+};
 const apply = (source: Pixel[], effect: Effect) => {
   if (effect.type === "vignette" && effect.amount !== undefined) {
     vignette(source, effect.amount);
@@ -97,6 +122,38 @@ const apply = (source: Pixel[], effect: Effect) => {
     tint(source, effect.color);
   } else if (effect.type === "glow" && effect.radiusPx === 1) {
     glow(source);
+  } else if (
+    effect.type === "color_adjustment" &&
+    effect.exposureStops !== undefined &&
+    effect.contrast !== undefined &&
+    effect.saturation !== undefined
+  ) {
+    adjustment(
+      source,
+      effect.exposureStops,
+      effect.contrast,
+      effect.saturation
+    );
+  } else if (effect.type === "gaussian_blur" && effect.radiusPx === 1) {
+    const weights = Array.from({ length: 7 }, (_, i) =>
+      Math.exp(-0.5 * (i - 3) ** 2)
+    );
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const kernel = weights.map((v) => v / sum);
+    for (const c of [0, 1, 2, 3] as const) {
+      const blurred = convolve(
+        convolve(
+          source.map((p) => p[c]),
+          kernel,
+          true
+        ),
+        kernel,
+        false
+      );
+      for (const [i, p] of source.entries()) {
+        p[c] = at(blurred, i);
+      }
+    }
   } else if (effect.type !== "gaussian_blur" || effect.radiusPx !== 0) {
     throw new Error("effect outside independent fixture");
   }

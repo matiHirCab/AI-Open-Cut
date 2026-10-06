@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "contrast": {
+      "maximum": 2,
+      "minimum": 0,
+      "type": "number"
+    },
+    "exposureStops": {
+      "maximum": 8,
+      "minimum": -8,
+      "type": "number"
+    },
+    "id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "saturation": {
+      "maximum": 2,
+      "minimum": 0,
+      "type": "number"
+    },
+    "type": {
+      "const": "color_adjustment",
+      "type": "string"
+    }
+  },
+  "required": ["contrast", "exposureStops", "id", "saturation", "type"],
+  "type": "object"
+}

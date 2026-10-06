@@ -274,12 +274,18 @@ fn current_and_retained_absence_migrate_once_and_pre35_history_presence_rejects_
             assert_eq!(durable_bytes(&dir), before);
         } else {
             let migrated = core.get_project(&id).unwrap();
-            assert_eq!(migrated.schema_version, 35);
+            assert_eq!(
+                migrated.schema_version,
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             let adopted = durable_bytes(&dir);
             assert_eq!(core.get_project(&id).unwrap().revision, migrated.revision);
             assert_eq!(durable_bytes(&dir), adopted);
             core.undo(&id, migrated.revision).unwrap();
-            assert_eq!(core.get_project(&id).unwrap().schema_version, 35);
+            assert_eq!(
+                core.get_project(&id).unwrap().schema_version,
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
         }
     }
 }
