@@ -173,31 +173,52 @@ it("requires all58 exact new field shapes and strict reference definition before
   expect(mcpDigest(projectTrackMatteMcpPredecessor(surface))).toBe(
     predecessorDigest
   );
+  const originalBytes = JSON.stringify(surface);
+  const drift = structuredClone(surface) as unknown as Record<string, unknown>;
+  const isolatedBytes = JSON.stringify(drift);
+  let rejectedCases = 0;
   for (const entry of additions.entries) {
+    let parent = drift;
+    for (const key of entry.path.slice(0, -1)) {
+      parent = parent[key] as Record<string, unknown>;
+    }
+    const key = entry.path.at(-1);
+    if (!key) {
+      throw new Error("empty manifest path");
+    }
+    const original = parent[key];
+    const originalEntries = Object.entries(parent);
     for (const missing of [false, true]) {
-      const drift = structuredClone(surface) as unknown as Record<
-        string,
-        unknown
-      >;
-      let parent = drift;
-      for (const key of entry.path.slice(0, -1)) {
-        parent = parent[key] as Record<string, unknown>;
+      try {
+        if (missing) {
+          Reflect.deleteProperty(parent, key);
+        } else {
+          parent[key] = { type: "string" };
+        }
+        expect(
+          () => projectTrackMatteMcpPredecessor(drift),
+          entry.path.join(".")
+        ).toThrow();
+        rejectedCases += 1;
+      } finally {
+        if (missing) {
+          // Re-inserting just the deleted field changes JSON key order.
+          // Restore the small owning record in its complete original order.
+          for (const present of Object.keys(parent)) {
+            Reflect.deleteProperty(parent, present);
+          }
+          for (const [name, value] of originalEntries) {
+            parent[name] = value;
+          }
+        } else {
+          parent[key] = original;
+        }
       }
-      const key = entry.path.at(-1);
-      if (!key) {
-        throw new Error("empty manifest path");
-      }
-      if (missing) {
-        Reflect.deleteProperty(parent, key);
-      } else {
-        parent[key] = { type: "string" };
-      }
-      expect(
-        () => projectTrackMatteMcpPredecessor(drift),
-        entry.path.join(".")
-      ).toThrow();
     }
   }
+  expect(rejectedCases).toBe(116);
+  expect(JSON.stringify(drift)).toBe(isolatedBytes);
+  expect(JSON.stringify(surface)).toBe(originalBytes);
   expect(
     new Set(additions.entries.map((entry) => entry.path.join("."))).size
   ).toBe(58);
@@ -238,6 +259,21 @@ it("requires all58 exact new field shapes and strict reference definition before
     "Incorrect approved"
   );
 });
+it("isolates successful and rejected matte projections from their source", () => {
+  const before = JSON.stringify(surface);
+  const projected = projectTrackMatteMcpPredecessor(surface);
+  const definitions = projected.$defs as Record<string, unknown>;
+  definitions.unapproved = { nested: ["changed"] };
+  expect(JSON.stringify(surface)).toBe(before);
+  const invalid = structuredClone(surface);
+  invalid.capabilityIdentifiers.push("track_mattes_v1");
+  const invalidBefore = JSON.stringify(invalid);
+  expect(() => projectTrackMatteMcpPredecessor(invalid)).toThrow(
+    "multiplicity"
+  );
+  expect(JSON.stringify(invalid)).toBe(invalidBefore);
+});
+
 it("rejects duplicated capabilities and preserves unapproved matching fields and annotations", () => {
   const duplicate = structuredClone(surface);
   duplicate.capabilityIdentifiers.push("track_mattes_v1");

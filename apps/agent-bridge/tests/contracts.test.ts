@@ -444,6 +444,58 @@ describe("canonical public contracts", () => {
     ).toBe(MCP_PRE_LINEAR_COMPOSITION_DIGEST);
   });
 
+  it("copies repeated expanded references freshly without losing JSON values or order", () => {
+    const source = {
+      $defs: {
+        Shared: {
+          additionalProperties: false,
+          metadata: Object.fromEntries([
+            ["last", true],
+            ["first", 7],
+          ]),
+          properties: { choices: { default: null, enum: ["first", "second"] } },
+          type: "object",
+        },
+      },
+      capabilityIdentifiers: [],
+      prompts: [],
+      resources: [],
+      toolDefinitions: {
+        example: {
+          annotations: {},
+          inputSchema: { $ref: "#/$defs/Shared" },
+          outputSchema: { $ref: "#/$defs/Shared" },
+        },
+      },
+      tools: ["example"],
+      version: 1,
+    };
+    const original = JSON.stringify(source);
+    const first = expandMcpSurfaceCatalog(source);
+    const second = expandMcpSurfaceCatalog(source);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+    const definition = first.toolDefinitions.example as NonNullable<
+      typeof first.toolDefinitions.example
+    >;
+    expect(definition).toBeDefined();
+    expect(JSON.stringify(definition.inputSchema)).toBe(
+      JSON.stringify(source.$defs.Shared)
+    );
+    expect(definition.inputSchema).not.toBe(definition.outputSchema);
+    const properties = definition.inputSchema.properties as Record<
+      string,
+      { enum: string[] }
+    >;
+    const choices = properties.choices as { enum: string[] };
+    expect(choices).toBeDefined();
+    choices.enum[0] = "changed";
+    expect(JSON.stringify(definition.outputSchema)).toBe(
+      JSON.stringify(source.$defs.Shared)
+    );
+    expect(JSON.stringify(second)).not.toBe(JSON.stringify(first));
+    expect(JSON.stringify(source)).toBe(original);
+  });
+
   it("governs every mask model fixture in the canonical contract gate", () => {
     expect(MASK_MODELS.capability).toBe(MASK_MODELS_CAPABILITY);
     expect(HEADLESS_CONTRACT.status.editorCapabilities).toContain(

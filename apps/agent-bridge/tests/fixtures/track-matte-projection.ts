@@ -80,14 +80,14 @@ export const projectTrackMatteCatalogPredecessor = (
 export const projectTrackMatteMcpPredecessor = (
   source: unknown
 ): JsonRecord => {
-  const projected = record(structuredClone(source));
-  const definitions = record(projected.$defs);
+  const input = record(source);
+  const definitions = record(input.$defs);
   exact(
     definitions.TrackMatteReference,
     MATTE_REFERENCE_JSON,
     "TrackMatteReference definition"
   );
-  const capabilities = projected.capabilityIdentifiers;
+  const capabilities = input.capabilityIdentifiers;
   if (!Array.isArray(capabilities)) {
     throw new Error("Malformed capability list");
   }
@@ -98,12 +98,9 @@ export const projectTrackMatteMcpPredecessor = (
       `${capability} multiplicity`
     );
   }
-  projected.capabilityIdentifiers = capabilities.filter(
-    (entry) => entry !== "matte_models_v1" && entry !== "track_mattes_v1"
-  );
   exact(additions.entries.length, 58, "field whitelist cardinality");
   for (const entry of additions.entries) {
-    const { key, parent } = parentAt(projected, entry.path);
+    const { key, parent } = parentAt(input, entry.path);
     let expected: unknown;
     if (key === "matte") {
       if (entry.applicability === "ineligible-stored-visual") {
@@ -122,12 +119,24 @@ export const projectTrackMatteMcpPredecessor = (
           : { type: "boolean" };
     }
     exact(parent[key], expected, entry.path.join("."));
+  }
+  for (const path of additions.literalPaths) {
+    const { key, parent } = parentAt(input, path);
+    exact(parent[key], 34, path.join("."));
+  }
+  // Reject malformed additions before copying the complete compact catalog.
+  // Only a fully checked input may be projected; neither path mutates input.
+  const projected = record(structuredClone(input));
+  projected.capabilityIdentifiers = capabilities.filter(
+    (entry) => entry !== "matte_models_v1" && entry !== "track_mattes_v1"
+  );
+  for (const entry of additions.entries) {
+    const { key, parent } = parentAt(projected, entry.path);
     Reflect.deleteProperty(parent, key);
   }
-  Reflect.deleteProperty(definitions, "TrackMatteReference");
+  Reflect.deleteProperty(record(projected.$defs), "TrackMatteReference");
   for (const path of additions.literalPaths) {
     const { key, parent } = parentAt(projected, path);
-    exact(parent[key], 34, path.join("."));
     parent[key] = 33;
   }
   return projected;

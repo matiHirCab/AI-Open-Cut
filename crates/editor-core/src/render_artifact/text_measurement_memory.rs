@@ -656,9 +656,21 @@ mod tests {
             admitted_font_lookup(root.path(), "aliasfamily", 16 * 1024 * 1024).unwrap(),
             Some(std::fs::canonicalize(target.path().join("Linked-Font.ttf")).unwrap())
         );
-        symlink(root.path(), root.path().join("cycle")).unwrap();
-        let error = admitted_font_lookup(root.path(), "doesnotexist", 3 * 1024 * 1024).unwrap_err();
+        let cycle = tempfile::tempdir().unwrap();
+        symlink(cycle.path(), cycle.path().join("cycle")).unwrap();
+        // A fixed Linux-sized budget lets Darwin hit its symlink/path limit
+        // before admission fails. Admit two actual cursors plus entry and
+        // descriptor scratch, so repeated traversal fails at the memory ledger.
+        let limit = entry_scratch(cycle.path()).unwrap() + 2 * cursor_bytes().unwrap() + 8192;
+        let mut entries = 0;
+        let error = admitted_font_lookup_with(cycle.path(), "doesnotexist", limit, |frame| {
+            let next = next_font_path(frame);
+            entries += usize::from(next.is_some());
+            next
+        })
+        .unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::OutOfMemory);
+        assert!(entries >= 2, "must actually follow the directory cycle");
     }
 
     #[test]
