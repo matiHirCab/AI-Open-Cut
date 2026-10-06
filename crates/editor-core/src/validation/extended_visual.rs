@@ -434,6 +434,113 @@ mod tests {
     use serde_json::{Value, json};
 
     #[test]
+    fn ordered_effect_all_visual_owners_and_every_excluded_owner_keep_existing_eligibility() {
+        let root = tempfile::tempdir().unwrap();
+        let core = crate::EditorCore::new(
+            crate::PathPolicy::new(
+                root.path().join("projects"),
+                [root.path()],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project("Eligibility", crate::ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let mut project = core.get_project(&id).unwrap();
+        for (id, kind) in [("image", "image"), ("video", "video"), ("audio", "audio")] {
+            project.assets.push(serde_json::from_value(json!({"id":id,"mediaType":kind,"fileName":"owned.bin","projectRelativePath":"assets/owned.bin","durationMs":1000})).unwrap());
+        }
+        let source: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        let effects = &source["orderedEffectCases"]["orders"]["shadeThenWash"];
+        let paint = json!({"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}});
+        let cases = [
+            (
+                "image",
+                true,
+                json!({"type":"media","assetId":"image","sourceInMs":0,"audio":crate::AudioSettings::default(),"keyframes":[]}),
+            ),
+            (
+                "video",
+                true,
+                json!({"type":"media","assetId":"video","sourceInMs":0,"audio":crate::AudioSettings::default(),"keyframes":[]}),
+            ),
+            (
+                "text",
+                true,
+                json!({"type":"text","text":"a","document":crate::RichTextDocument::plain("a".into()),"fontSize":24,"color":"#ffffff","fontFamily":null,"keyframes":[]}),
+            ),
+            (
+                "solid",
+                true,
+                json!({"type":"solid_color","color":"#ff0000","keyframes":[]}),
+            ),
+            (
+                "rectangle",
+                true,
+                json!({"type":"rectangle","width":8,"height":8,"color":"#ff0000","keyframes":[]}),
+            ),
+            (
+                "shape",
+                true,
+                json!({"type":"shape","geometry":source["orderedEffectCases"]["source"]["geometry"],"fill":paint,"stroke":null,"keyframes":[]}),
+            ),
+            (
+                "svg",
+                true,
+                json!({"type":"svg","document":{"version":1,"width":8,"height":8,"viewBox":[0,0,8,8],"shapes":[]},"keyframes":[]}),
+            ),
+            (
+                "grid",
+                true,
+                json!({"type":"grid","grid":{"width":8,"height":8,"pattern":{"type":"dot","spacingX":4,"spacingY":4,"radius":1,"paint":paint}},"keyframes":[]}),
+            ),
+            (
+                "audio",
+                false,
+                json!({"type":"media","assetId":"audio","sourceInMs":0,"audio":crate::AudioSettings::default(),"keyframes":[]}),
+            ),
+            ("group", false, json!({"type":"group"})),
+            (
+                "instance",
+                false,
+                json!({"type":"component_instance","componentId":"component","trimStartMs":0,"timeScale":1}),
+            ),
+            (
+                "repeater",
+                false,
+                json!({"type":"repeater","repeater":{"source":{"scope":"root","id":"shape"},"copies":1,"timeOffsetMs":0,"opacityOffset":0,"transformOffset":{"position":{"x":0,"y":0,"unit":"pixels"},"scaleX":1,"scaleY":1,"rotationDeg":0,"skewXDeg":0,"skewYDeg":0}}}),
+            ),
+            (
+                "caption",
+                false,
+                json!({"type":"caption","text":"a","style":crate::CaptionStyle::default(),"source":{"assetId":"audio","providerId":"provider","modelId":"model","modelVersion":null,"language":"en","generatedAtMs":0,"originalText":"a","confidence":null,"words":[]}}),
+            ),
+            (
+                "transition",
+                false,
+                json!({"type":"transition","transitionType":"fade","fromItemId":"shape","toItemId":null}),
+            ),
+        ];
+        for (name, eligible, mut raw) in cases {
+            raw["id"] = json!(name);
+            raw["startMs"] = json!(0);
+            raw["durationMs"] = json!(1000);
+            raw["effects"] = effects.clone();
+            let item: TimelineItem = serde_json::from_value(raw).unwrap();
+            let result = validate_static(&item, &project);
+            assert_eq!(result.is_ok(), eligible, "{name}: {result:?}");
+            if let Err(error) = result {
+                assert_eq!(error.code, ErrorCode::InvalidArgument);
+                assert!(!error.retryable);
+            }
+        }
+    }
+    #[test]
     fn canonical_crop_and_effect_cases_match_core_validation() {
         let fixture: Value = serde_json::from_str(include_str!(
             "../../../../contracts/extended-visual-animation-v1.json"

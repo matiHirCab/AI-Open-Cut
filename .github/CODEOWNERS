@@ -279,3 +279,11 @@
 /crates/editor-core/tests/architecture.rs @matiHirCab
 /docs/adr/0003-editor-core-module-boundaries.md @matiHirCab
 /crates/editor-core/src/render_artifact/raster_cache/tests.rs @matiHirCab
+
+/crates/editor-core/tests/ordered_effect_stacks.rs @matiHirCab
+/crates/editor-core/tests/ordered_effects_native.rs @matiHirCab
+/apps/agent-bridge/tests/ordered-effect-stacks.test.ts @matiHirCab
+/apps/agent-bridge/tests/ordered-effect-native.test.ts @matiHirCab
+/apps/agent-bridge/tests/ordered-effect-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/ordered-effect-oracle.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/ordered-effect-projection.ts @matiHirCab

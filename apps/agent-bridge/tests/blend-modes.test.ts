@@ -80,6 +80,12 @@ it("projects every exact current catalog marker to the verified complete predece
         projectSchemaVersion: 34,
       })
     ).toThrow("Incorrect approved");
+    if (name === "extended-visual-animation-v1") {
+      expect(() =>
+        projectBlendCatalogPredecessor(name, { ...source, unapproved: 42 })
+      ).toThrow("Unrelated verified predecessor");
+      continue;
+    }
     const drift = projectBlendCatalogPredecessor(name, {
       ...source,
       unapproved: 42,

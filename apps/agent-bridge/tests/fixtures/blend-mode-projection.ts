@@ -1,5 +1,6 @@
 import additions from "./blend-mode-additions.json";
 import pins from "./blend-mode-predecessor-pins.json";
+import { projectOrderedEffectCatalogPredecessor } from "./ordered-effect-projection";
 
 type JsonRecord = Record<string, unknown>;
 export const BLEND_PREDECESSOR_PINS: Record<string, string> = pins;
@@ -56,7 +57,11 @@ export const projectBlendCatalogPredecessor = (
   if (!Object.hasOwn(BLEND_PREDECESSOR_PINS, name)) {
     throw new Error("Unapproved blend predecessor catalog");
   }
-  const input = record(source);
+  const input = record(
+    name === "extended-visual-animation-v1"
+      ? projectOrderedEffectCatalogPredecessor(source)
+      : source
+  );
   exact(input.projectSchemaVersion, 35, "projectSchemaVersion");
   return { ...structuredClone(input), projectSchemaVersion: 34 };
 };

@@ -1439,6 +1439,53 @@ describe("CI parity gate policy", () => {
     );
   });
 
+  const orderedEffectCommands = [
+    "cargo test -p opencut-editor-core --test ordered_effects_native -- --nocapture",
+    "cargo build -p opencut-headless",
+    "bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts",
+  ] as const;
+  const orderedEffectBlock = orderedEffectCommands
+    .map((command) => `          ${command}`)
+    .join("\n");
+  for (const command of orderedEffectCommands) {
+    for (const [label, replacement] of [
+      ["omitted", ""],
+      [
+        "altered",
+        command
+          .replace("opencut-editor-core", "opencut-headless")
+          .replace("cargo build", "cargo check")
+          .replace("ordered-effect-native.test.ts", "mask-rendering-native.test.ts"),
+      ],
+      ["success fallback", `${command} || true`],
+    ] as const) {
+      it(`rejects ${label} mandatory ordered-effect command: ${command}`, () => {
+        expect(() =>
+          validateCiGates(
+            replaceRequired(
+              workflow,
+              orderedEffectBlock,
+              orderedEffectBlock.replace(command, replacement)
+            )
+          )
+        ).toThrow(
+          "render-parity native step must use the exact fail-closed command body"
+        );
+      });
+    }
+  }
+
+  it("rejects an instrumented headless build before mandatory MCP ordered-effect proof", () => {
+    const weakened = replaceRequired(
+      workflow,
+      "          cargo build -p opencut-headless\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts",
+      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts"
+    );
+    expect(() => validateCiGates(weakened)).toThrow(
+      "render-parity native step must use the exact fail-closed command body"
+    );
+  });
+
   const goldenCommand =
     "cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture";
   for (const [label, replacement] of [

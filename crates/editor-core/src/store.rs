@@ -2214,20 +2214,33 @@ fn reject_source_matte_draft_fields(
     Ok(())
 }
 // A non-failing routing peek preserves canonical recovery/revision/read errors
-// in the selected owner. No default/no-matte request changes its old path.
+// in the selected owner. Retained-history routing is limited to ordered effects.
 fn existing_bounded_composition(storage: &dyn Storage, dir: &Path) -> bool {
-    read_json::<Project>(storage, &project_path(dir)).is_ok_and(|project| {
+    let bounded = |project: &Project| {
         project
             .tracks
             .iter()
             .chain(project.components.iter().flat_map(|c| &c.tracks))
             .flat_map(|t| &t.items)
             .any(|item| {
-                item.visual_properties().matte.is_some()
-                    || item.visual_properties().matte_only
-                    || !item.visual_properties().blend_mode.is_normal()
+                let visual = item.visual_properties();
+                visual.matte.is_some()
+                    || visual.matte_only
+                    || !visual.blend_mode.is_normal()
+                    || !visual.effects.is_empty()
             })
-    })
+    };
+    read_json::<Project>(storage, &project_path(dir)).is_ok_and(|project| bounded(&project))
+        || read_json::<History>(storage, &history_path(dir)).is_ok_and(|history| {
+            history.undo.iter().chain(&history.redo).any(|project| {
+                project
+                    .tracks
+                    .iter()
+                    .chain(project.components.iter().flat_map(|c| &c.tracks))
+                    .flat_map(|t| &t.items)
+                    .any(|item| !item.visual_properties().effects.is_empty())
+            })
+        })
 }
 
 fn prepare_project_data(
@@ -2591,6 +2604,10 @@ fn requires_composition_staging(
             operation,
             crate::EditOperation::ComponentCreate { .. }
                 | crate::EditOperation::ComponentUpdate { .. }
+                | crate::EditOperation::UpdateItem {
+                    effects: Some(_),
+                    ..
+                }
         )
     }) || crate::find_mask_edit_fields(operations)?.is_some())
 }
@@ -7281,6 +7298,265 @@ mod tests {
         assert_no_managed_transaction_files(&dir);
     }
     #[test]
+    fn invalid_ordered_effect_retained_generations_fail_before_any_resource_or_state_publication() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        let a = &fixture["orderedEffectCases"]["orders"]["shadeThenWash"];
+        let b = &fixture["orderedEffectCases"]["orders"]["washThenShade"];
+        for location in ["current", "undo", "redo", "component", "draft"] {
+            for invalid in ["effect", "target"] {
+                let (core, _) = core();
+                let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                core.get_project(&id).unwrap();
+                for stack in [a, b] {
+                    let revision = core.get_project(&id).unwrap().revision;
+                    core.edit(&id, revision, serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"effects":stack})).unwrap()).unwrap();
+                }
+                let revision = core.get_project(&id).unwrap().revision;
+                core.undo(&id, revision).unwrap();
+                let revision = core.get_project(&id).unwrap().revision;
+                let draft = core.create_draft(&id, revision, vec![serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"effects":b})).unwrap()], None).unwrap();
+                let mut project: serde_json::Value = read_json(&project_path(&dir)).unwrap();
+                let mut history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+                project["schemaVersion"] = serde_json::json!(34);
+                for key in ["undo", "redo"] {
+                    for state in history[key].as_array_mut().unwrap() {
+                        state["schemaVersion"] = serde_json::json!(34);
+                    }
+                }
+                let channel = serde_json::json!({"property":"effect.vignette_amount","target":{"kind":"effect","scope":"root","id":"missing"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]});
+                if location == "draft" {
+                    let mut raw: serde_json::Value =
+                        read_json(&draft_path(&dir, &draft.id).unwrap()).unwrap();
+                    raw["operations"][0] = if invalid == "effect" {
+                        serde_json::json!({"operation":"update_item","itemId":item,"effects":[{"type":"vignette","id":"shade","amount":1.1}]})
+                    } else {
+                        serde_json::json!({"operation":"set_animation_channels","itemId":item,"animationChannels":[channel]})
+                    };
+                    write_json_atomic(&draft_path(&dir, &draft.id).unwrap(), &raw).unwrap();
+                } else {
+                    let state = match location {
+                        "undo" => history["undo"].as_array_mut().unwrap().last_mut().unwrap(),
+                        "redo" => history["redo"].as_array_mut().unwrap().last_mut().unwrap(),
+                        _ => &mut project,
+                    };
+                    let component_scope = if location == "component" {
+                        Some(format!(
+                            "component:{}",
+                            state["components"][0]["id"].as_str().unwrap()
+                        ))
+                    } else {
+                        None
+                    };
+                    let leaf = if location == "component" {
+                        &mut state["components"][0]["tracks"][0]["items"][1]
+                    } else {
+                        state["tracks"][1]["items"]
+                            .as_array_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|leaf| leaf["id"] == item)
+                            .unwrap()
+                    };
+                    if invalid == "effect" {
+                        leaf["effects"] =
+                            serde_json::json!([{"type":"vignette","id":"shade","amount":1.1}]);
+                    } else {
+                        leaf["effects"] = a.clone();
+                        let mut scoped = channel.clone();
+                        if let Some(scope) = &component_scope {
+                            scoped["target"]["scope"] = serde_json::json!(scope);
+                        }
+                        leaf["animationChannels"] = serde_json::json!([scoped]);
+                    }
+                }
+                write_json_atomic(&project_path(&dir), &project).unwrap();
+                write_json_atomic(&history_path(&dir), &history).unwrap();
+                let before = project_file_bytes(&dir);
+                let error = EditorCore::new(core.paths().clone())
+                    .get_project(&id)
+                    .unwrap_err();
+                assert!(!error.retryable, "{location}/{invalid}: {error:?}");
+                assert_eq!(
+                    error.code,
+                    if invalid == "target" {
+                        ErrorCode::ItemNotFound
+                    } else {
+                        ErrorCode::InvalidArgument
+                    },
+                    "{location}/{invalid}: {error:?}"
+                );
+                assert_eq!(project_file_bytes(&dir), before, "{location}/{invalid}");
+                assert_no_managed_transaction_files(&dir);
+            }
+        }
+    }
+
+    #[test]
+    fn genuine_schema34_ordered_effect_adoption_preserves_all_orders_resources_and_provenance() {
+        let (core, _) = core();
+        let (id, item, dir) = preset_legacy_resource_fixture(&core);
+        core.get_project(&id).unwrap();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        let a = &fixture["orderedEffectCases"]["orders"]["shadeThenWash"];
+        let b = &fixture["orderedEffectCases"]["orders"]["washThenShade"];
+        let revision = core.get_project(&id).unwrap().revision;
+        core.edit(
+            &id,
+            revision,
+            serde_json::from_value(
+                serde_json::json!({"operation":"update_item","itemId":item,"effects":a}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.edit(&id, revision, preset_edit(&item, 1)).unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.edit(
+            &id,
+            revision,
+            serde_json::from_value(
+                serde_json::json!({"operation":"update_item","itemId":item,"effects":b}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.undo(&id, revision).unwrap();
+        let expected = core.get_project(&id).unwrap();
+        let draft = core
+            .create_draft(
+                &id,
+                expected.revision,
+                vec![
+                    serde_json::from_value(
+                        serde_json::json!({"operation":"update_item","itemId":item,"effects":b}),
+                    )
+                    .unwrap(),
+                ],
+                None,
+            )
+            .unwrap();
+        let expected_history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+        assert!(!expected.assets.is_empty());
+        assert!(!expected.fonts.is_empty());
+        let visual = expected.find_item(&item).unwrap().visual_properties();
+        let typed_a: Vec<crate::VisualEffect> = serde_json::from_value(a.clone()).unwrap();
+        let typed_b: Vec<crate::VisualEffect> = serde_json::from_value(b.clone()).unwrap();
+        assert_eq!(visual.effects, typed_a);
+        assert!(
+            visual.masks.is_empty()
+                && visual.matte.is_none()
+                && visual.blend_mode == crate::BlendMode::Normal
+        );
+        assert!(
+            expected_history["redo"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|generation| generation["tracks"][1]["items"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| entry["id"] == item
+                        && entry["effects"] == serde_json::to_value(&typed_b).unwrap()))
+        );
+        assert!(!visual.animation_preset_provenance.is_empty());
+        assert!(!expected_history["undo"].as_array().unwrap().is_empty());
+        assert!(!expected_history["redo"].as_array().unwrap().is_empty());
+        let expected_draft = std::fs::read(draft_path(&dir, &draft.id).unwrap()).unwrap();
+        let mut retained_drafts = Vec::new();
+        for (suffix, base_revision) in [
+            (
+                "stale",
+                expected_history["undo"].as_array().unwrap().last().unwrap()["revision"]
+                    .as_u64()
+                    .unwrap(),
+            ),
+            ("unavailable", 999),
+        ] {
+            let mut raw: serde_json::Value = serde_json::from_slice(&expected_draft).unwrap();
+            let draft_id = format!("{}-{suffix}", draft.id);
+            raw["id"] = serde_json::json!(draft_id);
+            raw["baseRevision"] = serde_json::json!(base_revision);
+            let path = draft_path(&dir, &draft_id).unwrap();
+            write_json_atomic(&path, &raw).unwrap();
+            retained_drafts.push((draft_id, std::fs::read(path).unwrap()));
+        }
+
+        let resource_bytes = |files: BTreeMap<PathBuf, Vec<u8>>| {
+            files
+                .into_iter()
+                .filter(|(path, _)| {
+                    path.starts_with(dir.join("assets")) || path.starts_with(dir.join("fonts"))
+                })
+                .collect::<BTreeMap<_, _>>()
+        };
+        let expected_resources = resource_bytes(project_file_bytes(&dir));
+        let mut legacy = serde_json::to_value(&expected).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(34);
+        write_json_atomic(&project_path(&dir), &legacy).unwrap();
+        let mut legacy_history = expected_history.clone();
+        for project in legacy_history["undo"].as_array_mut().unwrap() {
+            project["schemaVersion"] = serde_json::json!(34);
+        }
+        for project in legacy_history["redo"].as_array_mut().unwrap() {
+            project["schemaVersion"] = serde_json::json!(34);
+        }
+        write_json_atomic(&history_path(&dir), &legacy_history).unwrap();
+        let reopened = EditorCore::new(core.paths().clone());
+        let actual = reopened.get_project(&id).unwrap();
+        assert_eq!(
+            serde_json::to_value(&actual).unwrap(),
+            serde_json::to_value(&expected).unwrap()
+        );
+        let actual_history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+        assert_eq!(actual_history, expected_history);
+        assert_eq!(
+            std::fs::read(draft_path(&dir, &draft.id).unwrap()).unwrap(),
+            expected_draft
+        );
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        assert_eq!(
+            reopened
+                .get_draft_state(&id, &draft.id)
+                .unwrap()
+                .project
+                .schema_version,
+            crate::PROJECT_SCHEMA_VERSION
+        );
+        for (draft_id, bytes) in &retained_drafts {
+            reopened.get_draft(&id, draft_id).unwrap();
+            let error = reopened.get_draft_state(&id, draft_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::RevisionConflict);
+            assert!(error.retryable);
+            assert_eq!(
+                std::fs::read(draft_path(&dir, draft_id).unwrap()).unwrap(),
+                *bytes
+            );
+        }
+        let stable = project_file_bytes(&dir);
+        reopened.get_project(&id).unwrap();
+        assert_eq!(project_file_bytes(&dir), stable);
+        reopened.redo(&id, actual.revision).unwrap();
+        let redone = reopened.get_project(&id).unwrap();
+        assert_eq!(redone.schema_version, crate::PROJECT_SCHEMA_VERSION);
+        assert_eq!(
+            redone.find_item(&item).unwrap().visual_properties().effects,
+            typed_b
+        );
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        reopened.undo(&id, redone.revision).unwrap();
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        assert_no_managed_transaction_files(&dir);
+    }
+    #[test]
     fn blend_normal_and_multiply_edits_preserve_staged_resources_and_fault_generations() {
         composition_edits_preserve_staged_resources_and_fault_generations(true);
     }
@@ -7360,6 +7636,161 @@ mod tests {
         }
     }
 
+    fn ordered_generation_reference(
+        core: &EditorCore,
+        id: &str,
+        dir: &Path,
+    ) -> (tempfile::TempDir, EditorCore, PathBuf) {
+        let root = tempfile::tempdir().unwrap();
+        let projects = root.path().join("projects");
+        let target = projects.join(id);
+        for (path, bytes) in project_file_bytes(dir) {
+            let destination = target.join(path.strip_prefix(dir).unwrap());
+            std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+            std::fs::write(destination, bytes).unwrap();
+        }
+        let reference = EditorCore::new(
+            PathPolicy::new(projects, [root.path()], root.path().join("exports")).unwrap(),
+        )
+        .with_font_config(core.font_config.clone());
+        reference.get_project(id).unwrap();
+        (root, reference, target)
+    }
+    fn ordered_resource_bytes(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+        project_file_bytes(dir)
+            .into_iter()
+            .filter(|(path, _)| {
+                path.starts_with(dir.join("assets")) || path.starts_with(dir.join("fonts"))
+            })
+            .map(|(path, bytes)| (path.strip_prefix(dir).unwrap().to_owned(), bytes))
+            .collect()
+    }
+    #[test]
+    fn ordered_effect_edits_preserve_staged_resources_and_fault_generations() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        for order in ["shadeThenWash", "washThenShade"] {
+            let stack = &fixture["orderedEffectCases"]["orders"][order];
+            let expected: Vec<crate::VisualEffect> = serde_json::from_value(stack.clone()).unwrap();
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let (core, _) = core();
+                let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                let edit: EditOperation = serde_json::from_value(
+                    serde_json::json!({"operation":"update_item","itemId":item,"effects":stack}),
+                )
+                .unwrap();
+                let (_reference_root, reference, reference_dir) =
+                    ordered_generation_reference(&core, &id, &dir);
+                let expected_base = reference.get_project(&id).unwrap();
+                let mut expected_history: History =
+                    read_json(&history_path(&reference_dir)).unwrap();
+                push_undo(&mut expected_history, &expected_base);
+                let expected_resources = ordered_resource_bytes(&reference_dir);
+                let expected_drafts = project_file_bytes(&reference_dir)
+                    .into_iter()
+                    .filter(|(path, _)| path.starts_with(reference_dir.join("drafts")))
+                    .map(|(path, bytes)| {
+                        (path.strip_prefix(&reference_dir).unwrap().to_owned(), bytes)
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                let before = project_file_bytes(&dir);
+                set_persistence_fault(&core, phase);
+                let result = core.edit(&id, 1, edit.clone());
+                if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InternalError,
+                        "{order}/{phase:?}"
+                    );
+                    assert_eq!(project_file_bytes(&dir), before, "{order}/{phase:?}");
+                    assert!(!transaction_path(&dir).exists());
+                    core.edit(&id, 1, edit).unwrap();
+                } else {
+                    assert_eq!(result.unwrap().revision, 2, "{order}/{phase:?}");
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                let current = reopened.get_project(&id).unwrap();
+                assert_eq!(current.revision, 2);
+                assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                let visual = current.find_item(&item).unwrap().visual_properties();
+                assert_eq!(visual.effects, expected, "{order}/{phase:?}");
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert!(
+                    history
+                        .undo
+                        .iter()
+                        .chain(&history.redo)
+                        .all(|p| p.schema_version == crate::PROJECT_SCHEMA_VERSION)
+                );
+                assert_eq!(
+                    serde_json::to_value(&history).unwrap(),
+                    serde_json::to_value(&expected_history).unwrap(),
+                    "{order}/{phase:?}"
+                );
+                assert_eq!(
+                    ordered_resource_bytes(&dir),
+                    expected_resources,
+                    "{order}/{phase:?}"
+                );
+                let actual_drafts = project_file_bytes(&dir)
+                    .into_iter()
+                    .filter(|(path, _)| path.starts_with(dir.join("drafts")))
+                    .map(|(path, bytes)| (path.strip_prefix(&dir).unwrap().to_owned(), bytes))
+                    .collect::<BTreeMap<_, _>>();
+                assert_eq!(actual_drafts, expected_drafts, "{order}/{phase:?}");
+                let stable = project_file_bytes(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), stable);
+                assert_no_managed_transaction_files(&dir);
+                reopened.undo(&id, current.revision).unwrap();
+                assert_eq!(
+                    reopened
+                        .get_project(&id)
+                        .unwrap()
+                        .find_item(&item)
+                        .unwrap()
+                        .visual_properties()
+                        .effects,
+                    expected_base
+                        .find_item(&item)
+                        .unwrap()
+                        .visual_properties()
+                        .effects
+                );
+                let undone = reopened.get_project(&id).unwrap();
+                reopened.redo(&id, undone.revision).unwrap();
+                assert_eq!(
+                    reopened
+                        .get_project(&id)
+                        .unwrap()
+                        .find_item(&item)
+                        .unwrap()
+                        .visual_properties()
+                        .effects,
+                    expected
+                );
+                assert_eq!(ordered_resource_bytes(&dir), expected_resources);
+            }
+        }
+    }
+
     #[test]
     fn matte_draft_mutations_keep_legacy_migration_atomic_and_commit_removes_draft() {
         composition_draft_mutations_keep_legacy_migration_atomic(false);
@@ -7425,6 +7856,203 @@ mod tests {
                     let stable = project_file_bytes(&dir);
                     reopened.get_project(&id).unwrap();
                     assert_eq!(project_file_bytes(&dir), stable);
+                }
+                assert_no_managed_transaction_files(&dir);
+            }
+        }
+    }
+    #[test]
+    fn ordered_effect_draft_mutations_keep_adoption_atomic_and_recover_complete_orders() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/extended-visual-animation-v1.json"
+        ))
+        .unwrap();
+        let a = &fixture["orderedEffectCases"]["orders"]["shadeThenWash"];
+        let b = &fixture["orderedEffectCases"]["orders"]["washThenShade"];
+        let typed_a: Vec<crate::VisualEffect> = serde_json::from_value(a.clone()).unwrap();
+        let typed_b: Vec<crate::VisualEffect> = serde_json::from_value(b.clone()).unwrap();
+        for action in ["create", "update", "rebase", "commit"] {
+            for phase in [
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+            ] {
+                if phase == PersistencePhase::AfterDraftCleanup && action != "commit" {
+                    continue;
+                }
+                let (core, _) = core();
+                let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                core.edit(
+                    &id,
+                    1,
+                    serde_json::from_value(
+                        serde_json::json!({"operation":"update_item","itemId":item,"effects":a}),
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+                let revision = core.get_project(&id).unwrap().revision;
+                let edit: EditOperation = serde_json::from_value(
+                    serde_json::json!({"operation":"update_item","itemId":item,"effects":b}),
+                )
+                .unwrap();
+                let draft = core
+                    .create_draft(&id, revision, vec![edit.clone()], None)
+                    .unwrap();
+                let mut history: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap()).unwrap();
+                history["undo"][0]["schemaVersion"] = serde_json::json!(34);
+                std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
+                let (_reference_root, reference, reference_dir) =
+                    ordered_generation_reference(&core, &id, &dir);
+                let expected_base = reference.get_project(&id).unwrap();
+                let mut expected_history: History =
+                    read_json(&history_path(&reference_dir)).unwrap();
+                if action == "commit" {
+                    push_undo(&mut expected_history, &expected_base);
+                }
+                let expected_resources = ordered_resource_bytes(&reference_dir);
+                let expected_operations = reference.get_draft(&id, &draft.id).unwrap().operations;
+                let before = project_file_bytes(&dir);
+                set_persistence_fault(&core, phase);
+                let result = match action {
+                    "create" => core
+                        .create_draft(&id, revision, vec![edit], None)
+                        .map(|created| created.id),
+                    "update" => core
+                        .update_draft(&id, &draft.id, revision, vec![edit], Some("new".into()))
+                        .map(|_| draft.id.clone()),
+                    "rebase" => core
+                        .rebase_draft(&id, &draft.id, revision)
+                        .map(|_| draft.id.clone()),
+                    "commit" => core
+                        .commit_draft(&id, &draft.id, revision)
+                        .map(|_| draft.id.clone()),
+                    _ => unreachable!(),
+                };
+                if phase == PersistencePhase::BeforeJournal {
+                    assert_eq!(result.unwrap_err().code, ErrorCode::InternalError);
+                    assert_eq!(project_file_bytes(&dir), before);
+                } else {
+                    let affected_id = result.unwrap();
+                    let reopened = EditorCore::new(core.paths().clone());
+                    let current = reopened.get_project(&id).unwrap();
+                    if action != "commit" {
+                        let retained = reopened.get_draft(&id, &affected_id).unwrap();
+                        assert_eq!(retained.base_revision, revision);
+                        assert_eq!(
+                            serde_json::to_value(&retained.operations).unwrap(),
+                            serde_json::to_value(&expected_operations).unwrap()
+                        );
+                        assert_eq!(
+                            reopened
+                                .get_draft_state(&id, &affected_id)
+                                .unwrap()
+                                .project
+                                .find_item(&item)
+                                .unwrap()
+                                .visual_properties()
+                                .effects,
+                            typed_b
+                        );
+                        if action == "update" {
+                            assert_eq!(retained.label.as_deref(), Some("new"));
+                        }
+                        if action == "create" {
+                            assert_ne!(affected_id, draft.id);
+                            reopened.get_draft(&id, &draft.id).unwrap();
+                        }
+                    }
+                    assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                    assert_eq!(
+                        current.revision,
+                        if action == "commit" {
+                            revision + 1
+                        } else {
+                            revision
+                        }
+                    );
+                    assert_eq!(
+                        draft_path(&dir, &draft.id).unwrap().exists(),
+                        action != "commit"
+                    );
+                    assert_eq!(
+                        current
+                            .find_item(&item)
+                            .unwrap()
+                            .visual_properties()
+                            .effects,
+                        if action == "commit" {
+                            typed_b.clone()
+                        } else {
+                            typed_a.clone()
+                        },
+                        "{action}/{phase:?}"
+                    );
+                    if action != "commit" {
+                        assert_eq!(
+                            reopened
+                                .get_draft_state(&id, &draft.id)
+                                .unwrap()
+                                .project
+                                .find_item(&item)
+                                .unwrap()
+                                .visual_properties()
+                                .effects,
+                            typed_b,
+                            "{action}/{phase:?}"
+                        );
+                    }
+                    let history: History = read_json(&history_path(&dir)).unwrap();
+                    assert!(
+                        history
+                            .undo
+                            .iter()
+                            .chain(&history.redo)
+                            .all(|p| p.schema_version == crate::PROJECT_SCHEMA_VERSION)
+                    );
+                    assert_eq!(
+                        serde_json::to_value(&history).unwrap(),
+                        serde_json::to_value(&expected_history).unwrap(),
+                        "{action}/{phase:?}"
+                    );
+                    assert_eq!(
+                        ordered_resource_bytes(&dir),
+                        expected_resources,
+                        "{action}/{phase:?}"
+                    );
+                    if action != "commit" {
+                        assert_eq!(
+                            serde_json::to_value(
+                                reopened.get_draft(&id, &draft.id).unwrap().operations
+                            )
+                            .unwrap(),
+                            serde_json::to_value(&expected_operations).unwrap()
+                        );
+                    }
+                    let stable = project_file_bytes(&dir);
+                    reopened.get_project(&id).unwrap();
+                    assert_eq!(project_file_bytes(&dir), stable);
+                    if action == "commit" {
+                        reopened.undo(&id, current.revision).unwrap();
+                        let undone = reopened.get_project(&id).unwrap();
+                        assert_eq!(
+                            undone.find_item(&item).unwrap().visual_properties().effects,
+                            typed_a
+                        );
+                        reopened.redo(&id, undone.revision).unwrap();
+                        assert_eq!(
+                            reopened
+                                .get_project(&id)
+                                .unwrap()
+                                .find_item(&item)
+                                .unwrap()
+                                .visual_properties()
+                                .effects,
+                            typed_b
+                        );
+                        assert_eq!(ordered_resource_bytes(&dir), expected_resources);
+                    }
                 }
                 assert_no_managed_transaction_files(&dir);
             }
