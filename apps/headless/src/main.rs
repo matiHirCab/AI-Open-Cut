@@ -781,6 +781,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "styled_text_layers_v1",
         "advanced_text_layout_v1",
         "blend_models_v1",
+        "parameterized_effect_models_v1",
     ]
 }
 
@@ -800,6 +801,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "repeater_rendering",
         "transform2d",
         "blend_modes_v1",
+        "parameterized_effects_v1",
     ]
 }
 

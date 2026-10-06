@@ -1795,6 +1795,78 @@ mod tests {
     }
 
     #[test]
+    fn parameterized_color_work_overflow_preserves_destination_in_every_render_facade() {
+        let root = tempdir().unwrap();
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        let mut project = visual_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        let effects = (0..16)
+            .map(|i| crate::VisualEffect::ColorAdjustment {
+                id: format!("grade-{i}"),
+                exposure_stops: 0.0,
+                contrast: 1.0,
+                saturation: 1.0,
+            })
+            .collect();
+        project.tracks[0].items[0] = TimelineItem::Rectangle(crate::RectangleItem {
+            id: "background".into(),
+            color: "#ff0000".into(),
+            width: 3000,
+            height: 3000,
+            start_ms: 0,
+            duration_ms: 1000,
+            visual_properties: crate::VisualProperties {
+                effects,
+                ..Default::default()
+            },
+            keyframes: vec![],
+        });
+        let before = serde_json::to_value(&project).unwrap();
+        let output = root.path().join("rejected.mp4");
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        std::fs::write(&output, b"preserve color-overflow destination").unwrap();
+        io.clear_events();
+        assert_eq!(
+            renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &output,
+                        width: 320,
+                        height: 180,
+                        overwrite: false
+                    },
+                    |_| {}
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidArgument
+        );
+        assert_no_render_side_effects(&io, &process);
+        assert_eq!(
+            std::fs::read(output).unwrap(),
+            b"preserve color-overflow destination"
+        );
+        assert_eq!(serde_json::to_value(project).unwrap(), before);
+    }
+
+    #[test]
     fn malformed_stacking_is_rejected_without_side_effects_for_all_facades() {
         let root = tempdir().unwrap();
         let process = Arc::new(FakeProcess {

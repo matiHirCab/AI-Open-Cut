@@ -32,7 +32,9 @@
     "matte_models_v1",
     "track_mattes_v1",
     "blend_models_v1",
-    "blend_modes_v1"
+    "blend_modes_v1",
+    "parameterized_effect_models_v1",
+    "parameterized_effects_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2234,7 +2236,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 35,
+            "const": 36,
             "type": "number"
           },
           "protocolVersion": {
@@ -25713,7 +25715,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 35,
+        "const": 36,
         "type": "number"
       },
       "settings": {
@@ -32195,6 +32197,43 @@
           "required": [
             "amount",
             "id",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "contrast": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "number"
+            },
+            "exposureStops": {
+              "maximum": 8,
+              "minimum": -8,
+              "type": "number"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "saturation": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": {
+              "const": "color_adjustment",
+              "type": "string"
+            }
+          },
+          "required": [
+            "contrast",
+            "exposureStops",
+            "id",
+            "saturation",
             "type"
           ],
           "type": "object"

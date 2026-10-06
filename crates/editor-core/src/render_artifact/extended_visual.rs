@@ -340,6 +340,32 @@ fn effects(
                     }
                 }
             }
+            VisualEffect::ColorAdjustment {
+                exposure_stops,
+                contrast,
+                saturation,
+                ..
+            } => {
+                let identity = *exposure_stops == 0.0 && *contrast == 1.0 && *saturation == 1.0;
+                let exposure = exposure_stops.exp2();
+                for pixel in &mut raster.pixels {
+                    let alpha = f64::from(pixel[3]);
+                    if alpha == 0.0 {
+                        pixel[..3].fill(0.0);
+                    } else if !identity {
+                        let adjusted = [0, 1, 2].map(|c| {
+                            0.18 + contrast * (f64::from(pixel[c]) / alpha * exposure - 0.18)
+                        });
+                        let luminance =
+                            0.2126 * adjusted[0] + 0.7152 * adjusted[1] + 0.0722 * adjusted[2];
+                        for c in 0..3 {
+                            pixel[c] = ((luminance + saturation * (adjusted[c] - luminance))
+                                .clamp(0.0, 1.0)
+                                * alpha) as f32;
+                        }
+                    }
+                }
+            }
             VisualEffect::Vignette { amount, .. } => {
                 for y in 0..raster.height {
                     for x in 0..raster.width {
@@ -754,6 +780,69 @@ pub(crate) fn prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn grade(exposure_stops: f64, contrast: f64, saturation: f64) -> VisualEffect {
+        VisualEffect::ColorAdjustment {
+            id: "grade".into(),
+            exposure_stops,
+            contrast,
+            saturation,
+        }
+    }
+    #[test]
+    fn color_controls_preserve_float_alpha_and_identity_without_quantization() {
+        let mut input = Raster::empty(3, 1).unwrap();
+        input.pixels = vec![
+            [0.2, 0.1, 0.05, 0.25],
+            [0.12345679, 0.023_456_79, 0.000123456, 0.7654321],
+            [0.0; 4],
+        ];
+        let (identity, pad) = effects(input.clone(), &[grade(0.0, 1.0, 1.0)], 1.0, None).unwrap();
+        assert_eq!(identity.pixels, input.pixels);
+        assert_eq!(pad, 0);
+        let (actual, pad) = effects(input.clone(), &[grade(-1.0, 0.75, 0.25)], 1.0, None).unwrap();
+        assert_eq!(pad, 0);
+        for (source, output) in input.pixels.iter().zip(&actual.pixels) {
+            assert_eq!(output[3].to_bits(), source[3].to_bits());
+            if source[3] == 0.0 {
+                assert_eq!(*output, [0.0; 4]);
+                continue;
+            }
+            // Independent scalar reference, retaining the original float sample precision.
+            let a = f64::from(source[3]);
+            let r = 0.18 + 0.75 * (f64::from(source[0]) / a / 2.0 - 0.18);
+            let g = 0.18 + 0.75 * (f64::from(source[1]) / a / 2.0 - 0.18);
+            let b = 0.18 + 0.75 * (f64::from(source[2]) / a / 2.0 - 0.18);
+            let y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            for (c, value) in [r, g, b].into_iter().enumerate() {
+                assert!(
+                    (f64::from(output[c]) - (y * 0.75 + value * 0.25).clamp(0.0, 1.0) * a).abs()
+                        < 2e-7
+                );
+            }
+        }
+    }
+    #[test]
+    fn color_controls_clear_hidden_rgb_at_zero_alpha_for_identity_and_nonidentity() {
+        for effect in [grade(0.0, 1.0, 1.0), grade(-1.0, 0.75, 0.25)] {
+            let mut input = Raster::empty(1, 1).unwrap();
+            input.pixels[0] = [0.4, 0.2, 0.1, 0.0];
+            let (output, _) = effects(input, &[effect], 1.0, None).unwrap();
+            assert_eq!(output.pixels[0], [0.0; 4]);
+        }
+    }
+    #[test]
+    fn color_controls_clamp_only_after_saturation_in_linear_rgb() {
+        let mut input = Raster::empty(1, 1).unwrap();
+        input.pixels[0] = [1.0, 0.0, 0.0, 1.0];
+        let (actual, _) = effects(input.clone(), &[grade(0.0, 2.0, 0.0)], 1.0, None).unwrap();
+        for c in 0..3 {
+            assert!((f64::from(actual.pixels[0][c]) - 0.2452).abs() < 1e-7);
+        }
+        let (actual, _) = effects(input, &[grade(-1.0, 0.75, 0.25)], 1.0, None).unwrap();
+        for (c, expected) in [0.19854375, 0.10479375, 0.10479375].into_iter().enumerate() {
+            assert!((f64::from(actual.pixels[0][c]) - expected).abs() < 1e-7);
+        }
+    }
     #[test]
     fn zero_area_affine_support_is_canonical_at_matte_callback_seam() {
         for (width, height, left, top) in [(0, 16, 64, 12), (24, 0, 8, 64), (0, 0, 64, 64)] {

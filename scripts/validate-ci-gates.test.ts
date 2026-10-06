@@ -1486,6 +1486,53 @@ describe("CI parity gate policy", () => {
     );
   });
 
+  const parameterizedEffectCommands = [
+    "cargo test -p opencut-editor-core --test parameterized_effects_native -- --nocapture",
+    "cargo build -p opencut-headless",
+    "bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts",
+  ] as const;
+  const parameterizedEffectBlock = parameterizedEffectCommands
+    .map((command) => `          ${command}`)
+    .join("\n");
+  for (const command of parameterizedEffectCommands) {
+    for (const [label, replacement] of [
+      ["omitted", ""],
+      [
+        "altered",
+        command
+          .replace("opencut-editor-core", "opencut-headless")
+          .replace("cargo build", "cargo check")
+          .replace("parameterized-effect-native.test.ts", "mask-rendering-native.test.ts"),
+      ],
+      ["success fallback", `${command} || true`],
+    ] as const) {
+      it(`rejects ${label} mandatory parameterized-effect command: ${command}`, () => {
+        expect(() =>
+          validateCiGates(
+            replaceRequired(
+              workflow,
+              parameterizedEffectBlock,
+              parameterizedEffectBlock.replace(command, replacement)
+            )
+          )
+        ).toThrow(
+          "render-parity native step must use the exact fail-closed command body"
+        );
+      });
+    }
+  }
+
+  it("rejects an instrumented headless build before mandatory MCP parameterized-effect proof", () => {
+    const weakened = replaceRequired(
+      workflow,
+      "          cargo build -p opencut-headless\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts",
+      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts"
+    );
+    expect(() => validateCiGates(weakened)).toThrow(
+      "render-parity native step must use the exact fail-closed command body"
+    );
+  });
+
   const goldenCommand =
     "cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture";
   for (const [label, replacement] of [

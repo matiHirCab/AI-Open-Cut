@@ -32,7 +32,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 35;
+pub const PROJECT_SCHEMA_VERSION: u32 = 36;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -148,6 +148,15 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 36 {
+            reject_color_effect_fields(&value.tracks)
+                .map_err(|e| format!("{}{e}", crate::error::COLOR_EFFECT_DECODE_ERROR_PREFIX))?;
+            if let Some(components) = &value.components {
+                reject_color_effect_fields(components).map_err(|e| {
+                    format!("{}{e}", crate::error::COLOR_EFFECT_DECODE_ERROR_PREFIX)
+                })?;
+            }
+        }
         if value.schema_version < 35 {
             reject_blend_fields(&value.tracks)
                 .map_err(|e| format!("{}{e}", crate::error::BLEND_DECODE_ERROR_PREFIX))?;
@@ -731,6 +740,43 @@ pub(crate) fn find_extended_visual_edit_fields(
             _ => Ok(()),
         },
     )
+}
+
+pub(crate) fn reject_color_effect_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_color_effect_fields)
+}
+fn check_color_effect_fields(value: &serde_json::Value) -> Result<(), String> {
+    if value
+        .get("effects")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|effects| {
+            effects.iter().any(|effect| {
+                effect.get("type").and_then(serde_json::Value::as_str) == Some("color_adjustment")
+            })
+        })
+    {
+        return Err("color adjustment requires schema 36".into());
+    }
+    Ok(())
+}
+pub(crate) fn reject_raw_color_effect_edit_fields(value: &serde_json::Value) -> Result<(), String> {
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("update_item") => check_color_effect_fields(operation)?,
+                Some("component_create" | "component_update") => {
+                    if let Some(tracks) = operation.get("tracks") {
+                        reject_color_effect_fields(tracks)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn reject_blend_fields(value: &serde_json::Value) -> Result<(), String> {

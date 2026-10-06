@@ -51,6 +51,19 @@ pub(crate) fn validate_effect(effect: &VisualEffect) -> Result<(), CoreError> {
             color.validate()?;
         }
         VisualEffect::ColorTint { color, .. } => color.validate()?,
+        VisualEffect::ColorAdjustment {
+            exposure_stops,
+            contrast,
+            saturation,
+            ..
+        } => {
+            if !bounded(*exposure_stops, -8.0, 8.0)
+                || !bounded(*contrast, 0.0, 2.0)
+                || !bounded(*saturation, 0.0, 2.0)
+            {
+                return Err(invalid("color adjustment parameters exceed bounds"));
+            }
+        }
         VisualEffect::Vignette { amount, .. } => {
             if !bounded(*amount, 0.0, 1.0) {
                 return Err(invalid("vignette exceeds bounds"));

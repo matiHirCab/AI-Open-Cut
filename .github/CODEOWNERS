@@ -287,3 +287,14 @@
 /apps/agent-bridge/tests/ordered-effect-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/ordered-effect-oracle.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/ordered-effect-projection.ts @matiHirCab
+
+# Parameterized effects canonical contract and conformance.
+/contracts/parameterized-effects-v1.json @matiHirCab
+/crates/editor-core/tests/parameterized_effects.rs @matiHirCab
+/crates/editor-core/tests/parameterized_effects_native.rs @matiHirCab
+/apps/agent-bridge/tests/parameterized-effects.test.ts @matiHirCab
+/apps/agent-bridge/tests/parameterized-effect-native.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/parameterized-effect-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/parameterized-effect-addition.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/parameterized-effect-predecessor-pins.json @matiHirCab
+/docs/parameterized-effects.md @matiHirCab

@@ -3,6 +3,7 @@ use thiserror::Error;
 
 // Serde erases typed errors while buffering nested project and operation values.
 // Only the layout field deserializer emits this anchored internal classification.
+pub(crate) const COLOR_EFFECT_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_COLOR_EFFECT_DECODE:";
 pub(crate) const BLEND_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_BLEND_DECODE:";
 pub(crate) const MATTE_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_MATTE_DECODE:";
 pub(crate) const MASK_ACTIVATION_DECODE_ERROR_PREFIX: &str =
@@ -83,6 +84,12 @@ impl CoreError {
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
         let message = error.to_string();
+        if let Some(detail) = message.strip_prefix(COLOR_EFFECT_DECODE_ERROR_PREFIX) {
+            return Self::new(
+                ErrorCode::InvalidArgument,
+                format!("invalid color effect metadata: {detail}"),
+            );
+        }
         if let Some(detail) = message.strip_prefix(BLEND_DECODE_ERROR_PREFIX) {
             return Self::new(
                 ErrorCode::InvalidArgument,
@@ -118,6 +125,24 @@ impl From<serde_json::Error> for CoreError {
 mod tests {
     use super::*;
 
+    #[test]
+    fn color_decode_classification_requires_the_exact_anchored_marker() {
+        use serde::de::Error;
+        let error = CoreError::from(serde_json::Error::custom(format!(
+            "{COLOR_EFFECT_DECODE_ERROR_PREFIX}premature color"
+        )));
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        for message in [
+            format!("user field {COLOR_EFFECT_DECODE_ERROR_PREFIX}premature color"),
+            "OPENCUT_COLOR_EFFECT_DECODE: ordinary text".into(),
+        ] {
+            assert_eq!(
+                CoreError::from(serde_json::Error::custom(message)).code,
+                ErrorCode::InternalError
+            );
+        }
+    }
     #[test]
     fn layout_decode_classification_requires_the_exact_anchored_marker() {
         use serde::de::Error;

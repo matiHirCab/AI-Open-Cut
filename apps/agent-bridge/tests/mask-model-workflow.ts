@@ -18,7 +18,7 @@ type Call = <Output>(
 
 export const verifyMaskModelWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(35);
+  expect(status.projectSchemaVersion).toBe(36);
   expect(status.subsystems.editor.capabilities).toContain(contract.capability);
   expect(status.subsystems.rendering.capabilities).not.toContain(
     contract.capability
@@ -30,7 +30,7 @@ export const verifyMaskModelWorkflow = async (client: Client, call: Call) => {
   );
   const read = () => call("project_open", { projectId }, projectStateSchema);
   const initial = await read();
-  expect(initial.project.schemaVersion).toBe(35);
+  expect(initial.project.schemaVersion).toBe(36);
   const trackId = initial.project.tracks[1]?.id;
   const masks = contract.stackCases[1]?.value?.map((value) =>
     maskSchema.parse(value)

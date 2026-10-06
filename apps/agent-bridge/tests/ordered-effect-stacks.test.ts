@@ -9,9 +9,14 @@ import {
 import {
   ORDERED_EFFECT_PREDECESSOR_SHA256,
   orderedEffectDigest,
-  projectOrderedEffectCatalogPredecessor,
+  projectOrderedEffectCatalogPredecessor as projectOrderedEffectCatalogPredecessor35,
 } from "./fixtures/ordered-effect-projection";
+import { restoreParameterizedCatalogMarker } from "./fixtures/parameterized-effect-projection";
 
+const projectOrderedEffectCatalogPredecessor = (source: unknown) =>
+  projectOrderedEffectCatalogPredecessor35(
+    restoreParameterizedCatalogMarker(source)
+  );
 const fixture = catalog.orderedEffectCases;
 it("governs exact ordered arrays, closed public edits and independent numeric witnesses", () => {
   for (const stack of Object.values(fixture.orders)) {
@@ -118,7 +123,7 @@ it("removes only complete approved orderedEffectCases and reproduces the verifie
     { ...source, limits: { ...source.limits, maxEffects: 17 } },
   ]) {
     expect(() => projectOrderedEffectCatalogPredecessor(drift)).toThrow(
-      "Unrelated verified predecessor"
+      "verified predecessor"
     );
   }
 });

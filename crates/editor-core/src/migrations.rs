@@ -24,6 +24,24 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 36
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| {
+                i.visual_properties()
+                    .effects
+                    .iter()
+                    .any(|e| matches!(e, crate::VisualEffect::ColorAdjustment { .. }))
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "color adjustment requires schema 36",
+        ));
+    }
     if project.schema_version < 35
         && project
             .tracks
@@ -329,7 +347,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=34 => {
+        9..=35 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

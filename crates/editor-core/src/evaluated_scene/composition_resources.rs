@@ -360,7 +360,8 @@ pub(crate) fn layer_heap_bytes(
                     crate::VisualEffect::GaussianBlur { id, .. }
                     | crate::VisualEffect::Glow { id, .. }
                     | crate::VisualEffect::ColorTint { id, .. }
-                    | crate::VisualEffect::Vignette { id, .. } => id.capacity() as u64,
+                    | crate::VisualEffect::Vignette { id, .. }
+                    | crate::VisualEffect::ColorAdjustment { id, .. } => id.capacity() as u64,
                 },
             )?;
         }
