@@ -1,0 +1,56 @@
+{
+  "verifiedCommit": "65e89d637d882d56aa98735aae9374de6a0da9fe",
+  "ciRun": 37458611299,
+  "all11Ci": "success",
+  "schema": 34,
+  "nextSchema": 35,
+  "catalogs": {
+    "animation-channels-v1": {
+      "semanticSha256": "475b70928e77625dd0626e03c6ae4c279ca80188716547fb7abd4a5425e7bd76",
+      "fileSha256": "586190e0fa70259561fb89b04f0d27efd0f685f8ceb835b2b1ec129b6ffd46a7",
+      "projectSchemaVersion": 34
+    },
+    "animation-presets-v1": {
+      "semanticSha256": "28f7a8fd0daa1dc43de8afd86eccb3f5374fc892908364f3d3b6c9e358590b52",
+      "fileSha256": "a4fadf10447ec64dad20dee55a50fcf6b0912c00909ba26e825a791ffe32498b",
+      "projectSchemaVersion": 34
+    },
+    "extended-visual-animation-v1": {
+      "semanticSha256": "9214216f548da8a31a179c0be5b0f272614c14a829a501e62c46cde274db3383",
+      "fileSha256": "61aaad0d6f9f6f5ed2fee2902d6171cbe5bedc029393307b6f78fa60c0e0b25f",
+      "projectSchemaVersion": 34
+    },
+    "inherited-animation-timing-v1": {
+      "semanticSha256": "5d8a2d04a400f67fc3798ecb6fc78a945305fb2c7b44edb14cb13a37cba8bddf",
+      "fileSha256": "afb0d31d51af58f4cb51804e78c731b70f0e68ad26d111b778d0a93fa3d041b2",
+      "projectSchemaVersion": 34
+    },
+    "initial-motion-preset-pack-v1": {
+      "semanticSha256": "7153664b30674ea4144384b9ad93a16391a884211b057fe8132f2139c054cd24",
+      "fileSha256": "acf89b0256993a2e3c34ba1a303faa6c2eb603d9ffebc6a70079937f2b0620de",
+      "projectSchemaVersion": 34
+    },
+    "motion-blur-sampling-v1": {
+      "semanticSha256": "f4b8cc380378c78c3f27fe6caeb92037bbb45a2a33bf46eeb2eaec355a5fca8e",
+      "fileSha256": "ede9c670ce5cb8eb285ec39690166f2dbb3819f610ea150660f7f0e69efd2d8d",
+      "projectSchemaVersion": 34
+    },
+    "mask-models-v1": {
+      "semanticSha256": "e1be14e1e1b5569f7f66f6a3d1c2922431d78d12fa70be1159a98d34a138b12e",
+      "fileSha256": "ca4835d4cf70f926b8cd88d0ff22a63358e2263ce2e438089cd39b096f0ce8c2",
+      "projectSchemaVersion": 34
+    },
+    "mask-rendering-v1": {
+      "semanticSha256": "ef81e349ca13f001cd68ae17b6f6febf4581ea5499c7e8b349276af7e34b425f",
+      "fileSha256": "694d63f2a9b9fcbdbe114792af5bf5d07d26f1f6a28ac4073adefcefc9cc8b18",
+      "projectSchemaVersion": 34
+    },
+    "track-mattes-v1": {
+      "semanticSha256": "a79f6c3c02b813360a14f54c517cdfacf7b3a99601e5f86b05cd222bd7b6dc86",
+      "fileSha256": "00901582fece3b3a6e359e00b1620ab3d627a419b65fddf8dd5c5d044b007bbb",
+      "projectSchemaVersion": 34
+    }
+  },
+  "mcpExpandedSha256": "9d15133960b94806ee92cd9482d10c9481b902f957501fc4742c58b992d73949",
+  "tools": 78
+}

@@ -268,7 +268,8 @@
       "text_font_size_update_v1",
       "content_addressed_text_layout_v2",
       "styled_text_layers_v1",
-      "advanced_text_layout_v1"
+      "advanced_text_layout_v1",
+      "blend_models_v1"
     ],
     "renderingCapabilities": [
       "preview",
@@ -283,7 +284,8 @@
       "svg_rendering",
       "grid_rendering",
       "repeater_rendering",
-      "transform2d"
+      "transform2d",
+      "blend_modes_v1"
     ]
   }
 }

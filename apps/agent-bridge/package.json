@@ -1,24 +1,24 @@
 {
   "name": "@opencut/agent-bridge",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
+    "bench:headless": "cargo build --release -p opencut-headless && bun run scripts/benchmark-headless.ts",
+    "build": "bun run build:bridge && bun run scripts/copy-sidecar.ts",
+    "build:bridge": "bun build src/index.ts --target=bun --compile --outfile=dist/opencut-agent-bridge",
+    "contracts:check": "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts",
     "dev": "bun run src/index.ts",
-    "health": "bun run src/index.ts --health",
     "doctor": "bun run src/index.ts --doctor",
-    "typecheck": "tsc --noEmit",
+    "health": "bun run src/index.ts --health",
     "lint": "ultracite check src tests",
+    "smoke": "bun run test:smoke",
     "test": "bun run test:unit",
-    "test:unit": "vitest run --config vitest.unit.config.ts",
-    "contracts:check": "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts",
     "test:integration": "cargo build -p opencut-headless && vitest run --config vitest.integration.config.ts",
     "test:smoke": "bun run scripts/run-packaged-smoke.ts",
     "test:tts-real": "vitest run tests/tts-real.test.ts",
-    "build": "bun run build:bridge && bun run scripts/copy-sidecar.ts",
-    "build:bridge": "bun build src/index.ts --target=bun --compile --outfile=dist/opencut-agent-bridge",
-    "bench:headless": "cargo build --release -p opencut-headless && bun run scripts/benchmark-headless.ts",
-    "smoke": "bun run test:smoke"
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "^2.0.0",

@@ -780,6 +780,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "content_addressed_text_layout_v2",
         "styled_text_layers_v1",
         "advanced_text_layout_v1",
+        "blend_models_v1",
     ]
 }
 
@@ -798,6 +799,7 @@ fn render_capabilities() -> Vec<&'static str> {
         "grid_rendering",
         "repeater_rendering",
         "transform2d",
+        "blend_modes_v1",
     ]
 }
 

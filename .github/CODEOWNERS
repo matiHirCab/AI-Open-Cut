@@ -261,3 +261,21 @@
 /crates/editor-core/src/persistence.rs @matiHirCab
 
 /crates/editor-core/src/render_artifact/text_measurement_memory.rs @matiHirCab
+/contracts/blend-modes-v1.json @matiHirCab
+/crates/editor-core/src/model/blend.rs @matiHirCab
+/crates/editor-core/src/validation/blend.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/composition_resources.rs @matiHirCab
+/crates/editor-core/src/render_artifact/blend.rs @matiHirCab
+/crates/editor-core/tests/blend_modes.rs @matiHirCab
+/crates/editor-core/tests/blend_modes_native.rs @matiHirCab
+/apps/agent-bridge/src/blend-modes.ts @matiHirCab
+/apps/agent-bridge/tests/blend-modes.test.ts @matiHirCab
+/apps/agent-bridge/tests/blend-mode-native.test.ts @matiHirCab
+/apps/agent-bridge/tests/blend-mode-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/blend-mode-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/blend-mode-additions.json @matiHirCab
+/docs/blend-modes.md @matiHirCab
+/apps/agent-bridge/tests/fixtures/blend-mode-predecessor-pins.json @matiHirCab
+/crates/editor-core/tests/architecture.rs @matiHirCab
+/docs/adr/0003-editor-core-module-boundaries.md @matiHirCab
+/crates/editor-core/src/render_artifact/raster_cache/tests.rs @matiHirCab

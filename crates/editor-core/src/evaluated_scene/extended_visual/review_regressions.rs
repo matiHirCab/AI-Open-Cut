@@ -3,6 +3,7 @@ use serde_json::json;
 
 fn layer(channels: Vec<AnimationChannel>) -> EvaluatedVisualLayer {
     EvaluatedVisualLayer {
+        blend_mode: crate::BlendMode::Normal,
         sampled_input: None,
         extended: Some(ExtendedVisual {
             crop: None,

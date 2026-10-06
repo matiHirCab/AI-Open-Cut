@@ -662,7 +662,7 @@ pub(crate) fn prepare(
             };
             Ok::<(Raster, usize, usize, f32), CoreError>(result)
         };
-        if scene.mattes.is_some() {
+        if scene.composition_resources.is_some() {
             let schedule = crate::evaluated_scene::mattes::frame_schedule(scene, at)?;
             super::mattes::compose_frame(&schedule, &mut composed.pixels, &mut |index, time| {
                 let layer = &scene.visual_layers[index];

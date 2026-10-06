@@ -1,4 +1,7 @@
 //! Immutable scoped matte bindings and pre-certified exact frame tasks.
+use super::composition_resources::{
+    add, capacity_bytes, composition_heap_bytes, layer_heap_bytes, mul,
+};
 use crate::MatteChannel;
 pub(crate) const MAX_MATTE_REQUESTS: u64 = 4096;
 pub(crate) const MAX_MATTE_WORK: u64 = 268_435_456;
@@ -30,8 +33,6 @@ pub(crate) struct EvaluatedMatteGraph {
     pub groups: Vec<MatteProviderGroup>,
     pub roles: Vec<EvaluatedMatteRole>,
     pub provider_first: Vec<MatteGroupId>,
-    pub resource_live_bytes: u64,
-    pub font_payload_bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MatteTask {
@@ -42,6 +43,7 @@ pub(crate) enum MatteTask {
         source_live_bytes: u64,
     },
     AverageCopy {
+        layer_index: usize,
         samples: Vec<MatteTaskId>,
     },
     AggregateProvider {
@@ -54,6 +56,7 @@ pub(crate) struct MatteFrameCertificate {
     pub provider_requests: u64,
     /// Conservative aggregate4P/copy+coverage5P/recipient; bound268435456.
     pub matte_work_units: u64,
+    pub blend_work_units: u64,
     /// Caller destination/cache/facts/schedule and executor-slot metadata.
     pub fixed_live_bytes: u64,
     /// Actual schedule/nested Vec capacities plus128 bytes/task executor slots.
@@ -61,11 +64,19 @@ pub(crate) struct MatteFrameCertificate {
     /// Absolute shared peak including fixed storage, bound1073741824.
     pub peak_live_bytes: u64,
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct DirectDraw {
+    pub task: MatteTaskId,
+    pub layer_index: usize,
+    pub blend_mode: crate::BlendMode,
+    pub destination_visits: u64,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MatteFrameSchedule {
     pub canvas: (u32, u32),
     pub tasks: Vec<MatteTask>,
-    pub direct_draw: Vec<MatteTaskId>,
+    pub direct_draw: Vec<DirectDraw>,
+    pub owner_modes: Vec<crate::BlendMode>,
     /// Task indices followed by direct draws at tasks.len()+draw_index.
     pub last_uses: Vec<usize>,
     pub certificate: MatteFrameCertificate,
@@ -225,10 +236,7 @@ fn admit_graph_group(graph: &EvaluatedMatteGraph, id_bytes: usize) -> Result<(),
     Ok(())
 }
 pub(crate) fn graph_heap_bytes(graph: &EvaluatedMatteGraph) -> Result<u64, crate::CoreError> {
-    let mut bytes = add(
-        std::mem::size_of::<EvaluatedMatteGraph>() as u64,
-        graph.resource_live_bytes,
-    )?;
+    let mut bytes = std::mem::size_of::<EvaluatedMatteGraph>() as u64;
     bytes = add(bytes, capacity_bytes(&graph.groups)?)?;
     bytes = add(bytes, capacity_bytes(&graph.roles)?)?;
     bytes = add(bytes, capacity_bytes(&graph.provider_first)?)?;
@@ -237,392 +245,6 @@ pub(crate) fn graph_heap_bytes(graph: &EvaluatedMatteGraph) -> Result<u64, crate
         bytes = add(bytes, capacity_bytes(&group.members)?)?;
     }
     Ok(bytes)
-}
-
-pub(crate) fn font_payload_admission(
-    scene: &super::EvaluatedScene,
-) -> Result<u64, crate::CoreError> {
-    let graph = scene
-        .mattes
-        .as_ref()
-        .ok_or_else(|| invalid("matte resource facts unavailable"))?;
-    let base = add(
-        add(
-            MATTE_CACHE_RESERVATION,
-            mul(
-                mul(
-                    u64::from(scene.canvas.width),
-                    u64::from(scene.canvas.height),
-                )?,
-                20,
-            )?,
-        )?,
-        add(scene_heap_bytes(scene)?, graph_heap_bytes(graph)?)?,
-    )?;
-    MAX_MATTE_LIVE_BYTES
-        .checked_sub(
-            base.checked_sub(graph.font_payload_bytes)
-                .ok_or_else(|| invalid("matte font reservation invalid"))?,
-        )
-        .ok_or_else(|| invalid("matte resource memory exceeds shared bounds"))
-}
-pub(crate) fn adopt_font_payload(
-    scene: &mut super::EvaluatedScene,
-    bytes: u64,
-) -> Result<(), crate::CoreError> {
-    if scene.mattes.is_none() {
-        return Ok(());
-    }
-    if bytes > font_payload_admission(scene)? {
-        return Err(invalid("matte font payload exceeds shared memory bounds"));
-    }
-    let graph = scene.mattes.as_mut().unwrap();
-    graph.resource_live_bytes = add(
-        graph
-            .resource_live_bytes
-            .checked_sub(graph.font_payload_bytes)
-            .ok_or_else(|| invalid("matte font reservation invalid"))?,
-        bytes,
-    )?;
-    graph.font_payload_bytes = bytes;
-    Ok(())
-}
-pub(crate) fn admit_caller_scene_clone(
-    scene: &super::EvaluatedScene,
-) -> Result<u64, crate::CoreError> {
-    let graph = scene
-        .mattes
-        .as_ref()
-        .ok_or_else(|| invalid("matte resource facts unavailable"))?;
-    let heap = add(
-        scene_heap_bytes(scene)?,
-        graph_heap_bytes(graph)?
-            .checked_sub(graph.resource_live_bytes)
-            .ok_or_else(|| invalid("matte caller memory invalid"))?,
-    )?;
-    let available = font_payload_admission(scene)?;
-    if add(heap, graph.font_payload_bytes)? > available {
-        return Err(invalid(
-            "matte caller scene clone exceeds shared memory bounds",
-        ));
-    }
-    Ok(heap)
-}
-
-fn add(a: u64, b: u64) -> Result<u64, crate::CoreError> {
-    a.checked_add(b)
-        .ok_or_else(|| invalid("matte resource arithmetic overflow"))
-}
-fn mul(a: u64, b: u64) -> Result<u64, crate::CoreError> {
-    a.checked_mul(b)
-        .ok_or_else(|| invalid("matte resource arithmetic overflow"))
-}
-fn capacity_bytes<T>(items: &Vec<T>) -> Result<u64, crate::CoreError> {
-    mul(items.capacity() as u64, std::mem::size_of::<T>() as u64)
-}
-pub(crate) fn channel_heap(
-    channels: &Vec<crate::AnimationChannel>,
-) -> Result<u64, crate::CoreError> {
-    let mut bytes = capacity_bytes(channels)?;
-    for channel in channels {
-        bytes = add(bytes, capacity_bytes(&channel.keyframes)?)?;
-        if let Some(target) = &channel.target {
-            bytes = add(
-                bytes,
-                add(target.id.capacity() as u64, target.scope.capacity() as u64)?,
-            )?;
-        }
-        for key in &channel.keyframes {
-            bytes = add(
-                bytes,
-                match &key.value {
-                    crate::AnimationChannelValue::PathPoints { points } => capacity_bytes(points)?,
-                    crate::AnimationChannelValue::GradientStops { stops } => capacity_bytes(stops)?,
-                    _ => 0,
-                },
-            )?;
-        }
-    }
-    Ok(bytes)
-}
-fn paint_heap(paint: &crate::Paint) -> Result<u64, crate::CoreError> {
-    match paint {
-        crate::Paint::Solid { .. } => Ok(0),
-        crate::Paint::LinearGradient { stops, .. } | crate::Paint::RadialGradient { stops, .. } => {
-            capacity_bytes(stops)
-        }
-    }
-}
-fn stroke_heap(stroke: &crate::Stroke) -> Result<u64, crate::CoreError> {
-    add(paint_heap(&stroke.paint)?, capacity_bytes(&stroke.dash)?)
-}
-fn geometry_heap(geometry: &crate::ShapeGeometry) -> Result<u64, crate::CoreError> {
-    match geometry {
-        crate::ShapeGeometry::Polygon { points } => capacity_bytes(points),
-        crate::ShapeGeometry::Path { path } => capacity_bytes(&path.commands),
-        _ => Ok(0),
-    }
-}
-fn shape_heap(shape: &super::shapes::EvaluatedShape) -> Result<u64, crate::CoreError> {
-    let mut bytes = add(
-        geometry_heap(&shape.geometry)?,
-        capacity_bytes(&shape.contours)?,
-    )?;
-    for contour in &shape.contours {
-        bytes = add(bytes, capacity_bytes(&contour.points)?)?;
-    }
-    if let Some(fill) = &shape.fill {
-        bytes = add(bytes, paint_heap(fill)?)?;
-    }
-    if let Some(stroke) = &shape.stroke {
-        bytes = add(bytes, stroke_heap(stroke)?)?;
-    }
-    if let Some(grid) = &shape.grid_descriptor {
-        bytes = add(
-            bytes,
-            match &grid.pattern {
-                crate::GridPattern::Dot { paint, .. } => paint_heap(paint)?,
-                crate::GridPattern::Rectangular { stroke, .. }
-                | crate::GridPattern::Diagonal { stroke, .. }
-                | crate::GridPattern::Isometric { stroke, .. } => stroke_heap(stroke)?,
-            },
-        )?;
-    }
-    if let Some(svg) = &shape.svg_document {
-        bytes = add(bytes, capacity_bytes(&svg.shapes)?)?;
-        for child in &svg.shapes {
-            bytes = add(bytes, geometry_heap(&child.geometry)?)?;
-            if let Some(fill) = &child.fill {
-                bytes = add(bytes, paint_heap(fill)?)?;
-            }
-            if let Some(stroke) = &child.stroke {
-                bytes = add(bytes, stroke_heap(stroke)?)?;
-            }
-        }
-    }
-    if let Some(children) = &shape.svg_children {
-        bytes = add(bytes, capacity_bytes(children)?)?;
-        for child in children {
-            bytes = add(bytes, shape_heap(child)?)?;
-        }
-    }
-    Ok(bytes)
-}
-pub(crate) fn text_paints_heap(
-    paints: &Vec<crate::TextPaintLayer>,
-) -> Result<u64, crate::CoreError> {
-    let mut bytes = capacity_bytes(paints)?;
-    for paint in paints {
-        let (crate::TextPaintLayer::Fill { color, .. }
-        | crate::TextPaintLayer::Stroke { color, .. }
-        | crate::TextPaintLayer::Shadow { color, .. }) = paint;
-        bytes = add(bytes, color.capacity() as u64)?;
-    }
-    Ok(bytes)
-}
-pub(crate) fn text_style_heap_bytes(
-    style: &super::EvaluatedTextStyle,
-) -> Result<u64, crate::CoreError> {
-    let mut bytes = 0;
-    for color in [
-        &style.outline_color,
-        &style.shadow.color,
-        &style.background_color,
-    ] {
-        bytes = add(bytes, color.capacity() as u64)?;
-    }
-    if style.layout.is_some() {
-        bytes = add(bytes, std::mem::size_of::<crate::TextLayout>() as u64)?;
-    }
-    if let Some(paints) = &style.paint_layers {
-        bytes = add(bytes, text_paints_heap(paints)?)?;
-    }
-    Ok(bytes)
-}
-pub(crate) fn text_heap(text: &super::EvaluatedText) -> Result<u64, crate::CoreError> {
-    let mut bytes = add(text.text.capacity() as u64, text.color.capacity() as u64)?;
-    if let Some(id) = &text.font_resource_id {
-        bytes = add(bytes, id.capacity() as u64)?;
-    }
-    bytes = add(bytes, text_style_heap_bytes(&text.style)?)?;
-    if let Some(binding) = &text.font_binding {
-        for value in [
-            &binding.profile,
-            &binding.regular,
-            &binding.bold,
-            &binding.italic,
-            &binding.bold_italic,
-        ] {
-            bytes = add(bytes, value.capacity() as u64)?;
-        }
-        bytes = add(bytes, capacity_bytes(&binding.warnings)?)?;
-        for warning in &binding.warnings {
-            bytes = add(bytes, warning.capacity() as u64)?;
-        }
-    }
-    if let Some(runs) = &text.rich_runs {
-        bytes = add(bytes, capacity_bytes(runs)?)?;
-        for run in runs {
-            bytes = add(bytes, run.text.capacity() as u64)?;
-            if let Some(color) = &run.color {
-                bytes = add(bytes, color.capacity() as u64)?;
-            }
-        }
-    }
-    if let Some(spans) = &text.spans {
-        bytes = add(
-            bytes,
-            mul(
-                spans.len() as u64,
-                std::mem::size_of::<crate::TextSpan>() as u64,
-            )?,
-        )?;
-        for span in spans {
-            if let Some(color) = &span.style.color {
-                bytes = add(bytes, color.capacity() as u64)?;
-            }
-            if let Some(paints) = &span.style.paint_layers {
-                bytes = add(bytes, text_paints_heap(paints)?)?;
-            }
-        }
-    }
-    if let Some(shaped) = &text.shaped {
-        bytes = add(bytes, shaped_heap_bytes(shaped)?)?;
-    }
-    Ok(bytes)
-}
-pub(crate) fn shaped_heap_bytes(
-    shaped: &crate::fonts::shaping::ShapedText,
-) -> Result<u64, crate::CoreError> {
-    let mut bytes = 0;
-    bytes = add(
-        bytes,
-        add(
-            capacity_bytes(&shaped.glyphs)?,
-            add(
-                capacity_bytes(&shaped.line_widths)?,
-                capacity_bytes(&shaped.glyph_lines)?,
-            )?,
-        )?,
-    )?;
-    for glyph in &shaped.glyphs {
-        bytes = add(
-            bytes,
-            add(glyph.face.capacity() as u64, glyph.color.capacity() as u64)?,
-        )?;
-        if let Some(paints) = &glyph.paint_layers {
-            bytes = add(bytes, text_paints_heap(paints)?)?;
-        }
-    }
-    Ok(bytes)
-}
-pub(crate) fn layer_heap_bytes(
-    layer: &super::EvaluatedVisualLayer,
-) -> Result<u64, crate::CoreError> {
-    let mut bytes = std::mem::size_of::<super::EvaluatedVisualLayer>() as u64;
-    bytes = add(bytes, layer.item_id.capacity() as u64)?;
-    if let Some((id, _)) = &layer.sampled_input {
-        bytes = add(bytes, id.capacity() as u64)?;
-    }
-    bytes = add(
-        bytes,
-        add(
-            capacity_bytes(&layer.keyframes)?,
-            capacity_bytes(&layer.transitions)?,
-        )?,
-    )?;
-    if let Some(tiles) = &layer.sampling_tiles {
-        bytes = add(bytes, capacity_bytes(tiles)?)?;
-    }
-    bytes = add(bytes, capacity_bytes(&layer.ancestor_stages)?)?;
-    for stage in &layer.ancestor_stages {
-        bytes = add(bytes, stage.item_id.capacity() as u64)?;
-        if let Some(animation) = &stage.animation {
-            bytes = add(bytes, channel_heap(&animation.channels)?)?;
-            // Shared keys are conservatively charged per stage; no hidden
-            // pointer-set allocation is required to claim a smaller bound.
-            bytes = add(
-                bytes,
-                mul(
-                    animation.keyframes.len() as u64,
-                    std::mem::size_of::<super::EvaluatedKeyframe>() as u64,
-                )?,
-            )?;
-        }
-    }
-    bytes = add(
-        bytes,
-        match &layer.source {
-            super::EvaluatedVisualSource::Shape(shape) => add(
-                std::mem::size_of::<super::shapes::EvaluatedShape>() as u64,
-                shape_heap(shape)?,
-            )?,
-            super::EvaluatedVisualSource::Text(text) => add(
-                std::mem::size_of::<super::EvaluatedText>() as u64,
-                text_heap(text)?,
-            )?,
-            super::EvaluatedVisualSource::Media { asset_id, .. } => asset_id.capacity() as u64,
-            super::EvaluatedVisualSource::SolidColor { color }
-            | super::EvaluatedVisualSource::Rectangle { color, .. } => color.capacity() as u64,
-            super::EvaluatedVisualSource::Caption(caption) => add(
-                caption.text.capacity() as u64,
-                add(
-                    caption.color.capacity() as u64,
-                    caption.background_color.capacity() as u64,
-                )?,
-            )?,
-        },
-    )?;
-    if let Some(extended) = &layer.extended {
-        bytes = add(bytes, capacity_bytes(&extended.effects)?)?;
-        for effect in &extended.effects {
-            bytes = add(
-                bytes,
-                match effect {
-                    crate::VisualEffect::GaussianBlur { id, .. }
-                    | crate::VisualEffect::Glow { id, .. }
-                    | crate::VisualEffect::ColorTint { id, .. }
-                    | crate::VisualEffect::Vignette { id, .. } => id.capacity() as u64,
-                },
-            )?;
-        }
-        bytes = add(bytes, channel_heap(&extended.channels)?)?;
-    }
-    Ok(bytes)
-}
-
-/// Heap payload actually retained by the complete scene while a matte schedule
-/// and every sampled callback coexist. Capacity, rather than length, is charged.
-pub(crate) fn scene_heap_bytes(scene: &super::EvaluatedScene) -> Result<u64, crate::CoreError> {
-    let mut bytes = std::mem::size_of::<super::EvaluatedScene>() as u64;
-    for value in [
-        capacity_bytes(&scene.visual_layers)?,
-        capacity_bytes(&scene.audio_layers)?,
-        capacity_bytes(&scene.resources)?,
-        capacity_bytes(&scene.voiceover_intervals)?,
-    ] {
-        bytes = add(bytes, value)?;
-    }
-    if let Some(intervals) = &scene.instance_voiceover_intervals {
-        bytes = add(bytes, capacity_bytes(intervals)?)?;
-    }
-    for resource in &scene.resources {
-        bytes = add(bytes, resource.asset_id.capacity() as u64)?;
-    }
-    for layer in &scene.audio_layers {
-        bytes = add(
-            bytes,
-            add(
-                layer.item_id.capacity() as u64,
-                layer.asset_id.capacity() as u64,
-            )?,
-        )?;
-        bytes = add(bytes, capacity_bytes(&layer.volume_keyframes)?)?;
-    }
-    for layer in &scene.visual_layers {
-        bytes = add(bytes, layer_heap_bytes(layer)?)?;
-    }
-    add(bytes, super::masks::scene_program_bytes(scene)?)
 }
 
 /// Exact immutable memo schedule. Each request is admitted before expanding its
@@ -700,17 +322,13 @@ fn integer_visibility(layer: &super::EvaluatedVisualLayer) -> (u64, u64) {
 pub(super) fn admit_continuous_metadata(
     scene: &super::EvaluatedScene,
 ) -> Result<u64, crate::CoreError> {
-    let graph = scene
-        .mattes
-        .as_ref()
-        .ok_or_else(|| invalid("continuous matte graph absent"))?;
     let pixels = mul(
         u64::from(scene.canvas.width),
         u64::from(scene.canvas.height),
     )?;
     let base = add(
         add(MATTE_CACHE_RESERVATION, mul(pixels, 20)?)?,
-        add(scene_heap_bytes(scene)?, graph_heap_bytes(graph)?)?,
+        composition_heap_bytes(scene)?,
     )?;
     let base = add(base, mul(scene.visual_layers.len() as u64, 48)?)?;
     if base > MAX_MATTE_LIVE_BYTES {
@@ -728,10 +346,7 @@ pub(super) fn certify_continuous_requests(
     mut verify: impl FnMut(&[u64]) -> Result<(), crate::CoreError>,
 ) -> Result<(), crate::CoreError> {
     use std::collections::HashSet;
-    let graph = scene
-        .mattes
-        .as_ref()
-        .ok_or_else(|| invalid("continuous matte graph absent"))?;
+    let graph = scene.mattes.as_ref();
     let end = scene.duration_ms.saturating_sub(1);
     let pixels = mul(
         u64::from(scene.canvas.width),
@@ -740,7 +355,7 @@ pub(super) fn certify_continuous_requests(
     let base = admit_continuous_metadata(scene)?;
     struct Classes<'a> {
         scene: &'a super::EvaluatedScene,
-        graph: &'a EvaluatedMatteGraph,
+        graph: Option<&'a EvaluatedMatteGraph>,
         end: u64,
         base: u64,
         copies: HashSet<(usize, RequestClock)>,
@@ -776,11 +391,28 @@ pub(super) fn certify_continuous_requests(
                 self.upper_work,
                 mul(
                     mul(self.pixels, 4)?,
-                    self.graph.groups[group.0].members.len() as u64,
+                    self.graph
+                        .ok_or_else(|| invalid("provider graph absent"))?
+                        .groups[group.0]
+                        .members
+                        .len() as u64,
                 )?,
             )?;
-            for slot in 0..self.graph.groups[group.0].members.len() {
-                self.copy(self.graph.groups[group.0].members[slot], clock, nodes)?;
+            for slot in 0..self
+                .graph
+                .ok_or_else(|| invalid("provider graph absent"))?
+                .groups[group.0]
+                .members
+                .len()
+            {
+                self.copy(
+                    self.graph
+                        .ok_or_else(|| invalid("provider graph absent"))?
+                        .groups[group.0]
+                        .members[slot],
+                    clock,
+                    nodes,
+                )?;
             }
             Ok(())
         }
@@ -805,10 +437,16 @@ pub(super) fn certify_continuous_requests(
                     continue;
                 }
                 self.upper_visits[index] = add(self.upper_visits[index], 1)?;
-                if self.graph.roles[index].provider.is_some() {
+                if self
+                    .graph
+                    .and_then(|graph| graph.roles[index].provider)
+                    .is_some()
+                {
                     self.upper_work = add(self.upper_work, mul(self.pixels, 5)?)?;
                 }
-                if let Some((provider, _)) = self.graph.roles[index].provider {
+                if let Some((provider, _)) =
+                    self.graph.and_then(|graph| graph.roles[index].provider)
+                {
                     self.provider(provider, sample, nodes)?;
                 }
             }
@@ -832,8 +470,10 @@ pub(super) fn certify_continuous_requests(
         upper_work: 0,
         pixels,
     };
-    for (index, role) in graph.roles.iter().enumerate() {
-        if role.contributes && !role.matte_only {
+    for index in 0..scene.visual_layers.len() {
+        if graph
+            .is_none_or(|graph| graph.roles[index].contributes && !graph.roles[index].matte_only)
+        {
             classes.copy(index, root_clock, nodes)?;
         }
     }
@@ -921,7 +561,7 @@ pub(super) fn certify_continuous_requests(
     representatives.push(end);
     struct Frame<'a> {
         scene: &'a super::EvaluatedScene,
-        graph: &'a EvaluatedMatteGraph,
+        graph: Option<&'a EvaluatedMatteGraph>,
         copies: HashSet<(usize, u64)>,
         providers: HashSet<(MatteGroupId, u64)>,
         visits: Vec<u64>,
@@ -944,14 +584,30 @@ pub(super) fn certify_continuous_requests(
                 self.work,
                 mul(
                     mul(self.pixels, 4)?,
-                    self.graph.groups[group.0].members.len() as u64,
+                    self.graph
+                        .ok_or_else(|| invalid("provider graph absent"))?
+                        .groups[group.0]
+                        .members
+                        .len() as u64,
                 )?,
             )?;
             if self.work > MAX_MATTE_WORK {
                 return Err(invalid("continuous matte work exceeds bounds"));
             }
-            for slot in 0..self.graph.groups[group.0].members.len() {
-                self.copy(self.graph.groups[group.0].members[slot], time)?;
+            for slot in 0..self
+                .graph
+                .ok_or_else(|| invalid("provider graph absent"))?
+                .groups[group.0]
+                .members
+                .len()
+            {
+                self.copy(
+                    self.graph
+                        .ok_or_else(|| invalid("provider graph absent"))?
+                        .groups[group.0]
+                        .members[slot],
+                    time,
+                )?;
             }
             Ok(())
         }
@@ -985,7 +641,9 @@ pub(super) fn certify_continuous_requests(
                     continue;
                 }
                 self.visits[index] = add(self.visits[index], 1)?;
-                if let Some((provider, _)) = self.graph.roles[index].provider {
+                if let Some((provider, _)) =
+                    self.graph.and_then(|graph| graph.roles[index].provider)
+                {
                     self.work = add(self.work, mul(self.pixels, 5)?)?;
                     if self.work > MAX_MATTE_WORK {
                         return Err(invalid("continuous matte work exceeds bounds"));
@@ -1025,8 +683,10 @@ pub(super) fn certify_continuous_requests(
             work: 0,
             nodes,
         };
-        for (index, role) in graph.roles.iter().enumerate() {
-            if role.contributes && !role.matte_only {
+        for index in 0..scene.visual_layers.len() {
+            if graph.is_none_or(|graph| {
+                graph.roles[index].contributes && !graph.roles[index].matte_only
+            }) {
                 frame.copy(index, root)?;
             }
         }
@@ -1035,13 +695,16 @@ pub(super) fn certify_continuous_requests(
     Ok(())
 }
 
+#[cfg(test)]
+std::thread_local! { static METADATA_RESERVATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 pub(crate) fn frame_schedule(
     scene: &super::EvaluatedScene,
     at: u64,
 ) -> Result<MatteFrameSchedule, crate::CoreError> {
     struct Builder<'a> {
         scene: &'a super::EvaluatedScene,
-        graph: &'a EvaluatedMatteGraph,
+        graph: Option<&'a EvaluatedMatteGraph>,
         tasks: Vec<MatteTask>,
         copies: std::collections::HashMap<(usize, u64), MatteTaskId>,
         providers: std::collections::HashMap<(MatteGroupId, u64), MatteTaskId>,
@@ -1097,7 +760,12 @@ pub(crate) fn frame_schedule(
                     "matte provider requests exceed output-frame bounds",
                 ));
             }
-            let member_count = self.graph.groups[group.0].members.len();
+            let member_count = self
+                .graph
+                .ok_or_else(|| invalid("provider graph absent"))?
+                .groups[group.0]
+                .members
+                .len();
             self.work = add(self.work, mul(mul(self.pixels, 4)?, member_count as u64)?)?;
             if self.work > MAX_MATTE_WORK {
                 return Err(invalid("matte work exceeds output-frame bounds"));
@@ -1105,7 +773,11 @@ pub(crate) fn frame_schedule(
             self.admit_records(add(self.tasks.len() as u64, member_count as u64)?, 0)?;
             let mut copies = Vec::new();
             for offset in 0..member_count {
-                let member = self.graph.groups[group.0].members[offset];
+                let member = self
+                    .graph
+                    .ok_or_else(|| invalid("provider graph absent"))?
+                    .groups[group.0]
+                    .members[offset];
                 copies.push(self.copy(member, at, depth)?);
             }
             let id = self.push(MatteTask::AggregateProvider { copies })?;
@@ -1143,7 +815,7 @@ pub(crate) fn frame_schedule(
                     "linear composition output-frame pixel work exceeds limits",
                 ));
             }
-            let provider = self.graph.roles[index].provider;
+            let provider = self.graph.and_then(|graph| graph.roles[index].provider);
 
             let mut samples = Vec::new();
             for time in times {
@@ -1189,18 +861,21 @@ pub(crate) fn frame_schedule(
             let id = if samples.len() == 1 {
                 samples[0]
             } else {
-                self.push(MatteTask::AverageCopy { samples })?
+                self.push(MatteTask::AverageCopy {
+                    layer_index: index,
+                    samples,
+                })?
             };
             self.copies.insert((index, at), id);
             Ok(id)
         }
     }
-    let graph = scene
-        .mattes
-        .as_ref()
-        .ok_or_else(|| invalid("matte frame requires derived bindings"))?;
-    if graph.roles.len() != scene.visual_layers.len() {
+    let graph = scene.mattes.as_ref();
+    if graph.is_some_and(|graph| graph.roles.len() != scene.visual_layers.len()) {
         return Err(invalid("matte role count does not match scene"));
+    }
+    if scene.composition_resources.is_none() {
+        return Err(invalid("bounded composition resource facts absent"));
     }
     let pixels = mul(
         u64::from(scene.canvas.width),
@@ -1208,8 +883,57 @@ pub(crate) fn frame_schedule(
     )?;
     let planning_fixed = add(
         add(MATTE_CACHE_RESERVATION, mul(pixels, 20)?)?,
-        add(scene_heap_bytes(scene)?, graph_heap_bytes(graph)?)?,
+        composition_heap_bytes(scene)?,
     )?;
+    // Admit the complete owning table and immutable direct metadata BEFORE
+    // allocating either vector. Task admission also retains this reservation.
+    let count = scene.visual_layers.len();
+    let direct_count = (0..count)
+        .filter(|&index| {
+            graph.is_none_or(|graph| {
+                graph.roles[index].contributes && !graph.roles[index].matte_only
+            })
+        })
+        .count();
+    let initial_descriptor = add(
+        add(
+            std::mem::size_of::<MatteFrameSchedule>() as u64,
+            mul(count as u64, std::mem::size_of::<crate::BlendMode>() as u64)?,
+        )?,
+        mul(
+            direct_count as u64,
+            std::mem::size_of::<DirectDraw>() as u64,
+        )?,
+    )?;
+    let planning_headers = add(
+        std::mem::size_of::<super::extended_visual::SampledFrameBudget>() as u64,
+        std::mem::size_of::<Vec<()>>() as u64,
+    )?;
+    if add(add(planning_fixed, initial_descriptor)?, planning_headers)? > MAX_MATTE_LIVE_BYTES {
+        return Err(invalid(
+            "composition owning metadata exceeds shared memory bounds",
+        ));
+    }
+    let mut owner_modes = Vec::new();
+    #[cfg(test)]
+    METADATA_RESERVATIONS.with(|counter| counter.set(counter.get() + usize::from(count > 0)));
+    owner_modes
+        .try_reserve_exact(count)
+        .map_err(|_| invalid("composition owner allocation failed"))?;
+    owner_modes.extend(scene.visual_layers.iter().map(|layer| layer.blend_mode));
+    let mut direct_draw = Vec::new();
+    direct_draw
+        .try_reserve_exact(direct_count)
+        .map_err(|_| invalid("composition direct allocation failed"))?;
+    let initial_descriptor = add(
+        std::mem::size_of::<MatteFrameSchedule>() as u64,
+        add(capacity_bytes(&owner_modes)?, capacity_bytes(&direct_draw)?)?,
+    )?;
+    if add(add(planning_fixed, initial_descriptor)?, planning_headers)? > MAX_MATTE_LIVE_BYTES {
+        return Err(invalid(
+            "composition metadata allocator capacity exceeds bounds",
+        ));
+    }
     let mut builder = Builder {
         scene,
         graph,
@@ -1220,23 +944,89 @@ pub(crate) fn frame_schedule(
         work: 0,
         leaf_pixels: 0,
         pixels,
-        planning_fixed,
+        planning_fixed: add(add(planning_fixed, initial_descriptor)?, planning_headers)?,
         sampled_budget: super::extended_visual::SampledFrameBudget::new(scene)?,
     };
-    let mut direct_draw = Vec::new();
-    for (index, role) in graph.roles.iter().enumerate() {
-        if role.contributes && !role.matte_only {
-            direct_draw.push(builder.copy(index, at, 0)?);
+    let mut blend_work = 0;
+    for (index, layer) in scene.visual_layers.iter().enumerate() {
+        if graph
+            .is_some_and(|graph| !graph.roles[index].contributes || graph.roles[index].matte_only)
+        {
+            continue;
         }
+        let task = builder.copy(index, at, 0)?;
+        let destination_visits = match &builder.tasks[task.0] {
+            MatteTask::AverageCopy { samples, .. } => {
+                let mut bounds: Option<[u32; 4]> = None;
+                for sample in samples {
+                    let MatteTask::LeafSample { at_ms, .. } = builder.tasks[sample.0] else {
+                        return Err(invalid("owning average sample is not a leaf"));
+                    };
+                    if !layer.visible_at(at_ms) {
+                        continue;
+                    }
+                    let next = super::extended_visual::certified_destination_bounds(
+                        layer,
+                        at_ms,
+                        (scene.canvas.width, scene.canvas.height),
+                    )?;
+                    if next[0] == next[2] || next[1] == next[3] {
+                        continue;
+                    }
+                    bounds = Some(bounds.map_or(next, |old| {
+                        [
+                            old[0].min(next[0]),
+                            old[1].min(next[1]),
+                            old[2].max(next[2]),
+                            old[3].max(next[3]),
+                        ]
+                    }));
+                }
+                bounds.map_or(0, |[left, top, right, bottom]| {
+                    u64::from(right - left) * u64::from(bottom - top)
+                })
+            }
+            MatteTask::LeafSample { at_ms, .. } if layer.visible_at(*at_ms) => {
+                super::extended_visual::certified_destination_visits(
+                    layer,
+                    *at_ms,
+                    (scene.canvas.width, scene.canvas.height),
+                )?
+            }
+            _ => 0,
+        };
+        if !layer.blend_mode.is_normal() {
+            blend_work = add(blend_work, mul(destination_visits, 32)?)?;
+            if blend_work > MAX_MATTE_WORK {
+                return Err(invalid("blend work exceeds output-frame bounds"));
+            }
+        }
+        direct_draw.push(DirectDraw {
+            task,
+            layer_index: index,
+            blend_mode: layer.blend_mode,
+            destination_visits,
+        });
     }
-    let mut last_uses = (0..builder.tasks.len()).collect::<Vec<_>>();
+    builder.admit_records(
+        builder.tasks.len() as u64,
+        mul(
+            builder.tasks.len() as u64,
+            std::mem::size_of::<usize>() as u64,
+        )?,
+    )?;
+    let mut last_uses = Vec::new();
+    last_uses
+        .try_reserve_exact(builder.tasks.len())
+        .map_err(|_| invalid("composition last-use allocation failed"))?;
+    last_uses.extend(0..builder.tasks.len());
     for (index, task) in builder.tasks.iter().enumerate() {
         match task {
             MatteTask::LeafSample {
                 provider: Some((id, _)),
                 ..
             } => last_uses[id.0] = last_uses[id.0].max(index),
-            MatteTask::AverageCopy { samples } => {
+            MatteTask::AverageCopy { samples, .. } => {
                 for id in samples {
                     last_uses[id.0] = last_uses[id.0].max(index);
                 }
@@ -1249,7 +1039,8 @@ pub(crate) fn frame_schedule(
             _ => {}
         }
     }
-    for (index, id) in direct_draw.iter().enumerate() {
+    for (index, draw) in direct_draw.iter().enumerate() {
+        let id = draw.task;
         last_uses[id.0] = last_uses[id.0].max(builder.tasks.len() + index);
     }
     let bytes = |capacity: usize, size: usize| mul(capacity as u64, size as u64);
@@ -1264,7 +1055,7 @@ pub(crate) fn frame_schedule(
     )?;
     descriptor = add(
         descriptor,
-        bytes(direct_draw.capacity(), std::mem::size_of::<MatteTaskId>())?,
+        bytes(direct_draw.capacity(), std::mem::size_of::<DirectDraw>())?,
     )?;
     descriptor = add(
         descriptor,
@@ -1275,7 +1066,7 @@ pub(crate) fn frame_schedule(
     )?;
     for task in &builder.tasks {
         match task {
-            MatteTask::AverageCopy { samples } => {
+            MatteTask::AverageCopy { samples, .. } => {
                 descriptor = add(
                     descriptor,
                     bytes(samples.capacity(), std::mem::size_of::<MatteTaskId>())?,
@@ -1290,47 +1081,38 @@ pub(crate) fn frame_schedule(
             _ => {}
         }
     }
-    let mut facts = add(
-        std::mem::size_of::<EvaluatedMatteGraph>() as u64,
-        graph.resource_live_bytes,
-    )?;
-    facts = add(
-        facts,
+    descriptor = add(
+        descriptor,
         bytes(
-            graph.groups.capacity(),
-            std::mem::size_of::<MatteProviderGroup>(),
+            owner_modes.capacity(),
+            std::mem::size_of::<crate::BlendMode>(),
         )?,
     )?;
-    facts = add(
-        facts,
-        bytes(
-            graph.roles.capacity(),
-            std::mem::size_of::<EvaluatedMatteRole>(),
-        )?,
-    )?;
-    facts = add(
-        facts,
-        bytes(
-            graph.provider_first.capacity(),
-            std::mem::size_of::<MatteGroupId>(),
-        )?,
-    )?;
-    for group in &graph.groups {
-        facts = add(facts, group.authored_item_id.capacity() as u64)?;
-        facts = add(
-            facts,
-            bytes(group.members.capacity(), std::mem::size_of::<usize>())?,
-        )?;
-    }
-    let programs = scene_heap_bytes(scene)?;
+    let facts = composition_heap_bytes(scene)?;
     let fixed = add(
         add(
             add(add(MATTE_CACHE_RESERVATION, mul(pixels, 20)?)?, descriptor)?,
             facts,
         )?,
-        programs,
+        0,
     )?;
-    let mut releases = vec![0u64; builder.tasks.len() + direct_draw.len()];
+    let release_count = builder
+        .tasks
+        .len()
+        .checked_add(direct_draw.len())
+        .ok_or_else(|| invalid("composition release cardinality overflow"))?;
+    builder.admit_records(
+        builder.tasks.len() as u64,
+        add(
+            capacity_bytes(&last_uses)?,
+            mul(release_count as u64, std::mem::size_of::<u64>() as u64)?,
+        )?,
+    )?;
+    let mut releases = Vec::new();
+    releases
+        .try_reserve_exact(release_count)
+        .map_err(|_| invalid("composition release allocation failed"))?;
+    releases.resize(release_count, 0u64);
     for &last in &last_uses {
         releases[last] = add(releases[last], 1)?;
     }
@@ -1374,10 +1156,12 @@ pub(crate) fn frame_schedule(
         canvas: (scene.canvas.width, scene.canvas.height),
         tasks: builder.tasks,
         direct_draw,
+        owner_modes,
         last_uses,
         certificate: MatteFrameCertificate {
             provider_requests: builder.requests,
             matte_work_units: builder.work,
+            blend_work_units: blend_work,
             fixed_live_bytes: fixed,
             descriptor_bytes: descriptor,
             peak_live_bytes: peak,
@@ -1387,6 +1171,9 @@ pub(crate) fn frame_schedule(
 
 #[cfg(test)]
 mod tests {
+    use super::super::composition_resources::{
+        admit_caller_scene_clone, adopt_font_payload, font_payload_admission, scene_heap_bytes,
+    };
     use super::*;
     use crate::{ErrorCode, Project};
     use serde_json::json;
@@ -1466,7 +1253,7 @@ mod tests {
                 provider: Some((p, _)),
                 ..
             } => p.0 < i,
-            MatteTask::AverageCopy { samples } => samples.iter().all(|s| s.0 < i),
+            MatteTask::AverageCopy { samples, .. } => samples.iter().all(|s| s.0 < i),
             MatteTask::AggregateProvider { copies } => copies.iter().all(|s| s.0 < i),
             _ => true,
         }));
@@ -2007,7 +1794,11 @@ mod tests {
     fn actual_spare_font_payload_capacity_and_caller_clone_join_shared_fixed_memory() {
         let mut evaluated = scene(&project());
         let initial = font_payload_admission(&evaluated).unwrap();
-        evaluated.mattes.as_mut().unwrap().resource_live_bytes += initial - 4096;
+        evaluated
+            .composition_resources
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += initial - 4096;
         assert_eq!(font_payload_admission(&evaluated).unwrap(), 4096);
         let mut spare = Vec::<u8>::with_capacity(4097);
         spare.push(1);
@@ -2019,7 +1810,14 @@ mod tests {
         assert_eq!(evaluated, before);
         adopt_font_payload(&mut evaluated, 4096).unwrap();
         assert_eq!(font_payload_admission(&evaluated).unwrap(), 4096);
-        assert_eq!(evaluated.mattes.as_ref().unwrap().font_payload_bytes, 4096);
+        assert_eq!(
+            evaluated
+                .composition_resources
+                .as_ref()
+                .unwrap()
+                .font_payload_bytes,
+            4096
+        );
         assert_eq!(
             admit_caller_scene_clone(&evaluated).unwrap_err().code,
             ErrorCode::InvalidArgument
@@ -2201,6 +1999,206 @@ mod tests {
         assert!(
             error.message.contains("maxPixelPassesPerSample"),
             "{error:?}"
+        );
+    }
+    fn blend_project(count: usize, size: u32) -> Project {
+        let mut p = project();
+        p.settings.width = size;
+        p.settings.height = size;
+        let mut template = serde_json::to_value(&p.tracks[0].items[0]).unwrap();
+        template.as_object_mut().unwrap().remove("matteOnly");
+        template["width"] = json!(size);
+        template["height"] = json!(size);
+        template["blendMode"] = json!("multiply");
+        let items = (0..count)
+            .map(|index| {
+                let mut item = template.clone();
+                item["id"] = json!(format!("ordinary-{index}"));
+                item["stackOrder"] = json!(index);
+                item
+            })
+            .collect::<Vec<_>>();
+        p.tracks[0].items = serde_json::from_value(json!(items)).unwrap();
+        p
+    }
+    #[test]
+    fn graph_free_blend_activation_has_real_resource_facts_and_exact_normal_bypass() {
+        let p = blend_project(2, 1);
+        let evaluated = scene(&p);
+        assert!(evaluated.mattes.is_none());
+        assert!(evaluated.composition_resources.is_some());
+        let schedule = frame_schedule(&evaluated, 400).unwrap();
+        assert_eq!(schedule.certificate.provider_requests, 0);
+        assert_eq!(schedule.certificate.blend_work_units, 64);
+        let mut normal = p.clone();
+        for item in &mut normal.tracks[0].items {
+            item.visual_properties_mut().blend_mode = crate::BlendMode::Normal;
+        }
+        let first = scene(&normal);
+        assert!(first.mattes.is_none());
+        assert!(first.composition_resources.is_none());
+        let mut explicit = serde_json::to_value(&normal).unwrap();
+        for item in explicit["tracks"][0]["items"].as_array_mut().unwrap() {
+            item["blendMode"] = json!("normal");
+        }
+        assert_eq!(first, scene(&serde_json::from_value(explicit).unwrap()));
+    }
+    #[test]
+    fn graph_free_4096_ordinary_occurrences_with_maximum16_shutters_have_zero_provider_requests() {
+        let mut p = blend_project(4096, 1);
+        for item in &mut p.tracks[0].items {
+            item.visual_properties_mut().motion_blur = Some(crate::MotionBlur {
+                shutter_angle_deg: 360.0,
+                sample_count: 16,
+            });
+        }
+        let evaluated = scene(&p);
+        let schedule = frame_schedule(&evaluated, 400).unwrap();
+        assert!(evaluated.mattes.is_none());
+        assert_eq!(schedule.certificate.provider_requests, 0);
+        assert_eq!(
+            schedule
+                .tasks
+                .iter()
+                .filter(|task| matches!(task, MatteTask::LeafSample { .. }))
+                .count(),
+            65536
+        );
+        assert_eq!(
+            schedule
+                .tasks
+                .iter()
+                .filter(|task| matches!(task, MatteTask::AverageCopy { .. }))
+                .count(),
+            4096
+        );
+        assert_eq!(schedule.direct_draw.len(), 4096);
+        assert_eq!(schedule.certificate.blend_work_units, 4096 * 32);
+        assert!(schedule.certificate.peak_live_bytes <= MAX_MATTE_LIVE_BYTES);
+        for count in [17, 32] {
+            let mut invalid = p.clone();
+            invalid.tracks[0].items[0]
+                .visual_properties_mut()
+                .motion_blur
+                .as_mut()
+                .unwrap()
+                .sample_count = count;
+            assert_eq!(
+                super::super::evaluate_project(&invalid, 1, 1, 10)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::InvalidArgument
+            );
+        }
+        let mut excessive = p.clone();
+        let mut extra = p.tracks[0].items[0].clone();
+        if let crate::TimelineItem::Rectangle(item) = &mut extra {
+            item.id = "extra".into();
+            item.visual_properties.stack_order = 4096;
+        }
+        excessive.tracks[0].items.push(extra);
+        assert!(super::super::evaluate_project(&excessive, 1, 1, 10).is_err());
+    }
+    #[test]
+    fn reachable_blend_work_exact128_full_footprints_and_one_clipped_pixel_excess() {
+        let mut p = blend_project(128, 256);
+        let evaluated = scene(&p);
+        let schedule = frame_schedule(&evaluated, 400).unwrap();
+        assert_eq!(schedule.certificate.blend_work_units, 268_435_456);
+        assert_eq!(schedule.certificate.provider_requests, 0);
+        assert!(schedule.certificate.peak_live_bytes <= MAX_MATTE_LIVE_BYTES);
+        let mut extra = p.tracks[0].items[0].clone();
+        if let crate::TimelineItem::Rectangle(item) = &mut extra {
+            item.id = "extra-pixel".into();
+            item.width = 1;
+            item.height = 1;
+            item.transform.position_x = 256.0;
+            item.transform.position_y = 256.0;
+            item.visual_properties.stack_order = 128;
+        }
+        p.tracks[0].items.push(extra);
+        let excessive = scene(&p);
+        let layer = excessive
+            .visual_layers
+            .iter()
+            .find(|layer| layer.item_id == "extra-pixel")
+            .unwrap();
+        assert_eq!(
+            super::super::extended_visual::certified_destination_visits(layer, 400, (256, 256))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            frame_schedule(&excessive, 400).unwrap_err().code,
+            crate::ErrorCode::InvalidArgument
+        );
+    }
+
+    #[test]
+    fn owning_average_charges_stationary_small_support_union_once() {
+        let mut p = blend_project(129, 256);
+        for item in &mut p.tracks[0].items {
+            if let crate::TimelineItem::Rectangle(item) = item {
+                item.width = 1;
+                item.height = 1;
+            }
+            item.visual_properties_mut().motion_blur = Some(crate::MotionBlur {
+                shutter_angle_deg: 360.0,
+                sample_count: 16,
+            });
+        }
+        let evaluated = scene(&p);
+        let schedule = frame_schedule(&evaluated, 400).unwrap();
+        assert_eq!(schedule.certificate.provider_requests, 0);
+        assert!(
+            schedule
+                .direct_draw
+                .iter()
+                .all(|draw| draw.destination_visits == 4)
+        );
+        assert_eq!(schedule.certificate.blend_work_units, 129 * 4 * 32);
+        assert_eq!(
+            schedule
+                .tasks
+                .iter()
+                .filter(|task| matches!(task, MatteTask::LeafSample { .. }))
+                .count(),
+            129 * 16
+        );
+    }
+    #[test]
+    fn normal_matte_metadata_exact_shared_limit_succeeds_and_excess_refuses_before_reservation() {
+        let mut p = project();
+        for item in &mut p.tracks[0].items {
+            item.visual_properties_mut().matte_only = true;
+        }
+        let mut evaluated = scene(&p);
+        let original = frame_schedule(&evaluated, 400).unwrap();
+        assert_eq!(original.certificate.provider_requests, 0);
+        assert_eq!(original.certificate.matte_work_units, 0);
+        assert_eq!(original.certificate.blend_work_units, 0);
+        assert!(original.tasks.is_empty());
+        evaluated
+            .composition_resources
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += MAX_MATTE_LIVE_BYTES - original.certificate.peak_live_bytes;
+        let exact = frame_schedule(&evaluated, 400).unwrap();
+        assert_eq!(exact.certificate.peak_live_bytes, MAX_MATTE_LIVE_BYTES);
+        evaluated
+            .composition_resources
+            .as_mut()
+            .unwrap()
+            .resource_live_bytes += 1;
+        METADATA_RESERVATIONS.with(|counter| counter.set(0));
+        assert_eq!(
+            frame_schedule(&evaluated, 400).unwrap_err().code,
+            crate::ErrorCode::InvalidArgument
+        );
+        assert_eq!(
+            METADATA_RESERVATIONS.with(std::cell::Cell::get),
+            0,
+            "no owning vector reservation may precede memory refusal"
         );
     }
 }

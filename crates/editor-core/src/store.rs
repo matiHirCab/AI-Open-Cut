@@ -711,7 +711,7 @@ impl EditorCore {
         operation: EditOperation,
     ) -> Result<WriteResult, CoreError> {
         if matches!(operation, EditOperation::ApplyAnimationPreset { .. })
-            || crate::find_mask_edit_fields(std::slice::from_ref(&operation))?.is_some()
+            || requires_composition_staging(std::slice::from_ref(&operation))?
         {
             return self.edit_with_staged_migration(
                 project_id,
@@ -725,7 +725,7 @@ impl EditorCore {
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        if existing_matte_graph(self.storage.as_ref(), &dir) {
+        if existing_bounded_composition(self.storage.as_ref(), &dir) {
             drop(_lock);
             return self.edit_with_staged_migration(
                 project_id,
@@ -782,13 +782,12 @@ impl EditorCore {
             ));
         }
         let operations: Vec<BatchEditOperation> = operations.into_iter().map(Into::into).collect();
-        let has_masks = crate::find_mask_edit_fields(
+        let has_masks = requires_composition_staging(
             &operations
                 .iter()
                 .map(|op| op.edit.clone())
                 .collect::<Vec<_>>(),
-        )?
-        .is_some();
+        )?;
         if has_masks
             || operations
                 .iter()
@@ -803,7 +802,7 @@ impl EditorCore {
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        if existing_matte_graph(self.storage.as_ref(), &dir) {
+        if existing_bounded_composition(self.storage.as_ref(), &dir) {
             drop(_lock);
             return self.edit_with_staged_migration(
                 project_id,
@@ -956,12 +955,12 @@ impl EditorCore {
         crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
-        if crate::find_mask_edit_fields(&operations)?.is_some() {
+        if requires_composition_staging(&operations)? {
             return self.write_mask_draft(project_id, None, expected_revision, operations, label);
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        if existing_matte_graph(self.storage.as_ref(), &dir) {
+        if existing_bounded_composition(self.storage.as_ref(), &dir) {
             drop(_lock);
             return self.write_mask_draft(project_id, None, expected_revision, operations, label);
         }
@@ -1038,7 +1037,7 @@ impl EditorCore {
         crate::drafts::reject_preset_intents(&operations)?;
         validate_operations(&operations)?;
         validate_draft_label(label.as_deref())?;
-        if crate::find_mask_edit_fields(&operations)?.is_some() {
+        if requires_composition_staging(&operations)? {
             return self.write_mask_draft(
                 project_id,
                 Some(draft_id),
@@ -1049,7 +1048,7 @@ impl EditorCore {
         }
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        if existing_matte_graph(self.storage.as_ref(), &dir) {
+        if existing_bounded_composition(self.storage.as_ref(), &dir) {
             drop(_lock);
             return self.write_mask_draft(
                 project_id,
@@ -1061,7 +1060,7 @@ impl EditorCore {
         }
 
         if let Ok(existing) = read_draft(self.storage.as_ref(), &dir, draft_id)
-            && crate::find_mask_edit_fields(&existing.operations)?.is_some()
+            && requires_composition_staging(&existing.operations)?
         {
             drop(_lock);
             return self.write_mask_draft(
@@ -1418,9 +1417,9 @@ impl EditorCore {
         let _lock = self.storage.lock_exclusive(&dir)?;
         // Selection must not bypass recovery or the existing revision/error
         // precedence when a draft is missing or has invalid wire structure.
-        let staged = existing_matte_graph(self.storage.as_ref(), &dir)
+        let staged = existing_bounded_composition(self.storage.as_ref(), &dir)
             || if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id) {
-                crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+                requires_composition_staging(&original_draft.operations)?
             } else {
                 false
             };
@@ -1465,9 +1464,9 @@ impl EditorCore {
         let _lock = self.storage.lock_exclusive(&dir)?;
         // Selection must not bypass recovery or the existing revision/error
         // precedence when a draft is missing or has invalid wire structure.
-        let staged = existing_matte_graph(self.storage.as_ref(), &dir)
+        let staged = existing_bounded_composition(self.storage.as_ref(), &dir)
             || if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id) {
-                crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+                requires_composition_staging(&original_draft.operations)?
             } else {
                 false
             };
@@ -1509,9 +1508,9 @@ impl EditorCore {
         let _lock = self.storage.lock_exclusive(&dir)?;
         // Selection must not bypass recovery or the existing revision/error
         // precedence when a draft is missing or has invalid wire structure.
-        let staged = existing_matte_graph(self.storage.as_ref(), &dir)
+        let staged = existing_bounded_composition(self.storage.as_ref(), &dir)
             || if let Ok(original_draft) = read_draft(self.storage.as_ref(), &dir, draft_id) {
-                crate::find_mask_edit_fields(&original_draft.operations)?.is_some()
+                requires_composition_staging(&original_draft.operations)?
             } else {
                 false
             };
@@ -2072,9 +2071,11 @@ fn matched_draft_base<'a>(
         .chain(history.redo.iter())
         .find(|p| p.revision == revision)
 }
-fn raw_matte_draft_operations(raw: &serde_json::Value) -> bool {
-    raw.get("operations")
-        .is_some_and(|ops| crate::reject_raw_matte_edit_fields(ops).is_err())
+fn raw_composition_draft_operations(raw: &serde_json::Value) -> bool {
+    raw.get("operations").is_some_and(|ops| {
+        crate::reject_raw_matte_edit_fields(ops).is_err()
+            || crate::reject_raw_blend_edit_fields(ops).is_err()
+    })
 }
 fn validate_matte_journal_draft_sources(
     project: &Project,
@@ -2083,6 +2084,14 @@ fn validate_matte_journal_draft_sources(
 ) -> Result<(), CoreError> {
     for bytes in updates.values() {
         let raw: serde_json::Value = serde_json::from_slice(bytes)?;
+        if let Some(revision) = raw.get("baseRevision").and_then(serde_json::Value::as_u64)
+            && matched_draft_base(project, history, revision)
+                .is_some_and(|base| base.schema_version < 35)
+            && let Some(operations) = raw.get("operations")
+        {
+            crate::reject_raw_blend_edit_fields(operations)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
         if let Some(revision) = raw.get("baseRevision").and_then(serde_json::Value::as_u64)
             && matched_draft_base(project, history, revision)
                 .is_some_and(|base| base.schema_version < 34)
@@ -2113,10 +2122,12 @@ fn validate_matte_journal_candidates(
                 .chain(base.components.iter().flat_map(|c| &c.tracks))
                 .flat_map(|t| &t.items)
                 .any(|item| {
-                    item.visual_properties().matte.is_some() || item.visual_properties().matte_only
+                    item.visual_properties().matte.is_some()
+                        || item.visual_properties().matte_only
+                        || !item.visual_properties().blend_mode.is_normal()
                 })
         });
-        if !raw_matte_draft_operations(&raw) && !active_base {
+        if !raw_composition_draft_operations(&raw) && !active_base {
             continue;
         }
         let draft: EditDraft = serde_json::from_slice(bytes)?;
@@ -2140,7 +2151,7 @@ fn validate_matte_journal_candidates(
                 crate::assets::fonts::managed_bytes(storage, dir, face)?;
             }
         }
-        // Unavailable-base schema34 drafts stay retained without an unrelated
+        // Unavailable-base current-schema drafts stay retained without an unrelated
         // current lookup. Their known metadata/resource checks still precede replay.
         if let Some(base) = base {
             validate_operations_against(base, &draft.operations)?;
@@ -2187,6 +2198,12 @@ fn reject_source_matte_draft_fields(
         else {
             continue;
         };
+        if base.schema_version < 35
+            && let Some(operations) = raw.get("operations")
+        {
+            crate::reject_raw_blend_edit_fields(operations)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
         if base.schema_version < 34
             && let Some(operations) = raw.get("operations")
         {
@@ -2198,7 +2215,7 @@ fn reject_source_matte_draft_fields(
 }
 // A non-failing routing peek preserves canonical recovery/revision/read errors
 // in the selected owner. No default/no-matte request changes its old path.
-fn existing_matte_graph(storage: &dyn Storage, dir: &Path) -> bool {
+fn existing_bounded_composition(storage: &dyn Storage, dir: &Path) -> bool {
     read_json::<Project>(storage, &project_path(dir)).is_ok_and(|project| {
         project
             .tracks
@@ -2206,7 +2223,9 @@ fn existing_matte_graph(storage: &dyn Storage, dir: &Path) -> bool {
             .chain(project.components.iter().flat_map(|c| &c.tracks))
             .flat_map(|t| &t.items)
             .any(|item| {
-                item.visual_properties().matte.is_some() || item.visual_properties().matte_only
+                item.visual_properties().matte.is_some()
+                    || item.visual_properties().matte_only
+                    || !item.visual_properties().blend_mode.is_normal()
             })
     })
 }
@@ -2266,6 +2285,13 @@ fn prepare_project_data(
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision);
         let base = matching_base.unwrap_or(&project);
+        if matching_base.is_some_and(|base| base.schema_version < 35) {
+            let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
+            if let Some(operations) = raw.get("operations") {
+                crate::reject_raw_blend_edit_fields(operations)
+                    .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+            }
+        }
         if matching_base.is_some_and(|base| base.schema_version < 34) {
             let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
             if let Some(operations) = raw.get("operations") {
@@ -2313,7 +2339,10 @@ fn prepare_project_data(
     // generation before any managed asset/font staging or publication. An
     // evicted base stays stale; its known metadata has already been validated.
     for draft in &retained_drafts {
-        if crate::find_mask_edit_fields(&draft.operations)?.is_some()
+        // Preserve unconditional text-shape validation before target-dependent
+        // replay, including typed component Normal omitted by serialization.
+        crate::validation::styled_text::validate_draft_text(&draft.operations)?;
+        if requires_composition_staging(&draft.operations)?
             && let Some(base) = std::iter::once(&project)
                 .chain(history.undo.iter())
                 .chain(history.redo.iter())
@@ -2349,7 +2378,6 @@ fn prepare_project_data(
     }
     let mut draft_updates = BTreeMap::new();
     for mut draft in retained_drafts {
-        crate::validation::styled_text::validate_draft_text(&draft.operations)?;
         if draft.version == 1 {
             let base = std::iter::once(&project)
                 .chain(history.undo.iter())
@@ -2551,6 +2579,20 @@ fn finish_persistence(
         ));
     }
     warnings
+}
+
+// Typed component Normal may be omitted on serialization. Stage adoption so
+// later failures cannot publish an incidental legacy migration.
+fn requires_composition_staging(
+    operations: &[crate::EditOperation],
+) -> Result<bool, crate::CoreError> {
+    Ok(operations.iter().any(|operation| {
+        matches!(
+            operation,
+            crate::EditOperation::ComponentCreate { .. }
+                | crate::EditOperation::ComponentUpdate { .. }
+        )
+    }) || crate::find_mask_edit_fields(operations)?.is_some())
 }
 
 #[cfg(test)]
@@ -7110,6 +7152,139 @@ mod tests {
     }
     #[test]
     fn matte_only_and_reference_edits_preserve_staged_resources_and_fault_generations() {
+        composition_edits_preserve_staged_resources_and_fault_generations(false);
+    }
+    #[test]
+    fn genuine_schema34_blend_adoption_preserves_active_resources_all_retained_generations() {
+        let (core, _) = core();
+        let (id, item, dir) = preset_legacy_resource_fixture(&core);
+        let adopted = core.get_project(&id).unwrap();
+        let provider = adopted
+            .tracks
+            .iter()
+            .flat_map(|track| &track.items)
+            .find(|item| matches!(item, crate::TimelineItem::Text { .. }))
+            .unwrap()
+            .id()
+            .to_owned();
+        let mask = serde_json::json!({"id":"retained-mask","source":{"type":"path","path":{"fillRule":"nonzero","commands":[{"type":"moveTo","to":{"x":0,"y":0}},{"type":"lineTo","to":{"x":32,"y":0}},{"type":"lineTo","to":{"x":32,"y":32}},{"type":"close"}]},"paint":{"type":"solid","color":{"r":1,"g":1,"b":1,"a":0.5}}},"channel":"alpha","operation":"add","inverted":false,"featherPx":0,"expansionPx":0,"transform":crate::Transform2D::default()});
+        core.edit(&id, adopted.revision, serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"masks":[mask],"matte":{"sourceId":provider,"channel":"alpha"}})).unwrap()).unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.edit(&id, revision, preset_edit(&item, 1)).unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.edit(
+            &id,
+            revision,
+            serde_json::from_value(
+                serde_json::json!({"operation":"update_item","itemId":item,"color":"#0000ff"}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let revision = core.get_project(&id).unwrap().revision;
+        core.undo(&id, revision).unwrap();
+        let expected = core.get_project(&id).unwrap();
+        let draft = core.create_draft(&id, expected.revision, vec![serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"color":"#00ff00"})).unwrap()], None).unwrap();
+        let expected_history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+        assert!(!expected.assets.is_empty());
+        assert!(!expected.fonts.is_empty());
+        let visual = expected.find_item(&item).unwrap().visual_properties();
+        assert!(!visual.masks.is_empty());
+        assert!(visual.matte.is_some());
+        assert!(!visual.animation_preset_provenance.is_empty());
+        assert!(!expected_history["undo"].as_array().unwrap().is_empty());
+        assert!(!expected_history["redo"].as_array().unwrap().is_empty());
+        let expected_draft = std::fs::read(draft_path(&dir, &draft.id).unwrap()).unwrap();
+        let mut retained_drafts = Vec::new();
+        for (suffix, base_revision) in [
+            (
+                "stale",
+                expected_history["undo"].as_array().unwrap().last().unwrap()["revision"]
+                    .as_u64()
+                    .unwrap(),
+            ),
+            ("unavailable", 999),
+        ] {
+            let mut raw: serde_json::Value = serde_json::from_slice(&expected_draft).unwrap();
+            let draft_id = format!("{}-{suffix}", draft.id);
+            raw["id"] = serde_json::json!(draft_id);
+            raw["baseRevision"] = serde_json::json!(base_revision);
+            let path = draft_path(&dir, &draft_id).unwrap();
+            write_json_atomic(&path, &raw).unwrap();
+            retained_drafts.push((draft_id, std::fs::read(path).unwrap()));
+        }
+
+        let resource_bytes = |files: BTreeMap<PathBuf, Vec<u8>>| {
+            files
+                .into_iter()
+                .filter(|(path, _)| {
+                    path.starts_with(dir.join("assets")) || path.starts_with(dir.join("fonts"))
+                })
+                .collect::<BTreeMap<_, _>>()
+        };
+        let expected_resources = resource_bytes(project_file_bytes(&dir));
+        let mut legacy = serde_json::to_value(&expected).unwrap();
+        legacy["schemaVersion"] = serde_json::json!(34);
+        write_json_atomic(&project_path(&dir), &legacy).unwrap();
+        let mut legacy_history = expected_history.clone();
+        for project in legacy_history["undo"].as_array_mut().unwrap() {
+            project["schemaVersion"] = serde_json::json!(34);
+        }
+        for project in legacy_history["redo"].as_array_mut().unwrap() {
+            project["schemaVersion"] = serde_json::json!(34);
+        }
+        write_json_atomic(&history_path(&dir), &legacy_history).unwrap();
+        let reopened = EditorCore::new(core.paths().clone());
+        let actual = reopened.get_project(&id).unwrap();
+        assert_eq!(
+            serde_json::to_value(&actual).unwrap(),
+            serde_json::to_value(&expected).unwrap()
+        );
+        let actual_history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+        assert_eq!(actual_history, expected_history);
+        assert_eq!(
+            std::fs::read(draft_path(&dir, &draft.id).unwrap()).unwrap(),
+            expected_draft
+        );
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        assert_eq!(
+            reopened
+                .get_draft_state(&id, &draft.id)
+                .unwrap()
+                .project
+                .schema_version,
+            crate::PROJECT_SCHEMA_VERSION
+        );
+        for (draft_id, bytes) in &retained_drafts {
+            reopened.get_draft(&id, draft_id).unwrap();
+            let error = reopened.get_draft_state(&id, draft_id).unwrap_err();
+            assert_eq!(error.code, ErrorCode::RevisionConflict);
+            assert!(error.retryable);
+            assert_eq!(
+                std::fs::read(draft_path(&dir, draft_id).unwrap()).unwrap(),
+                *bytes
+            );
+        }
+        let stable = project_file_bytes(&dir);
+        reopened.get_project(&id).unwrap();
+        assert_eq!(project_file_bytes(&dir), stable);
+        reopened.redo(&id, actual.revision).unwrap();
+        let redone = reopened.get_project(&id).unwrap();
+        assert_eq!(redone.schema_version, crate::PROJECT_SCHEMA_VERSION);
+        assert_eq!(
+            redone.find_item(&item).unwrap().visual_properties().matte,
+            visual.matte
+        );
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        reopened.undo(&id, redone.revision).unwrap();
+        assert_eq!(resource_bytes(project_file_bytes(&dir)), expected_resources);
+        assert_no_managed_transaction_files(&dir);
+    }
+    #[test]
+    fn blend_normal_and_multiply_edits_preserve_staged_resources_and_fault_generations() {
+        composition_edits_preserve_staged_resources_and_fault_generations(true);
+    }
+    fn composition_edits_preserve_staged_resources_and_fault_generations(blend: bool) {
         for reference in [false, true] {
             for phase in [
                 PersistencePhase::BeforeFontPublish,
@@ -7135,7 +7310,7 @@ mod tests {
                     .unwrap()["id"]
                     .as_str()
                     .unwrap();
-                let edit:EditOperation=serde_json::from_value(if reference {serde_json::json!({"operation":"update_item","itemId":item,"matte":{"sourceId":provider,"channel":"luma"}})}else{serde_json::json!({"operation":"update_item","itemId":item,"matteOnly":true})}).unwrap();
+                let edit:EditOperation=serde_json::from_value(if blend {serde_json::json!({"operation":"update_item","itemId":item,"blendMode":if reference {"normal"} else {"multiply"}})} else if reference {serde_json::json!({"operation":"update_item","itemId":item,"matte":{"sourceId":provider,"channel":"luma"}})}else{serde_json::json!({"operation":"update_item","itemId":item,"matteOnly":true})}).unwrap();
                 let before = project_file_bytes(&dir);
                 set_persistence_fault(&core, phase);
                 let result = core.edit(&id, 1, edit.clone());
@@ -7161,8 +7336,14 @@ mod tests {
                 assert_eq!(current.revision, 2);
                 assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
                 let visual = current.find_item(&item).unwrap().visual_properties();
-                assert_eq!(visual.matte.is_some(), reference);
-                assert_eq!(visual.matte_only, !reference);
+                if blend {
+                    assert_eq!(visual.blend_mode.is_normal(), reference);
+                    assert!(visual.matte.is_none());
+                    assert!(!visual.matte_only);
+                } else {
+                    assert_eq!(visual.matte.is_some(), reference);
+                    assert_eq!(visual.matte_only, !reference);
+                }
                 let history: History = read_json(&history_path(&dir)).unwrap();
                 assert!(
                     history
@@ -7181,6 +7362,13 @@ mod tests {
 
     #[test]
     fn matte_draft_mutations_keep_legacy_migration_atomic_and_commit_removes_draft() {
+        composition_draft_mutations_keep_legacy_migration_atomic(false);
+    }
+    #[test]
+    fn blend_draft_mutations_keep_legacy_migration_atomic_and_commit_removes_draft() {
+        composition_draft_mutations_keep_legacy_migration_atomic(true);
+    }
+    fn composition_draft_mutations_keep_legacy_migration_atomic(blend: bool) {
         for action in ["create", "update", "rebase", "commit"] {
             for phase in [
                 PersistencePhase::BeforeJournal,
@@ -7193,13 +7381,14 @@ mod tests {
                 let (core, _) = core();
                 let (id, item, dir) = preset_legacy_resource_fixture(&core);
                 let edit: EditOperation = serde_json::from_value(
-                    serde_json::json!({"operation":"update_item","itemId":item,"matteOnly":true}),
+                    if blend {serde_json::json!({"operation":"update_item","itemId":item,"blendMode":"multiply"})} else {serde_json::json!({"operation":"update_item","itemId":item,"matteOnly":true})},
                 )
                 .unwrap();
                 let draft = core.create_draft(&id, 1, vec![edit.clone()], None).unwrap();
                 let mut history: serde_json::Value =
                     serde_json::from_slice(&std::fs::read(history_path(&dir)).unwrap()).unwrap();
-                history["undo"][0]["schemaVersion"] = serde_json::json!(33);
+                history["undo"][0]["schemaVersion"] =
+                    serde_json::json!(if blend { 34 } else { 33 });
                 std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
                 let before = project_file_bytes(&dir);
                 set_persistence_fault(&core, phase);
@@ -7316,3 +7505,6 @@ mod tests {
         }
     }
 }
+
+// Typed component payloads omit explicit normal during serialization. Use the
+// staged migration owner so a later failure cannot publish a migration.

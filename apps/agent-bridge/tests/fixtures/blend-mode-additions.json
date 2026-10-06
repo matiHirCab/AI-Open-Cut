@@ -1,0 +1,285 @@
+{
+  "sourceCommit": "65e89d637d882d56aa98735aae9374de6a0da9fe",
+  "fieldCount": 29,
+  "literalPaths": [
+    [
+      "toolDefinitions",
+      "editor_get_status",
+      "outputSchema",
+      "properties",
+      "projectSchemaVersion",
+      "const"
+    ],
+    [
+      "$defs",
+      "ProjectGetStateOutputPropertiesProjectProperties",
+      "schemaVersion",
+      "const"
+    ]
+  ],
+  "entries": [
+    {
+      "path": [
+        "toolDefinitions",
+        "timeline_update_item",
+        "inputSchema",
+        "properties",
+        "blendMode"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional non-null enum normal/multiply/screen/overlay/add/darken/lighten; omission preserves on update"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "blendMode"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional non-null enum normal/multiply/screen/overlay/add/darken/lighten; omission preserves on update"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ItemsPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "OutputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "blendMode"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional non-null enum normal/multiply/screen/overlay/add/darken/lighten; omission preserves on update"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "blendMode"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null seven-mode enum; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    },
+    {
+      "path": [
+        "$defs",
+        "TracksItemsPropertiesItemsItemsOneOfRepeaterProperties",
+        "blendMode"
+      ],
+      "applicability": "ineligible-stored-normal",
+      "shape": "optional non-null literal normal; absent defaults normal"
+    }
+  ]
+}

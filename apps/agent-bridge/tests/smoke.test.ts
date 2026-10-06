@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
@@ -1265,4 +1266,5 @@ it("authors all typed mask animation targets through actual MCP lifecycle", asyn
 
 it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and drafts", async () => {
   await verifyTrackMatteWorkflow(client, call);
+  await verifyBlendModeWorkflow(client, call);
 });

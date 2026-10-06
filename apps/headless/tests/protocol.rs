@@ -1321,7 +1321,10 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
         status["subsystems"]["editor"]["capabilities"],
         headless_contract()["status"]["editorCapabilities"]
     );
-    assert_eq!(status["projectSchemaVersion"], 34);
+    assert_eq!(
+        status["projectSchemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
@@ -2328,7 +2331,10 @@ fn mask_metadata_roundtrips_aliases_order_clear_and_atomic_failure() {
     ]})));
     let item = added["aliases"]["leaf"].clone();
     let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(before["project"]["schemaVersion"], 34);
+    assert_eq!(
+        before["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(before["project"]["tracks"][1]["items"][0]["masks"], masks);
     for request in [
         json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"masks":null}}),
@@ -2571,7 +2577,10 @@ fn matte_aliases_scoped_graph_and_final_atomic_provider_deletion_roundtrip() {
     let provider = created["aliases"]["provider"].clone();
     let recipient = created["aliases"]["recipient"].clone();
     let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(before["project"]["schemaVersion"], 34);
+    assert_eq!(
+        before["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         before["project"]["tracks"][1]["items"][0]["matteOnly"],
         true
@@ -2691,4 +2700,81 @@ fn stale_matte_draft_preview_conflicts_without_artifacts_or_replaying_current() 
             );
         }
     }
+}
+
+#[test]
+fn canonical_blend_selections_aliases_history_drafts_and_raw_duplicates_roundtrip() {
+    let h = Harness::new();
+    let contract: Value =
+        serde_json::from_str(include_str!("../../../contracts/blend-modes-v1.json")).unwrap();
+    let id=result(&h.request(json!({"operation":"create_project","name":"Blend protocol"})))["projectId"].clone();
+    let initial = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(initial["project"]["schemaVersion"], 35);
+    let track = initial["project"]["tracks"][1]["id"].clone();
+    let created=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[{"operation":"add_rectangle","resultAlias":"leaf","trackId":track,"startMs":0,"durationMs":1000,"width":16,"height":16,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}},{"operation":"update_item","itemId":"@leaf","blendMode":"multiply"}]})));
+    let item = created["aliases"]["leaf"].clone();
+    let mut revision = 1;
+    for case in contract["acceptedSelections"].as_array().unwrap() {
+        if let Some(mode) = case.get("existingMode") {
+            result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_item","itemId":item,"blendMode":mode}})));
+            revision += 1;
+        }
+        let mut operation = case["operation"].clone();
+        operation["itemId"] = item.clone();
+        result(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":operation}),
+        ));
+        revision += 1;
+        let current = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let expected = case.get("expectedMode").unwrap_or(&case["name"]);
+        if expected == "normal" {
+            assert!(
+                current["project"]["tracks"][1]["items"][0]
+                    .get("blendMode")
+                    .is_none()
+            );
+        } else {
+            assert_eq!(
+                current["project"]["tracks"][1]["items"][0]["blendMode"],
+                *expected
+            );
+        }
+    }
+    let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    for case in contract["rejectedSelections"].as_array().unwrap() {
+        let mut operation = case["operation"].clone();
+        operation["itemId"] = item.clone();
+        let response = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":operation}),
+        ));
+        assert_eq!(response["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(response["error"]["retryable"], false);
+        assert_eq!(
+            result(&h.request(json!({"operation":"get_state","projectId":id})))["project"],
+            before["project"]
+        );
+    }
+    let raw = format!(
+        r#"{{"operation":"edit","projectId":{id},"expectedRevision":{revision},"edit":{{"operation":"update_item","itemId":{item},"blendMode":"normal","blendMode":"multiply"}}}}"#
+    );
+    let response = event(&h.request_raw(&raw));
+    assert_eq!(response["error"]["code"], "INVALID_ARGUMENT");
+    let draft=result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"blendMode":"multiply"}]})));
+    let state = result(
+        &h.request(json!({"operation":"get_draft_state","projectId":id,"draftId":draft["id"]})),
+    );
+    assert_eq!(
+        state["project"]["tracks"][1]["items"][0]["blendMode"],
+        "multiply"
+    );
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"expectedRevision":revision,"draftId":draft["id"]})));
+    revision += 1;
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision})));
+    revision += 1;
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":revision})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"open_project","projectId":id})))["project"]["tracks"]
+            [1]["items"][0]["blendMode"],
+        "multiply"
+    );
 }

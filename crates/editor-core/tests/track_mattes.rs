@@ -710,7 +710,7 @@ fn retained_component33_defaults_adopt_and_undo_redo_without_read_rewrites() {
     std::fs::write(&history_path, serde_json::to_vec(&history).unwrap()).unwrap();
     let before = inventory(&core, &id);
     let mut expected = raw;
-    expected["schemaVersion"] = json!(34);
+    expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
     assert_eq!(
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
         expected
@@ -790,7 +790,7 @@ fn premature_component_fields_and_late_future_history_reject_without_adoption() 
         serde_json::from_slice(&std::fs::read(dir.join("project.json")).unwrap()).unwrap();
     predecessor33(&mut raw);
     let mut future = raw.clone();
-    future["schemaVersion"] = json!(35);
+    future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
     future["revision"] = json!(77);
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&raw).unwrap()).unwrap();
     std::fs::write(

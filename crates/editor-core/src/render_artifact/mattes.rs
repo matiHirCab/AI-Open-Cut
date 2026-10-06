@@ -128,13 +128,17 @@ fn descriptor_bytes(schedule: &MatteFrameSchedule, slot_capacity: usize) -> Resu
     total = add(total, bytes::<usize>(schedule.last_uses.capacity())?)?;
     total = add(
         total,
-        bytes::<MatteTaskId>(schedule.direct_draw.capacity())?,
+        bytes::<crate::evaluated_scene::mattes::DirectDraw>(schedule.direct_draw.capacity())?,
+    )?;
+    total = add(
+        total,
+        bytes::<crate::BlendMode>(schedule.owner_modes.capacity())?,
     )?;
     total = add(total, std::mem::size_of::<Vec<Slot>>() as u64)?;
     total = add(total, bytes::<Slot>(slot_capacity)?)?;
     for task in &schedule.tasks {
         match task {
-            MatteTask::AverageCopy { samples }
+            MatteTask::AverageCopy { samples, .. }
             | MatteTask::AggregateProvider { copies: samples } => {
                 total = add(total, bytes::<MatteTaskId>(samples.capacity())?)?
             }
@@ -179,9 +183,16 @@ fn preflight(schedule: &MatteFrameSchedule, pixels: usize) -> Result<Vec<Slot>, 
         .map_err(|_| invalid("matte task slot allocation failed"))?;
     slots.resize_with(schedule.tasks.len(), Slot::default);
     validate_descriptor(schedule, slots.capacity(), pixels)?;
+    let mut blend_work = 0u64;
     let mut requests = 0u64;
     let mut work = 0u64;
     for (i, task) in schedule.tasks.iter().enumerate() {
+        if let MatteTask::LeafSample { layer_index, .. }
+        | MatteTask::AverageCopy { layer_index, .. } = task
+            && *layer_index >= schedule.owner_modes.len()
+        {
+            return Err(invalid("composition task owner is absent"));
+        }
         slots[i].last_use = i;
         let mut admit = |dependency: usize| -> Result<(), CoreError> {
             if dependency >= i {
@@ -201,13 +212,17 @@ fn preflight(schedule: &MatteFrameSchedule, pixels: usize) -> Result<Vec<Slot>, 
                 }
                 work = add(work, mul(pixels as u64, 5)?)?;
             }
-            MatteTask::AverageCopy { samples } => {
+            MatteTask::AverageCopy {
+                samples,
+                layer_index,
+            } => {
                 if samples.is_empty() || samples.len() > crate::MotionBlur::MAX_SAMPLES as usize {
                     return Err(invalid("matte copy sample count exceeds shutter bounds"));
                 }
                 for id in samples {
                     admit(id.0)?;
-                    if !matches!(schedule.tasks[id.0], MatteTask::LeafSample { .. }) {
+                    if !matches!(schedule.tasks[id.0], MatteTask::LeafSample { layer_index: owner, .. } if owner == *layer_index)
+                    {
                         return Err(invalid("matte copy sample is not a leaf sample"));
                     }
                 }
@@ -232,7 +247,23 @@ fn preflight(schedule: &MatteFrameSchedule, pixels: usize) -> Result<Vec<Slot>, 
             _ => {}
         }
     }
-    for (i, id) in schedule.direct_draw.iter().enumerate() {
+    let mut previous_owner = None;
+    for (i, draw) in schedule.direct_draw.iter().enumerate() {
+        let id = draw.task;
+        if schedule.owner_modes.get(draw.layer_index) != Some(&draw.blend_mode)
+            || previous_owner.is_some_and(|owner| owner >= draw.layer_index)
+            || draw.destination_visits > pixels as u64
+        {
+            return Err(invalid("direct draw owner/mode/order/support differs"));
+        }
+        previous_owner = Some(draw.layer_index);
+        if !draw.blend_mode.is_normal() {
+            blend_work = add(blend_work, mul(draw.destination_visits, 32)?)?;
+        }
+        if !matches!(schedule.tasks.get(id.0), Some(MatteTask::LeafSample {layer_index,..} | MatteTask::AverageCopy {layer_index,..}) if *layer_index == draw.layer_index)
+        {
+            return Err(invalid("direct draw task does not belong to owning layer"));
+        }
         if id.0 >= slots.len()
             || slots[id.0].direct_seen
             || matches!(schedule.tasks[id.0], MatteTask::AggregateProvider { .. })
@@ -257,7 +288,9 @@ fn preflight(schedule: &MatteFrameSchedule, pixels: usize) -> Result<Vec<Slot>, 
             "matte last-use certificate differs from actual references",
         ));
     }
-    if requests != schedule.certificate.provider_requests
+    if blend_work != schedule.certificate.blend_work_units
+        || blend_work > MAX_MATTE_WORK
+        || requests != schedule.certificate.provider_requests
         || requests > MAX_MATTE_REQUESTS
         || work > schedule.certificate.matte_work_units
         || schedule.certificate.matte_work_units > MAX_MATTE_WORK
@@ -551,7 +584,7 @@ fn execute(
                 live.release(*source_live_bytes - actual);
                 sampled.plane
             }
-            MatteTask::AverageCopy { samples } => average(samples, &slots, &mut live)?,
+            MatteTask::AverageCopy { samples, .. } => average(samples, &slots, &mut live)?,
             MatteTask::AggregateProvider { copies } => {
                 live.requests = add(live.requests, 1)?;
                 aggregate(copies, &slots, &mut live)?
@@ -563,24 +596,38 @@ fn execute(
     }
     // All callback, numeric, support, index, capacity and work failures precede
     // destination mutation. Direct results are checked together before commit.
-    for &id in &schedule.direct_draw {
-        result(&slots, id)?;
+    let mut actual_blend_work = 0;
+    for draw in &schedule.direct_draw {
+        let plane = result(&slots, draw.task)?;
+        let visits = mul(plane.width as u64, plane.height as u64)?;
+        if visits > draw.destination_visits {
+            return Err(invalid("direct result exceeds certified footprint"));
+        }
+        if !draw.blend_mode.is_normal() {
+            actual_blend_work = add(actual_blend_work, mul(visits, 32)?)?;
+        }
+    }
+    if actual_blend_work > schedule.certificate.blend_work_units {
+        return Err(invalid("blend touched work exceeds certificate"));
     }
     for pixel in destination.iter_mut() {
         clamp_pixel(pixel);
     }
     let width = schedule.canvas.0 as usize;
-    for (i, &id) in schedule.direct_draw.iter().enumerate() {
-        let plane = slots[id.0]
+    for (i, draw) in schedule.direct_draw.iter().enumerate() {
+        let plane = slots[draw.task.0]
             .plane
             .as_ref()
             .expect("preflighted live direct plane");
         for y in 0..plane.height {
             for x in 0..plane.width {
-                source_over(
-                    &mut destination[(plane.top + y) * width + plane.left + x],
-                    plane.pixels[y * plane.width + x],
-                );
+                let destination = &mut destination[(plane.top + y) * width + plane.left + x];
+                let source = plane.pixels[y * plane.width + x];
+                if draw.blend_mode.is_normal() {
+                    source_over(destination, source);
+                } else {
+                    super::blend::composite(destination, source, draw.blend_mode);
+                }
             }
         }
         release_finished(&mut slots, schedule.tasks.len() + i, &mut live);

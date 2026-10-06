@@ -269,7 +269,7 @@ pub(crate) fn certify_scene(
     project: &Project,
     nodes: &mut usize,
 ) -> Result<(), CoreError> {
-    let active_mattes = scene.mattes.is_some();
+    let active_mattes = scene.composition_resources.is_some();
     if active_mattes {
         super::mattes::admit_continuous_metadata(scene)?;
     }
@@ -902,6 +902,7 @@ fn certify_interval(
             return Err(invalid("path geometry missing"));
         };
         let layer = EvaluatedVisualLayer {
+            blend_mode: item.visual_properties().blend_mode,
             extended: Some(extended.clone()),
             sampled_input: None,
             instance: None,

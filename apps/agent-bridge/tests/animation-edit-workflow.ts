@@ -120,5 +120,5 @@ export const verifyAnimationEditWorkflow = async (
   expect(reopened.project.tracks[1]?.items).toEqual(
     duplicated.project.tracks[1]?.items
   );
-  expect(reopened.project.schemaVersion).toBe(34);
+  expect(reopened.project.schemaVersion).toBe(35);
 };

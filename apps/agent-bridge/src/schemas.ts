@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { BLEND_MODES } from "./blend-modes";
 import { gridDescriptorSchema } from "./procedural-grids";
 import {
   repeaterDescriptorSchema,
@@ -147,6 +148,8 @@ export const transform2dSchema = z
   }, "Transform2D position exceeds its unit bounds");
 
 // Structural reference only; core owns scoped DAG and managed media eligibility.
+export const blendModeSchema = z.enum(BLEND_MODES);
+
 export const matteReferenceSchema = z.strictObject({
   channel: z.enum(["alpha", "luma"]),
   sourceId: z
@@ -645,7 +648,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(34).optional(),
+    projectSchemaVersion: z.literal(35).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1119,6 +1122,7 @@ const mediaItemSchema = z
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     assetId: id,
     audio: audioSchema,
+    blendMode: blendModeSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1146,6 +1150,7 @@ const textItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+    blendMode: blendModeSchema.optional(),
     color: z.string(),
     crop: mediaCropSchema.optional(),
     document: z.lazy(() => richTextDocumentSchema),
@@ -1180,6 +1185,7 @@ const solidColorItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+    blendMode: blendModeSchema.optional(),
     color,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1244,6 +1250,7 @@ export const addGridSchema = z.strictObject({
 const repeaterItemSchema = z.strictObject({
   animationChannels: z.array(animationChannelSchema).max(64).optional(),
   animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+  blendMode: z.literal("normal").optional(),
   crop: mediaCropSchema.optional(),
   durationMs: positiveMilliseconds,
   effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1292,6 +1299,7 @@ const captionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+    blendMode: blendModeSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1339,6 +1347,7 @@ const transitionItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+    blendMode: z.literal("normal").optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1368,6 +1377,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
     .object({
       animationChannels: z.array(animationChannelSchema).max(64).optional(),
       animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+      blendMode: z.literal("normal").optional(),
       crop: mediaCropSchema.optional(),
       durationMs: positiveMilliseconds,
       effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1561,6 +1571,7 @@ export const componentInstanceSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
+    blendMode: z.literal("normal").optional(),
     componentId: id,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1803,7 +1814,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(34),
+        schemaVersion: z.literal(35),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2110,6 +2121,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
     .strict(),
   z
     .object({
+      blendMode: blendModeSchema.optional(),
       color: color.optional(),
       crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),
@@ -2648,6 +2660,7 @@ export const schemas = {
     .strict(),
   timelineUpdateItem: projectRevisionSchema
     .extend({
+      blendMode: blendModeSchema.optional(),
       color: color.optional(),
       crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),

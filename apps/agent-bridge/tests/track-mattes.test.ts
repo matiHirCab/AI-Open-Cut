@@ -106,7 +106,16 @@ describe("closed track matte public schemas", () => {
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import surface from "../../../contracts/mcp-surface-v1.json";
+import currentSurface from "../../../contracts/mcp-surface-v1.json";
+import {
+  projectBlendCatalogPredecessor,
+  projectBlendMcpPredecessor,
+} from "./fixtures/blend-mode-projection";
+
+const surface = projectBlendMcpPredecessor(
+  currentSurface
+) as typeof currentSurface;
+
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import additions from "./fixtures/track-matte-additions.json";
 import {
@@ -141,10 +150,13 @@ const predecessorDigest =
 it("pins all eight exact marker-only predecessor catalogs without discarding drift", () => {
   expect(Object.keys(TRACK_MATTE_PREDECESSOR_PINS)).toHaveLength(8);
   for (const [name, pin] of Object.entries(TRACK_MATTE_PREDECESSOR_PINS)) {
-    const value = JSON.parse(
-      readFileSync(
-        new URL(`../../../contracts/${name}.json`, import.meta.url),
-        "utf8"
+    const value = projectBlendCatalogPredecessor(
+      name,
+      JSON.parse(
+        readFileSync(
+          new URL(`../../../contracts/${name}.json`, import.meta.url),
+          "utf8"
+        )
       )
     );
     expect(
