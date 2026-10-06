@@ -400,6 +400,12 @@ describe("canonical public contracts", () => {
         unauthorizedMarker: { projectSchemaVersion: 32 },
         version: "unapproved",
       };
+      if (name === "extended-visual-animation-v1") {
+        expect(() =>
+          projectMaskRenderingCatalogPredecessor(name, drift)
+        ).toThrow("Unrelated verified predecessor catalog drift");
+        continue;
+      }
       const previous = projectActiveAnimationCatalogPredecessor(
         projectMaskRenderingCatalogPredecessor(name, drift)
       );

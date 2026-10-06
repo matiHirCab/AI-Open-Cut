@@ -176,3 +176,9 @@ follow-up change's verification index. The required Linux Render parity job now 
 ## Extended visual animation
 
 See [schema-27 animation semantics](extended-visual-animation.md). The required xtended_visual_animation integration suite exercises all twelve new properties, asymmetric crop, ordered effects, inherited clocks and nonzero range starts using the configured FFmpeg/FFprobe pair. Set OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1 to fail when native dependencies are missing. CPU tests independently check kernels, order, exact budgets and canonical compound samples.
+
+## Ordered effects
+
+The governed `orderedEffectCases` addition supplies full independent linear-scene plates for noncommuting vignette/tint and expanded-support glow/tint, including asymmetric quarter-turn/anchor geometry and exact kernel endpoints. See [fixture mathematics and lifecycle](extended-visual-animation.md#ordered-stack-conformance). Existing catalog fields and every composed predecessor pin remain intact; only the validated named addition is projected away.
+
+With `OPENCUT_FFMPEG_PATH`, `OPENCUT_FFPROBE_PATH`, the reviewed `OPENCUT_TEST_FONT_PATH`, `OPENCUT_GOLDEN_REQUIRED=1` and `OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1`, run `cargo test -p opencut-editor-core --test ordered_effects_native -- --nocapture`, then `cargo build -p opencut-headless`, then `bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts`. All three native core cases and the actual public MCP artifact case must execute. Independent raw/converted lossless plates allow at most one byte; encoded range/export retain SSIM≥.99, decoded PCM RMS≤.0001 and at most one-frame alignment. No golden regeneration or tolerance increase is needed.

@@ -58,5 +58,470 @@
     {"value": {"id": "blur", "type": "gaussian_blur", "radiusPx": 129}, "accepted": false},
     {"value": {"id": "particles", "type": "particle_overlay", "amount": 1}, "accepted": false},
     {"value": {"id": "", "type": "vignette", "amount": 0}, "accepted": false}
-  ]
+  ],
+  "orderedEffectCases": {
+    "id": "ordered-effects-noncommutative-v1",
+    "project": {
+      "width": 64,
+      "height": 64,
+      "fps": 10,
+      "durationMs": 800
+    },
+    "source": {
+      "geometry": {
+        "type": "path",
+        "path": {
+          "commands": [
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 32,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 32,
+                "y": 24
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 8,
+                "y": 24
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 0,
+                "y": 16
+              }
+            },
+            {
+              "type": "close"
+            }
+          ],
+          "fillRule": "nonzero"
+        }
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 20,
+          "y": 20,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0.25,
+          "y": 0.75
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 90,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 0.5
+      }
+    },
+    "orders": {
+      "shadeThenWash": [
+        {
+          "id": "shade",
+          "type": "vignette",
+          "amount": 0.8
+        },
+        {
+          "id": "wash",
+          "type": "color_tint",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        }
+      ],
+      "washThenShade": [
+        {
+          "id": "wash",
+          "type": "color_tint",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        },
+        {
+          "id": "shade",
+          "type": "vignette",
+          "amount": 0.8
+        }
+      ],
+      "glowThenWash": [
+        {
+          "id": "halo",
+          "type": "glow",
+          "radiusPx": 1,
+          "intensity": 0.6,
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 1,
+            "a": 1
+          }
+        },
+        {
+          "id": "wash",
+          "type": "color_tint",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        }
+      ],
+      "washThenGlow": [
+        {
+          "id": "wash",
+          "type": "color_tint",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        },
+        {
+          "id": "halo",
+          "type": "glow",
+          "radiusPx": 1,
+          "intensity": 0.6,
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 1,
+            "a": 1
+          }
+        }
+      ]
+    },
+    "primary": {
+      "localPixelCenter": [
+        4.5,
+        5.5
+      ],
+      "worldPixelCenter": [
+        32.5,
+        16.5
+      ],
+      "pixelIndex": [
+        32,
+        16
+      ],
+      "radialFactor": 0.40500217013888895,
+      "sourceAlpha": 0.5,
+      "sceneAlphaByte": 255,
+      "amount": 0.8,
+      "forwardLinear": [
+        0.1689995659722222,
+        0.25,
+        0
+      ],
+      "reverseLinear": [
+        0.1689995659722222,
+        0.1689995659722222,
+        0
+      ],
+      "forwardPreparedRgb": [
+        114,
+        137,
+        0
+      ],
+      "reversePreparedRgb": [
+        114,
+        114,
+        0
+      ]
+    },
+    "expanded": {
+      "sigma": 1,
+      "support": 3,
+      "normalizedKernel": [
+        0.004433048175243745,
+        0.054005582622414484,
+        0.2420362293761143,
+        0.3990502796524549,
+        0.2420362293761143,
+        0.054005582622414484,
+        0.004433048175243745
+      ],
+      "haloWeight": 0.3004748601737725,
+      "lastTapWeight": 0.004433048175243745,
+      "haloLocalCenter": [
+        -0.5,
+        8.5
+      ],
+      "haloWorldCenter": [
+        29.5,
+        11.5
+      ],
+      "haloPixelIndex": [
+        29,
+        11
+      ],
+      "lastTapPixelIndex": [
+        29,
+        9
+      ],
+      "zeroPixelIndex": [
+        29,
+        8
+      ],
+      "sourceAlpha": 0.09014245805213175,
+      "sceneAlphaByte": 255,
+      "forwardLinear": [
+        0,
+        0.045071229026065876,
+        0.045071229026065876
+      ],
+      "reverseLinear": [
+        0,
+        0,
+        0.09014245805213175
+      ],
+      "forwardPreparedRgb": [
+        0,
+        60,
+        60
+      ],
+      "reversePreparedRgb": [
+        0,
+        0,
+        85
+      ]
+    },
+    "heldSamples": [
+      {
+        "timeMs": 0,
+        "amount": 0.2
+      },
+      {
+        "timeMs": 200,
+        "amount": 0.8
+      },
+      {
+        "timeMs": 600,
+        "amount": 0.4
+      }
+    ],
+    "identityStacks": [
+      [],
+      [
+        {
+          "id": "zero",
+          "type": "gaussian_blur",
+          "radiusPx": 0
+        }
+      ],
+      [
+        {
+          "id": "zero",
+          "type": "vignette",
+          "amount": 0
+        }
+      ],
+      [
+        {
+          "id": "zero",
+          "type": "color_tint",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0
+          }
+        }
+      ]
+    ],
+    "encodedGreen": {
+      "value": 0.5,
+      "linear": 0.21404114048223255
+    },
+    "invalidStacks": [
+      {
+        "id": "null",
+        "value": null
+      },
+      {
+        "id": "duplicate",
+        "value": [
+          {
+            "id": "shade",
+            "type": "vignette",
+            "amount": 0.8
+          },
+          {
+            "id": "shade",
+            "type": "vignette",
+            "amount": 0.8
+          }
+        ]
+      },
+      {
+        "id": "tooMany",
+        "value": [
+          {
+            "id": "e0",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e1",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e2",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e3",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e4",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e5",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e6",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e7",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e8",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e9",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e10",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e11",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e12",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e13",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e14",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e15",
+            "type": "vignette",
+            "amount": 0
+          },
+          {
+            "id": "e16",
+            "type": "vignette",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "id": "unknownType",
+        "value": [
+          {
+            "id": "x",
+            "type": "shader",
+            "expression": "red"
+          }
+        ]
+      },
+      {
+        "id": "unknownField",
+        "value": [
+          {
+            "id": "shade",
+            "type": "vignette",
+            "amount": 0.8,
+            "provider": "external"
+          }
+        ]
+      },
+      {
+        "id": "outOfBounds",
+        "value": [
+          {
+            "id": "shade",
+            "type": "vignette",
+            "amount": 1.01
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "maxEffects": 16,
+      "maxExpandedOccurrences": 4096,
+      "maxPixelPassUnits": 268435456
+    },
+    "oracle": {
+      "preparedMaxByteError": 1,
+      "convertedMaxByteError": 1,
+      "visualSsimMinimum": 0.99,
+      "audioRmsMaximum": 0.0001,
+      "alignmentMaximumFrames": 1,
+      "fullPlate": "independent polygon-cell coverage and linear equations followed by existing black-YUV/RGBA-overlay/scale-pad-YUV conversion; never production capture"
+    }
+  }
 }

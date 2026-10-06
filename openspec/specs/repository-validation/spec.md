@@ -350,3 +350,14 @@ The existing render-parity native conformance step MUST additionally execute the
 #### Scenario: Reject weakened mandatory blend execution
 - **WHEN** any added blend command is omitted, altered, success-masked or its default headless build is replaced with an instrumented build
 - **THEN** exact policy validation fails and all prior protected commands, six environment entries, step ordering, timeouts, report, duration and aggregate constraints remain enforced
+
+### Requirement: Mandatory native ordered-effect CI conformance
+The existing render-parity native conformance step MUST additionally execute the actual native core ordered-effect suite `crates/editor-core/tests/ordered_effects_native.rs` and dedicated MCP artifact witness `apps/agent-bridge/tests/ordered-effect-native.test.ts` on the exact approved ordered-effect CI head. Immediately after the unchanged three blend commands it MUST run exactly `cargo test -p opencut-editor-core --test ordered_effects_native -- --nocapture`, `cargo build -p opencut-headless`, and `bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts` in that order before the unchanged raster-cache step. Default headless build MUST precede the public witness. Existing six required dependency/font/report environment keys and values, all mask/matte/blend commands, steps/dependencies/timeouts/reports/benchmark/cache instrumentation/default restoration/aggregate/duration budget MUST remain unchanged. Ordinary native opt-in skips SHALL NOT substitute for actual execution. Exact command-body policy validation and additive mutation regressions MUST reject omission/alteration/success fallback for each new command and instrumented-build substitution, preserving every prior negative control. This CI evidence requirement SHALL introduce no additional production behavior/public contract/schema/version/budget; the separately approved atomic-adoption selector correction remains governed by project-persistence. The named suites are implemented and execute under the existing required native configuration; local evidence and exact-head remote CI evidence MUST be recorded separately.
+
+#### Scenario: Execute actual core and public ordered-effect evidence
+- **WHEN** the required render-parity leaf executes the exact ordered-effect PR head with its existing six-key required tool/font/report environment
+- **THEN** full core and public ordered-effect witnesses execute without native opt-in skips after all unchanged blend commands and default build, before the unchanged cache controls
+
+#### Scenario: Reject weakened ordered-effect native execution
+- **WHEN** an added effect command is omitted, altered, success-masked or its default build replaced with an instrumented build
+- **THEN** exact protected policy validation fails with all prior commands/environment/step ordering/timeouts/report/duration/aggregate and negative controls preserved

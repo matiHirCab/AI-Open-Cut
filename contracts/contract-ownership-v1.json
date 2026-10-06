@@ -33,7 +33,17 @@
         "docs/animation-channels.md",
         "docs/extended-visual-animation.md",
         "docs/render-regression-fixtures.md",
-        "apps/agent-bridge/tests/contracts.test.ts"
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "crates/editor-core/tests/ordered_effect_stacks.rs",
+        "crates/editor-core/tests/ordered_effects_native.rs",
+        "apps/agent-bridge/tests/ordered-effect-stacks.test.ts",
+        "apps/agent-bridge/tests/ordered-effect-native.test.ts",
+        "apps/agent-bridge/tests/ordered-effect-workflow.ts",
+        "apps/agent-bridge/tests/ordered-effect-oracle.ts",
+        "apps/agent-bridge/tests/fixtures/ordered-effect-projection.ts",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        ".github/workflows/bun-ci.yml"
       ]
     },
     "inheritedAnimationTiming": {

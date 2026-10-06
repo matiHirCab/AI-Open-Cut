@@ -1,10 +1,4 @@
-# visual-effects Specification
-
-## Purpose
-
-Bounded authored leaf effects and deterministic local composition for visual animation.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Bounded authored effect stacks
 Core MUST accept an optional `effects` array on visual media, text, solid-color, rectangle, shape, SVG, and grid items through existing visual-property edits. Omission in stored model data MUST mean an empty stack; existing edit omission MUST preserve the current stack, explicit [] MUST clear it and null MUST reject. Each stack MUST contain at most16 closed tagged records with unique nonempty IDs of at most128 UTF-8 bytes. Supported records MUST remain gaussian_blur with radiusPx, glow with radiusPx/intensity/typed RGBA color, color_tint with typed RGBA color, and vignette with amount. Radii MUST be finite[0,128], intensity/amount/color components[0,1]. Other effect/item kinds MUST return nonretryable INVALID_ARGUMENT; missing references and stale revisions MUST preserve existing stable errors. Effects MUST introduce no paths/URLs/SVG/scripts/resource references. Existing standalone and alias batch array order, stable effect ID targets and public undo/redo/reopen behavior MUST have automated conformance evidence; no new public/schema behavior is introduced.

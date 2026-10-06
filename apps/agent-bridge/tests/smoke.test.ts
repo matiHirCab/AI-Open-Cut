@@ -32,6 +32,7 @@ import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
+import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
@@ -1267,4 +1268,5 @@ it("authors all typed mask animation targets through actual MCP lifecycle", asyn
 it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and drafts", async () => {
   await verifyTrackMatteWorkflow(client, call);
   await verifyBlendModeWorkflow(client, call);
+  await verifyOrderedEffectWorkflow(client, call);
 });
