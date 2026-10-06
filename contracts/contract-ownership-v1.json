@@ -760,6 +760,36 @@
         "docs/adr/0003-editor-core-module-boundaries.md",
         "crates/editor-core/src/render_artifact/raster_cache/tests.rs"
       ]
+    },
+    "parameterizedEffects": {
+      "canonical": "contracts/parameterized-effects-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/visual_effects.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/error.rs",
+        "crates/editor-core/src/validation/extended_visual.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+        "crates/editor-core/src/evaluated_scene/composition_resources.rs",
+        "crates/editor-core/src/renderer.rs",
+        "crates/editor-core/src/render_artifact/extended_visual.rs",
+        "crates/editor-core/tests/parameterized_effects.rs",
+        "crates/editor-core/tests/parameterized_effects_native.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/parameterized-effects.test.ts",
+        "apps/agent-bridge/tests/parameterized-effect-native.test.ts",
+        "apps/agent-bridge/tests/ordered-effect-oracle.ts",
+        "apps/agent-bridge/tests/fixtures/parameterized-effect-projection.ts",
+        "apps/agent-bridge/tests/fixtures/parameterized-effect-addition.json",
+        "apps/agent-bridge/tests/fixtures/parameterized-effect-predecessor-pins.json",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/parameterized-effects.md",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        ".github/workflows/bun-ci.yml"
+      ]
     }
   }
 }

@@ -1,0 +1,873 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 36,
+  "status": "active",
+  "effectType": "color_adjustment",
+  "editorCapability": "parameterized_effect_models_v1",
+  "renderingCapability": "parameterized_effects_v1",
+  "fields": {
+    "id": {
+      "nonempty": true,
+      "maxUtf8Bytes": 128
+    },
+    "exposureStops": {
+      "minimum": -8,
+      "maximum": 8
+    },
+    "contrast": {
+      "minimum": 0,
+      "maximum": 2
+    },
+    "saturation": {
+      "minimum": 0,
+      "maximum": 2
+    }
+  },
+  "semantics": {
+    "domain": "straight-linear-rgb-then-premultiply",
+    "exposure": "E=RGB*2^exposureStops",
+    "contrast": "C=0.18+contrast*(E-0.18)",
+    "luminance": [
+      0.2126,
+      0.7152,
+      0.0722
+    ],
+    "saturation": "S=L+saturation*(C-L)",
+    "clamp": "only-after-saturation-to-[0,1]",
+    "alpha": "unchanged; zero-alpha RGB zero",
+    "identity": [
+      0,
+      1,
+      1
+    ],
+    "channels": "static-only; no new animation property"
+  },
+  "limits": {
+    "maxEffectsPerItem": 16,
+    "maxEffectIdUtf8Bytes": 128,
+    "maxExpandedOccurrences": 4096,
+    "maxPixelPassesPerSample": 268435456,
+    "colorPixelPasses": 3
+  },
+  "effectCases": [
+    {
+      "id": "exposureStops--8",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": -8,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "exposureStops-0",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "exposureStops-8",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 8,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "contrast-0",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 0,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "contrast-1",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "contrast-2",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 2,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "saturation-0",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 0
+      },
+      "accepted": true
+    },
+    {
+      "id": "saturation-1",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": true
+    },
+    {
+      "id": "saturation-2",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 2
+      },
+      "accepted": true
+    },
+    {
+      "id": "exposureStops-overflow--8.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": -8.001,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "exposureStops-overflow-8.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 8.001,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "contrast-overflow--0.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": -0.001,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "contrast-overflow-2.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 2.001,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "saturation-overflow--0.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": -0.001
+      },
+      "accepted": false
+    },
+    {
+      "id": "saturation-overflow-2.001",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 2.001
+      },
+      "accepted": false
+    },
+    {
+      "id": "missing-exposureStops",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "missing-contrast",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "missing-saturation",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "missing-id",
+      "value": {
+        "type": "color_adjustment",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "invalid-exposureStops",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": null,
+        "contrast": 1,
+        "saturation": 1
+      },
+      "accepted": false
+    },
+    {
+      "id": "invalid-expression",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1,
+        "expression": "lut=file"
+      },
+      "accepted": false
+    },
+    {
+      "id": "invalid-url",
+      "value": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 1,
+        "saturation": 1,
+        "url": "https://invalid.example"
+      },
+      "accepted": false
+    }
+  ],
+  "nativeWitness": {
+    "project": {
+      "width": 64,
+      "height": 64,
+      "fps": 10,
+      "durationMs": 800
+    },
+    "source": {
+      "geometry": {
+        "type": "path",
+        "path": {
+          "commands": [
+            {
+              "type": "moveTo",
+              "to": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 32,
+                "y": 0
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 32,
+                "y": 24
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 8,
+                "y": 24
+              }
+            },
+            {
+              "type": "lineTo",
+              "to": {
+                "x": 0,
+                "y": 16
+              }
+            },
+            {
+              "type": "close"
+            }
+          ],
+          "fillRule": "nonzero"
+        }
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 0,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 20,
+          "y": 20,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0.25,
+          "y": 0.75
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 90,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 0.5
+      }
+    },
+    "primary": {
+      "effect": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": -1,
+        "contrast": 0.75,
+        "saturation": 0.25
+      },
+      "straightLinearRgb": [
+        0.19854375,
+        0.10479375,
+        0.10479375
+      ],
+      "sceneLinearRgb": [
+        0.099271875,
+        0.052396875,
+        0.052396875
+      ]
+    },
+    "finalClamp": {
+      "effect": {
+        "type": "color_adjustment",
+        "id": "grade",
+        "exposureStops": 0,
+        "contrast": 2,
+        "saturation": 0
+      },
+      "straightLinearRgb": [
+        0.2452,
+        0.2452,
+        0.2452
+      ],
+      "prematureClampRgb": [
+        0.2126,
+        0.2126,
+        0.2126
+      ]
+    },
+    "identity": {
+      "type": "color_adjustment",
+      "id": "grade",
+      "exposureStops": 0,
+      "contrast": 1,
+      "saturation": 1
+    },
+    "orders": {
+      "gradeThenTint": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": -1,
+          "contrast": 0.75,
+          "saturation": 0.25
+        },
+        {
+          "type": "color_tint",
+          "id": "wash",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        }
+      ],
+      "tintThenGrade": [
+        {
+          "type": "color_tint",
+          "id": "wash",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": -1,
+          "contrast": 0.75,
+          "saturation": 0.25
+        }
+      ]
+    },
+    "gaussian": {
+      "type": "gaussian_blur",
+      "id": "soft",
+      "radiusPx": 1
+    },
+    "gaussianIdentity": {
+      "type": "gaussian_blur",
+      "id": "soft",
+      "radiusPx": 0
+    },
+    "kernel": {
+      "sigma": 1,
+      "support": 3,
+      "equation": "exp(-i*i/2)/sum(exp(-j*j/2),j=-3..3)",
+      "extension": "transparent; no edge renormalization"
+    },
+    "tolerances": {
+      "losslessByte": 1,
+      "encodedSsim": 0.99,
+      "pcmRms": 0.0001,
+      "alignmentFrames": 1
+    },
+    "clockOrders": {
+      "gradeThenTint": [
+        {
+          "type": "gaussian_blur",
+          "id": "soft",
+          "radiusPx": 1
+        },
+        {
+          "type": "vignette",
+          "id": "shade",
+          "amount": 0.8
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": -1,
+          "contrast": 0.75,
+          "saturation": 0.25
+        },
+        {
+          "type": "color_tint",
+          "id": "wash",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        }
+      ],
+      "tintThenGrade": [
+        {
+          "type": "gaussian_blur",
+          "id": "soft",
+          "radiusPx": 1
+        },
+        {
+          "type": "color_tint",
+          "id": "wash",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 0,
+            "a": 0.5
+          }
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": -1,
+          "contrast": 0.75,
+          "saturation": 0.25
+        },
+        {
+          "type": "vignette",
+          "id": "shade",
+          "amount": 0.8
+        }
+      ]
+    },
+    "heldSamples": [
+      {
+        "timeMs": 0,
+        "amount": 0.2
+      },
+      {
+        "timeMs": 200,
+        "amount": 0.8
+      },
+      {
+        "timeMs": 600,
+        "amount": 0.4
+      }
+    ]
+  },
+  "invalidStacks": [
+    {
+      "id": "null",
+      "value": null
+    },
+    {
+      "id": "duplicate",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "excess",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade-0",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-1",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-2",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-3",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-4",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-5",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-6",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-7",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-8",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-9",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-10",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-11",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-12",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-13",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-14",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-15",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        },
+        {
+          "type": "color_adjustment",
+          "id": "grade-16",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "long-utf8-id",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "exposureStops-overflow--8.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": -8.001,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "exposureStops-overflow-8.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 8.001,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "contrast-overflow--0.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": -0.001,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "contrast-overflow-2.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 2.001,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "saturation-overflow--0.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": -0.001
+        }
+      ]
+    },
+    {
+      "id": "saturation-overflow-2.001",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 2.001
+        }
+      ]
+    },
+    {
+      "id": "missing-exposureStops",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "missing-contrast",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "missing-saturation",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1
+        }
+      ]
+    },
+    {
+      "id": "missing-id",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "invalid-exposureStops",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": null,
+          "contrast": 1,
+          "saturation": 1
+        }
+      ]
+    },
+    {
+      "id": "invalid-expression",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1,
+          "expression": "lut=file"
+        }
+      ]
+    },
+    {
+      "id": "invalid-url",
+      "value": [
+        {
+          "type": "color_adjustment",
+          "id": "grade",
+          "exposureStops": 0,
+          "contrast": 1,
+          "saturation": 1,
+          "url": "https://invalid.example"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "contract": "mask-rendering-v1",
   "version": 1,
-  "projectSchemaVersion": 35,
+  "projectSchemaVersion": 36,
   "capabilities": {
     "editor": "mask_animation_v1",
     "renderer": "mask_rendering_v1"

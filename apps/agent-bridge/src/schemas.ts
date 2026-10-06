@@ -62,6 +62,13 @@ export const visualEffectSchema = z.discriminatedUnion("type", [
     id,
     type: z.literal("vignette"),
   }),
+  z.strictObject({
+    contrast: finite.min(0).max(2),
+    exposureStops: finite.min(-8).max(8),
+    id,
+    saturation: finite.min(0).max(2),
+    type: z.literal("color_adjustment"),
+  }),
 ]);
 const markerIdentifier = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/);
 const markerScope = z
@@ -648,7 +655,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(35).optional(),
+    projectSchemaVersion: z.literal(36).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1814,7 +1821,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(35),
+        schemaVersion: z.literal(36),
         settings: z
           .object({
             fps: z.int().positive(),

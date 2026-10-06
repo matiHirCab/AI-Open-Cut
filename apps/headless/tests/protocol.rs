@@ -69,6 +69,71 @@ fn ordered_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preser
 }
 
 #[test]
+fn parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract()
+{
+    let h = Harness::new();
+    let native: Value = serde_json::from_str(include_str!(
+        "../../../contracts/parameterized-effects-v1.json"
+    ))
+    .unwrap();
+    let f = json!({"source":native["nativeWitness"]["source"],"orders":{"shadeThenWash":native["nativeWitness"]["orders"]["gradeThenTint"],"washThenShade":native["nativeWitness"]["orders"]["tintThenGrade"]},"invalidStacks":native["invalidStacks"]});
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Parameterized effects"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let a = &f["orders"]["shadeThenWash"];
+    let b = &f["orders"]["washThenShade"];
+    let created=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_shape","resultAlias":"leaf","trackId":track,"startMs":0,"durationMs":800,"geometry":f["source"]["geometry"],"fill":f["source"]["fill"],"stroke":null,"transform2d":f["source"]["transform2d"]},
+        {"operation":"update_item","itemId":"@leaf","effects":a},{"operation":"update_item","itemId":"@leaf","effects":b}
+    ]})));
+    let item = &created["aliases"]["leaf"];
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let stack = |state: Value| {
+        state["project"]["tracks"][1]["items"][0]
+            .get("effects")
+            .cloned()
+            .unwrap_or(json!([]))
+    };
+    let expected = |raw: &Value| {
+        serde_json::to_value(
+            serde_json::from_value::<Vec<opencut_editor_core::VisualEffect>>(raw.clone()).unwrap(),
+        )
+        .unwrap()
+    };
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"effects":a}})));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{"operation":"update_item","itemId":item,"zIndex":2}})));
+    assert_eq!(stack(read()), expected(a));
+    let before = read();
+    let revision = before["project"]["revision"].as_u64().unwrap();
+    for case in f["invalidStacks"].as_array().unwrap() {
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_item","itemId":item,"effects":case["value"]}}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"effects":case["value"]}]}),
+            json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"effects":case["value"]}]}),
+        ] {
+            let error = event(&h.request(request));
+            assert_eq!(error["error"]["code"], "INVALID_ARGUMENT");
+            assert_eq!(error["error"]["retryable"], false);
+            assert_eq!(read()["project"], before["project"]);
+        }
+    }
+    let draft=result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b}]})));
+    assert_eq!(read()["project"], before["project"]);
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"draftId":draft["id"],"expectedRevision":revision})));
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision+1})));
+    assert_eq!(stack(read()), expected(a));
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":revision+2})));
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision+3,"edit":{"operation":"update_item","itemId":item,"effects":[]}})));
+    assert_eq!(stack(read()), json!([]));
+}
+
+#[test]
 fn review_range_transport_rejects_before_io_and_preserves_revision_reopen() {
     let h = Harness::new();
     let id = result(&h.request(json!({"operation":"create_project","name":"Review transport"})))["projectId"].clone();
@@ -2770,7 +2835,10 @@ fn canonical_blend_selections_aliases_history_drafts_and_raw_duplicates_roundtri
         serde_json::from_str(include_str!("../../../contracts/blend-modes-v1.json")).unwrap();
     let id=result(&h.request(json!({"operation":"create_project","name":"Blend protocol"})))["projectId"].clone();
     let initial = result(&h.request(json!({"operation":"get_state","projectId":id})));
-    assert_eq!(initial["project"]["schemaVersion"], 35);
+    assert_eq!(
+        initial["project"]["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let track = initial["project"]["tracks"][1]["id"].clone();
     let created=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[{"operation":"add_rectangle","resultAlias":"leaf","trackId":track,"startMs":0,"durationMs":1000,"width":16,"height":16,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}},{"operation":"update_item","itemId":"@leaf","blendMode":"multiply"}]})));
     let item = created["aliases"]["leaf"].clone();

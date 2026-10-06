@@ -70,6 +70,7 @@ import { registerTranscriptionTools } from "../src/server/transcription";
 import {
   projectBlendCatalogPredecessor,
   projectBlendMcpPredecessor,
+  projectSchema35BlendMcpPredecessor,
 } from "./fixtures/blend-mode-projection";
 import { projectMaskMcpPredecessor } from "./fixtures/mask-mcp-projection";
 import {
@@ -82,6 +83,7 @@ import {
   assertMalformedPayloadRegressions,
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
+import { projectParameterizedMcpPredecessor } from "./fixtures/parameterized-effect-projection";
 
 import {
   projectTrackMatteCatalogPredecessor,
@@ -110,8 +112,10 @@ const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
 const MCP_BASELINE_DIGEST =
   "88b55ff7be147cb4aadc016dd92f92342c3dc366f49ac139b8116513d5854830";
 const MCP_PRE_MASK_RENDERING_DIGEST = MCP_BASELINE_DIGEST;
-const MCP_CURRENT_DIGEST =
+const MCP_PRE_PARAMETERIZED_DIGEST =
   "0f413e33c216b52383e201880409d987c705b52d132e1da3b211dd355929737f";
+const MCP_CURRENT_DIGEST =
+  "ddeb5a5f965c4be00336987dde4a0082105c8183b74c256abc4442645a1e15fc";
 const MCP_PRE_TRACK_MATTES_DIGEST =
   "803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170";
 const MCP_PRE_MASK_MODELS_DIGEST =
@@ -361,7 +365,7 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(35);
+    expect(PRESETS.projectSchemaVersion).toBe(36);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -375,7 +379,7 @@ describe("canonical public contracts", () => {
       name,
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
-      expect(catalog.projectSchemaVersion, name).toBe(35);
+      expect(catalog.projectSchemaVersion, name).toBe(36);
       const schema32 = projectMaskRenderingCatalogPredecessor(name, catalog);
       expect(animationCatalogDigest(schema32), name).toBe(
         MASK_RENDERING_PREDECESSOR_PINS[name]
@@ -428,7 +432,14 @@ describe("canonical public contracts", () => {
     expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
       MCP_CURRENT_DIGEST
     );
-    const schema34Source = projectBlendMcpPredecessor(MCP_SURFACE_SOURCE);
+    const schema35Source =
+      projectParameterizedMcpPredecessor(MCP_SURFACE_SOURCE);
+    expect(
+      createHash("sha256")
+        .update(JSON.stringify(expandMcpSurfaceCatalog(schema35Source)))
+        .digest("hex")
+    ).toBe(MCP_PRE_PARAMETERIZED_DIGEST);
+    const schema34Source = projectSchema35BlendMcpPredecessor(schema35Source);
     expect(
       createHash("sha256")
         .update(JSON.stringify(expandMcpSurfaceCatalog(schema34Source)))
@@ -811,7 +822,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 35,
+      projectSchemaVersion: 36,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -867,6 +878,8 @@ describe("canonical public contracts", () => {
       TRACK_MATTES_CAPABILITY,
       "blend_models_v1",
       "blend_modes_v1",
+      "parameterized_effect_models_v1",
+      "parameterized_effects_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -891,7 +904,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: 35,
+        projectSchemaVersion: 36,
         protocolVersion: 1,
         ready: true,
         subsystems: {

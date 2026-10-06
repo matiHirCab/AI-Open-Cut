@@ -1,6 +1,10 @@
 import additions from "./blend-mode-additions.json";
 import pins from "./blend-mode-predecessor-pins.json";
 import { projectOrderedEffectCatalogPredecessor } from "./ordered-effect-projection";
+import {
+  projectParameterizedMcpPredecessor,
+  restoreParameterizedCatalogMarker,
+} from "./parameterized-effect-projection";
 
 type JsonRecord = Record<string, unknown>;
 export const BLEND_PREDECESSOR_PINS: Record<string, string> = pins;
@@ -57,15 +61,22 @@ export const projectBlendCatalogPredecessor = (
   if (!Object.hasOwn(BLEND_PREDECESSOR_PINS, name)) {
     throw new Error("Unapproved blend predecessor catalog");
   }
+  const previous = restoreParameterizedCatalogMarker(source);
   const input = record(
     name === "extended-visual-animation-v1"
-      ? projectOrderedEffectCatalogPredecessor(source)
-      : source
+      ? projectOrderedEffectCatalogPredecessor(previous)
+      : previous
   );
   exact(input.projectSchemaVersion, 35, "projectSchemaVersion");
   return { ...structuredClone(input), projectSchemaVersion: 34 };
 };
-export const projectBlendMcpPredecessor = (source: unknown): JsonRecord => {
+export const projectBlendMcpPredecessor = (source: unknown): JsonRecord =>
+  projectSchema35BlendMcpPredecessor(
+    projectParameterizedMcpPredecessor(source)
+  );
+export const projectSchema35BlendMcpPredecessor = (
+  source: unknown
+): JsonRecord => {
   const input = record(source);
   const capabilities = input.capabilityIdentifiers;
   if (
