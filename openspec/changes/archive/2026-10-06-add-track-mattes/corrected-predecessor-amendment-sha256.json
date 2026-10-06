@@ -1,0 +1,24 @@
+{
+  "files": {
+    ".openspec.yaml": "c956e2a907cf0aa23d948e300827f91e46ab77d64e288d98285dfe990bb0d989",
+    "core-implementation-interface.md": "8ec86db33e243a359fef2e2cb7043430aab03e5ea2d114ccd68878370ee8a200",
+    "design.md": "9d31335d8535badd2461947c90aac39a8d1c1e4cf06897f6bbb96e73cc4fa5a7",
+    "ineligible-matte-schema-paths.json": "07c3e55d82c55023b0d6b6e9efe093cdccd3ceb9fc8706dad38fbe997e65872a",
+    "mcp-addition-whitelist.json": "2f237d43ee4fe624fea2832dc13acbdd957d5506b4eb2e9adc311e5d41b53381",
+    "predecessor-catalog-digests.json": "1bdf75de548f4733c12c74d1f0508172637138109cc4ace0712e4269505fc080",
+    "predecessor-mcp-field-locations.json": "ae52c79bede8e339ba6bf9561f2e95721cea30d9d873d3641dcec56b296be19d",
+    "proposal.md": "bb2ded05a095e4235603813ffe04608e809712b555d7561b16e1682be6313c31",
+    "proposed-track-mattes-v1.json": "00901582fece3b3a6e359e00b1620ab3d627a419b65fddf8dd5c5d044b007bbb",
+    "public-never-schema-amendment.md": "dc37e256c1ac8aec08d0698dec09227cde2b79e50e346f87f37c7fb2741e262d",
+    "reconciliation-notes.md": "c70cea21affe8151f5e9d23c4587008a0dd4121f1f8fffb18141984291cc82d8",
+    "specs/contract-governance/spec.md": "a8cc34c4e5ada70bac0faad2602c3b64580bf96dc77645a7f83b630b3d0fdf52",
+    "specs/linear-light-compositing/spec.md": "c162478c943f3ae0e4d983917440e08e7b60973df5c880a6c1ea3d65e84d3a2f",
+    "specs/motion-graphics-architecture/spec.md": "f0f2a951e8be7272876316587f08309e55e0ceaf012a7cc68ef191edc8ea0b44",
+    "specs/project-persistence/spec.md": "c12e30901268cdd1b1c32e1104322df1c557d100e3da0519e846f4f6681ef769",
+    "specs/rendering-export/spec.md": "0912d56e6f26dd9d994a11b8165989c9b56c10be40cdc779e07b6893289e557d",
+    "specs/track-mattes/spec.md": "0be86d8d7d54b6d43664eb8f370e649d13bc3a89797d74f324f60dbc8a195309",
+    "tasks.md": "e28cc803af1c7a9a674e9daf7ad10a0202834484db3e7c552f966e7a65a1dc7f",
+    "verification-plan.md": "ef6bdaa9b977401dfe3e004c5a64d174e3bb668fd133eb567167872bae7c35f8"
+  },
+  "scope": "Exact corrected51 baseline reconciliation and five-digest bounded proof amendment before resumed implementation; historical approvals preserved"
+}

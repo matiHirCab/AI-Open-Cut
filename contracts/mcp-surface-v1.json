@@ -28,7 +28,9 @@
     "animation_presets_v1",
     "initial_motion_preset_pack_v1",
     "preview_review_presets_v1",
-    "artifact_resources_v2"
+    "artifact_resources_v2",
+    "matte_models_v1",
+    "track_mattes_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2230,7 +2232,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 33,
+            "const": 34,
             "type": "number"
           },
           "protocolVersion": {
@@ -8367,6 +8369,19 @@
             "maxItems": 16,
             "type": "array"
           },
+          "matte": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TrackMatteReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matteOnly": {
+            "type": "boolean"
+          },
           "motionBlur": {
             "additionalProperties": false,
             "properties": {
@@ -11191,6 +11206,13 @@
         "maxItems": 0,
         "type": "array"
       },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -12122,6 +12144,12 @@
         },
         "maxItems": 16,
         "type": "array"
+      },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -18174,6 +18202,19 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TrackMatteReference"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -18519,6 +18560,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -18923,6 +18971,13 @@
         "maxItems": 0,
         "type": "array"
       },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19311,6 +19366,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -19565,6 +19626,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -19976,6 +20044,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20360,6 +20434,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -20741,6 +20821,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -21116,6 +21202,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -21486,6 +21578,12 @@
         },
         "maxItems": 16,
         "type": "array"
+      },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -22111,6 +22209,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -22717,6 +22821,13 @@
         "maxItems": 0,
         "type": "array"
       },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -23004,6 +23115,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -24597,6 +24715,19 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TrackMatteReference"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -25408,7 +25539,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 33,
+        "const": 34,
         "type": "number"
       },
       "settings": {
@@ -26096,6 +26227,13 @@
         "maxItems": 0,
         "type": "array"
       },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26495,6 +26633,13 @@
         "maxItems": 0,
         "type": "array"
       },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -26878,6 +27023,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -27127,6 +27278,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -27533,6 +27691,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -27912,6 +28076,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28288,6 +28458,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -28658,6 +28834,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -29023,6 +29205,12 @@
         },
         "maxItems": 16,
         "type": "array"
+      },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -29646,6 +29834,12 @@
         "maxItems": 16,
         "type": "array"
       },
+      "matte": {
+        "$ref": "#/$defs/TrackMatteReference"
+      },
+      "matteOnly": {
+        "type": "boolean"
+      },
       "motionBlur": {
         "additionalProperties": false,
         "properties": {
@@ -29909,6 +30103,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -31176,6 +31377,13 @@
         },
         "maxItems": 0,
         "type": "array"
+      },
+      "matte": {
+        "not": {}
+      },
+      "matteOnly": {
+        "const": false,
+        "type": "boolean"
       },
       "motionBlur": {
         "additionalProperties": false,
@@ -33085,6 +33293,28 @@
         "operation",
         "source",
         "transform"
+      ],
+      "type": "object"
+    },
+    "TrackMatteReference": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "enum": [
+            "alpha",
+            "luma"
+          ],
+          "type": "string"
+        },
+        "sourceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "channel",
+        "sourceId"
       ],
       "type": "object"
     }

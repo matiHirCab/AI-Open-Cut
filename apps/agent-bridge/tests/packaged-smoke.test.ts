@@ -41,6 +41,7 @@ import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
+import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
 
 const root = mkdtempSync(join(tmpdir(), "opencut-packaged-test-"));
 const directories = {
@@ -619,4 +620,8 @@ it("preserves mask metadata lifecycle through the packaged MCP runtime", async (
 
 it("authors all typed mask animation targets through actual MCP lifecycle", async () => {
   await verifyMaskRenderingWorkflow(client, call);
+});
+
+it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and drafts", async () => {
+  await verifyTrackMatteWorkflow(client, call);
 });

@@ -1,0 +1,9 @@
+# Proposed exact absent-only JSON Schema amendment
+
+Implementation finding: pinned Zod 4.4 emits optional `z.never()` as `{"not":{}}`, rather than boolean `false`. Independently reproduced: absence accepted; null/object/false rejected; optional matteOnly false accepted and true rejected. Both schema forms deny every present value, so the semantic eligibility/null/default contract is unchanged.
+
+Replace ONLY the 11 named new ineligible-stored matte properties in `ineligible-matte-schema-paths.json` from boolean false to exact sole-member `{"not":{}}`. All 58 addition paths, optional presence, eligible closed references, shared nullable clears, false-only matteOnly fields, tool counts, annotations, protocol major, core behavior and existing predecessor structure/digests remain unchanged. Use standard library output directly; no SDK normalization adapter. The exact canonical current MCP digest is deliberately recomputed after this authorized new-shape amendment, and strict projection verifies `{"not":{}}` at those exact paths before removing them and reproducing verified #51 digest803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170. Missing/malformed/additional/unrelated changes still fail.
+
+Expected implementation edits after approval: `contracts/mcp-surface-v1.json`11newnodes; `apps/agent-bridge/tests/fixtures/track-matte-additions.json`11shape descriptions; `apps/agent-bridge/tests/fixtures/track-matte-projection.ts`exact ineligible matte shape check. Canonical track-mattes-v1 only describes absent-only representation and requires no change.
+
+Diagnostic logs external: `logs/issue52/schema-inspection.json`, `public-focused-initial.log`/status1 (46pass/2fail, including canonical-registration mismatch and separately pending capability-list consumer), and exact 11-path list. This amendment is planning only and awaits explicit independent/parent approval before those expected catalog/projection changes.

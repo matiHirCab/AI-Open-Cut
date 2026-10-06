@@ -155,9 +155,15 @@ pub(crate) fn resolve_operation_aliases(
             resolve_alias(&mut repeater.source.id, aliases)?;
         }
         EditOperation::UpdateItem {
-            item_id, repeater, ..
+            item_id,
+            repeater,
+            matte,
+            ..
         } => {
             resolve_alias(item_id, aliases)?;
+            if let Some(Some(matte)) = matte {
+                resolve_alias(&mut matte.source_id, aliases)?;
+            }
             if let Some(repeater) = repeater {
                 resolve_alias(&mut repeater.source.id, aliases)?;
             }
@@ -249,6 +255,21 @@ pub(crate) fn apply_operation(
     project: &mut Project,
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
+    apply_operation_mode(project, operation, false)
+}
+
+pub(crate) fn apply_operation_in_batch(
+    project: &mut Project,
+    operation: EditOperation,
+) -> Result<(Vec<String>, &'static str), CoreError> {
+    apply_operation_mode(project, operation, true)
+}
+
+fn apply_operation_mode(
+    project: &mut Project,
+    operation: EditOperation,
+    defer_mattes: bool,
+) -> Result<(Vec<String>, &'static str), CoreError> {
     let (mut ids, summary) = apply_operation_inner(project, operation)?;
     crate::markers::reconcile_project(project)?;
     for id in normalize_stack_order(project)? {
@@ -256,7 +277,11 @@ pub(crate) fn apply_operation(
             ids.push(id);
         }
     }
-    crate::validation::validate_project_visual_properties(project)?;
+    if defer_mattes {
+        crate::validation::validate_project_visual_properties_without_mattes(project)?;
+    } else {
+        crate::validation::validate_project_visual_properties(project)?;
+    }
     Ok((ids, summary))
 }
 
@@ -421,6 +446,8 @@ fn apply_operation_inner(
                 motion_blur: None,
                 effects: Vec::new(),
                 masks: Vec::new(),
+                matte: None,
+                matte_only: false,
                 start_time: None,
                 animation_channels: Vec::new(),
                 animation_preset_provenance: Default::default(),
@@ -1094,6 +1121,8 @@ fn apply_operation_inner(
             crop,
             effects,
             masks,
+            matte,
+            matte_only,
             motion_blur,
             grid,
             repeater,
@@ -1136,6 +1165,15 @@ fn apply_operation_inner(
                 value.validate()?;
                 animation_presets::blur_changed(item.visual_properties_mut(), value);
                 item.visual_properties_mut().motion_blur = Some(value);
+            }
+            if let Some(value) = matte {
+                if let Some(reference) = &value {
+                    reference.validate()?;
+                }
+                item.visual_properties_mut().matte = value;
+            }
+            if let Some(value) = matte_only {
+                item.visual_properties_mut().matte_only = value;
             }
             if let Some(value) = masks {
                 item.visual_properties_mut().masks = value;
@@ -1956,8 +1994,9 @@ pub(crate) fn validate_operations_against(
 ) -> Result<(), CoreError> {
     let mut candidate = project.clone();
     for operation in operations.iter().cloned() {
-        apply_operation(&mut candidate, operation)?;
+        apply_operation_in_batch(&mut candidate, operation)?;
     }
+    crate::validation::matte::validate_project(&candidate)?;
     Ok(())
 }
 

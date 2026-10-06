@@ -146,6 +146,19 @@ export const transform2dSchema = z
     );
   }, "Transform2D position exceeds its unit bounds");
 
+// Structural reference only; core owns scoped DAG and managed media eligibility.
+export const matteReferenceSchema = z.strictObject({
+  channel: z.enum(["alpha", "luma"]),
+  sourceId: z
+    .string()
+    .min(1)
+    .max(128)
+    .refine(
+      (value) => new TextEncoder().encode(value).length <= 128,
+      "Matte source ID exceeds 128 UTF-8 bytes"
+    ),
+});
+
 // Structural transport contract; core owns target eligibility, identity and aggregate budgets.
 export const maskSchema = z.strictObject({
   channel: z.enum(["alpha", "luma"]),
@@ -632,7 +645,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(33).optional(),
+    projectSchemaVersion: z.literal(34).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1114,6 +1127,8 @@ const mediaItemSchema = z
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.optional(),
+    matte: matteReferenceSchema.optional(),
+    matteOnly: z.boolean().optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     sourceInMs: milliseconds,
@@ -1145,6 +1160,8 @@ const textItemSchema = z
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.optional(),
+    matte: matteReferenceSchema.optional(),
+    matteOnly: z.boolean().optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1172,6 +1189,8 @@ const solidColorItemSchema = z
     keyframes: z.array(keyframeSchema),
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.optional(),
+    matte: matteReferenceSchema.optional(),
+    matteOnly: z.boolean().optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1232,6 +1251,8 @@ const repeaterItemSchema = z.strictObject({
   id,
   legacyAnimationClock: animationClockSchema.optional(),
   masks: maskStackSchema.max(0).optional(),
+  matte: z.never().optional(),
+  matteOnly: z.literal(false).optional(),
   motionBlur: motionBlurSchema.optional(),
   parent: parentReferenceSchema.nullable().optional(),
   repeater: repeaterDescriptorSchema,
@@ -1278,6 +1299,8 @@ const captionItemSchema = z
     id,
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.max(0).optional(),
+    matte: z.never().optional(),
+    matteOnly: z.literal(false).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     source: z
@@ -1324,6 +1347,8 @@ const transitionItemSchema = z
     id,
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.max(0).optional(),
+    matte: z.never().optional(),
+    matteOnly: z.literal(false).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1350,6 +1375,8 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       id,
       legacyAnimationClock: animationClockSchema.optional(),
       masks: maskStackSchema.max(0).optional(),
+      matte: z.never().optional(),
+      matteOnly: z.literal(false).optional(),
       motionBlur: motionBlurSchema.optional(),
       parent: parentReferenceSchema.nullable().optional(),
       stackOrder: z.int().nonnegative().max(4_294_967_295),
@@ -1542,6 +1569,8 @@ export const componentInstanceSchema = z
     id,
     legacyAnimationClock: animationClockSchema.optional(),
     masks: maskStackSchema.max(0).optional(),
+    matte: z.never().optional(),
+    matteOnly: z.literal(false).optional(),
     motionBlur: motionBlurSchema.optional(),
     parent: parentReferenceSchema.nullable().optional(),
     slotValues: slotValuesSchema,
@@ -1774,7 +1803,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(33),
+        schemaVersion: z.literal(34),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2094,6 +2123,8 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       masks: maskStackSchema.optional(),
+      matte: matteReferenceSchema.nullable().optional(),
+      matteOnly: z.boolean().optional(),
       motionBlur: motionBlurSchema.optional(),
       operation: z.literal("update_item"),
       repeater: repeaterEditDescriptorSchema.optional(),
@@ -2630,6 +2661,8 @@ export const schemas = {
       height: z.int().positive().max(4320).optional(),
       itemId: id,
       masks: maskStackSchema.optional(),
+      matte: matteReferenceSchema.nullable().optional(),
+      matteOnly: z.boolean().optional(),
       motionBlur: motionBlurSchema.optional(),
       repeater: repeaterDescriptorSchema.optional(),
       staggerMs: z.int().min(0).max(60_000).optional(),

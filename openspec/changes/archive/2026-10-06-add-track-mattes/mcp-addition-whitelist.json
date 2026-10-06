@@ -1,0 +1,548 @@
+{
+  "sourceCommit": "5f456618b9335a5f87519c5c4375a49e7f52c2d3",
+  "fieldCount": 58,
+  "literalPaths": [
+    [
+      "toolDefinitions",
+      "editor_get_status",
+      "outputSchema",
+      "properties",
+      "projectSchemaVersion",
+      "const"
+    ],
+    [
+      "$defs",
+      "ProjectGetStateOutputPropertiesProjectProperties",
+      "schemaVersion",
+      "const"
+    ]
+  ],
+  "entries": [
+    {
+      "path": [
+        "toolDefinitions",
+        "timeline_update_item",
+        "inputSchema",
+        "properties",
+        "matte"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional nullable closed MatteReference; null clears"
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "timeline_update_item",
+        "inputSchema",
+        "properties",
+        "matteOnly"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "matte"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional nullable closed MatteReference; null clears"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "matteOnly"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "InputPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ItemsPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ItemsPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "OutputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "matte"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional nullable closed MatteReference; null clears"
+    },
+    {
+      "path": [
+        "$defs",
+        "OutputPropertiesOperationsItemsOneOfUpdateItemProperties",
+        "matteOnly"
+      ],
+      "applicability": "shared-update-item",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matte"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional non-null closed MatteReference"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties",
+        "matteOnly"
+      ],
+      "applicability": "eligible-stored-visual",
+      "shape": "optional boolean; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    },
+    {
+      "path": [
+        "$defs",
+        "TracksItemsPropertiesItemsItemsOneOfRepeaterProperties",
+        "matte"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional never; canonical inline standard JSON Schema {\"not\":{}}; absence only"
+    },
+    {
+      "path": [
+        "$defs",
+        "TracksItemsPropertiesItemsItemsOneOfRepeaterProperties",
+        "matteOnly"
+      ],
+      "applicability": "ineligible-stored-visual",
+      "shape": "optional literal false; null rejected"
+    }
+  ]
+}

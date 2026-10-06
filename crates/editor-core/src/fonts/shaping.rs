@@ -139,6 +139,98 @@ pub(crate) fn shape_with_layout(
     line_spacing: i32,
     options: LayoutOptions,
 ) -> Result<ShapedText, CoreError> {
+    shape_with_layout_mode(
+        document,
+        binding,
+        faces,
+        font_size,
+        color,
+        line_spacing,
+        (options, false),
+    )
+}
+
+pub(crate) fn shape_admitted(
+    document: &RichTextDocument,
+    binding: &FontBinding,
+    faces: &BTreeMap<String, Vec<u8>>,
+    font_size: u32,
+    color: &str,
+    wrap_width: Option<u32>,
+    line_spacing: i32,
+) -> Result<ShapedText, CoreError> {
+    shape_with_layout_admitted(
+        document,
+        binding,
+        faces,
+        font_size,
+        color,
+        line_spacing,
+        LayoutOptions {
+            width: wrap_width.map(f64::from),
+            ..Default::default()
+        },
+    )
+}
+
+pub(crate) fn shape_with_layout_admitted(
+    document: &RichTextDocument,
+    binding: &FontBinding,
+    faces: &BTreeMap<String, Vec<u8>>,
+    font_size: u32,
+    color: &str,
+    line_spacing: i32,
+    options: LayoutOptions,
+) -> Result<ShapedText, CoreError> {
+    shape_with_layout_mode(
+        document,
+        binding,
+        faces,
+        font_size,
+        color,
+        line_spacing,
+        (options, true),
+    )
+}
+
+#[cfg(test)]
+thread_local! { static SHAPE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+pub(crate) fn observed_shape_calls(reset: bool) -> usize {
+    SHAPE_CALLS.with(|calls| {
+        let value = calls.get();
+        if reset {
+            calls.set(0);
+        }
+        value
+    })
+}
+
+#[cfg(test)]
+thread_local! { static GLYPH_CLONES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+pub(crate) fn observed_glyph_clones(reset: bool) -> usize {
+    GLYPH_CLONES.with(|n| {
+        let value = n.get();
+        if reset {
+            n.set(0);
+        }
+        value
+    })
+}
+
+fn shape_with_layout_mode(
+    document: &RichTextDocument,
+    binding: &FontBinding,
+    faces: &BTreeMap<String, Vec<u8>>,
+    font_size: u32,
+    color: &str,
+    line_spacing: i32,
+    mode: (LayoutOptions, bool),
+) -> Result<ShapedText, CoreError> {
+    let (options, admitted) = mode;
+    #[cfg(test)]
+    SHAPE_CALLS.with(|calls| calls.set(calls.get() + 1));
     if binding.profile != TEXT_LAYOUT_PROFILE
         || font_size == 0
         || font_size > 1000
@@ -282,6 +374,7 @@ pub(crate) fn shape_with_layout(
                 });
             }
         }
+        let mut pending_glyphs = 0usize;
         let mut clusters = BTreeMap::<usize, Cluster>::new();
         for segment in segments {
             let bytes = faces
@@ -314,6 +407,19 @@ pub(crate) fn shape_with_layout(
             let shaped = rustybuzz::shape(&face, &[], buffer);
             check_work(shaped.len(), 0)?;
             for (info, position) in shaped.glyph_infos().iter().zip(shaped.glyph_positions()) {
+                if admitted {
+                    pending_glyphs = pending_glyphs
+                        .checked_add(1)
+                        .ok_or_else(|| invalid("text shaping glyph count overflow"))?;
+                    check_work(
+                        result
+                            .glyphs
+                            .len()
+                            .checked_add(pending_glyphs)
+                            .ok_or_else(|| invalid("text shaping glyph count overflow"))?,
+                        0,
+                    )?;
+                }
                 let start = info.cluster as usize;
                 let cluster = clusters.entry(start).or_insert_with(|| Cluster {
                     start,
@@ -327,6 +433,8 @@ pub(crate) fn shape_with_layout(
                     .find(|(r, _, _)| r.contains(&start))
                     .ok_or_else(|| invalid("glyph cluster outside document"))?;
                 let advance = f64::from(position.x_advance) * scale;
+                #[cfg(test)]
+                GLYPH_CLONES.with(|n| n.set(n.get() + 1));
                 cluster.glyphs.push(ShapedGlyph {
                     paint_layers: paint_ranges
                         .iter()

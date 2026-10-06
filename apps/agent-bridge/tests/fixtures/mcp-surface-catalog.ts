@@ -35,6 +35,20 @@ const assertKeys = (value: JsonRecord, keys: string[], label: string) => {
   }
 };
 
+// Expanded schemas are JSON trees. Copy every node freshly, including cached
+// references, without structuredClone's platform-dependent graph machinery.
+const cloneExpanded = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(cloneExpanded);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [key, cloneExpanded(child)])
+  );
+};
+
 export const expandMcpSurfaceCatalog = (source: unknown): McpSurfaceCatalog => {
   const catalog = asRecord(source, "MCP catalog");
   assertKeys(
@@ -91,14 +105,14 @@ export const expandMcpSurfaceCatalog = (source: unknown): McpSurfaceCatalog => {
     used.add(name);
     const cached = memo.get(name);
     if (cached) {
-      return structuredClone(cached);
+      return asRecord(cloneExpanded(cached), "Copied MCP definition");
     }
     const resolved = asRecord(
       expand(definitions[name], [...stack, name]),
       `Expanded MCP definition ${name}`
     );
     memo.set(name, resolved);
-    return structuredClone(resolved);
+    return asRecord(cloneExpanded(resolved), "Copied MCP definition");
   }
 
   function expand(value: unknown, stack: string[]): unknown {

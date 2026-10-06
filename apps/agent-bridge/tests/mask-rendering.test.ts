@@ -17,10 +17,27 @@ import {
 import {
   MASK_PROPERTIES,
   MASK_RENDERING_PREDECESSOR_PINS,
-  projectMaskRenderingCatalogPredecessor,
-  projectMaskRenderingMcpPredecessor,
+  projectMaskRenderingCatalogPredecessor as projectMaskRenderingCatalogPredecessor51,
+  projectMaskRenderingMcpPredecessor as projectMaskRenderingMcpPredecessor51,
 } from "./fixtures/mask-rendering-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
+
+import {
+  projectTrackMatteCatalogPredecessor,
+  projectTrackMatteMcpPredecessor,
+} from "./fixtures/track-matte-projection";
+
+// Keep earlier transition checks intact after the exact current34→33 projection.
+const projectMaskRenderingCatalogPredecessor = (
+  name: string,
+  source: unknown
+) =>
+  projectMaskRenderingCatalogPredecessor51(
+    name,
+    projectTrackMatteCatalogPredecessor(name, source)
+  );
+const projectMaskRenderingMcpPredecessor = (source: unknown) =>
+  projectMaskRenderingMcpPredecessor51(projectTrackMatteMcpPredecessor(source));
 
 const normalize = (value: unknown): unknown => {
   if (Array.isArray(value)) {
@@ -169,7 +186,7 @@ describe("active mask rendering canonical public contracts", () => {
     ).not.toBe(MASK_RENDERING_PREDECESSOR_PINS["animation-channels-v1"]);
   });
   it("keeps independent model/editor/render capabilities in canonical catalogs", () => {
-    expect(rendering.projectSchemaVersion).toBe(33);
+    expect(rendering.projectSchemaVersion).toBe(34);
     expect(rendering.capabilities).toEqual({
       editor: MASK_ANIMATION_CAPABILITY,
       renderer: MASK_RENDERING_CAPABILITY,

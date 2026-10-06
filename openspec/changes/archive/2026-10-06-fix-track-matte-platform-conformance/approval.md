@@ -1,0 +1,3 @@
+Explicit issue-scoped approval2026-10-06 by root under the user's instruction to approve specifications and fixPR145without weakening coverage. Approved exact proposal/design/two scenarios and existing deadlines/counters/digests. Implementation may now proceed only within this test-only scope. Remote finalCI remains mandatory.
+
+Lifecycle clarification: exact-head remote CI is a mandatory post-publication obligation recorded separately from local implementation tasks. It is never claimed complete before actual published-commit CI passes. This avoids falsely checking a self-referential CI task before publication.

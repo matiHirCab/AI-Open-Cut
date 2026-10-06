@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
 pub(crate) mod masks;
+pub(crate) mod mattes;
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
 pub(crate) mod shapes;
@@ -103,9 +104,153 @@ pub(crate) fn evaluate_project(
     masks::certify_authored_program_memory(project)?;
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps, true, false)?;
+    if let Some(graph) = &mut result.scene.mattes {
+        // Admit index, sidecar geometric capacity and temporary clone overlaps
+        // before cloning any asset identity/hash/path strings.
+        let extra = (project.assets.len() as u64)
+            .checked_mul(256)
+            .and_then(|v| {
+                v.checked_add((result.resource_bindings.media.len() as u64).checked_mul(1024)?)
+            })
+            .ok_or_else(|| invalid("matte resource metadata overflow"))?;
+        let mut source_strings = 0u64;
+        for asset in &project.assets {
+            source_strings = source_strings
+                .checked_add(asset.id.capacity() as u64)
+                .and_then(|n| n.checked_add(asset.project_relative_path.capacity() as u64))
+                .and_then(|n| {
+                    n.checked_add(
+                        asset
+                            .content_hash
+                            .as_ref()
+                            .map_or(0, |h| h.digest.capacity() as u64),
+                    )
+                })
+                .ok_or_else(|| invalid("matte resource metadata overflow"))?;
+        }
+        let mut catalogs = (result.resource_bindings.fonts.capacity() as u64)
+            .checked_mul(std::mem::size_of::<FontResourceBinding>() as u64)
+            .ok_or_else(|| invalid("matte font metadata overflow"))?;
+        for binding in &result.resource_bindings.fonts {
+            catalogs = catalogs
+                .checked_add(binding.font_resource_id.capacity() as u64)
+                .and_then(|n| {
+                    n.checked_add(
+                        binding
+                            .requested_path
+                            .as_ref()
+                            .map_or(0, |p| p.capacity() as u64),
+                    )
+                })
+                .and_then(|n| {
+                    n.checked_add(
+                        binding
+                            .requested_family
+                            .as_ref()
+                            .map_or(0, |p| p.capacity() as u64),
+                    )
+                })
+                .ok_or_else(|| invalid("matte font metadata overflow"))?;
+            for (hash, face) in &binding.pinned_faces {
+                catalogs = catalogs
+                    .checked_add(512)
+                    .and_then(|n| n.checked_add(hash.capacity() as u64))
+                    .and_then(|n| n.checked_add(face.sha256.capacity() as u64))
+                    .and_then(|n| n.checked_add(face.relative_path.capacity() as u64))
+                    .ok_or_else(|| invalid("matte font metadata overflow"))?;
+            }
+        }
+        let extra = extra
+            .checked_add(
+                source_strings
+                    .checked_mul(3)
+                    .ok_or_else(|| invalid("matte resource metadata overflow"))?,
+            )
+            .and_then(|n| n.checked_add(catalogs))
+            .ok_or_else(|| invalid("matte resource metadata overflow"))?;
+        graph.resource_live_bytes = graph
+            .resource_live_bytes
+            .checked_add(extra)
+            .filter(|n| *n <= mattes::MAX_MATTE_LIVE_BYTES)
+            .ok_or_else(|| invalid("matte resource metadata exceeds shared memory bounds"))?;
+        certify_matte_projection_memory(&result.scene, &[])?;
+        let assets: HashMap<_, _> = project.assets.iter().map(|a| (a.id.as_str(), a)).collect();
+        for binding in &result.resource_bindings.media {
+            let Some(asset) = assets.get(binding.asset_id.as_str()) else {
+                continue;
+            };
+            if asset.content_hash.is_none() && asset.size_bytes.is_none() {
+                continue;
+            }
+            if asset
+                .content_hash
+                .as_ref()
+                .is_some_and(|h| h.algorithm != "sha256")
+            {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "asset content hash algorithm is unsupported",
+                ));
+            }
+            result
+                .resource_bindings
+                .matte_integrity
+                .push(MatteMediaIntegrityBinding {
+                    asset_id: asset.id.clone(),
+                    project_relative_path: asset.project_relative_path.clone(),
+                    sha256: asset.content_hash.as_ref().map(|h| h.digest.clone()),
+                    size_bytes: asset.size_bytes,
+                });
+        }
+        let mut actual = 0u64;
+        for binding in &result.resource_bindings.matte_integrity {
+            actual = actual
+                .checked_add(binding.asset_id.capacity() as u64)
+                .and_then(|n| n.checked_add(binding.project_relative_path.capacity() as u64))
+                .and_then(|n| {
+                    n.checked_add(binding.sha256.as_ref().map_or(0, |h| h.capacity() as u64))
+                })
+                .ok_or_else(|| invalid("matte resource metadata overflow"))?;
+        }
+        actual = actual
+            .checked_add(
+                (result.resource_bindings.matte_integrity.capacity() as u64)
+                    .checked_mul(std::mem::size_of::<MatteMediaIntegrityBinding>() as u64)
+                    .ok_or_else(|| invalid("matte resource metadata overflow"))?,
+            )
+            .ok_or_else(|| invalid("matte resource metadata overflow"))?;
+        if actual.checked_mul(3).is_none_or(|n| n > extra) {
+            return Err(invalid("matte resource clone exceeded admitted capacity"));
+        }
+    }
     result.resource_bindings.retained_fonts = project.fonts.clone();
     shapes::refine_scene(&mut result.scene)?;
     Ok(result)
+}
+
+fn matte_font_payload_bytes(project: &Project) -> Result<u64, CoreError> {
+    project.fonts.values().try_fold(0u64, |total, face| {
+        total
+            .checked_add(face.size_bytes)
+            .ok_or_else(|| invalid("matte font memory overflow"))
+    })
+}
+fn matte_font_live_bytes(project: &Project) -> Result<u64, CoreError> {
+    // Unique managed font payloads remain live while sampled text is painted.
+    // Conservative BTree node/header storage plus source/retained map clones.
+    let mut bytes = 65_536u64;
+    for (hash, face) in &project.fonts {
+        let metadata = 512u64
+            .checked_add(hash.capacity() as u64)
+            .and_then(|n| n.checked_add(face.relative_path.capacity() as u64))
+            .and_then(|n| n.checked_add(face.sha256.capacity() as u64))
+            .ok_or_else(|| invalid("matte font memory overflow"))?;
+        bytes = bytes
+            .checked_add(face.size_bytes)
+            .and_then(|n| n.checked_add(metadata.checked_mul(3)?))
+            .ok_or_else(|| invalid("matte font memory overflow"))?;
+    }
+    Ok(bytes)
 }
 
 /// Validate inherited retained facts without allocating generated visual copies or
@@ -119,7 +264,9 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
         .chain(project.components.iter().flat_map(|c| &c.tracks))
         .flat_map(|track| &track.items)
         .any(|item| {
-            extended_visual::authored(item, project.settings.fps).is_some()
+            item.visual_properties().matte.is_some()
+                || item.visual_properties().matte_only
+                || extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
                 || matches!(item, TimelineItem::Repeater(r) if r.repeater.time_offset_ms != 0)
@@ -292,7 +439,8 @@ fn evaluate_project_inner(
         .flat_map(|tracks| tracks.iter())
         .flat_map(|track| &track.items)
         .any(|item| {
-            extended_visual::authored(item, project.settings.fps).is_some()
+            item.visual_properties().matte.is_some() || item.visual_properties().matte_only
+                || extended_visual::authored(item, project.settings.fps).is_some()
                 || matches!(item, TimelineItem::Repeater(_))
                 || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(instance) if instance.stagger_ms != 0)
@@ -328,6 +476,7 @@ fn evaluate_project_inner(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            mattes: None,
             instance_voiceover_intervals: Some(vec![]),
             voiceover_activity_range_count: 0,
             canvas: EvaluatedCanvas { width, height, fps },
@@ -338,11 +487,27 @@ fn evaluate_project_inner(
             voiceover_intervals: vec![],
         },
         resource_bindings: SceneResourceBindings {
+            matte_integrity: Vec::new(),
             retained_fonts: Default::default(),
             media: vec![],
             fonts: vec![],
         },
     };
+    if project
+        .tracks
+        .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
+        .flat_map(|t| &t.items)
+        .any(|i| i.visual_properties().matte.is_some() || i.visual_properties().matte_only)
+    {
+        result.scene.mattes = Some(mattes::EvaluatedMatteGraph {
+            groups: Vec::new(),
+            roles: Vec::new(),
+            provider_first: Vec::new(),
+            resource_live_bytes: matte_font_live_bytes(project)?,
+            font_payload_bytes: matte_font_payload_bytes(project)?,
+        });
+    }
     let clock = EvaluatedInstance {
         rate: 1.0,
         offset: 0.0,
@@ -372,6 +537,17 @@ fn evaluate_project_inner(
                 project_id: project.id.clone(),
                 revision: project.revision,
                 scene: EvaluatedScene {
+                    mattes: result
+                        .scene
+                        .mattes
+                        .as_ref()
+                        .map(|_| mattes::EvaluatedMatteGraph {
+                            groups: Vec::new(),
+                            roles: Vec::new(),
+                            provider_first: Vec::new(),
+                            resource_live_bytes: 0,
+                            font_payload_bytes: 0,
+                        }),
                     instance_voiceover_intervals: Some(vec![]),
                     voiceover_activity_range_count: 0,
                     canvas: EvaluatedCanvas {
@@ -386,6 +562,7 @@ fn evaluate_project_inner(
                     voiceover_intervals: vec![],
                 },
                 resource_bindings: SceneResourceBindings {
+                    matte_integrity: Vec::new(),
                     retained_fonts: Default::default(),
                     media: vec![],
                     fonts: vec![],
@@ -435,6 +612,52 @@ fn evaluate_project_inner(
                 &mut projection,
             )?;
             validate_projection(project, &domain, &projection)?;
+            if result.scene.mattes.is_some() {
+                // An uninstantiated definition has no published decoder input,
+                // but its actual scoped matte participants remain pinned source
+                // obligations. Reuse the validated projection and canonical
+                // bindings; do not resolve a second authored DAG here.
+                for binding in &domain.resource_bindings.media {
+                    let participating = projection.iter().any(|copy| {
+                        copy.matte_group.is_some()
+                            && matches!(&domain.scene.visual_layers[copy.base_index].source,
+                                EvaluatedVisualSource::Media { asset_id, .. } if *asset_id == binding.asset_id)
+                    });
+                    if !participating
+                        || result
+                            .resource_bindings
+                            .media
+                            .iter()
+                            .any(|existing| existing.asset_id == binding.asset_id)
+                    {
+                        continue;
+                    }
+                    let reserve = (binding.asset_id.capacity() as u64)
+                        .checked_add(binding.project_relative_path.capacity() as u64)
+                        .and_then(|bytes| bytes.checked_mul(3))
+                        .and_then(|bytes| bytes.checked_add(1024))
+                        .ok_or_else(|| invalid("retained matte binding memory overflow"))?;
+                    let transient = mattes::scene_heap_bytes(&domain.scene)?
+                        .checked_add(mattes::graph_heap_bytes(
+                            domain.scene.mattes.as_ref().unwrap(),
+                        )?)
+                        .ok_or_else(|| invalid("retained matte domain memory overflow"))?;
+                    if let Some(graph) = result.scene.mattes.as_mut() {
+                        graph.resource_live_bytes = graph
+                            .resource_live_bytes
+                            .checked_add(reserve)
+                            .and_then(|bytes| bytes.checked_add(transient))
+                            .ok_or_else(|| invalid("retained matte binding memory overflow"))?;
+                    }
+                    // Admission includes the still-live private domain, old/new
+                    // binding-vector growth and nested String clone overlap.
+                    certify_matte_projection_memory(&result.scene, &[])?;
+                    if let Some(graph) = result.scene.mattes.as_mut() {
+                        graph.resource_live_bytes -= transient;
+                    }
+                    result.resource_bindings.media.push(binding.clone());
+                }
+            }
         }
     }
     let mut projection = Vec::new();
@@ -461,6 +684,7 @@ fn evaluate_project_inner(
         &mut projection,
     )?;
     validate_projection(project, &result, &projection)?;
+    certify_matte_projection_memory(&result.scene, &projection)?;
     if !materialize {
         return Ok(result);
     }
@@ -513,10 +737,14 @@ fn evaluate_project_inner(
             .scene
             .resources
             .retain(|resource| media.contains(resource.asset_id.as_str()));
-        result
-            .resource_bindings
-            .media
-            .retain(|binding| media.contains(binding.asset_id.as_str()));
+        if result.scene.mattes.is_none() {
+            result
+                .resource_bindings
+                .media
+                .retain(|binding| media.contains(binding.asset_id.as_str()));
+        }
+        // Active matte scenes retain canonical hidden/inactive bindings for
+        // integrity admission. Decoder requests still use published layers only.
         let fonts = result
             .scene
             .visual_layers
@@ -546,6 +774,31 @@ fn evaluate_project_inner(
         .enumerate()
         .map(|(i, (id, _))| (id.clone(), i))
         .collect::<HashMap<_, _>>();
+    if let Some(graph) = &mut result.scene.mattes {
+        let bindings = projection
+            .iter()
+            .map(|copy| (copy.item_id.as_str(), copy.matte_group))
+            .collect::<HashMap<_, _>>();
+        graph.roles = result
+            .scene
+            .visual_layers
+            .iter()
+            .enumerate()
+            .map(|(index, layer)| {
+                let group = bindings.get(layer.item_id.as_str()).copied().flatten();
+                if let Some(group) = group {
+                    graph.groups[group.0].members.push(index);
+                }
+                mattes::EvaluatedMatteRole {
+                    group,
+                    provider: group.and_then(|g| graph.groups[g.0].provider),
+                    matte_only: group.is_some_and(|g| graph.groups[g.0].matte_only),
+                    contributes: true,
+                }
+            })
+            .collect();
+        mattes::provider_order(graph)?;
+    }
     for layer in &mut result.scene.visual_layers {
         layer.order = EvaluatedLayerOrder {
             track_index: ranks[&layer.item_id],
@@ -1109,9 +1362,110 @@ struct ProjectedVisualCopy {
     ancestors: EvaluatedAncestors,
     order: InstanceOrder,
     generated: bool,
+    matte_group: Option<mattes::MatteGroupId>,
     transition_facts: usize,
     intervals: Vec<OccurrenceInterval>,
     stages: Vec<EvaluatedAncestorStage>,
+}
+
+/// Reject oversized retained/generated source payloads before allocating copies,
+/// including the certification-only materialize=false traversal.
+fn certify_matte_projection_memory(
+    scene: &EvaluatedScene,
+    projection: &[ProjectedVisualCopy],
+) -> Result<(), CoreError> {
+    if scene.mattes.is_none() {
+        return Ok(());
+    }
+    let add = |a: u64, b: u64| {
+        a.checked_add(b)
+            .ok_or_else(|| invalid("matte projection memory overflow"))
+    };
+    let mul = |a: u64, b: u64| {
+        a.checked_mul(b)
+            .ok_or_else(|| invalid("matte projection memory overflow"))
+    };
+    let mut live = add(
+        mattes::scene_heap_bytes(scene)?,
+        mattes::MATTE_CACHE_RESERVATION,
+    )?;
+    live = add(
+        live,
+        mattes::graph_heap_bytes(scene.mattes.as_ref().unwrap())?,
+    )?;
+    live = add(
+        live,
+        mul(
+            mul(
+                u64::from(scene.canvas.width),
+                u64::from(scene.canvas.height),
+            )?,
+            20,
+        )?,
+    )?;
+    // Both the immutable projection and geometrically growing final layer vector
+    // coexist with ordinary sources until materialization finishes.
+    live = add(
+        live,
+        mul(
+            projection.len() as u64,
+            (2 * std::mem::size_of::<ProjectedVisualCopy>()) as u64,
+        )?,
+    )?;
+    for copy in projection {
+        live = add(live, copy.item_id.capacity() as u64)?;
+        live = add(
+            live,
+            mul(
+                copy.order.capacity() as u64,
+                std::mem::size_of::<(usize, i32, usize, String)>() as u64,
+            )?,
+        )?;
+        for (_, _, _, id) in &copy.order {
+            live = add(live, id.capacity() as u64)?;
+        }
+        live = add(
+            live,
+            mul(
+                copy.stages.capacity() as u64,
+                std::mem::size_of::<EvaluatedAncestorStage>() as u64,
+            )?,
+        )?;
+        for stage in &copy.stages {
+            live = add(live, stage.item_id.capacity() as u64)?;
+            if let Some(animation) = &stage.animation {
+                live = add(live, mattes::channel_heap(&animation.channels)?)?;
+                live = add(
+                    live,
+                    mul(
+                        animation.keyframes.len() as u64,
+                        std::mem::size_of::<EvaluatedKeyframe>() as u64,
+                    )?,
+                )?;
+            }
+        }
+        if copy.generated {
+            // A generated source and its temporary clone coexist at publication.
+            live = add(
+                live,
+                mul(
+                    mattes::layer_heap_bytes(&scene.visual_layers[copy.base_index])?,
+                    2,
+                )?,
+            )?;
+        }
+        if live > mattes::MAX_MATTE_LIVE_BYTES {
+            return Err(invalid(
+                "matte projected scene exceeds shared live memory limits",
+            ));
+        }
+    }
+    if live > mattes::MAX_MATTE_LIVE_BYTES {
+        return Err(invalid(
+            "matte projected scene exceeds shared live memory limits",
+        ));
+    }
+    Ok(())
 }
 
 impl InstanceTraversal<'_> {
@@ -1205,6 +1559,11 @@ impl InstanceTraversal<'_> {
         if outer.iter().chain(&outer_inverse).any(|v| !v.is_finite()) || !opacity.is_finite() {
             return Err(invalid("non-finite composed component transform"));
         }
+        let matte_bindings = if let Some(graph) = &mut result.scene.mattes {
+            Some(mattes::bind_scope(graph, tracks)?)
+        } else {
+            None
+        };
         let scope_first_layer = projection.len();
         let mut local = Project {
             markers: Vec::new(),
@@ -1531,6 +1890,9 @@ impl InstanceTraversal<'_> {
                 ancestors: layer.ancestors.unwrap(),
                 order: orders[&layer.item_id].clone(),
                 generated: false,
+                matte_group: matte_bindings
+                    .as_ref()
+                    .and_then(|ids| ids.get(owner).copied()),
                 intervals,
                 stages: layer.ancestor_stages.clone(),
                 transition_facts: if self.retained {
@@ -1771,6 +2133,20 @@ impl InstanceTraversal<'_> {
                     {
                         return Err(invalid("non-finite repeater transform expansion"));
                     }
+                    let mut matte_remap = HashMap::new();
+                    if matches!(source, TimelineItem::ComponentInstance(_))
+                        && let Some(graph) = &mut result.scene.mattes
+                    {
+                        let mut compositions = std::collections::BTreeSet::new();
+                        for (base_index, _) in &bases {
+                            if let Some(group) = projection[*base_index].matte_group {
+                                compositions.insert(graph.groups[group.0].composition);
+                            }
+                        }
+                        for composition in compositions {
+                            matte_remap.extend(mattes::clone_composition(graph, composition)?);
+                        }
+                    }
                     let mut visible_source_index = 0;
                     for (base_index, base_order) in &bases {
                         if projection.len() + projected.len() >= MAX_EVALUATED_VISUAL_LAYERS {
@@ -1892,6 +2268,9 @@ impl InstanceTraversal<'_> {
                             ancestors,
                             order: copy_order,
                             generated: true,
+                            matte_group: base
+                                .matte_group
+                                .map(|g| matte_remap.get(&g).copied().unwrap_or(g)),
                             intervals,
                             stages,
                             transition_facts: base.transition_facts,
@@ -1915,9 +2294,18 @@ pub(crate) struct EvaluatedSceneResult {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct SceneResourceBindings {
+    pub(crate) matte_integrity: Vec<MatteMediaIntegrityBinding>,
     pub(crate) retained_fonts: std::collections::BTreeMap<String, crate::FontRecord>,
     pub(crate) media: Vec<MediaResourceBinding>,
     pub(crate) fonts: Vec<FontResourceBinding>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MatteMediaIntegrityBinding {
+    pub(crate) asset_id: String,
+    pub(crate) project_relative_path: String,
+    pub(crate) sha256: Option<String>,
+    pub(crate) size_bytes: Option<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1951,6 +2339,7 @@ impl std::fmt::Debug for EvaluatedScene {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
+    pub(crate) mattes: Option<mattes::EvaluatedMatteGraph>,
     pub(crate) instance_voiceover_intervals: Option<Vec<(f64, f64)>>,
     voiceover_activity_range_count: usize,
     pub(crate) canvas: EvaluatedCanvas,
@@ -2819,6 +3208,7 @@ fn evaluate_flat_project(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            mattes: None,
             instance_voiceover_intervals: None,
             voiceover_activity_range_count: preflight.voiceover_activity_range_count,
             canvas: EvaluatedCanvas { width, height, fps },
@@ -2829,6 +3219,7 @@ fn evaluate_flat_project(
             voiceover_intervals,
         },
         resource_bindings: SceneResourceBindings {
+            matte_integrity: Vec::new(),
             retained_fonts: Default::default(),
             media: media_bindings,
             fonts: font_bindings,

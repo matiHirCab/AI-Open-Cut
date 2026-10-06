@@ -45,6 +45,23 @@ pub(crate) fn resolve(
     faces: &BTreeMap<String, Vec<u8>>,
     work: &mut GlyphBudget,
 ) -> Result<ShapedText, CoreError> {
+    resolve_mode(text, faces, work, false)
+}
+
+pub(crate) fn resolve_admitted(
+    text: &EvaluatedText,
+    faces: &BTreeMap<String, Vec<u8>>,
+    work: &mut GlyphBudget,
+) -> Result<ShapedText, CoreError> {
+    resolve_mode(text, faces, work, true)
+}
+
+fn resolve_mode(
+    text: &EvaluatedText,
+    faces: &BTreeMap<String, Vec<u8>>,
+    work: &mut GlyphBudget,
+    admitted: bool,
+) -> Result<ShapedText, CoreError> {
     let invalid = || {
         CoreError::new(
             ErrorCode::InvalidArgument,
@@ -81,7 +98,12 @@ pub(crate) fn resolve(
         1
     };
     for size in (minimum..=maximum).rev() {
-        let mut shaped = shaping::shape_with_layout(
+        let shape = if admitted {
+            shaping::shape_with_layout_admitted
+        } else {
+            shaping::shape_with_layout
+        };
+        let mut shaped = shape(
             &document,
             binding,
             faces,

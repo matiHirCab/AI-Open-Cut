@@ -1314,12 +1314,14 @@ fn health_succeeds_when_editor_is_ready_and_rendering_is_degraded() {
     assert!(capabilities.contains(&json!("timeline")));
     assert!(capabilities.contains(&json!("mask_models_v1")));
     assert!(capabilities.contains(&json!("mask_animation_v1")));
+    assert!(capabilities.contains(&json!("matte_models_v1")));
+    assert!(!capabilities.contains(&json!("track_mattes_v1")));
     assert!(!capabilities.contains(&json!("mask_rendering_v1")));
     assert_eq!(
         status["subsystems"]["editor"]["capabilities"],
         headless_contract()["status"]["editorCapabilities"]
     );
-    assert_eq!(status["projectSchemaVersion"], 33);
+    assert_eq!(status["projectSchemaVersion"], 34);
     assert!(!capabilities.contains(&json!("preview")));
     assert!(!capabilities.contains(&json!("export")));
     assert!(!capabilities.contains(&json!("evaluated_scene_rendering")));
@@ -2326,7 +2328,7 @@ fn mask_metadata_roundtrips_aliases_order_clear_and_atomic_failure() {
     ]})));
     let item = added["aliases"]["leaf"].clone();
     let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
-    assert_eq!(before["project"]["schemaVersion"], 33);
+    assert_eq!(before["project"]["schemaVersion"], 34);
     assert_eq!(before["project"]["tracks"][1]["items"][0]["masks"], masks);
     for request in [
         json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"masks":null}}),
@@ -2474,5 +2476,219 @@ fn mask_animation_canonical_channels_roundtrip_and_raw_targets_reject_atomically
             std::fs::read(dir.join("history.json")).unwrap(),
             history_bytes
         );
+    }
+}
+
+#[test]
+fn canonical_raw_matte_duplicates_reject_single_batch_and_draft_atomically() {
+    fn inventory(
+        root: &std::path::Path,
+    ) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        let mut files = std::collections::BTreeMap::new();
+        let mut pending = vec![root.to_path_buf()];
+        while let Some(dir) = pending.pop() {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    pending.push(path);
+                } else {
+                    files.insert(
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        std::fs::read(path).unwrap(),
+                    );
+                }
+            }
+        }
+        files
+    }
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/track-mattes-v1.json")).unwrap();
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Raw matte duplicates"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let added = result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let item = added["changedIds"][0].clone();
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"update_item","itemId":item,"color":"#123456"}]})));
+    let draft_id = draft["id"].clone();
+    let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+    let before = inventory(&dir);
+    let references = catalog["rawDuplicateReferences"].as_array().unwrap();
+    let mut edits: Vec<String> = references
+        .iter()
+        .map(|value| {
+            let reference = value.as_str().unwrap();
+            format!(r#"{{"operation":"update_item","itemId":{item},"matte":{reference}}}"#)
+        })
+        .collect();
+    edits.push(format!(
+        r#"{{"operation":"update_item","itemId":{item},"matte":null,"matte":null}}"#
+    ));
+    edits.push(format!(
+        r#"{{"operation":"update_item","itemId":{item},"matteOnly":false,"matteOnly":true}}"#
+    ));
+    for edit in edits {
+        let prefix = serde_json::to_string(
+            &json!({"operation":"update_item","itemId":item,"color":"#123456"}),
+        )
+        .unwrap();
+        for (operation, fields) in [
+            ("edit", format!(r#""edit":{edit}"#)),
+            ("edit_batch", format!(r#""operations":[{prefix},{edit}]"#)),
+            ("create_draft", format!(r#""operations":[{prefix},{edit}]"#)),
+            (
+                "update_draft",
+                format!(r#""draftId":{draft_id},"operations":[{prefix},{edit}]"#),
+            ),
+        ] {
+            let output = h.request_raw(&format!(
+                r#"{{"operation":"{operation}","projectId":{id},"expectedRevision":1,{fields}}}"#
+            ));
+            assert!(!output.status.success());
+            let error = event(&output);
+            assert_eq!(error["error"]["code"], "INVALID_ARGUMENT", "{error}");
+            assert_eq!(error["error"]["retryable"], false);
+            assert!(error.to_string().contains("duplicate field"), "{error}");
+            assert_eq!(inventory(&dir), before, "{operation} must publish no bytes");
+        }
+    }
+}
+
+#[test]
+fn matte_aliases_scoped_graph_and_final_atomic_provider_deletion_roundtrip() {
+    let h = Harness::new();
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Matte graph protocol"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let add = |alias: &str| json!({"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":alias});
+    let created = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[add("provider"),add("recipient"),{"operation":"update_item","itemId":"@provider","matteOnly":true},{"operation":"update_item","itemId":"@recipient","matte":{"sourceId":"@provider","channel":"alpha"}}]})));
+    let provider = created["aliases"]["provider"].clone();
+    let recipient = created["aliases"]["recipient"].clone();
+    let before = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(before["project"]["schemaVersion"], 34);
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][0]["matteOnly"],
+        true
+    );
+    assert_eq!(
+        before["project"]["tracks"][1]["items"][1]["matte"],
+        json!({"sourceId":provider,"channel":"alpha"})
+    );
+    for (edit, code) in [
+        (
+            json!({"operation":"update_item","itemId":provider,"matte":{"sourceId":recipient,"channel":"alpha"}}),
+            "INVALID_ARGUMENT",
+        ),
+        (
+            json!({"operation":"delete_item","itemId":provider}),
+            "ITEM_NOT_FOUND",
+        ),
+        (
+            json!({"operation":"update_item","itemId":recipient,"matte":{"sourceId":"missing","channel":"alpha"}}),
+            "ITEM_NOT_FOUND",
+        ),
+    ] {
+        let output =
+            h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":edit}));
+        assert!(!output.status.success());
+        let error = event(&output);
+        assert_eq!(error["error"]["code"], code, "{error}");
+        assert_eq!(error["error"]["retryable"], false);
+        assert_eq!(
+            result(&h.request(json!({"operation":"open_project","projectId":id}))),
+            before
+        );
+    }
+    result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[{"operation":"delete_item","itemId":provider},{"operation":"update_item","itemId":recipient,"matte":null}]})));
+    let cleared = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(
+        cleared["project"]["tracks"][1]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        cleared["project"]["tracks"][1]["items"][0]
+            .get("matte")
+            .is_none()
+    );
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    let restored = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(restored["project"]["tracks"], before["project"]["tracks"]);
+}
+
+#[test]
+fn stale_matte_draft_preview_conflicts_without_artifacts_or_replaying_current() {
+    for available in [true, false] {
+        let h = Harness::new();
+        let id =
+            result(&h.request(json!({"operation":"create_project","name":"Stale matte preview"})))
+                ["projectId"]
+                .clone();
+        let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let track = state["project"]["tracks"][1]["id"].clone();
+        let add = |alias: &str| json!({"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#0000ff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":alias});
+        let created = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[add("provider"),add("recipient")]})));
+        let recipient = created["aliases"]["recipient"].clone();
+        let provider = created["aliases"]["provider"].clone();
+        let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"update_item","itemId":recipient,"matte":{"sourceId":provider,"channel":"alpha"}}]})));
+        let dir = h.root.path().join("projects").join(id.as_str().unwrap());
+        let draft_path = dir
+            .join("drafts")
+            .join(format!("{}.json", draft["id"].as_str().unwrap()));
+        if available {
+            result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"delete_item","itemId":recipient}})));
+        } else {
+            let mut raw: Value =
+                serde_json::from_slice(&std::fs::read(&draft_path).unwrap()).unwrap();
+            raw["baseRevision"] = json!(999);
+            std::fs::write(&draft_path, serde_json::to_vec(&raw).unwrap()).unwrap();
+        }
+        let before = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let draft_before = std::fs::read(&draft_path).unwrap();
+        let history_before = std::fs::read(dir.join("history.json")).unwrap();
+        let project_before = std::fs::read(dir.join("project.json")).unwrap();
+        let previews = dir.join("previews");
+        assert_eq!(std::fs::read_dir(&previews).unwrap().count(), 0);
+        result(&h.request(json!({"operation":"get_draft","projectId":id,"draftId":draft["id"]})));
+        for operation in ["get_draft_state", "render_draft_preview"] {
+            let mut request = json!({"operation":operation,"projectId":id,"draftId":draft["id"]});
+            if operation == "render_draft_preview" {
+                request["timeMs"] = json!(0);
+            }
+            let output = h.request(request);
+            assert!(!output.status.success());
+            let error = event(&output);
+            assert_eq!(
+                error["error"]["code"], "REVISION_CONFLICT",
+                "available={available}: {error}"
+            );
+            assert_eq!(error["error"]["retryable"], true);
+            assert!(
+                error.get("result").is_none(),
+                "no artifact response: {error}"
+            );
+            assert_eq!(std::fs::read_dir(&previews).unwrap().count(), 0);
+            assert_eq!(std::fs::read(&draft_path).unwrap(), draft_before);
+            assert_eq!(
+                std::fs::read(dir.join("history.json")).unwrap(),
+                history_before
+            );
+            assert_eq!(
+                std::fs::read(dir.join("project.json")).unwrap(),
+                project_before
+            );
+            assert_eq!(
+                result(&h.request(json!({"operation":"get_state","projectId":id}))),
+                before
+            );
+        }
     }
 }

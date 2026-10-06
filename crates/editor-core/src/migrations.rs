@@ -24,6 +24,19 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 34
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|i| i.visual_properties().matte.is_some() || i.visual_properties().matte_only)
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "track mattes require schema 34",
+        ));
+    }
     if project.schema_version < 33
         && project
             .tracks
@@ -303,7 +316,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=32 => {
+        9..=33 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

@@ -1365,6 +1365,43 @@ describe("CI parity gate policy", () => {
     });
   }
 
+  for (const command of [
+    "cargo test -p opencut-editor-core --test track_mattes_native -- --nocapture",
+    "cargo build -p opencut-headless",
+    "bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts",
+  ]) {
+    for (const [label, replacement] of [
+      ["omitted", ""],
+      [
+        "altered",
+        command
+          .replace("opencut-editor-core", "opencut-headless")
+          .replace("cargo build", "cargo check")
+          .replace("track-matte-native.test.ts", "mask-rendering-native.test.ts"),
+      ],
+      ["success fallback", `${command} || true`],
+    ] as const) {
+      it(`rejects ${label} mandatory matte command: ${command}`, () => {
+        expect(() =>
+          validateCiGates(replaceRequired(workflow, command, replacement))
+        ).toThrow(
+          "render-parity native step must use the exact fail-closed command body"
+        );
+      });
+    }
+  }
+
+  it("rejects an instrumented headless build before mandatory MCP matte proof", () => {
+    const weakened = replaceRequired(
+      workflow,
+      "          cargo build -p opencut-headless\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts",
+      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts"
+    );
+    expect(() => validateCiGates(weakened)).toThrow(
+      "render-parity native step must use the exact fail-closed command body"
+    );
+  });
+
   const goldenCommand =
     "cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture";
   for (const [label, replacement] of [

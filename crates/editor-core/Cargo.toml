@@ -31,3 +31,6 @@ tempfile = "3.20"
 
 [target.'cfg(windows)'.dev-dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Storage_FileSystem"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+nix = { version = "=0.31.3", default-features = false, features = ["dir", "mount"] }

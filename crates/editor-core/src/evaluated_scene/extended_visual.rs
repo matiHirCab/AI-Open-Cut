@@ -397,6 +397,12 @@ pub(crate) fn preflight_samples(
                     / u64::from(scene.canvas.fps),
             )
             .ok_or_else(|| invalid("sample time overflow"))?;
+        if scene.mattes.is_some() {
+            // The schedule's sampled owner certifies every actual uncached leaf,
+            // sharing the whole-frame counters before any materialization.
+            super::mattes::frame_schedule(scene, time)?;
+            continue;
+        }
         let mut work = 0;
         let mut segments = 0;
         let mut pixel_work = 0_u64;
@@ -513,6 +519,130 @@ pub(crate) fn preflight_samples(
         }
     }
     Ok(())
+}
+
+/// Shared sampled-source admission for every actual matte leaf miss. Immutable
+/// copy/provider memo hits never re-materialize a source or consume this budget.
+pub(crate) struct SampledFrameBudget {
+    effect_work: u64,
+    ordinary_segments: usize,
+    masks: super::masks::MaskFrameBudget,
+    segments: std::collections::HashMap<u64, usize>,
+    occurrences: std::collections::HashSet<(u64, usize)>,
+    scene_has_masks: bool,
+    program_bytes: u64,
+}
+impl SampledFrameBudget {
+    pub(crate) fn new(scene: &EvaluatedScene) -> Result<Self, CoreError> {
+        let scene_has_masks = scene
+            .visual_layers
+            .iter()
+            .any(|l| l.extended.as_ref().is_some_and(|v| !v.masks.is_empty()));
+        Ok(Self {
+            effect_work: 0,
+            ordinary_segments: 0,
+            masks: Default::default(),
+            segments: Default::default(),
+            occurrences: Default::default(),
+            scene_has_masks,
+            program_bytes: if scene_has_masks {
+                super::masks::scene_program_bytes(scene)?
+            } else {
+                0
+            },
+        })
+    }
+    pub(crate) fn heap_bytes(&self) -> Result<u64, CoreError> {
+        let segment_entries = (self.segments.capacity() as u64)
+            .checked_mul(2 * (std::mem::size_of::<(u64, usize)>() as u64 + 1));
+        let occurrence_entries = (self.occurrences.capacity() as u64)
+            .checked_mul(2 * (std::mem::size_of::<(u64, usize)>() as u64 + 1));
+        segment_entries
+            .and_then(|n| n.checked_add(occurrence_entries?))
+            .and_then(|n| n.checked_add(std::mem::size_of::<Self>() as u64))
+            .ok_or_else(|| invalid("sampled budget metadata overflow"))
+    }
+    pub(crate) fn certify(
+        &mut self,
+        scene: &EvaluatedScene,
+        index: usize,
+        at: u64,
+    ) -> Result<(u64, u64), CoreError> {
+        let layer = &scene.visual_layers[index];
+        if let EvaluatedVisualSource::Media {
+            asset_id,
+            source_in_ms,
+        } = &layer.source
+            && !scene
+                .resources
+                .iter()
+                .any(|r| r.asset_id == *asset_id && r.kind == EvaluatedMediaKind::Image)
+        {
+            certified_media_source_time(layer, at, *source_in_ms)?;
+        }
+        let (mut sampled, _, effects) = sample(layer, at)?;
+        let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+            self.ordinary_segments = self
+                .ordinary_segments
+                .checked_add(shape.segments())
+                .filter(|n| *n <= shapes::MAX_SCENE_SEGMENTS)
+                .ok_or_else(|| invalid("sampled scene segment limit exceeded"))?;
+            (shape.size, shape.density)
+        } else {
+            (
+                sampled
+                    .source_size
+                    .ok_or_else(|| invalid("sampled source measurement missing"))?,
+                1.,
+            )
+        };
+        validate_sampled_source_size(size)?;
+        super::extended_certification::effect_budget(
+            size,
+            &effects,
+            density,
+            &mut self.effect_work,
+        )?;
+        let canvas = (scene.canvas.width, scene.canvas.height);
+        let base = certify_composition_memory(canvas, size, &effects, density)?;
+        let mut additional = 0;
+        if self.scene_has_masks {
+            let first = self.occurrences.insert((at, index));
+            let mut segments = *self.segments.get(&at).unwrap_or(&0);
+            if first && let EvaluatedVisualSource::Shape(shape) = &sampled.source {
+                segments = segments
+                    .checked_add(shape.segments())
+                    .filter(|n| *n <= shapes::MAX_SCENE_SEGMENTS)
+                    .ok_or_else(|| invalid("sampled scene segment overflow"))?;
+            }
+            let masks = sampled_masks(layer, at)?;
+            if !masks.is_empty() {
+                let mut certified_segments = if first { segments } else { 0 };
+                let facts = super::masks::certify_sampled_masks(
+                    &masks,
+                    super::masks::MaskOwnerBasis { size, density },
+                    &mut self.masks,
+                    &mut certified_segments,
+                )?;
+                if first {
+                    segments = certified_segments;
+                }
+                additional = super::masks::authored_mask_bytes(&masks)?
+                    .checked_mul(3)
+                    .and_then(|n| n.checked_add(facts.additional_live_bytes().ok()?))
+                    .ok_or_else(|| invalid("sampled mask memory overflow"))?;
+            }
+            if first {
+                self.segments.insert(at, segments);
+            }
+            base.checked_add(self.program_bytes)
+                .and_then(|n| n.checked_add(additional))
+                .filter(|n| *n <= MAX_COMPOSITION_BYTES)
+                .ok_or_else(|| invalid("mask composition live memory exceeds limits"))?;
+        }
+        sample_transform(&mut sampled, at, size, canvas)?;
+        Ok((base, additional))
+    }
 }
 
 // Preserve authored validity while certifying the floating native timestamp

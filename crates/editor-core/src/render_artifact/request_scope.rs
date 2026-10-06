@@ -36,6 +36,25 @@ impl ArtifactIo for RequestScope {
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         self.inner.read(path)
     }
+    fn read_admitted_font(
+        &self,
+        path: &Path,
+        size: u64,
+        capacity: usize,
+    ) -> std::io::Result<Vec<u8>> {
+        self.inner.read_admitted_font(path, size, capacity)
+    }
+    fn admitted_font_lookup(
+        &self,
+        root: &Path,
+        family: &str,
+        remaining: u64,
+    ) -> std::io::Result<Option<PathBuf>> {
+        self.inner.admitted_font_lookup(root, family, remaining)
+    }
+    fn media_digest(&self, path: &Path) -> std::io::Result<(String, u64)> {
+        self.inner.media_digest(path)
+    }
     fn read_font(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         self.inner.read_font(path)
     }

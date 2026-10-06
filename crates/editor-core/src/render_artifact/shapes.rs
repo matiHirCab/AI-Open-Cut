@@ -1,6 +1,6 @@
 //! Coverage rasterization of evaluated geometry; paint semantics stay explicit.
 #[cfg(test)]
-mod fill_allocation_tests;
+pub(super) mod fill_allocation_tests;
 use crate::evaluated_scene::shapes::EvaluatedShape;
 use crate::{CoreError, ErrorCode, FillRule, LineCap, LineJoin, Paint, VectorColor, VectorPoint};
 

@@ -14,6 +14,7 @@ struct AllocationStats {
     invalid: bool,
     requests: [usize; 128],
     recorded: usize,
+    record_requests: bool,
 }
 impl Default for AllocationStats {
     fn default() -> Self {
@@ -25,6 +26,7 @@ impl Default for AllocationStats {
             invalid: false,
             requests: [0; 128],
             recorded: 0,
+            record_requests: true,
         }
     }
 }
@@ -41,6 +43,9 @@ fn update(action: impl FnOnce(&mut AllocationStats)) {
     });
 }
 fn request(stats: &mut AllocationStats, size: usize) {
+    if !stats.record_requests {
+        return;
+    }
     if stats.recorded < stats.requests.len() {
         stats.requests[stats.recorded] = size;
         stats.recorded += 1;
@@ -221,4 +226,22 @@ fn opaque_fill_budget_formula_and_overflow_do_not_hide_actual_storage() {
     );
     assert!(fill_transient_bytes(u64::MAX, 1, (8, 8)).is_err());
     assert!(fill_transient_bytes(1, u64::MAX, (8, 8)).is_err());
+}
+
+/// Sibling observation mode retains checked live/peak and moving-realloc
+/// overlap, while disabling only the fill test's128-request recording cap.
+/// The closure must drop all of its allocated outputs before returning.
+pub(crate) fn observe(action: impl FnOnce()) -> (usize, usize, usize) {
+    OBSERVATION.with(|cell| {
+        assert!(cell.get().is_none());
+        cell.set(Some(AllocationStats {
+            record_requests: false,
+            ..Default::default()
+        }));
+    });
+    action();
+    let stats = OBSERVATION.with(|cell| cell.replace(None).unwrap());
+    assert!(!stats.invalid);
+    assert_eq!(stats.live, 0);
+    (stats.peak, stats.allocations, stats.reallocations)
 }
