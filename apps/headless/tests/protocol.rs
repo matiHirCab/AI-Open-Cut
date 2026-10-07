@@ -3156,6 +3156,71 @@ fn desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reop
 #[test]
 fn canonical_speech_alignment_round_trips_and_rejects_before_project_publication() {
     let h = Harness::new();
+    let source = h.root.path().join("alignment_probe.rs");
+    let probe = h
+        .root
+        .path()
+        .join(format!("alignment_probe{}", std::env::consts::EXE_SUFFIX));
+    // A test-only process boundary, not a production media parser. Derive the
+    // descriptor independently from this suite's fixed PCM WAV header instead
+    // of relying on ambient FFprobe in hermetic correctness/contract jobs.
+    std::fs::write(
+        &source,
+        r#"
+fn main() {
+    let arguments: Vec<_> = std::env::args_os().collect();
+    if arguments.get(1).is_some_and(|argument| argument == "-version") {
+        println!("test-only PCM probe");
+        return;
+    }
+    let bytes = std::fs::read(arguments.last().unwrap()).unwrap();
+    assert_eq!(&bytes[0..4], b"RIFF");
+    assert_eq!(&bytes[8..16], b"WAVEfmt ");
+    assert_eq!(&bytes[36..40], b"data");
+    let channels = u16::from_le_bytes(bytes[22..24].try_into().unwrap());
+    let sample_rate = u32::from_le_bytes(bytes[24..28].try_into().unwrap());
+    let bits = u16::from_le_bytes(bytes[34..36].try_into().unwrap());
+    let data_bytes = u32::from_le_bytes(bytes[40..44].try_into().unwrap());
+    assert_eq!(u16::from_le_bytes(bytes[20..22].try_into().unwrap()), 1);
+    assert_eq!(bits, 16);
+    assert_eq!(bytes.len(), 44 + data_bytes as usize);
+    let duration = f64::from(data_bytes)
+        / (f64::from(sample_rate) * f64::from(channels) * f64::from(bits / 8));
+    println!("{{\"streams\":[{{\"codec_type\":\"audio\",\"codec_name\":\"pcm_s16le\",\"sample_rate\":\"{sample_rate}\",\"channels\":{channels}}}],\"format\":{{\"duration\":\"{duration:.6}\",\"format_name\":\"wav\"}}}}");
+}
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new("rustc")
+        .arg("--edition=2024")
+        .arg(&source)
+        .arg("-o")
+        .arg(&probe)
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "cannot compile hermetic PCM probe: {}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    run_speech_alignment_protocol_cases(&h, &probe);
+}
+
+#[test]
+fn native_canonical_speech_alignment_round_trips_and_rejects_before_project_publication() {
+    if !native_parity_is_configured() {
+        assert_ne!(
+            std::env::var("OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED").as_deref(),
+            Ok("1"),
+            "required native alignment parity needs configured FFprobe"
+        );
+        return;
+    }
+    let probe = std::env::var_os("OPENCUT_FFPROBE_PATH").unwrap();
+    run_speech_alignment_protocol_cases(&Harness::new(), std::path::Path::new(&probe));
+}
+
+fn run_speech_alignment_protocol_cases(h: &Harness, probe: &std::path::Path) {
     let created = result(&h.request(json!({"operation":"create_project","name":"Aligned speech"})));
     let id = created["projectId"].as_str().unwrap();
     let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
@@ -3170,7 +3235,7 @@ fn canonical_speech_alignment_round_trips_and_rejects_before_project_publication
     std::fs::create_dir(&generated).unwrap();
     let wav = generated.join("speech.wav");
     // One second, mono 16-bit PCM at 24 kHz. This is independent test media,
-    // allowing headless to supply the actual probed duration to core.
+    // Both probe modes derive the duration from this independent media.
     let mut bytes = Vec::new();
     bytes.extend(b"RIFF");
     bytes.extend(48_036_u32.to_le_bytes());
@@ -3202,6 +3267,7 @@ fn canonical_speech_alignment_round_trips_and_rejects_before_project_publication
                 command.env(name, value);
             }
         }
+        command.env("OPENCUT_FFPROBE_PATH", probe);
         let mut child = command.spawn().unwrap();
         std::io::Write::write_all(
             &mut child.stdin.take().unwrap(),
@@ -3238,6 +3304,8 @@ fn canonical_speech_alignment_round_trips_and_rejects_before_project_publication
             asset["origin"]["generation"]["alignment"],
             case["alignment"]
         );
+        assert_eq!(asset["durationMs"], 1000);
+        assert_eq!(asset["probe"]["audioSampleRateHz"], 24000);
         assert_eq!(state["project"]["schemaVersion"], 38);
     }
     for case in catalog["invalid"].as_array().unwrap() {

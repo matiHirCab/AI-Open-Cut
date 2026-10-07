@@ -1,6 +1,6 @@
 # Issue60 implementation conformance review
 
-This is a separate self-review of implementation against the previously approved specification, not a claimed external or human CODEOWNER approval. Final full checks and exact-head CI are still pending.
+This is a separate self-review of implementation against the previously approved specification, not a claimed external or human CODEOWNER approval. The explicitly authorized substantive owner-review decision is recorded separately in delegated-codeowner-review.md. Corrected full implementation checks now pass; final archived-head CI remains pending. Earlier paragraphs below preserve the chronological original evidence rather than overwriting failures.
 
 ## Completeness and correctness
 
@@ -43,3 +43,7 @@ The comparison's stale shared release cache is repaired: independently executed 
 
 
 The standard smoke retry after moving pinned tools to disk still loses its worker with the OOM-kill counter11→12; it is not a passing check. The retained unchanged predecessor control shows the same symptom. Implementation verification (full Rust1364 tests, strict Clippy/fmt, bridge629 units, full483-case contract suite and Python12+5) is passing; standard integration/smoke acceptance must come from unchanged native CI. The initial draft is intentionally published before archival to obtain those substantive exact-head receipts; its policy/foundation rejection for this active change remains expected and unclaimed. No next issue implementation starts until the final archived issue60 head passes all required CI.
+
+Latest corrected-tree acceptance: standard exact-head initial CI37668406035/job112953523462 passes all23 integration and20 packaged smoke tests using unchanged production/package inputs. All three correctness jobs expose the real new-fixture ambient-FFprobe mismatch; their complete original failed logs are preserved. The approved hermetic plus actual-native correction retains every47 canonical case and all original publication/rejection assertions, adding independently probed duration/sample-rate assertions. Local corrected full Rust passes1,365 tests/64 suites/9 existing ignored, strict Clippy/fmt pass, and complete contracts:check passes483 TypeScript cases/26 files plus all original native/core/desktop consumers. Deliberately missing FFprobe hermetic execution and explicitly configured actual FFprobe execution both pass. Prior bridge/Python inputs and their passing evidence are unchanged. Full log names are mapped in verification-report.md.
+
+Substantive owner-authorized review found no production contract or persistence defect and approved the reviewed contract/consumer implementation after resolving the harness finding. Its39-file source-hash manifest still matches. No distinct human or GitHub APPROVED review is claimed. Pre-archive Moon passes455 controls and46 strict items, rejecting only this active change. Sync preserves every1,226 earlier archive file and516 unmodified prior requirement blocks byte-for-byte; only the two approved hero requirements change and five requirements are added. Final protected/strict gates and all11 published-final-head CI remain mandatory.

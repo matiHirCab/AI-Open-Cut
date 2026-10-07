@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "72bd389bc608b5860ad00583d23e76e769fad06e",
+  "unchanged_prior_archive_files": 1226,
+  "prior_requirements": 518,
+  "unchanged_prior_requirements": 516,
+  "approved_modified_requirements": [
+    "openspec/specs/masked-hero-reveal/spec.md#Canonical combined hero recipe and immutable authorities",
+    "openspec/specs/masked-hero-reveal/spec.md#Exact combined fixture lifecycle and API rollback"
+  ],
+  "added_requirements": [
+    "openspec/specs/contract-governance/spec.md#Governed additive schema38 alignment contract",
+    "openspec/specs/project-persistence/spec.md#Atomic schema38 speech provenance adoption",
+    "openspec/specs/speech-alignment-provenance/spec.md#Canonical bounded atomic rejection",
+    "openspec/specs/speech-alignment-provenance/spec.md#Durable truthful speech alignment",
+    "openspec/specs/speech-generation/spec.md#Preserve returned alignment through retained speech workflows"
+  ],
+  "total_living_requirements": 523
+}
