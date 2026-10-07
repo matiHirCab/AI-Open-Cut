@@ -172,6 +172,7 @@ struct PreparedRender {
 }
 
 struct RenderPreflight {
+    controlled_readiness_completed: bool,
     raster_scope: [u8; 32],
     scene: EvaluatedScene,
     media: PreparedMediaResources,
@@ -281,13 +282,14 @@ impl Renderer {
             project.settings.fps,
         )?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media, time_ms)?;
+        let mut preflight = self.preflight_render(&evaluated, media, time_ms)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             time_ms,
             time_ms,
             true,
         )?;
+        self.admit_controlled_readiness(&mut preflight, project_dir)?;
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -334,13 +336,14 @@ impl Renderer {
         let evaluated =
             evaluate_project(project, options.width, options.height, project.settings.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media, 0)?;
+        let mut preflight = self.preflight_render(&evaluated, media, 0)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             0,
             preflight.scene.duration_ms,
             false,
         )?;
+        self.admit_controlled_readiness(&mut preflight, project_dir)?;
         if self.artifact_io.artifact_path_exists(options.output) && !options.overwrite {
             return Err(CoreError::new(
                 ErrorCode::ExportExists,
@@ -407,13 +410,14 @@ impl Renderer {
         }
         let evaluated = evaluate_project(project, options.width, options.height, options.fps)?;
         let media = prepare_media_resources(self.artifact_io.as_ref(), &evaluated, project_dir)?;
-        let preflight = self.preflight_render(&evaluated, media, options.start_ms)?;
+        let mut preflight = self.preflight_render(&evaluated, media, options.start_ms)?;
         crate::evaluated_scene::extended_visual::preflight_samples(
             &preflight.scene,
             options.start_ms,
             options.end_ms,
             false,
         )?;
+        self.admit_controlled_readiness(&mut preflight, project_dir)?;
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -864,12 +868,32 @@ impl Renderer {
             self.readiness()?;
         }
         Ok(RenderPreflight {
+            controlled_readiness_completed: false,
             raster_scope: crate::render_artifact::raster_cache::scope(evaluated)?,
             scene: finalized,
             media,
             measured,
             warnings,
         })
+    }
+
+    /// Complete controlled readiness after all sample certificates and before
+    /// request IDs, destination inspection or workspace creation.
+    fn admit_controlled_readiness(
+        &self,
+        preflight: &mut RenderPreflight,
+        project_dir: &Path,
+    ) -> Result<(), CoreError> {
+        if preflight.scene.aggregates.is_some() {
+            crate::render_artifact::verify_matte_media_integrity(
+                self.artifact_io.as_ref(),
+                &preflight.media,
+                project_dir,
+            )?;
+            self.readiness()?;
+            preflight.controlled_readiness_completed = true;
+        }
+        Ok(())
     }
 
     fn materialize_render(
@@ -879,6 +903,7 @@ impl Renderer {
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
         let RenderPreflight {
+            controlled_readiness_completed,
             raster_scope,
             scene: mut finalized,
             media,
@@ -887,7 +912,7 @@ impl Renderer {
         } = preflight;
         // Complete active-matte request certification is performed by every
         // caller before this seam. Readiness must not run ahead of those guards.
-        if finalized.composition_resources.is_some() {
+        if finalized.composition_resources.is_some() && !controlled_readiness_completed {
             crate::render_artifact::verify_matte_media_integrity(
                 self.artifact_io.as_ref(),
                 &media,
@@ -1864,6 +1889,66 @@ mod tests {
             b"preserve color-overflow destination"
         );
         assert_eq!(serde_json::to_value(project).unwrap(), before);
+    }
+
+    #[test]
+    fn controlled_particle_work_and_complete_readiness_reject_all_facades_without_side_effects() {
+        for unavailable in [false, true] {
+            let root = tempdir().unwrap();
+            let process = Arc::new(FakeProcess {
+                readiness_error: unavailable,
+                probe_error: false,
+                run_failure: None,
+                executions: Mutex::new(vec![]),
+            });
+            let io = Arc::new(LifecycleArtifactIo::default());
+            let renderer =
+                Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+            let mut project = visual_project();
+            project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+            let effects=(0..if unavailable{1}else{16}).map(|index|serde_json::json!({"id":format!("particles-{index}"),"type":"particle_overlay","count":256,"seed":1,"radiusPx":16,"speedPxPerSecond":12,"lifetimeMs":1000,"color":{"r":0,"g":1,"b":0,"a":0.7}})).collect::<Vec<_>>();
+            let size = if unavailable { 32 } else { 3000 };
+            project.tracks[0].items=vec![
+                serde_json::from_value(serde_json::json!({"type":"group","id":"controlled","startMs":0,"durationMs":1000,"stackOrder":0,"effects":effects})).unwrap(),
+                serde_json::from_value(serde_json::json!({"type":"rectangle","id":"child","startMs":0,"durationMs":1000,"width":size,"height":size,"color":"#00ff00","stackOrder":1,"parent":{"scope":"root","id":"controlled"},"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":0.4},"keyframes":[]})).unwrap()
+            ];
+            let before = serde_json::to_value(&project).unwrap();
+            let expected = if unavailable {
+                ErrorCode::DependencyUnavailable
+            } else {
+                ErrorCode::InvalidArgument
+            };
+            assert_all_facades_reject_without_side_effects(
+                &renderer,
+                &io,
+                &process,
+                &project,
+                root.path(),
+                expected,
+            );
+            let output = root.path().join("rejected.mp4");
+            std::fs::write(&output, b"preserve controlled admission destination").unwrap();
+            let error = renderer
+                .export_video(
+                    &project,
+                    root.path(),
+                    ExportOptions {
+                        output: &output,
+                        width: 320,
+                        height: 180,
+                        overwrite: false,
+                    },
+                    |_| {},
+                )
+                .unwrap_err();
+            assert_eq!(error.code, expected);
+            assert_no_render_side_effects(&io, &process);
+            assert_eq!(
+                std::fs::read(output).unwrap(),
+                b"preserve controlled admission destination"
+            );
+            assert_eq!(serde_json::to_value(&project).unwrap(), before);
+        }
     }
 
     #[test]
@@ -4277,6 +4362,7 @@ mod tests {
                             .all(|v| v.source_size == Some((20, 40)))
                     );
                     let RenderPreflight {
+                        controlled_readiness_completed,
                         raster_scope,
                         scene,
                         media,
@@ -4287,6 +4373,7 @@ mod tests {
                     renderer
                         .materialize_render(
                             RenderPreflight {
+                                controlled_readiness_completed,
                                 raster_scope,
                                 scene,
                                 media,

@@ -790,6 +790,48 @@
         "scripts/validate-ci-gates.test.ts",
         ".github/workflows/bun-ci.yml"
       ]
+    },
+    "groupCompositing": {
+      "canonical": "contracts/group-compositing-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/visual_effects.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/error.rs",
+        "crates/editor-core/src/validation/extended_visual.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/src/evaluated_scene.rs",
+        "crates/editor-core/src/evaluated_scene/group_compositing.rs",
+        "crates/editor-core/src/evaluated_scene/group_compositing/frame.rs",
+        "crates/editor-core/src/evaluated_scene/group_compositing/continuous.rs",
+        "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+        "crates/editor-core/src/evaluated_scene/composition_resources.rs",
+        "crates/editor-core/src/evaluated_scene/mattes.rs",
+        "crates/editor-core/src/render_artifact/extended_visual/group_compositing.rs",
+        "crates/editor-core/src/render_artifact/extended_visual.rs",
+        "crates/editor-core/src/render_artifact/mattes.rs",
+        "crates/editor-core/src/renderer.rs",
+        "crates/editor-core/tests/group_compositing_models.rs",
+        "crates/editor-core/tests/group_compositing_native.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/group-compositing.test.ts",
+        "apps/agent-bridge/tests/group-compositing-native.test.ts",
+        "apps/agent-bridge/tests/group-compositing-oracle.ts",
+        "apps/agent-bridge/tests/group-compositing-media-oracle.ts",
+        "apps/agent-bridge/tests/fixtures/group-compositing-projection.ts",
+        "apps/agent-bridge/tests/fixtures/group-compositing-additions.json",
+        "apps/agent-bridge/tests/fixtures/group-compositing-predecessor-pins.json",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/group-compositing.md",
+        "docs/adr/0003-editor-core-module-boundaries.md",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        ".github/workflows/bun-ci.yml"
+      ]
     }
   }
 }

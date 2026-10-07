@@ -1,5 +1,6 @@
 //! Process-local sampled visual facts; no paths, processes or persisted mutation.
 use super::*;
+pub(crate) use crate::animation::SampleTime;
 use crate::{
     AnimationChannel, AnimationChannelProperty as P, AnimationChannelValue as V,
     AnimationTargetKind as K, MediaCrop, VisualEffect,
@@ -275,6 +276,10 @@ pub(crate) fn sample(
 pub(crate) fn required(layer: &EvaluatedVisualLayer) -> bool {
     !layer.blend_mode.is_normal()
         || layer.extended.is_some()
+        || layer
+            .ancestor_stages
+            .iter()
+            .any(|stage| stage.aggregate.is_some())
         || layer.ancestor_stages.iter().any(|s| {
             s.animation.as_ref().is_some_and(|a| {
                 a.channels
@@ -398,6 +403,14 @@ pub(crate) fn preflight_samples(
                     / u64::from(scene.canvas.fps),
             )
             .ok_or_else(|| invalid("sample time overflow"))?;
+        if scene
+            .aggregates
+            .as_ref()
+            .is_some_and(|graph| !graph.nodes.is_empty())
+        {
+            super::group_compositing::frame::frame_program(scene, time)?;
+            continue;
+        }
         if scene.composition_resources.is_some() {
             // The schedule's sampled owner certifies every actual uncached leaf,
             // sharing the whole-frame counters before any materialization.
@@ -472,8 +485,15 @@ pub(crate) fn preflight_samples(
                         1.0,
                     )
                 };
-                super::extended_certification::effect_budget(size, &effects, density, &mut work)?;
-                let base_memory = certify_composition_memory(canvas, size, &effects, density)?;
+                let effect_size = particle_source_domain(layer, &sampled, &effects, size)?.size;
+                super::extended_certification::effect_budget(
+                    effect_size,
+                    &effects,
+                    density,
+                    &mut work,
+                )?;
+                let base_memory =
+                    certify_composition_memory(canvas, effect_size, &effects, density)?;
                 if scene_has_masks {
                     let masks = sampled_masks(layer, time)?;
                     let first_occurrence =
@@ -553,6 +573,13 @@ impl SampledFrameBudget {
             },
         })
     }
+    pub(crate) fn certify_aggregate(
+        &mut self,
+        size: (u32, u32),
+        effects: &[VisualEffect],
+    ) -> Result<(), CoreError> {
+        super::extended_certification::effect_budget(size, effects, 1., &mut self.effect_work)
+    }
     pub(crate) fn heap_bytes(&self) -> Result<u64, CoreError> {
         let segment_entries = (self.segments.capacity() as u64)
             .checked_mul(2 * (std::mem::size_of::<(u64, usize)>() as u64 + 1));
@@ -563,13 +590,23 @@ impl SampledFrameBudget {
             .and_then(|n| n.checked_add(std::mem::size_of::<Self>() as u64))
             .ok_or_else(|| invalid("sampled budget metadata overflow"))
     }
-    pub(crate) fn certify(
+    pub(crate) fn certify_in_domain(
         &mut self,
         scene: &EvaluatedScene,
         index: usize,
         at: u64,
+        canvas: (u32, u32),
+        relative_owner: Option<usize>,
+        query_map: Option<[f64; 6]>,
     ) -> Result<(u64, u64), CoreError> {
-        let layer = &scene.visual_layers[index];
+        let original = &scene.visual_layers[index];
+        let relative;
+        let layer = if let Some(owner) = relative_owner {
+            relative = super::group_compositing::relative_layer(original, owner)?;
+            &relative
+        } else {
+            original
+        };
         if let EvaluatedVisualSource::Media {
             asset_id,
             source_in_ms,
@@ -598,14 +635,14 @@ impl SampledFrameBudget {
             )
         };
         validate_sampled_source_size(size)?;
+        let effect_size = particle_source_domain(layer, &sampled, &effects, size)?.size;
         super::extended_certification::effect_budget(
-            size,
+            effect_size,
             &effects,
             density,
             &mut self.effect_work,
         )?;
-        let canvas = (scene.canvas.width, scene.canvas.height);
-        let base = certify_composition_memory(canvas, size, &effects, density)?;
+        let base = certify_composition_memory(canvas, effect_size, &effects, density)?;
         let mut additional = 0;
         if self.scene_has_masks {
             let first = self.occurrences.insert((at, index));
@@ -641,7 +678,11 @@ impl SampledFrameBudget {
                 .filter(|n| *n <= MAX_COMPOSITION_BYTES)
                 .ok_or_else(|| invalid("mask composition live memory exceeds limits"))?;
         }
-        sample_transform(&mut sampled, at, size, canvas)?;
+        let affine = sample_transform(&mut sampled, at, size, canvas)?;
+        if let Some(query) = query_map {
+            let [a, b, c, d, tx, ty] = multiply_matrix(affine.inverse, query);
+            super::mattes::QueryFrame::new(canvas, [tx, ty], [[a, b], [c, d]])?;
+        }
         Ok((base, additional))
     }
 }
@@ -708,6 +749,7 @@ pub(crate) fn certify_composition_memory(
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
                 (3.0 * radius_px * density).ceil()
             }
+            VisualEffect::ParticleOverlay { radius_px, .. } => (radius_px * density).ceil(),
             _ => 0.0,
         })
         .sum::<f64>();
@@ -838,10 +880,33 @@ pub(crate) fn sample_transform(
     }
     layer.transform2d = Some(transform);
     layer.keyframes.clear();
+    let (matrix, inverse, opacity) = sample_stages(&layer.ancestor_stages, at_ms)?;
+    if !layer.ancestor_stages.is_empty() {
+        layer.ancestors = Some(EvaluatedAncestors {
+            matrix,
+            inverse,
+            opacity,
+            clip: layer.ancestors.map(|a| a.clip).unwrap_or(layer.span),
+        });
+    }
+    layer.ancestor_stages.clear();
+    layer.sampling_tiles = None;
+    if legacy_basis && let EvaluatedVisualSource::Shape(shape) = &layer.source {
+        return shapes::affine_in_legacy_basis(layer, shape, canvas);
+    }
+    evaluate_layer_affine(layer, source, canvas)
+}
+
+/// Sample an outward slice directly, without inverting an aggregate owner or
+/// dividing inherited opacity. An empty slice is the local identity frame.
+pub(crate) fn sample_stages(
+    stages: &[EvaluatedAncestorStage],
+    at_ms: u64,
+) -> Result<([f64; 6], [f64; 6], f64), CoreError> {
     let mut matrix = IDENTITY_MATRIX;
     let mut inverse = IDENTITY_MATRIX;
     let mut opacity = 1.0;
-    for stage in &layer.ancestor_stages {
+    for stage in stages {
         let (stage_matrix, stage_inverse, stage_opacity) = if let Some(animation) = &stage.animation
         {
             let time = crate::animation::SampleTime::local(
@@ -874,20 +939,15 @@ pub(crate) fn sample_transform(
         inverse = multiply_matrix(stage_inverse, inverse);
         opacity *= stage_opacity;
     }
-    if !layer.ancestor_stages.is_empty() {
-        layer.ancestors = Some(EvaluatedAncestors {
-            matrix,
-            inverse,
-            opacity,
-            clip: layer.ancestors.map(|a| a.clip).unwrap_or(layer.span),
-        });
+    if matrix
+        .iter()
+        .chain(&inverse)
+        .chain(std::iter::once(&opacity))
+        .any(|v| !v.is_finite())
+    {
+        return Err(invalid("nonfinite sampled ancestor stage"));
     }
-    layer.ancestor_stages.clear();
-    layer.sampling_tiles = None;
-    if legacy_basis && let EvaluatedVisualSource::Shape(shape) = &layer.source {
-        return shapes::affine_in_legacy_basis(layer, shape, canvas);
-    }
-    evaluate_layer_affine(layer, source, canvas)
+    Ok((matrix, inverse, opacity))
 }
 
 fn sample_scalar(
@@ -984,6 +1044,82 @@ pub(crate) fn certified_destination_bounds(
     at: u64,
     canvas: (u32, u32),
 ) -> Result<[u32; 4], CoreError> {
+    let [left, top, right, bottom] = sampled_support_bounds(layer, at, canvas)?;
+    let left = left.clamp(0., f64::from(canvas.0));
+    let top = top.clamp(0., f64::from(canvas.1));
+    let right = right.clamp(left, f64::from(canvas.0));
+    let bottom = bottom.clamp(top, f64::from(canvas.1));
+    Ok([left as u32, top as u32, right as u32, bottom as u32])
+}
+/// Raster-coordinate union with the immutable original particle emission box.
+/// Its signed origin is relative to the sampled graphic raster; anchors and
+/// masks still use the original sampled source measurement.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ParticleSourceDomain {
+    pub origin: [f64; 2],
+    pub size: (u32, u32),
+    pub emission: Option<[f64; 4]>,
+}
+pub(crate) fn leaf_effect_time(layer: &EvaluatedVisualLayer, at: u64) -> SampleTime {
+    SampleTime::local(
+        at,
+        layer.span.start_ms,
+        layer.instance.map(|i| (i.rate, i.offset)),
+    )
+}
+pub(crate) fn particle_source_domain(
+    original: &EvaluatedVisualLayer,
+    sampled: &EvaluatedVisualLayer,
+    effects: &[VisualEffect],
+    size: (u32, u32),
+) -> Result<ParticleSourceDomain, CoreError> {
+    let mut domain = ParticleSourceDomain {
+        origin: [0., 0.],
+        size,
+        emission: None,
+    };
+    if !effects
+        .iter()
+        .any(|effect| matches!(effect, VisualEffect::ParticleOverlay { .. }))
+    {
+        return Ok(domain);
+    }
+    if let (EvaluatedVisualSource::Shape(original), EvaluatedVisualSource::Shape(sampled)) =
+        (&original.source, &sampled.source)
+    {
+        let emission = [
+            (original.bounds[0] - sampled.origin.0) * sampled.density,
+            (original.bounds[1] - sampled.origin.1) * sampled.density,
+            (original.bounds[2] - sampled.origin.0) * sampled.density,
+            (original.bounds[3] - sampled.origin.1) * sampled.density,
+        ];
+        if emission.iter().any(|v| !v.is_finite()) {
+            return Err(invalid("particle source domain must be finite"));
+        }
+        domain.emission = Some(emission);
+        if original.bounds[0] >= original.bounds[2] || original.bounds[1] >= original.bounds[3] {
+            return Ok(domain);
+        }
+        let left = 0f64.min(emission[0].floor());
+        let top = 0f64.min(emission[1].floor());
+        let right = f64::from(size.0).max(emission[2].ceil());
+        let bottom = f64::from(size.1).max(emission[3].ceil());
+        let width = right - left;
+        let height = bottom - top;
+        if width > 16384. || height > 16384. || width * height > 16_777_216. {
+            return Err(invalid("particle source union exceeds surface bounds"));
+        }
+        domain.origin = [left, top];
+        domain.size = (width as u32, height as u32);
+        validate_sampled_source_size(domain.size)?;
+    }
+    Ok(domain)
+}
+pub(crate) fn sampled_support_bounds(
+    layer: &EvaluatedVisualLayer,
+    at: u64,
+    canvas: (u32, u32),
+) -> Result<[f64; 4], CoreError> {
     let (mut sampled, _, effects) = sample(layer, at)?;
     let (size, density) = if let EvaluatedVisualSource::Shape(shape) = &sampled.source {
         (shape.size, shape.density)
@@ -995,6 +1131,7 @@ pub(crate) fn certified_destination_bounds(
             1.0,
         )
     };
+    let domain = particle_source_domain(layer, &sampled, &effects, size)?;
     let affine = sample_transform(&mut sampled, at, size, canvas)?;
     let pad = effects
         .iter()
@@ -1002,6 +1139,7 @@ pub(crate) fn certified_destination_bounds(
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
                 (3.0 * radius_px * density).ceil()
             }
+            VisualEffect::ParticleOverlay { radius_px, .. } => (radius_px * density).ceil(),
             _ => 0.0,
         })
         .sum::<f64>();
@@ -1010,35 +1148,34 @@ pub(crate) fn certified_destination_bounds(
     }
     let [a, b, c, d, tx, ty] = affine.matrix;
     let corners = [
-        (-1.0 - pad, -1.0 - pad),
-        (f64::from(size.0) + pad + 1.0, -1.0 - pad),
-        (-1.0 - pad, f64::from(size.1) + pad + 1.0),
-        (f64::from(size.0) + pad + 1.0, f64::from(size.1) + pad + 1.0),
+        (domain.origin[0] - 1.0 - pad, domain.origin[1] - 1.0 - pad),
+        (
+            domain.origin[0] + f64::from(domain.size.0) + pad + 1.0,
+            domain.origin[1] - 1.0 - pad,
+        ),
+        (
+            domain.origin[0] - 1.0 - pad,
+            domain.origin[1] + f64::from(domain.size.1) + pad + 1.0,
+        ),
+        (
+            domain.origin[0] + f64::from(domain.size.0) + pad + 1.0,
+            domain.origin[1] + f64::from(domain.size.1) + pad + 1.0,
+        ),
     ];
     let xs = corners.map(|(x, y)| a * x + c * y + tx);
     let ys = corners.map(|(x, y)| b * x + d * y + ty);
-    let left = xs
-        .into_iter()
-        .fold(f64::INFINITY, f64::min)
-        .floor()
-        .clamp(0.0, f64::from(canvas.0));
-    let top = ys
-        .into_iter()
-        .fold(f64::INFINITY, f64::min)
-        .floor()
-        .clamp(0.0, f64::from(canvas.1));
-    let right = xs
-        .into_iter()
-        .fold(f64::NEG_INFINITY, f64::max)
-        .ceil()
-        .clamp(left, f64::from(canvas.0));
-    let bottom = ys
-        .into_iter()
-        .fold(f64::NEG_INFINITY, f64::max)
-        .ceil()
-        .clamp(top, f64::from(canvas.1));
-    Ok([left as u32, top as u32, right as u32, bottom as u32])
+    let result = [
+        xs.into_iter().fold(f64::INFINITY, f64::min).floor(),
+        ys.into_iter().fold(f64::INFINITY, f64::min).floor(),
+        xs.into_iter().fold(f64::NEG_INFINITY, f64::max).ceil(),
+        ys.into_iter().fold(f64::NEG_INFINITY, f64::max).ceil(),
+    ];
+    if result.iter().any(|v| !v.is_finite()) {
+        return Err(invalid("nonfinite sampled signed support"));
+    }
+    Ok(result)
 }
+
 pub(crate) fn certified_destination_visits(
     layer: &EvaluatedVisualLayer,
     at: u64,

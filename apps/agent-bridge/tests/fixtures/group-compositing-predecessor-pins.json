@@ -1,0 +1,18 @@
+{
+  "codec": "SHA256 JSON.stringify recursively localeCompare-sorted object keys; arrays/scalars retained",
+  "currentMcpDigest": "ddeb5a5f965c4be00336987dde4a0082105c8183b74c256abc4442645a1e15fc",
+  "catalogs": {
+    "extended-visual-animation-v1": "366d2588dfc651861d279ea3afbb60e304e5ee20df216fba92ebf696d7246792",
+    "mask-models-v1": "23d6d8483929d095f398b375989a5fec96e686c4529e4c62284fc9b1a92cb684",
+    "parameterized-effects-v1": "99b63882d61e666aa8f82d896ab5454a5553a45fdcd0a650460ab351a741cc6e",
+    "inherited-animation-timing-v1": "ec1d63221958cf1fabc542120e0431cb6f2fa5d7f516d8c1bc4eb2244eb390dd",
+    "animation-presets-v1": "06609b81dacfd2ba83319d9ffb48ca4e7be96d9665e91035a270303b9ba2e8cc",
+    "blend-modes-v1": "b80c95e586d16c0c4e63bddae59ead957d2329fc5c17d407ea629706d07789fc",
+    "animation-channels-v1": "9b71025701247c05790d90082172b1f5c0dd895b5495a75868ead797defd9b07",
+    "initial-motion-preset-pack-v1": "0ac8f4b6b49c224262c6187b5423844e3e19358c91d938d15fc49b11bd9230fa",
+    "mask-rendering-v1": "853e6e7aff27b98b476af991b40cd33b0299b46cd861468fe648d197a6ad3996",
+    "motion-blur-sampling-v1": "bfe1d616bbf7ef6364b41d4df9a97d5888f2b1d2a74ce32fbe98a58ee18f8c7c",
+    "track-mattes-v1": "354fedc179cbaff9e720e2192e709a8b1e0b696c2d71e7efd26854f109027c57"
+  },
+  "compactMcpDigest": "7895c94c7486c347dc3237b15b73ece23ae34cee8ac1bd2a231d0106e7585eef"
+}

@@ -21,7 +21,7 @@ export const verifyMaskRenderingWorkflow = async (
   call: Call
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(36);
+  expect(status.projectSchemaVersion).toBe(37);
   expect(status.subsystems.editor.capabilities).toContain("mask_animation_v1");
   expect(status.subsystems.editor.capabilities).not.toContain(
     "mask_rendering_v1"

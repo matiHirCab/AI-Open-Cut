@@ -288,6 +288,7 @@ fn review_legacy_shape_affine_preserves_origin_for_identity_extensions() {
             );
             let mut inherited = original.clone();
             inherited.ancestor_stages = vec![EvaluatedAncestorStage {
+                aggregate: None,
                 scope: 0,
                 item_id: "parent".into(),
                 matrix: [1.5, 0.0, 0.0, 1.5, 7.0, 9.0],
@@ -414,6 +415,7 @@ fn review_inherited_scale_envelope_does_not_require_rotation() {
         {"timeMs":500,"value":{"type":"scalar","value":3},"curve":"hold"}
     ]})).unwrap()).collect();
     original.ancestor_stages = vec![EvaluatedAncestorStage {
+        aggregate: None,
         scope: 0,
         item_id: "parent".into(),
         matrix: IDENTITY_MATRIX,

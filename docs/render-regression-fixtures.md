@@ -186,3 +186,9 @@ With `OPENCUT_FFMPEG_PATH`, `OPENCUT_FFPROBE_PATH`, the reviewed `OPENCUT_TEST_F
 ## Parameterized effect plates
 
 [Parameterized effects](parameterized-effects.md) adds independent floating-alpha, final-only clamp, tint-order and positive Gaussian witnesses. `parameterized_effects_native` covers all intents, real audio and component/ancestor clocks. `parameterized-effect-native.test.ts` checks actual MCP artifacts across edits, drafts, history and fresh process reconnect, after unchanged ordered-effect commands in required CI.
+
+## Controlled aggregates and overlays
+
+[Group compositing](group-compositing.md) adds independent complete flash/particle/Gaussian plates, signed offcanvas private-matte coverage with unequal shutters, and nested component instances with fixed emission bases, noncentral anchors, and owner opacity. The actual native core suite also exercises frame, nonzero-origin audiovisual range, export, materialized drafts, history, and reopen with positive PCM. Frozen unsigned words supply particle positions and phases independently of the runtime hash. The MCP suite compares captured prepared PAM pixels and independently converted artifacts across effect order, drafts, undo/redo, reconnect, and clip clearing.
+
+Required native CI appends `cargo test -p opencut-editor-core --test group_compositing_native -- --nocapture`, `cargo build -p opencut-headless`, and `bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts` after the parameterized-effects commands and before the unchanged raster-cache step. Use the same mandatory tool/font flags. Missing dependencies fail a configured run. Lossless byte tolerance remains 1, encoded SSIM remains at least .99, PCM RMS remains at most .0001, and alignment remains within one frame. No reviewed baseline is regenerated.

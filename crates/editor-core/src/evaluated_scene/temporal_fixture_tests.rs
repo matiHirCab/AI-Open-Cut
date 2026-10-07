@@ -1236,6 +1236,7 @@ fn crop_mask_effect_affine_oracle(masked: bool) {
     });
     layer.ancestors = None;
     layer.ancestor_stages = vec![EvaluatedAncestorStage {
+        aggregate: None,
         scope: 0,
         item_id: "oracle-parent".into(),
         matrix: [2.0, 0.0, 0.0, 1.0, 2.0, 1.0],

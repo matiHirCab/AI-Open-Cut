@@ -1,0 +1,1468 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 37,
+  "status": "active",
+  "editorCapability": "group_compositing_models_v1",
+  "renderingCapability": "group_compositing_v1",
+  "effectTypes": [
+    "screen_flash",
+    "particle_overlay"
+  ],
+  "fields": {
+    "screen_flash": {
+      "startMs": {
+        "minimum": 0,
+        "maximum": 60000,
+        "integer": true
+      },
+      "durationMs": {
+        "minimum": 1,
+        "maximum": 60000,
+        "integer": true
+      },
+      "intensity": {
+        "minimum": 0,
+        "maximum": 1,
+        "integer": false
+      }
+    },
+    "particle_overlay": {
+      "count": {
+        "minimum": 0,
+        "maximum": 256,
+        "integer": true
+      },
+      "seed": {
+        "minimum": 0,
+        "maximum": 4294967295,
+        "integer": true
+      },
+      "radiusPx": {
+        "minimum": 0,
+        "maximum": 16,
+        "integer": false
+      },
+      "speedPxPerSecond": {
+        "minimum": 0,
+        "maximum": 1024,
+        "integer": false
+      },
+      "lifetimeMs": {
+        "minimum": 1,
+        "maximum": 60000,
+        "integer": true
+      }
+    }
+  },
+  "clip": {
+    "record": {
+      "type": "composition_bounds"
+    },
+    "eligible": [
+      "group",
+      "component_instance"
+    ],
+    "stored": "optional_non_null",
+    "edit": "omission_preserves_null_clears",
+    "basis": "group_containing_composition_or_instance_definition",
+    "stage": "half_open_pixel_center_clip_before_owner_effects"
+  },
+  "semantics": {
+    "screenFlash": {
+      "window": "[startMs,startMs+durationMs)",
+      "strength": "intensity*color.a*(1-(ownerLocalTime-startMs)/durationMs); zero outside",
+      "equation": "p[c]+(A-p[c])*linear(color[c])*strength",
+      "alpha": "unchanged; A0 implies RGB0",
+      "clock": "canonical original-owner SampleTime; compare/progress before float conversion"
+    },
+    "particles": {
+      "hash": "mix32(seed XOR wrapping32((index+1)*0x9e3779b9) XOR wrapping32((lane+1)*0x85ebca6b))",
+      "mix32": [
+        "xor_right_16",
+        "wrapping_multiply_0x7feb352d",
+        "xor_right_15",
+        "wrapping_multiply_0x846ca68b",
+        "xor_right_16"
+      ],
+      "unitDenominator": 4294967296,
+      "domain": "fixed_original_unstroked_leaf_or_aggregate_composition_bounds",
+      "zeroDomain": "identity_before_modulo; admission_retained",
+      "position": "x=originX+U0*width; y=originY+(U1*height+speed*phase/1000)%height",
+      "phase": "((ownerLocalTime%lifetimeMs)+U2*lifetimeMs)%lifetimeMs",
+      "integerClock": "reduce_integer_or_Split_whole_modulo_before_f64_conversion",
+      "coverage": "4x4 raster samples at (a+.5)/4; closed squared circle",
+      "density": "centers subtract signed raster local origin then multiply certified density d; radius=radiusPx*d; aggregates d=1",
+      "box": "floor(center-rasterRadius)-1 .. ceil(center+rasterRadius)+1 exclusive; width<=ceil(2*rasterRadius)+3",
+      "composition": "index_ascending_premultiplied_linear_source_over",
+      "identities": [
+        "count0",
+        "radius0",
+        "color_alpha0"
+      ],
+      "support": "fixed_domain_expanded_radiusPx; ceil(radiusPx*d) raster padding"
+    },
+    "aggregate": {
+      "activation": "explicit_clip_or_nonempty_effects_only",
+      "children": "completed_relative_local_planes_then_canonical_blend_into_transparent_black",
+      "order": "owner_contiguous_block; child_local_z_cannot_escape",
+      "stage": "child_source_masks_effects_relative_affine_world_matte_relative_gain_own_shutter_then_blend; owner_clip_effects_outward_affine_gain_once",
+      "anchor": "fixed_composition_basis_independent_of_signed_union",
+      "temporalBoundary": "owner_uncontrolled_outward_factors_stop_before_immediate_enclosing_controlled_owner_and_freeze_at_requested_output_sample; top_level_through_root",
+      "provider": "separate_leaf_full_world_ancestry_gain_and_shutter_excluding_ancestor_aggregate_clip_effects_destinationblend",
+      "query": "certified_origin_axes_dimensions_map_local_centers_to_world; direct_source_sampling_offcanvas; exact_frame_in_memo_key",
+      "matteOnly": "exclude_direct_aggregate_source_and_halo_keep_private_coverage_audio"
+    },
+    "channels": "no_new_properties; aggregate_effect_targets_remain_unsupported"
+  },
+  "limits": {
+    "maxEffectsPerItem": 16,
+    "maxEffectIdUtf8Bytes": 128,
+    "maxExpandedOccurrencesIncludingAggregatesAndQueries": 4096,
+    "maxSurfaceDimension": 16384,
+    "maxSurfacePixels": 16777216,
+    "maxEffectWork": 268435456,
+    "maxShutterWork": 268435456,
+    "maxMatteWork": 268435456,
+    "maxProviderRequests": 4096,
+    "peakLiveBytes": 1073741824,
+    "cacheReserveBytes": 67108864,
+    "flashWork": "3P",
+    "particleWork": "4P+count*20*(ceil(2*radiusPx*d)+3)^2"
+  },
+  "effectCases": [
+    {
+      "id": "screen_flash-startMs-0",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-startMs-60000",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 60000,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-startMs--1",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": -1,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-startMs-60001",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 60001,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-startMs-None",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": null,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-startMs-0.5",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0.5,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-durationMs-1",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-durationMs-60000",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 60000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-durationMs-0",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 0,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-durationMs-60001",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 60001,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-durationMs-None",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": null,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-durationMs-0.5",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 0.5,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-intensity-0",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-intensity-1",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 1,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "screen_flash-intensity--1",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": -1,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-intensity-2",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 2,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-intensity-None",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": null,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-type",
+      "value": {
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-id",
+      "value": {
+        "type": "screen_flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-startMs",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-durationMs",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-intensity",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-missing-color",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-unknown",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 0.6
+        },
+        "url": "https://invalid.example"
+      },
+      "accepted": false
+    },
+    {
+      "id": "screen_flash-color-overflow",
+      "value": {
+        "type": "screen_flash",
+        "id": "flash",
+        "startMs": 0,
+        "durationMs": 1000,
+        "intensity": 0.8,
+        "color": {
+          "r": 1,
+          "g": 0.5,
+          "b": 0,
+          "a": 1.01
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-count-0",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 0,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-count-256",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 256,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-count--1",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": -1,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-count-257",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 257,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-count-None",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": null,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-count-0.5",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 0.5,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-seed-0",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 0,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-seed-4294967295",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 4294967295,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-seed--1",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": -1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-seed-4294967296",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 4294967296,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-seed-None",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": null,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-seed-0.5",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 0.5,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-radiusPx-0",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 0,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-radiusPx-16",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 16,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-radiusPx--1",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": -1,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-radiusPx-17",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 17,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-radiusPx-None",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": null,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-speedPxPerSecond-0",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 0,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-speedPxPerSecond-1024",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 1024,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-speedPxPerSecond--1",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": -1,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-speedPxPerSecond-1025",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 1025,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-speedPxPerSecond-None",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": null,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-1",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-60000",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 60000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": true
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-0",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 0,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-60001",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 60001,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-None",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": null,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-lifetimeMs-0.5",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 0.5,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-type",
+      "value": {
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-id",
+      "value": {
+        "type": "particle_overlay",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-count",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-seed",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-radiusPx",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-speedPxPerSecond",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-lifetimeMs",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        }
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-missing-color",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-unknown",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 0.7
+        },
+        "url": "https://invalid.example"
+      },
+      "accepted": false
+    },
+    {
+      "id": "particle_overlay-color-overflow",
+      "value": {
+        "type": "particle_overlay",
+        "id": "sparks",
+        "count": 8,
+        "seed": 1,
+        "radiusPx": 2,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 1000,
+        "color": {
+          "r": 0,
+          "g": 0.5,
+          "b": 1,
+          "a": 1.01
+        }
+      },
+      "accepted": false
+    }
+  ],
+  "clipCases": [
+    {
+      "value": {
+        "type": "composition_bounds"
+      },
+      "accepted": true
+    },
+    {
+      "value": null,
+      "accepted": false
+    },
+    {
+      "value": {
+        "type": "rectangle"
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "type": "composition_bounds",
+        "path": "evil"
+      },
+      "accepted": false
+    },
+    {
+      "value": [],
+      "accepted": false
+    },
+    {
+      "value": [
+        "composition_bounds"
+      ],
+      "accepted": false
+    },
+    {
+      "value": [
+        "composition_bounds",
+        "extra"
+      ],
+      "accepted": false
+    },
+    {
+      "value": {
+        "type": {
+          "composition_bounds": null
+        }
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "type": [
+          "composition_bounds"
+        ]
+      },
+      "accepted": false
+    },
+    {
+      "value": {
+        "type": null
+      },
+      "accepted": false
+    },
+    {
+      "value": {},
+      "accepted": false
+    },
+    {
+      "value": true,
+      "accepted": false
+    },
+    {
+      "value": 42,
+      "accepted": false
+    }
+  ],
+  "hashVectors": [
+    {
+      "seed": 0,
+      "index": 0,
+      "lanes": [
+        4245456706,
+        4020029384,
+        3036279602
+      ]
+    },
+    {
+      "seed": 0,
+      "index": 1,
+      "lanes": [
+        3953245928,
+        4146060924,
+        3542530331
+      ]
+    },
+    {
+      "seed": 0,
+      "index": 255,
+      "lanes": [
+        658487953,
+        3062219026,
+        3652849891
+      ]
+    },
+    {
+      "seed": 1,
+      "index": 0,
+      "lanes": [
+        2336985851,
+        938826240,
+        1456866664
+      ]
+    },
+    {
+      "seed": 1,
+      "index": 1,
+      "lanes": [
+        84929298,
+        829401672,
+        2771797279
+      ]
+    },
+    {
+      "seed": 1,
+      "index": 255,
+      "lanes": [
+        2850721802,
+        458999072,
+        3738128811
+      ]
+    },
+    {
+      "seed": 4294967295,
+      "index": 0,
+      "lanes": [
+        1396460336,
+        921397705,
+        1434834752
+      ]
+    },
+    {
+      "seed": 4294967295,
+      "index": 1,
+      "lanes": [
+        2034689505,
+        1151646637,
+        2097388580
+      ]
+    },
+    {
+      "seed": 4294967295,
+      "index": 255,
+      "lanes": [
+        872468376,
+        3629563911,
+        1688750247
+      ]
+    }
+  ],
+  "nativeWitness": {
+    "canvas": [
+      64,
+      64
+    ],
+    "sourceBounds": [
+      32,
+      24
+    ],
+    "noncentralAnchor": [
+      0.25,
+      0.75
+    ],
+    "positiveGaussianSigma": 1,
+    "flash": {
+      "type": "screen_flash",
+      "id": "flash",
+      "startMs": 0,
+      "durationMs": 1000,
+      "intensity": 0.8,
+      "color": {
+        "r": 1,
+        "g": 0.5,
+        "b": 0,
+        "a": 0.6
+      }
+    },
+    "particles": {
+      "type": "particle_overlay",
+      "id": "sparks",
+      "count": 8,
+      "seed": 1,
+      "radiusPx": 2,
+      "speedPxPerSecond": 12,
+      "lifetimeMs": 1000,
+      "color": {
+        "r": 0,
+        "g": 0.5,
+        "b": 1,
+        "a": 0.7
+      }
+    },
+    "tolerances": {
+      "working": 1e-06,
+      "losslessByte": 1,
+      "encodedSsim": 0.99,
+      "pcmRms": 0.0001,
+      "timingFrames": 1
+    }
+  }
+}

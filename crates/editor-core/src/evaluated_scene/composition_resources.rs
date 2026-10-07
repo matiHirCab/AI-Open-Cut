@@ -361,7 +361,9 @@ pub(crate) fn layer_heap_bytes(
                     | crate::VisualEffect::Glow { id, .. }
                     | crate::VisualEffect::ColorTint { id, .. }
                     | crate::VisualEffect::Vignette { id, .. }
-                    | crate::VisualEffect::ColorAdjustment { id, .. } => id.capacity() as u64,
+                    | crate::VisualEffect::ColorAdjustment { id, .. }
+                    | crate::VisualEffect::ScreenFlash { id, .. }
+                    | crate::VisualEffect::ParticleOverlay { id, .. } => id.capacity() as u64,
                 },
             )?;
         }
@@ -374,6 +376,13 @@ pub(crate) fn layer_heap_bytes(
 /// and every sampled callback coexist. Capacity, rather than length, is charged.
 pub(crate) fn scene_heap_bytes(scene: &super::EvaluatedScene) -> Result<u64, crate::CoreError> {
     let mut bytes = std::mem::size_of::<super::EvaluatedScene>() as u64;
+    if let Some(aggregates) = &scene.aggregates {
+        bytes = add(bytes, super::group_compositing::heap_bytes(aggregates)?)?;
+    }
+    if let Some((id, _)) = &scene.composed_input {
+        bytes = add(bytes, id.capacity() as u64)?;
+    }
+
     for value in [
         capacity_bytes(&scene.visual_layers)?,
         capacity_bytes(&scene.audio_layers)?,

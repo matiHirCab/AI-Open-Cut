@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 36,
+  "projectSchemaVersion": 37,
   "status": "active",
   "effectType": "color_adjustment",
   "editorCapability": "parameterized_effect_models_v1",

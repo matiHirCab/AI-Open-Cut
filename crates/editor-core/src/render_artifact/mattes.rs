@@ -48,6 +48,22 @@ fn validate_pixel(pixel: &[f32; 4]) -> Result<(), CoreError> {
     }
     Ok(())
 }
+pub(super) fn validate_plane_pixels(pixels: &[[f32; 4]]) -> Result<(), CoreError> {
+    for pixel in pixels {
+        validate_pixel(pixel)?;
+    }
+    Ok(())
+}
+pub(super) fn validate_destination(
+    canvas: (u32, u32),
+    pixels: &[[f32; 4]],
+) -> Result<(), CoreError> {
+    if pixels.len() != pixel_count(canvas)? {
+        return Err(invalid("matte destination dimensions differ"));
+    }
+    validate_plane_pixels(pixels)
+}
+
 fn clamp_pixel(pixel: &mut [f32; 4]) {
     pixel[3] = pixel[3].clamp(0.0, 1.0);
     for c in 0..3 {
@@ -422,7 +438,7 @@ fn allocate_plane(
         pixels,
     })
 }
-fn source_over(destination: &mut [f32; 4], source: [f32; 4]) {
+pub(super) fn source_over(destination: &mut [f32; 4], source: [f32; 4]) {
     // Inputs have already passed canonical f32 validation/clamping. Bounded
     // source-over has at most ordinary f32 roundoff, corrected exactly as the
     // existing compositor; no fallible operation remains after destination commit.
@@ -525,19 +541,14 @@ fn release_finished(slots: &mut [Slot], stage: usize, live: &mut Live) {
     }
 }
 
-fn execute(
+pub(super) fn prepare_frame(
     schedule: &MatteFrameSchedule,
-    destination: &mut [[f32; 4]],
-    sample: &mut dyn FnMut(usize, u64) -> Result<LeafSamplePlane, CoreError>,
-) -> Result<Live, CoreError> {
+    destination: &[[f32; 4]],
+    sample: &mut dyn FnMut(usize, u64, Option<usize>) -> Result<LeafSamplePlane, CoreError>,
+) -> Result<PreparedFrame, CoreError> {
     use crate::evaluated_scene::mattes::MatteTask;
+    validate_destination(schedule.canvas, destination)?;
     let n = pixel_count(schedule.canvas)?;
-    if destination.len() != n {
-        return Err(invalid("matte destination dimensions differ"));
-    }
-    for pixel in destination.iter() {
-        validate_pixel(pixel)?;
-    }
     let mut slots = preflight(schedule, n)?;
     let mut live = Live::new(schedule);
     for (i, task) in schedule.tasks.iter().enumerate() {
@@ -547,9 +558,10 @@ fn execute(
                 at_ms,
                 provider,
                 source_live_bytes,
+                relative_owner,
             } => {
                 live.charge(*source_live_bytes)?;
-                let sampled = sample(*layer_index, *at_ms);
+                let sampled = sample(*layer_index, *at_ms, *relative_owner);
                 let mut sampled = match sampled {
                     Ok(p) => p,
                     Err(e) => {
@@ -610,31 +622,64 @@ fn execute(
     if actual_blend_work > schedule.certificate.blend_work_units {
         return Err(invalid("blend touched work exceeds certificate"));
     }
-    for pixel in destination.iter_mut() {
-        clamp_pixel(pixel);
+    Ok(PreparedFrame { slots, live })
+}
+/// Completed, validated planes stay owned until their caller finishes its
+/// canonical local paint order. No source callback is invoked during commit.
+pub(super) struct PreparedFrame {
+    slots: Vec<Slot>,
+    live: Live,
+}
+impl PreparedFrame {
+    pub(super) fn plane(
+        &self,
+        id: crate::evaluated_scene::mattes::MatteTaskId,
+    ) -> Result<&LinearPlane, CoreError> {
+        result(&self.slots, id)
     }
-    let width = schedule.canvas.0 as usize;
-    for (i, draw) in schedule.direct_draw.iter().enumerate() {
-        let plane = slots[draw.task.0]
-            .plane
-            .as_ref()
-            .expect("preflighted live direct plane");
-        for y in 0..plane.height {
-            for x in 0..plane.width {
-                let destination = &mut destination[(plane.top + y) * width + plane.left + x];
-                let source = plane.pixels[y * plane.width + x];
-                if draw.blend_mode.is_normal() {
-                    source_over(destination, source);
-                } else {
-                    super::blend::composite(destination, source, draw.blend_mode);
+    pub(super) fn payload_bytes(&self) -> Result<u64, CoreError> {
+        self.slots
+            .iter()
+            .try_fold(0, |total, slot| add(total, slot.payload_bytes))
+    }
+    fn commit(mut self, schedule: &MatteFrameSchedule, destination: &mut [[f32; 4]]) -> Live {
+        for pixel in destination.iter_mut() {
+            clamp_pixel(pixel);
+        }
+        let width = schedule.canvas.0 as usize;
+        for (i, draw) in schedule.direct_draw.iter().enumerate() {
+            let plane = self.slots[draw.task.0]
+                .plane
+                .as_ref()
+                .expect("preflighted live direct plane");
+            for y in 0..plane.height {
+                for x in 0..plane.width {
+                    let destination = &mut destination[(plane.top + y) * width + plane.left + x];
+                    let source = plane.pixels[y * plane.width + x];
+                    if draw.blend_mode.is_normal() {
+                        source_over(destination, source);
+                    } else {
+                        super::blend::composite(destination, source, draw.blend_mode);
+                    }
                 }
             }
+            release_finished(&mut self.slots, schedule.tasks.len() + i, &mut self.live);
         }
-        release_finished(&mut slots, schedule.tasks.len() + i, &mut live);
+        debug_assert_eq!(self.live.bytes, schedule.certificate.fixed_live_bytes);
+        self.live
     }
-    debug_assert_eq!(live.bytes, schedule.certificate.fixed_live_bytes);
-    Ok(live)
 }
+fn execute(
+    schedule: &MatteFrameSchedule,
+    destination: &mut [[f32; 4]],
+    sample: &mut dyn FnMut(usize, u64) -> Result<LeafSamplePlane, CoreError>,
+) -> Result<Live, CoreError> {
+    Ok(prepare_frame(schedule, destination, &mut |index, time, _| {
+        sample(index, time)
+    })?
+    .commit(schedule, destination))
+}
+
 pub(super) fn compose_frame(
     schedule: &MatteFrameSchedule,
     destination: &mut [[f32; 4]],

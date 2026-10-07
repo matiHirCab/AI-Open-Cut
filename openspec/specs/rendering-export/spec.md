@@ -703,7 +703,7 @@ Already-supported declared effects MUST have concrete public native evidence thr
 
 #### Scenario: Preserve draft component and scoped channel clock semantics
 - **WHEN** opposite-order drafts and existing eligible local component leaves use stable effect targets, quarter-turn/noncentral ancestor geometry and sampled amounts
-- **THEN** draft/current/committed/reopened output follows declared order and correct target clocks without altering shared definitions, activating group effects or weakening the primary exact oracle
+- **THEN** draft/current/committed/reopened output follows declared order and correct target clocks without altering shared definitions or implicitly activating group effects on this unchanged leaf-only witness, and without weakening the primary exact oracle
 
 #### Scenario: Preserve independently predicted expanded effect support
 - **WHEN** the asymmetric32×24red shape with quarter-turn/noncentral unstroked anchor uses blue glow sigma1/intensity0.6 and green tint alpha0.5 in opposite orders at owner opacity0.5
@@ -723,3 +723,14 @@ Actual native frame, nonzero-origin range, draft and final export MUST consume e
 #### Scenario: Preserve admission failure and artifacts
 - **WHEN** hidden/retained/expanded/component color work exceeds existing exact pixel/surface/memory limits or parameters fail before native execution
 - **THEN** owning preflight preserves destination artifacts and state/resources without clipping work, widened limits or fallback
+
+### Requirement: Independent group overlay render-intent conformance
+Core, default headless and real MCP MUST execute independent analytic/native complete plates for group/instance clip/effects, flash decay and seeded particles on frame, nonzero-origin audiovisual range, materialized draft and final export. Witnesses MUST cover positive Gaussian/glow support, aggregate-versus-child order, transparent-local blend/overlap/opacity, nested/unequal-sized/repeated/retimed instances, fixed noncentral anchors, signed/offcanvas support, private alpha/luma/matteOnly/cross-isolation/query domains and explicit temporal boundary with singular/zero-gain controls. Hash/linear/coverage/matrix/midpoint expectations MUST be independently authored and immutable, never captured from production output. Existing lossless1byte bounds and native SSIM>=.99, aligned decoded PCM RMS<=.0001 and timing<=one frame MUST remain; actual positive audio/frame grid/duration assertions MUST execute. Canonical public lifecycle MUST prove standalone/alias/reorder/omit/clear/batch rollback/drafts/missing/stale/nonretryable errors/undo/redo/reopen, schema37 complete migration and resource preservation. Native dependencies absent MUST produce accurate opt-in outcomes locally and hard mandatory failure in configured CI. Complete source/query/support/work readiness MUST precede destination inspection/workspace creation/decoder/encoding/publication.
+
+#### Scenario: Prove positive all-intent plates and audio
+- **WHEN** the independent combined group/overlay native and public MCP fixtures execute all render intents and complete lifecycle
+- **THEN** complete analytic plates and unchanged native visual/audio/clock tolerances pass with actual nontrivial controls and no regeneration or weakened assertions
+
+#### Scenario: Fail complete readiness and output admission
+- **WHEN** any nested source/query/effect/matte/work/font dependency or backend is unsupported/invalid or destination sentinel exists
+- **THEN** typed preflight failure precedes side effects, preserves all destination/project/resource bytes and never publishes partial/default-only output

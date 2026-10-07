@@ -337,8 +337,34 @@ fn color_stack_limits_and_incompatible_animation_targets_are_atomic() {
         .changed_ids[0]
         .clone();
     let revision = core.get_project(&id).unwrap().revision;
+    // Schema37 deliberately enables these existing effects on controlled groups.
+    let typed: Vec<opencut_editor_core::VisualEffect> = serde_json::from_value(json!([
+        catalog["nativeWitness"]["identity"],
+        {"type":"vignette","id":"group-shade","amount":0.5}
+    ]))
+    .unwrap();
+    let stack = serde_json::to_value(typed).unwrap();
+    core.edit(
+        &id,
+        revision,
+        op(json!({"operation":"update_item","itemId":group,"effects":stack})),
+    )
+    .unwrap();
+    assert_eq!(effects(&core, &id, &group), stack);
+    let revision = core.get_project(&id).unwrap().revision;
     let before = inventory(&core.paths().project_dir(&id).unwrap());
-    assert_eq!(core.edit(&id, revision, op(json!({"operation":"update_item","itemId":group,"effects":[catalog["nativeWitness"]["identity"]]}))).unwrap_err().code, ErrorCode::InvalidArgument);
+    for unsupported in [
+        json!({"operation":"update_item","itemId":group,"matteOnly":true}),
+        json!({"operation":"update_item","itemId":group,"blendMode":"multiply"}),
+        json!({"operation":"set_animation_channels","itemId":group,"animationChannels":[{"property":"effect.vignette_amount","target":{"kind":"effect","scope":"root","id":"group-shade"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]}]}),
+    ] {
+        assert_eq!(
+            core.edit(&id, revision, op(unsupported)).unwrap_err().code,
+            ErrorCode::InvalidArgument
+        );
+        assert_eq!(inventory(&core.paths().project_dir(&id).unwrap()), before);
+        assert_eq!(effects(&core, &id, &group), stack);
+    }
     assert_eq!(inventory(&core.paths().project_dir(&id).unwrap()), before);
 }
 

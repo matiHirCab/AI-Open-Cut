@@ -1925,3 +1925,36 @@ fn blend_siblings_remain_inside_the_existing_private_ownership_graph() {
     assert!(adr.contains("single resource/live/font admission ledger"));
     assert!(adr.contains("Provider aggregation remains Normal"));
 }
+
+#[test]
+fn controlled_aggregate_and_query_siblings_retain_inward_ownership() {
+    // Use the canonical recursive loader: private frame/domain/executor
+    // siblings themselves contain out-of-line modules and all must be checked.
+    for owner in ["model", "validation", "evaluated_scene", "render_artifact"] {
+        let allowed = OWNER_MATRIX
+            .iter()
+            .find(|(name, _)| *name == owner)
+            .unwrap()
+            .1;
+        validate_owner_analysis(owner, allowed, &analyze_owner(owner).unwrap()).unwrap();
+    }
+    for file in [
+        "evaluated_scene/group_compositing.rs",
+        "evaluated_scene/group_compositing/frame.rs",
+        "evaluated_scene/group_compositing/continuous.rs",
+        "render_artifact/extended_visual/group_compositing.rs",
+    ] {
+        assert!(
+            !read_source(file).is_empty(),
+            "private controlled owner absent: {file}"
+        );
+    }
+    let adr = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/adr/0003-editor-core-module-boundaries.md"),
+    )
+    .unwrap();
+    assert!(adr.contains("immutable controlled Group and ComponentInstance occurrences"));
+    assert!(adr.contains("single provider-request and sampled-task scheduling owner"));
+    assert!(adr.contains("relative slices need no inverse-owner transform"));
+}

@@ -24,6 +24,33 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 37
+        && project
+            .tracks
+            .iter()
+            .chain(project.components.iter().flat_map(|c| &c.tracks))
+            .flat_map(|t| &t.items)
+            .any(|item| {
+                let visual = item.visual_properties();
+                visual.clip.is_some()
+                    || visual.effects.iter().any(|effect| {
+                        matches!(
+                            effect,
+                            crate::VisualEffect::ScreenFlash { .. }
+                                | crate::VisualEffect::ParticleOverlay { .. }
+                        )
+                    })
+                    || (matches!(
+                        item,
+                        crate::TimelineItem::Group(_) | crate::TimelineItem::ComponentInstance(_)
+                    ) && !visual.effects.is_empty())
+            })
+    {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "group clipping and overlays require schema 37",
+        ));
+    }
     if project.schema_version < 36
         && project
             .tracks
@@ -347,7 +374,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=35 => {
+        9..=36 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

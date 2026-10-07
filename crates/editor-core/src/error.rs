@@ -3,6 +3,8 @@ use thiserror::Error;
 
 // Serde erases typed errors while buffering nested project and operation values.
 // Only the layout field deserializer emits this anchored internal classification.
+pub(crate) const GROUP_COMPOSITING_DECODE_ERROR_PREFIX: &str =
+    "\u{1e}OPENCUT_GROUP_COMPOSITING_DECODE:";
 pub(crate) const COLOR_EFFECT_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_COLOR_EFFECT_DECODE:";
 pub(crate) const BLEND_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_BLEND_DECODE:";
 pub(crate) const MATTE_DECODE_ERROR_PREFIX: &str = "\u{1e}OPENCUT_MATTE_DECODE:";
@@ -84,6 +86,12 @@ impl CoreError {
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
         let message = error.to_string();
+        if let Some(detail) = message.strip_prefix(GROUP_COMPOSITING_DECODE_ERROR_PREFIX) {
+            return Self::new(
+                ErrorCode::InvalidArgument,
+                format!("invalid group compositing metadata: {detail}"),
+            );
+        }
         if let Some(detail) = message.strip_prefix(COLOR_EFFECT_DECODE_ERROR_PREFIX) {
             return Self::new(
                 ErrorCode::InvalidArgument,

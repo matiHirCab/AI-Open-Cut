@@ -34,7 +34,9 @@
     "blend_models_v1",
     "blend_modes_v1",
     "parameterized_effect_models_v1",
-    "parameterized_effects_v1"
+    "parameterized_effects_v1",
+    "group_compositing_models_v1",
+    "group_compositing_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2236,7 +2238,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 36,
+            "const": 37,
             "type": "number"
           },
           "protocolVersion": {
@@ -8129,6 +8131,26 @@
             ],
             "type": "string"
           },
+          "clip": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "composition_bounds",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "color": {
             "pattern": "^#[0-9a-fA-F]{6}$",
             "type": "string"
@@ -11200,6 +11222,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -11785,6 +11820,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "color": {
         "type": "string"
@@ -18003,6 +18051,26 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "composition_bounds",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -18591,6 +18659,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -19000,6 +19081,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -19297,6 +19391,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -19677,6 +19784,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -19994,6 +20114,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -20387,6 +20520,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
@@ -20790,6 +20936,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -21185,6 +21344,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -21574,6 +21746,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -21965,6 +22150,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "color": {
         "type": "string"
@@ -22942,6 +23140,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -23240,6 +23451,19 @@
       "blendMode": {
         "const": "normal",
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "componentId": {
         "maxLength": 128,
@@ -24640,6 +24864,26 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "composition_bounds",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -25715,7 +25959,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 36,
+        "const": 37,
         "type": "number"
       },
       "settings": {
@@ -26382,6 +26626,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -26787,6 +27044,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "componentId": {
         "maxLength": 128,
         "minLength": 1,
@@ -27079,6 +27349,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -27454,6 +27737,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -27766,6 +28062,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -28154,6 +28463,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
@@ -28552,6 +28874,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -28942,6 +29277,19 @@
         ],
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "color": {
         "pattern": "^#[0-9a-fA-F]{6}$",
         "type": "string"
@@ -29326,6 +29674,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -29717,6 +30078,19 @@
           "lighten"
         ],
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "color": {
         "type": "string"
@@ -30349,6 +30723,19 @@
       "blendMode": {
         "const": "normal",
         "type": "string"
+      },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
       },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
@@ -31633,6 +32020,19 @@
         "const": "normal",
         "type": "string"
       },
+      "clip": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "composition_bounds",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "crop": {
         "$ref": "#/$defs/ExtendedMediaCrop"
       },
@@ -32234,6 +32634,158 @@
             "exposureStops",
             "id",
             "saturation",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "b": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "g": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "r": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "a",
+                "b",
+                "g",
+                "r"
+              ],
+              "type": "object"
+            },
+            "durationMs": {
+              "maximum": 60000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "intensity": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "startMs": {
+              "maximum": 60000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "screen_flash",
+              "type": "string"
+            }
+          },
+          "required": [
+            "color",
+            "durationMs",
+            "id",
+            "intensity",
+            "startMs",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "b": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "g": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "r": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "a",
+                "b",
+                "g",
+                "r"
+              ],
+              "type": "object"
+            },
+            "count": {
+              "maximum": 256,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "lifetimeMs": {
+              "maximum": 60000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "radiusPx": {
+              "maximum": 16,
+              "minimum": 0,
+              "type": "number"
+            },
+            "seed": {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "speedPxPerSecond": {
+              "maximum": 1024,
+              "minimum": 0,
+              "type": "number"
+            },
+            "type": {
+              "const": "particle_overlay",
+              "type": "string"
+            }
+          },
+          "required": [
+            "color",
+            "count",
+            "id",
+            "lifetimeMs",
+            "radiusPx",
+            "seed",
+            "speedPxPerSecond",
             "type"
           ],
           "type": "object"

@@ -1,0 +1,39 @@
+{
+  "beforeRequirements": 484,
+  "afterRequirements": 493,
+  "modifiedRequirements": [
+    "openspec/specs/blend-modes/spec.md::Bounded fail-closed blend execution and normal identity",
+    "openspec/specs/blend-modes/spec.md::One final blend per owning evaluated occurrence",
+    "openspec/specs/blend-modes/spec.md::Seven premultiplied linear destination blend equations",
+    "openspec/specs/contract-governance/spec.md::Active mask authoring contract and capability",
+    "openspec/specs/contract-governance/spec.md::Bounded exact MCP predecessor conformance proof",
+    "openspec/specs/linear-light-compositing/spec.md::Explicit current layer pipeline",
+    "openspec/specs/motion-blur-sampling/spec.md::Canonical deterministic shutter interval",
+    "openspec/specs/motion-blur-sampling/spec.md::Shared bounded temporal composition",
+    "openspec/specs/motion-graphics-architecture/spec.md::Canonical group ancestor evaluation",
+    "openspec/specs/motion-graphics-architecture/spec.md::Hierarchical instance transforms and stacking",
+    "openspec/specs/motion-graphics-architecture/spec.md::Normative coordinate and compositing semantics",
+    "openspec/specs/rendering-export/spec.md::Independent public ordered-effect render lifecycle evidence",
+    "openspec/specs/timeline-editing/spec.md::Non-drawing group timeline nodes",
+    "openspec/specs/track-mattes/spec.md::Deterministic occurrence and sampled matte semantics",
+    "openspec/specs/track-mattes/spec.md::Isolated premultiplied provider coverage",
+    "openspec/specs/track-mattes/spec.md::Preflight matte work and live memory",
+    "openspec/specs/visual-effects/spec.md::Bounded authored effect stacks",
+    "openspec/specs/visual-effects/spec.md::Canonical effect composition"
+  ],
+  "addedRequirements": [
+    "openspec/specs/contract-governance/spec.md::Governed group compositing and overlay parity",
+    "openspec/specs/motion-graphics-architecture/spec.md::Certified controlled aggregate evaluation",
+    "openspec/specs/project-persistence/spec.md::Atomic schema37 aggregate and overlay activation",
+    "openspec/specs/project-persistence/spec.md::Source-matched aggregate drafts and complete recovery",
+    "openspec/specs/rendering-export/spec.md::Independent group overlay render-intent conformance",
+    "openspec/specs/repository-validation/spec.md::Mandatory native group compositing CI conformance",
+    "openspec/specs/visual-effects/spec.md::Bounded coverage-preserving screen flash",
+    "openspec/specs/visual-effects/spec.md::Bounded deterministic particle overlay",
+    "openspec/specs/visual-effects/spec.md::Explicit bounded composition clip"
+  ],
+  "preservedExistingRequirements": 466,
+  "oldArchiveFilesUnchanged": 1104,
+  "reviewedImplementationHashesMatched": 79,
+  "reviewedDocumentationHashesMatched": 11
+}

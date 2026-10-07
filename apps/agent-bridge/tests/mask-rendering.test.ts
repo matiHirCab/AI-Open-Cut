@@ -195,7 +195,7 @@ describe("active mask rendering canonical public contracts", () => {
     ).not.toBe(MASK_RENDERING_PREDECESSOR_PINS["animation-channels-v1"]);
   });
   it("keeps independent model/editor/render capabilities in canonical catalogs", () => {
-    expect(rendering.projectSchemaVersion).toBe(36);
+    expect(rendering.projectSchemaVersion).toBe(37);
     expect(rendering.capabilities).toEqual({
       editor: MASK_ANIMATION_CAPABILITY,
       renderer: MASK_RENDERING_CAPABILITY,

@@ -1,0 +1,37 @@
+{
+  "reviewer": "/root/review56_final",
+  "at": "2026-10-07T01:40:21.406522+00:00",
+  "decision": "POSTARCHIVE_AUDIT_CLEARED",
+  "openFindings": [],
+  "acceptedBlockEquality": 27,
+  "beforeRequirements": 484,
+  "afterRequirements": 493,
+  "modified": 18,
+  "added": 9,
+  "unchanged": 466,
+  "oldArchiveHashesMatched": 1104,
+  "implementationHashesMatched": 79,
+  "documentationHashesMatched": 11,
+  "postarchiveProtected": {
+    "exit": 0,
+    "strict": 44,
+    "policyPassed": 427,
+    "policyFailed": 0
+  },
+  "postarchiveStrict": {
+    "exit": 0,
+    "passed": 44,
+    "failed": 0
+  },
+  "archivedReportAccuracy": "Clear; integration23withlocalmax-opt0, failednormalruns excluded; smoke20normalworker precision retained; historicalarchive/publicationpending snapshot separated",
+  "reviewedMetadataHashes": {
+    "tasks.md": "617b81dc7e2d40c19727a5da6fba137d4ae3d21eec8a3c9bfbe8024a407a0370",
+    "verification.md": "be810b65f1aeb2e359f04079d32310e11b7d2d658bea436840788171e8990f0f",
+    "conformance.md": "d1f06cd808474595ddf949a7f2c8fc9500c73d52e02ddfbe5b8390834897944b"
+  },
+  "remainingGates": [
+    "Append archive-completion receipts then rerun final protected+strict after metadata changes",
+    "Commit/push/draft exacthead all11CI success before nextbranch",
+    "No merge/deploy"
+  ]
+}

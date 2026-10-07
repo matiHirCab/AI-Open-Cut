@@ -123,7 +123,7 @@ export const verifyPackClockMigrationWorkflow = async (
   writeFileSync(projectPath, JSON.stringify(oldProject));
   writeFileSync(historyPath, JSON.stringify(oldHistory));
   const migrated = await read();
-  expect(migrated.project.schemaVersion).toBe(36);
+  expect(migrated.project.schemaVersion).toBe(37);
   expect(JSON.parse(readFileSync(projectPath, "utf8"))).toEqual(
     originalProject
   );
@@ -214,7 +214,7 @@ export const verifyPackClockMigrationWorkflow = async (
   ) as SavedHistory;
   expect(
     [...retained.undo, ...retained.redo].every(
-      (snapshot) => snapshot.schemaVersion === 36
+      (snapshot) => snapshot.schemaVersion === 37
     )
   ).toBe(true);
 };

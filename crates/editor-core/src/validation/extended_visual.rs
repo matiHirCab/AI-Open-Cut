@@ -64,6 +64,38 @@ pub(crate) fn validate_effect(effect: &VisualEffect) -> Result<(), CoreError> {
                 return Err(invalid("color adjustment parameters exceed bounds"));
             }
         }
+        VisualEffect::ScreenFlash {
+            start_ms,
+            duration_ms,
+            intensity,
+            color,
+            ..
+        } => {
+            if *start_ms > 60_000
+                || !(1..=60_000).contains(duration_ms)
+                || !bounded(*intensity, 0.0, 1.0)
+            {
+                return Err(invalid("screen flash parameters exceed bounds"));
+            }
+            color.validate()?;
+        }
+        VisualEffect::ParticleOverlay {
+            count,
+            radius_px,
+            speed_px_per_second,
+            lifetime_ms,
+            color,
+            ..
+        } => {
+            if *count > 256
+                || !bounded(*radius_px, 0.0, 16.0)
+                || !bounded(*speed_px_per_second, 0.0, 1024.0)
+                || !(1..=60_000).contains(lifetime_ms)
+            {
+                return Err(invalid("particle parameters exceed bounds"));
+            }
+            color.validate()?;
+        }
         VisualEffect::Vignette { amount, .. } => {
             if !bounded(*amount, 0.0, 1.0) {
                 return Err(invalid("vignette exceeds bounds"));
@@ -75,6 +107,16 @@ pub(crate) fn validate_effect(effect: &VisualEffect) -> Result<(), CoreError> {
 
 pub(crate) fn validate_static(item: &TimelineItem, project: &Project) -> Result<(), CoreError> {
     let visual = item.visual_properties();
+    if visual.clip.is_some()
+        && !matches!(
+            item,
+            TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+        )
+    {
+        return Err(invalid(
+            "composition clip requires a group or component instance",
+        ));
+    }
     if let Some(settings) = visual.motion_blur {
         settings.validate()?;
         let eligible = matches!(
@@ -114,9 +156,11 @@ pub(crate) fn validate_static(item: &TimelineItem, project: &Project) -> Result<
                 | TimelineItem::Shape(_)
                 | TimelineItem::Svg(_)
                 | TimelineItem::Grid(_)
+                | TimelineItem::Group(_)
+                | TimelineItem::ComponentInstance(_)
         )
     {
-        return Err(invalid("effect stack requires a leaf visual item"));
+        return Err(invalid("effect stack requires a supported visual item"));
     }
     if !visual.effects.is_empty()
         && let TimelineItem::Media(media) = item
@@ -180,6 +224,19 @@ pub(crate) fn validate_target(
     project: &Project,
 ) -> Result<(), CoreError> {
     use P::*;
+    if channel
+        .target
+        .as_ref()
+        .is_some_and(|target| target.kind == K::Effect)
+        && matches!(
+            item,
+            TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+        )
+    {
+        return Err(invalid(
+            "aggregate effect animation targets are unsupported",
+        ));
+    }
     if matches!(
         channel.property,
         RotationDeg | CropX | CropY | CropWidth | CropHeight
@@ -447,7 +504,7 @@ mod tests {
     use serde_json::{Value, json};
 
     #[test]
-    fn ordered_effect_all_visual_owners_and_every_excluded_owner_keep_existing_eligibility() {
+    fn ordered_effect_visual_and_controlled_owners_preserve_other_exclusions() {
         let root = tempfile::tempdir().unwrap();
         let core = crate::EditorCore::new(
             crate::PathPolicy::new(
@@ -517,10 +574,10 @@ mod tests {
                 false,
                 json!({"type":"media","assetId":"audio","sourceInMs":0,"audio":crate::AudioSettings::default(),"keyframes":[]}),
             ),
-            ("group", false, json!({"type":"group"})),
+            ("group", true, json!({"type":"group"})),
             (
                 "instance",
-                false,
+                true,
                 json!({"type":"component_instance","componentId":"component","trimStartMs":0,"timeScale":1}),
             ),
             (
