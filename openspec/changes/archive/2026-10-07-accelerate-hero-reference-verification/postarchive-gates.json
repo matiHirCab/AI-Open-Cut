@@ -1,0 +1,14 @@
+{
+  "protected": {
+    "exit": 0,
+    "itemsPassed": 45,
+    "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-protected-postarchive.log",
+    "logSha256": "967b1af48002854db8ee3baf7d7b5de3a533bc990f0811d607ec7b8cc6eab574"
+  },
+  "strict": {
+    "exit": 0,
+    "itemsPassed": 45,
+    "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-strict-postarchive.log",
+    "logSha256": "d2ba9289881d5e03eb500f59c47bea0ca66c77d35265df717d03968050589502"
+  }
+}

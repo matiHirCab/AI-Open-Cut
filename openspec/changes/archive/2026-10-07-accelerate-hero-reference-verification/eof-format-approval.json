@@ -1,0 +1,9 @@
+{
+  "status": "APPROVED_OWN_DELTA_EOF_WHITESPACE_CORRECTION",
+  "updatedDeltaSha256": "0b78ec658d716eca389958c97ecb1f8106926d277d1520199c7fb56697b21cf2",
+  "nonemptyAcceptedBlockEqualsLiving": true,
+  "other37InputsPreserved": true,
+  "old1192ArchiveFilesPreserved": true,
+  "finalGatesStillRequired": true,
+  "repositoryEdits": false
+}

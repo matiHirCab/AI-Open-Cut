@@ -1,9 +1,20 @@
 """Verify immutable hero plates using independent scalar equations, never production output."""
 import math,json,hashlib
-from functools import cache
+from functools import cache, wraps
 from pathlib import Path
 WORDS=[(2336985851,938826240,1456866664),(84929298,829401672,2771797279),(2877292033,4199349311,3397877525),(4067787588,1783773585,2445685191),(3863548237,661299992,4101546638),(2606412158,1268270209,2067976603),(2944314353,2443517269,3235942571),(2958880360,2302107493,891655201)]
 SIDE=80; ORIGIN=-8
+
+
+def raster_cache(function):
+ """Memoize pure scalar rasters; mutable callers always receive isolated copies."""
+ @cache
+ def evaluate(source):
+  return tuple(function(list(source)))
+ @wraps(function)
+ def isolated(source):
+  return list(evaluate(tuple(source)))
+ return isolated
 
 def lin(v):return v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4
 
@@ -17,6 +28,7 @@ def over(dst,i,rgb,a):
  for c in range(3):dst[i+c]=rgb[c]+dst[i+c]*(1-a)
  dst[i+3]=a+dst[i+3]*(1-a)
 
+@raster_cache
 def gaussian(src):
  weights=[math.exp(-.5*k*k) for k in range(-3,4)];s=sum(weights);weights=[v/s for v in weights]
  for vertical in [False,True]:
@@ -38,6 +50,7 @@ def tint(src):
   for c in range(3):src[i+c]=src[i+c]*(1-.45)+color[c]*src[i+3]*.45
  return src
 
+@raster_cache
 def glow(src):
  blurred=gaussian(src);dst=empty();color=[lin(v) for v in [.9,.25,.1]]
  for i in range(0,len(src),4):
@@ -115,6 +128,12 @@ def main():
   assert list(baseline[offset:offset+4])==witness['baseline']
   assert list(actual[offset:offset+4])==witness['counterfactual']
   assert max(abs(a-b) for a,b in zip(baseline[offset:offset+4],actual[offset:offset+4]))==witness['maximumByteDelta']>1
+ # Cache mutation must never affect a subsequent caller or its input.
+ for function in (gaussian,glow):
+  source=empty();expected=tuple(function(source));changed=function(source)
+  changed[0]+=1
+  assert tuple(function(source))==expected
+  assert not any(source)
  # Independently generate every stereo PCM sample with original source phase.
  pcm=bytearray()
  for n in range(38400):

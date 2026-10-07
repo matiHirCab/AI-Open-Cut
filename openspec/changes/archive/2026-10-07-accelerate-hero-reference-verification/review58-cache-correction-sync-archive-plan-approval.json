@@ -1,0 +1,23 @@
+{
+  "status": "APPROVED_OWN_ONLY_SYNC_ARCHIVE_PLAN_CONDITIONAL_ON_AFFECTED_CHECKS",
+  "timestampUtc": "2026-10-07T06:50:13.980179+00:00",
+  "specificationHashes": {
+    "openspec/changes/accelerate-hero-reference-verification/specs/masked-hero-reveal/spec.md": "3ba9c5a4d3f5d2253bc81c77bf7c1dc05b87c8423354aa156208844e562c699f"
+  },
+  "syncPlanSha256": "8070d6c44a9d1b6040d33efe2fb49f68c980aeabcc92be15480af9211ff9dca3",
+  "baselineSha256": "58f92fc04cc11bd4219674bbcadad08af564510fd80bf4fcd70bc08890b6c29f",
+  "scope": "Replace only one existing Independent complete feature and order reference evidence block; preserve surrounding file bytes,514other blocks,1192oldarchivefiles,37inputs;total515;archive only accelerate-hero-reference-verification.",
+  "conditions": [
+    "all affected oracle/unit/models/core/headless/MCP/contracts/type/lint checks actual0",
+    "independent conformance/inputbinding ledger review",
+    "prearchive strict success and protected expected own-only rejection",
+    "postarchive protected strict success and preservation review"
+  ],
+  "unaffectedReceiptReuse": "Accept only explicit unchanged-input binding; changed oracle/composed verification must rerun. Whole historical workspace receipt can represent unaffected Rust programs, not new oracle verification.",
+  "futureGates": [
+    "exact correction-head all11CI",
+    "terminal live-state epic audit"
+  ],
+  "noRepositoryEdits": true,
+  "mergeDeployClosureAuthorized": false
+}

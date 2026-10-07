@@ -1,0 +1,20 @@
+{
+  "scalar9BodyAstIdentical": {
+    "lin": true,
+    "encode": true,
+    "idx": true,
+    "empty": true,
+    "over": true,
+    "gaussian": true,
+    "tint": true,
+    "glow": true,
+    "plate": true
+  },
+  "nonemptyRasterOriginalParityAndFreshCopyIsolation": {
+    "gaussian": true,
+    "glow": true
+  },
+  "other37FrozenInputsPreserved": true,
+  "oldCommittedArchiveFilesPreserved": 1192,
+  "sourceSha256": "c1e176c44250d8727861f9fa278663d8ba4e06f8242d92a5e173b94e2db586d9"
+}
