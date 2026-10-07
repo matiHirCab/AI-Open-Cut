@@ -82,3 +82,15 @@ Typed ordering correction independently approved: remove unsupported zIndex fiel
 The existing probe ordering step is item_set_z_index(@probe,0), avoiding an empty update_item that the MCP schema rejects. All14 operations carry actual supported typed fields; defaults and immutable references are preserved.
 
 Mask placement correction independently approved: existing mask anchor normalizes the sampled analytic path bounds to its authored Transform2D position. Offsetting raw path points alone does not translate the normalized mask. Set mask transform.position to(1,1) pixels, anchor(0,0), preserving all path points and clocks; this selects logicalhero[0,width)×[0,40) inside the padded50×42 raster. No production mask or animation rule changes, no reference regeneration or tolerance changes.
+
+
+### Requirement: Efficient independent scalar reference verification
+The private independent hero oracle SHALL avoid redundant coordinate and invariant color calculations while preserving the normative scalar equations, ascending Gaussian kernel accumulation, horizontal-then-vertical passes, zero padding and all four channels. It MUST retain every full16-plate, eight-witness,38400-stereo-frame byte/hash comparison, mutable cache isolation and existing-directory refusal assertion. Mathematical authorities, canonical contracts, production evaluation, tolerances and the5000ms unit deadline MUST remain unchanged. Local profiling SHALL be distinguished from native Windows full-suite acceptance; unresolved renderer startup causation MUST NOT be claimed repaired by this optimization.
+
+#### Scenario: Verify all immutable authorities with unchanged coverage
+- **WHEN** the optimized scalar verifier executes directly or through the unchanged hero unit test
+- **THEN** all complete reference bytes/hashes, counterfactual pixels/deltas, PCM frames, input/caller isolation and refusal behavior pass with the original equations and deadline
+
+#### Scenario: Accept the Windows prerequisite on native CI
+- **WHEN** final-head Windows correctness exercises the original renderer fixture and complete hero unit suite
+- **THEN** both pass without diagnostic flags, skipped assertions, extended deadlines or regenerated expectations and all other required gates remain authoritative

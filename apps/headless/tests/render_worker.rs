@@ -1,4 +1,6 @@
 use serde_json::{Value, json};
+#[path = "support/render_worker_startup.rs"]
+mod render_worker_startup;
 use std::{
     io::{BufRead, BufReader, Write},
     process::{Child, Command, Stdio},
@@ -406,6 +408,14 @@ fn native_worker_reuses_rasters_across_requests_and_restarts_cold() {
 #[cfg(windows)]
 #[test]
 fn crashed_worker_terminates_renderer_descendants() {
+    exercise_windows_crash_fixture(false);
+    if std::env::var("OPENCUT_WINDOWS_STARTUP_COMPARISON").as_deref() == Ok("1") {
+        exercise_windows_crash_fixture(true);
+    }
+}
+
+#[cfg(windows)]
+fn exercise_windows_crash_fixture(instrumented: bool) {
     use opencut_editor_core::{EditorCore, PathPolicy, ProjectSettings};
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::{
@@ -418,7 +428,23 @@ fn crashed_worker_terminates_renderer_descendants() {
     let root = tempfile::tempdir().unwrap();
     let pid_file = root.path().join("renderer.pid");
     let tool = root.path().join("fake-ffmpeg.cmd");
-    std::fs::write(&tool,format!("@echo off\r\nif \"%1\"==\"-version\" (echo ffmpeg version 7.1.1 & exit /b 0)\r\npowershell.exe -NoProfile -NonInteractive -Command \"$PID | Set-Content -LiteralPath '{}'; Start-Sleep -Seconds 120\"\r\n",pid_file.display())).unwrap();
+    let shell_entry = root.path().join("fixture-shell-entry.log");
+    let powershell_stderr = root.path().join("fixture-powershell.stderr");
+    let script = if instrumented {
+        format!(
+            "@echo off\r\necho shell-entered>> \"{}\"\r\nif \"%1\"==\"-version\" (echo ffmpeg version 7.1.1 & exit /b 0)\r\npowershell.exe -NoProfile -NonInteractive -Command \"$PID | Set-Content -LiteralPath '{}'; Start-Sleep -Seconds 120\" 2>\"{}\"\r\n",
+            shell_entry.display(),
+            pid_file.display(),
+            powershell_stderr.display()
+        )
+    } else {
+        // Keep the exact original fixture body for a controlled native comparison.
+        format!(
+            "@echo off\r\nif \"%1\"==\"-version\" (echo ffmpeg version 7.1.1 & exit /b 0)\r\npowershell.exe -NoProfile -NonInteractive -Command \"$PID | Set-Content -LiteralPath '{}'; Start-Sleep -Seconds 120\"\r\n",
+            pid_file.display()
+        )
+    };
+    std::fs::write(&tool, script).unwrap();
     let core = EditorCore::new(
         PathPolicy::new(
             root.path().join("projects"),
@@ -440,8 +466,38 @@ fn crashed_worker_terminates_renderer_descendants() {
         .project_id;
     let mut worker = Worker::start_with_ffmpeg(root.path(), Some(&tool));
     writeln!(worker.child.stdin.as_mut().unwrap(),"{}",json!({"requestId":"crash","request":{"operation":"render_preview","projectId":id,"expectedRevision":0,"timeMs":0}})).unwrap();
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let started = std::time::Instant::now();
+    let deadline = started + Duration::from_secs(10);
+    let mut events = Vec::new();
+    let mut events_truncated = false;
     let pid_text = loop {
+        for _ in 0..=render_worker_startup::EVENT_LIMIT {
+            let Ok(event) = worker.events.try_recv() else {
+                break;
+            };
+            let failed = event["requestId"] != "crash"
+                || matches!(event["event"]["type"].as_str(), Some("error" | "result"));
+            if events.len() < render_worker_startup::EVENT_LIMIT {
+                events.push(event);
+            } else {
+                events_truncated = true;
+                *events.last_mut().unwrap() = event;
+            }
+            assert!(
+                !failed,
+                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+                started.elapsed(),
+                render_worker_startup::evidence(
+                    &shell_entry,
+                    &powershell_stderr,
+                    &events,
+                    events_truncated,
+                    &worker.diagnostics.lock().unwrap()
+                ),
+                render_worker_startup::process_evidence(worker.child.id()),
+                render_worker_startup::pid_evidence(&pid_file)
+            );
+        }
         match std::fs::read_to_string(&pid_file) {
             Ok(contents) if contents.ends_with('\n') => break contents,
             Ok(_) => {}
@@ -450,12 +506,33 @@ fn crashed_worker_terminates_renderer_descendants() {
                     error.kind(),
                     std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
                 ) || error.raw_os_error() == Some(32) => {}
-            Err(error) => panic!("{error}; {}", worker.diagnostics.lock().unwrap()),
+            Err(error) => panic!(
+                "{error}; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+                started.elapsed(),
+                render_worker_startup::evidence(
+                    &shell_entry,
+                    &powershell_stderr,
+                    &events,
+                    events_truncated,
+                    &worker.diagnostics.lock().unwrap()
+                ),
+                render_worker_startup::process_evidence(worker.child.id()),
+                render_worker_startup::pid_evidence(&pid_file)
+            ),
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "renderer PID record never became readable; {}",
-            worker.diagnostics.lock().unwrap()
+            "renderer PID record never became readable; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+            started.elapsed(),
+            render_worker_startup::evidence(
+                &shell_entry,
+                &powershell_stderr,
+                &events,
+                events_truncated,
+                &worker.diagnostics.lock().unwrap()
+            ),
+            render_worker_startup::process_evidence(worker.child.id()),
+            render_worker_startup::pid_evidence(&pid_file)
         );
         std::thread::sleep(Duration::from_millis(10));
     };
@@ -464,6 +541,11 @@ fn crashed_worker_terminates_renderer_descendants() {
         .trim_start_matches('\u{feff}')
         .parse()
         .unwrap();
+    eprintln!(
+        "native startup observation: instrumented={instrumented}; elapsed={:?}; renderer PID={pid}; {}",
+        started.elapsed(),
+        render_worker_startup::process_evidence(worker.child.id())
+    );
     // SAFETY: access is restricted to waiting/termination of the owned fixture PID.
     let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE | PROCESS_TERMINATE, 0, pid) };
     assert!(!handle.is_null());

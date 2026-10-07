@@ -31,16 +31,21 @@ def over(dst,i,rgb,a):
 @raster_cache
 def gaussian(src):
  weights=[math.exp(-.5*k*k) for k in range(-3,4)];s=sum(weights);weights=[v/s for v in weights]
+ # Preserve ascending kernel order and zero padding; coordinates do not depend
+ # on the source, channel or the other axis. Keep each scalar addition exact.
+ neighbors=[[(coordinate+k,w) for k,w in zip(range(-3,4),weights)
+             if 0<=coordinate+k<SIDE] for coordinate in range(SIDE)]
  for vertical in [False,True]:
   dst=empty()
   for y in range(SIDE):
    for x in range(SIDE):
     i=(y*SIDE+x)*4
-    for k,w in zip(range(-3,4),weights):
-     sx=x+(0 if vertical else k);sy=y+(k if vertical else 0)
-     if 0<=sx<SIDE and 0<=sy<SIDE:
-      j=(sy*SIDE+sx)*4
-      for c in range(4):dst[i+c]+=src[j+c]*w
+    for coordinate,w in neighbors[y if vertical else x]:
+     j=((coordinate*SIDE+x) if vertical else (y*SIDE+coordinate))*4
+     dst[i]+=src[j]*w
+     dst[i+1]+=src[j+1]*w
+     dst[i+2]+=src[j+2]*w
+     dst[i+3]+=src[j+3]*w
   src=dst
  return src
 
@@ -62,11 +67,12 @@ def glow(src):
 @cache
 def plate(t,variant='baseline'):
  hero=empty();width=min(48,t*.08) if variant!='no-mask' else 48
+ hero_color=[lin(math.floor(v*255+.5)/255) for v in [.2,.55,.85]]
  for y in range(40):
   for x in range(48):
    if x+.5<width:
     i=idx(x,y)
-    for c,v in enumerate([.2,.55,.85]):hero[i+c]=lin(math.floor(v*255+.5)/255)
+    for c,value in enumerate(hero_color):hero[i+c]=value
     hero[i+3]=1
  hero=gaussian(hero)
  effects=['tint','glow'] if variant=='reverse' else ['glow','tint']
