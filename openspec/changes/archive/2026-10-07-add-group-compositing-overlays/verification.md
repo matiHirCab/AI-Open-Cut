@@ -1,0 +1,49 @@
+# Verification: issue #56 controlled compositing and overlays
+
+| Dimension | Result |
+| --- | --- |
+| Completeness | All approved implementation tasks and27requirements/101scenarios have named automated conformance evidence. Own-only synchronization/archival, final protected validation and publication remain distinct gates below. |
+| Correctness | Closed bounded overlays/clip, controlled local isolation/ordering/temporal boundaries, full-world private-provider queries, exact high-clock/hash coverage, complete schema37 adoption and fail-closed cumulative admission have passing witnesses. |
+| Coherence | Existing inward core/store/evaluation/raster owners and old algorithms/contracts/limits/deadlines remain. No operation/tool/expression/resource/animation-property addition. |
+
+Independent Sol Medium reviewers approved proposal/design/eleven deltas/tasks before code and reviewed the implementation and complete101-row trace. Findings were corrected and covered: finite continuous query/inverse/clock/capacity certification; exact relative owner boundaries; retained source/draft guards; separate signed private providers; actual singular/zero-gain/shutter/retiming native plates; all-facade complete readiness before temporary IDs/destination inspection. Final source, predecessor-test, closed-object and current-documentation correction reviews found no remaining findings; final required-gate approval is recorded separately.
+
+## Stable required implementation evidence
+
+Full uncommitted logs/exit statuses are in /workspace/.opencut-tools/logs/continuation/issue56. Every required suite status in final-check-evidence-summary.json is0, and all79 reviewed implementation hashes plus eleven separately reviewed documentation hashes (seven current corrections and four original issue56 docs) match. The final input manifest includes the reviewed closed-object clip correction and expanded rejection/rollback witnesses. All checks ran on this stable tree; native tools and the checked-in DejaVuSans fixture were explicitly configured.
+
+- Rust formatting and workspace-wide strict Clippy passed; corrected complete workspace run passed (1313 passing results across completed binaries, 9 ignored helper/reference-control results). Explicit helpers exercised by parent tests and the separate external performance-report validator are distinguished from review-only reference capture. No references were regenerated.
+- Configured native core track-matte5/blend9/ordered3/parameterized3/group6 passed. All direct native suites and the configured workspace were rerun after the final closed-object correction. The6new group tests contain full independent plates, noncommuting orders, all public intents, positive audio, signed/offcanvas alpha/luma queries, matteOnly exclusion, unequal shutters, nested instances/retiming, transparent blend, frozen animated affine/zero gain and positive-to-floating-singular maps.
+- Bridge typecheck/lint/unit/contracts parity, dedicated headless parameterized/group/matte protocols, configured actual MCP matte/blend/mask/ordered/parameterized/group, integration, packaged smoke and relevant hermetic Python passed. Ordinary unit native-opt-in skips are supplemented by these configured native suites and the separately configured cache witness.
+- Release golden and its actual external report validator passed. Required native rules-screen parity passed all960x540/1280x720/1920x1080 PR-scope resolutions. Required cache core/feature worker/build/public witness passed; subsequent default headless rebuild/tests passed, preserving default-public evidence.
+- All427 CI policy controls passed, preserving417predecessor controls and adding10approved controls. Strict pinned OpenSpec1.5.0 passed45items before synchronization. Protected prearchive validation rejected only this active change, which is expected rather than a passed gate.
+
+The prior workspace failure is retained in reviewed-rust-workspace.log: the predecessor test still expected now-approved Group ColorAdjustment rejection. Its correction asserts exact accepted Group adjustment/vignette values and retains full-inventory atomic rejection for Group matteOnly/non-normal blend and an otherwise-compatible Vignette animation target. Focused5/5 and final fmt/Clippy/workspace passed; independent correction review cleared it. Raw integer versus typed f64 expected-JSON normalization was corrected without weakening exact assertions. Prior failed attempts are not counted as passing evidence.
+
+The final closed-object correction rejects positional arrays and nonstring type tags rather than accepting serde alternate enum/struct forms. Canonical rejection cases are consumed by both Rust decoders, stored current/component/undo/redo reopening, headless single/later-batch/draft full-inventory rollback, and TypeScript/MCP boundaries. All required implementation checks were rerun afterward.
+
+The ordinary local integration run and unchanged isolated full-suite rerun failed22/23 with an unexpected worker exit. The monitored rerun confirmed cgroupOOMkill3→4 and a Vitest worker rising to26.65GBRSS while headless remained~60MB. The isolated final workflow passed1/1 but is diagnostic only, with22skips, and is not required-suite evidence. Full23/23 integration passed with unchanged assertions, fixtures and60000ms timeouts using Node24.19.0 worker --max-opt=0; this local V8 optimization override retains JavaScript/WebAssembly execution and bounded local worker memory in this run. Packaged smoke passed20/20 with unchanged package-build/runtime-verification/tests and30000ms test timeouts. Its launcher used the outside-checkout Node --max-opt=0 wrapper, but Vitest filters inherited CLI flags: its worker used normal V8 optimization, without this override. Worker memory reached~13GB but the complete20-test suite finished without an OOM event. This passing smoke evidence is distinct from the23-test integration worker override. The --jitless experiment failed startup because Vite requires WebAssembly and is retained as failed diagnostic evidence. Normal exact-head cross-platform CI remains mandatory and has no workflow/runtime override.
+
+Local Rust/Clippy1.97.0/0.1.97, Bun1.4.0, Moon2.3.3; FFmpeg/FFprobe7.1.5 differs from CI's unchanged pinned7.1.1. Local evidence is Linux. Exact pushed-head cross-platform CI remains a mandatory separate publication gate.
+
+The current documentation was independently corrected under approved task4.6, including current schema adoption, nonidentity matte/seven blend stages, transparent controlled destinations and Group/Instance static effect eligibility. Historical introduction versions, migration guards and predecessor hashes are preserved. The separately frozen eleven-doc manifest and strict specification validation pass; these prose-only changes leave all79 implementation check inputs unchanged.
+
+## Contract and preservation evidence
+
+Schema37/protocol1/78tools; exactly2new effect variants,2discovery capabilities,29clip property owners and2current literals. Eleven preceding current catalogs change only their36→37 marker; exact removal of approved MCP additions restores full36 SHA256 ddeb5a5f965c4be00336987dde4a0082105c8183b74c256abc4442645a1e15fc, with compact independently pinned7895c94c7486c347dc3237b15b73ece23ae34cee8ac1bd2a231d0106e7585eef. Current full37 SHA2562351ab33260b7bd695f87037567264c7580c1139071eb9eaff19a738454ad8c4 and all8old pins,2independent expansions/one5000ms deadline remain verified. Actual registrations/canonical artifacts and malformed/cyclic/unrelated-drift controls remain active.
+
+The484living baseline requirement blocks and1104old archive file hashes are frozen outside checkout; synchronization will modify only18approved requirements and add9 (493total,466unrelated blocks unchanged), then verify every old archive/input/pin plus all eleven documentation hashes. No other active change exists.
+
+## Required archive and publication gates
+
+PENDING at prearchive verification: sync/archive only this verified change; verify all preservation invariants; pass unchanged protected Moon and strict all-spec validation before commit/publication. No critical/warning/suggestion implementation-conformance finding remains. These administrative gates are not claimed as completed until recorded below.
+
+Publication PENDING: external PR148/149 merges were fetched and preserved at944a048c, whose tree equals verified55 ef94d826. Because55's branch was externally removed after merge,56draft targets currentmain;57targets verified56;58targets verified57. This agent did not merge. Commit/push/draft/attachment/exact-head all11CI success and subsequent branch creation remain mandatory. Do not merge or deploy.
+
+## Final archive validation
+
+Own change archived on2026-10-07. All27 accepted delta blocks exactly equal living requirements after own-only18modified/9added synchronization. The493resulting requirements preserve466unrelated baseline blocks; all1104old archive files,79reviewed implementation inputs and11reviewed documentation hashes match their frozen manifests. `preservation.json` records the exact changed/added inventory.
+
+Postarchive protected `moon run root:openspec-validate` exited0, preserving all427policy controls and strict44/44 living-spec validation; the separate pinned strict all-spec command also exited0 with44/44. These results supersede the historical prearchive archive-gate PENDING snapshot above. Final metadata validation is required before commit. Publication remains PENDING until the exact pushed implementation head has all11CI jobs SUCCESS.
+
+Staged publication formatting review approved removal of one extra EOF newline in five own delta files. `whitespace-normalization-review.json` records before/after hashes; all normative content and original before-code approval records are preserved. Exact accepted-block preservation and protected/strict validation are rerun afterward.

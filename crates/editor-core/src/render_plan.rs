@@ -114,7 +114,23 @@ pub(crate) fn build_render_plan(
     let mut current_video = "base0".to_owned();
     let mut visual_count = 0_usize;
     let mut audio_labels = vec!["[1:a]".to_owned()];
-    for layer in &scene.visual_layers {
+    if let Some((binding, start_ms)) = &scene.composed_input {
+        let input = input_indexes.get(binding.as_str()).ok_or_else(|| {
+            CoreError::new(ErrorCode::InternalError, "missing composed visual input")
+        })?;
+        visual_count += 1;
+        filters.push(format!(
+            "[{input}:v]fps={fps},settb=AVTB,setpts=PTS-STARTPTS+{}/TB,format=rgba[sampled1]",
+            seconds(*start_ms)
+        ));
+        filters.push("[base0][sampled1]overlay=format=auto:x=0:y=0:eof_action=pass[base1]".into());
+        current_video = "base1".into();
+    }
+    for layer in scene
+        .visual_layers
+        .iter()
+        .filter(|_| scene.composed_input.is_none())
+    {
         if let Some((binding, start_ms)) = &layer.sampled_input {
             let input = input_indexes.get(binding.as_str()).ok_or_else(|| {
                 CoreError::new(ErrorCode::InternalError, "missing sampled visual input")

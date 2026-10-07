@@ -2076,6 +2076,7 @@ fn raw_composition_draft_operations(raw: &serde_json::Value) -> bool {
         crate::reject_raw_matte_edit_fields(ops).is_err()
             || crate::reject_raw_blend_edit_fields(ops).is_err()
             || crate::reject_raw_color_effect_edit_fields(ops).is_err()
+            || crate::reject_raw_group_compositing_edit_fields(ops).is_err()
     })
 }
 fn validate_matte_journal_draft_sources(
@@ -2085,6 +2086,16 @@ fn validate_matte_journal_draft_sources(
 ) -> Result<(), CoreError> {
     for bytes in updates.values() {
         let raw: serde_json::Value = serde_json::from_slice(bytes)?;
+        if let Some(base) = raw
+            .get("baseRevision")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|revision| matched_draft_base(project, history, revision))
+            && base.schema_version < 37
+            && let Some(operations) = raw.get("operations")
+        {
+            crate::reject_source_group_compositing_edits(base, operations)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
         if let Some(revision) = raw.get("baseRevision").and_then(serde_json::Value::as_u64)
             && matched_draft_base(project, history, revision)
                 .is_some_and(|base| base.schema_version < 36)
@@ -2135,6 +2146,7 @@ fn validate_matte_journal_candidates(
                         || item.visual_properties().matte_only
                         || !item.visual_properties().blend_mode.is_normal()
                         || !item.visual_properties().effects.is_empty()
+                        || item.visual_properties().clip.is_some()
                 })
         });
         if !raw_composition_draft_operations(&raw) && !active_base {
@@ -2208,6 +2220,12 @@ fn reject_source_matte_draft_fields(
         else {
             continue;
         };
+        if base.schema_version < 37
+            && let Some(operations) = raw.get("operations")
+        {
+            crate::reject_source_group_compositing_edits(base, operations)
+                .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+        }
         if base.schema_version < 36
             && let Some(operations) = raw.get("operations")
         {
@@ -2244,6 +2262,7 @@ fn existing_bounded_composition(storage: &dyn Storage, dir: &Path) -> bool {
                     || visual.matte_only
                     || !visual.blend_mode.is_normal()
                     || !visual.effects.is_empty()
+                    || visual.clip.is_some()
             })
     };
     read_json::<Project>(storage, &project_path(dir)).is_ok_and(|project| bounded(&project))
@@ -2254,7 +2273,10 @@ fn existing_bounded_composition(storage: &dyn Storage, dir: &Path) -> bool {
                     .iter()
                     .chain(project.components.iter().flat_map(|c| &c.tracks))
                     .flat_map(|t| &t.items)
-                    .any(|item| !item.visual_properties().effects.is_empty())
+                    .any(|item| {
+                        !item.visual_properties().effects.is_empty()
+                            || item.visual_properties().clip.is_some()
+                    })
             })
         })
 }
@@ -2314,6 +2336,15 @@ fn prepare_project_data(
             .chain(history.redo.iter())
             .find(|p| p.revision == draft.base_revision);
         let base = matching_base.unwrap_or(&project);
+        if let Some(source) = matching_base
+            && source.schema_version < 37
+        {
+            let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
+            if let Some(operations) = raw.get("operations") {
+                crate::reject_source_group_compositing_edits(source, operations)
+                    .map_err(|message| CoreError::new(ErrorCode::InvalidArgument, message))?;
+            }
+        }
         if matching_base.is_some_and(|base| base.schema_version < 36) {
             let raw: serde_json::Value = read_json(storage, &draft_path(dir, &draft.id)?)?;
             if let Some(operations) = raw.get("operations") {
@@ -8331,6 +8362,92 @@ mod tests {
         }
     }
     #[test]
+    fn group_overlay_retained_source_guards_reject_before_state_or_resource_publication() {
+        for location in ["current", "undo", "redo", "component", "draft"] {
+            for invalid in ["premature", "malformed", "future"] {
+                let (core, _) = core();
+                let (id, item, dir) = preset_legacy_resource_fixture(&core);
+                core.get_project(&id).unwrap();
+                let fixture: serde_json::Value = serde_json::from_str(include_str!(
+                    "../../../contracts/group-compositing-v1.json"
+                ))
+                .unwrap();
+                let grade = fixture["nativeWitness"]["flash"].clone();
+                for effect in [grade.clone(), fixture["nativeWitness"]["particles"].clone()] {
+                    let revision = core.get_project(&id).unwrap().revision;
+                    core.edit(&id, revision, serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"effects":[effect]})).unwrap()).unwrap();
+                }
+                let revision = core.get_project(&id).unwrap().revision;
+                core.undo(&id, revision).unwrap();
+                let revision = core.get_project(&id).unwrap().revision;
+                let draft = core.create_draft(&id, revision, vec![serde_json::from_value(serde_json::json!({"operation":"update_item","itemId":item,"effects":[grade]})).unwrap()], None).unwrap();
+                let mut project: serde_json::Value = read_json(&project_path(&dir)).unwrap();
+                let mut history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+                if location == "draft" {
+                    let mut raw: serde_json::Value =
+                        read_json(&draft_path(&dir, &draft.id).unwrap()).unwrap();
+                    if invalid == "premature" {
+                        // Authentic old base has no newly introduced record; only the
+                        // matched-source draft attempts to introduce the new kind.
+                        project["schemaVersion"] = serde_json::json!(36);
+                        for entry in project["tracks"][1]["items"].as_array_mut().unwrap() {
+                            entry.as_object_mut().unwrap().remove("effects");
+                        }
+                    } else if invalid == "future" {
+                        project["schemaVersion"] =
+                            serde_json::json!(crate::PROJECT_SCHEMA_VERSION + 1);
+                    } else {
+                        raw["operations"][0]["effects"][0]["intensity"] = serde_json::json!(1.1);
+                    }
+                    write_json_atomic(&draft_path(&dir, &draft.id).unwrap(), &raw).unwrap();
+                } else {
+                    let state = match location {
+                        "undo" => history["undo"].as_array_mut().unwrap().last_mut().unwrap(),
+                        "redo" => history["redo"].as_array_mut().unwrap().last_mut().unwrap(),
+                        _ => &mut project,
+                    };
+                    if invalid == "premature" {
+                        state["schemaVersion"] = serde_json::json!(36);
+                    }
+                    if invalid == "future" {
+                        state["schemaVersion"] =
+                            serde_json::json!(crate::PROJECT_SCHEMA_VERSION + 1);
+                    }
+                    let leaf = if location == "component" {
+                        &mut state["components"][0]["tracks"][0]["items"][1]
+                    } else {
+                        state["tracks"][1]["items"]
+                            .as_array_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|leaf| leaf["id"] == item)
+                            .unwrap()
+                    };
+                    leaf["effects"] = serde_json::json!([grade]);
+                    if invalid == "malformed" {
+                        leaf["effects"][0]["intensity"] = serde_json::json!(1.1);
+                    }
+                }
+                write_json_atomic(&project_path(&dir), &project).unwrap();
+                write_json_atomic(&history_path(&dir), &history).unwrap();
+                let before = project_file_bytes(&dir);
+                let error = core.get_project(&id).unwrap_err();
+                assert_eq!(
+                    error.code,
+                    if invalid == "future" {
+                        ErrorCode::InternalError
+                    } else {
+                        ErrorCode::InvalidArgument
+                    },
+                    "{location}/{invalid}: {error:?}"
+                );
+                assert!(!error.retryable);
+                assert_eq!(project_file_bytes(&dir), before, "{location}/{invalid}");
+                assert_no_managed_transaction_files(&dir);
+            }
+        }
+    }
+    #[test]
     fn color_draft_sources_match_retained_old_bases_and_preserve_unavailable_policy() {
         for side in ["undo", "redo", "unavailable"] {
             let (core, _) = core();
@@ -8349,7 +8466,7 @@ mod tests {
                 core.undo(&id, 2).unwrap();
             }
             let project: Project = read_json(&project_path(&dir)).unwrap();
-            assert_eq!(project.schema_version, 36);
+            assert_eq!(project.schema_version, PROJECT_SCHEMA_VERSION);
             let mut history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
             let mut raw: serde_json::Value =
                 read_json(&draft_path(&dir, &draft.id).unwrap()).unwrap();
@@ -8358,6 +8475,65 @@ mod tests {
             } else {
                 let base = history[side].as_array_mut().unwrap().last_mut().unwrap();
                 base["schemaVersion"] = serde_json::json!(35);
+                for tracks in ["tracks"] {
+                    for track in base[tracks].as_array_mut().unwrap() {
+                        for leaf in track["items"].as_array_mut().unwrap() {
+                            leaf.as_object_mut().unwrap().remove("effects");
+                        }
+                    }
+                }
+                raw["baseRevision"] = base["revision"].clone();
+            }
+            write_json_atomic(&history_path(&dir), &history).unwrap();
+            write_json_atomic(&draft_path(&dir, &draft.id).unwrap(), &raw).unwrap();
+            let before = project_file_bytes(&dir);
+            if side == "unavailable" {
+                core.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), before);
+                for error in [
+                    core.get_draft_state(&id, &draft.id).unwrap_err(),
+                    core.commit_draft(&id, &draft.id, project.revision)
+                        .unwrap_err(),
+                ] {
+                    assert_eq!(error.code, ErrorCode::RevisionConflict);
+                    assert!(error.retryable);
+                }
+            } else {
+                let error = core.get_project(&id).unwrap_err();
+                assert_eq!(error.code, ErrorCode::InvalidArgument, "{side}: {error:?}");
+                assert!(!error.retryable);
+            }
+            assert_eq!(project_file_bytes(&dir), before, "{side}");
+        }
+    }
+    #[test]
+    fn group_overlay_draft_sources_match_retained_old_bases_and_preserve_unavailable_policy() {
+        for side in ["undo", "redo", "unavailable"] {
+            let (core, _) = core();
+            let (id, item, dir) = preset_legacy_resource_fixture(&core);
+            core.get_project(&id).unwrap();
+            let grade = serde_json::json!({"type":"screen_flash","id":"flash","startMs":0,"durationMs":1000,"intensity":0.8,"color":{"r":1,"g":0,"b":0,"a":0.6}});
+            let operation: EditOperation = serde_json::from_value(
+                serde_json::json!({"operation":"update_item","itemId":item,"effects":[grade]}),
+            )
+            .unwrap();
+            let draft = core
+                .create_draft(&id, 1, vec![operation.clone()], None)
+                .unwrap();
+            core.edit(&id, 1, operation).unwrap();
+            if side == "redo" {
+                core.undo(&id, 2).unwrap();
+            }
+            let project: Project = read_json(&project_path(&dir)).unwrap();
+            assert_eq!(project.schema_version, PROJECT_SCHEMA_VERSION);
+            let mut history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
+            let mut raw: serde_json::Value =
+                read_json(&draft_path(&dir, &draft.id).unwrap()).unwrap();
+            if side == "unavailable" {
+                raw["baseRevision"] = serde_json::json!(999);
+            } else {
+                let base = history[side].as_array_mut().unwrap().last_mut().unwrap();
+                base["schemaVersion"] = serde_json::json!(36);
                 for tracks in ["tracks"] {
                     for track in base[tracks].as_array_mut().unwrap() {
                         for leaf in track["items"].as_array_mut().unwrap() {
@@ -8445,6 +8621,17 @@ mod tests {
         ))
         .unwrap();
         let fixture = serde_json::json!({"orderedEffectCases":{"orders":{"shadeThenWash":native["nativeWitness"]["orders"]["gradeThenTint"],"washThenShade":native["nativeWitness"]["orders"]["tintThenGrade"]}}});
+        effect_edit_fault_generations(fixture);
+    }
+    #[test]
+    fn group_overlay_edit_fault_generations() {
+        let native: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/group-compositing-v1.json"))
+                .unwrap();
+        let fixture = serde_json::json!({"orderedEffectCases":{"orders":{"shadeThenWash":[native["nativeWitness"]["flash"],native["nativeWitness"]["particles"]],"washThenShade":[native["nativeWitness"]["particles"],native["nativeWitness"]["flash"]]}}});
+        effect_edit_fault_generations(fixture);
+    }
+    fn effect_edit_fault_generations(fixture: serde_json::Value) {
         for order in ["shadeThenWash", "washThenShade"] {
             let stack = &fixture["orderedEffectCases"]["orders"][order];
             let expected: Vec<crate::VisualEffect> = serde_json::from_value(stack.clone()).unwrap();
@@ -8571,6 +8758,17 @@ mod tests {
         ))
         .unwrap();
         let fixture = serde_json::json!({"orderedEffectCases":{"orders":{"shadeThenWash":native["nativeWitness"]["orders"]["gradeThenTint"],"washThenShade":native["nativeWitness"]["orders"]["tintThenGrade"]}}});
+        effect_draft_fault_generations(fixture);
+    }
+    #[test]
+    fn group_overlay_draft_fault_generations() {
+        let native: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/group-compositing-v1.json"))
+                .unwrap();
+        let fixture = serde_json::json!({"orderedEffectCases":{"orders":{"shadeThenWash":[native["nativeWitness"]["flash"],native["nativeWitness"]["particles"]],"washThenShade":[native["nativeWitness"]["particles"],native["nativeWitness"]["flash"]]}}});
+        effect_draft_fault_generations(fixture);
+    }
+    fn effect_draft_fault_generations(fixture: serde_json::Value) {
         let a = &fixture["orderedEffectCases"]["orders"]["shadeThenWash"];
         let b = &fixture["orderedEffectCases"]["orders"]["washThenShade"];
         let typed_a: Vec<crate::VisualEffect> = serde_json::from_value(a.clone()).unwrap();

@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 pub(crate) mod composition_resources;
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
+pub(crate) mod group_compositing;
 pub(crate) mod masks;
 pub(crate) mod mattes;
 #[cfg(test)]
@@ -269,6 +270,7 @@ pub(crate) fn preflight_inherited_project(project: &Project) -> Result<(), CoreE
                 || item.visual_properties().matte_only
                 || !item.visual_properties().blend_mode.is_normal()
                 || extended_visual::authored(item, project.settings.fps).is_some()
+                || group_compositing::controlled(item)
                 || matches!(item, TimelineItem::Group(g) if g.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(i) if i.stagger_ms != 0)
                 || matches!(item, TimelineItem::Repeater(r) if r.repeater.time_offset_ms != 0)
@@ -380,7 +382,25 @@ fn preflight_extended_scenes(
         )?;
         shapes::refine_scene(&mut evaluated.scene)?;
         if let Some(faces) = faces {
-            for layer in &mut evaluated.scene.visual_layers {
+            let controlled = evaluated
+                .scene
+                .aggregates
+                .as_ref()
+                .is_some_and(|graph| !graph.nodes.is_empty());
+            if controlled {
+                let payload = faces.iter().try_fold(0u64, |total, (name, bytes)| {
+                    composition_resources::add(
+                        total,
+                        composition_resources::add(
+                            name.capacity() as u64,
+                            composition_resources::add(bytes.capacity() as u64, 512)?,
+                        )?,
+                    )
+                })?;
+                composition_resources::adopt_font_payload(&mut evaluated.scene, payload)?;
+            }
+            for index in 0..evaluated.scene.visual_layers.len() {
+                let layer = &mut evaluated.scene.visual_layers[index];
                 if !extended_visual::required(layer) {
                     continue;
                 }
@@ -413,6 +433,21 @@ fn preflight_extended_scenes(
                 };
                 let measured = text_bounds::measure(shaped, text, faces)?;
                 layer.source_size = Some((measured.width, measured.height));
+                if controlled {
+                    let payload = composition_resources::shaped_heap_bytes(&measured.shaped)?;
+                    let base = mattes::admit_continuous_metadata(&evaluated.scene)?;
+                    if composition_resources::add(base, payload)? > mattes::MAX_MATTE_LIVE_BYTES {
+                        return Err(invalid(
+                            "controlled measured text facts exceed shared memory",
+                        ));
+                    }
+                    let EvaluatedVisualSource::Text(text) =
+                        &mut evaluated.scene.visual_layers[index].source
+                    else {
+                        unreachable!()
+                    };
+                    text.shaped = Some(measured.shaped);
+                }
             }
         }
         extended_certification::certify_scene(&evaluated.scene, &context, &mut nodes)?;
@@ -444,6 +479,7 @@ fn evaluate_project_inner(
             item.visual_properties().matte.is_some() || item.visual_properties().matte_only
                 || !item.visual_properties().blend_mode.is_normal()
                 || extended_visual::authored(item, project.settings.fps).is_some()
+                || group_compositing::controlled(item)
                 || matches!(item, TimelineItem::Repeater(_))
                 || matches!(item, TimelineItem::Group(group) if group.stagger_ms != 0)
                 || matches!(item, TimelineItem::ComponentInstance(instance) if instance.stagger_ms != 0)
@@ -479,6 +515,8 @@ fn evaluate_project_inner(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            aggregates: None,
+            composed_input: None,
             mattes: None,
             composition_resources: None,
             instance_voiceover_intervals: Some(vec![]),
@@ -509,7 +547,16 @@ fn evaluate_project_inner(
                 blend || !visual.blend_mode.is_normal(),
             )
         });
-    if has_matte || has_blend {
+    let has_aggregates = project
+        .tracks
+        .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
+        .flat_map(|t| &t.items)
+        .any(group_compositing::controlled);
+    if has_aggregates {
+        result.scene.aggregates = Some(Default::default());
+    }
+    if has_matte || has_blend || has_aggregates {
         result.scene.composition_resources =
             Some(composition_resources::CompositionResourceFacts {
                 resource_live_bytes: matte_font_live_bytes(project)?,
@@ -552,6 +599,8 @@ fn evaluate_project_inner(
                 project_id: project.id.clone(),
                 revision: project.revision,
                 scene: EvaluatedScene {
+                    aggregates: result.scene.aggregates.as_ref().map(|_| Default::default()),
+                    composed_input: None,
                     mattes: result
                         .scene
                         .mattes
@@ -781,6 +830,7 @@ fn evaluate_project_inner(
         .scene
         .audio_layers
         .sort_by(|a, b| orders[&a.item_id].cmp(&orders[&b.item_id]));
+    group_compositing::publish_leaf_facts(&mut result.scene, &orders, &projection)?;
     let mut all = orders.iter().collect::<Vec<_>>();
     all.sort_by(|a, b| a.1.cmp(b.1));
     let ranks = all
@@ -1162,8 +1212,8 @@ struct ScopeTiming<'a> {
     hidden: HashMap<&'a str, bool>,
 }
 
-#[derive(Clone)]
-struct OccurrenceInterval {
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct OccurrenceInterval {
     scope: usize,
     item_id: String,
     start_ms: f64,
@@ -1534,6 +1584,7 @@ impl InstanceTraversal<'_> {
                     })
                 };
                 Ok(EvaluatedAncestorStage {
+                    aggregate: None,
                     scope,
                     item_id: item.id().to_owned(),
                     matrix,
@@ -1578,6 +1629,11 @@ impl InstanceTraversal<'_> {
             None
         };
         let scope_first_layer = projection.len();
+        let scope_first_aggregate = result
+            .scene
+            .aggregates
+            .as_ref()
+            .map_or(0, |graph| graph.nodes.len());
         let mut local = Project {
             markers: Vec::new(),
             schema_version: self.project.schema_version,
@@ -1606,6 +1662,21 @@ impl InstanceTraversal<'_> {
             }
         }
         let temporal = ScopeTiming::new(tracks, &self.project.assets, root_stagger_ms);
+        let aggregate_ids = group_compositing::register_scope(
+            self,
+            &group_compositing::AggregateScope {
+                tracks,
+                temporal: &temporal,
+                clock,
+                prefix,
+                transform_prefix: &transform_prefix,
+                interval_prefix: &interval_prefix,
+                visual_start,
+                visual_end,
+                orders: &item_orders,
+            },
+            &mut result.scene,
+        )?;
         let scope_project = local.clone();
         for track in &mut local.tracks {
             track.items.retain(|item| {
@@ -1725,13 +1796,10 @@ impl InstanceTraversal<'_> {
                 end
             };
             let mut stages = transform_prefix.clone();
-            stages.extend(self.stages_for(
-                &temporal,
-                &layer.item_id,
-                clock,
-                prefix.len(),
-                false,
-            )?);
+            let mut local_stages =
+                self.stages_for(&temporal, &layer.item_id, clock, prefix.len(), false)?;
+            group_compositing::bind_stages(&mut local_stages, &aggregate_ids);
+            stages.extend(local_stages);
             layer.ancestor_stages = stages;
             let (id, order) = identity(layer.order, &layer.item_id);
             orders.insert(id.clone(), order);
@@ -2026,13 +2094,10 @@ impl InstanceTraversal<'_> {
                 let mut child_intervals = interval_prefix.clone();
                 child_intervals.extend(temporal.root_path(item.id(), clock, prefix.len())?);
                 let mut child_stages = transform_prefix.clone();
-                child_stages.extend(self.stages_for(
-                    &temporal,
-                    item.id(),
-                    clock,
-                    prefix.len(),
-                    true,
-                )?);
+                let mut local_stages =
+                    self.stages_for(&temporal, item.id(), clock, prefix.len(), true)?;
+                group_compositing::bind_stages(&mut local_stages, &aggregate_ids);
+                child_stages.extend(local_stages);
                 self.expand(
                     &effective.tracks,
                     InstanceScope {
@@ -2064,6 +2129,11 @@ impl InstanceTraversal<'_> {
         // Keep lightweight indices/order metadata, project the complete scope, and
         // clone layers only after every layer/geometry/memory budget has succeeded.
         let scope_ordinary_end = projection.len();
+        let scope_ordinary_aggregate_end = result
+            .scene
+            .aggregates
+            .as_ref()
+            .map_or(0, |graph| graph.nodes.len());
         let ordinary_layers = (scope_first_layer..scope_ordinary_end)
             .map(|index| (index, projection[index].order.clone()))
             .collect::<Vec<_>>();
@@ -2123,6 +2193,15 @@ impl InstanceTraversal<'_> {
                 let mut inverse_power = IDENTITY_MATRIX;
                 let repeater_span = checked_span(repeater.start_ms, repeater.duration_ms)?;
                 let repeater_intervals = temporal.root_path(candidate.id(), clock, prefix.len())?;
+                let aggregate_sources = group_compositing::repeater_sources(
+                    &result.scene,
+                    scope_first_aggregate..scope_ordinary_aggregate_end,
+                    source.id(),
+                    prefix.len(),
+                    usize::from(repeater.repeater.copies),
+                    projection.len() + projected.len(),
+                    bases.len(),
+                )?;
                 for copy_index in 1..=usize::from(repeater.repeater.copies) {
                     power = multiply_matrix(power, step);
                     inverse_power = multiply_matrix(step_inverse, inverse_power);
@@ -2160,6 +2239,36 @@ impl InstanceTraversal<'_> {
                             matte_remap.extend(mattes::clone_composition(graph, composition)?);
                         }
                     }
+                    let controller_delay = temporal.window(candidate.id())?.delay_ms;
+                    let delay = i128::from(controller_delay)
+                        .checked_add(
+                            (copy_index as i128)
+                                .checked_mul(i128::from(repeater.repeater.time_offset_ms))
+                                .ok_or_else(|| invalid("repeater clock overflow"))?,
+                        )
+                        .ok_or_else(|| invalid("repeater clock overflow"))?;
+                    let shifted_root_ms = delay as f64 / clock.rate;
+                    let aggregate_remap = group_compositing::clone_repeater(
+                        &mut result.scene,
+                        &group_compositing::AggregateCopy {
+                            sources: &aggregate_sources,
+                            source_id: source.id(),
+                            scope: prefix.len(),
+                            shifted_root_ms,
+                            intervals: &repeater_intervals,
+                            matrix: power,
+                            inverse: inverse_power,
+                            opacity: copy_opacity,
+                            controller_id: &repeater.id,
+                            prefix,
+                            controller_order: (
+                                repeater_track,
+                                repeater.visual_properties.z_index,
+                                repeater_index,
+                            ),
+                            copy_index,
+                        },
+                    )?;
                     let mut visible_source_index = 0;
                     for (base_index, base_order) in &bases {
                         if projection.len() + projected.len() >= MAX_EVALUATED_VISUAL_LAYERS {
@@ -2218,6 +2327,12 @@ impl InstanceTraversal<'_> {
                             )
                         };
                         let mut stages = base.stages.clone();
+                        for stage in &mut stages {
+                            if let Some(index) = stage.aggregate {
+                                stage.aggregate =
+                                    Some(aggregate_remap.get(&index).copied().unwrap_or(index));
+                            }
+                        }
                         let stage_boundary = stages
                             .iter()
                             .position(|stage| {
@@ -2232,6 +2347,7 @@ impl InstanceTraversal<'_> {
                         stages.insert(
                             stage_boundary,
                             EvaluatedAncestorStage {
+                                aggregate: None,
                                 scope: prefix.len(),
                                 item_id: repeater.id.clone(),
                                 matrix: power,
@@ -2338,6 +2454,9 @@ pub(crate) struct FontResourceBinding {
 impl std::fmt::Debug for EvaluatedScene {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut value = f.debug_struct("EvaluatedScene");
+        if let Some(aggregates) = &self.aggregates {
+            value.field("aggregates", aggregates);
+        }
         value.field("canvas", &self.canvas);
         value.field("duration_ms", &self.duration_ms);
         value.field("resources", &self.resources);
@@ -2352,6 +2471,8 @@ impl std::fmt::Debug for EvaluatedScene {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
+    pub(crate) aggregates: Option<group_compositing::AggregateGraph>,
+    pub(crate) composed_input: Option<(String, u64)>,
     pub(crate) mattes: Option<mattes::EvaluatedMatteGraph>,
     pub(crate) composition_resources: Option<composition_resources::CompositionResourceFacts>,
     pub(crate) instance_voiceover_intervals: Option<Vec<(f64, f64)>>,
@@ -2523,6 +2644,7 @@ impl std::fmt::Debug for EvaluatedAncestorAnimation {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EvaluatedAncestorStage {
+    pub(crate) aggregate: Option<usize>,
     scope: usize,
     item_id: String,
     pub(crate) matrix: [f64; 6],
@@ -3234,6 +3356,8 @@ fn evaluate_flat_project(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            aggregates: None,
+            composed_input: None,
             mattes: None,
             composition_resources: None,
             instance_voiceover_intervals: None,

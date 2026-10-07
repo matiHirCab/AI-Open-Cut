@@ -70,10 +70,27 @@ export const projectBlendCatalogPredecessor = (
   exact(input.projectSchemaVersion, 35, "projectSchemaVersion");
   return { ...structuredClone(input), projectSchemaVersion: 34 };
 };
-export const projectBlendMcpPredecessor = (source: unknown): JsonRecord =>
-  projectSchema35BlendMcpPredecessor(
+const validateBlendNodes = (input: JsonRecord): void => {
+  for (const entry of additions.entries) {
+    const { key, parent } = parentAt(input, entry.path);
+    exact(
+      parent[key],
+      entry.applicability === "ineligible-stored-normal"
+        ? { const: "normal", type: "string" }
+        : { enum: BLEND_VALUES, type: "string" },
+      entry.path.join(".")
+    );
+  }
+};
+export const projectBlendMcpPredecessor = (source: unknown): JsonRecord => {
+  // These nodes are unchanged by the successor projections. Reject malformed
+  // controls before copying the entire catalog; valid input still executes every
+  // predecessor proof, including the schema35 check below and full digest test.
+  validateBlendNodes(record(source));
+  return projectSchema35BlendMcpPredecessor(
     projectParameterizedMcpPredecessor(source)
   );
+};
 export const projectSchema35BlendMcpPredecessor = (
   source: unknown
 ): JsonRecord => {
@@ -86,16 +103,7 @@ export const projectSchema35BlendMcpPredecessor = (
   ) {
     throw new Error("Incorrect blend capability multiplicity");
   }
-  for (const entry of additions.entries) {
-    const { key, parent } = parentAt(input, entry.path);
-    exact(
-      parent[key],
-      entry.applicability === "ineligible-stored-normal"
-        ? { const: "normal", type: "string" }
-        : { enum: BLEND_VALUES, type: "string" },
-      entry.path.join(".")
-    );
-  }
+  validateBlendNodes(input);
   for (const path of additions.literalPaths) {
     const { key, parent } = parentAt(input, path);
     exact(parent[key], 35, path.join("."));

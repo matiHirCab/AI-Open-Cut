@@ -1,0 +1,39 @@
+{
+  "reviewer": "/root/review56_final",
+  "model": "gpt-6.1-sol",
+  "reasoning": "medium",
+  "approval": "APPROVED before normalization; no normative scope change",
+  "originalScopeApproval": "scope-approval.json preserved unchanged",
+  "files": [
+    {
+      "path": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/specs/blend-modes/spec.md",
+      "beforeSHA256": "459e981af719dd0a0ea71ef7e396a890e3dc7ee2654661443fe16b987c40720e",
+      "afterSHA256": "1f80f718752b8e15254fbf1a9fd7c799af7fa4cf381d9d673502e0ec497cbc47",
+      "change": "Remove one extra EOF newline only; all normative bytes preserved"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/specs/linear-light-compositing/spec.md",
+      "beforeSHA256": "b4e36e85ffc1b7d2c145154ffb3e969d36ef77fb8113ad206048caded4d20dd9",
+      "afterSHA256": "5d89f9b30a3fdf250fdf01fe51d668a71965d5ed930b98522f7c417b78532b63",
+      "change": "Remove one extra EOF newline only; all normative bytes preserved"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/specs/motion-blur-sampling/spec.md",
+      "beforeSHA256": "e97e642ebcc43c0ba58f55967309e6def94a64f262b7b9843c8054f24aa4b38a",
+      "afterSHA256": "2bd730e0c87404dfbe3ac69aa81358cd3d5d4e1444cfb9f3f97dab1b906bf519",
+      "change": "Remove one extra EOF newline only; all normative bytes preserved"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/specs/timeline-editing/spec.md",
+      "beforeSHA256": "57b10d8ce17a79026f922e7676dad1bbeeb4c8a08484db52af3ee57d545b019c",
+      "afterSHA256": "6cbb77e31afe2a6a12aa9ed01778b9d6a9c6b709fafa308f0e28b2e217f240bb",
+      "change": "Remove one extra EOF newline only; all normative bytes preserved"
+    },
+    {
+      "path": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/specs/track-mattes/spec.md",
+      "beforeSHA256": "7e5659ac7c1d02df80bb136885572e67c577d1d140aaa10876387c574109187e",
+      "afterSHA256": "a89b68abad2f1156de1f11748de678daf87f2c6cdb7a2426e423780bf12d8051",
+      "change": "Remove one extra EOF newline only; all normative bytes preserved"
+    }
+  ]
+}

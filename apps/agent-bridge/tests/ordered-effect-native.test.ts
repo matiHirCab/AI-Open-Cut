@@ -218,7 +218,7 @@ fn main() {
       await verifyOrderedEffectWorkflow(client, call);
       const f = catalog.orderedEffectCases;
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(36);
+      expect(status.projectSchemaVersion).toBe(37);
       expect(status.subsystems.rendering.ready).toBe(true);
       const { projectId } = await call(
         "project_create",

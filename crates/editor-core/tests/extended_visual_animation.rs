@@ -958,7 +958,23 @@ fn stack_eligibility_topology_and_clear_preserve_static_state() {
         .unwrap()
         .changed_ids[0]
         .clone();
-    assert_eq!(core.edit(&id,4,op(json!({"operation":"update_item","itemId":group,"effects":[{"id":"x","type":"vignette","amount":0}]}))).unwrap_err().code,ErrorCode::InvalidArgument);
+    core.edit(&id,4,op(json!({"operation":"update_item","itemId":group,"effects":[{"id":"x","type":"vignette","amount":0}]}))).unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            core.get_project(&id)
+                .unwrap()
+                .find_item(&group)
+                .unwrap()
+                .visual_properties()
+                .effects
+                .clone()
+        )
+        .unwrap(),
+        json!([{"id":"x","type":"vignette","amount":0.0}])
+    );
+    let before = authoritative_files(&core, &id);
+    assert_eq!(core.edit(&id,5,op(json!({"operation":"set_animation_channels","itemId":group,"animationChannels":[{"property":"effect.vignette_amount","target":{"kind":"effect","scope":"root","id":"x"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0},"curve":"hold"}]}]}))).unwrap_err().code,ErrorCode::InvalidArgument);
+    assert_eq!(authoritative_files(&core, &id), before);
 }
 
 #[test]

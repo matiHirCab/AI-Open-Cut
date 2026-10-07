@@ -1,0 +1,181 @@
+{
+  "effects": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "b": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "g": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "r": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": ["a", "b", "g", "r"],
+          "type": "object"
+        },
+        "durationMs": {
+          "maximum": 60000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "intensity": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "startMs": {
+          "maximum": 60000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "screen_flash",
+          "type": "string"
+        }
+      },
+      "required": ["color", "durationMs", "id", "intensity", "startMs", "type"],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "b": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "g": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "r": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": ["a", "b", "g", "r"],
+          "type": "object"
+        },
+        "count": {
+          "maximum": 256,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "lifetimeMs": {
+          "maximum": 60000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "radiusPx": {
+          "maximum": 16,
+          "minimum": 0,
+          "type": "number"
+        },
+        "seed": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "speedPxPerSecond": {
+          "maximum": 1024,
+          "minimum": 0,
+          "type": "number"
+        },
+        "type": {
+          "const": "particle_overlay",
+          "type": "string"
+        }
+      },
+      "required": [
+        "color",
+        "count",
+        "id",
+        "lifetimeMs",
+        "radiusPx",
+        "seed",
+        "speedPxPerSecond",
+        "type"
+      ],
+      "type": "object"
+    }
+  ],
+  "clip": {
+    "additionalProperties": false,
+    "properties": {
+      "type": {
+        "const": "composition_bounds",
+        "type": "string"
+      }
+    },
+    "required": ["type"],
+    "type": "object"
+  },
+  "paths": [
+    "/toolDefinitions/timeline_update_item/inputSchema/properties/clip",
+    "/$defs/ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties/clip",
+    "/$defs/ComponentCreatePropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties/clip",
+    "/$defs/InputPropertiesOperationsItemsOneOfUpdateItemProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties/clip",
+    "/$defs/InputPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties/clip",
+    "/$defs/ItemsPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties/clip",
+    "/$defs/OutputPropertiesOperationsItemsOneOfUpdateItemProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfCaptionProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfComponentInstanceProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGridProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfGroupProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfMediaProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfRectangleProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfShapeProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSolidColorProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfSvgProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTextProperties/clip",
+    "/$defs/ProjectPropertiesTracksItemsPropertiesItemsItemsOneOfTransitionProperties/clip",
+    "/$defs/TracksItemsPropertiesItemsItemsOneOfRepeaterProperties/clip"
+  ]
+}

@@ -136,3 +136,60 @@ it("preserves the complete verified MCP predecessor and rejects all29 malformed 
     expect(() => projectBlendMcpPredecessor(drift)).toThrow("Missing approved");
   }
 });
+
+it("rejects each malformed or missing blend node before unrelated predecessor work", () => {
+  for (const entry of additions.entries) {
+    for (const missing of [false, true]) {
+      const input = structuredClone(surface) as unknown as Record<
+        string,
+        unknown
+      >;
+      let parent = input;
+      for (const key of entry.path.slice(0, -1)) {
+        parent = parent[key] as Record<string, unknown>;
+      }
+      const key = entry.path.at(-1);
+      if (!key) {
+        throw new Error("approved addition path missing");
+      }
+      if (missing) {
+        Reflect.deleteProperty(parent, key);
+      } else {
+        parent[key] = null;
+      }
+      let unrelatedReads = 0;
+      Object.defineProperty(input, "capabilityIdentifiers", {
+        get() {
+          unrelatedReads += 1;
+          throw new Error("Unexpected unrelated predecessor work");
+        },
+      });
+      expect(() => projectBlendMcpPredecessor(input)).toThrow(
+        missing ? "Missing approved" : "Incorrect approved"
+      );
+      expect(unrelatedReads).toBe(0);
+      expect(Object.hasOwn(parent, key)).toBe(!missing);
+      if (!missing) {
+        expect(parent[key]).toBeNull();
+      }
+    }
+  }
+});
+
+it("retains unrelated annotation drift through the complete blend predecessor proof", () => {
+  const drift = structuredClone(surface);
+  drift.toolDefinitions.project_get_state.annotations.readOnlyHint = false;
+  const before = JSON.stringify(drift);
+  const projected = projectBlendMcpPredecessor(drift);
+  expect(projected.capabilityIdentifiers).not.toEqual(
+    drift.capabilityIdentifiers
+  );
+  expect(
+    createHash("sha256")
+      .update(JSON.stringify(expandMcpSurfaceCatalog(projected)))
+      .digest("hex")
+  ).not.toBe(
+    "9d15133960b94806ee92cd9482d10c9481b902f957501fc4742c58b992d73949"
+  );
+  expect(JSON.stringify(drift)).toBe(before);
+});

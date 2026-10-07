@@ -1,5 +1,6 @@
 //! Bounded local raster effects and sampled visual resources.
 use super::{ArtifactIo, GRAPH_BUILD_STAGE, PreparedRenderResources};
+mod group_compositing;
 use crate::evaluated_scene::{EvaluatedScene, EvaluatedVisualSource, extended_visual};
 use crate::render_plan::{MediaInputRequest, RenderIntent};
 use crate::{CoreError, ErrorCode, MediaCrop, MediaType, VisualEffect};
@@ -50,7 +51,7 @@ fn srgb(v: f64) -> f64 {
 }
 const MAX_PIXELS: usize = 16_777_216;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 struct Raster {
     width: usize,
     height: usize,
@@ -106,6 +107,18 @@ impl Raster {
         Self::rgba(dimension("WIDTH ")?, dimension("HEIGHT ")?, &bytes[end..])
     }
     fn bilinear(&self, x: f64, y: f64) -> [f32; 4] {
+        // Outside this finite support both neighbors are transparent. Check
+        // before integer conversion so enormous signed coordinates cannot
+        // overflow neighbor arithmetic or introduce NaN interpolation weights.
+        if !x.is_finite()
+            || !y.is_finite()
+            || x <= -0.5
+            || y <= -0.5
+            || x >= self.width as f64 + 0.5
+            || y >= self.height as f64 + 0.5
+        {
+            return [0.; 4];
+        }
         let x = x - 0.5;
         let y = y - 0.5;
         let ix = x.floor() as i64;
@@ -153,6 +166,32 @@ impl Raster {
                     ),
                 );
             }
+        }
+        Ok(result)
+    }
+    fn particle_domain(
+        self,
+        domain: extended_visual::ParticleSourceDomain,
+    ) -> Result<Self, CoreError> {
+        if domain.origin == [0., 0.] && domain.size == (self.width as u32, self.height as u32) {
+            return Ok(self);
+        }
+        let mut result = Self::empty(domain.size.0 as usize, domain.size.1 as usize)?;
+        let left = (-domain.origin[0]) as usize;
+        let top = (-domain.origin[1]) as usize;
+        if left
+            .checked_add(self.width)
+            .is_none_or(|v| v > result.width)
+            || top
+                .checked_add(self.height)
+                .is_none_or(|v| v > result.height)
+        {
+            return Err(invalid("particle source domain differs from source"));
+        }
+        for y in 0..self.height {
+            result.pixels
+                [(top + y) * result.width + left..(top + y) * result.width + left + self.width]
+                .copy_from_slice(&self.pixels[y * self.width..(y + 1) * self.width]);
         }
         Ok(result)
     }
@@ -291,22 +330,82 @@ fn support(effects: &[VisualEffect], density: f64) -> usize {
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
                 (3.0 * radius_px * density).ceil() as usize
             }
+            VisualEffect::ParticleOverlay { radius_px, .. } => {
+                (radius_px * density).ceil() as usize
+            }
             _ => 0,
         })
         .sum()
 }
 
+#[cfg(test)]
 fn effects(
+    raster: Raster,
+    effects: &[VisualEffect],
+    density: f64,
+    bounds: Option<[f64; 4]>,
+) -> Result<(Raster, usize), CoreError> {
+    effects_at(
+        raster,
+        effects,
+        density,
+        bounds,
+        extended_visual::SampleTime::Integer(0),
+    )
+}
+
+#[cfg(test)]
+fn effects_at(
+    raster: Raster,
+    effects: &[VisualEffect],
+    density: f64,
+    bounds: Option<[f64; 4]>,
+    time: extended_visual::SampleTime,
+) -> Result<(Raster, usize), CoreError> {
+    effects_in_domain(raster, effects, density, bounds, bounds, time)
+}
+
+fn emission_bounds(
+    effects: &[VisualEffect],
+    source: &EvaluatedVisualSource,
+    prepared: Option<&crate::render_plan::PreparedText>,
+    original: Option<[f64; 4]>,
+) -> Result<Option<[f64; 4]>, CoreError> {
+    if effects
+        .iter()
+        .any(|effect| matches!(effect, VisualEffect::ParticleOverlay { .. }))
+        && let EvaluatedVisualSource::Text(text) = source
+    {
+        let shaped = text
+            .shaped
+            .as_ref()
+            .ok_or_else(|| invalid("particle text domain missing"))?;
+        let prepared = prepared.ok_or_else(|| invalid("particle text origin missing"))?;
+        Ok(Some([
+            f64::from(prepared.text_x),
+            f64::from(prepared.text_y),
+            f64::from(prepared.text_x) + shaped.width,
+            f64::from(prepared.text_y) + shaped.height,
+        ]))
+    } else {
+        Ok(original)
+    }
+}
+
+fn effects_in_domain(
     mut raster: Raster,
     effects: &[VisualEffect],
     density: f64,
     bounds: Option<[f64; 4]>,
+    particle_bounds: Option<[f64; 4]>,
+    time: extended_visual::SampleTime,
 ) -> Result<(Raster, usize), CoreError> {
     let pad = support(effects, density);
     if effects.is_empty() {
         return Ok((raster, 0));
     }
     let bounds = bounds.unwrap_or([0.0, 0.0, raster.width as f64, raster.height as f64]);
+    let particle_bounds = particle_bounds.unwrap_or(bounds);
     raster = raster.padded(pad)?;
     for effect in effects {
         match effect {
@@ -366,6 +465,57 @@ fn effects(
                     }
                 }
             }
+            VisualEffect::ScreenFlash {
+                start_ms,
+                duration_ms,
+                intensity,
+                color,
+                ..
+            } => {
+                let start = u64::from(*start_ms);
+                let end = start + u64::from(*duration_ms);
+                let strength = if time.compare(start).is_some_and(|v| !v.is_lt())
+                    && time.compare(end).is_some_and(|v| v.is_lt())
+                {
+                    intensity * color.a * (1.0 - time.progress(start, end))
+                } else {
+                    0.0
+                };
+                if strength != 0.0 {
+                    for pixel in &mut raster.pixels {
+                        for (c, channel) in [color.r, color.g, color.b].into_iter().enumerate() {
+                            pixel[c] = (f64::from(pixel[c])
+                                + (f64::from(pixel[3]) - f64::from(pixel[c]))
+                                    * linear(channel)
+                                    * strength) as f32;
+                        }
+                    }
+                }
+            }
+            VisualEffect::ParticleOverlay {
+                count,
+                seed,
+                radius_px,
+                speed_px_per_second,
+                lifetime_ms,
+                color,
+                ..
+            } => {
+                particle_overlay(
+                    &mut raster,
+                    ParticleSample {
+                        count: *count,
+                        seed: *seed,
+                        radius: *radius_px * density,
+                        speed: *speed_px_per_second * density,
+                        lifetime: *lifetime_ms,
+                        color: *color,
+                        bounds: particle_bounds,
+                        pad,
+                        time,
+                    },
+                )?;
+            }
             VisualEffect::Vignette { amount, .. } => {
                 for y in 0..raster.height {
                     for x in 0..raster.width {
@@ -386,6 +536,106 @@ fn effects(
         }
     }
     Ok((raster, pad))
+}
+
+fn particle_lane(seed: u32, index: u16, lane: u32) -> u32 {
+    let mut value = seed
+        ^ (u32::from(index) + 1).wrapping_mul(0x9e37_79b9)
+        ^ (lane + 1).wrapping_mul(0x85eb_ca6b);
+    value ^= value >> 16;
+    value = value.wrapping_mul(0x7feb_352d);
+    value ^= value >> 15;
+    value = value.wrapping_mul(0x846c_a68b);
+    value ^ (value >> 16)
+}
+fn particle_lanes(count: u16, seed: u32) -> impl Iterator<Item = (u16, [u32; 3])> {
+    (0..count).map(move |index| {
+        (
+            index,
+            [0, 1, 2].map(|lane| particle_lane(seed, index, lane)),
+        )
+    })
+}
+struct ParticleSample {
+    count: u16,
+    seed: u32,
+    radius: f64,
+    speed: f64,
+    lifetime: u32,
+    color: crate::VectorColor,
+    bounds: [f64; 4],
+    pad: usize,
+    time: extended_visual::SampleTime,
+}
+fn particle_overlay(raster: &mut Raster, sample: ParticleSample) -> Result<(), CoreError> {
+    let ParticleSample {
+        count,
+        seed,
+        radius,
+        speed,
+        lifetime,
+        color,
+        bounds,
+        pad,
+        time,
+    } = sample;
+    let width = bounds[2] - bounds[0];
+    let height = bounds[3] - bounds[1];
+    if count == 0 || radius == 0.0 || color.a == 0.0 || width <= 0.0 || height <= 0.0 {
+        return Ok(());
+    }
+    let modulo = match time {
+        extended_visual::SampleTime::Integer(whole) => (whole % u64::from(lifetime)) as f64,
+        extended_visual::SampleTime::Split { whole, fraction } => {
+            ((whole % u64::from(lifetime)) as f64 + fraction).rem_euclid(f64::from(lifetime))
+        }
+        extended_visual::SampleTime::Fractional(value) => value.rem_euclid(f64::from(lifetime)),
+    };
+    if !modulo.is_finite() {
+        return Err(invalid("particle clock is nonfinite"));
+    }
+    let rgb = [linear(color.r), linear(color.g), linear(color.b)];
+    for (_, lanes) in particle_lanes(count, seed) {
+        let units = lanes.map(|lane| f64::from(lane) / 4294967296.0);
+        let phase = (modulo + units[2] * f64::from(lifetime)) % f64::from(lifetime);
+        let cx = bounds[0] + units[0] * width + pad as f64;
+        let cy = bounds[1]
+            + (units[1] * height + speed * phase / 1000.0).rem_euclid(height)
+            + pad as f64;
+        let left = ((cx - radius).floor() - 1.0)
+            .max(0.0)
+            .min(raster.width as f64) as usize;
+        let top = ((cy - radius).floor() - 1.0)
+            .max(0.0)
+            .min(raster.height as f64) as usize;
+        let right = ((cx + radius).ceil() + 1.0)
+            .max(left as f64)
+            .min(raster.width as f64) as usize;
+        let bottom = ((cy + radius).ceil() + 1.0)
+            .max(top as f64)
+            .min(raster.height as f64) as usize;
+        for y in top..bottom {
+            for x in left..right {
+                let mut covered = 0;
+                for a in 0..4 {
+                    for b in 0..4 {
+                        let dx = x as f64 + (f64::from(a) + 0.5) / 4.0 - cx;
+                        let dy = y as f64 + (f64::from(b) + 0.5) / 4.0 - cy;
+                        if dx * dx + dy * dy <= radius * radius {
+                            covered += 1;
+                        }
+                    }
+                }
+                let alpha = (color.a * f64::from(covered) / 16.0) as f32;
+                let dst = &mut raster.pixels[y * raster.width + x];
+                for c in 0..3 {
+                    dst[c] = (rgb[c] * f64::from(alpha)) as f32 + dst[c] * (1.0 - alpha);
+                }
+                dst[3] = alpha + dst[3] * (1.0 - alpha);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn sample_times(scene: &EvaluatedScene, intent: RenderIntent) -> (u64, u64, bool) {
@@ -429,7 +679,12 @@ pub(crate) fn prepare(
         encode,
         caption,
     } = preparation;
-    if scene.visual_layers.is_empty() {
+    if scene.visual_layers.is_empty()
+        && scene
+            .aggregates
+            .as_ref()
+            .is_none_or(|graph| graph.nodes.is_empty())
+    {
         return Ok(());
     } // Exact opaque black is supplied by the existing final encoder source.
     let (start, end, frame) = sample_times(scene, intent);
@@ -503,10 +758,36 @@ pub(crate) fn prepare(
         let mut mask_work = crate::evaluated_scene::masks::MaskFrameBudget::default();
         let mut mask_segments = std::collections::HashMap::<u64, usize>::new();
         let mut counted_occurrences = std::collections::HashSet::new();
-        let mut draw = |layer_index: usize, at, apply_gain: bool| {
-            let layer = &scene.visual_layers[layer_index];
+        let mut draw = |layer_index: usize,
+                        at,
+                        apply_gain: bool,
+                        query: Option<(
+            crate::evaluated_scene::mattes::QueryFrame,
+            Option<usize>,
+            crate::evaluated_scene::group_compositing::frame::SignedDomain,
+        )>| {
+            let original = &scene.visual_layers[layer_index];
+            let relative;
+            let owner = query.and_then(|(_, owner, _)| owner);
+            let layer = if let Some(owner) = owner {
+                relative =
+                    crate::evaluated_scene::group_compositing::relative_layer(original, owner)?;
+                &relative
+            } else {
+                original
+            };
+            let visible = if let Some(owner) = owner {
+                crate::evaluated_scene::group_compositing::relative_visible_at(
+                    scene,
+                    layer_index,
+                    owner,
+                    at,
+                )?
+            } else {
+                original.visible_at(at)
+            };
             let (mut sampled, crop, effect_stack) = extended_visual::sample(layer, at)?;
-            let result = if !layer.visible_at(at) {
+            let result = if !visible {
                 (Raster::empty(1, 1)?, 0, 0, 1.0f32)
             } else {
                 let (mut raster, density) = match &sampled.source {
@@ -575,9 +856,15 @@ pub(crate) fn prepare(
                         )
                     }
                 };
+                let source_domain = extended_visual::particle_source_domain(
+                    layer,
+                    &sampled,
+                    &effect_stack,
+                    (raster.width as u32, raster.height as u32),
+                )?;
                 let mut budget = 0;
                 crate::evaluated_scene::extended_certification::effect_budget(
-                    (raster.width as u32, raster.height as u32),
+                    source_domain.size,
                     &effect_stack,
                     density,
                     &mut budget,
@@ -593,7 +880,7 @@ pub(crate) fn prepare(
                 }
                 if scene_has_masks {
                     let masks = extended_visual::sampled_masks(layer, at)?;
-                    let first = counted_occurrences.insert((at, layer.item_id.as_str()));
+                    let first = counted_occurrences.insert((at, layer_index));
                     let mut segments = *mask_segments.entry(at).or_default();
                     if first && let EvaluatedVisualSource::Shape(shape) = &sampled.source {
                         segments = segments
@@ -631,17 +918,46 @@ pub(crate) fn prepare(
                 } else {
                     None
                 };
-                let (raster, pad) = effects(raster, &effect_stack, density, bounds)?;
+                let effect_time = extended_visual::leaf_effect_time(layer, at);
+                // Particle emission uses the unpainted source domain. Paint
+                // gutters remain part of the raster and legacy vignette domain.
+                let particle_bounds = source_domain.emission.or(emission_bounds(
+                    &effect_stack,
+                    &sampled.source,
+                    resources.text_layers.get(&layer.item_id),
+                    bounds,
+                )?);
+                let shift = |bounds: Option<[f64; 4]>| {
+                    bounds.map(|[a, b, c, d]| {
+                        [
+                            a - source_domain.origin[0],
+                            b - source_domain.origin[1],
+                            c - source_domain.origin[0],
+                            d - source_domain.origin[1],
+                        ]
+                    })
+                };
+                raster = raster.particle_domain(source_domain)?;
+                let (raster, pad) = effects_in_domain(
+                    raster,
+                    &effect_stack,
+                    density,
+                    shift(bounds),
+                    shift(particle_bounds),
+                    effect_time,
+                )?;
                 // Visit only the conservative transformed support, including
                 // the transparent bilinear border; certification counts the full canvas.
                 let [ma, mb, mc, md, mtx, mty] = affine.matrix;
+                let left_source = source_domain.origin[0] - pad as f64;
+                let top_source = source_domain.origin[1] - pad as f64;
                 let corners = [
-                    (-1.0 - pad as f64, -1.0 - pad as f64),
-                    (raster.width as f64 - pad as f64 + 1.0, -1.0 - pad as f64),
-                    (-1.0 - pad as f64, raster.height as f64 - pad as f64 + 1.0),
+                    (left_source - 1., top_source - 1.),
+                    (left_source + raster.width as f64 + 1., top_source - 1.),
+                    (left_source - 1., top_source + raster.height as f64 + 1.),
                     (
-                        raster.width as f64 - pad as f64 + 1.0,
-                        raster.height as f64 - pad as f64 + 1.0,
+                        left_source + raster.width as f64 + 1.,
+                        top_source + raster.height as f64 + 1.,
                     ),
                 ];
                 let xs = corners.map(|(x, y)| ma * x + mc * y + mtx);
@@ -666,15 +982,32 @@ pub(crate) fn prepare(
                     .fold(f64::NEG_INFINITY, f64::max)
                     .ceil()
                     .clamp(top as f64, canvas.1 as f64) as usize;
+                let (left, top, right, bottom) = query
+                    .map_or((left, top, right, bottom), |(query, _, _)| {
+                        (0, 0, query.size.0 as usize, query.size.1 as usize)
+                    });
                 let mut output = Raster::empty(right - left, bottom - top)?;
-                let [a, b, c, d, tx, ty] = affine.inverse;
+                let inverse = if let Some((query, owner, domain)) = query {
+                    let basis = if owner.is_some() {
+                        [1., 0., 0., 1., domain.origin[0], domain.origin[1]]
+                    } else {
+                        query.matrix()
+                    };
+                    crate::evaluated_scene::multiply_matrix(affine.inverse, basis)
+                } else {
+                    affine.inverse
+                };
+                if inverse.iter().any(|value| !value.is_finite()) {
+                    return Err(invalid("sample query inverse must be finite"));
+                }
+                let [a, b, c, d, tx, ty] = inverse;
                 let opacity = (affine.opacity * layer.transition_gain(at)) as f32;
                 for y in 0..output.height {
                     for x in 0..output.width {
                         let (px, py) = ((x + left) as f64 + 0.5, (y + top) as f64 + 0.5);
                         let mut pixel = raster.bilinear(
-                            a * px + c * py + tx + pad as f64,
-                            b * px + d * py + ty + pad as f64,
+                            a * px + c * py + tx + pad as f64 - source_domain.origin[0],
+                            b * px + d * py + ty + pad as f64 - source_domain.origin[1],
                         );
                         for component in &mut pixel {
                             if apply_gain {
@@ -688,7 +1021,35 @@ pub(crate) fn prepare(
             };
             Ok::<(Raster, usize, usize, f32), CoreError>(result)
         };
-        if scene.composition_resources.is_some() {
+        if scene
+            .aggregates
+            .as_ref()
+            .is_some_and(|graph| !graph.nodes.is_empty())
+        {
+            let program =
+                crate::evaluated_scene::group_compositing::frame::frame_program(scene, at)?;
+            group_compositing::compose(
+                scene,
+                &program,
+                at,
+                &mut composed,
+                &mut |index, time, owner, query, domain| {
+                    let visible = if let Some(owner) = owner {
+                        crate::evaluated_scene::group_compositing::relative_visible_at(
+                            scene, index, owner, time,
+                        )?
+                    } else {
+                        scene.visual_layers[index].visible_at(time)
+                    };
+                    if !visible {
+                        return Ok(matte_sample(Raster::empty(0, 0)?, 0, 0, 1.));
+                    }
+                    let (raster, left, top, gain) =
+                        draw(index, time, false, Some((query, owner, domain)))?;
+                    Ok(matte_sample(raster, left, top, gain))
+                },
+            )?;
+        } else if scene.composition_resources.is_some() {
             let schedule = crate::evaluated_scene::mattes::frame_schedule(scene, at)?;
             super::mattes::compose_frame(&schedule, &mut composed.pixels, &mut |index, time| {
                 let layer = &scene.visual_layers[index];
@@ -704,7 +1065,7 @@ pub(crate) fn prepare(
                         gain: 1.,
                     });
                 }
-                let (raster, left, top, gain) = draw(index, time, false)?;
+                let (raster, left, top, gain) = draw(index, time, false, None)?;
                 Ok(matte_sample(raster, left, top, gain))
             })?;
         } else {
@@ -721,14 +1082,14 @@ pub(crate) fn prepare(
                     };
                 if times.len() == 1 {
                     if layer.visible_at(times[0]) {
-                        let (raster, left, top, _) = draw(layer_index, times[0], true)?;
+                        let (raster, left, top, _) = draw(layer_index, times[0], true, None)?;
                         composed.source_over_at(&raster, left, top)?;
                     }
                 } else {
                     let mut averaged = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
                     let weight = 1.0 / times.len() as f32;
                     for time in times {
-                        let (raster, left, top, _) = draw(layer_index, time, true)?;
+                        let (raster, left, top, _) = draw(layer_index, time, true, None)?;
                         for y in 0..raster.height {
                             for x in 0..raster.width {
                                 let src = raster.pixels[y * raster.width + x];
@@ -771,7 +1132,13 @@ pub(crate) fn prepare(
         input_index: resources.media_inputs.len() + 2,
     });
     resources.media_paths.push(workspace.join(file));
-    if let Some(layer) = scene.visual_layers.first_mut() {
+    if scene
+        .aggregates
+        .as_ref()
+        .is_some_and(|graph| !graph.nodes.is_empty())
+    {
+        scene.composed_input = Some((binding_id, if frame { 0 } else { start }));
+    } else if let Some(layer) = scene.visual_layers.first_mut() {
         layer.sampled_input = Some((binding_id, if frame { 0 } else { start }));
     }
     Ok(())
@@ -1041,5 +1408,246 @@ mod tests {
             [1.0, 0.0, 0.0, 1.0]
         );
         assert!(glowed.pixels[pad * glowed.width + pad + 1][1] > 0.0);
+    }
+}
+
+#[cfg(test)]
+mod overlay_tests {
+    use super::*;
+    use crate::evaluated_scene::extended_visual::SampleTime;
+    fn color() -> crate::VectorColor {
+        crate::VectorColor {
+            r: 0.5,
+            g: 1.0,
+            b: 0.0,
+            a: 0.6,
+        }
+    }
+    #[test]
+    fn independently_pinned_particle_integer_vectors_and_emission_order() {
+        let catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../contracts/group-compositing-v1.json"
+        ))
+        .unwrap();
+        for vector in catalog["hashVectors"].as_array().unwrap() {
+            let seed = vector["seed"].as_u64().unwrap() as u32;
+            let index = vector["index"].as_u64().unwrap() as u16;
+            let (_, lanes) = particle_lanes(256, seed).nth(index as usize).unwrap();
+            for lane in 0..3 {
+                assert_eq!(
+                    u64::from(lanes[lane]),
+                    vector["lanes"][lane].as_u64().unwrap()
+                );
+            }
+            let emitted: Vec<_> = particle_lanes(256, seed).map(|(i, _)| i).collect();
+            assert_eq!(emitted, (0..256).collect::<Vec<u16>>());
+        }
+    }
+    #[test]
+    fn flash_preserves_alpha_and_exact_half_open_original_clock_envelope() {
+        let base = Raster {
+            width: 1,
+            height: 1,
+            pixels: vec![[0.1, 0.2, 0.0, 0.4]],
+        };
+        let effect = VisualEffect::ScreenFlash {
+            id: "flash".into(),
+            start_ms: 100,
+            duration_ms: 400,
+            intensity: 0.8,
+            color: color(),
+        };
+        for (time, strength) in [
+            (SampleTime::Integer(99), 0.0),
+            (
+                SampleTime::Split {
+                    whole: 100,
+                    fraction: -0.25,
+                },
+                0.0,
+            ),
+            (
+                SampleTime::Split {
+                    whole: 500,
+                    fraction: -0.25,
+                },
+                0.0003,
+            ),
+            (SampleTime::Integer(100), 0.48),
+            (SampleTime::Integer(300), 0.24),
+            (
+                SampleTime::Split {
+                    whole: 499,
+                    fraction: 0.5,
+                },
+                0.0006,
+            ),
+            (SampleTime::Integer(500), 0.0),
+            (SampleTime::Integer(u64::MAX), 0.0),
+        ] {
+            let (actual, _) =
+                effects_at(base.clone(), std::slice::from_ref(&effect), 1.0, None, time).unwrap();
+            // Independent IEC transfer numeric constant for encoded .5; no runtime conversion helper.
+            let expected = [
+                0.1 + (0.4 - 0.1) * 0.21404114048223255 * strength,
+                0.2 + (0.4 - 0.2) * strength,
+                0.0,
+                0.4,
+            ];
+            for (actual, expected) in actual.pixels[0].iter().zip(expected) {
+                assert!((f64::from(*actual) - expected).abs() < 1e-6);
+            }
+        }
+        let transparent = Raster {
+            width: 1,
+            height: 1,
+            pixels: vec![[0.; 4]],
+        };
+        assert_eq!(
+            effects_at(
+                transparent.clone(),
+                &[effect],
+                1.,
+                None,
+                SampleTime::Integer(100)
+            )
+            .unwrap()
+            .0,
+            transparent
+        );
+    }
+    #[test]
+    fn particles_keep_high_integer_modulo_exact_and_zero_domains_safe() {
+        let effect = VisualEffect::ParticleOverlay {
+            id: "p".into(),
+            count: 8,
+            seed: 1,
+            radius_px: 1.7,
+            speed_px_per_second: 12.,
+            lifetime_ms: 997,
+            color: color(),
+        };
+        let empty = Raster::empty(32, 24).unwrap();
+        let high = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Integer(u64::MAX),
+        )
+        .unwrap();
+        let reduced = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Integer(u64::MAX % 997),
+        )
+        .unwrap();
+        assert_eq!(high, reduced);
+        let split = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Split {
+                whole: u64::MAX,
+                fraction: 0.25,
+            },
+        )
+        .unwrap();
+        let reduced_split = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Split {
+                whole: u64::MAX % 997,
+                fraction: 0.25,
+            },
+        )
+        .unwrap();
+        assert_eq!(split, reduced_split);
+        let negative_split = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Split {
+                whole: 997,
+                fraction: -0.25,
+            },
+        )
+        .unwrap();
+        let euclidean = effects_at(
+            empty.clone(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            SampleTime::Fractional(996.75),
+        )
+        .unwrap();
+        assert_eq!(negative_split, euclidean);
+        let zero = effects_at(
+            empty.clone(),
+            &[effect],
+            2.,
+            Some([0., 0., 0., 24.]),
+            SampleTime::Integer(u64::MAX),
+        )
+        .unwrap();
+        assert!(zero.0.pixels.iter().all(|pixel| *pixel == [0.; 4]));
+    }
+}
+
+#[cfg(test)]
+pub(super) fn assert_text_particle_domain(
+    a: &crate::render_plan::PreparedText,
+    ashaped: &crate::fonts::shaping::ShapedText,
+    b: &crate::render_plan::PreparedText,
+    bshaped: &crate::fonts::shaping::ShapedText,
+    text: &crate::evaluated_scene::EvaluatedText,
+) {
+    let effect = VisualEffect::ParticleOverlay {
+        id: "text-domain".into(),
+        count: 64,
+        seed: 173,
+        radius_px: 1.25,
+        speed_px_per_second: 16.,
+        lifetime_ms: 997,
+        color: crate::VectorColor {
+            r: 1.,
+            g: 0.,
+            b: 0.,
+            a: 0.6,
+        },
+    };
+    let render = |p: &crate::render_plan::PreparedText,
+                  shaped: &crate::fonts::shaping::ShapedText| {
+        let mut text = text.clone();
+        text.shaped = Some(shaped.clone());
+        let source = EvaluatedVisualSource::Text(Box::new(text));
+        let domain =
+            emission_bounds(std::slice::from_ref(&effect), &source, Some(p), None).unwrap();
+        effects_in_domain(
+            Raster::empty(p.layer_width as usize, p.layer_height as usize).unwrap(),
+            std::slice::from_ref(&effect),
+            1.,
+            None,
+            domain,
+            extended_visual::SampleTime::Integer(193),
+        )
+        .unwrap()
+    };
+    let (ra, pad) = render(a, ashaped);
+    let (rb, _) = render(b, bshaped);
+    assert!(ra.pixels.iter().any(|p| p[3] > 0.));
+    for y in 0..ashaped.height.ceil() as usize {
+        for x in 0..ashaped.width.ceil() as usize {
+            assert_eq!(
+                ra.pixels[(y + a.text_y as usize + pad) * ra.width + x + a.text_x as usize + pad],
+                rb.pixels[(y + b.text_y as usize + pad) * rb.width + x + b.text_x as usize + pad]
+            );
+        }
     }
 }

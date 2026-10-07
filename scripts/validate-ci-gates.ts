@@ -71,7 +71,10 @@ cargo build -p opencut-headless
 bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/ordered-effect-native.test.ts
 cargo test -p opencut-editor-core --test parameterized_effects_native -- --nocapture
 cargo build -p opencut-headless
-bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts`;
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts
+cargo test -p opencut-editor-core --test group_compositing_native -- --nocapture
+cargo build -p opencut-headless
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts`;
 
 const NATIVE_CACHE_COMMAND = `cargo test -p opencut-editor-core --lib raster_cach
 cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker

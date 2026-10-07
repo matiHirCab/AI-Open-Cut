@@ -1,0 +1,295 @@
+{
+  "status": "planned_only_no_implementation_or_test_pass_claim",
+  "requirements": [
+    {
+      "capability": "blend-modes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Seven premultiplied linear destination blend equations",
+      "scenarios": [
+        "Match independent translucent and transparent unit equations",
+        "Correct accepted near-alpha roundoff before division",
+        "Preserve actual opaque black background",
+        "Distinguish transparent controlled and opaque root destinations"
+      ]
+    },
+    {
+      "capability": "blend-modes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "One final blend per owning evaluated occurrence",
+      "scenarios": [
+        "Distinguish source averaging from averaging nonlinear blend",
+        "Blend multiline Caption as one source occurrence",
+        "Observe order and inherited stage effects",
+        "Retain one child blend inside explicit isolation"
+      ]
+    },
+    {
+      "capability": "blend-modes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Bounded fail-closed blend execution and normal identity",
+      "scenarios": [
+        "Preserve exact normal and reject bounded overflow",
+        "Activate shared bounded resources without a provider graph",
+        "Preserve provider-only accounting and completed owner facts",
+        "Preserve original destination until infallible commit",
+        "Retain bounded blend closure through controlled draws"
+      ]
+    },
+    {
+      "capability": "contract-governance",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Active mask authoring contract and capability",
+      "scenarios": [
+        "Detect supported mask models through unavailable rendering",
+        "Reject cross-language catalog drift",
+        "Synchronize current catalog schema markers without feature drift",
+        "Match active authoring and matte schema contracts",
+        "Synchronize schema37 without historical drift"
+      ]
+    },
+    {
+      "capability": "contract-governance",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Bounded exact MCP predecessor conformance proof",
+      "scenarios": [
+        "Preserve the complete current and predecessor proof",
+        "Preserve malformed and unrelated drift rejection",
+        "Preserve fresh own-key JSON copies within bounded proof",
+        "Reject broadened group predecessor projection"
+      ]
+    },
+    {
+      "capability": "contract-governance",
+      "operation": "ADDED Requirements",
+      "requirement": "Governed group compositing and overlay parity",
+      "scenarios": [
+        "Discover model versus complete renderer support",
+        "Detect exact registered cross-language drift"
+      ]
+    },
+    {
+      "capability": "linear-light-compositing",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Explicit current layer pipeline",
+      "scenarios": [
+        "Observe crop effects and affine ordering",
+        "Blend mixed current sources in evaluated order",
+        "Preserve absent-stage defaults",
+        "Activate authored masks before effects",
+        "Activate isolated matte after transforms",
+        "Activate linear blend after source shutter averaging",
+        "Compose explicit controlled linear aggregates"
+      ]
+    },
+    {
+      "capability": "motion-blur-sampling",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Canonical deterministic shutter interval",
+      "scenarios": [
+        "Sample inherited boundaries",
+        "Clamp the timeline boundaries",
+        "Floor exact midpoint boundaries for every allowed count",
+        "Freeze only explicit aggregate outward ancestry"
+      ]
+    },
+    {
+      "capability": "motion-blur-sampling",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Shared bounded temporal composition",
+      "scenarios": [
+        "Preserve full inherited motion and ordering",
+        "Bound work and preserve output",
+        "Preserve audio and compatibility",
+        "Preserve controlled nested shutter all-intent parity"
+      ]
+    },
+    {
+      "capability": "motion-graphics-architecture",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Normative coordinate and compositing semantics",
+      "scenarios": [
+        "Resolve equal z-index layers",
+        "Evaluate an inherited visual",
+        "Distinguish current and future pipeline stages",
+        "Preserve active defaults and complete readiness",
+        "Keep scope occurrence and paint order independent",
+        "Keep Caption source assembly as one blend unit",
+        "Distinguish isolated and root blend backdrops"
+      ]
+    },
+    {
+      "capability": "motion-graphics-architecture",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Canonical group ancestor evaluation",
+      "scenarios": [
+        "Evaluate nested transforms independently",
+        "Apply visibility and intervals",
+        "Preserve ordering and legacy behavior",
+        "Inherit animated ancestors and staggered clocks",
+        "Preserve defaults and activate explicit group blocks"
+      ]
+    },
+    {
+      "capability": "motion-graphics-architecture",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Hierarchical instance transforms and stacking",
+      "scenarios": [
+        "Resolve nested coordinates and order",
+        "Preserve shared evaluation and overflow behavior",
+        "Distinguish nested isolated instance stages"
+      ]
+    },
+    {
+      "capability": "motion-graphics-architecture",
+      "operation": "ADDED Requirements",
+      "requirement": "Certified controlled aggregate evaluation",
+      "scenarios": [
+        "Retain signed offcanvas support before culling",
+        "Reject exact count work capacity and geometry overflow"
+      ]
+    },
+    {
+      "capability": "project-persistence",
+      "operation": "ADDED Requirements",
+      "requirement": "Atomic schema37 aggregate and overlay activation",
+      "scenarios": [
+        "Migrate complete authentic generations without controls",
+        "Reject premature malformed or future generations"
+      ]
+    },
+    {
+      "capability": "project-persistence",
+      "operation": "ADDED Requirements",
+      "requirement": "Source-matched aggregate drafts and complete recovery",
+      "scenarios": [
+        "Validate matched drafts and preserve unmatched disposition",
+        "Recover all applicable interrupted boundaries"
+      ]
+    },
+    {
+      "capability": "rendering-export",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Independent public ordered-effect render lifecycle evidence",
+      "scenarios": [
+        "Render both orders through all intents",
+        "Reorder undo redo and reopen through public native operations",
+        "Preserve draft component and scoped channel clock semantics",
+        "Preserve independently predicted expanded effect support"
+      ]
+    },
+    {
+      "capability": "rendering-export",
+      "operation": "ADDED Requirements",
+      "requirement": "Independent group overlay render-intent conformance",
+      "scenarios": [
+        "Prove positive all-intent plates and audio",
+        "Fail complete readiness and output admission"
+      ]
+    },
+    {
+      "capability": "repository-validation",
+      "operation": "ADDED Requirements",
+      "requirement": "Mandatory native group compositing CI conformance",
+      "scenarios": [
+        "Execute actual aggregate and overlay artifacts",
+        "Reject weakened group native execution"
+      ]
+    },
+    {
+      "capability": "timeline-editing",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Non-drawing group timeline nodes",
+      "scenarios": [
+        "Create and edit a group",
+        "Reject unsupported group edits",
+        "Duplicate a node",
+        "Duplicate and ungroup controlled nodes reversibly"
+      ]
+    },
+    {
+      "capability": "track-mattes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Isolated premultiplied provider coverage",
+      "scenarios": [
+        "Distinguish colored alpha luma and stage order",
+        "Use matte-only and inactive providers",
+        "Separate private providers from aggregate drawing"
+      ]
+    },
+    {
+      "capability": "track-mattes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Deterministic occurrence and sampled matte semantics",
+      "scenarios": [
+        "Bind two component occurrences and staggered copies",
+        "Distinguish overlapping copy averaging order",
+        "Preserve nested shutter and exact clock sampling",
+        "Query certified offcanvas provider domains"
+      ]
+    },
+    {
+      "capability": "track-mattes",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Preflight matte work and live memory",
+      "scenarios": [
+        "Reject work memory and nested multiplicity overflow",
+        "Preserve exact absence and complete readiness",
+        "Preserve existing mask reservations under dependency reuse",
+        "Reject invalid premultiplied provider data",
+        "Certify aggregate query memory and multiplicity"
+      ]
+    },
+    {
+      "capability": "visual-effects",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Bounded authored effect stacks",
+      "scenarios": [
+        "Edit bounded effects transactionally",
+        "Reject invalid stacks and references",
+        "Preserve omission clear and stable target identity",
+        "Keep aggregate and overlay target activation finite"
+      ]
+    },
+    {
+      "capability": "visual-effects",
+      "operation": "MODIFIED Requirements",
+      "requirement": "Canonical effect composition",
+      "scenarios": [
+        "Preserve ordered effects and anchors",
+        "Prove independent nonexpanding effect order",
+        "Fail bounded work without side effects",
+        "Preserve identity and encoded-color interpretation",
+        "Distinguish aggregate effects and clip order"
+      ]
+    },
+    {
+      "capability": "visual-effects",
+      "operation": "ADDED Requirements",
+      "requirement": "Bounded coverage-preserving screen flash",
+      "scenarios": [
+        "Prove envelope color and coverage independently",
+        "Reject malformed flash atomically"
+      ]
+    },
+    {
+      "capability": "visual-effects",
+      "operation": "ADDED Requirements",
+      "requirement": "Bounded deterministic particle overlay",
+      "scenarios": [
+        "Prove hash clocks coverage and stacking independently",
+        "Distinguish particle stack order and identities",
+        "Reject finite bounds and excessive sampled work"
+      ]
+    },
+    {
+      "capability": "visual-effects",
+      "operation": "ADDED Requirements",
+      "requirement": "Explicit bounded composition clip",
+      "scenarios": [
+        "Author preserve clear and restore spatial clip",
+        "Reject unsupported or malformed clipping atomically",
+        "Retain density ownership and degenerate identity"
+      ]
+    }
+  ]
+}

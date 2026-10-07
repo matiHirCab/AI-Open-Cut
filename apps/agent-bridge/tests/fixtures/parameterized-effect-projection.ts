@@ -1,3 +1,7 @@
+import {
+  removeGroupMcpAdditions,
+  restoreGroupCatalogMarker,
+} from "./group-compositing-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import addition from "./parameterized-effect-addition.json";
 import pins from "./parameterized-effect-predecessor-pins.json";
@@ -12,7 +16,7 @@ const object = (value: unknown): RecordValue => {
 export const PARAMETERIZED_PREDECESSOR_PINS: Record<string, string> = pins;
 // This marker-only step composes historical negative controls. The strict
 // public predecessor proof below separately pins every complete current catalog.
-export const restoreParameterizedCatalogMarker = (
+export const restoreSchema36ParameterizedCatalogMarker = (
   source: unknown
 ): RecordValue => {
   const input = object(source);
@@ -23,14 +27,14 @@ export const restoreParameterizedCatalogMarker = (
   }
   return { ...structuredClone(input), projectSchemaVersion: 35 };
 };
-export const projectParameterizedCatalogPredecessor = (
+export const projectSchema36ParameterizedCatalogPredecessor = (
   name: string,
   source: unknown
 ): RecordValue => {
   if (!Object.hasOwn(PARAMETERIZED_PREDECESSOR_PINS, name)) {
     throw new Error("Unapproved parameterized-effect predecessor catalog");
   }
-  const projected = restoreParameterizedCatalogMarker(source);
+  const projected = restoreSchema36ParameterizedCatalogMarker(source);
   if (orderedEffectDigest(projected) !== PARAMETERIZED_PREDECESSOR_PINS[name]) {
     throw new Error("Unrelated verified predecessor catalog drift");
   }
@@ -63,7 +67,7 @@ const parentAt = (source: RecordValue, path: string[]) => {
   }
   return { key, parent };
 };
-export const projectParameterizedMcpPredecessor = (
+export const projectSchema36ParameterizedMcpPredecessor = (
   source: unknown
 ): RecordValue => {
   const input = object(source);
@@ -110,3 +114,22 @@ export const projectParameterizedMcpPredecessor = (
   }
   return projected;
 };
+
+// Current37 must first pass the issue56 exact additions/marker proof. Historical
+// issue55 logic and pins remain unchanged and separately callable on verified36.
+export const restoreParameterizedCatalogMarker = (
+  source: unknown
+): RecordValue =>
+  restoreSchema36ParameterizedCatalogMarker(restoreGroupCatalogMarker(source));
+export const projectParameterizedCatalogPredecessor = (
+  name: string,
+  source: unknown
+): RecordValue =>
+  projectSchema36ParameterizedCatalogPredecessor(
+    name,
+    restoreGroupCatalogMarker(source)
+  );
+export const projectParameterizedMcpPredecessor = (
+  source: unknown
+): RecordValue =>
+  projectSchema36ParameterizedMcpPredecessor(removeGroupMcpAdditions(source));

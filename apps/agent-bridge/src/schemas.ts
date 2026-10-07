@@ -27,6 +27,9 @@ export const motionBlurSchema = z.strictObject({
   sampleCount: z.int().min(1).max(16),
   shutterAngleDeg: finite.min(0).max(360),
 });
+export const compositionClipSchema = z.strictObject({
+  type: z.literal("composition_bounds"),
+});
 export const mediaCropSchema = z.strictObject({
   height: finite.positive().max(1),
   width: finite.positive().max(1),
@@ -68,6 +71,24 @@ export const visualEffectSchema = z.discriminatedUnion("type", [
     id,
     saturation: finite.min(0).max(2),
     type: z.literal("color_adjustment"),
+  }),
+  z.strictObject({
+    color: effectColorSchema,
+    durationMs: z.int().min(1).max(60_000),
+    id,
+    intensity: finite.min(0).max(1),
+    startMs: z.int().min(0).max(60_000),
+    type: z.literal("screen_flash"),
+  }),
+  z.strictObject({
+    color: effectColorSchema,
+    count: z.int().min(0).max(256),
+    id,
+    lifetimeMs: z.int().min(1).max(60_000),
+    radiusPx: finite.min(0).max(16),
+    seed: z.int().min(0).max(4_294_967_295),
+    speedPxPerSecond: finite.min(0).max(1024),
+    type: z.literal("particle_overlay"),
   }),
 ]);
 const markerIdentifier = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/);
@@ -655,7 +676,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(36).optional(),
+    projectSchemaVersion: z.literal(37).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1130,6 +1151,7 @@ const mediaItemSchema = z
     assetId: id,
     audio: audioSchema,
     blendMode: blendModeSchema.optional(),
+    clip: compositionClipSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1158,6 +1180,7 @@ const textItemSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     blendMode: blendModeSchema.optional(),
+    clip: compositionClipSchema.optional(),
     color: z.string(),
     crop: mediaCropSchema.optional(),
     document: z.lazy(() => richTextDocumentSchema),
@@ -1193,6 +1216,7 @@ const solidColorItemSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     blendMode: blendModeSchema.optional(),
+    clip: compositionClipSchema.optional(),
     color,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1258,6 +1282,7 @@ const repeaterItemSchema = z.strictObject({
   animationChannels: z.array(animationChannelSchema).max(64).optional(),
   animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
   blendMode: z.literal("normal").optional(),
+  clip: compositionClipSchema.optional(),
   crop: mediaCropSchema.optional(),
   durationMs: positiveMilliseconds,
   effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1307,6 +1332,7 @@ const captionItemSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     blendMode: blendModeSchema.optional(),
+    clip: compositionClipSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1355,6 +1381,7 @@ const transitionItemSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     blendMode: z.literal("normal").optional(),
+    clip: compositionClipSchema.optional(),
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
     effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1385,6 +1412,7 @@ const baseTimelineItemSchema = z.discriminatedUnion("type", [
       animationChannels: z.array(animationChannelSchema).max(64).optional(),
       animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
       blendMode: z.literal("normal").optional(),
+      clip: compositionClipSchema.optional(),
       crop: mediaCropSchema.optional(),
       durationMs: positiveMilliseconds,
       effects: z.array(visualEffectSchema).max(16).optional(),
@@ -1579,6 +1607,7 @@ export const componentInstanceSchema = z
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     blendMode: z.literal("normal").optional(),
+    clip: compositionClipSchema.optional(),
     componentId: id,
     crop: mediaCropSchema.optional(),
     durationMs: positiveMilliseconds,
@@ -1821,7 +1850,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(36),
+        schemaVersion: z.literal(37),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2129,6 +2158,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
   z
     .object({
       blendMode: blendModeSchema.optional(),
+      clip: compositionClipSchema.nullable().optional(),
       color: color.optional(),
       crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),
@@ -2668,6 +2698,7 @@ export const schemas = {
   timelineUpdateItem: projectRevisionSchema
     .extend({
       blendMode: blendModeSchema.optional(),
+      clip: compositionClipSchema.nullable().optional(),
       color: color.optional(),
       crop: mediaCropSchema.optional(),
       document: richTextDocumentSchema.optional(),

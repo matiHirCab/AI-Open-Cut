@@ -324,6 +324,38 @@ mod tests {
     }
 
     #[test]
+    fn particles_use_unpainted_text_bounds_across_support_only_style_changes() {
+        let (shaped, faces, mut text) = sample();
+        let base = super::super::measure(shaped.clone(), &text, &faces).unwrap();
+        text.style.outline_width_px = 7;
+        text.style.shadow.offset_x = -12;
+        text.style.shadow.offset_y = 9;
+        text.style.shadow.opacity = 0.7;
+        let decorated = super::super::measure(shaped, &text, &faces).unwrap();
+        let a = &base.shaped.as_ref().unwrap().0;
+        let b = &decorated.shaped.as_ref().unwrap().0;
+        assert_eq!((a.width, a.height), (b.width, b.height));
+        let delta = (
+            f64::from(decorated.prepared.text_x) - f64::from(base.prepared.text_x),
+            f64::from(decorated.prepared.text_y) - f64::from(base.prepared.text_y),
+        );
+        for (old, new) in a.glyphs.iter().zip(&b.glyphs) {
+            assert_eq!((new.x - old.x, new.y - old.y), delta);
+        }
+        assert!(decorated.prepared.layer_width > base.prepared.layer_width);
+        assert!(decorated.prepared.layer_height > base.prepared.layer_height);
+        // Pin actual particle output after compensating only the certified paint
+        // origin. Full-raster fallback changes the emission width and fails this.
+        super::super::super::extended_visual::assert_text_particle_domain(
+            &base.prepared,
+            a,
+            &decorated.prepared,
+            b,
+            &text,
+        );
+    }
+
+    #[test]
     fn invisible_span_preserves_legacy_pixels_across_colors_faces_and_rtl() {
         for runs in [
             serde_json::json!([{"text":"AV "}]),

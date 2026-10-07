@@ -97,3 +97,18 @@ bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matt
 ```
 
 The unchanged six-key environment supplies FFmpeg, FFprobe, font, both required native flags and the golden report path. The default headless build precedes the actual MCP artifact test; its ordinary opt-in skip is not native evidence. The exact protected command validator rejects omission, substitution, successful failure masking and an instrumented build. Existing native/raster-cache commands, default restoration, reports, step sequence, timeouts and duration budgets remain unchanged. These commands require actual execution on the PR head; their presence alone is not a native pass.
+
+The same native step now appends group-compositing proof immediately after the
+parameterized-effects proof and before the unchanged cache step:
+
+```sh
+cargo test -p opencut-editor-core --test group_compositing_native -- --nocapture
+cargo build -p opencut-headless
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts
+```
+
+Ten additional negative controls enforce these three commands and the default
+headless build. All previous controls and the six-key environment are retained.
+See [group compositing](group-compositing.md) for the independent plate and
+lifecycle witnesses; mandatory configured execution is separate from hermetic
+unit-test skips.

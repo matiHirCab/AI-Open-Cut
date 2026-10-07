@@ -1,0 +1,688 @@
+{
+  "reviewer": "/root/review56_final",
+  "scope": "independent read-only final evidence, conformance, documentation, helper safeguards and prerequisite preservation review",
+  "at": "2026-10-07T01:39:01.405506+00:00",
+  "decision": "CLEARED_FOR_OWN_ONLY_SYNC_ARCHIVE",
+  "openFindings": [],
+  "resolvedFindings": [
+    "Corrected density/degenerate scenario requirement owner; exact101tuple equality enforced",
+    "Expanded frozen documentation coverage from7corrections to11total reviewed documents"
+  ],
+  "requiredSuites": {
+    "reviewed-v3-track-matte-native": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 5,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test native_component_local_mattes_bind_two_occurrences_and_original_clocks_all_intents ... ok",
+        "test native_alpha_luma_chain_hidden_offscreen_mask_effect_affine_and_audio_all_intents ... ok",
+        "test native_pinned_text_provider_real_fitting_and_glyph_interior_all_intents ... ok",
+        "test native_repeater_copy_shutters_before_aggregate_and_nested_recipient_shutter_all_intents ... ok",
+        "test native_asymmetric_crop_normalized_masks_and_matte_only_video_preserve_audio_all_intents ... ok",
+        "",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.14s",
+        ""
+      ]
+    },
+    "reviewed-v3-blend-native": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 9,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test native_public_noncommuting_reorder_draft_commit_undo_redo_reopen_all_intents ... ok",
+        "test native_real_shutter_source_average_precedes_nonlinear_add_once ... ok",
+        "test native_repeater_and_component_leaves_retain_individual_modes_without_container_isolation ... ok",
+        "test native_provider_blend_is_coverage_independent_and_only_visible_direct_draw_changes ... ok",
+        "test native_seven_modes_full_independent_plate_draft_history_reopen_range_export_audio ... ok",
+        "",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.42s",
+        ""
+      ]
+    },
+    "reviewed-v3-ordered-native": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 3,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "",
+        "running 3 tests",
+        "test independent_primary_and_expanded_order_plates_preserve_exact_anchor_support_and_color_domain ... ok",
+        "test native_component_scoped_effect_ids_keep_original_clock_after_reorder_and_ancestor_translation ... ok",
+        "test native_ordered_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock ... ok",
+        "",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.37s",
+        ""
+      ]
+    },
+    "reviewed-v3-parameterized-native": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 3,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "",
+        "running 3 tests",
+        "test independent_parameterized_color_identity_final_clamp_order_and_positive_gaussian_plates ... ok",
+        "test native_parameterized_component_scoped_effect_ids_keep_original_clock_after_reorder_and_ancestor_translation ... ok",
+        "test native_parameterized_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock ... ok",
+        "",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.91s",
+        ""
+      ]
+    },
+    "reviewed-v3-group-native": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 6,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test independent_complete_flash_particle_positive_gaussian_and_noncommuting_order_plates ... ok",
+        "test nested_repeated_instances_use_definition_basis_noncentral_pivots_scoped_ids_and_one_outer_gain ... ok",
+        "test animated_controlled_outward_translation_rotation_and_zero_gain_are_frozen_across_child_shutter_intents ... ok",
+        "test group_compositing_public_intents_drafts_history_original_clock_grid_duration_and_positive_pcm ... ok",
+        "test signed_private_provider_excludes_owner_halo_and_uses_full_world_unequal_shutters_and_opacity ... ok",
+        "",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.39s",
+        ""
+      ]
+    },
+    "reviewed-v3-rust-fmt": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": []
+    },
+    "reviewed-v3-rust-clippy": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "    Checking opencut-editor-core v0.1.0 (/workspace/AI-Open-Cut/crates/editor-core)",
+        "    Checking opencut-headless v0.1.0 (/workspace/AI-Open-Cut/apps/headless)",
+        "    Checking opencut-desktop v0.1.0 (/workspace/AI-Open-Cut/apps/desktop)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 23.81s",
+        "warning: the following packages contain code that will be rejected by a future version of Rust: proc-macro-error2 v2.0.1",
+        "note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`"
+      ]
+    },
+    "reviewed-v3-rust-workspace": {
+      "exit": 0,
+      "rustCompletedBinaries": 60,
+      "rustPassingResults": 1313,
+      "rustIgnoredResults": 9,
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s",
+        "",
+        "   Doc-tests opencut_editor_core",
+        "",
+        "running 0 tests",
+        "",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        ""
+      ]
+    },
+    "reviewed-v3-release-native-golden": {
+      "exit": 0,
+      "rustCompletedBinaries": 46,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "",
+        "     Running tests/vector_primitives.rs (target/release/deps/vector_primitives-c13d8ba1e12846d4)",
+        "",
+        "running 0 tests",
+        "",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        ""
+      ]
+    },
+    "reviewed-v3-golden-report": {
+      "exit": 0,
+      "rustCompletedBinaries": 46,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "",
+        "     Running tests/vector_primitives.rs (target/debug/deps/vector_primitives-5049f01e09cea91d)",
+        "",
+        "running 0 tests",
+        "",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        ""
+      ]
+    },
+    "reviewed-v3-rules-960x540": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "rules_screen timing size=960x540 state=reopened operation=final_export elapsed_ms=1677",
+        "rules_screen timing size=960x540 state=reopened operation=state_total elapsed_ms=8528",
+        "rules_screen timing size=960x540 operation=resolution_total elapsed_ms=43534",
+        "rules_screen size=960x540 peak_process_tree_bytes=249319424",
+        "test renderer::golden::rules_screen::native_rules_screen_resolution_conformance ... ok",
+        "",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 43.77s",
+        ""
+      ]
+    },
+    "reviewed-v3-rules-1280x720": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "rules_screen timing size=1280x720 state=reopened operation=final_export elapsed_ms=2710",
+        "rules_screen timing size=1280x720 state=reopened operation=state_total elapsed_ms=12272",
+        "rules_screen timing size=1280x720 operation=resolution_total elapsed_ms=61713",
+        "rules_screen size=1280x720 peak_process_tree_bytes=365088768",
+        "test renderer::golden::rules_screen::native_rules_screen_resolution_conformance ... ok",
+        "",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 62.11s",
+        ""
+      ]
+    },
+    "reviewed-v3-rules-1920x1080": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "rules_screen timing size=1920x1080 state=redone operation=state_total elapsed_ms=26",
+        "rules_screen timing size=1920x1080 state=reopened operation=state_total elapsed_ms=19",
+        "rules_screen timing size=1920x1080 operation=resolution_total elapsed_ms=44295",
+        "rules_screen size=1920x1080 peak_process_tree_bytes=588197888",
+        "test renderer::golden::rules_screen::native_rules_screen_resolution_conformance ... ok",
+        "",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 44.44s",
+        ""
+      ]
+    },
+    "reviewed-v3-typecheck": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "$ tsc --noEmit"
+      ]
+    },
+    "reviewed-v3-lint": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "$ ultracite check src tests",
+        "Checked 130 files in 5s. No fixes applied."
+      ]
+    },
+    "reviewed-v3-unit": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        " RUN  v4.1.11 /workspace/AI-Open-Cut/apps/agent-bridge",
+        "",
+        "",
+        " Test Files  40 passed | 7 skipped (47)",
+        "      Tests  577 passed | 7 skipped (584)",
+        "   Start at  01:10:26",
+        "   Duration  30.55s (transform 932ms, setup 0ms, import 7.14s, tests 18.47s, environment 4ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-default-build": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "   Compiling opencut-editor-core v0.1.0 (/workspace/AI-Open-Cut/crates/editor-core)",
+        "   Compiling opencut-headless v0.1.0 (/workspace/AI-Open-Cut/apps/headless)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.48s"
+      ]
+    },
+    "reviewed-v3-protocol-parameterized": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s",
+        "     Running tests/protocol.rs (target/debug/deps/protocol-2f4589c3b1b3f237)",
+        "",
+        "running 1 test",
+        "test parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract ... ok",
+        "",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.47s",
+        ""
+      ]
+    },
+    "reviewed-v3-protocol-group": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 1,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s",
+        "     Running tests/protocol.rs (target/debug/deps/protocol-2f4589c3b1b3f237)",
+        "",
+        "running 1 test",
+        "test group_compositing_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract ... ok",
+        "",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 1.25s",
+        ""
+      ]
+    },
+    "reviewed-v3-protocol-matte": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 3,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "",
+        "running 3 tests",
+        "test canonical_raw_matte_duplicates_reject_single_batch_and_draft_atomically ... ok",
+        "test matte_aliases_scoped_graph_and_final_atomic_provider_deletion_roundtrip ... ok",
+        "test stale_matte_draft_preview_conflicts_without_artifacts_or_replaying_current ... ok",
+        "",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.08s",
+        ""
+      ]
+    },
+    "reviewed-v3-contracts": {
+      "exit": 0,
+      "rustCompletedBinaries": 20,
+      "rustPassingResults": 340,
+      "rustIgnoredResults": 0,
+      "summary": [
+        " RUN  v4.1.11 /workspace/AI-Open-Cut/apps/agent-bridge",
+        "",
+        "",
+        " Test Files  23 passed (23)",
+        "      Tests  436 passed (436)",
+        "   Start at  01:16:19",
+        "   Duration  8.75s (transform 1.13s, setup 0ms, import 5.06s, tests 17.52s, environment 2ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-matte": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":1092,\"jobId\":\"a6aaf7b4-6d73-48ba-850c-66c53907de75\",\"operation\":\"preview_range\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:16:40.293Z\"}",
+        "Referenced matteOnly Media audio: PCM bytes=192512, RMS=0.08816269192337593, frames=10, duration=1.000000, audioStart=0.000000, audioDuration=1.000000",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:16:28",
+        "   Duration  12.49s (transform 138ms, setup 0ms, import 306ms, tests 12.07s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-blend": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":218,\"operation\":\"render_preview\",\"requestId\":\"0597f125-f63f-414d-9dcf-f5fed90f2046\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:06.541Z\"}",
+        "{\"durationMs\":219,\"jobId\":\"75f1b96b-c326-46c8-a431-ea4e68b10be2\",\"operation\":\"preview\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:06.541Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:16:41",
+        "   Duration  25.69s (transform 122ms, setup 0ms, import 297ms, tests 25.28s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-mask": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":209,\"operation\":\"render_preview\",\"requestId\":\"c2a98bdc-dc8f-4237-b902-c9870e42f08d\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:10.825Z\"}",
+        "{\"durationMs\":210,\"jobId\":\"46778ea1-fe3c-49d0-87f8-936a0c59c2c6\",\"operation\":\"preview\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:10.825Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:17:07",
+        "   Duration  3.73s (transform 116ms, setup 0ms, import 289ms, tests 3.34s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-ordered": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":204,\"operation\":\"render_preview\",\"requestId\":\"c6701037-1a04-4b44-b622-33684796e0e6\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:18.207Z\"}",
+        "{\"durationMs\":204,\"jobId\":\"de6cad4d-d5c4-4c34-8af1-4d75305cda5f\",\"operation\":\"preview\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:18.207Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:17:11",
+        "   Duration  7.17s (transform 171ms, setup 0ms, import 374ms, tests 6.68s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-parameterized": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":225,\"operation\":\"render_preview\",\"requestId\":\"d1f84018-845c-436f-bad0-b82ed1f57a34\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:26.833Z\"}",
+        "{\"durationMs\":225,\"jobId\":\"1eca58ee-d839-4615-b94a-7057c4f1871c\",\"operation\":\"preview\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:26.834Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:17:18",
+        "   Duration  8.42s (transform 115ms, setup 0ms, import 294ms, tests 8.03s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-native-mcp-group": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"durationMs\":245,\"operation\":\"render_preview\",\"requestId\":\"084c5386-38d2-47cc-ac32-bb0870a92a6d\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:40.647Z\"}",
+        "{\"durationMs\":246,\"jobId\":\"baa3fe86-539e-4e63-b19a-83c64db47318\",\"operation\":\"preview\",\"status\":\"completed\",\"event\":\"job.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:17:40.647Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:17:27",
+        "   Duration  13.46s (transform 156ms, setup 0ms, import 348ms, tests 13.00s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-smoke": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"operation\":\"open_project\",\"requestId\":\"7f9d89ea-28c1-43e0-9222-3af97c219395\",\"event\":\"headless.request.started\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:37:50.322Z\"}",
+        "{\"durationMs\":2,\"operation\":\"open_project\",\"requestId\":\"7f9d89ea-28c1-43e0-9222-3af97c219395\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:37:50.325Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  20 passed (20)",
+        "   Start at  01:37:15",
+        "   Duration  34.35s (transform 703ms, setup 0ms, import 953ms, tests 33.28s, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-python": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "............",
+        "----------------------------------------------------------------------",
+        "Ran 12 tests in 0.080s",
+        "",
+        "OK",
+        ".....                                                                    [100%]",
+        "5 passed in 0.06s"
+      ]
+    },
+    "reviewed-v3-raster-core": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 16,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "test renderer::tests::raster_caching::warm_cache_preserves_preflight_errors_and_cleanup ... ok",
+        "test renderer::tests::raster_caching::warm_preflight_matches_cold_across_routes_before_any_lookup ... ok",
+        "test renderer::tests::raster_caching::warm_cache_drafts_revisions_history_and_reopen ... ok",
+        "test renderer::golden::raster_caching::native_raster_cache_all_routes_conformance ... ok",
+        "test renderer::tests::raster_caching::valid_dependency_variants_match_fresh_and_keep_unrelated_keys ... ok",
+        "",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 637 filtered out; finished in 12.15s",
+        ""
+      ]
+    },
+    "reviewed-v3-raster-worker": {
+      "exit": 0,
+      "rustCompletedBinaries": 1,
+      "rustPassingResults": 4,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "running 4 tests",
+        "test additive_review_fixture_preserves_legacy_request_positions ... ok",
+        "test worker_rejects_mutations_and_keeps_typed_errors_correlated ... ok",
+        "test native_sampled_encoder_failure_is_safe_on_the_headless_wire ... ok",
+        "test native_worker_reuses_rasters_across_requests_and_restarts_cold ... ok",
+        "",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.41s",
+        ""
+      ]
+    },
+    "reviewed-v3-raster-worker-build": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "   Compiling opencut-editor-core v0.1.0 (/workspace/AI-Open-Cut/crates/editor-core)",
+        "   Compiling opencut-headless v0.1.0 (/workspace/AI-Open-Cut/apps/headless)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 20.47s"
+      ]
+    },
+    "reviewed-v3-raster-public": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        " RUN  v4.1.11 /workspace/AI-Open-Cut/apps/agent-bridge",
+        "",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)",
+        "   Start at  01:22:48",
+        "   Duration  1.18s (transform 84ms, setup 0ms, import 167ms, tests 829ms, environment 0ms)",
+        ""
+      ]
+    },
+    "reviewed-v3-default-headless-build": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s"
+      ]
+    },
+    "reviewed-v3-default-headless-tests": {
+      "exit": 0,
+      "rustCompletedBinaries": 3,
+      "rustPassingResults": 60,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "",
+        "running 3 tests",
+        "test additive_review_fixture_preserves_legacy_request_positions ... ok",
+        "test worker_rejects_mutations_and_keeps_typed_errors_correlated ... ok",
+        "test native_sampled_encoder_failure_is_safe_on_the_headless_wire ... ok",
+        "",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+        ""
+      ]
+    },
+    "diagnostic-integration-interpreter": {
+      "exit": 0,
+      "rustCompletedBinaries": 0,
+      "rustPassingResults": 0,
+      "rustIgnoredResults": 0,
+      "summary": [
+        "{\"operation\":\"open_project\",\"requestId\":\"0a0311f8-850b-4f8a-ae17-b6375f52763a\",\"event\":\"headless.request.started\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:35:55.272Z\"}",
+        "{\"durationMs\":7,\"operation\":\"open_project\",\"requestId\":\"0a0311f8-850b-4f8a-ae17-b6375f52763a\",\"status\":\"completed\",\"event\":\"headless.request.completed\",\"level\":\"info\",\"timestamp\":\"2026-10-07T01:35:55.279Z\"}",
+        "",
+        " Test Files  1 passed (1)",
+        "      Tests  23 passed (23)",
+        "   Start at  01:31:36",
+        "   Duration  258.72s (transform 330ms, setup 0ms, import 578ms, tests 258.01s, environment 0ms)",
+        ""
+      ]
+    }
+  },
+  "trace": {
+    "approvedRequirements": 27,
+    "approvedDeltas": 11,
+    "scenarios": 101,
+    "uniqueExactRequirementScenarioMatches": 101
+  },
+  "implementationHashes": {
+    ".github/CODEOWNERS": "ce7409cfc69c14c66a5466a3291a584a9c1bfde81b27a00e65df56fd2df6056a",
+    ".github/workflows/bun-ci.yml": "66f91872296ea6d9140c4fd9969700be5595633c92f5c3eea81c245f252d4d4b",
+    "apps/agent-bridge/package.json": "fb7150264edb5a6dd7ee4ed7edc19bef934be30255535c609caa6b2f44f15bf2",
+    "apps/agent-bridge/src/headless-contract.ts": "4ff99e5049422dd2a890a888126d0a4e23998f76d877b28483d735f46fcf5244",
+    "apps/agent-bridge/src/schemas.ts": "d83c14323fb3c0f66f0a05d4fde839186af3ba18d1751be4e6c8a363b14c7944",
+    "apps/agent-bridge/tests/animation-channels.test.ts": "e423fdc7b39fe4bd0c0b13350018f053c42af49176f2e2cb70c515e94be8ac14",
+    "apps/agent-bridge/tests/animation-edit-workflow.ts": "63786ee74e9fa651cf09e9931192e0a8863b18498084284d96cc37c0a8f734ee",
+    "apps/agent-bridge/tests/animation-presets.test.ts": "7e8663b765c72c08d7b84c537d4167f978ea7ce169d2bc6a1d115d4e47a190d6",
+    "apps/agent-bridge/tests/blend-mode-workflow.ts": "1528a5193df982b1849ffacaee046d280e355a507d408adf7c1ea5cc96b566ac",
+    "apps/agent-bridge/tests/contracts.test.ts": "7bc72929e0e8b78bf8be8458cbd0bb41d614388df1399041ec0663ce7e522561",
+    "apps/agent-bridge/tests/extended-visual-animation.test.ts": "ea858d603a42eec95baa01c346d48749674a35eb4ab44e4b7d76679e60b0713d",
+    "apps/agent-bridge/tests/fixtures/group-compositing-additions.json": "9d22258f0d44e83be5d17b971c9f8e800768c1bc52c54bdfc65e4c2e896af028",
+    "apps/agent-bridge/tests/fixtures/group-compositing-predecessor-pins.json": "824bae29b3e9cf2150425bb55f040d5110455fa3bb198ac84be9026addcc3272",
+    "apps/agent-bridge/tests/fixtures/group-compositing-projection.ts": "2995e81843383fedc577ec47f6464d562dd395feb2e2bbb9b332de20bff6ffd1",
+    "apps/agent-bridge/tests/fixtures/parameterized-effect-projection.ts": "29f405463a6d3c259e2374e8079139cfc4a4ed7e0345b705512e4b4db6357754",
+    "apps/agent-bridge/tests/group-compositing-media-oracle.ts": "46aa9bff37329df2e3c48828677562f7f9c0f8955d1adb13921ec8e4e1fcbf8b",
+    "apps/agent-bridge/tests/group-compositing-native.test.ts": "f7e31efe1f3bd530e8f8660165061b09d411536c897bbf200204ad82a930d996",
+    "apps/agent-bridge/tests/group-compositing-oracle.ts": "fa33f0d1bcee5fde208ebeb559a350d8b1e4a3ff09e43cf7186620ada62987f2",
+    "apps/agent-bridge/tests/group-compositing.test.ts": "3a1e90afe01122a74e5834747f734d732eafbd5fc2d6884a22a9da44849cb6c9",
+    "apps/agent-bridge/tests/inherited-animation-timing.test.ts": "1a3707c9e9865ea9902de648a78da18b6fed324d9fd7577a09db988b46b70fd4",
+    "apps/agent-bridge/tests/mask-model-workflow.ts": "67aa15448c58d7788dca5545f1c2df5f902591f9fc3fc6152ef4ab4b78690872",
+    "apps/agent-bridge/tests/mask-models.test.ts": "1c6b70c94975203824925bf969478b13b6fa8eee32ccec52500a290138f6ecd4",
+    "apps/agent-bridge/tests/mask-rendering-workflow.ts": "33467a5ce9a9989ac15c957d8cb5c16e2777efdb51e75470fe5b9e8f17a391c3",
+    "apps/agent-bridge/tests/mask-rendering.test.ts": "5ae7095fc2ec506f9edfa152f7c8fb7339bb52482ad3078ced1810550d4de2c0",
+    "apps/agent-bridge/tests/ordered-effect-native.test.ts": "baee84816374f3119233d95e5fb50bf25740c9f02d36c6e7bc8f5d66135dd246",
+    "apps/agent-bridge/tests/pack-clock-migration-workflow.ts": "cb52f681f47a6ce855dcb8c69ac0b9f3bf4bb9a2975449a1b29baef0b9f281fc",
+    "apps/agent-bridge/tests/parameterized-effect-native.test.ts": "b1fac895b07cf99da2979ee32e15367746f8688b9152665b7447bb4b84ad6ee9",
+    "apps/agent-bridge/tests/parameterized-effects.test.ts": "3c33b95f5053a1e5c9c4869fb5ef980671ce1071dcb30db21fd34aea4789d853",
+    "apps/agent-bridge/tests/rich-text-workflow.ts": "8336ef43596d7689a15b002f3878347a9ae0cb108c8e6bbf50ba5a7b1fcf5cd8",
+    "apps/agent-bridge/tests/schemas.test.ts": "0e3c323c8ca106f814102d0076e0136f2a94af5e68c44e935e9e0b322833675e",
+    "apps/agent-bridge/tests/track-matte-workflow.ts": "24a4ae64150833c5b4ab3817487bf7e82f83f7b1fbb85285d1897744857d1d6c",
+    "apps/headless/src/main.rs": "13d97b6a1290927a8892abbcc5deaecedafc40ee50709bc675ce98c9fadcd018",
+    "apps/headless/tests/protocol.rs": "323750044af3e56adc67f9fbd1863ce43262a4ec24cc5b2034781aadfd8d1afa",
+    "contracts/animation-channels-v1.json": "e33240791ade102b13b32aa0f460baea2feedc148d803ba20eed4ae0151f9c2d",
+    "contracts/animation-presets-v1.json": "026fcb84ae8a6dceb2443a190f2bfa4093b720874320222f3bf73186b9bac374",
+    "contracts/blend-modes-v1.json": "cbc1401ac99cd471948818f6785b7d8b4e1b6ee1c174edbd4b0120255a1f7bd0",
+    "contracts/contract-ownership-v1.json": "4afb154a984304b466f6dadfb70c31df0c9fbb52bfa192f133804804cb015d67",
+    "contracts/extended-visual-animation-v1.json": "7fc37ed8d43bf644df7e163e591cca4d4936c7cc17e5f362e3de3af395817ce9",
+    "contracts/group-compositing-v1.json": "0efefc0c7c2f78ecd2ad0a03949a864c5325f5d395da9afb943469ab2044d504",
+    "contracts/headless-protocol-v1.json": "6481c50a32c8904accd09666f361c17520ef3185543a287e89433dff2463c8b1",
+    "contracts/inherited-animation-timing-v1.json": "05561aef7cfe66c897e5169efeb6ca099464f8d727db6ef51b1b93028cb231c3",
+    "contracts/initial-motion-preset-pack-v1.json": "5d44df908edc1bcda44a1fa9b055b3963c9f7254aeb5e504afb68db179c0b647",
+    "contracts/mask-models-v1.json": "636145854e815422db75bcd819f225c5c3e8c3e902089d8b80de13425ba922f7",
+    "contracts/mask-rendering-v1.json": "acf64fca44e376db1f58a73549c37842fc4356eed904aca24f03168be3f17f32",
+    "contracts/mcp-surface-v1.json": "563bcd4a1b926602f3dc480229e68940243ae140dae7dc28fe08669dfdec65e7",
+    "contracts/motion-blur-sampling-v1.json": "891e67fd3e15046d139ef39f4aebdc01d5c875329d0e1dba1fb6c87fd55f16ae",
+    "contracts/parameterized-effects-v1.json": "c746b39ad2aa2401a452a667fb2ccb48e21505bdbdff0028227baa1633c091aa",
+    "contracts/track-mattes-v1.json": "842135639abaecd0a4204737d58bc28c3003f002ccd13774a5fe6519ac9585e4",
+    "crates/editor-core/src/error.rs": "0c4c02f1d765b7c538c4bcc5b87eeedad98adc58bb81397033ca2f24a3dee9a1",
+    "crates/editor-core/src/evaluated_scene.rs": "f092af441b13de4d910010ce75b5a9ffece7940b9656d720e7049cd9c2eac7ff",
+    "crates/editor-core/src/evaluated_scene/composition_resources.rs": "237645d6e29c685806575e58708073d0269fa30c8ecdfa3cc2aeeb45d382c434",
+    "crates/editor-core/src/evaluated_scene/extended_certification.rs": "32800c5e75b20cf8c2296cdc9e5b11ccd6fa5dc08ee95c1f00749f8c7d4abf96",
+    "crates/editor-core/src/evaluated_scene/extended_visual.rs": "275d4ad0437d7768b20c5559b0c456bdddb853b68e2695b1d2ebfe573d88e110",
+    "crates/editor-core/src/evaluated_scene/extended_visual/review_regressions.rs": "e2d3b66f3397779939279eba080c4ab2c990e08314d77b1d7f25087164e4c290",
+    "crates/editor-core/src/evaluated_scene/group_compositing.rs": "4bd260b032553d9badc9ff12ed70d2c85d7448a2e35be2bcdd327aa4af8999aa",
+    "crates/editor-core/src/evaluated_scene/group_compositing/continuous.rs": "abd767f7837de832078747bd888a6094b39e075ba211d8636acc0c69d64d932e",
+    "crates/editor-core/src/evaluated_scene/group_compositing/frame.rs": "1a1c48be0691b108789ff6cf0a13aa07be897c0a3d7c851f85639c65c1b477b7",
+    "crates/editor-core/src/evaluated_scene/mattes.rs": "e4eae304c6a3e02bd6cff9321e408972eb15bcaaeab3d67f784d7bb555efada8",
+    "crates/editor-core/src/evaluated_scene/temporal_fixture_tests.rs": "f4b6cd1b2f26d52efece9ed6c322bf46515ecbe1ccd80a9b64be3d086719c790",
+    "crates/editor-core/src/migrations.rs": "6a2fdd76bb382110dda5f2618b5d36ca178e62c2230eeca97c9086c6ca46c416",
+    "crates/editor-core/src/model.rs": "717a9a1c702c7d1acaf9e10d949ae58b529aa33966e0b920879146565b572cf2",
+    "crates/editor-core/src/model/visual_effects.rs": "3f4cc3452b6f3d076fef7d55ab5dd653f95a64bbf793f9564204ca1373a7ddf2",
+    "crates/editor-core/src/render_artifact/extended_visual.rs": "d732fb2c82cec3dec29110f53d92220e52a254a4f61b857cc7ae8391acc02e29",
+    "crates/editor-core/src/render_artifact/extended_visual/group_compositing.rs": "89d5b485aeda92890a4f078cf0a01ae9df1d26f6e233cf1b933990429a7eae4d",
+    "crates/editor-core/src/render_artifact/mattes.rs": "374d7b7b2e1b6c29fa3227477187bd66d11da01601318fa768d92ad20d01afc7",
+    "crates/editor-core/src/render_artifact/mattes/tests.rs": "5d271812c170eb3a3338ef762cd8c5f9144633e65fe105bcf285447b1f77d426",
+    "crates/editor-core/src/render_artifact/text/layers.rs": "fee13ca0dae3a0ad32933d5a394d560d1ce2cee0dc056ad2bfa50ca35eb47d79",
+    "crates/editor-core/src/render_plan.rs": "728ce4766622cf0183daaf6fe766ffc95d809906d4bb4910621355fb8f97c236",
+    "crates/editor-core/src/renderer.rs": "d961ad757050f22e2a719441cf02c56242b5be94880bda804d173c34fca12099",
+    "crates/editor-core/src/store.rs": "59f5fcfea777cacdeacf0272660e5e900eb302c7e48c6cab03a20cd09d95afd9",
+    "crates/editor-core/src/timeline.rs": "a9994a0d55098c50f86395f672f71712b834c435ae87ced841769c3454f6ea43",
+    "crates/editor-core/src/validation/extended_visual.rs": "4d8d2aa42e81ea2fd2c1495f6840af1c9b27a4f59bd99b98584c46a4695698ec",
+    "crates/editor-core/tests/architecture.rs": "683a5ea9fea650e3a072b906bca1916a2922f0e214746e97ca3cfee1ef9c9dae",
+    "crates/editor-core/tests/extended_visual_animation.rs": "1e963cb568ccad4d6be87001db1a5d8d062cf75f0c621501943cc03a15b604da",
+    "crates/editor-core/tests/group_compositing_models.rs": "75e71e35ed5c768ea9a182b33bf7ad2dca8257d7fb5bdf549590292f8f87f6f0",
+    "crates/editor-core/tests/group_compositing_native.rs": "6d5b600fbe40c2f75c01e356b265a7cce7dc74dce9868792171136a41dc0fefa",
+    "scripts/validate-ci-gates.test.ts": "a92c7a6bf99c2c26ca01d9d3c0aef4fee5b6301eda4800f7bcac3ef838195e75",
+    "scripts/validate-ci-gates.ts": "ec2edcc4f07dfafdb22d3c273bacc36a0d8104575029e49263ec4c20cf116740",
+    "crates/editor-core/tests/parameterized_effects.rs": "a77089c5e035ba7db5cf079c4dc7d1a4b0c2f8003ba12195a08b073ec95454cf"
+  },
+  "documentationHashes": {
+    "docs/linear-light-compositing.md": "27ad248aa6fc4e5f02e576a86bb03860e1f2b54f7122aa9efc72d572d35a8c98",
+    "docs/mask-models.md": "5a76f1f54e037fec9dc8005cfcc11be2e37c1a7bcd2f3ba92ae13a1389833d84",
+    "docs/mask-rendering.md": "c6c52f5f8e383ce8c0a1cfcc10a37c3b2f075c8bf633479d33563f266f61a6d6",
+    "docs/animation-presets.md": "8e2ab9380c952f88ad8d59561a3b4f8e2e5e408ecb90b4f5fcadebf49139bdb4",
+    "docs/rich-text-documents.md": "8b2850aa92df562b72b7200d7ade769644f6c659074a0017a21c22f10f86a281",
+    "docs/extended-visual-animation.md": "7d5025bc096d79f0c9736a8574184eb591ecc9fe540005e8630d992a4f07d30f",
+    "docs/blend-modes.md": "9e2382325db5f559613c8f81f31da4d18ff3c603ae5819f516ca13163036b257",
+    "docs/adr/0003-editor-core-module-boundaries.md": "9f725f99d6f74f853c2c2ce456c4f098c9e6ac3e6975357ef26ca423dd4fae59",
+    "docs/ci-parity-gates.md": "ec6d5244a8378b695dbce95b9343c9510e1f05293afc6895dedf21f313bfe8a0",
+    "docs/render-regression-fixtures.md": "15893cee70b1efe756e92e2a5adae98c488bca84d6e2e706543cef6a8088fb8d",
+    "docs/group-compositing.md": "70ab702459f1b8c4829b400af92d66b57849a5f1b4189a2bc27635613559d61d"
+  },
+  "helpersReviewedHashes": {
+    "issue56-final-evidence.py": "6ad274d7a461c6bdf8bc5cb996e173ccea1c6d97c44b04855d85ae03b0f38cd1",
+    "issue56-write-verification.py": "5fde977b985beea104515b8ec46183acac355afc83195f60a10b3a69f74f9bf0",
+    "issue56-preservation.py": "21715a9d5b8d1b01a9c2ec5e2fc56e59a75f6a667e6f17acce2cfbe496dcfa69",
+    "issue56-sync-specs.py": "27641fd3ea57856fc8631fe32fc0365ad511fd20690c868e7dbddf83c5337e6b"
+  },
+  "prearchiveProtected": {
+    "exit": 1,
+    "strictItems": 45,
+    "policyPassed": 427,
+    "policyFailed": 0,
+    "soleExpectedRejection": "unarchived OpenSpec changes block merge readiness: add-group-compositing-overlays"
+  },
+  "prearchivePreservation": {
+    "livingBlocksUnchanged": 484,
+    "oldArchiveFilesUnchanged": 1104,
+    "implementationHashesMatched": 79,
+    "documentationHashesMatched": 11,
+    "expectedModified": 18,
+    "expectedAdded": 9,
+    "expectedUnchanged": 466,
+    "expectedFinalRequirements": 493
+  },
+  "localRuntimeQualification": {
+    "normalIntegration": "failed22/23; monitored rerun confirmed OOM",
+    "successfulFullIntegration": "23/23,no skips/errors,Node24.19.0 worker --max-opt=0, unchanged assertions/fixtures/timeouts, no memory events",
+    "isolatedFinalTest": "diagnostic1/1 with22skips, excluded from required evidence",
+    "jitless": "failed startup diagnostic, excluded",
+    "packagedSmoke": "20/20,no skips/errors; external wrapper only launcher, worker normal optimization",
+    "python": "12unittest+5pytest passed",
+    "unit": "577passed7nativeoptin skipped; supplemented by configured native suites",
+    "workspace": "1313passing results across60reported child/parent records,9ignored helper/reference controls",
+    "wrapperSha256": "0771a47ca4e678519ea8dd440d5ad812488e2c7f5b96e5accced7d8c1dc08fa7"
+  },
+  "remainingMandatoryGates": [
+    "Own-only accepted-delta sync and archive",
+    "Postarchive exact493/18/9/466 preservation,1104oldarchives,79implementation+11documentation hashes and contract pins",
+    "Unchanged protected Moon pass and strict44/44 before commit/publication",
+    "Commit,push,draft PR targetingmain,attach URL and all11CIjobs success on exact pushed head",
+    "Only after exactCI success create next branch; no merge/deploy"
+  ]
+}

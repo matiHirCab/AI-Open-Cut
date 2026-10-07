@@ -134,6 +134,118 @@ fn parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_
 }
 
 #[test]
+fn group_compositing_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract() {
+    fn inventory(
+        root: &std::path::Path,
+    ) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        let mut files = std::collections::BTreeMap::new();
+        let mut pending = vec![root.to_path_buf()];
+        while let Some(dir) = pending.pop() {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    pending.push(path);
+                } else if path.file_name().unwrap() != ".lock" {
+                    files.insert(
+                        path.strip_prefix(root).unwrap().to_path_buf(),
+                        std::fs::read(path).unwrap(),
+                    );
+                }
+            }
+        }
+        files
+    }
+    let h = Harness::new();
+    let native: Value =
+        serde_json::from_str(include_str!("../../../contracts/group-compositing-v1.json")).unwrap();
+    let invalid = native["effectCases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["accepted"] == false)
+        .map(|case| json!({"value":[case["value"]]}))
+        .collect::<Vec<_>>();
+    let f = json!({"orders":{"shadeThenWash":[native["nativeWitness"]["flash"],native["nativeWitness"]["particles"]],"washThenShade":[native["nativeWitness"]["particles"],native["nativeWitness"]["flash"]]},"invalidStacks":invalid});
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Parameterized effects"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = &state["project"]["tracks"][1]["id"];
+    let a = &f["orders"]["shadeThenWash"];
+    let b = &f["orders"]["washThenShade"];
+    let created=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_group","resultAlias":"leaf","trackId":track,"startMs":0,"durationMs":800},
+        {"operation":"update_item","itemId":"@leaf","clip":{"type":"composition_bounds"},"effects":a},{"operation":"update_item","itemId":"@leaf","effects":b}
+    ]})));
+    let item = &created["aliases"]["leaf"];
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let stack = |state: Value| {
+        state["project"]["tracks"][1]["items"][0]
+            .get("effects")
+            .cloned()
+            .unwrap_or(json!([]))
+    };
+    let expected = |raw: &Value| {
+        serde_json::to_value(
+            serde_json::from_value::<Vec<opencut_editor_core::VisualEffect>>(raw.clone()).unwrap(),
+        )
+        .unwrap()
+    };
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":{"operation":"update_item","itemId":item,"effects":a}})));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":2,"edit":{"operation":"update_item","itemId":item,"zIndex":2}})));
+    assert_eq!(stack(read()), expected(a));
+    let before = read();
+    let revision = before["project"]["revision"].as_u64().unwrap();
+    for case in f["invalidStacks"].as_array().unwrap() {
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_item","itemId":item,"effects":case["value"]}}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"effects":case["value"]}]}),
+            json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"effects":case["value"]}]}),
+        ] {
+            let error = event(&h.request(request));
+            assert_eq!(error["error"]["code"], "INVALID_ARGUMENT");
+            assert_eq!(error["error"]["retryable"], false);
+            assert_eq!(read()["project"], before["project"]);
+        }
+    }
+    let unchanged = inventory(h.root.path());
+    for case in native["clipCases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["accepted"] == false && !case["value"].is_null())
+    {
+        let clip = &case["value"];
+        for request in [
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_item","itemId":item,"clip":clip}}),
+            json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"clip":clip}]}),
+            json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b},{"operation":"update_item","itemId":item,"clip":clip}]}),
+        ] {
+            let error = event(&h.request(request));
+            assert_eq!(
+                error["error"]["code"], "INVALID_ARGUMENT",
+                "{clip}: {error}"
+            );
+            assert_eq!(error["error"]["retryable"], false);
+            assert_eq!(read()["project"], before["project"]);
+            assert_eq!(inventory(h.root.path()), unchanged, "{clip}");
+        }
+    }
+    let draft=result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":item,"effects":b}]})));
+    assert_eq!(read()["project"], before["project"]);
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"draftId":draft["id"],"expectedRevision":revision})));
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision+1})));
+    assert_eq!(stack(read()), expected(a));
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":revision+2})));
+    assert_eq!(stack(read()), expected(b));
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision+3,"edit":{"operation":"update_item","itemId":item,"effects":[]}})));
+    assert_eq!(stack(read()), json!([]));
+}
+
+#[test]
 fn review_range_transport_rejects_before_io_and_preserves_revision_reopen() {
     let h = Harness::new();
     let id = result(&h.request(json!({"operation":"create_project","name":"Review transport"})))["projectId"].clone();

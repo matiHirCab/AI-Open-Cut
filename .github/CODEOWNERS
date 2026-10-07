@@ -298,3 +298,16 @@
 /apps/agent-bridge/tests/fixtures/parameterized-effect-addition.json @matiHirCab
 /apps/agent-bridge/tests/fixtures/parameterized-effect-predecessor-pins.json @matiHirCab
 /docs/parameterized-effects.md @matiHirCab
+
+# Issue56 controlled aggregate/overlay canonical owner and consumers
+/contracts/group-compositing-v1.json @matiHirCab
+/crates/editor-core/src/evaluated_scene/group_compositing.rs @matiHirCab
+/crates/editor-core/src/render_artifact/group_compositing.rs @matiHirCab
+/crates/editor-core/tests/group_compositing.rs @matiHirCab
+/crates/editor-core/tests/group_compositing_native.rs @matiHirCab
+/apps/agent-bridge/tests/group-compositing.test.ts @matiHirCab
+/apps/agent-bridge/tests/group-compositing-native.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/group-compositing-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/group-compositing-additions.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/group-compositing-predecessor-pins.json @matiHirCab
+/docs/group-compositing.md @matiHirCab

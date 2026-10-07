@@ -32,7 +32,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 36;
+pub const PROJECT_SCHEMA_VERSION: u32 = 37;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -148,6 +148,16 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 37 {
+            reject_group_compositing_fields(&value.tracks).map_err(|e| {
+                format!("{}{e}", crate::error::GROUP_COMPOSITING_DECODE_ERROR_PREFIX)
+            })?;
+            if let Some(components) = &value.components {
+                reject_group_compositing_fields(components).map_err(|e| {
+                    format!("{}{e}", crate::error::GROUP_COMPOSITING_DECODE_ERROR_PREFIX)
+                })?;
+            }
+        }
         if value.schema_version < 36 {
             reject_color_effect_fields(&value.tracks)
                 .map_err(|e| format!("{}{e}", crate::error::COLOR_EFFECT_DECODE_ERROR_PREFIX))?;
@@ -740,6 +750,116 @@ pub(crate) fn find_extended_visual_edit_fields(
             _ => Ok(()),
         },
     )
+}
+
+pub(crate) fn reject_group_compositing_fields(value: &serde_json::Value) -> Result<(), String> {
+    inspect_model_items(value, &check_group_compositing_fields)
+}
+fn check_group_compositing_fields(value: &serde_json::Value) -> Result<(), String> {
+    let effects = value.get("effects").and_then(serde_json::Value::as_array);
+    if value.get("clip").is_some_and(|clip| !clip.is_null())
+        || effects.is_some_and(|effects| {
+            effects.iter().any(|effect| {
+                matches!(
+                    effect.get("type").and_then(serde_json::Value::as_str),
+                    Some("screen_flash" | "particle_overlay")
+                )
+            })
+        })
+        || (matches!(
+            value.get("type").and_then(serde_json::Value::as_str),
+            Some("group" | "component_instance")
+        ) && effects.is_some_and(|effects| !effects.is_empty()))
+    {
+        return Err("group clipping and overlays require schema 37".into());
+    }
+    Ok(())
+}
+pub(crate) fn reject_raw_group_compositing_edit_fields(
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("update_item") => check_group_compositing_fields(operation)?,
+                Some("component_create" | "component_update") => {
+                    if let Some(tracks) = operation.get("tracks") {
+                        reject_group_compositing_fields(tracks)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+/// Source-version guard only: alias/model validation stays in canonical replay.
+pub(crate) fn reject_source_group_compositing_edits(
+    base: &Project,
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    reject_raw_group_compositing_edit_fields(value)?;
+    let mut aggregates: std::collections::BTreeSet<String> = base
+        .tracks
+        .iter()
+        .flat_map(|t| &t.items)
+        .filter(|item| {
+            matches!(
+                item,
+                TimelineItem::Group(_) | TimelineItem::ComponentInstance(_)
+            )
+        })
+        .map(|item| item.id().to_owned())
+        .collect();
+    if let Some(operations) = value.as_array() {
+        for operation in operations {
+            match operation
+                .get("operation")
+                .and_then(serde_json::Value::as_str)
+            {
+                Some("add_group" | "add_component_instance") => {
+                    if let Some(alias) = operation
+                        .get("resultAlias")
+                        .and_then(serde_json::Value::as_str)
+                    {
+                        aggregates.insert(format!("@{alias}"));
+                    }
+                }
+                Some("duplicate_items") => {
+                    if operation
+                        .get("itemIds")
+                        .and_then(serde_json::Value::as_array)
+                        .and_then(|ids| ids.first())
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|id| aggregates.contains(id))
+                        && let Some(alias) = operation
+                            .get("resultAlias")
+                            .and_then(serde_json::Value::as_str)
+                    {
+                        aggregates.insert(format!("@{alias}"));
+                    }
+                }
+                Some("update_item")
+                    if operation
+                        .get("itemId")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|id| aggregates.contains(id))
+                        && operation
+                            .get("effects")
+                            .and_then(serde_json::Value::as_array)
+                            .is_some_and(|effects| !effects.is_empty()) =>
+                {
+                    return Err("aggregate effects require schema 37".into());
+                }
+
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn reject_color_effect_fields(value: &serde_json::Value) -> Result<(), String> {
@@ -1429,6 +1549,12 @@ pub struct VisualProperties {
         deserialize_with = "deserialize_present",
         skip_serializing_if = "Option::is_none"
     )]
+    pub clip: Option<CompositionClip>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub motion_blur: Option<MotionBlur>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<VisualEffect>,
@@ -1473,6 +1599,7 @@ impl VisualProperties {
             blend_mode: BlendMode::Normal,
             legacy_animation_clock: None,
             crop: None,
+            clip: None,
             motion_blur: None,
             effects: Vec::new(),
             masks: Vec::new(),
@@ -2416,6 +2543,12 @@ pub enum EditOperation {
         crop: Option<Box<MediaCrop>>,
         #[serde(
             default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        clip: Option<Option<CompositionClip>>,
+        #[serde(
+            default,
             deserialize_with = "deserialize_present",
             skip_serializing_if = "Option::is_none"
         )]
@@ -2833,6 +2966,12 @@ enum EditOperationDef {
             skip_serializing_if = "Option::is_none"
         )]
         crop: Option<Box<MediaCrop>>,
+        #[serde(
+            default,
+            deserialize_with = "deserialize_double_option",
+            skip_serializing_if = "Option::is_none"
+        )]
+        clip: Option<Option<CompositionClip>>,
         #[serde(
             default,
             deserialize_with = "deserialize_present",

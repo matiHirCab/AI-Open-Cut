@@ -9,6 +9,7 @@ fn id(n: usize) -> MatteTaskId {
 }
 fn leaf(n: usize, time: u64, provider: Option<(MatteTaskId, MatteChannel)>) -> MatteTask {
     MatteTask::LeafSample {
+        relative_owner: None,
         layer_index: n,
         at_ms: time,
         provider,
@@ -119,6 +120,7 @@ fn fixture(
     let fixed = MATTE_CACHE_RESERVATION + 16 * pixels + descriptor as u64;
     let peak = fixed + 64 * pixels * (tasks.len() as u64 + 1) + 512;
     MatteFrameSchedule {
+        query: None,
         canvas,
         tasks,
         direct_draw,

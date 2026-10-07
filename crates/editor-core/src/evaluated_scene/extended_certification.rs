@@ -148,6 +148,7 @@ pub(crate) fn effect_budget(
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. } => {
                 (3.0 * radius_px * density).ceil()
             }
+            VisualEffect::ParticleOverlay { radius_px, .. } => (radius_px * density).ceil(),
             _ => 0.0,
         })
         .sum();
@@ -159,7 +160,8 @@ pub(crate) fn effect_budget(
     let pixels = (w * h) as u64;
     for effect in effects {
         let passes = match effect {
-            VisualEffect::ColorAdjustment { .. } => 3,
+            VisualEffect::ColorAdjustment { .. } | VisualEffect::ScreenFlash { .. } => 3,
+            VisualEffect::ParticleOverlay { .. } => 4,
             VisualEffect::GaussianBlur { radius_px, .. } | VisualEffect::Glow { radius_px, .. }
                 if *radius_px > 0.0 =>
             {
@@ -167,6 +169,27 @@ pub(crate) fn effect_budget(
             }
             _ => 1,
         };
+        if let VisualEffect::ParticleOverlay {
+            count, radius_px, ..
+        } = effect
+        {
+            let diameter = (2.0 * radius_px * density).ceil();
+            if !diameter.is_finite() || diameter > 16384.0 {
+                return Err(invalid("particle scan box exceeds limits"));
+            }
+            let side = (diameter as u64)
+                .checked_add(3)
+                .ok_or_else(|| invalid("particle box overflow"))?;
+            let visits = side
+                .checked_mul(side)
+                .and_then(|v| v.checked_mul(20))
+                .and_then(|v| v.checked_mul(u64::from(*count)))
+                .ok_or_else(|| invalid("particle work overflow"))?;
+            *budget = budget
+                .checked_add(visits)
+                .filter(|v| *v <= MAX_EFFECT_PASSES)
+                .ok_or_else(|| invalid("particle work exceeds limits"))?;
+        }
         *budget = budget
             .checked_add(
                 pixels
@@ -279,6 +302,7 @@ pub(crate) fn certify_scene(
     } else {
         Vec::new()
     };
+    let mut peak_source_memory = 0_u64;
     let mut pixel_work = 0_u64;
     let has_blur = scene.visual_layers.iter().any(|l| {
         l.extended
@@ -368,7 +392,32 @@ pub(crate) fn certify_scene(
                 .as_ref()
                 .and_then(|e| e.channels.iter().find(|c| c.property == P::PathPoints))
             {
-                let (envelope_size, envelope_segments) = path_envelope(channel, shape)?;
+                let (mut envelope_size, envelope_segments) = path_envelope(channel, shape)?;
+                if effects
+                    .iter()
+                    .any(|effect| matches!(effect, VisualEffect::ParticleOverlay { .. }))
+                {
+                    let (_, _, bounds) = path_envelope_facts(channel, shape)?;
+                    let pad = shape.stroke.as_ref().map_or(1. / shape.density, |stroke| {
+                        stroke.width * 0.5 * stroke.miter_limit.max(2.) + 1. / shape.density
+                    });
+                    let width = ((bounds[2] + pad).max(shape.bounds[2])
+                        - (bounds[0] - pad).min(shape.bounds[0]))
+                        * shape.density;
+                    let height = ((bounds[3] + pad).max(shape.bounds[3])
+                        - (bounds[1] - pad).min(shape.bounds[1]))
+                        * shape.density;
+                    if !width.is_finite()
+                        || !height.is_finite()
+                        || width + 2. > 16384.
+                        || height + 2. > 16384.
+                        || (width + 2.) * (height + 2.) > 16_777_216.
+                    {
+                        return Err(invalid("fixed particle/path source union exceeds limits"));
+                    }
+                    envelope_size.0 = envelope_size.0.max(width.ceil() as u32 + 2);
+                    envelope_size.1 = envelope_size.1.max(height.ceil() as u32 + 2);
+                }
                 size.0 = size.0.max(envelope_size.0);
                 size.1 = size.1.max(envelope_size.1);
                 maximum_segments = maximum_segments.max(envelope_segments);
@@ -468,6 +517,13 @@ pub(crate) fn certify_scene(
                 effect_budget(size, &effects, density, &mut work)?;
             }
         }
+        peak_source_memory =
+            peak_source_memory.max(super::extended_visual::certify_composition_memory(
+                (scene.canvas.width, scene.canvas.height),
+                size,
+                &effects,
+                density,
+            )?);
         if let Some(extended) = &layer.extended
             && !extended.masks.is_empty()
         {
@@ -516,7 +572,7 @@ pub(crate) fn certify_scene(
             mask_retained = mask_retained
                 .checked_add(current_retained)
                 .ok_or_else(|| invalid("mask retained scene facts overflow"))?;
-            super::extended_visual::certify_composition_memory(
+            let memory = super::extended_visual::certify_composition_memory(
                 (scene.canvas.width, scene.canvas.height),
                 size,
                 &effects,
@@ -535,6 +591,7 @@ pub(crate) fn certify_scene(
             })
             .filter(|v| *v <= super::extended_visual::MAX_COMPOSITION_BYTES)
             .ok_or_else(|| invalid("continuous mask composition memory exceeds limits"))?;
+            peak_source_memory = peak_source_memory.max(memory);
         }
         // A rotation changes direction, never the operator norm. Bounding each
         // ancestor's norm separately covers every combination of inherited clocks.
@@ -586,8 +643,8 @@ pub(crate) fn certify_scene(
                 continuous_costs[index].2 = shape.segments() as u64;
             }
         }
-        super::mattes::certify_continuous_requests(scene, nodes, |visits| {
-            let mut effects = 0_u64;
+        let verify = |visits: &[u64], owner_work: u64| {
+            let mut effects = owner_work;
             let mut masks = super::masks::MaskFrameBudget::default();
             let mut ordinary_segments = 0_u64;
             for (count, (effect, mask, geometry)) in visits.iter().zip(&continuous_costs) {
@@ -613,7 +670,21 @@ pub(crate) fn certify_scene(
                     .ok_or_else(|| invalid("extended scene segment envelope exceeded"))?;
             }
             Ok(())
-        })?;
+        };
+        if scene
+            .aggregates
+            .as_ref()
+            .is_some_and(|graph| !graph.nodes.is_empty())
+        {
+            super::group_compositing::continuous::certify(
+                scene,
+                nodes,
+                peak_source_memory,
+                verify,
+            )?;
+        } else {
+            super::mattes::certify_continuous_requests(scene, nodes, |visits| verify(visits, 0))?;
+        }
     }
     Ok(())
 }
@@ -625,6 +696,13 @@ fn path_envelope(
     channel: &AnimationChannel,
     shape: &shapes::EvaluatedShape,
 ) -> Result<((u32, u32), usize), CoreError> {
+    path_envelope_facts(channel, shape).map(|(size, segments, _)| (size, segments))
+}
+pub(super) type PathEnvelopeFacts = ((u32, u32), usize, [f64; 4]);
+pub(super) fn path_envelope_facts(
+    channel: &AnimationChannel,
+    shape: &shapes::EvaluatedShape,
+) -> Result<PathEnvelopeFacts, CoreError> {
     let mut bounds = [
         f64::INFINITY,
         f64::INFINITY,
@@ -713,7 +791,7 @@ fn path_envelope(
     {
         return Err(invalid("fractional path raster envelope exceeds limits"));
     }
-    Ok(((width as u32, height as u32), segments))
+    Ok(((width as u32, height as u32), segments, bounds))
 }
 
 fn bound(

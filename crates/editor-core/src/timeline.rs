@@ -444,6 +444,7 @@ fn apply_operation_inner(
                 blend_mode: crate::BlendMode::Normal,
                 legacy_animation_clock: None,
                 crop: None,
+                clip: None,
                 motion_blur: None,
                 effects: Vec::new(),
                 masks: Vec::new(),
@@ -1120,6 +1121,7 @@ fn apply_operation_inner(
         EditOperation::UpdateItem {
             item_id,
             crop,
+            clip,
             effects,
             masks,
             matte,
@@ -1160,6 +1162,9 @@ fn apply_operation_inner(
                 matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
             });
             let item = find_editable_item_mut(project, &item_id)?;
+            if let Some(value) = clip {
+                item.visual_properties_mut().clip = value;
+            }
             if let Some(value) = crop {
                 item.visual_properties_mut().crop = Some(*value);
             }

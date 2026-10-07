@@ -37,6 +37,7 @@ pub(crate) struct EvaluatedMatteGraph {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MatteTask {
     LeafSample {
+        relative_owner: Option<usize>,
         layer_index: usize,
         at_ms: u64,
         provider: Option<(MatteTaskId, MatteChannel)>,
@@ -73,6 +74,7 @@ pub(crate) struct DirectDraw {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MatteFrameSchedule {
+    pub query: Option<QueryFrame>,
     pub canvas: (u32, u32),
     pub tasks: Vec<MatteTask>,
     pub direct_draw: Vec<DirectDraw>,
@@ -80,6 +82,79 @@ pub(crate) struct MatteFrameSchedule {
     /// Task indices followed by direct draws at tasks.len()+draw_index.
     pub last_uses: Vec<usize>,
     pub certificate: MatteFrameCertificate,
+}
+
+/// A certified query raster maps its pixel centers directly into world space.
+/// Signed local origins and singular world bases require no inverse-owner map.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct QueryFrame {
+    pub size: (u32, u32),
+    pub origin: [f64; 2],
+    pub axes: [[f64; 2]; 2],
+}
+impl QueryFrame {
+    pub(crate) fn new(
+        size: (u32, u32),
+        origin: [f64; 2],
+        axes: [[f64; 2]; 2],
+    ) -> Result<Self, crate::CoreError> {
+        super::extended_visual::validate_sampled_source_size(size)?;
+        if origin
+            .iter()
+            .chain(axes.iter().flatten())
+            .any(|v| !v.is_finite())
+        {
+            return Err(invalid("matte query frame must be finite"));
+        }
+        for x in [0.5, f64::from(size.0) - 0.5] {
+            for y in [0.5, f64::from(size.1) - 0.5] {
+                let px = origin[0] + axes[0][0] * x + axes[1][0] * y;
+                let py = origin[1] + axes[0][1] * x + axes[1][1] * y;
+                if !px.is_finite() || !py.is_finite() {
+                    return Err(invalid("matte query mapped extent must be finite"));
+                }
+            }
+        }
+        Ok(Self { size, origin, axes })
+    }
+    pub(crate) fn matrix(self) -> [f64; 6] {
+        [
+            self.axes[0][0],
+            self.axes[0][1],
+            self.axes[1][0],
+            self.axes[1][1],
+            self.origin[0],
+            self.origin[1],
+        ]
+    }
+}
+#[derive(Clone, Copy)]
+pub(crate) struct QueryScope {
+    pub frame: QueryFrame,
+    pub owner: Option<usize>,
+    pub local_origin: [f64; 2],
+}
+/// One output frame owns these counters across every local query and private
+/// provider product; separate domain memo tables never reset these bounds.
+pub(crate) struct OutputFrameBudget {
+    pub sampled: super::extended_visual::SampledFrameBudget,
+    pub retained_live_bytes: u64,
+    requests: u64,
+    work: u64,
+    leaf_pixels: u64,
+    blend_work: u64,
+}
+impl OutputFrameBudget {
+    pub(crate) fn new(scene: &super::EvaluatedScene) -> Result<Self, crate::CoreError> {
+        Ok(Self {
+            sampled: super::extended_visual::SampledFrameBudget::new(scene)?,
+            retained_live_bytes: 0,
+            requests: 0,
+            work: 0,
+            leaf_pixels: 0,
+            blend_work: 0,
+        })
+    }
 }
 
 fn invalid(message: &str) -> crate::CoreError {
@@ -280,7 +355,9 @@ impl RequestClock {
         Ok(clock)
     }
 }
-fn shutter_offsets(layer: &super::EvaluatedVisualLayer) -> Result<Vec<i128>, crate::CoreError> {
+pub(super) fn shutter_offsets(
+    layer: &super::EvaluatedVisualLayer,
+) -> Result<Vec<i128>, crate::CoreError> {
     layer
         .extended
         .as_ref()
@@ -345,25 +422,72 @@ pub(super) fn certify_continuous_requests(
     nodes: &mut usize,
     mut verify: impl FnMut(&[u64]) -> Result<(), crate::CoreError>,
 ) -> Result<(), crate::CoreError> {
+    certify_continuous_queries(
+        scene,
+        nodes,
+        &[ContinuousQuery {
+            owner: None,
+            size: (scene.canvas.width, scene.canvas.height),
+        }],
+        false,
+        |visits, _| verify(visits),
+    )
+}
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ContinuousQuery {
+    pub owner: Option<usize>,
+    pub size: (u32, u32),
+}
+/// Conservative actual-capacity envelope for all query schedules and the
+/// largest overlapping task payload. The existing 8192-byte growth reservation
+/// includes Vec/hash slots, old/new reallocations and <=16 shutter tasks/copy.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ContinuousMemory {
+    pub descriptors: u64,
+    pub query_peak: u64,
+}
+fn continuous_memory(
+    queries: &[ContinuousQuery],
+    copies: impl Fn(usize) -> u64,
+    providers: impl Fn(usize) -> u64,
+) -> Result<ContinuousMemory, crate::CoreError> {
+    let mut result = ContinuousMemory {
+        descriptors: 0,
+        query_peak: 0,
+    };
+    for (query, domain) in queries.iter().enumerate() {
+        let copies = copies(query);
+        let providers = providers(query);
+        let records = add(copies, providers)?;
+        result.descriptors = add(result.descriptors, mul(add(records, 1)?, 8192)?)?;
+        let tasks = add(mul(copies, 17)?, providers)?;
+        let payload = mul(query_pixels(*domain)?, add(mul(tasks, 16)?, 56)?)?;
+        result.query_peak = result.query_peak.max(payload);
+    }
+    Ok(result)
+}
+pub(super) fn certify_continuous_queries(
+    scene: &super::EvaluatedScene,
+    nodes: &mut usize,
+    queries: &[ContinuousQuery],
+    controlled: bool,
+    mut verify: impl FnMut(&[u64], ContinuousMemory) -> Result<(), crate::CoreError>,
+) -> Result<(), crate::CoreError> {
     use std::collections::HashSet;
     let graph = scene.mattes.as_ref();
     let end = scene.duration_ms.saturating_sub(1);
-    let pixels = mul(
-        u64::from(scene.canvas.width),
-        u64::from(scene.canvas.height),
-    )?;
     let base = admit_continuous_metadata(scene)?;
     struct Classes<'a> {
         scene: &'a super::EvaluatedScene,
         graph: Option<&'a EvaluatedMatteGraph>,
+        queries: &'a [ContinuousQuery],
         end: u64,
         base: u64,
-        copies: HashSet<(usize, RequestClock)>,
-        providers: HashSet<(MatteGroupId, RequestClock)>,
+        copies: HashSet<(usize, RequestClock, usize, Option<usize>)>,
+        providers: HashSet<(MatteGroupId, RequestClock, usize)>,
         upper_visits: Vec<u64>,
         upper_source: u64,
         upper_work: u64,
-        pixels: u64,
     }
     impl Classes<'_> {
         fn admit(&self, nodes: &mut usize) -> Result<(), crate::CoreError> {
@@ -380,17 +504,19 @@ pub(super) fn certify_continuous_requests(
             &mut self,
             group: MatteGroupId,
             clock: RequestClock,
+            query: usize,
             nodes: &mut usize,
         ) -> Result<(), crate::CoreError> {
-            if self.providers.contains(&(group, clock)) {
+            if self.providers.contains(&(group, clock, query)) {
                 return Ok(());
             }
             self.admit(nodes)?;
-            self.providers.insert((group, clock));
+            self.providers.insert((group, clock, query));
+            let pixels = query_pixels(self.queries[query])?;
             self.upper_work = add(
                 self.upper_work,
                 mul(
-                    mul(self.pixels, 4)?,
+                    mul(pixels, 4)?,
                     self.graph
                         .ok_or_else(|| invalid("provider graph absent"))?
                         .groups[group.0]
@@ -411,6 +537,8 @@ pub(super) fn certify_continuous_requests(
                         .groups[group.0]
                         .members[slot],
                     clock,
+                    query,
+                    None,
                     nodes,
                 )?;
             }
@@ -420,17 +548,20 @@ pub(super) fn certify_continuous_requests(
             &mut self,
             index: usize,
             clock: RequestClock,
+            query: usize,
+            relative: Option<usize>,
             nodes: &mut usize,
         ) -> Result<(), crate::CoreError> {
-            if self.copies.contains(&(index, clock)) {
+            if self.copies.contains(&(index, clock, query, relative)) {
                 return Ok(());
             }
             self.admit(nodes)?;
-            self.copies.insert((index, clock));
+            self.copies.insert((index, clock, query, relative));
             let layer = &self.scene.visual_layers[index];
-            let (visible_start, visible_end) = integer_visibility(layer);
+            let pixels = query_pixels(self.queries[query])?;
+            let (visible_start, visible_end) = continuous_visibility(self.scene, index, relative)?;
             for delta in shutter_offsets(layer)? {
-                self.upper_source = add(self.upper_source, self.pixels)?;
+                self.upper_source = add(self.upper_source, pixels)?;
                 let sample = clock.shifted(delta, self.end)?;
                 // Hidden/zero-span leaves are still resource-admitted elsewhere.
                 if sample.high < visible_start || sample.low >= visible_end {
@@ -442,12 +573,12 @@ pub(super) fn certify_continuous_requests(
                     .and_then(|graph| graph.roles[index].provider)
                     .is_some()
                 {
-                    self.upper_work = add(self.upper_work, mul(self.pixels, 5)?)?;
+                    self.upper_work = add(self.upper_work, mul(pixels, 5)?)?;
                 }
                 if let Some((provider, _)) =
                     self.graph.and_then(|graph| graph.roles[index].provider)
                 {
-                    self.provider(provider, sample, nodes)?;
+                    self.provider(provider, sample, query, nodes)?;
                 }
             }
             Ok(())
@@ -461,6 +592,7 @@ pub(super) fn certify_continuous_requests(
     let mut classes = Classes {
         scene,
         graph,
+        queries,
         end,
         base,
         copies: HashSet::new(),
@@ -468,13 +600,22 @@ pub(super) fn certify_continuous_requests(
         upper_visits: vec![0; scene.visual_layers.len()],
         upper_source: 0,
         upper_work: 0,
-        pixels,
     };
-    for index in 0..scene.visual_layers.len() {
-        if graph
-            .is_none_or(|graph| graph.roles[index].contributes && !graph.roles[index].matte_only)
-        {
-            classes.copy(index, root_clock, nodes)?;
+    for (query, domain) in queries.iter().enumerate() {
+        for (index, layer) in scene.visual_layers.iter().enumerate() {
+            if (!controlled || super::group_compositing::leaf_owner(layer) == domain.owner)
+                && graph.is_none_or(|graph| {
+                    graph.roles[index].contributes && !graph.roles[index].matte_only
+                })
+            {
+                classes.copy(
+                    index,
+                    root_clock,
+                    query,
+                    if controlled { domain.owner } else { None },
+                    nodes,
+                )?;
+            }
         }
     }
     // Function identity is a conservative upper bound. It is sufficient when
@@ -482,7 +623,27 @@ pub(super) fn certify_continuous_requests(
     if classes.providers.len() as u64 <= MAX_MATTE_REQUESTS
         && classes.upper_source <= 268_435_456
         && classes.upper_work <= MAX_MATTE_WORK
-        && verify(&classes.upper_visits).is_ok()
+        && verify(
+            &classes.upper_visits,
+            continuous_memory(
+                queries,
+                |query| {
+                    classes
+                        .copies
+                        .iter()
+                        .filter(|(_, _, q, _)| *q == query)
+                        .count() as u64
+                },
+                |query| {
+                    classes
+                        .providers
+                        .iter()
+                        .filter(|(_, _, q)| *q == query)
+                        .count() as u64
+                },
+            )?,
+        )
+        .is_ok()
     {
         return Ok(());
     }
@@ -513,11 +674,20 @@ pub(super) fn certify_continuous_requests(
     };
     point(0)?;
     point(i128::from(end))?;
-    for &(index, clock) in &classes.copies {
+    if controlled {
+        for query in queries {
+            if let Some(owner) = query.owner {
+                let node = &scene.aggregates.as_ref().unwrap().nodes[owner];
+                point(node.clock.start_ms.ceil() as i128)?;
+                point(node.clock.end_ms.ceil() as i128)?;
+            }
+        }
+    }
+    for &(index, clock, _, relative) in &classes.copies {
         point(i128::from(clock.low) - clock.offset)?;
         point(i128::from(clock.high) - clock.offset)?;
         let layer = &scene.visual_layers[index];
-        let (visible_start, visible_end) = integer_visibility(layer);
+        let (visible_start, visible_end) = continuous_visibility(scene, index, relative)?;
         for delta in shutter_offsets(layer)? {
             let sample = clock.shifted(delta, end)?;
             point(i128::from(visible_start) - sample.offset)?;
@@ -529,13 +699,18 @@ pub(super) fn certify_continuous_requests(
     let mut identities: Vec<_> = classes
         .providers
         .iter()
-        .map(|(g, c)| (true, g.0, *c))
-        .chain(classes.copies.iter().map(|(i, c)| (false, *i, *c)))
+        .map(|(g, c, query)| (true, g.0, *query, None, *c))
+        .chain(
+            classes
+                .copies
+                .iter()
+                .map(|(i, c, query, relative)| (false, *i, *query, *relative, *c)),
+        )
         .collect();
     identities.sort_unstable();
-    for group in identities.chunk_by(|a, b| a.0 == b.0 && a.1 == b.1) {
-        for (_, _, first) in group {
-            for (_, _, second) in group {
+    for group in identities.chunk_by(|a, b| a.0 == b.0 && a.1 == b.1 && a.2 == b.2 && a.3 == b.3) {
+        for (_, _, _, _, first) in group {
+            for (_, _, _, _, second) in group {
                 if first == second {
                     continue;
                 }
@@ -562,28 +737,34 @@ pub(super) fn certify_continuous_requests(
     struct Frame<'a> {
         scene: &'a super::EvaluatedScene,
         graph: Option<&'a EvaluatedMatteGraph>,
-        copies: HashSet<(usize, u64)>,
-        providers: HashSet<(MatteGroupId, u64)>,
+        queries: &'a [ContinuousQuery],
+        copies: HashSet<(usize, u64, usize, Option<usize>)>,
+        providers: HashSet<(MatteGroupId, u64, usize)>,
         visits: Vec<u64>,
-        pixels: u64,
         leaf_work: u64,
         work: u64,
         nodes: &'a mut usize,
     }
     impl Frame<'_> {
-        fn provider(&mut self, group: MatteGroupId, time: u64) -> Result<(), crate::CoreError> {
-            if self.providers.contains(&(group, time)) {
+        fn provider(
+            &mut self,
+            group: MatteGroupId,
+            time: u64,
+            query: usize,
+        ) -> Result<(), crate::CoreError> {
+            if self.providers.contains(&(group, time, query)) {
                 return Ok(());
             }
             super::extended_certification::charge(self.nodes)?;
-            self.providers.insert((group, time));
+            self.providers.insert((group, time, query));
             if self.providers.len() as u64 > MAX_MATTE_REQUESTS {
                 return Err(invalid("continuous matte provider requests exceed bounds"));
             }
+            let pixels = query_pixels(self.queries[query])?;
             self.work = add(
                 self.work,
                 mul(
-                    mul(self.pixels, 4)?,
+                    mul(pixels, 4)?,
                     self.graph
                         .ok_or_else(|| invalid("provider graph absent"))?
                         .groups[group.0]
@@ -607,16 +788,24 @@ pub(super) fn certify_continuous_requests(
                         .groups[group.0]
                         .members[slot],
                     time,
+                    query,
+                    None,
                 )?;
             }
             Ok(())
         }
-        fn copy(&mut self, index: usize, time: u64) -> Result<(), crate::CoreError> {
-            if self.copies.contains(&(index, time)) {
+        fn copy(
+            &mut self,
+            index: usize,
+            time: u64,
+            query: usize,
+            relative: Option<usize>,
+        ) -> Result<(), crate::CoreError> {
+            if self.copies.contains(&(index, time, query, relative)) {
                 return Ok(());
             }
             super::extended_certification::charge(self.nodes)?;
-            self.copies.insert((index, time));
+            self.copies.insert((index, time, query, relative));
             let layer = &self.scene.visual_layers[index];
             let times = layer
                 .extended
@@ -632,23 +821,31 @@ pub(super) fn certify_continuous_requests(
                         )
                     },
                 )?;
-            self.leaf_work = add(self.leaf_work, mul(self.pixels, times.len() as u64)?)?;
+            let pixels = query_pixels(self.queries[query])?;
+            self.leaf_work = add(self.leaf_work, mul(pixels, times.len() as u64)?)?;
             if self.leaf_work > 268_435_456 {
                 return Err(invalid("continuous matte source visits exceed bounds"));
             }
             for time in times {
-                if !layer.visible_at(time) {
+                if !relative.map_or_else(
+                    || Ok(layer.visible_at(time)),
+                    |owner| {
+                        super::group_compositing::relative_visible_at(
+                            self.scene, index, owner, time,
+                        )
+                    },
+                )? {
                     continue;
                 }
                 self.visits[index] = add(self.visits[index], 1)?;
                 if let Some((provider, _)) =
                     self.graph.and_then(|graph| graph.roles[index].provider)
                 {
-                    self.work = add(self.work, mul(self.pixels, 5)?)?;
+                    self.work = add(self.work, mul(pixels, 5)?)?;
                     if self.work > MAX_MATTE_WORK {
                         return Err(invalid("continuous matte work exceeds bounds"));
                     }
-                    self.provider(provider, time)?;
+                    self.provider(provider, time, query)?;
                 }
             }
             Ok(())
@@ -675,24 +872,74 @@ pub(super) fn certify_continuous_requests(
         let mut frame = Frame {
             scene,
             graph,
+            queries,
             copies: HashSet::new(),
             providers: HashSet::new(),
             visits: vec![0; scene.visual_layers.len()],
-            pixels,
             leaf_work: 0,
             work: 0,
             nodes,
         };
-        for index in 0..scene.visual_layers.len() {
-            if graph.is_none_or(|graph| {
-                graph.roles[index].contributes && !graph.roles[index].matte_only
-            }) {
-                frame.copy(index, root)?;
+        for (query, domain) in queries.iter().enumerate() {
+            if controlled
+                && domain.owner.is_some_and(|owner| {
+                    !scene.aggregates.as_ref().unwrap().nodes[owner].visible_at(root)
+                })
+            {
+                continue;
+            }
+            for (index, layer) in scene.visual_layers.iter().enumerate() {
+                if (!controlled || super::group_compositing::leaf_owner(layer) == domain.owner)
+                    && graph.is_none_or(|graph| {
+                        graph.roles[index].contributes && !graph.roles[index].matte_only
+                    })
+                {
+                    frame.copy(
+                        index,
+                        root,
+                        query,
+                        if controlled { domain.owner } else { None },
+                    )?;
+                }
             }
         }
-        verify(&frame.visits)?;
+        verify(
+            &frame.visits,
+            continuous_memory(
+                queries,
+                |query| {
+                    frame
+                        .copies
+                        .iter()
+                        .filter(|(_, _, q, _)| *q == query)
+                        .count() as u64
+                },
+                |query| {
+                    frame
+                        .providers
+                        .iter()
+                        .filter(|(_, _, q)| *q == query)
+                        .count() as u64
+                },
+            )?,
+        )?;
     }
     Ok(())
+}
+
+fn query_pixels(query: ContinuousQuery) -> Result<u64, crate::CoreError> {
+    super::extended_visual::validate_sampled_source_size(query.size)?;
+    mul(u64::from(query.size.0), u64::from(query.size.1))
+}
+fn continuous_visibility(
+    scene: &super::EvaluatedScene,
+    index: usize,
+    relative: Option<usize>,
+) -> Result<(u64, u64), crate::CoreError> {
+    let Some(owner) = relative else {
+        return Ok(integer_visibility(&scene.visual_layers[index]));
+    };
+    super::group_compositing::relative_integer_visibility(scene, index, owner)
 }
 
 #[cfg(test)]
@@ -702,18 +949,31 @@ pub(crate) fn frame_schedule(
     scene: &super::EvaluatedScene,
     at: u64,
 ) -> Result<MatteFrameSchedule, crate::CoreError> {
+    let mut budget = OutputFrameBudget::new(scene)?;
+    frame_schedule_in_domain(scene, at, None, &mut budget)
+}
+pub(crate) fn frame_schedule_in_domain(
+    scene: &super::EvaluatedScene,
+    at: u64,
+    query: Option<QueryScope>,
+    budget: &mut OutputFrameBudget,
+) -> Result<MatteFrameSchedule, crate::CoreError> {
     struct Builder<'a> {
         scene: &'a super::EvaluatedScene,
+        query: Option<QueryScope>,
         graph: Option<&'a EvaluatedMatteGraph>,
         tasks: Vec<MatteTask>,
-        copies: std::collections::HashMap<(usize, u64), MatteTaskId>,
+        copies: std::collections::HashMap<(usize, u64, Option<usize>), MatteTaskId>,
         providers: std::collections::HashMap<(MatteGroupId, u64), MatteTaskId>,
         requests: u64,
         work: u64,
         leaf_pixels: u64,
+        prior_requests: u64,
+        prior_work: u64,
+        prior_leaf_pixels: u64,
         pixels: u64,
         planning_fixed: u64,
-        sampled_budget: super::extended_visual::SampledFrameBudget,
+        sampled_budget: &'a mut super::extended_visual::SampledFrameBudget,
     }
     impl Builder<'_> {
         fn admit_records(&self, records: u64, transient: u64) -> Result<(), crate::CoreError> {
@@ -755,7 +1015,7 @@ pub(crate) fn frame_schedule(
                 return Err(invalid("matte provider depth exceeds bounds"));
             }
             self.requests = add(self.requests, 1)?;
-            if self.requests > MAX_MATTE_REQUESTS {
+            if add(self.prior_requests, self.requests)? > MAX_MATTE_REQUESTS {
                 return Err(invalid(
                     "matte provider requests exceed output-frame bounds",
                 ));
@@ -767,7 +1027,7 @@ pub(crate) fn frame_schedule(
                 .members
                 .len();
             self.work = add(self.work, mul(mul(self.pixels, 4)?, member_count as u64)?)?;
-            if self.work > MAX_MATTE_WORK {
+            if add(self.prior_work, self.work)? > MAX_MATTE_WORK {
                 return Err(invalid("matte work exceeds output-frame bounds"));
             }
             self.admit_records(add(self.tasks.len() as u64, member_count as u64)?, 0)?;
@@ -778,7 +1038,7 @@ pub(crate) fn frame_schedule(
                     .ok_or_else(|| invalid("provider graph absent"))?
                     .groups[group.0]
                     .members[offset];
-                copies.push(self.copy(member, at, depth)?);
+                copies.push(self.copy(member, at, depth, None)?);
             }
             let id = self.push(MatteTask::AggregateProvider { copies })?;
             self.providers.insert((group, at), id);
@@ -789,8 +1049,9 @@ pub(crate) fn frame_schedule(
             index: usize,
             at: u64,
             depth: usize,
+            relative_owner: Option<usize>,
         ) -> Result<MatteTaskId, crate::CoreError> {
-            if let Some(id) = self.copies.get(&(index, at)) {
+            if let Some(id) = self.copies.get(&(index, at, relative_owner)) {
                 return Ok(*id);
             }
             let layer = &self.scene.visual_layers[index];
@@ -810,7 +1071,7 @@ pub(crate) fn frame_schedule(
                 )?;
             // Pre-admit all visits before expanding transitive requests.
             self.leaf_pixels = add(self.leaf_pixels, mul(self.pixels, times.len() as u64)?)?;
-            if self.leaf_pixels > 268_435_456 {
+            if add(self.prior_leaf_pixels, self.leaf_pixels)? > MAX_MATTE_WORK {
                 return Err(invalid(
                     "linear composition output-frame pixel work exceeds limits",
                 ));
@@ -819,8 +1080,14 @@ pub(crate) fn frame_schedule(
 
             let mut samples = Vec::new();
             for time in times {
-                if !layer.visible_at(time) {
+                let visible = if let Some(owner) = relative_owner {
+                    super::group_compositing::relative_visible_at(self.scene, index, owner, time)?
+                } else {
+                    layer.visible_at(time)
+                };
+                if !visible {
                     samples.push(self.push(MatteTask::LeafSample {
+                        relative_owner,
                         layer_index: index,
                         at_ms: time,
                         provider: None,
@@ -831,7 +1098,7 @@ pub(crate) fn frame_schedule(
                 if provider.is_some() {
                     self.work = add(self.work, mul(self.pixels, 5)?)?;
                 }
-                if self.work > MAX_MATTE_WORK {
+                if add(self.prior_work, self.work)? > MAX_MATTE_WORK {
                     return Err(invalid("matte work exceeds output-frame bounds"));
                 }
                 let provider = provider
@@ -844,14 +1111,30 @@ pub(crate) fn frame_schedule(
                     add(self.tasks.len() as u64, 1)?,
                     mul(layer_heap_bytes(layer)?, 3)?,
                 )?;
-                let (base_memory, mask_memory) =
-                    self.sampled_budget.certify(self.scene, index, time)?;
+                let (base_memory, mask_memory) = self.sampled_budget.certify_in_domain(
+                    self.scene,
+                    index,
+                    time,
+                    self.query.map_or(
+                        (self.scene.canvas.width, self.scene.canvas.height),
+                        |query| query.frame.size,
+                    ),
+                    relative_owner,
+                    self.query.map(|query| {
+                        if relative_owner.is_some() {
+                            [1., 0., 0., 1., query.local_origin[0], query.local_origin[1]]
+                        } else {
+                            query.frame.matrix()
+                        }
+                    }),
+                )?;
                 let mut source_live_bytes = base_memory
                     .checked_sub(add(MATTE_CACHE_RESERVATION, mul(self.pixels, 40)?)?)
                     .ok_or_else(|| invalid("matte source memory certification invalid"))?;
                 source_live_bytes = add(source_live_bytes, mul(layer_heap_bytes(layer)?, 3)?)?;
                 source_live_bytes = add(source_live_bytes, mask_memory)?;
                 samples.push(self.push(MatteTask::LeafSample {
+                    relative_owner,
                     layer_index: index,
                     at_ms: time,
                     provider,
@@ -866,7 +1149,7 @@ pub(crate) fn frame_schedule(
                     samples,
                 })?
             };
-            self.copies.insert((index, at), id);
+            self.copies.insert((index, at, relative_owner), id);
             Ok(id)
         }
     }
@@ -877,20 +1160,23 @@ pub(crate) fn frame_schedule(
     if scene.composition_resources.is_none() {
         return Err(invalid("bounded composition resource facts absent"));
     }
-    let pixels = mul(
-        u64::from(scene.canvas.width),
-        u64::from(scene.canvas.height),
-    )?;
+    let canvas = query.map_or((scene.canvas.width, scene.canvas.height), |query| {
+        query.frame.size
+    });
+    super::extended_visual::validate_sampled_source_size(canvas)?;
+    let pixels = mul(u64::from(canvas.0), u64::from(canvas.1))?;
     let planning_fixed = add(
         add(MATTE_CACHE_RESERVATION, mul(pixels, 20)?)?,
-        composition_heap_bytes(scene)?,
+        add(composition_heap_bytes(scene)?, budget.retained_live_bytes)?,
     )?;
     // Admit the complete owning table and immutable direct metadata BEFORE
     // allocating either vector. Task admission also retains this reservation.
     let count = scene.visual_layers.len();
     let direct_count = (0..count)
         .filter(|&index| {
-            graph.is_none_or(|graph| {
+            query.is_none_or(|query| {
+                super::group_compositing::leaf_owner(&scene.visual_layers[index]) == query.owner
+            }) && graph.is_none_or(|graph| {
                 graph.roles[index].contributes && !graph.roles[index].matte_only
             })
         })
@@ -936,6 +1222,7 @@ pub(crate) fn frame_schedule(
     }
     let mut builder = Builder {
         scene,
+        query,
         graph,
         tasks: Vec::new(),
         copies: std::collections::HashMap::new(),
@@ -943,61 +1230,70 @@ pub(crate) fn frame_schedule(
         requests: 0,
         work: 0,
         leaf_pixels: 0,
+        prior_requests: budget.requests,
+        prior_work: budget.work,
+        prior_leaf_pixels: budget.leaf_pixels,
         pixels,
         planning_fixed: add(add(planning_fixed, initial_descriptor)?, planning_headers)?,
-        sampled_budget: super::extended_visual::SampledFrameBudget::new(scene)?,
+        sampled_budget: &mut budget.sampled,
     };
     let mut blend_work = 0;
     for (index, layer) in scene.visual_layers.iter().enumerate() {
-        if graph
-            .is_some_and(|graph| !graph.roles[index].contributes || graph.roles[index].matte_only)
+        if query.is_some_and(|query| super::group_compositing::leaf_owner(layer) != query.owner)
+            || graph.is_some_and(|graph| {
+                !graph.roles[index].contributes || graph.roles[index].matte_only
+            })
         {
             continue;
         }
-        let task = builder.copy(index, at, 0)?;
-        let destination_visits = match &builder.tasks[task.0] {
-            MatteTask::AverageCopy { samples, .. } => {
-                let mut bounds: Option<[u32; 4]> = None;
-                for sample in samples {
-                    let MatteTask::LeafSample { at_ms, .. } = builder.tasks[sample.0] else {
-                        return Err(invalid("owning average sample is not a leaf"));
-                    };
-                    if !layer.visible_at(at_ms) {
-                        continue;
+        let task = builder.copy(index, at, 0, query.and_then(|query| query.owner))?;
+        let destination_visits = if query.is_some() {
+            pixels
+        } else {
+            match &builder.tasks[task.0] {
+                MatteTask::AverageCopy { samples, .. } => {
+                    let mut bounds: Option<[u32; 4]> = None;
+                    for sample in samples {
+                        let MatteTask::LeafSample { at_ms, .. } = builder.tasks[sample.0] else {
+                            return Err(invalid("owning average sample is not a leaf"));
+                        };
+                        if !layer.visible_at(at_ms) {
+                            continue;
+                        }
+                        let next = super::extended_visual::certified_destination_bounds(
+                            layer,
+                            at_ms,
+                            (scene.canvas.width, scene.canvas.height),
+                        )?;
+                        if next[0] == next[2] || next[1] == next[3] {
+                            continue;
+                        }
+                        bounds = Some(bounds.map_or(next, |old| {
+                            [
+                                old[0].min(next[0]),
+                                old[1].min(next[1]),
+                                old[2].max(next[2]),
+                                old[3].max(next[3]),
+                            ]
+                        }));
                     }
-                    let next = super::extended_visual::certified_destination_bounds(
-                        layer,
-                        at_ms,
-                        (scene.canvas.width, scene.canvas.height),
-                    )?;
-                    if next[0] == next[2] || next[1] == next[3] {
-                        continue;
-                    }
-                    bounds = Some(bounds.map_or(next, |old| {
-                        [
-                            old[0].min(next[0]),
-                            old[1].min(next[1]),
-                            old[2].max(next[2]),
-                            old[3].max(next[3]),
-                        ]
-                    }));
+                    bounds.map_or(0, |[left, top, right, bottom]| {
+                        u64::from(right - left) * u64::from(bottom - top)
+                    })
                 }
-                bounds.map_or(0, |[left, top, right, bottom]| {
-                    u64::from(right - left) * u64::from(bottom - top)
-                })
+                MatteTask::LeafSample { at_ms, .. } if layer.visible_at(*at_ms) => {
+                    super::extended_visual::certified_destination_visits(
+                        layer,
+                        *at_ms,
+                        (scene.canvas.width, scene.canvas.height),
+                    )?
+                }
+                _ => 0,
             }
-            MatteTask::LeafSample { at_ms, .. } if layer.visible_at(*at_ms) => {
-                super::extended_visual::certified_destination_visits(
-                    layer,
-                    *at_ms,
-                    (scene.canvas.width, scene.canvas.height),
-                )?
-            }
-            _ => 0,
         };
         if !layer.blend_mode.is_normal() {
             blend_work = add(blend_work, mul(destination_visits, 32)?)?;
-            if blend_work > MAX_MATTE_WORK {
+            if add(budget.blend_work, blend_work)? > MAX_MATTE_WORK {
                 return Err(invalid("blend work exceeds output-frame bounds"));
             }
         }
@@ -1094,7 +1390,7 @@ pub(crate) fn frame_schedule(
             add(add(MATTE_CACHE_RESERVATION, mul(pixels, 20)?)?, descriptor)?,
             facts,
         )?,
-        0,
+        budget.retained_live_bytes,
     )?;
     let release_count = builder
         .tasks
@@ -1119,7 +1415,7 @@ pub(crate) fn frame_schedule(
     let memo_bytes = add(
         mul(
             builder.copies.capacity() as u64,
-            2 * (std::mem::size_of::<((usize, u64), MatteTaskId)>() as u64 + 1),
+            2 * (std::mem::size_of::<((usize, u64, Option<usize>), MatteTaskId)>() as u64 + 1),
         )?,
         mul(
             builder.providers.capacity() as u64,
@@ -1152,8 +1448,22 @@ pub(crate) fn frame_schedule(
     if peak > MAX_MATTE_LIVE_BYTES {
         return Err(invalid("matte shared live memory exceeds limits"));
     }
+    budget.requests = add(budget.requests, builder.requests)?;
+    budget.work = add(budget.work, builder.work)?;
+    budget.leaf_pixels = add(budget.leaf_pixels, builder.leaf_pixels)?;
+    budget.blend_work = add(budget.blend_work, blend_work)?;
+    if budget.requests > MAX_MATTE_REQUESTS
+        || budget.work > MAX_MATTE_WORK
+        || budget.leaf_pixels > MAX_MATTE_WORK
+        || budget.blend_work > MAX_MATTE_WORK
+    {
+        return Err(invalid(
+            "cumulative query frame request/work exceeds bounds",
+        ));
+    }
     Ok(MatteFrameSchedule {
-        canvas: (scene.canvas.width, scene.canvas.height),
+        query: query.map(|query| query.frame),
+        canvas,
         tasks: builder.tasks,
         direct_draw,
         owner_modes,
@@ -2200,5 +2510,79 @@ mod tests {
             0,
             "no owning vector reservation may precede memory refusal"
         );
+    }
+}
+
+#[cfg(test)]
+mod query_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn private_provider_and_direct_relative_products_are_distinct_in_one_query() {
+        let project: crate::Project = serde_json::from_value(json!({"schemaVersion":37,"id":"p","revision":0,"name":"Query","createdAtMs":1,"updatedAtMs":1,
+            "settings":{"width":64,"height":64,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],
+            "tracks":[{"id":"t","name":"T","trackType":"overlay","items":[
+                {"type":"group","id":"g","startMs":0,"durationMs":1000,"clip":{"type":"composition_bounds"},"zIndex":0,"stackOrder":0},
+                {"type":"rectangle","id":"provider","width":4,"height":4,"color":"#ffffff","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":1,
+                    "parent":{"scope":"root","id":"g"},"motionBlur":{"shutterAngleDeg":180,"sampleCount":2}},
+                {"type":"rectangle","id":"recipient","width":4,"height":4,"color":"#ff0000","startMs":0,"durationMs":1000,"keyframes":[],"zIndex":0,"stackOrder":2,
+                    "parent":{"scope":"root","id":"g"},"matte":{"sourceId":"provider","channel":"alpha"}}
+            ]}]})).unwrap();
+        let mut scene = super::super::evaluate_project(&project, 64, 64, 10)
+            .unwrap()
+            .scene;
+        super::super::finalize_affine_geometry(&mut scene, &Default::default()).unwrap();
+        let frame = QueryFrame::new((8, 6), [-24., -18.], [[0., 1.], [-1., 0.]]).unwrap();
+        assert_eq!(frame.matrix(), [0., 1., -1., 0., -24., -18.]);
+        let scope = QueryScope {
+            frame,
+            owner: Some(0),
+            local_origin: [0., 0.],
+        };
+        let mut budget = OutputFrameBudget::new(&scene).unwrap();
+        let schedule = frame_schedule_in_domain(&scene, 400, Some(scope), &mut budget).unwrap();
+        assert_eq!(schedule.query, Some(frame));
+        assert_eq!(schedule.canvas, (8, 6));
+        assert_eq!(schedule.direct_draw.len(), 2);
+        let mut direct = Vec::new();
+        let mut private = Vec::new();
+        for task in &schedule.tasks {
+            if let MatteTask::LeafSample {
+                layer_index: 0,
+                at_ms,
+                relative_owner,
+                ..
+            } = task
+            {
+                if *relative_owner == Some(0) {
+                    direct.push(*at_ms);
+                } else {
+                    private.push(*at_ms);
+                }
+            }
+        }
+        assert_eq!(direct.len(), 2);
+        assert_eq!(private.len(), 2);
+        assert_eq!(direct, private);
+        assert_eq!(schedule.certificate.provider_requests, 1);
+        assert_eq!(budget.requests, 1);
+        let second = frame_schedule_in_domain(&scene, 400, Some(scope), &mut budget).unwrap();
+        assert_eq!(second.certificate.provider_requests, 1);
+        assert_eq!(budget.requests, 2);
+        budget.requests = MAX_MATTE_REQUESTS;
+        assert!(frame_schedule_in_domain(&scene, 400, Some(scope), &mut budget).is_err());
+    }
+    #[test]
+    fn query_frame_admission_accepts_signed_and_singular_bases_but_rejects_invalid_surfaces() {
+        assert!(QueryFrame::new((4, 3), [-500., -10.], [[0., 0.], [0., 0.]]).is_ok());
+        assert!(QueryFrame::new((4, 3), [0., 0.], [[f64::MAX, 0.], [0., 1.]]).is_err());
+        assert!(QueryFrame::new((4, 3), [f64::MAX, 0.], [[f64::MAX, 0.], [0., 1.]]).is_err());
+        for size in [(0, 3), (16385, 1), (4097, 4096)] {
+            assert!(QueryFrame::new(size, [0., 0.], [[1., 0.], [0., 1.]]).is_err());
+        }
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(QueryFrame::new((4, 3), [invalid, 0.], [[1., 0.], [0., 1.]]).is_err());
+            assert!(QueryFrame::new((4, 3), [0., 0.], [[invalid, 0.], [0., 1.]]).is_err());
+        }
     }
 }

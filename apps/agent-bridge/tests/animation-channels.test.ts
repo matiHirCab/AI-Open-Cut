@@ -15,7 +15,7 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(36);
+    expect(contract.projectSchemaVersion).toBe(37);
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),

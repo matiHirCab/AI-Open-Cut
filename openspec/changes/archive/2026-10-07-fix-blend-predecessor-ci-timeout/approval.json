@@ -1,0 +1,55 @@
+{
+  "review": "independent-before-code-blend-ci-correction",
+  "timestampUtc": "2026-10-07T02:14:44.576770+00:00",
+  "decision": "APPROVED",
+  "scope": "Test-only bounded blend-node preflight; no implementation approval or publication clearance implied",
+  "head": "dcc6b28bf4f60bc3d18bb5673090f6e9e810b004",
+  "approvedArtifactHashes": {
+    ".openspec.yaml": "720b3de6231f9647898feba395449b03234e0c4fa3bd4ce47fc3bb341b0f16d6",
+    "design.md": "f7e565c552270676a39ae76727682baa758492b4465caff3ced3bfc4d701328c",
+    "proposal.md": "38416a49f2c10c8a5e8ba626c9cfdcf9037bbb82b2fa9bd7654530a210ed4814",
+    "specs/contract-governance/spec.md": "076191f54b0fb8d3c88d498d0fe3368188f26cc19495eae9db0ad1da66b3a5ca",
+    "tasks.md": "c3edf93865fdbafe7ce9a40f3725348de28e3ef3b0e86368a44fe51b95f2b6ac"
+  },
+  "baselineReceiptSha256": "0a5af69daddcba1c7b05e654999b5a7f4a6761bbfc6464f40a892c8278500e4f",
+  "baselineProof": {
+    "trackedFiles": 1776,
+    "allTrackedHashesCurrentlyEqual": true,
+    "livingRequirementBaselineCount": 493,
+    "artifactHashesEqualBaseline": true
+  },
+  "failureEvidence": {
+    "runId": 37558455469,
+    "head": "dcc6b28bf4f60bc3d18bb5673090f6e9e810b004",
+    "annotationSha256": "624918dbaabe75d3be66c85e18f3b2a6512f4e9ab68ecabd86c540ecaf5dadac",
+    "observed": "Windows annotation: blend-modes.test.ts:100 existing 5000ms timeout; Linux pass does not establish Windows reproduction or repair",
+    "normalExactHeadCI": "FAILED, correction exact-head all11 SUCCESS remains required"
+  },
+  "normativeDelta": {
+    "requirements": 1,
+    "scenarios": 2,
+    "capability": "contract-governance"
+  },
+  "reviewedSources": [
+    "apps/agent-bridge/tests/fixtures/blend-mode-projection.ts",
+    "apps/agent-bridge/tests/fixtures/parameterized-effect-projection.ts",
+    "apps/agent-bridge/tests/fixtures/group-compositing-projection.ts",
+    "apps/agent-bridge/tests/blend-modes.test.ts"
+  ],
+  "findings": [],
+  "reasoning": [
+    "Existing group and parameterized projections do not change approved blend nodes; the existing exact validator can run read-only on current input before expensive predecessor work.",
+    "The early check is supplemental rejection evidence, not historical projection proof. Valid inputs must still execute sequential37-to36-to35-to34 transforms with capabilities, markers, addition proofs and original complete predecessor digest.",
+    "All29 paths,87 malformed cases,29 missing controls and5000ms deadline are retained. Early unrelated-subtree guard and unrelated valid drift discrimination add evidence without relaxing coverage.",
+    "Failure precedence changes are limited to test-only malformed catalogs. No production/API/schema/catalog pin/render/CI setting changes are authorized.",
+    "Before-code freeze, affected full checks, independently reviewed implementation, own-only sync/archive, postarchive protected/strict and exact corrected-head11-job success are explicit mandatory lifecycle gates.",
+    "Reusing older suite evidence is conditional on complete relevant input/toolchain/environment proof; any changed relevant input invalidates reuse and requires rerun. Failed run receipts remain retained."
+  ],
+  "conditionsForImplementationReview": [
+    "Verify all116 negative controls and exact full positive digest remain enforced with unchanged deadline.",
+    "Confirm guarded unrelated subtree is not read for malformed and missing nodes; valid unrelated drift is distinguished by complete historical evidence.",
+    "Confirm source nonmutation, production/catalog/CI preservation and baseline hashes outside expressly authorized scope.",
+    "Require named tests for both scenarios and completion of affected checks before archival or publication.",
+    "Keep #57 blocked until corrected #56 exact-head all11 CI SUCCESS."
+  ]
+}

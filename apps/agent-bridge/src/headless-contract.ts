@@ -202,6 +202,7 @@ export type HeadlessEdit =
       blendMode?: z.infer<typeof blendModeSchema> | undefined;
       crop?: z.infer<typeof mediaCropSchema> | undefined;
       motionBlur?: z.infer<typeof motionBlurSchema> | undefined;
+      clip?: { type: "composition_bounds" } | null | undefined;
       effects?: z.infer<typeof visualEffectSchema>[] | undefined;
       masks?: z.infer<typeof maskSchema>[] | undefined;
       staggerMs?: number | undefined;
