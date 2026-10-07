@@ -15,3 +15,11 @@ Passing preparation checks:
 - `git diff --check`; no diff in existing required CI workflows.
 
 Full repository suites, actual Windows evidence, cause-specific correction, independent final conformance review, sync/archive, final protected policy and exact-head required CI remain pending. This investigative draft must not be described as a resolved baseline or merge-ready. Its active change intentionally blocks protected merge readiness until correction/conformance are verified and archived. Original failed Windows logs remain preserved in the original issue60 checkout's blocker dossier.
+
+## Paired probe review
+
+The first instrumented fixture passed on native Windows in workflow37623651450/job112799854979 at head2fe690eaaeee13fbd37dfcbaaf52765e4a14d15e, including the original descendant cleanup assertion, in2.37seconds. This does not establish why the two original full main runs failed before PID observation. Full CI37623651478 remains in progress; the active-change inventory rejection is expected and is not acceptance.
+
+The approved amendment adds a second Windows test preserving the original batch body byte-for-byte alongside the instrumented fixture. Both retain the same deadlines and exact process-handle assertions. Read-only ToolHelp snapshots expose only the owned worker's descendant names/IDs, cap64 descendants and16384 enumerated records, report snapshot failures and truncation, and never open/terminate unrelated processes. Success reports elapsed startup and owned process evidence; timeout/early terminal events report corresponding evidence. Portable tests cover reversed ancestry, unrelated-tree filtering, process limits and malformed-byte expansion. Focused Linux tests now pass9/9; strict focused Clippy, Windows-target compilation and the22 workflow assertions pass. Actual paired native execution remains pending.
+
+Local full bridge unit execution preserved three failures: default-target headless binary absent due isolated cargo target setup; two Linux process.kill(PID,0) expectations failed and require owned-process inspection before attribution. Standard Ubuntu CI on the prior checkpoint passed all required correctness checks. These results do not substitute for exact final-head acceptance.

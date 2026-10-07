@@ -25,4 +25,4 @@ jobs:
       - name: Observe exact Windows descendant fixture
         env:
           RUST_BACKTRACE: '1'
-        run: cargo +1.97.0 test -p opencut-headless --test render_worker crashed_worker_terminates_renderer_descendants -- --exact --nocapture
+        run: cargo +1.97.0 test -p opencut-headless --test render_worker crashed_worker_ -- --nocapture --test-threads=1

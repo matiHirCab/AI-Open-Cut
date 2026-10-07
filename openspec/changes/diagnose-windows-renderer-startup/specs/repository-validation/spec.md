@@ -15,6 +15,15 @@ The Windows renderer-descendant regression fixture MUST preserve its10-second PI
 - **WHEN** the fixture publishes its live renderer PID
 - **THEN** the test opens that exact process handle, confirms liveness, abruptly terminates the worker and still requires the renderer to terminate within5000ms
 
+#### Scenario: Compare original and instrumented startup without unrelated process disclosure
+- **WHEN** focused evidence passes without establishing the original failure's cause
+- **THEN** the diagnostic job executes the original and instrumented fixture bodies sequentially with unchanged deadlines/assertions and reports startup elapsed time and at most64 processes reachable through the owned worker's parent-child tree using read-only Windows snapshots
+- **AND** unrelated process identities are omitted, snapshot failures are explicit and this serialized comparison is distinguished from unchanged full-workspace acceptance
+
+#### Scenario: Bound malformed-byte evidence expansion
+- **WHEN** a file contains invalid UTF-8 bytes whose replacement characters expand rendered evidence
+- **THEN** the rendered source remains bounded16KiB at a valid UTF-8 boundary with an explicit truncation label
+
 ### Requirement: Focused Windows evidence alongside unchanged required gates
 A focused Windows startup workflow SHALL use the repository-pinned toolchain and execute the exact renderer-descendant scenario with visible diagnostics. Existing required correctness, contract, render, policy, smoke and foundation workflows MUST remain unchanged and authoritative. The focused job MUST NOT replace full Windows acceptance, skip assertions or reclassify failures. Linux-only checks SHALL be reported as local evidence and MUST NOT be called Windows runtime proof.
 

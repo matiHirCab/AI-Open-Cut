@@ -8,6 +8,7 @@
 - [x] 2.1 Add bounded portable fixture-evidence formatting and meaningful missing/unreadable/truncation/typed-event tests.
 - [x] 2.2 Add owned shell/PowerShell startup evidence and correlated worker-event capture to the Windows fixture without changing its10-second startup or5-second cleanup deadlines/handle assertions.
 - [x] 2.3 Add a focused native Windows workflow and automated workflow-policy test preserving all required workflows exactly.
+- [ ] 2.4 Add approved paired original/instrumented native startup probes, bounded owned-descendant snapshots and malformed-byte evidence coverage; collect native comparison evidence without changing standard acceptance or inferring a correction.
 
 ## 3. Verify diagnostics and collect Windows evidence
 

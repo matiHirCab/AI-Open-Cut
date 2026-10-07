@@ -7,6 +7,7 @@ Main2d748508 fails Windows renderer descendant testing twice before its cleanup 
 - Improve owned test-fixture diagnostics with shell-entry evidence, PowerShell error output and captured worker events while preserving the10-second PID observation deadline,5-second cleanup assertion, exact-child handle and kill-on-close coverage.
 - Add a focused Windows diagnostic workflow alongside unchanged required correctness/foundation workflows so startup evidence is available without waiting for the complete desktop workspace suite.
 - Collect real Windows evidence before approving any cause-specific correction. A later correction requires an amended reviewed specification; this proposal does not guess the cause or change production execution.
+- Compare the original and instrumented fixture bodies in the same native Windows diagnostic process and report only owned process descendants through read-only Windows snapshots. The first focused instrumented run passed in2.37s, which is not a proven correction or explanation of the two original full-suite failures.
 
 ## Capabilities
 

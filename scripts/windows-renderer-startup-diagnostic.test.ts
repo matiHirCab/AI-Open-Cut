@@ -42,7 +42,7 @@ test("focused Windows evidence executes the exact unchanged descendant assertion
     "rustup toolchain install 1.97.0 --profile minimal",
   );
   expect(job.steps[4].run).toBe(
-    "cargo +1.97.0 test -p opencut-headless --test render_worker crashed_worker_terminates_renderer_descendants -- --exact --nocapture",
+    "cargo +1.97.0 test -p opencut-headless --test render_worker crashed_worker_ -- --nocapture --test-threads=1",
   );
   expect(job.steps[4].env).toEqual({ RUST_BACKTRACE: "1" });
   const pins = readFileSync(
