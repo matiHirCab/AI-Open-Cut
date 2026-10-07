@@ -9,6 +9,7 @@
 - [x] 2.2 Add owned shell/PowerShell startup evidence and correlated worker-event capture to the Windows fixture without changing its10-second startup or5-second cleanup deadlines/handle assertions.
 - [x] 2.3 Add a focused native Windows workflow and automated workflow-policy test preserving all required workflows exactly.
 - [x] 2.4 Add approved paired original/instrumented native startup probes, bounded owned-descendant snapshots and malformed-byte evidence coverage; collect native comparison evidence without changing standard acceptance or inferring a correction.
+- [ ] 2.5 Restore the original body as the sole default descendant fixture and isolate sequential instrumentation behind the focused diagnostic flag; enforce workflow isolation and collect the original full-suite control.
 
 ## 3. Verify diagnostics and collect Windows evidence
 

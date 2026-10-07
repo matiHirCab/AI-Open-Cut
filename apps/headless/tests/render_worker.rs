@@ -408,13 +408,10 @@ fn native_worker_reuses_rasters_across_requests_and_restarts_cold() {
 #[cfg(windows)]
 #[test]
 fn crashed_worker_terminates_renderer_descendants() {
-    exercise_windows_crash_fixture(true);
-}
-
-#[cfg(windows)]
-#[test]
-fn crashed_worker_original_fixture_startup_comparison() {
     exercise_windows_crash_fixture(false);
+    if std::env::var("OPENCUT_WINDOWS_STARTUP_COMPARISON").as_deref() == Ok("1") {
+        exercise_windows_crash_fixture(true);
+    }
 }
 
 #[cfg(windows)]
@@ -488,7 +485,7 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
             }
             assert!(
                 !failed,
-                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; elapsed={:?}; {}; {}",
+                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
                 started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
@@ -497,7 +494,8 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                     events_truncated,
                     &worker.diagnostics.lock().unwrap()
                 ),
-                render_worker_startup::process_evidence(worker.child.id())
+                render_worker_startup::process_evidence(worker.child.id()),
+                render_worker_startup::pid_evidence(&pid_file)
             );
         }
         match std::fs::read_to_string(&pid_file) {
@@ -509,7 +507,7 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                     std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
                 ) || error.raw_os_error() == Some(32) => {}
             Err(error) => panic!(
-                "{error}; instrumented={instrumented}; elapsed={:?}; {}; {}",
+                "{error}; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
                 started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
@@ -518,12 +516,13 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                     events_truncated,
                     &worker.diagnostics.lock().unwrap()
                 ),
-                render_worker_startup::process_evidence(worker.child.id())
+                render_worker_startup::process_evidence(worker.child.id()),
+                render_worker_startup::pid_evidence(&pid_file)
             ),
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "renderer PID record never became readable; instrumented={instrumented}; elapsed={:?}; {}; {}",
+            "renderer PID record never became readable; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
             started.elapsed(),
             render_worker_startup::evidence(
                 &shell_entry,
@@ -532,7 +531,8 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                 events_truncated,
                 &worker.diagnostics.lock().unwrap()
             ),
-            render_worker_startup::process_evidence(worker.child.id())
+            render_worker_startup::process_evidence(worker.child.id()),
+            render_worker_startup::pid_evidence(&pid_file)
         );
         std::thread::sleep(Duration::from_millis(10));
     };

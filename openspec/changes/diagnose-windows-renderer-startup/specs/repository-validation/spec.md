@@ -24,6 +24,15 @@ The Windows renderer-descendant regression fixture MUST preserve its10-second PI
 - **WHEN** a file contains invalid UTF-8 bytes whose replacement characters expand rendered evidence
 - **THEN** the rendered source remains bounded16KiB at a valid UTF-8 boundary with an explicit truncation label
 
+#### Scenario: Preserve the default original startup control
+- **WHEN** the required full-workspace suite executes without the focused diagnostic flag
+- **THEN** only the exact original batch body exercises descendant startup and cleanup, with the original deadlines/assertions and correlated worker/process reporting
+- **AND** the additional instrumented exercise runs sequentially only under `OPENCUT_WINDOWS_STARTUP_COMPARISON=1` in the separate focused workflow, preventing concurrent diagnostic warm-up from substituting for standard acceptance
+
+#### Scenario: Distinguish absent from incomplete owned PID publication
+- **WHEN** PID observation fails because the owned record is absent, unreadable, incomplete or contains control bytes
+- **THEN** failure evidence includes a bounded escaped rendering of that record, preserving incomplete terminators and NUL bytes visibly without accepting an invalid PID or extending the deadline
+
 ### Requirement: Focused Windows evidence alongside unchanged required gates
 A focused Windows startup workflow SHALL use the repository-pinned toolchain and execute the exact renderer-descendant scenario with visible diagnostics. Existing required correctness, contract, render, policy, smoke and foundation workflows MUST remain unchanged and authoritative. The focused job MUST NOT replace full Windows acceptance, skip assertions or reclassify failures. Linux-only checks SHALL be reported as local evidence and MUST NOT be called Windows runtime proof.
 

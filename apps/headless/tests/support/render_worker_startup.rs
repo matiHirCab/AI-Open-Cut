@@ -152,6 +152,10 @@ pub fn evidence(
     result
 }
 
+pub fn pid_evidence(path: &Path) -> String {
+    bounded(format!("{:?}", file_evidence(path)).as_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,6 +217,21 @@ mod tests {
         assert!(source.len() <= SOURCE_LIMIT);
         assert!(source.ends_with('\u{fffd}'));
         assert_eq!(label, " at 16384 bytes]");
+    }
+
+    #[test]
+    fn pid_publication_evidence_preserves_incomplete_and_control_byte_records() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("renderer.pid");
+        assert_eq!(pid_evidence(&path), "\"missing\"");
+        std::fs::write(&path, "1234\r").unwrap();
+        assert_eq!(pid_evidence(&path), "\"1234\\r\"");
+        std::fs::write(&path, b"1\0\r\0\n\0").unwrap();
+        assert_eq!(pid_evidence(&path), "\"1\\0\\r\\0\\n\\0\"");
+        std::fs::write(&path, vec![0; SOURCE_LIMIT]).unwrap();
+        let output = pid_evidence(&path);
+        let (source, _) = output.split_once(" [truncated").unwrap();
+        assert!(source.len() <= SOURCE_LIMIT);
     }
 
     #[test]

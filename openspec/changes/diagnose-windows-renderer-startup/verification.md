@@ -4,9 +4,9 @@ Separate review pass using the repository openspec-verify-change workflow on2026
 
 | Dimension | Assessment |
 | --- | --- |
-| Completeness | 8/13 tasks complete; cause and final acceptance unresolved |
-| Correctness | Both diagnostic requirements implemented; all6 scenarios have portable or native evidence |
-| Coherence | Production/contracts/required workflows unchanged; one missing failure-timing field corrected locally |
+| Completeness | 8/14 tasks complete; original control, cause and final acceptance unresolved |
+| Correctness | Both diagnostic requirements implemented;8 scenarios mapped, default original control awaits native execution |
+| Coherence | Production/contracts/required workflows unchanged; missing failure timing corrected; concurrent default probing isolated |
 
 ## Requirement and scenario evidence
 
@@ -21,7 +21,11 @@ Separate review pass using the repository openspec-verify-change workflow on2026
 
 The design promised startup timing on failure as well as success. The original diagnostic timeout/terminal-event paths omitted elapsed time. The local review correction adds elapsed time to those messages and includes owned process evidence on unexpected PID-file read failure. It changes reporting only; Windows cross-compilation and the next native head must verify it before final acceptance.
 
+Full CI37625364905 on1a784c24 passes all9 substantive jobs, including standard Windows/macOS/Ubuntu correctness, native audiovisual/lifecycle/raster parity, all3 rules resolutions, contract parity and packaged integration/smoke. The active-change policy rejection and dependent foundation rejection remain expected failures, not acceptance. Original and instrumented probes run concurrently in that full Windows suite and complete together in5.29s. That could warm PowerShell and confound the original startup control; the root cause remains unproved. Reviewed amendment restores the original body as the sole default cleanup test and enables the sequential instrumented exercise only in the focused workflow through `OPENCUT_WINDOWS_STARTUP_COMPARISON=1`.24 policy assertions enforce exact selection and flag absence from required workflows. A new portable actual-file test renders incomplete/NUL-bearing PID records visibly and bounds escape expansion.10 focused Linux tests, strict focused Clippy, Windows-target compilation, formatting and strict specs pass after this amendment; original default native evidence remains pending.
+
 ## Critical completion blockers
+
+0. Task2.5: collect the sole original-body default full-suite control before attributing the previous native pass to any correction. The new diagnostic mode preserves all original deadlines and assertions and leaves required workflows unchanged.
 
 1. Task3.3: focused native passes do not explain either original full-main failure. Wait for full exact-head Windows evidence and approve any correction only after an evidenced cause. No speculative production fix is justified.
 2. Task4.1: no cause-specific correction is implemented or approved.
@@ -29,4 +33,4 @@ The design promised startup timing on failure as well as success. The original d
 4. Task4.3: sync/archive and final protected policy remain blocked until all required implementation checks and final conformance pass. The actual pinned Moon task ran451 policy tests and strict validation46/46, then rejected only this active change as required; this rejection is not gate success. MOON_HOME/PROTO_HOME/XDG_CACHE_HOME were redirected into writable workspace locations and MOON_TOOLCHAIN_FORCE_GLOBALS used the verified pinned tools without omitting any task checks.
 5. Task4.4: PR154 remains draft targeting main and explicitly investigative. Final correction description and exact final-head full required CI are unresolved. Do not resume issue60 implementation prematurely.
 
-Five critical task blockers remain. Keep the change active and the draft incomplete; no archive or baseline-resolution claim is warranted.
+Six critical task blockers remain. Keep the change active and the draft incomplete; no archive or baseline-resolution claim is warranted.
