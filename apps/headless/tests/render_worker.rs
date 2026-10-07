@@ -488,7 +488,8 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
             }
             assert!(
                 !failed,
-                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; {}; {}",
+                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; elapsed={:?}; {}; {}",
+                started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
                     &powershell_stderr,
@@ -508,19 +509,22 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                     std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
                 ) || error.raw_os_error() == Some(32) => {}
             Err(error) => panic!(
-                "{error}; {}",
+                "{error}; instrumented={instrumented}; elapsed={:?}; {}; {}",
+                started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
                     &powershell_stderr,
                     &events,
                     events_truncated,
                     &worker.diagnostics.lock().unwrap()
-                )
+                ),
+                render_worker_startup::process_evidence(worker.child.id())
             ),
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "renderer PID record never became readable; instrumented={instrumented}; {}; {}",
+            "renderer PID record never became readable; instrumented={instrumented}; elapsed={:?}; {}; {}",
+            started.elapsed(),
             render_worker_startup::evidence(
                 &shell_entry,
                 &powershell_stderr,
