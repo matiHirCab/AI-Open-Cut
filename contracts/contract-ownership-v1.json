@@ -899,6 +899,30 @@
         ".github/workflows/bun-ci.yml",
         "docs/masked-hero-reveal.md"
       ]
+    },
+    "speechAlignment": {
+      "canonical": "contracts/speech-alignment-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/model/speech_alignment.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/assets.rs",
+        "crates/editor-core/tests/speech_alignment.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/speech.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/speech-alignment.test.ts",
+        "apps/agent-bridge/tests/speech.test.ts",
+        "apps/agent-bridge/tests/fixtures/speech-alignment-projection.ts",
+        "contracts/mcp-surface-v1.json",
+        "docs/speech-alignment.md",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "crates/editor-core/src/render_plan.rs"
+      ]
     }
   }
 }

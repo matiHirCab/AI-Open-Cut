@@ -305,7 +305,7 @@ fn clip_and_ordered_overlay_lifecycle_preserves_aliases_drafts_history_null_clea
         serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap(),
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap()
     );
-    assert_eq!(reopened.get_project(&id).unwrap().schema_version, 37);
+    assert_eq!(reopened.get_project(&id).unwrap().schema_version, 38);
 }
 #[test]
 fn canonical_overlay_endpoints_closed_fields_and_atomic_later_batch_failures() {
@@ -485,14 +485,14 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
     reopened.get_project(&id).unwrap();
     let mut adopted: Value =
         serde_json::from_slice(&std::fs::read(dir.join("project.json")).unwrap()).unwrap();
-    assert_eq!(adopted["schemaVersion"], 37);
+    assert_eq!(adopted["schemaVersion"], 38);
     adopted["schemaVersion"] = json!(36);
     assert_eq!(adopted, current);
     let mut adopted_history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for key in ["undo", "redo"] {
         for snapshot in adopted_history[key].as_array_mut().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 37);
+            assert_eq!(snapshot["schemaVersion"], 38);
             snapshot["schemaVersion"] = json!(36);
         }
     }

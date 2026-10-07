@@ -614,6 +614,7 @@ fn predecessor_migration_preserves_managed_resource_provenance_and_revision() {
     write_tone(&wav);
     let audio_track = core.get_project(&id).unwrap().tracks[2].id.clone();
     let origin = GeneratedAssetOrigin::SpeechSynthesis(SpeechGeneration {
+        alignment: None,
         request: SpeechSynthesisRequest {
             text: "Retained provenance".into(),
             language: "en-US".into(),

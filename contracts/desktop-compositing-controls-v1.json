@@ -1,6 +1,6 @@
 {
   "catalogVersion": 1,
-  "projectSchemaVersion": 37,
+  "projectSchemaVersion": 38,
   "headlessProtocolVersion": 1,
   "registeredToolCount": 78,
   "coreMutation": "update_item",

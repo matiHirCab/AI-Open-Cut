@@ -25,7 +25,7 @@ describe("mask model structural contracts", () => {
       }
     }
     expect(contract.status).toBe("authoring_with_active_rendering_contract");
-    expect(contract.projectSchemaVersion).toBe(37);
+    expect(contract.projectSchemaVersion).toBe(38);
   });
 
   it("rejects nonfinite coverage controls and nested canonical inputs", () => {

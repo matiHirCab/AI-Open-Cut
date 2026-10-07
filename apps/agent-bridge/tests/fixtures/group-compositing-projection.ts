@@ -1,6 +1,10 @@
 import additions from "./group-compositing-additions.json";
 import pins from "./group-compositing-predecessor-pins.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
+import {
+  removeSpeechAlignmentMcpAdditions,
+  restoreSpeechAlignmentCatalogMarker,
+} from "./speech-alignment-projection";
 
 type JsonRecord = Record<string, unknown>;
 const object = (value: unknown): JsonRecord => {
@@ -11,7 +15,7 @@ const object = (value: unknown): JsonRecord => {
 };
 export const GROUP_PREDECESSOR_PINS: Record<string, string> = pins.catalogs;
 export const restoreGroupCatalogMarker = (source: unknown): JsonRecord => {
-  const input = object(source);
+  const input = restoreSpeechAlignmentCatalogMarker(source);
   if (input.projectSchemaVersion !== 37) {
     throw new Error(
       "Incorrect approved group-compositing marker: Unrelated verified predecessor"
@@ -61,7 +65,7 @@ const literalPaths = [
 ];
 const identifiers = ["group_compositing_models_v1", "group_compositing_v1"];
 export const removeGroupMcpAdditions = (source: unknown): JsonRecord => {
-  const input = object(source);
+  const input = removeSpeechAlignmentMcpAdditions(source);
   const capabilities = input.capabilityIdentifiers;
   if (
     !Array.isArray(capabilities) ||

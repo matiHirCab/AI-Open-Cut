@@ -24,6 +24,17 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    for asset in &project.assets {
+        if project.schema_version < 38
+            && matches!(&asset.origin, Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation)) if generation.alignment.is_some())
+        {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "speech alignment requires schema 38",
+            ));
+        }
+        asset.validate_speech_provenance()?;
+    }
     if project.schema_version < 37
         && project
             .tracks
@@ -374,7 +385,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=36 => {
+        9..=37 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

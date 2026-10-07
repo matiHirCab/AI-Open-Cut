@@ -63,7 +63,7 @@ function assertRecipe(
   const p = state.project;
   expect(p.settings).toEqual(catalog.settings);
   expect(p.name).toBe("Masked hero reveal v1");
-  expect(p.schemaVersion).toBe(37);
+  expect(p.schemaVersion).toBe(38);
   expect(p.tracks.map((t) => t.items.length)).toEqual([0, 4, 1, 0]);
   for (const [index, role] of (
     ["owner", "provider", "probe", "hero"] as const
@@ -283,7 +283,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
     };
     try {
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(37);
+      expect(status.projectSchemaVersion).toBe(38);
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(
         (await client.request({ method: "tools/list" })).tools

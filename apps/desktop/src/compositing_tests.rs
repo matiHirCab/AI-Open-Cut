@@ -81,7 +81,7 @@ fn inventory(path: &Path) -> BTreeMap<String, Vec<u8>> {
 #[test]
 fn desktop_compositing_catalog_defaults_complete_fields_and_surface_identity() {
     let c = catalog();
-    assert_eq!(c["projectSchemaVersion"], 37);
+    assert_eq!(c["projectSchemaVersion"], 38);
     assert_eq!(c["headlessProtocolVersion"], 1);
     assert_eq!(c["registeredToolCount"], 78);
     assert_eq!(c["coreMutation"], "update_item");

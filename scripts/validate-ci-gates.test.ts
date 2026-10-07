@@ -2144,3 +2144,22 @@ describe("required desktop contract native prerequisites",()=>{
     });
   }
 });
+
+describe("speech alignment mandatory contract consumers", () => {
+  for (const consumer of [" --test speech_alignment", " tests/speech-alignment.test.ts"]) {
+    it(`rejects omission of ${consumer}`, () => {
+      const sources = moonPolicySources();
+      const parsed = JSON.parse(sources.bridgePackage!);
+      parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, "");
+      expect(() => validateMoonPolicyBoundary({...sources, bridgePackage: JSON.stringify(parsed)}))
+        .toThrow("exact complete canonical command");
+    });
+    it(`rejects failure masking for ${consumer}`, () => {
+      const sources = moonPolicySources();
+      const parsed = JSON.parse(sources.bridgePackage!);
+      parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, `${consumer} || true`);
+      expect(() => validateMoonPolicyBoundary({...sources, bridgePackage: JSON.stringify(parsed)}))
+        .toThrow("exact complete canonical command");
+    });
+  }
+});

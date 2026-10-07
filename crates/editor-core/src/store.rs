@@ -459,82 +459,139 @@ impl EditorCore {
         mut request: CommitGeneratedAssetRequest,
     ) -> Result<CommitGeneratedAssetResult, CoreError> {
         validate_duration(request.duration_ms)?;
-        request.origin.validate()?;
+        request
+            .origin
+            .validate_for_duration(Some(request.duration_ms))?;
         request.probe.duration_ms = Some(request.duration_ms);
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &self.font_config,
-            Some(request.expected_revision),
-        )?;
-        let track_index = project
-            .tracks
-            .iter()
-            .position(|track| track.id == request.track_id)
-            .ok_or_else(|| CoreError::new(ErrorCode::ValidationFailed, "track was not found"))?;
-        validate_track_media(project.tracks[track_index].track_type, MediaType::Audio)?;
+        let mut rollback = crate::assets::UncommittedResources::default();
+        let result = (|| {
+            let PreparedProject {
+                mut project,
+                mut history,
+                mut fonts,
+                draft_updates,
+                changed,
+            } = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &self.font_config,
+                Some(request.expected_revision),
+                Some(&mut rollback),
+            )?;
+            let track_index = project
+                .tracks
+                .iter()
+                .position(|track| track.id == request.track_id)
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::ValidationFailed, "track was not found")
+                })?;
+            validate_track_media(project.tracks[track_index].track_type, MediaType::Audio)?;
 
-        let previous = project.clone();
-        let asset_id = Uuid::new_v4().to_string();
-        let item_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
-        let display_name = generated_display_name(&request.origin);
+            let previous = project.clone();
+            let asset_id = Uuid::new_v4().to_string();
+            let item_id = Uuid::new_v4().to_string();
+            let stored = crate::assets::store_generated_content_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &source,
+                &mut rollback,
+            )?;
+            let display_name = generated_display_name(&request.origin);
 
-        project.assets.push(Asset {
-            id: asset_id.clone(),
-            media_type: MediaType::Audio,
-            file_name: display_name,
-            project_relative_path: stored.relative_path,
-            duration_ms: Some(request.duration_ms),
-            has_audio: true,
-            origin: Some(request.origin),
-            content_hash: Some(stored.content_hash),
-            size_bytes: Some(stored.size_bytes),
-            probe: Some(request.probe),
-        });
-        project.tracks[track_index]
-            .items
-            .push(TimelineItem::Media(MediaItem {
-                id: item_id.clone(),
-                asset_id: asset_id.clone(),
-                start_ms: request.start_ms,
-                duration_ms: request.duration_ms,
-                source_in_ms: 0,
-                visual_properties: crate::VisualProperties::default(),
-                audio: AudioSettings::default(),
-                keyframes: vec![],
-            }));
-        normalize_stack_order(&mut project)?;
-        self.prepare_font_edit(&dir, &mut project)?;
-        push_undo(&mut history, &previous);
-        bump_revision(&mut project)?;
-        let warnings = persist(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &project,
-            &history,
-        )?;
-        let warnings = finish_persistence(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &project,
-            &history,
-            warnings,
-        );
-        Ok(CommitGeneratedAssetResult {
-            project_id: project.id.clone(),
-            revision: project.revision,
-            asset_id,
-            item_id,
-            summary: "Generated and inserted speech".into(),
-            warnings,
+            project.assets.push(Asset {
+                id: asset_id.clone(),
+                media_type: MediaType::Audio,
+                file_name: display_name,
+                project_relative_path: stored.relative_path,
+                duration_ms: Some(request.duration_ms),
+                has_audio: true,
+                origin: Some(request.origin),
+                content_hash: Some(stored.content_hash),
+                size_bytes: Some(stored.size_bytes),
+                probe: Some(request.probe),
+            });
+            project.tracks[track_index]
+                .items
+                .push(TimelineItem::Media(MediaItem {
+                    id: item_id.clone(),
+                    asset_id: asset_id.clone(),
+                    start_ms: request.start_ms,
+                    duration_ms: request.duration_ms,
+                    source_in_ms: 0,
+                    visual_properties: crate::VisualProperties::default(),
+                    audio: AudioSettings::default(),
+                    keyframes: vec![],
+                }));
+            normalize_stack_order(&mut project)?;
+            crate::assets::fonts::prepare_fonts(
+                self.storage.as_ref(),
+                &dir,
+                &mut project,
+                &self.font_config,
+                &mut fonts,
+            )?;
+            crate::evaluated_scene::preflight_inherited_project(&project)?;
+            crate::evaluated_scene::preflight_extended_fonts(&project, &fonts)?;
+            push_undo(&mut history, &previous);
+            bump_revision(&mut project)?;
+            if changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+            }
+            crate::assets::fonts::publish_fonts_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &fonts,
+                &mut rollback,
+            )?;
+            if changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+            }
+            let warnings = match crate::persistence::persist_transaction_with_drafts(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &project,
+                &history,
+                None,
+                draft_updates,
+            ) {
+                Ok(warnings) => warnings,
+                Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
+                    vec![PERSISTENCE_RECOVERY_PENDING.into()]
+                }
+                Err(error) => return Err(error),
+            };
+            let warnings = finish_persistence(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &project,
+                &history,
+                warnings,
+            );
+            Ok(CommitGeneratedAssetResult {
+                project_id: project.id.clone(),
+                revision: project.revision,
+                asset_id,
+                item_id,
+                summary: "Generated and inserted speech".into(),
+                warnings,
+            })
+        })();
+        result.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            }
+            error
         })
     }
 
@@ -600,107 +657,163 @@ impl EditorCore {
         mut request: ReplaceGeneratedAssetRequest,
     ) -> Result<ReplaceGeneratedAssetResult, CoreError> {
         validate_duration(request.duration_ms)?;
-        request.origin.validate()?;
+        request
+            .origin
+            .validate_for_duration(Some(request.duration_ms))?;
         request.probe.duration_ms = Some(request.duration_ms);
         request.probe.has_audio = true;
         let source = self.paths.generated_media_path(&request.path)?;
         let dir = self.existing_project_dir(&request.project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
-        let (mut project, mut history) = load_project_data(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &self.font_config,
-            Some(request.expected_revision),
-        )?;
-        let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
-        let asset_drafts = draft_asset_operations(&drafts);
-        validate_draft_asset_references(&project, &asset_drafts)?;
-        let (track_index, item_index) = project
-            .tracks
-            .iter()
-            .enumerate()
-            .find_map(|(track_index, track)| {
-                track
-                    .items
-                    .iter()
-                    .position(|item| item.id() == request.item_id)
-                    .map(|item_index| (track_index, item_index))
-            })
-            .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "item was not found"))?;
-        let replaced_asset_id = match &project.tracks[track_index].items[item_index] {
-            TimelineItem::Media(item) => item.asset_id.clone(),
-            _ => {
+        let mut rollback = crate::assets::UncommittedResources::default();
+        let result = (|| {
+            let PreparedProject {
+                mut project,
+                mut history,
+                mut fonts,
+                draft_updates,
+                changed,
+            } = prepare_project_data(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &self.font_config,
+                Some(request.expected_revision),
+                Some(&mut rollback),
+            )?;
+            let drafts = read_all_drafts(self.storage.as_ref(), &dir)?;
+            let asset_drafts = draft_asset_operations(&drafts);
+            validate_draft_asset_references(&project, &asset_drafts)?;
+            let (track_index, item_index) = project
+                .tracks
+                .iter()
+                .enumerate()
+                .find_map(|(track_index, track)| {
+                    track
+                        .items
+                        .iter()
+                        .position(|item| item.id() == request.item_id)
+                        .map(|item_index| (track_index, item_index))
+                })
+                .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "item was not found"))?;
+            let replaced_asset_id = match &project.tracks[track_index].items[item_index] {
+                TimelineItem::Media(item) => item.asset_id.clone(),
+                _ => {
+                    return Err(CoreError::new(
+                        ErrorCode::ValidationFailed,
+                        "speech regeneration requires a media item",
+                    ));
+                }
+            };
+            let replaced_asset = project
+                .assets
+                .iter()
+                .find(|asset| asset.id == replaced_asset_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
+            if !matches!(
+                replaced_asset.origin,
+                Some(GeneratedAssetOrigin::SpeechSynthesis(_))
+            ) {
                 return Err(CoreError::new(
                     ErrorCode::ValidationFailed,
-                    "speech regeneration requires a media item",
+                    "item does not contain persisted speech intent",
                 ));
             }
-        };
-        let replaced_asset = project
-            .assets
-            .iter()
-            .find(|asset| asset.id == replaced_asset_id)
-            .ok_or_else(|| CoreError::new(ErrorCode::AssetNotFound, "asset was not found"))?;
-        if !matches!(
-            replaced_asset.origin,
-            Some(GeneratedAssetOrigin::SpeechSynthesis(_))
-        ) {
-            return Err(CoreError::new(
-                ErrorCode::ValidationFailed,
-                "item does not contain persisted speech intent",
-            ));
-        }
 
-        let previous = project.clone();
-        let asset_id = Uuid::new_v4().to_string();
-        let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
-        project.assets.push(Asset {
-            id: asset_id.clone(),
-            media_type: MediaType::Audio,
-            file_name: generated_display_name(&request.origin),
-            project_relative_path: stored.relative_path,
-            duration_ms: Some(request.duration_ms),
-            has_audio: true,
-            origin: Some(request.origin),
-            content_hash: Some(stored.content_hash),
-            size_bytes: Some(stored.size_bytes),
-            probe: Some(request.probe),
-        });
-        let TimelineItem::Media(item) = &mut project.tracks[track_index].items[item_index] else {
-            unreachable!("media item was checked above")
-        };
-        item.asset_id = asset_id.clone();
-        item.duration_ms = request.duration_ms;
-        if blocking_asset_reference(&project, &asset_drafts, &replaced_asset_id).is_none() {
-            project.assets.retain(|asset| asset.id != replaced_asset_id);
-        }
-        self.prepare_font_edit(&dir, &mut project)?;
-        push_undo(&mut history, &previous);
-        bump_revision(&mut project)?;
-        let warnings = persist(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &project,
-            &history,
-        )?;
-        let warnings = finish_persistence(
-            self.storage.as_ref(),
-            &self.persistence_faults,
-            &dir,
-            &project,
-            &history,
-            warnings,
-        );
-        Ok(ReplaceGeneratedAssetResult {
-            project_id: project.id,
-            revision: project.revision,
-            asset_id,
-            item_id: request.item_id,
-            replaced_asset_id,
-            summary: "Regenerated speech in place".into(),
-            warnings,
+            let previous = project.clone();
+            let asset_id = Uuid::new_v4().to_string();
+            let stored = crate::assets::store_generated_content_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &source,
+                &mut rollback,
+            )?;
+            project.assets.push(Asset {
+                id: asset_id.clone(),
+                media_type: MediaType::Audio,
+                file_name: generated_display_name(&request.origin),
+                project_relative_path: stored.relative_path,
+                duration_ms: Some(request.duration_ms),
+                has_audio: true,
+                origin: Some(request.origin),
+                content_hash: Some(stored.content_hash),
+                size_bytes: Some(stored.size_bytes),
+                probe: Some(request.probe),
+            });
+            let TimelineItem::Media(item) = &mut project.tracks[track_index].items[item_index]
+            else {
+                unreachable!("media item was checked above")
+            };
+            item.asset_id = asset_id.clone();
+            item.duration_ms = request.duration_ms;
+            if blocking_asset_reference(&project, &asset_drafts, &replaced_asset_id).is_none() {
+                project.assets.retain(|asset| asset.id != replaced_asset_id);
+            }
+            crate::assets::fonts::prepare_fonts(
+                self.storage.as_ref(),
+                &dir,
+                &mut project,
+                &self.font_config,
+                &mut fonts,
+            )?;
+            crate::evaluated_scene::preflight_inherited_project(&project)?;
+            crate::evaluated_scene::preflight_extended_fonts(&project, &fonts)?;
+            push_undo(&mut history, &previous);
+            bump_revision(&mut project)?;
+            if changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::BeforeFontPublish)?;
+            }
+            crate::assets::fonts::publish_fonts_tracked(
+                self.storage.as_ref(),
+                &dir,
+                &fonts,
+                &mut rollback,
+            )?;
+            if changed {
+                self.persistence_faults
+                    .checkpoint(crate::persistence::PersistencePhase::AfterFontPublish)?;
+            }
+            let warnings = match crate::persistence::persist_transaction_with_drafts(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &project,
+                &history,
+                None,
+                draft_updates,
+            ) {
+                Ok(warnings) => warnings,
+                Err(_) if self.storage.storage_path_exists(&transaction_path(&dir)) => {
+                    vec![PERSISTENCE_RECOVERY_PENDING.into()]
+                }
+                Err(error) => return Err(error),
+            };
+            let warnings = finish_persistence(
+                self.storage.as_ref(),
+                &self.persistence_faults,
+                &dir,
+                &project,
+                &history,
+                warnings,
+            );
+            Ok(ReplaceGeneratedAssetResult {
+                project_id: project.id,
+                revision: project.revision,
+                asset_id,
+                item_id: request.item_id,
+                replaced_asset_id,
+                summary: "Regenerated speech in place".into(),
+                warnings,
+            })
+        })();
+        result.map_err(|mut error: CoreError| {
+            if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {
+                error
+                    .message
+                    .push_str(&format!("; resource rollback failed: {}", cleanup.message));
+            }
+            error
         })
     }
 
@@ -3680,6 +3793,7 @@ mod tests {
 
     fn speech_origin() -> GeneratedAssetOrigin {
         GeneratedAssetOrigin::SpeechSynthesis(crate::SpeechGeneration {
+            alignment: None,
             request: crate::SpeechSynthesisRequest {
                 text: "Local speech".into(),
                 language: "en-US".into(),
@@ -9031,6 +9145,196 @@ mod tests {
                 );
                 assert!(!error.retryable);
                 assert_eq!(project_file_bytes(&dir), before, "{case}");
+            }
+        }
+    }
+    #[test]
+    fn speech_legacy_failed_insert_does_not_adopt_or_publish_resources() {
+        let root = tempdir().unwrap();
+        let media = root.path().join("media");
+        let generated = root.path().join("generated");
+        std::fs::create_dir_all(&media).unwrap();
+        std::fs::create_dir_all(&generated).unwrap();
+        let speech = generated.join("speech.wav");
+        std::fs::write(&speech, b"new speech bytes").unwrap();
+        let core = EditorCore::new(
+            PathPolicy::new(
+                root.path().join("projects"),
+                [&media],
+                root.path().join("exports"),
+            )
+            .unwrap()
+            .with_generated_media_root(&generated)
+            .unwrap(),
+        );
+        let id = core
+            .create_project("legacy speech", ProjectSettings::default())
+            .unwrap()
+            .project_id;
+        let dir = core.existing_project_dir(&id).unwrap();
+        let mut raw: serde_json::Value = read_json(&project_path(&dir)).unwrap();
+        raw["schemaVersion"] = serde_json::json!(37);
+        write_json_atomic(&project_path(&dir), &raw).unwrap();
+        let before = project_file_bytes(&dir);
+        let result = core.commit_generated_asset(CommitGeneratedAssetRequest {
+            project_id: id,
+            expected_revision: 0,
+            path: speech,
+            track_id: "missing-track".into(),
+            start_ms: 0,
+            duration_ms: 1500,
+            display_name: "speech".into(),
+            origin: speech_origin(),
+            probe: MediaProbeFacts::default(),
+        });
+        assert_eq!(result.unwrap_err().code, ErrorCode::ValidationFailed);
+        assert_eq!(
+            project_file_bytes(&dir),
+            before,
+            "failed request must preserve legacy document and resources"
+        );
+    }
+    #[test]
+    fn speech_aligned_generated_mutations_preserve_fault_generation_resources() {
+        for replace in [false, true] {
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let root = tempdir().unwrap();
+                let media = root.path().join("media");
+                let generated = root.path().join("generated");
+                std::fs::create_dir_all(&media).unwrap();
+                std::fs::create_dir_all(&generated).unwrap();
+                let source = generated.join("speech.wav");
+                std::fs::write(&source, b"unaligned original").unwrap();
+                let core = EditorCore::new(
+                    PathPolicy::new(
+                        root.path().join("projects"),
+                        [&media],
+                        root.path().join("exports"),
+                    )
+                    .unwrap()
+                    .with_generated_media_root(&generated)
+                    .unwrap(),
+                );
+                let id = core
+                    .create_project("speech faults", ProjectSettings::default())
+                    .unwrap()
+                    .project_id;
+                let track = core
+                    .get_project(&id)
+                    .unwrap()
+                    .tracks
+                    .iter()
+                    .find(|track| track.track_type == TrackType::Audio)
+                    .unwrap()
+                    .id
+                    .clone();
+                let mut request = CommitGeneratedAssetRequest {
+                    project_id: id.clone(),
+                    expected_revision: 0,
+                    path: source.clone(),
+                    track_id: track,
+                    start_ms: 0,
+                    duration_ms: 1500,
+                    display_name: "speech".into(),
+                    origin: speech_origin(),
+                    probe: MediaProbeFacts::default(),
+                };
+                let original_item = if replace {
+                    Some(
+                        core.commit_generated_asset(request.clone())
+                            .unwrap()
+                            .item_id,
+                    )
+                } else {
+                    None
+                };
+                let dir = core.existing_project_dir(&id).unwrap();
+                let mut raw: serde_json::Value = read_json(&project_path(&dir)).unwrap();
+                raw["schemaVersion"] = serde_json::json!(37);
+                write_json_atomic(&project_path(&dir), &raw).unwrap();
+                std::fs::write(&source, b"new aligned speech").unwrap();
+                let GeneratedAssetOrigin::SpeechSynthesis(generation) = &mut request.origin;
+                generation.alignment = Some(serde_json::from_value::<crate::SpeechAlignment>(
+                    serde_json::json!({"sentences":[],"words":[{"text":"speech", "startMs":0,"endMs":1500}],
+                        "phonemes":[],"quality":"forced","providerId":"independent-aligner",
+                        "modelId":null,"modelVersion":null})).unwrap());
+                request.expected_revision = u64::from(replace);
+                let expected_origin = request.origin.clone();
+                let before = project_file_bytes(&dir);
+                set_persistence_fault(&core, phase);
+                let perform = || -> Result<(u64, String), CoreError> {
+                    if let Some(item) = &original_item {
+                        let result =
+                            core.replace_generated_asset(ReplaceGeneratedAssetRequest {
+                                project_id: id.clone(),
+                                expected_revision: 1,
+                                item_id: item.clone(),
+                                path: source.clone(),
+                                duration_ms: 1500,
+                                origin: expected_origin.clone(),
+                                probe: MediaProbeFacts::default(),
+                            })?;
+                        assert_eq!(&result.item_id, item);
+                        Ok((result.revision, result.asset_id))
+                    } else {
+                        let result = core.commit_generated_asset(request.clone())?;
+                        Ok((result.revision, result.asset_id))
+                    }
+                };
+                let result = perform();
+                let result = if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert!(result.is_err(), "replace={replace}/{phase:?}");
+                    assert_eq!(
+                        project_file_bytes(&dir),
+                        before,
+                        "replace={replace}/{phase:?}"
+                    );
+                    assert!(!transaction_path(&dir).exists());
+                    perform().unwrap()
+                } else {
+                    result.unwrap()
+                };
+                assert_eq!(result.0, 1 + u64::from(replace));
+                let reopened = EditorCore::new(core.paths().clone());
+                let current = reopened.get_project(&id).unwrap();
+                assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                let asset = current
+                    .assets
+                    .iter()
+                    .find(|asset| asset.id == result.1)
+                    .unwrap();
+                assert_eq!(asset.origin.as_ref(), Some(&expected_origin));
+                assert_eq!(
+                    std::fs::read(dir.join(&asset.project_relative_path)).unwrap(),
+                    b"new aligned speech"
+                );
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert!(
+                    history
+                        .undo
+                        .iter()
+                        .chain(&history.redo)
+                        .all(|snapshot| snapshot.schema_version == crate::PROJECT_SCHEMA_VERSION)
+                );
+                let stable = project_file_bytes(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), stable);
+                assert!(!transaction_path(&dir).exists());
             }
         }
     }

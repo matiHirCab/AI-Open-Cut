@@ -232,7 +232,7 @@ fn main() {
       const aStack = [flash, particles, blur],
         bStack = [particles, flash, blur];
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(37);
+      expect(status.projectSchemaVersion).toBe(38);
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(status.capabilities).toContain("group_compositing_models_v1");
       expect(status.subsystems.rendering.capabilities).toContain(

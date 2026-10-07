@@ -17,7 +17,7 @@ import {
 import { orderedEffectDigest } from "./fixtures/ordered-effect-projection";
 
 it("matches every approved overlay endpoint integer and closed-field fixture across existing public edits", () => {
-  expect(authority.projectSchemaVersion).toBe(37);
+  expect(authority.projectSchemaVersion).toBe(38);
   for (const entry of authority.effectCases) {
     expect(visualEffectSchema.safeParse(entry.value).success, entry.id).toBe(
       entry.accepted

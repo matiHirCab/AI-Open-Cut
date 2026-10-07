@@ -10,7 +10,7 @@ The regression suite MUST maintain canonical masked-hero-reveal-v1 as the exact 
 
 #### Scenario: H1 Author the exact standalone and alias recipe
 - **WHEN** core, headless and MCP create fresh projects using frozen operations, generated-ID bindings and standalone or @alias batches
-- **THEN** complete authored records, identities/order/topology/source metadata and schema37/protocol1/78tools match the canonical authority
+- **THEN** complete authored records, identities/order/topology/source metadata and current schema38/protocol1/78tools match the canonical authority, with exact38→37 projection preserving its verified historical recipe
 
 #### Scenario: H2 Reject recipe reference or authority drift
 - **WHEN** a canonical scalar, ID, array order, mask coordinate, source WAV, plate byte/hash or consumer differs from approved authority
@@ -39,7 +39,7 @@ Actual native core/default-headless/realMCP still, full[0,800)8frame and partial
 - **THEN** restart fails unchangedRMS while correct original-clock media matches independent references and repeated decoded outputs remain deterministic
 
 ### Requirement: Exact combined fixture lifecycle and API rollback
-The fixture MUST exercise existing standalone/alias-batch operations, reverse-order draft with current state unchanged, commit, undo baseline, redo candidate and fresh-process reopen through core/headless/MCP, preserving full records/source clocks/targets/metadata and actual immutable IDs. Invalid bounds/nonfinite typed fields/duplicate IDs/unknown clip/missing/cyclic provider/locked track/stale revision/later batch/draft failures MUST retain exact stable code/retryability and complete project/history/redo/draft/resource inventories without optimistic publication or normalized away writes. Current schema37 and retained schema36→37 migration evidence MUST remain intact; no new persisted shape/migration/public surface is introduced.
+The fixture MUST exercise existing standalone/alias-batch operations, reverse-order draft with current state unchanged, commit, undo baseline, redo candidate and fresh-process reopen through core/headless/MCP, preserving full records/source clocks/targets/metadata and actual immutable IDs. Invalid bounds/nonfinite typed fields/duplicate IDs/unknown clip/missing/cyclic provider/locked track/stale revision/later batch/draft failures MUST retain exact stable code/retryability and complete project/history/redo/draft/resource inventories without optimistic publication or normalized away writes. Historical schema37 and retained schema36→37 introduction semantics MUST remain intact under the explicit current38→37 predecessor projection. Native legacy36/37 documents SHALL adopt current38 atomically with alignment absent; recipe/reference bytes and rendered behavior MUST remain exact. This combined fixture introduces no additional persisted shape or public operation.
 
 #### Scenario: H7 Restore baseline and candidate generations
 - **WHEN** order is drafted, committed, undone, redone and reopened
@@ -52,7 +52,6 @@ The fixture MUST exercise existing standalone/alias-batch operations, reverse-or
 #### Scenario: H9 Retain existing complete migrations and compatibility
 - **WHEN** current fixture and inherited authentic schema36→37 current/retained migration and early unsupported-control cases execute
 - **THEN** current reopen is exact, all retained generations migrate atomically or reject without partial writes, and every old public/version/capability/pin remains preserved
-
 ### Requirement: Honest finite work and render failure-stage evidence
 A separately identified fresh hero-derived eligible root leaf48×40 with no controlled ancestor/masks/matte, authored scale32 and canonical particle-only256/radius16 stack MUST prove existing final-candidate work admission: source1538×1282,d32,expanded2562×2306,scan1027,circlework5400212480>268435456 before4P/memory/mask. Standalone/alias-batch/draft collective invalidity MUST reject INVALID_ARGUMENT nonretryable before persistence with complete inventories; output scaling MUST NOT be claimed to establish density or create a valid persisted overbudget fixture. Canonical positive hero MUST separately prove path/dependency/runtime failure cleanup with pre-existing export sentinel and no orphan artifacts, respecting actual stage ordering.
 

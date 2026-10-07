@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 pub fn assert_recipe(p: &Project, ids: &BTreeMap<String, String>, c: &Value, reversed: bool) {
     assert_eq!(p.duration_ms(), 800);
-    assert_eq!(p.schema_version, 37);
+    assert_eq!(p.schema_version, 38);
     assert_eq!(p.name, "Masked hero reveal v1");
     assert_eq!(serde_json::to_value(&p.settings).unwrap(), c["settings"]);
     assert_eq!(p.tracks.len(), 4);

@@ -10,6 +10,7 @@ import {
   projectStateSchema,
   replaceGeneratedAssetResultSchema,
   type schemas,
+  speechAlignmentSchema,
   speechEstimateSchema,
   speechPreviewResultSchema,
   speechRegenerateResultSchema,
@@ -38,6 +39,7 @@ export interface SpeechProviderEstimate {
 }
 
 export interface SynthesizedSpeech {
+  alignment?: z.infer<typeof speechAlignmentSchema>;
   durationMs: number;
   modelId: string;
   modelVersion: string | null;
@@ -207,8 +209,9 @@ export class SpeechApplicationService {
     const status = await this.status();
     const request = await this.#resolveSource(source, status);
     context.onProgress(0.05);
-    const generated = await this.#synthesize(request, context);
+    let generated = await this.#synthesize(request, context);
     try {
+      generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
       const retained = this.#retain(generated);
       context.onProgress(1);
@@ -281,8 +284,9 @@ export class SpeechApplicationService {
       status
     );
     context.onProgress(0.05);
-    const generated = await this.#synthesize(request, context);
+    let generated = await this.#synthesize(request, context);
     try {
+      generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
       context.markNonCancellable();
       const result = await this.#commitReplace(
@@ -339,8 +343,9 @@ export class SpeechApplicationService {
     const request = resolveRequest(input, status, voices);
 
     context.onProgress(0.05);
-    const generated = await this.#synthesize(request, context);
+    let generated = await this.#synthesize(request, context);
     try {
+      generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
       context.onProgress(0.7);
       if (context.signal.aborted) {
@@ -551,6 +556,9 @@ export class SpeechApplicationService {
   #origin(generated: SynthesizedSpeech) {
     return {
       generation: {
+        ...(generated.alignment === undefined
+          ? {}
+          : { alignment: generated.alignment }),
         generatedAtMs: this.#now(),
         modelId: generated.modelId,
         modelVersion: generated.modelVersion,
@@ -903,3 +911,21 @@ const validateSynthesis = (
     );
   }
 };
+
+// Parse after receiving the owned artifact so every malformed result follows its
+// existing cleanup path. Zod creates fresh nested objects and arrays.
+function snapshotSpeechAlignment(
+  generated: SynthesizedSpeech
+): SynthesizedSpeech {
+  if (generated.alignment === undefined) {
+    return { ...generated };
+  }
+  const parsed = speechAlignmentSchema.safeParse(generated.alignment);
+  if (!parsed.success) {
+    throw new BridgeError(
+      "TTS_INVALID_OUTPUT",
+      "Speech provider returned malformed alignment provenance"
+    );
+  }
+  return { ...generated, alignment: parsed.data };
+}

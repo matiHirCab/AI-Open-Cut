@@ -1,0 +1,1430 @@
+{
+  "version": 1,
+  "status": "proposed-specification-fixtures-not-implemented",
+  "projectSchemaVersion": 38,
+  "timingUnit": "asset-relative integer milliseconds",
+  "quality": [
+    "native",
+    "forced",
+    "estimated"
+  ],
+  "limits": {
+    "maximumSegments": 100000,
+    "maximumTextUtf8Bytes": 4096,
+    "maximumTotalTextUtf8Bytes": 1048576,
+    "maximumIdentityUtf8Bytes": 256,
+    "maximumTimeMs": 9007199254740991
+  },
+  "valid": [
+    {
+      "id": "native-granularities-1",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-2",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-3",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-4",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-5",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-6",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "native-granularities-7",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-1",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-2",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-3",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-4",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-5",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-6",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "forced-granularities-7",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "forced",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-1",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-2",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-3",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-4",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-5",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-6",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    },
+    {
+      "id": "estimated-granularities-7",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "estimated",
+        "providerId": "alignment-provider",
+        "modelId": "alignment-model",
+        "modelVersion": "1"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "all-empty",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [],
+        "words": [],
+        "phonemes": [],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "unknown-quality",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "assumed",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "unknown-alignment-field",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1",
+        "confidence": 1
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "unknown-timed-text-field",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400,
+            "confidence": 1
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "missing-required-array",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "null-array",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": null,
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "missing-provider",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "blank-provider",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": " ",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "blank-model-version",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": " "
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "blank-text",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": " ",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "zero-span",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 0
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "reversed-span",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 401,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "overlap",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 399,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "out-of-order",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          },
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "out-of-duration",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1001
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "negative-time",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": -1,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "fractional-time",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0.5,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "structural"
+    },
+    {
+      "id": "unsafe-json-integer",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 9007199254740992,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "oversized-utf8-text",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "speech-provider",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    },
+    {
+      "id": "oversized-utf8-provider",
+      "durationMs": 1000,
+      "alignment": {
+        "sentences": [
+          {
+            "text": "Hello world.",
+            "startMs": 0,
+            "endMs": 1000
+          }
+        ],
+        "words": [
+          {
+            "text": "Hello",
+            "startMs": 0,
+            "endMs": 400
+          },
+          {
+            "text": "world",
+            "startMs": 450,
+            "endMs": 1000
+          }
+        ],
+        "phonemes": [
+          {
+            "text": "h",
+            "startMs": 0,
+            "endMs": 100
+          },
+          {
+            "text": "w",
+            "startMs": 450,
+            "endMs": 550
+          }
+        ],
+        "quality": "native",
+        "providerId": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "modelId": "speech-model",
+        "modelVersion": "1"
+      },
+      "failureKind": "semantic"
+    }
+  ],
+  "boundaryCasesToExpandInTests": [
+    "100000-vs-100001-total-segments",
+    "4096-vs-4097-text-utf8-bytes",
+    "1048576-vs-1048577-total-text-utf8-bytes",
+    "256-vs-257-identity-utf8-bytes",
+    "valid-safe-json-maximum-time",
+    "unknown-or-zero-asset-duration",
+    "null-alignment-vs-omitted-alignment"
+  ]
+}

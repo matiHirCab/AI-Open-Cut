@@ -1,7 +1,7 @@
 {
   "contract": "blend-modes-v1",
   "version": 1,
-  "projectSchemaVersion": 37,
+  "projectSchemaVersion": 38,
   "capabilities": {
     "editor": "blend_models_v1",
     "renderer": "blend_modes_v1"
