@@ -1,0 +1,28 @@
+name: Windows renderer startup evidence
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  startup-evidence:
+    name: Focused Windows renderer startup evidence
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pinned Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - name: Validate focused workflow
+        run: bun --config=bunfig.toml --no-env-file test scripts/windows-renderer-startup-diagnostic.test.ts
+      - name: Setup pinned Rust
+        run: rustup toolchain install 1.97.0 --profile minimal
+      - name: Observe exact Windows descendant fixture
+        env:
+          RUST_BACKTRACE: '1'
+        run: cargo +1.97.0 test -p opencut-headless --test render_worker crashed_worker_terminates_renderer_descendants -- --exact --nocapture
