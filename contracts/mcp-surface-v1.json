@@ -9428,6 +9428,9 @@
             "minLength": 1,
             "type": "string"
           },
+          "knownText": {
+            "type": "string"
+          },
           "language": {
             "minLength": 1,
             "type": "string"
@@ -9573,6 +9576,50 @@
             "const": "cpu",
             "type": "string"
           },
+          "knownTextAlignment": {
+            "additionalProperties": false,
+            "default": {
+              "maxDurationMs": 30000,
+              "maxTextBytes": 4096,
+              "phoneme": false,
+              "sentence": false,
+              "supported": false,
+              "word": false
+            },
+            "properties": {
+              "maxDurationMs": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "maxTextBytes": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "phoneme": {
+                "type": "boolean"
+              },
+              "sentence": {
+                "type": "boolean"
+              },
+              "supported": {
+                "type": "boolean"
+              },
+              "word": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "maxDurationMs",
+              "maxTextBytes",
+              "phoneme",
+              "sentence",
+              "supported",
+              "word"
+            ],
+            "type": "object"
+          },
           "limits": {
             "additionalProperties": false,
             "properties": {
@@ -9661,6 +9708,7 @@
         "required": [
           "computeType",
           "device",
+          "knownTextAlignment",
           "limits",
           "modelCached",
           "modelId",
@@ -9688,6 +9736,9 @@
           "assetId": {
             "maxLength": 128,
             "minLength": 1,
+            "type": "string"
+          },
+          "knownText": {
             "type": "string"
           },
           "language": {
@@ -17437,6 +17488,133 @@
       "transcriptionPreview": {
         "additionalProperties": false,
         "properties": {
+          "alignment": {
+            "additionalProperties": false,
+            "properties": {
+              "modelId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "modelVersion": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phonemes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "endMs",
+                    "startMs",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "quality": {
+                "enum": [
+                  "native",
+                  "forced",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "sentences": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "endMs",
+                    "startMs",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "words": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "endMs",
+                    "startMs",
+                    "text"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "modelId",
+              "modelVersion",
+              "phonemes",
+              "providerId",
+              "quality",
+              "sentences",
+              "words"
+            ],
+            "type": "object"
+          },
           "assetId": {
             "maxLength": 128,
             "minLength": 1,

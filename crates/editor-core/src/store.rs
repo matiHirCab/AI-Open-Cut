@@ -1703,12 +1703,75 @@ impl EditorCore {
         self.existing_project_dir(project_id)
     }
 
+    /// Validate an ephemeral known-text inference source/result in its owning layer.
+    /// Ordinary project-open migration behavior is reused; no editor mutation is added.
+    pub fn validate_speech_alignment(
+        &self,
+        project_id: &str,
+        asset_id: &str,
+        known_text: &str,
+        expected_revision: Option<u64>,
+        alignment: Option<&crate::SpeechAlignment>,
+    ) -> Result<ResolvedAssetInput, CoreError> {
+        if known_text.trim().is_empty() || known_text.len() > 4096 {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "known alignment text must be nonblank and at most 4096 UTF-8 bytes",
+            ));
+        }
+        let project = self.get_project(project_id)?;
+        if let Some(expected) = expected_revision {
+            check_revision(&project, expected)?;
+        }
+        let (input, asset_duration) =
+            self.resolve_loaded_asset_input(project_id, &project, asset_id)?;
+        input
+            .probe
+            .as_ref()
+            .and_then(|probe| probe.duration_ms)
+            .filter(|duration| *duration > 0)
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "alignment requires probed positive audio duration",
+                )
+            })?;
+        let duration = asset_duration
+            .filter(|duration| *duration > 0)
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "alignment requires positive owning asset duration",
+                )
+            })?;
+        if let Some(alignment) = alignment {
+            if alignment.quality != crate::SpeechAlignmentQuality::Forced {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "known-text alignment requires forced quality",
+                ));
+            }
+            alignment.validate_for_duration(Some(duration))?;
+        }
+        Ok(input)
+    }
+
     pub fn resolve_asset_input(
         &self,
         project_id: &str,
         asset_id: &str,
     ) -> Result<ResolvedAssetInput, CoreError> {
         let project = self.get_project(project_id)?;
+        self.resolve_loaded_asset_input(project_id, &project, asset_id)
+            .map(|(input, _)| input)
+    }
+
+    fn resolve_loaded_asset_input(
+        &self,
+        project_id: &str,
+        project: &Project,
+        asset_id: &str,
+    ) -> Result<(ResolvedAssetInput, Option<u64>), CoreError> {
         let asset = project
             .assets
             .iter()
@@ -1720,14 +1783,17 @@ impl EditorCore {
                 "transcription requires an asset with audio",
             ));
         }
-        Ok(ResolvedAssetInput {
-            project_id: project.id.clone(),
-            revision: project.revision,
-            asset_id: asset.id.clone(),
-            path: self.project_asset_path(project_id, &asset.project_relative_path)?,
-            content_hash: asset.content_hash.clone(),
-            probe: asset.probe.clone(),
-        })
+        Ok((
+            ResolvedAssetInput {
+                project_id: project.id.clone(),
+                revision: project.revision,
+                asset_id: asset.id.clone(),
+                path: self.project_asset_path(project_id, &asset.project_relative_path)?,
+                content_hash: asset.content_hash.clone(),
+                probe: asset.probe.clone(),
+            },
+            asset.duration_ms,
+        ))
     }
 
     pub fn commit_transcription(

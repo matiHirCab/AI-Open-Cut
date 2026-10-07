@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 38,
+  "operation": "validate_speech_alignment",
+  "capability": "speech_alignment_validation_v1",
+  "limits": { "maxTextBytes": 4096, "localMaxDurationMs": 30000 },
+  "unsupported": { "maxDurationMs": 30000, "maxTextBytes": 4096, "phoneme": false, "sentence": false, "supported": false, "word": false },
+  "localSupport": { "maxDurationMs": 30000, "maxTextBytes": 4096, "phoneme": false, "sentence": false, "supported": true, "word": true },
+  "source": { "assetId": "asset-1", "expectedRevision": 1, "knownText": "Hello world", "operation": "validate_speech_alignment", "projectId": "project-1" },
+  "alignment": {
+    "sentences": [], "words": [ { "text": "Hello", "startMs": 100, "endMs": 400 }, { "text": " world", "startMs": 500, "endMs": 900 } ], "phonemes": [],
+    "quality": "forced", "providerId": "contract-aligner", "modelId": "contract/model", "modelVersion": null
+  },
+  "invalidKnownText": [ "", " ", "\t\n" ],
+  "invalidSupport": [ null, [], false, { "supported": true }, { "maxDurationMs": 30000, "maxTextBytes": 4096, "phoneme": false, "sentence": false, "supported": "true", "word": true }, { "maxDurationMs": 30000, "maxTextBytes": 4096, "phoneme": false, "sentence": false, "supported": true, "word": true, "extra": true } ]
+}

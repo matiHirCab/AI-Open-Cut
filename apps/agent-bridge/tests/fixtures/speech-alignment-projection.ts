@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { removeKnownTextMcpAdditions } from "./known-text-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import addition from "./speech-alignment-addition.json";
 import pins from "./speech-alignment-predecessor-pins.json";
@@ -50,7 +51,7 @@ const at = (source: RecordValue, path: string[]): RecordValue => {
 export const removeSpeechAlignmentMcpAdditions = (
   source: unknown
 ): RecordValue => {
-  const previous = object(structuredClone(source));
+  const previous = object(removeKnownTextMcpAdditions(source));
   for (const path of pins.mcpVersionPaths) {
     const parent = at(previous, path.slice(0, -1));
     const key = path.at(-1);

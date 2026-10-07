@@ -18,6 +18,7 @@ import type {
   mediaCropSchema,
   motionBlurSchema,
   richTextDocumentSchema,
+  speechAlignmentSchema,
   templateSlotSchema,
   textStyleSchema,
   timeExpressionSchema,
@@ -384,6 +385,14 @@ export type HeadlessRequest =
       timeMs: number;
     }
   | { assetId: string; operation: "resolve_asset_input"; projectId: string }
+  | {
+      alignment?: z.infer<typeof speechAlignmentSchema> | undefined;
+      assetId: string;
+      expectedRevision?: number | undefined;
+      knownText: string;
+      operation: "validate_speech_alignment";
+      projectId: string;
+    }
   | (Revisioned & {
       assetId: string;
       captionTrackId?: string | undefined;

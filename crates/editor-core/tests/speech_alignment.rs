@@ -1,5 +1,5 @@
 //! Canonical producer provenance and persistence boundary conformance.
-use opencut_editor_core::{SpeechAlignment, SpeechGeneration};
+use opencut_editor_core::{ErrorCode, SpeechAlignment, SpeechGeneration};
 use serde_json::{Value, json};
 
 fn catalog() -> Value {
@@ -39,6 +39,115 @@ fn canonical_alignment_cases_preserve_values_or_reject() {
         };
         assert!(rejected, "{} must fail", case["id"]);
     }
+}
+
+#[test]
+fn known_text_source_validation_is_bounded_revisioned_and_nonmutating() {
+    let (root, core, id, track, source, dir) = setup();
+    let mut request = insert(&id, &track, &source, origin(false));
+    request.probe = MediaProbeFacts {
+        duration_ms: Some(1000),
+        has_audio: true,
+        ..MediaProbeFacts::default()
+    };
+    let committed = core.commit_generated_asset(request).unwrap();
+    let asset_id = committed.asset_id;
+    let before = inventory(root.path());
+    let contract: Value = serde_json::from_str(include_str!(
+        "../../../contracts/known-text-alignment-v1.json"
+    ))
+    .unwrap();
+    let forced: SpeechAlignment = serde_json::from_value(contract["alignment"].clone()).unwrap();
+    let resolved = core
+        .validate_speech_alignment(&id, &asset_id, "Hello world", Some(1), Some(&forced))
+        .unwrap();
+    assert_eq!(resolved.revision, 1);
+    assert_eq!(resolved.asset_id, asset_id);
+    assert!(
+        core.validate_speech_alignment(&id, &asset_id, &"é".repeat(2048), None, None)
+            .is_ok()
+    );
+    for text in ["".to_string(), " \n".into(), "é".repeat(2049)] {
+        assert_eq!(
+            core.validate_speech_alignment(&id, &asset_id, &text, None, None)
+                .unwrap_err()
+                .code,
+            ErrorCode::ValidationFailed
+        );
+    }
+    assert_eq!(
+        core.validate_speech_alignment(&id, &asset_id, "Hello", Some(0), None)
+            .unwrap_err()
+            .code,
+        ErrorCode::RevisionConflict
+    );
+    assert_eq!(
+        core.validate_speech_alignment(&id, "missing", "Hello", None, None)
+            .unwrap_err()
+            .code,
+        ErrorCode::AssetNotFound
+    );
+    let mut invalid = forced.clone();
+    invalid.words[1].end_ms = 1001;
+    assert_eq!(
+        core.validate_speech_alignment(&id, &asset_id, "Hello", None, Some(&invalid))
+            .unwrap_err()
+            .code,
+        ErrorCode::ValidationFailed
+    );
+    invalid = forced;
+    invalid.quality = opencut_editor_core::SpeechAlignmentQuality::Estimated;
+    assert_eq!(
+        core.validate_speech_alignment(&id, &asset_id, "Hello", None, Some(&invalid))
+            .unwrap_err()
+            .code,
+        ErrorCode::ValidationFailed
+    );
+    assert_eq!(inventory(root.path()), before);
+    assert_eq!(core.get_project(&id).unwrap().schema_version, 38);
+    assert!(dir.join("history.json").is_file());
+    assert_eq!(
+        core.validate_speech_alignment("missing-project", &asset_id, "Hello", None, None)
+            .unwrap_err()
+            .code,
+        ErrorCode::ProjectNotFound
+    );
+    let project_file = dir.join("project.json");
+    let original_bytes = std::fs::read(&project_file).unwrap();
+    let original = read_json(&project_file);
+    for (field, value, code) in [
+        ("hasAudio", json!(false), ErrorCode::UnsupportedMedia),
+        ("durationMs", Value::Null, ErrorCode::ValidationFailed),
+    ] {
+        let mut changed = original.clone();
+        changed["assets"][0][field] = value.clone();
+        changed["assets"][0]["probe"][field] = value;
+        write_json(&project_file, &changed);
+        let snapshot = inventory(root.path());
+        assert_eq!(
+            core.validate_speech_alignment(&id, &asset_id, "Hello", None, None)
+                .unwrap_err()
+                .code,
+            code
+        );
+        assert_eq!(inventory(root.path()), snapshot);
+    }
+    let mut changed = original;
+    changed["assets"][0]["probe"]["durationMs"] = json!(2000);
+    write_json(&project_file, &changed);
+    let snapshot = inventory(root.path());
+    let mut out_of_asset =
+        serde_json::from_value::<SpeechAlignment>(contract["alignment"].clone()).unwrap();
+    out_of_asset.words[1].end_ms = 1500;
+    assert_eq!(
+        core.validate_speech_alignment(&id, &asset_id, "Hello", None, Some(&out_of_asset))
+            .unwrap_err()
+            .code,
+        ErrorCode::AssetIntegrityFailed
+    );
+    assert_eq!(inventory(root.path()), snapshot);
+    std::fs::write(project_file, original_bytes).unwrap();
+    assert_eq!(inventory(root.path()), before);
 }
 
 #[test]

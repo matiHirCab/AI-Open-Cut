@@ -73,6 +73,7 @@ import {
   projectSchema35BlendMcpPredecessor,
 } from "./fixtures/blend-mode-projection";
 import { projectGroupMcpPredecessor } from "./fixtures/group-compositing-projection";
+import { projectKnownTextMcpPredecessor } from "./fixtures/known-text-projection";
 import { projectMaskMcpPredecessor } from "./fixtures/mask-mcp-projection";
 import {
   MASK_RENDERING_PREDECESSOR_PINS,
@@ -121,6 +122,8 @@ const MCP_PRE_GROUP_DIGEST =
 const MCP_SCHEMA37_DIGEST =
   "2351ab33260b7bd695f87037567264c7580c1139071eb9eaff19a738454ad8c4";
 const MCP_CURRENT_DIGEST =
+  "a2d5c77f7ef91f2be31ca05443071bb14c2e7bff32a35171666401446beb4156";
+const MCP_PRE_KNOWN_TEXT_DIGEST =
   "1f048f2f5a61c61b65dfb8763477db0156d1965d3b44efbd1cc90791856c310a";
 const MCP_PRE_TRACK_MATTES_DIGEST =
   "803bf5954ebd4cb47be98dd87b4994e6d261eae20693199c0f569f535452f170";
@@ -449,6 +452,19 @@ describe("canonical public contracts", () => {
         )
         .digest("hex")
     ).toBe(MCP_SCHEMA37_DIGEST);
+    expect(
+      createHash("sha256")
+        .update(
+          JSON.stringify(
+            expandMcpSurfaceCatalog(
+              projectKnownTextMcpPredecessor(
+                MCP_SURFACE_SOURCE
+              ) as typeof MCP_SURFACE_SOURCE
+            )
+          )
+        )
+        .digest("hex")
+    ).toBe(MCP_PRE_KNOWN_TEXT_DIGEST);
     const schema36Source = projectGroupMcpPredecessor(MCP_SURFACE_SOURCE);
     expect(
       createHash("sha256")
@@ -824,6 +840,7 @@ describe("canonical public contracts", () => {
       status: true,
       undo: true,
       update_draft: true,
+      validate_speech_alignment: true,
     } satisfies Record<HeadlessRequest["operation"], true>;
     expect(Object.keys(operations).sort()).toEqual(
       HEADLESS_CONTRACT.operations

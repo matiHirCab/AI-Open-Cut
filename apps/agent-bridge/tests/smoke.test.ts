@@ -29,6 +29,7 @@ import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyKnownTextWorkflow } from "./known-text-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
@@ -110,6 +111,11 @@ const transport = new StdioClientTransport({
       "fixtures/fake_tts_worker.py"
     ),
     OPENCUT_PROJECTS_DIR: projects,
+    OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
+    OPENCUT_TRANSCRIPTION_WORKER: resolve(
+      import.meta.dirname,
+      "fixtures/fake_transcription_worker.py"
+    ),
     OPENCUT_TTS_WORK_DIR: ttsWork,
   },
   stderr: "inherit",
@@ -606,6 +612,10 @@ it("edits a project and persists fake speech provenance through MCP", async () =
 
   expect(readdirSync(ttsWork)).toHaveLength(0);
 }, 60_000);
+
+it("aligns known text and preserves caption retry, history and reopen through MCP", async () => {
+  await verifyKnownTextWorkflow(client, call);
+});
 
 it("supports discoverable voices, preview, commit, discard, and in-place regeneration", async () => {
   const voices = await call(

@@ -1076,10 +1076,32 @@ export const transcriptionSegmentSchema = z
   .strict()
   .refine((segment) => segment.startMs < segment.endMs);
 
+export const knownTextAlignmentSupportSchema = z
+  .object({
+    maxDurationMs: positiveMilliseconds,
+    maxTextBytes: z.int().positive(),
+    phoneme: z.boolean(),
+    sentence: z.boolean(),
+    supported: z.boolean(),
+    word: z.boolean(),
+  })
+  .strict();
+export const UNSUPPORTED_KNOWN_TEXT_ALIGNMENT = {
+  maxDurationMs: 30_000,
+  maxTextBytes: 4096,
+  phoneme: false,
+  sentence: false,
+  supported: false,
+  word: false,
+} as const;
+
 export const transcriptionStatusSchema = z
   .object({
     computeType: z.literal("int8"),
     device: z.literal("cpu"),
+    knownTextAlignment: knownTextAlignmentSupportSchema.default(
+      UNSUPPORTED_KNOWN_TEXT_ALIGNMENT
+    ),
     limits: z.object({ maxDurationMs: positiveMilliseconds }).strict(),
     modelCached: z.boolean(),
     modelId: id,
@@ -1133,6 +1155,7 @@ export const resolvedAssetInputSchema = z
 
 export const transcriptionPreviewResultSchema = z
   .object({
+    alignment: speechAlignmentSchema.optional(),
     assetId: id,
     baseRevision: z.int().nonnegative(),
     durationMs: positiveMilliseconds,
@@ -2810,6 +2833,7 @@ export const schemas = {
   transcriptionEstimate: z
     .object({
       assetId: id,
+      knownText: z.string().optional(),
       language: z.string().min(1).optional(),
       projectId: id,
     })
@@ -2818,6 +2842,7 @@ export const schemas = {
   transcriptionPreview: z
     .object({
       assetId: id,
+      knownText: z.string().optional(),
       language: z.string().min(1).optional(),
       projectId: id,
     })

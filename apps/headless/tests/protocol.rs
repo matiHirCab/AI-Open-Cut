@@ -3307,12 +3307,47 @@ fn run_speech_alignment_protocol_cases(h: &Harness, probe: &std::path::Path) {
         assert_eq!(asset["durationMs"], 1000);
         assert_eq!(asset["probe"]["audioSampleRateHz"], 24000);
         assert_eq!(state["project"]["schemaVersion"], 38);
+        let before = h.project_files(id);
+        let mut forced = case["alignment"].clone();
+        forced["quality"] = json!("forced");
+        let validate = json!({"operation":"validate_speech_alignment", "projectId":id,
+            "assetId":response["assetId"],"knownText":"Hello", "expectedRevision":revision,
+            "alignment":forced});
+        assert_eq!(result(&h.request(validate.clone()))["revision"], revision);
+        assert_eq!(h.project_files(id), before);
+        for (field, value, code) in [
+            ("knownText", json!(" \n"), "VALIDATION_FAILED"),
+            ("knownText", json!("é".repeat(2049)), "VALIDATION_FAILED"),
+            ("expectedRevision", json!(revision - 1), "REVISION_CONFLICT"),
+            ("assetId", json!("missing"), "ASSET_NOT_FOUND"),
+            ("alignment", Value::Null, "INVALID_ARGUMENT"),
+        ] {
+            let mut rejected = validate.clone();
+            rejected[field] = value;
+            assert_eq!(event(&h.request(rejected))["error"]["code"], code);
+            assert_eq!(h.project_files(id), before);
+        }
     }
+    let aligned_state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let aligned_asset = aligned_state["project"]["assets"][0]["id"].clone();
     for case in catalog["invalid"].as_array().unwrap() {
         let before = h.project_files(id);
         let failure = event(&send(request(revision, &case["alignment"])));
         assert_eq!(failure["type"], "error", "{}", case["id"]);
         assert_eq!(failure["error"]["retryable"], false, "{}", case["id"]);
+        assert_eq!(h.project_files(id), before, "{}", case["id"]);
+        let mut invalid_alignment = case["alignment"].clone();
+        if matches!(
+            invalid_alignment["quality"].as_str(),
+            Some("native" | "estimated" | "forced")
+        ) {
+            invalid_alignment["quality"] = json!("forced");
+        }
+        let validation = event(&h.request(json!({"operation":"validate_speech_alignment",
+            "projectId":id,"assetId":aligned_asset,"knownText":"Hello", "expectedRevision":revision,
+            "alignment":invalid_alignment})));
+        assert_eq!(validation["type"], "error", "{}", case["id"]);
+        assert_eq!(validation["error"]["retryable"], false, "{}", case["id"]);
         assert_eq!(h.project_files(id), before, "{}", case["id"]);
     }
 }

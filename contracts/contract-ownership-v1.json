@@ -923,6 +923,35 @@
         "scripts/validate-ci-gates.test.ts",
         "crates/editor-core/src/render_plan.rs"
       ]
+    },
+    "knownTextAlignment": {
+      "canonical": "contracts/known-text-alignment-v1.json",
+      "consumers": [
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/tests/speech_alignment.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/transcription.ts",
+        "apps/agent-bridge/tests/known-text-alignment.test.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/faster-whisper/worker.py",
+        "apps/faster-whisper/test_worker.py",
+        "apps/agent-bridge/tests/known-text-workflow.ts",
+        "apps/agent-bridge/tests/fixtures/known-text-projection.ts",
+        "apps/agent-bridge/tests/fixtures/speech-alignment-projection.ts",
+        "apps/agent-bridge/tests/fixtures/fake_transcription_worker.py",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/package.json",
+        "contracts/headless-protocol-v1.json",
+        "contracts/transcription-provider-v1.json",
+        "contracts/mcp-surface-v1.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "docs/known-text-alignment.md"
+      ]
     }
   }
 }
