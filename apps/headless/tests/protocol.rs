@@ -3350,4 +3350,151 @@ fn run_speech_alignment_protocol_cases(h: &Harness, probe: &std::path::Path) {
         assert_eq!(validation["error"]["retryable"], false, "{}", case["id"]);
         assert_eq!(h.project_files(id), before, "{}", case["id"]);
     }
+    // Issue 62 consumes the same independent PCM source in both hermetic and native probe modes.
+    let markers: Value = serde_json::from_str(include_str!(
+        "../../../contracts/speech-alignment-markers-v1.json"
+    ))
+    .unwrap();
+    for policy in markers["policies"].as_array().unwrap() {
+        let before = h.project_files(id);
+        let edit = json!({"operation":"speech_markers_generate","scope":"root","assetId":aligned_asset,
+            "startMs":1000,"markerPolicy":policy,"alignment":markers["alignment"]});
+        let stale = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision-1,"edit":edit}),
+        ));
+        assert_eq!(stale["error"]["code"], "REVISION_CONFLICT");
+        assert_eq!(h.project_files(id), before);
+        let response = result(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        revision += 1;
+        assert_eq!(response["revision"], revision);
+        let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let actual: Vec<Value> = state["project"]["markers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|marker| json!({"name":marker["name"],"timeMs":marker["timeMs"]}))
+            .collect();
+        assert_eq!(
+            json!(actual),
+            markers["expected"][policy["type"].as_str().unwrap()]
+        );
+        result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision})));
+        revision += 1;
+    }
+    let before = h.project_files(id);
+    for policy in markers["invalidPolicies"].as_array().unwrap() {
+        let failure = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,
+            "edit":{"operation":"speech_markers_generate","scope":"root","assetId":aligned_asset,
+                "startMs":1000,"markerPolicy":policy,"alignment":markers["alignment"]}}),
+        ));
+        assert_eq!(failure["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(h.project_files(id), before);
+    }
+
+    if native_parity_is_configured() {
+        let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let visual_track = state["project"]["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|track| track["trackType"] == "overlay")
+            .unwrap()["id"]
+            .clone();
+        let bound = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[
+            {"operation":"speech_markers_generate","scope":"root","assetId":aligned_asset,"startMs":1000,"markerPolicy":{"type":"selected_word","indices":[0]},"alignment":markers["alignment"],"resultAlias":"cue"},
+            {"operation":"add_rectangle","trackId":visual_track,"startMs":0,"durationMs":200,"width":1920,"height":1080,"color":"#ff0000","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"visual"},
+            {"operation":"set_item_start_time","scope":"root","itemId":"@visual","time":{"type":"marker","markerName":"EVERY","offsetMs":0}}
+        ]})));
+        revision += 1;
+        let current = result(&h.request(json!({"operation":"get_state","projectId":id})));
+        let item = current["project"]["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|track| track["items"].as_array().unwrap())
+            .find(|item| item["id"] == bound["aliases"]["visual"])
+            .unwrap();
+        assert_eq!(item["startMs"], 1100);
+        let render_result = |output: &Output| {
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+            let events: Vec<Value> = serde_json::Deserializer::from_slice(&output.stdout)
+                .into_iter::<Value>()
+                .map(Result::unwrap)
+                .collect();
+            let final_event = events.last().expect("render result event");
+            assert_eq!(final_event["type"], "result");
+            assert!(
+                events
+                    .iter()
+                    .all(|event| event["type"] == "progress" || event["type"] == "result")
+            );
+            final_event["result"].clone()
+        };
+        let range = render_result(&h.request(
+            json!({"operation":"render_preview_range","projectId":id,"expectedRevision":revision,
+            "startMs":900,"endMs":1300,"width":64,"height":64,"fps":10,"includeAudio":false}),
+        ));
+        let export = render_result(&h.request(
+            json!({"operation":"export_video","projectId":id,"expectedRevision":revision,
+            "relativePath":"speech-markers.mp4","width":64,"height":64,"overwrite":false}),
+        ));
+        let range_path = h
+            .root
+            .path()
+            .join("projects")
+            .join(id)
+            .join(range["relativePath"].as_str().unwrap());
+        let export_path = h
+            .root
+            .path()
+            .join("exports")
+            .join(export["relativePath"].as_str().unwrap());
+        let pixel = |path: &std::path::Path, time: &str| {
+            let output = Command::new(std::env::var_os("OPENCUT_FFMPEG_PATH").unwrap())
+                .args(["-v", "error", "-ss", time, "-i"])
+                .arg(path)
+                .args([
+                    "-frames:v",
+                    "1",
+                    "-vf",
+                    "format=rgb24,crop=1:1:32:32",
+                    "-f",
+                    "rawvideo",
+                    "-pix_fmt",
+                    "rgb24",
+                    "pipe:1",
+                ])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(output.stdout.len(), 3);
+            output.stdout
+        };
+        for (range_time, export_time, red) in [("0", "0.9", false), ("0.3", "1.2", true)] {
+            for observed in [
+                pixel(&range_path, range_time),
+                pixel(&export_path, export_time),
+            ] {
+                if red {
+                    assert!(
+                        observed[0] > 200 && observed[1] < 30 && observed[2] < 30,
+                        "{observed:?}"
+                    );
+                } else {
+                    assert!(observed.iter().all(|channel| *channel < 30), "{observed:?}");
+                }
+            }
+        }
+    }
 }

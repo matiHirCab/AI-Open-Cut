@@ -357,3 +357,13 @@
 /apps/agent-bridge/tests/known-text-alignment.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/known-text-* @matiHirCab
 /docs/known-text-alignment.md @matiHirCab
+
+# Issue 62 speech alignment marker contract
+/contracts/speech-alignment-markers-v1.json @matiHirCab
+/crates/editor-core/src/markers/speech.rs @matiHirCab
+/crates/editor-core/tests/speech_markers.rs @matiHirCab
+/apps/agent-bridge/tests/speech-markers.test.ts @matiHirCab
+/apps/agent-bridge/tests/speech-markers-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/speech-markers-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/speech-markers-mcp-additions.json @matiHirCab
+/docs/speech-alignment-markers.md @matiHirCab

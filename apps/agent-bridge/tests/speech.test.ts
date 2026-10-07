@@ -564,6 +564,54 @@ const suppliedAlignment = (): NonNullable<SynthesizedSpeech["alignment"]> => ({
   sentences: [],
   words: [{ endMs: 250, startMs: 0, text: "Hola" }],
 });
+
+it("owns marker policy through aligned preview conflict retry without synthesis", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  provider.alignment = suppliedAlignment();
+  const requests: HeadlessRequest[] = [];
+  const service = new SpeechApplicationService(provider, (request) => {
+    requests.push(structuredClone(request));
+    if (requests.length === 1) {
+      return Promise.reject(new BridgeError("REVISION_CONFLICT", "refresh"));
+    }
+    return Promise.resolve({
+      assetId: "aligned",
+      itemId: "item",
+      projectId: "project",
+      revision: 9,
+      summary: "done",
+      warnings: [],
+    });
+  });
+  try {
+    const preview = await service.preview(
+      { text: "Hola", type: "request" },
+      taskContext()
+    );
+    const markerPolicy = { indices: [0], type: "selected_word" as const };
+    await expect(
+      service.commitPreview(preview.token, "project", 7, {
+        markerPolicy,
+        startMs: 1000,
+        trackId: "audio",
+        type: "insert",
+      })
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    markerPolicy.indices.push(999);
+    await service.commitGeneratedArtifact(preview.token, 8);
+    expect(provider.requests).toHaveLength(1);
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        markerPolicy: { indices: [0], type: "selected_word" },
+        origin: { generation: { alignment: suppliedAlignment() } },
+      });
+    }
+    expect(provider.cleaned).toEqual(["generated.wav"]);
+  } finally {
+    await service.close();
+  }
+});
 it("owns returned nested provenance before preview retention and conflict retry", async () => {
   const provider = new FakeSpeechSynthesizer();
   provider.alignment = suppliedAlignment();

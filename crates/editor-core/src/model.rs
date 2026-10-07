@@ -2357,6 +2357,18 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    SpeechMarkersGenerate {
+        scope: String,
+        asset_id: String,
+        start_ms: u64,
+        marker_policy: SpeechMarkerPolicy,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "speech_alignment::deserialize_present_alignment"
+        )]
+        alignment: Option<SpeechAlignment>,
+    },
     MarkerCreate {
         scope: String,
         name: String,
@@ -2782,6 +2794,18 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    SpeechMarkersGenerate {
+        scope: String,
+        asset_id: String,
+        start_ms: u64,
+        marker_policy: SpeechMarkerPolicy,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "speech_alignment::deserialize_present_alignment"
+        )]
+        alignment: Option<SpeechAlignment>,
+    },
     MarkerCreate {
         scope: String,
         name: String,
@@ -3369,6 +3393,14 @@ impl<'de> Deserialize<'de> for EditOperation {
             Some("item_set_z_index") => Some(&["operation", "itemId", "zIndex"]),
             Some("item_reorder") => Some(&["operation", "itemId", "index"]),
             Some("track_reorder") => Some(&["operation", "trackId", "index"]),
+            Some("speech_markers_generate") => Some(&[
+                "operation",
+                "scope",
+                "assetId",
+                "startMs",
+                "markerPolicy",
+                "alignment",
+            ]),
             _ => None,
         };
         if let Some(allowed) = allowed

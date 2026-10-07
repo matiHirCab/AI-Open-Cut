@@ -629,6 +629,7 @@ fn predecessor_migration_preserves_managed_resource_provenance_and_revision() {
         generated_at_ms: 1_777_000_000_000,
     });
     core.commit_generated_asset(CommitGeneratedAssetRequest {
+        marker_policy: Default::default(),
         project_id: id.clone(),
         expected_revision: 0,
         path: wav,

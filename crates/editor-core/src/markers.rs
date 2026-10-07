@@ -4,6 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{CoreError, ErrorCode, Marker, Project, TimeExpression, TimelineItem};
 
+mod speech;
+pub(crate) use speech::generate_speech_markers;
+
 pub(crate) const MAX_SAFE: u64 = 9_007_199_254_740_991;
 
 fn invalid(message: &'static str) -> CoreError {

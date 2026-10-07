@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "capability": "speech_alignment_markers_v1",
+  "operation": "speech_markers_generate",
+  "limits": { "markersPerScope": 4096, "nameBytes": 128, "baseNameBytes": 120, "maxTimeMs": 9007199254740991 },
+  "policies": [
+    { "type": "none" },
+    { "type": "sentence" },
+    { "type": "selected_word", "indices": [2, 0] },
+    { "type": "all_word" }
+  ],
+  "invalidPolicies": [
+    null,
+    { "type": "words" },
+    { "type": "none", "indices": [] },
+    { "type": "sentence", "extra": true },
+    { "type": "selected_word" },
+    { "type": "selected_word", "indices": [-1] },
+    { "type": "selected_word", "indices": [0.5] },
+    { "type": "all_word", "extra": true }
+  ],
+  "invalidSelections": [[], [0, 0], [3]],
+  "alignment": {
+    "sentences": [{ "text": "EVERY. SINGLE. ONE.", "startMs": 100, "endMs": 900 }],
+    "words": [
+      { "text": "EVERY.", "startMs": 100, "endMs": 300 },
+      { "text": "SINGLE.", "startMs": 400, "endMs": 600 },
+      { "text": "ONE.", "startMs": 700, "endMs": 900 }
+    ],
+    "phonemes": [],
+    "quality": "forced",
+    "providerId": "fixture-aligner",
+    "modelId": "fixture-model",
+    "modelVersion": null
+  },
+  "placement": { "scope": "root", "startMs": 1000, "assetDurationMs": 1000 },
+  "expected": {
+    "none": [],
+    "sentence": [{ "name": "EVERY_SINGLE_ONE", "timeMs": 1100 }],
+    "selected_word": [{ "name": "EVERY", "timeMs": 1100 }, { "name": "ONE", "timeMs": 1700 }],
+    "all_word": [{ "name": "EVERY", "timeMs": 1100 }, { "name": "SINGLE", "timeMs": 1400 }, { "name": "ONE", "timeMs": 1700 }]
+  },
+  "naming": [
+    { "text": "EVERY.", "ordinal": 1, "granularity": "word", "expected": "EVERY" },
+    { "text": "Starting with", "ordinal": 2, "granularity": "sentence", "expected": "Starting_with" },
+    { "text": "123 go!", "ordinal": 3, "granularity": "word", "expected": "speech_123_go" },
+    { "text": "日本語", "ordinal": 4, "granularity": "word", "expected": "word_4" },
+    { "text": "...", "ordinal": 5, "granularity": "sentence", "expected": "sentence_5" }
+  ],
+  "collision": { "existingNames": ["EVERY", "EVERY_2", "EVERY_4"], "sourceTexts": ["EVERY", "EVERY"], "expectedNames": ["EVERY_3", "EVERY_5"] },
+  "errors": { "missingAsset": "ASSET_NOT_FOUND", "nonAudio": "UNSUPPORTED_MEDIA", "missingScope": "ITEM_NOT_FOUND", "semantic": "VALIDATION_FAILED", "revision": "REVISION_CONFLICT" },
+  "compatibility": { "protocolVersion": 1, "projectSchemaVersion": 38, "defaultPolicy": { "type": "none" }, "resultShapesUnchanged": true }
+}

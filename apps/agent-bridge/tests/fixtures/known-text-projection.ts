@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import additions from "./known-text-mcp-additions.json";
 import pin from "./known-text-mcp-predecessor-pin.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
+import { removeSpeechMarkerMcpAdditions } from "./speech-markers-projection";
 
 const at = (source: unknown, path: string[]): Record<string, unknown> => {
   let value = source;
@@ -18,7 +19,15 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 // Remove only exact approved additions, keeping unrelated drift observable to every older proof.
 export const removeKnownTextMcpAdditions = (source: unknown) => {
-  const result = structuredClone(source);
+  const result =
+    source &&
+    typeof source === "object" &&
+    "toolDefinitions" in source &&
+    source.toolDefinitions &&
+    typeof source.toolDefinitions === "object" &&
+    "speech_markers_generate" in source.toolDefinitions
+      ? removeSpeechMarkerMcpAdditions(source)
+      : structuredClone(source);
   for (const { path, value } of additions.additions) {
     const parent = at(result, path.slice(0, -1));
     const key = path.at(-1) ?? "";

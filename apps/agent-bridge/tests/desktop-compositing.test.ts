@@ -9,6 +9,7 @@ import {
   schemas,
   visualEffectSchema,
 } from "../src/schemas";
+import { projectSpeechMarkerMcpPredecessor } from "./fixtures/speech-markers-projection";
 
 describe("governed desktop controls and unchanged API inputs", () => {
   it("accepts exact independent mask/effect defaults in native cross-language inputs", () => {
@@ -38,7 +39,9 @@ describe("governed desktop controls and unchanged API inputs", () => {
     expect(catalog.projectSchemaVersion).toBe(38);
     expect(catalog.headlessProtocolVersion).toBe(1);
     expect(catalog.registeredToolCount).toBe(78);
-    expect(surface.tools).toHaveLength(78);
+    expect(
+      (projectSpeechMarkerMcpPredecessor(surface) as typeof surface).tools
+    ).toHaveLength(78);
   });
   it("preserves omission clear exact floating values and maximal seed across public inputs", () => {
     for (const blendMode of catalog.blendModes) {

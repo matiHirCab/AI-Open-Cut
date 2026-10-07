@@ -1,0 +1,900 @@
+{
+  "additions": [
+    {
+      "kind": "property",
+      "path": ["toolDefinitions", "speech_markers_generate"],
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "alignment": {
+              "additionalProperties": false,
+              "properties": {
+                "modelId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "modelVersion": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "phonemes": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "endMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "startMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["endMs", "startMs", "text"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "providerId": {
+                  "type": "string"
+                },
+                "quality": {
+                  "enum": ["native", "forced", "estimated"],
+                  "type": "string"
+                },
+                "sentences": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "endMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "startMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["endMs", "startMs", "text"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "words": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "endMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "startMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["endMs", "startMs", "text"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "modelId",
+                "modelVersion",
+                "phonemes",
+                "providerId",
+                "quality",
+                "sentences",
+                "words"
+              ],
+              "type": "object"
+            },
+            "assetId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "markerPolicy": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "none",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type"],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "sentence",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type"],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "indices": {
+                      "items": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "type": {
+                      "const": "selected_word",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["indices", "type"],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "all_word",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["type"],
+                  "type": "object"
+                }
+              ]
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "startMs": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "expectedRevision",
+            "projectId",
+            "assetId",
+            "markerPolicy",
+            "scope",
+            "startMs"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "changedIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "aliases",
+            "changedIds",
+            "projectId",
+            "revision",
+            "summary",
+            "warnings"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["tools"],
+      "value": "speech_markers_generate"
+    },
+    {
+      "kind": "array",
+      "path": ["capabilityIdentifiers"],
+      "value": "speech_alignment_markers_v1"
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateInputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "additionalProperties": false,
+            "properties": {
+              "modelId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "modelVersion": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phonemes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "quality": {
+                "enum": ["native", "forced", "estimated"],
+                "type": "string"
+              },
+              "sentences": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "words": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "modelId",
+              "modelVersion",
+              "phonemes",
+              "providerId",
+              "quality",
+              "sentences",
+              "words"
+            ],
+            "type": "object"
+          },
+          "assetId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "markerPolicy": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "none",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "sentence",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "indices": {
+                    "items": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "type": {
+                    "const": "selected_word",
+                    "type": "string"
+                  }
+                },
+                "required": ["indices", "type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "all_word",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              }
+            ]
+          },
+          "operation": {
+            "const": "speech_markers_generate",
+            "type": "string"
+          },
+          "resultAlias": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assetId",
+          "markerPolicy",
+          "operation",
+          "scope",
+          "startMs"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "toolDefinitions",
+        "speech_generate_and_insert",
+        "inputSchema",
+        "properties",
+        "markerPolicy"
+      ],
+      "value": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "none",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "sentence",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "indices": {
+                "items": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": {
+                "const": "selected_word",
+                "type": "string"
+              }
+            },
+            "required": ["indices", "type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "all_word",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "toolDefinitions",
+        "tts_generate_and_insert",
+        "inputSchema",
+        "properties",
+        "markerPolicy"
+      ],
+      "value": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "none",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "sentence",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "indices": {
+                "items": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": {
+                "const": "selected_word",
+                "type": "string"
+              }
+            },
+            "required": ["indices", "type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "all_word",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "toolDefinitions",
+        "speech_commit_preview",
+        "inputSchema",
+        "properties",
+        "placement",
+        "oneOf",
+        "0",
+        "properties",
+        "markerPolicy"
+      ],
+      "value": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "none",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "sentence",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "indices": {
+                "items": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": {
+                "const": "selected_word",
+                "type": "string"
+              }
+            },
+            "required": ["indices", "type"],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "all_word",
+                "type": "string"
+              }
+            },
+            "required": ["type"],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateOutputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "additionalProperties": false,
+            "properties": {
+              "modelId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "modelVersion": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phonemes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "quality": {
+                "enum": ["native", "forced", "estimated"],
+                "type": "string"
+              },
+              "sentences": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "words": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "endMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "startMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["endMs", "startMs", "text"],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "modelId",
+              "modelVersion",
+              "phonemes",
+              "providerId",
+              "quality",
+              "sentences",
+              "words"
+            ],
+            "type": "object"
+          },
+          "assetId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "markerPolicy": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "none",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "sentence",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "indices": {
+                    "items": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "type": {
+                    "const": "selected_word",
+                    "type": "string"
+                  }
+                },
+                "required": ["indices", "type"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "all_word",
+                    "type": "string"
+                  }
+                },
+                "required": ["type"],
+                "type": "object"
+              }
+            ]
+          },
+          "operation": {
+            "const": "speech_markers_generate",
+            "type": "string"
+          },
+          "resultAlias": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assetId",
+          "markerPolicy",
+          "operation",
+          "scope",
+          "startMs"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

@@ -2175,3 +2175,16 @@ describe("known-text alignment mandatory consumer", () => {
     });
   }
 });
+
+describe("speech-marker mandatory consumers", () => {
+  for (const consumer of [" --test speech_markers", " tests/speech-markers.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects speech-marker consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});

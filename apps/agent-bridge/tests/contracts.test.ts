@@ -122,7 +122,7 @@ const MCP_PRE_GROUP_DIGEST =
 const MCP_SCHEMA37_DIGEST =
   "2351ab33260b7bd695f87037567264c7580c1139071eb9eaff19a738454ad8c4";
 const MCP_CURRENT_DIGEST =
-  "a2d5c77f7ef91f2be31ca05443071bb14c2e7bff32a35171666401446beb4156";
+  "cb0cb43b3817113887c265cd2ebd98d58c56420527f547677fcdfe367c73397b";
 const MCP_PRE_KNOWN_TEXT_DIGEST =
   "1f048f2f5a61c61b65dfb8763477db0156d1965d3b44efbd1cc90791856c310a";
 const MCP_PRE_TRACK_MATTES_DIGEST =
@@ -437,7 +437,7 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(78);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(79);
     expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
       MCP_CURRENT_DIGEST
     );
@@ -922,6 +922,7 @@ describe("canonical public contracts", () => {
       "parameterized_effects_v1",
       "group_compositing_models_v1",
       "group_compositing_v1",
+      "speech_alignment_markers_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

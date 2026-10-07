@@ -44,7 +44,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::MarkerCreate { .. }
+        EditOperation::SpeechMarkersGenerate { .. }
+            | EditOperation::MarkerCreate { .. }
             | EditOperation::ComponentCreate { .. }
             | EditOperation::AddComponentInstance { .. }
             | EditOperation::ComponentInstanceDuplicate { .. }
@@ -83,6 +84,12 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::SpeechMarkersGenerate {
+            scope, asset_id, ..
+        } => {
+            resolve_scope_alias(scope, aliases)?;
+            resolve_alias(asset_id, aliases)?;
+        }
         EditOperation::MarkerCreate { scope, .. } => resolve_scope_alias(scope, aliases)?,
         EditOperation::MarkerUpdate {
             scope, marker_id, ..
@@ -306,6 +313,23 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::SpeechMarkersGenerate {
+            scope,
+            asset_id,
+            start_ms,
+            marker_policy,
+            alignment,
+        } => {
+            let ids = crate::markers::generate_speech_markers(
+                project,
+                &scope,
+                &asset_id,
+                start_ms,
+                &marker_policy,
+                alignment.as_ref(),
+            )?;
+            Ok((ids, "Generated speech markers"))
+        }
         EditOperation::MarkerCreate {
             scope,
             name,

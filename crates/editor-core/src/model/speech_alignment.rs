@@ -9,6 +9,21 @@ pub const MAX_SPEECH_ALIGNMENT_TOTAL_TEXT_BYTES: usize = 1024 * 1024;
 pub const MAX_SPEECH_ALIGNMENT_ID_BYTES: usize = 256;
 pub const MAX_SPEECH_ALIGNMENT_TIME_MS: u64 = 9_007_199_254_740_991;
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SpeechMarkerPolicy {
+    None {},
+    Sentence {},
+    SelectedWord { indices: Vec<u64> },
+    AllWord {},
+}
+
+impl Default for SpeechMarkerPolicy {
+    fn default() -> Self {
+        Self::None {}
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpeechAlignmentQuality {

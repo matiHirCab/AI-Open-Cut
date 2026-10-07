@@ -43,6 +43,7 @@ import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
+import { verifySpeechMarkerWorkflow } from "./speech-markers-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
 
@@ -303,6 +304,10 @@ it("completes packaged editing, draft, speech, and transcription flows", async (
 
 it("aligns known text and preserves caption retry, history and reopen through the package", async () => {
   await verifyKnownTextWorkflow(client, call);
+});
+
+it("generates speech markers with atomic failure, history and reopen through the package", async () => {
+  await verifySpeechMarkerWorkflow(client, call);
 });
 
 it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () => {
