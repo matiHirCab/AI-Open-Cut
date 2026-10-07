@@ -1,0 +1,29 @@
+{
+  "baseHead": "dcc6b28bf4f60bc3d18bb5673090f6e9e810b004",
+  "archived": true,
+  "reviewedSourceHashesMatched": {
+    "apps/agent-bridge/tests/blend-modes.test.ts": "22c988c9b66aa9759be1128a091a951cce387be276cbb3b07fb5540c3d7f2df6",
+    "apps/agent-bridge/tests/fixtures/blend-mode-projection.ts": "a14ec01916ccd9e2af3d992c57ba4135f5a0d3c99b065c2dc17d5edc3fa0461d"
+  },
+  "onlyChangedBaselineInputs": [
+    "apps/agent-bridge/tests/blend-modes.test.ts",
+    "apps/agent-bridge/tests/fixtures/blend-mode-projection.ts",
+    "openspec/specs/contract-governance/spec.md"
+  ],
+  "allUnrelatedTrackedHashesPreserved": 1773,
+  "all493PriorLivingRequirementsUnchanged": true,
+  "livingRequirements": 494,
+  "acceptedRequirementBlocksExact": true,
+  "all1132PriorArchiveFilesUnchanged": true,
+  "all38CanonicalCatalogFilesUnchanged": true,
+  "sourceScenarios": {
+    "Reject malformed additions before unrelated predecessor work": [
+      "rejects each malformed or missing blend node before unrelated predecessor work",
+      "preserves the complete verified MCP predecessor and rejects all29 malformed additions without mutation"
+    ],
+    "Retain complete valid predecessor evidence": [
+      "preserves the complete verified MCP predecessor and rejects all29 malformed additions without mutation",
+      "retains unrelated annotation drift through the complete blend predecessor proof"
+    ]
+  }
+}

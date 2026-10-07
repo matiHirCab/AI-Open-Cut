@@ -1,0 +1,107 @@
+{
+  "review": "independent-blend-ci-prearchive-conformance",
+  "timestampUtc": "2026-10-07T02:20:21.582415+00:00",
+  "decision": "CLEARED_FOR_OWN_ONLY_SYNC_AND_ARCHIVE",
+  "findings": [],
+  "reviewedSourceHashes": {
+    "apps/agent-bridge/tests/blend-modes.test.ts": "22c988c9b66aa9759be1128a091a951cce387be276cbb3b07fb5540c3d7f2df6",
+    "apps/agent-bridge/tests/fixtures/blend-mode-projection.ts": "a14ec01916ccd9e2af3d992c57ba4135f5a0d3c99b065c2dc17d5edc3fa0461d"
+  },
+  "actualFreshGates": {
+    "typecheck": {
+      "status": 0,
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    "lint": {
+      "status": 0,
+      "logSha256": "51dd29ea9c57a13124c80bb1cf84699074732cb7f9afe39bcd2bac13535390a3"
+    },
+    "unit": {
+      "status": 0,
+      "logSha256": "1ae45327d4c214c1692d812cf9c45656e8f1d9316374a355a20b971c84ae7c7b"
+    },
+    "contracts": {
+      "status": 0,
+      "logSha256": "d447ec877e957cbfcf8d3676a1509c4445645e3dced17d71ae775f9480ac6a65"
+    },
+    "policy": {
+      "status": 0,
+      "logSha256": "58db8d480b81fdf110b67ab6b079d821e05ab800d472a37185da6641558c041c"
+    },
+    "strict": {
+      "status": 0,
+      "logSha256": "2ac708717ad5ae6c1af32e828fde3739b8967d09877b759ab5145316c553e731"
+    }
+  },
+  "actualCounts": {
+    "unit": {
+      "filesPassed": 40,
+      "filesSkipped": 7,
+      "testsPassed": 579,
+      "testsSkipped": 7,
+      "qualification": "native opt-in skips; separately configured native suites retain execution evidence"
+    },
+    "contracts": {
+      "tsFilesPassed": 23,
+      "tsTestsPassed": 438,
+      "rustPassingResultBlocks": 20,
+      "rustTestsPassed": 340,
+      "rustFailed": 0,
+      "rustIgnored": 0
+    },
+    "policy": {
+      "passed": 427,
+      "failed": 0
+    },
+    "strict": {
+      "passed": 45,
+      "failed": 0
+    }
+  },
+  "prearchiveProtected": {
+    "status": 1,
+    "soleRejection": "unarchived OpenSpec changes block merge readiness: fix-blend-predecessor-ci-timeout",
+    "logSha256": "469a4b3d0d7a1e7bc6c836880fc2686b996a1bd5bff0d2f9b709108838b7457a",
+    "qualification": "expected own-active-change rejection, not protected gate success"
+  },
+  "scenarios": {
+    "Reject malformed additions before unrelated predecessor work": [
+      "rejects each malformed or missing blend node before unrelated predecessor work",
+      "preserves the complete verified MCP predecessor and rejects all29 malformed additions without mutation"
+    ],
+    "Retain complete valid predecessor evidence": [
+      "preserves the complete verified MCP predecessor and rejects all29 malformed additions without mutation",
+      "retains unrelated annotation drift through the complete blend predecessor proof"
+    ]
+  },
+  "preservation": {
+    "baselineTrackedFiles": 1776,
+    "onlyChangedTrackedFiles": [
+      "apps/agent-bridge/tests/blend-modes.test.ts",
+      "apps/agent-bridge/tests/fixtures/blend-mode-projection.ts"
+    ],
+    "unchangedTrackedFiles": 1774,
+    "all493LivingRequirementBlocksPresentExact": true,
+    "all1132PriorArchiveFilesUnchanged": true,
+    "all79Issue56ImplementationHashesUnchanged": true,
+    "canonicalCatalogsUnchanged": true,
+    "baselineSha256": "0a5af69daddcba1c7b05e654999b5a7f4a6761bbfc6464f40a892c8278500e4f",
+    "preservationReceiptSha256": "7bb0d6118f9b322679ef64842bcaf0af9d741fb7a489f63e15d00327e3f0c8cb"
+  },
+  "reuse": {
+    "priorSuiteStatusesAllZero": 36,
+    "summarySha256": "ef250859e5685faf4a49e2d9f23fccd3a4a3d4ce12b03bdaa8b42df5b42a06c9",
+    "justification": "Only test-only blend projection helper and supplemental blend conformance tests changed; affected full bridge/contracts/policy/spec checks reran. Production/runtime/renderer/fixtures/CI/dependencies remain byte-exact in tracked baseline; no toolchain/environment changes reported or observed.",
+    "integrationQualification": "Prior local23/23 uses explicit worker --max-opt=0; retained normal local OOM failures. Hosted original normal integration succeeded but entire original CI failed Windows.",
+    "smokeQualification": "Prior20/20 smoke worker used normal optimization; wrapper applied launcher only.",
+    "pythonTests": 17
+  },
+  "truthfulReport": {
+    "verificationSha256": "dac4c46dd088a0a4576d501d406a53a72ce6980ed3fa21f794b4ab31fd78317b",
+    "tasksSha256": "764892c933f5e1ac2c5162b37ac384ab838835f82a7a6327bb10191b9f2d3726",
+    "archiveProtectedStrictPending": true,
+    "publicationExact11CIPending": true,
+    "noDesktopGUIOrWindowsPerformanceSuccessClaim": true
+  },
+  "authorization": "Proceed only with own accepted1-requirement2-scenario delta sync/archive; preserve all prior archive files and unrelated requirements. Final postarchive protected/strict remain mandatory before publication; corrected exact-head all11 SUCCESS remains mandatory before #57. No merge or deploy."
+}
