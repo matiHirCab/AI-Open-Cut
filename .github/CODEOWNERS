@@ -343,3 +343,11 @@
 /apps/headless/tests/masked_hero_reveal_native.rs @matiHirCab
 /apps/agent-bridge/tests/masked-hero-reveal*.ts @matiHirCab
 /docs/masked-hero-reveal.md @matiHirCab
+
+# Governed speech alignment provenance
+/contracts/speech-alignment-v1.json @matiHirCab
+/crates/editor-core/src/model/speech_alignment.rs @matiHirCab
+/crates/editor-core/tests/speech_alignment.rs @matiHirCab
+/apps/agent-bridge/tests/speech-alignment.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/speech-alignment* @matiHirCab
+/docs/speech-alignment.md @matiHirCab

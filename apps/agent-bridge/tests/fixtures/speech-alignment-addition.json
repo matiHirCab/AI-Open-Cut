@@ -1,0 +1,111 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "modelId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "modelVersion": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "phonemes": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "endMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["endMs", "startMs", "text"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "providerId": {
+      "type": "string"
+    },
+    "quality": {
+      "enum": ["native", "forced", "estimated"],
+      "type": "string"
+    },
+    "sentences": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "endMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["endMs", "startMs", "text"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "words": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "endMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "startMs": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["endMs", "startMs", "text"],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "modelId",
+    "modelVersion",
+    "phonemes",
+    "providerId",
+    "quality",
+    "sentences",
+    "words"
+  ],
+  "type": "object"
+}

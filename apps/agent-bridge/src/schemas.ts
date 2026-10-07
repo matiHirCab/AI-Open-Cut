@@ -676,7 +676,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(37).optional(),
+    projectSchemaVersion: z.literal(38).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -931,11 +931,32 @@ export const ttsResultSchema = z
   })
   .strict();
 
+// Structural transport contract; asset-relative semantic bounds belong to editor-core.
+export const speechTimedTextSchema = z
+  .object({
+    endMs: z.int().nonnegative(),
+    startMs: z.int().nonnegative(),
+    text: z.string(),
+  })
+  .strict();
+export const speechAlignmentSchema = z
+  .object({
+    modelId: z.string().nullable(),
+    modelVersion: z.string().nullable(),
+    phonemes: z.array(speechTimedTextSchema),
+    providerId: z.string(),
+    quality: z.enum(["native", "forced", "estimated"]),
+    sentences: z.array(speechTimedTextSchema),
+    words: z.array(speechTimedTextSchema),
+  })
+  .strict();
+
 export const generatedAssetOriginSchema = z.discriminatedUnion("type", [
   z
     .object({
       generation: z
         .object({
+          alignment: speechAlignmentSchema.optional(),
           generatedAtMs: milliseconds,
           modelId: z.string(),
           modelVersion: z.string().nullable(),
@@ -1850,7 +1871,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(37),
+        schemaVersion: z.literal(38),
         settings: z
           .object({
             fps: z.int().positive(),

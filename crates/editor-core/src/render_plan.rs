@@ -4689,6 +4689,104 @@ mod tests {
         assert!(!scalar_expression(&[], KeyframeProperty::Scale, 1.0, 0).contains("$"));
         assert_eq!(seconds(1_250), "1.250");
     }
+    #[test]
+    fn supplied_speech_alignment_never_changes_scene_resources_or_render_plans() {
+        let mut project = empty_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.assets.push(Asset {
+            id: "speech".into(),
+            media_type: MediaType::Audio,
+            file_name: "speech.wav".into(),
+            project_relative_path: "assets/speech.wav".into(),
+            duration_ms: Some(1000),
+            has_audio: true,
+            origin: None,
+            content_hash: None,
+            size_bytes: None,
+            probe: None,
+        });
+        project.tracks.push(Track {
+            id: "audio".into(),
+            name: "Audio".into(),
+            track_type: TrackType::Audio,
+            locked: false,
+            hidden: false,
+            muted: false,
+            audio_role: AudioTrackRole::Voiceover,
+            ducking: None,
+            items: vec![TimelineItem::Media(MediaItem {
+                id: "speech-item".into(),
+                asset_id: "speech".into(),
+                start_ms: 0,
+                duration_ms: 1000,
+                source_in_ms: 0,
+                visual_properties: crate::VisualProperties::default(),
+                audio: AudioSettings::default(),
+                keyframes: vec![],
+            })],
+        });
+        let original = evaluate_project(&project, 64, 64, 10).unwrap();
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../../../contracts/speech-alignment-v1.json"))
+                .unwrap();
+        for case in catalog["valid"].as_array().unwrap() {
+            let generation = crate::SpeechGeneration {
+                request: crate::SpeechSynthesisRequest {
+                    text: "speech".into(),
+                    language: "en".into(),
+                    voice_id: crate::SpeechVoiceId("af_heart".into()),
+                    speed: 1.0,
+                    text_options: crate::SpeechTextOptions::default(),
+                },
+                provider_id: "synthesis-provider".into(),
+                model_id: "synthesis-model".into(),
+                model_version: None,
+                sample_rate_hz: 24000,
+                generated_at_ms: 1,
+                alignment: Some(serde_json::from_value(case["alignment"].clone()).unwrap()),
+            };
+            generation.validate_for_duration(Some(1000)).unwrap();
+            project.assets[0].origin =
+                Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation));
+            let aligned = evaluate_project(&project, 64, 64, 10).unwrap();
+            assert!(aligned.scene == original.scene, "{}", case["id"]);
+            let inputs = media_input_requests(&original).unwrap();
+            assert_eq!(media_input_requests(&aligned).unwrap(), inputs);
+            for intent in [
+                RenderIntent::Frame { at_ms: 500 },
+                RenderIntent::Export,
+                RenderIntent::Range {
+                    start_ms: 200,
+                    end_ms: 800,
+                    include_audio: true,
+                },
+                RenderIntent::Range {
+                    start_ms: 200,
+                    end_ms: 800,
+                    include_audio: false,
+                },
+            ] {
+                let plan = |scene: &EvaluatedScene| {
+                    build_render_plan(
+                        scene,
+                        &HashMap::new(),
+                        inputs.clone(),
+                        vec![PathBuf::from("assets/speech.wav")],
+                        None,
+                        intent,
+                        &mut vec![],
+                    )
+                    .unwrap()
+                };
+                assert_eq!(
+                    plan(&aligned.scene),
+                    plan(&original.scene),
+                    "{}",
+                    case["id"]
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]

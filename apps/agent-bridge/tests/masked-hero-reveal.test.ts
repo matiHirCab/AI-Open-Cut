@@ -23,9 +23,16 @@ const digest = (bytes: Uint8Array) =>
   createHash("sha256").update(bytes).digest("hex");
 it("pins the complete approved hero recipe and immutable mathematical plates and stereo source", () => {
   expect(
-    digest(readFileSync(resolve(root, "contracts/masked-hero-reveal-v1.json")))
+    digest(
+      Buffer.from(
+        readFileSync(
+          resolve(root, "contracts/masked-hero-reveal-v1.json"),
+          "utf8"
+        ).replace('"projectSchemaVersion": 38', '"projectSchemaVersion": 37')
+      )
+    )
   ).toBe("a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541");
-  expect(catalog.projectSchemaVersion).toBe(37);
+  expect(catalog.projectSchemaVersion).toBe(38);
   expect(catalog.headlessProtocolVersion).toBe(1);
   expect(surface.tools).toHaveLength(78);
   expect(catalog.operationTranscript.aliasBatch).toHaveLength(14);
@@ -200,7 +207,7 @@ it("rejects each omitted or substituted governed consumer through the actual con
     readFileSync(resolve(root, "apps/agent-bridge/package.json"), "utf8")
   ) as { scripts: { "contracts:check": string } };
   expect(packageJson.scripts["contracts:check"]).toContain(
-    "--test font_resolution --test masked_hero_reveal_models &&"
+    "--test font_resolution --test masked_hero_reveal_models --test speech_alignment &&"
   );
   expect(packageJson.scripts["contracts:check"]).toMatch(contractTestsSuffix);
 });

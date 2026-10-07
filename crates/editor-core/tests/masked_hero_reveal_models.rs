@@ -7,14 +7,21 @@ use sha2::{Digest, Sha256};
 #[test]
 fn frozen_complete_plates_audio_and_exact_standalone_alias_recipe() {
     let c = catalog();
+    assert_eq!(c["projectSchemaVersion"], 38);
     assert_eq!(c["headlessProtocolVersion"], 1);
     assert_eq!(c["registeredToolCount"], 78);
     assert_eq!(
         format!(
             "{:x}",
-            Sha256::digest(include_bytes!(
-                "../../../contracts/masked-hero-reveal-v1.json"
-            ))
+            Sha256::digest(
+                include_str!("../../../contracts/masked-hero-reveal-v1.json")
+                    .replacen(
+                        "\"projectSchemaVersion\": 38",
+                        "\"projectSchemaVersion\": 37",
+                        1
+                    )
+                    .as_bytes()
+            )
         ),
         "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541"
     );

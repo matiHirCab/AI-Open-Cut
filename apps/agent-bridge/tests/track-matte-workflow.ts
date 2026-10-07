@@ -16,7 +16,7 @@ type Call = <Output>(
 ) => Promise<Output>;
 export const verifyTrackMatteWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(37);
+  expect(status.projectSchemaVersion).toBe(38);
   expect(status.subsystems.editor.capabilities).toContain(
     contract.capabilities.editor
   );

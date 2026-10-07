@@ -1,0 +1,13 @@
+# Speech alignment provenance
+
+Schema 38 adds optional `alignment` to `Asset.origin.generation` for speech synthesis. Unaligned legacy speech omits the field; explicit null is invalid. No timing is inferred, and alignment adds no managed-media references or automatic timeline markers.
+
+A closed alignment record requires independent `sentences`, `words`, and `phonemes` arrays, `quality` (`native`, `forced`, or `estimated`), `providerId`, and nullable `modelId` and `modelVersion`. Model fields are required even when null. Producer identity can differ from synthesis identity. Quality describes the supplied timing; it does not claim that the current Kokoro worker supports timestamps. The worker-v1 wire contract and capability declarations remain unchanged.
+
+Each closed timed-text entry has `text`, `startMs`, and `endMs` in integer milliseconds relative to the owning asset. Each granularity is ordered and non-overlapping; gaps and independent granularities are allowed. Spans are positive, JSON-safe integers, and must fit within a known positive asset duration. Core validates at most 100,000 combined entries, 4,096 UTF-8 bytes per nonblank text, 1 MiB combined text, and 256 UTF-8 bytes per nonblank producer/model identifier.
+
+Generated commit and replacement accept provenance additively. The bridge copies returned nested metadata before retaining preview artifacts, so preview conflict retries preserve the original producer record without repeated synthesis. Malformed transport records produce `TTS_INVALID_OUTPUT` and clean owned output; core owns ordering, size, duration, and persistence validation. Regeneration retains item identity and uses the new producer metadata.
+
+Opening schema 37 and earlier adopts schema 38 under the existing project lock, across current and retained undo/redo documents atomically. Legacy documents cannot contain alignment, including null, before introduction. Invalid current or retained metadata and unknown future schemas are rejected without adopting project or resource bytes. Failed generated requests use staged adoption and tracked resource rollback; committed journal recovery retains existing warning semantics. Reopening valid schema 38 does not rewrite it.
+
+This is an additive optional provenance field with a persisted schema increase, not a new speech worker major version. Consumers that enforce project-version literals must upgrade to 38. Alignment cannot be injected through batch timeline edits; generated-media operations own provenance. Canonical fixtures are in `contracts/speech-alignment-v1.json`; cross-language consumer ownership is recorded in `contracts/contract-ownership-v1.json`.

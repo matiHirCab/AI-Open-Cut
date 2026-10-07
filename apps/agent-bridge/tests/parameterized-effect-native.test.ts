@@ -225,7 +225,7 @@ fn main() {
         source: w.source,
       };
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(37);
+      expect(status.projectSchemaVersion).toBe(38);
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(status.capabilities).toContain("parameterized_effect_models_v1");
       expect(status.subsystems.rendering.capabilities).toContain(

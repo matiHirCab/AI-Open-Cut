@@ -1,5 +1,7 @@
 mod buffered;
 use buffered::BufferedValue;
+mod speech_alignment;
+pub use speech_alignment::*;
 mod animation_channels;
 mod animation_presets;
 pub use animation_channels::*;
@@ -32,7 +34,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 37;
+pub const PROJECT_SCHEMA_VERSION: u32 = 38;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -136,7 +138,7 @@ struct ProjectDocument {
     created_at_ms: u64,
     updated_at_ms: u64,
     settings: ProjectSettings,
-    assets: Vec<Asset>,
+    assets: BufferedValue,
     tracks: BufferedValue,
     #[serde(default)]
     components: Option<BufferedValue>,
@@ -148,6 +150,23 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 38
+            && value.assets.as_array().is_some_and(|assets| {
+                assets.iter().any(|asset| {
+                    asset
+                        .get("origin")
+                        .and_then(|origin| origin.get("generation"))
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|generation| generation.contains_key("alignment"))
+                })
+            })
+        {
+            return Err("speech alignment requires schema 38".into());
+        }
+        let assets = value
+            .assets
+            .decode::<Vec<Asset>>()
+            .map_err(|e| e.to_string())?;
         if value.schema_version < 37 {
             reject_group_compositing_fields(&value.tracks).map_err(|e| {
                 format!("{}{e}", crate::error::GROUP_COMPOSITING_DECODE_ERROR_PREFIX)
@@ -403,7 +422,7 @@ impl TryFrom<ProjectDocument> for Project {
             created_at_ms: value.created_at_ms,
             updated_at_ms: value.updated_at_ms,
             settings: value.settings,
-            assets: value.assets,
+            assets,
             markers: value.markers.unwrap_or_default(),
             tracks: value.tracks.decode().map_err(|error| error.to_string())?,
         })
@@ -1251,6 +1270,12 @@ pub struct SpeechGeneration {
     pub model_version: Option<String>,
     pub sample_rate_hz: u32,
     pub generated_at_ms: u64,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "speech_alignment::deserialize_present_alignment"
+    )]
+    pub alignment: Option<SpeechAlignment>,
 }
 
 impl SpeechGeneration {
@@ -1279,6 +1304,9 @@ impl SpeechGeneration {
                 ErrorCode::ValidationFailed,
                 "speech generation timestamp must be positive",
             ));
+        }
+        if let Some(alignment) = &self.alignment {
+            alignment.validate()?;
         }
         Ok(())
     }
@@ -3472,6 +3500,7 @@ mod tests {
     #[test]
     fn speech_generation_uses_provider_neutral_json() {
         let origin = GeneratedAssetOrigin::SpeechSynthesis(SpeechGeneration {
+            alignment: None,
             request: SpeechSynthesisRequest {
                 text: "Hello".into(),
                 language: "en-US".into(),
@@ -3560,6 +3589,7 @@ mod tests {
     #[test]
     fn speech_generation_validation_is_provider_neutral() {
         let valid = SpeechGeneration {
+            alignment: None,
             request: SpeechSynthesisRequest {
                 text: "Hello".into(),
                 language: "en-US".into(),

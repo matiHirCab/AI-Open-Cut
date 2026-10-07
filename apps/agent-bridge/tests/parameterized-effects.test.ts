@@ -15,7 +15,7 @@ import {
 } from "./fixtures/parameterized-effect-projection";
 
 it("validates every canonical static control endpoint and malformed value through public edits", () => {
-  expect(contract.projectSchemaVersion).toBe(37);
+  expect(contract.projectSchemaVersion).toBe(38);
   for (const entry of contract.effectCases) {
     expect(visualEffectSchema.safeParse(entry.value).success, entry.id).toBe(
       entry.accepted

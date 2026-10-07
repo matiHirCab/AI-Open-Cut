@@ -1,0 +1,250 @@
+{
+  "sourceCommit": "72bd389bc608b5860ad00583d23e76e769fad06e",
+  "catalogs": {
+    "advanced-text-layout-v1.json": {
+      "rawSha256": "e04c5db0c2a51959d682a80bb9d14552b732530440562d28555c8cc438abceb0",
+      "semanticSha256": "584f6b404088a1f3a5bca062d8b79a959a040e22c765722773dd27702ca9ee54",
+      "projectSchemaVersion": null
+    },
+    "animation-channels-v1.json": {
+      "rawSha256": "e33240791ade102b13b32aa0f460baea2feedc148d803ba20eed4ae0151f9c2d",
+      "semanticSha256": "1e428ba604f4d4e1873109342893bb4da848ce12082de52c591bd94b1d04dc86",
+      "projectSchemaVersion": 37
+    },
+    "animation-presets-v1.json": {
+      "rawSha256": "026fcb84ae8a6dceb2443a190f2bfa4093b720874320222f3bf73186b9bac374",
+      "semanticSha256": "23642f58034d21b5e232907227c3097651165d5e424c73d280bbd1bdda48a0c7",
+      "projectSchemaVersion": 37
+    },
+    "artifact-delivery-v2.json": {
+      "rawSha256": "aa8b5bc19eec0e3afdbcf93fb23d0d2d03396ae91dea5a09228ef5e8a47ca7fb",
+      "semanticSha256": "710b853365186c9b552d2a896fbfd8e725201aecd8446f0837121133bace9b96",
+      "projectSchemaVersion": null
+    },
+    "blend-modes-v1.json": {
+      "rawSha256": "cbc1401ac99cd471948818f6785b7d8b4e1b6ee1c174edbd4b0120255a1f7bd0",
+      "semanticSha256": "e8cedd86e5a9a3c8f763bf6675e29cf58d0b3886a78a3e51eff34f3c55b0a6d5",
+      "projectSchemaVersion": 37
+    },
+    "component-definitions-v1.json": {
+      "rawSha256": "7a60523096fdaa1c2ee860d59d079330e2dd0b5735838cf1169eb7e39f4387f3",
+      "semanticSha256": "81243a9c8f897b6120afff4e83da8d96beae256ae2b9c644da4692002a4c85ce",
+      "projectSchemaVersion": null
+    },
+    "component-evaluation-v1.json": {
+      "rawSha256": "2f5e763e8b9d339958f485feaeb752d98e98916b54b87f290b0f5e34178735c8",
+      "semanticSha256": "af266fbad5d2983422a4b674636fc87c85adadd9c229e4c24843374a1f321a1c",
+      "projectSchemaVersion": null
+    },
+    "component-lifecycle-v1.json": {
+      "rawSha256": "1b71ed011a62f31632294db04c93ffc9a59a889168f5e480dbffb14ef6c4a08b",
+      "semanticSha256": "f25084da670f11b3ce3b328820a77bb803195ecf7a4d6c860ec7c7b4ece3023f",
+      "projectSchemaVersion": null
+    },
+    "contract-ownership-v1.json": {
+      "rawSha256": "c2e345834728e9e55a421be4c93fcd8920ba6692e0a12a24b2b3ed865abcc789",
+      "semanticSha256": "73bdd9252fa408b556a338ef44e99ee2e99754fd2d4d98881adf917bf52ad1be",
+      "projectSchemaVersion": null
+    },
+    "desktop-compositing-controls-v1.json": {
+      "rawSha256": "c0a87addaf44302bdef3ddc1cf04aa7bc9d06117b138598095622d056722d4bf",
+      "semanticSha256": "739465edb193dda0fd75af44887231d49d59c01332eab7a2047b345fbca65349",
+      "projectSchemaVersion": 37
+    },
+    "error-codes-v1.json": {
+      "rawSha256": "28eb9e370cdcd3ebc074b1a26ac2df686c03d5dd2550a5ef5fa220fe32e1937b",
+      "semanticSha256": "367a8b5fe70f7304d47e06eca0b43e2ae7958c2e288964d8e11c79965ef11713",
+      "projectSchemaVersion": null
+    },
+    "extended-visual-animation-v1.json": {
+      "rawSha256": "7fc37ed8d43bf644df7e163e591cca4d4936c7cc17e5f362e3de3af395817ce9",
+      "semanticSha256": "ebd0394d20995eb8be1dd4dd2942cb1a13aa2affadf717ab86ec16f873910312",
+      "projectSchemaVersion": 37
+    },
+    "group-compositing-v1.json": {
+      "rawSha256": "0efefc0c7c2f78ecd2ad0a03949a864c5325f5d395da9afb943469ab2044d504",
+      "semanticSha256": "509ee6c6d039526ec3354af2bd65cc2478605aed57743d66eb2b2127d55cf45a",
+      "projectSchemaVersion": 37
+    },
+    "group-parent-v1.json": {
+      "rawSha256": "11d5d56646ed6aef3f44dba653d6161902485453b6eac596c985a2eaf11708b2",
+      "semanticSha256": "aec1d50fad31fce24e08dbcf7d5a3287113913d96f9c2551d53e0b5dd9f74f8b",
+      "projectSchemaVersion": null
+    },
+    "headless-protocol-v1.json": {
+      "rawSha256": "6481c50a32c8904accd09666f361c17520ef3185543a287e89433dff2463c8b1",
+      "semanticSha256": "93d2a4eb9e2ae900df469a43c09567333126ef0ffdfc7673e7b81bcd8a4a2b42",
+      "projectSchemaVersion": null
+    },
+    "inherited-animation-timing-v1.json": {
+      "rawSha256": "05561aef7cfe66c897e5169efeb6ca099464f8d727db6ef51b1b93028cb231c3",
+      "semanticSha256": "9d5d4994f955cdc808f1a69ba83b0b77845353c1a51e4e05f817fc5851d9f286",
+      "projectSchemaVersion": 37
+    },
+    "initial-motion-preset-pack-v1.json": {
+      "rawSha256": "5d44df908edc1bcda44a1fa9b055b3963c9f7254aeb5e504afb68db179c0b647",
+      "semanticSha256": "5daf230c1501e77fd4f535c95f01b2d88489e0d16c99abb71482a086f3f868be",
+      "projectSchemaVersion": 37
+    },
+    "mask-models-v1.json": {
+      "rawSha256": "636145854e815422db75bcd819f225c5c3e8c3e902089d8b80de13425ba922f7",
+      "semanticSha256": "b876d883ff131a5eb2a5208aec052670d95dbe453a2b3819a18ff70785f741be",
+      "projectSchemaVersion": 37
+    },
+    "mask-rendering-v1.json": {
+      "rawSha256": "acf64fca44e376db1f58a73549c37842fc4356eed904aca24f03168be3f17f32",
+      "semanticSha256": "432632ce03a8d61fa24b7fe3804fd41db63f94860afc403582014f486ce9d82a",
+      "projectSchemaVersion": 37
+    },
+    "masked-hero-reveal-v1.json": {
+      "rawSha256": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541",
+      "semanticSha256": "f7ccde297714b82ad35f199336a50ed7373edb1859836baf242de65884af18da",
+      "projectSchemaVersion": 37
+    },
+    "mcp-surface-v1.json": {
+      "rawSha256": "563bcd4a1b926602f3dc480229e68940243ae140dae7dc28fe08669dfdec65e7",
+      "semanticSha256": "8ad8db732c512bea8f623c982f3064573c5c71e32028f5585e648067f3f3e518",
+      "projectSchemaVersion": null,
+      "expandedSha256": "2351ab33260b7bd695f87037567264c7580c1139071eb9eaff19a738454ad8c4"
+    },
+    "motion-blur-sampling-v1.json": {
+      "rawSha256": "891e67fd3e15046d139ef39f4aebdc01d5c875329d0e1dba1fb6c87fd55f16ae",
+      "semanticSha256": "daf7869cd26d2dbc6dca5bd88243f299f78bc7368bcc7eabb2b72b95aff3ab0f",
+      "projectSchemaVersion": 37
+    },
+    "motion-graphics-v1.json": {
+      "rawSha256": "0bddec4de56324507b8142645e067dc38aa175cd715652c20a1ba93553de712e",
+      "semanticSha256": "5c87717e02e659cc99c4b9a05ec62b66caaf6cf8a6489e81e2cdaaa8831ead77",
+      "projectSchemaVersion": null
+    },
+    "parameterized-effects-v1.json": {
+      "rawSha256": "c746b39ad2aa2401a452a667fb2ccb48e21505bdbdff0028227baa1633c091aa",
+      "semanticSha256": "d8bf6f10385a3d68e6b09112e51b70f964a253b5526f3f1c56892517629ffe81",
+      "projectSchemaVersion": 37
+    },
+    "preview-review-v1.json": {
+      "rawSha256": "0c7f669cdc7e9747e569a71c2cdce16460c31f404c21234373cb5f0e61d9cd6d",
+      "semanticSha256": "2282d54eeb3b74c24e5ef86a46a61a4ba2f1838a53e175f4eada376c3ddca65d",
+      "projectSchemaVersion": null
+    },
+    "procedural-grids-v1.json": {
+      "rawSha256": "ddf8c805b45526f92c017288c178b87eaa862b9e64fbc1ede5d8e5db721a83ed",
+      "semanticSha256": "a24e62f2ab109c175e9b263682d8f9bd49fb0af281dd9b622155ff6380d8de3f",
+      "projectSchemaVersion": null
+    },
+    "render-worker-v1.json": {
+      "rawSha256": "4d9e23855ed2270db830c1f84a54a2ca3140f6775a9bc72e95ac9ed5dcd812fa",
+      "semanticSha256": "ea949585cd5e497ddde9339bfd0b0086ce7a5bdb1a794812eb29f91f68b5bf08",
+      "projectSchemaVersion": null
+    },
+    "repeaters-v1.json": {
+      "rawSha256": "9591973d55516fd27c7e6279bcc45ef7ce9d938e38e3c39253bd4ea88504c49e",
+      "semanticSha256": "fc214bf4a3326779855576187da39f5b20b07bbe10ac116290d3f96e16045b4a",
+      "projectSchemaVersion": null
+    },
+    "rich-text-documents-v1.json": {
+      "rawSha256": "2310b48a71c7d7339a867fb7827c6d3dfa25de4019e07442971bad5ebe52d4e7",
+      "semanticSha256": "507ae49f8caa9bd85119fb9223ac4eab69f2e208d5e67cb80995f4d340d223d8",
+      "projectSchemaVersion": null
+    },
+    "shape-items-v1.json": {
+      "rawSha256": "04e97d6e6ef1fe5ee7d8d605e67b105a24b7fa4c238e14f5b241ae3c33b853e3",
+      "semanticSha256": "36671d2461545331ac45e9bf88c59d3f7657294bd5613ed6e451d023072e0afb",
+      "projectSchemaVersion": null
+    },
+    "speech-provider-v1.json": {
+      "rawSha256": "fa125fc344b6f7af3cfa86821834b014ad68ba65ae2d11eb726b751e03eda492",
+      "semanticSha256": "98ff3ef60f0356e025ad21dd649c389855f339bba8ab0cc1ff7166409d2e40ea",
+      "projectSchemaVersion": null
+    },
+    "stacking-v1.json": {
+      "rawSha256": "d6aa3d4187041ec064db930ed19d59c58cc498721fb4f35bc8a04fe5572e987f",
+      "semanticSha256": "e39d12265ac4c997c0a7510b74c93475912ba13ea193bfebdad514270d009b47",
+      "projectSchemaVersion": null
+    },
+    "styled-text-layers-v1.json": {
+      "rawSha256": "c284e0f42423364d2e7c0e469ab648473594877561f81101318fb22e901cb426",
+      "semanticSha256": "0a048ec77f6685d15c69fe96969178c5cb3639ebc1b1a86d8769800edc6a5dbf",
+      "projectSchemaVersion": null
+    },
+    "svg-ingestion-v1.json": {
+      "rawSha256": "a1054ebe521e34bb3b40d39ba2f2c6546f6d766847e8f65591fa75bdfc605cd9",
+      "semanticSha256": "5388f3b686b5465169173167bf046a194b334fd9c61e12fb4accecc92da0f801",
+      "projectSchemaVersion": null
+    },
+    "template-slots-v1.json": {
+      "rawSha256": "1c1118fea80aad4f0bf7df66a388861de88af8584be143ca84ced907c4ff3938",
+      "semanticSha256": "ee4ac89644ffd65b048ee1119708657636b8d09e7c8f4b53d1365aa1fee79ce9",
+      "projectSchemaVersion": null
+    },
+    "text-layout-v2.json": {
+      "rawSha256": "cf0d9ffd011700aebfee85b359ad17d8d5c72e2c57fc827124b5d1e4705080f4",
+      "semanticSha256": "83bbdca2dd57c95ce7d3fa00fa85ef2ba8745a565529d633a2064278fe2f9aff",
+      "projectSchemaVersion": null
+    },
+    "track-mattes-v1.json": {
+      "rawSha256": "842135639abaecd0a4204737d58bc28c3003f002ccd13774a5fe6519ac9585e4",
+      "semanticSha256": "80be55792cfcf67a1f577054b8c6e43390d36cb2189867dc87f3de3782476ee3",
+      "projectSchemaVersion": 37
+    },
+    "transcription-provider-v1.json": {
+      "rawSha256": "d0d6590be041d1532ae0ac65b459166095f04fb4f3e95ce7f8b0b375e9f6348c",
+      "semanticSha256": "324e834373e51d676768bc70478934f31b0eeda6cf03bbb74339a6e13bb101a9",
+      "projectSchemaVersion": null
+    },
+    "transform2d-v1.json": {
+      "rawSha256": "3bd46df7888063de8b2d13934689a8405ddfffb0431e3a5d1310651ff43ffb97",
+      "semanticSha256": "d70c14337e8d327bdd44835535ca31e42d8619c89f6acb599b77bb8b1c2d074b",
+      "projectSchemaVersion": null
+    },
+    "vector-primitives-v1.json": {
+      "rawSha256": "888523f6b6241c6594ff4c32aa71560bd744eb901f3d6243e7da9a4ffea168af",
+      "semanticSha256": "3a1409a68e2d783989e17e5b327ba6fe6b10a3dd17580b7185984ef0502c32e9",
+      "projectSchemaVersion": null
+    }
+  },
+  "currentMarkerCatalogs": [
+    "animation-channels-v1.json",
+    "animation-presets-v1.json",
+    "blend-modes-v1.json",
+    "desktop-compositing-controls-v1.json",
+    "extended-visual-animation-v1.json",
+    "group-compositing-v1.json",
+    "inherited-animation-timing-v1.json",
+    "initial-motion-preset-pack-v1.json",
+    "mask-models-v1.json",
+    "mask-rendering-v1.json",
+    "masked-hero-reveal-v1.json",
+    "motion-blur-sampling-v1.json",
+    "parameterized-effects-v1.json",
+    "track-mattes-v1.json"
+  ],
+  "mcpVersionPaths": [
+    [
+      "toolDefinitions",
+      "editor_get_status",
+      "outputSchema",
+      "properties",
+      "projectSchemaVersion",
+      "const"
+    ],
+    [
+      "$defs",
+      "ProjectGetStateOutputPropertiesProjectProperties",
+      "schemaVersion",
+      "const"
+    ]
+  ],
+  "mcpAlignmentParent": [
+    "$defs",
+    "ProjectPropertiesAssetsItemsProperties",
+    "origin",
+    "anyOf",
+    "0",
+    "oneOf",
+    "0",
+    "properties",
+    "generation",
+    "properties"
+  ]
+}

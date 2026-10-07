@@ -1,0 +1,15 @@
+# Issue60 specification approval
+
+Approved scope: proposal.md, design.md, tasks.md and all four delta specifications in this change, reviewed together before implementation on2026-10-07.
+
+Authority: the user's delegation explicitly instructs this task to “Approve issue-scoped specifications within repository governance” and implement #60. Approval applies only to the enumerated alignment provenance, schema migration, existing workflow preservation and contract parity. It does not waive automated conformance, exact-head CI, historical predecessor proofs, CODEOWNER review, or archive requirements. No merge/deploy/issue closure is authorized.
+
+Baseline `2d748508b7838a7a3150837b6ac2556b50b5dec4`: original CI37613488302 attempt1 fails Windows `crashed_worker_terminates_renderer_descendants` at render_worker.rs455 waiting for the fixture PID record; every other substantive job passed. A rerun was requested; its result is pending. This is preserved as original evidence, not interpreted as a passing check or a confirmed production defect. Issue completion remains gated on required CI.
+
+Compatibility review: optional provenance preserves existing requests and unaligned results; schema38 deliberately advances the persisted-version boundary. No new provider worker synthesis/transport operation, asset reference, renderer behavior, or inference is authorized.
+
+Implementation must record canonical catalog predecessors before editing them. If conformance reveals scope gaps, update and re-review these artifacts before adding behavior.
+
+Amendment reviewed/approved before implementation on2026-10-07 under the same explicit delegated issue-specification authority: verified PR154 head72bd389b has all11 required CI plus focused native success, main remains2d748508 and original failed logs remain preserved. This issue branch fast-forwards onto72bd389b and its draft targets main, cumulative with154, merge order154 then60. All17 independent raw predecessor pins remain exact before catalog editing. Review includes all five current delta specifications, design/tasks, staged generated-speech adoption/resource rollback and journal warning semantics, lossless asset decoding/null/duplicate guards, required nullable metadata, owned provider alignment snapshots/malformed-output cleanup, and explicit current38/historical37 hero preservation. No worker-v1 change, new operation, asset reference, rendering/inference behavior or silent private-owner edge is approved. This scoped approval does not waive canonical parity, designated CODEOWNER review, conformance/archival or exact-head CI.
+
+Reviewed/approved before executable edits: dedicated Rust/Zod canonical alignment suites in contracts:check, protected exact-command/source-policy synchronization and additive omission/failure-mask coverage, retaining every old consumer/order/pin/job/workflow/environment/deadline/assertion and existing input tracking. This is required parity coverage within issue60, not permission to weaken policy or alter unrelated CI. Independent predecessor capture also records all existing canonical JSON sources and exact current-marker paths before additions.

@@ -24,8 +24,8 @@ describe("canonical versioned animation presets", () => {
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
     ]);
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(37);
-    expect(PACK.projectSchemaVersion).toBe(37);
+    expect(PRESETS.projectSchemaVersion).toBe(38);
+    expect(PACK.projectSchemaVersion).toBe(38);
   });
 
   it("accepts structurally valid unknown identities for canonical core rejection", () => {

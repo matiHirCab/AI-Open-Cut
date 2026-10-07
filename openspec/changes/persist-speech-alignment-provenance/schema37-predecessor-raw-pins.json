@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "2d748508b7838a7a3150837b6ac2556b50b5dec4",
+  "catalogs": {
+    "animation-channels-v1.json": {
+      "rawSha256": "e33240791ade102b13b32aa0f460baea2feedc148d803ba20eed4ae0151f9c2d"
+    },
+    "animation-presets-v1.json": {
+      "rawSha256": "026fcb84ae8a6dceb2443a190f2bfa4093b720874320222f3bf73186b9bac374"
+    },
+    "blend-modes-v1.json": {
+      "rawSha256": "cbc1401ac99cd471948818f6785b7d8b4e1b6ee1c174edbd4b0120255a1f7bd0"
+    },
+    "contract-ownership-v1.json": {
+      "rawSha256": "c2e345834728e9e55a421be4c93fcd8920ba6692e0a12a24b2b3ed865abcc789"
+    },
+    "desktop-compositing-controls-v1.json": {
+      "rawSha256": "c0a87addaf44302bdef3ddc1cf04aa7bc9d06117b138598095622d056722d4bf"
+    },
+    "extended-visual-animation-v1.json": {
+      "rawSha256": "7fc37ed8d43bf644df7e163e591cca4d4936c7cc17e5f362e3de3af395817ce9"
+    },
+    "group-compositing-v1.json": {
+      "rawSha256": "0efefc0c7c2f78ecd2ad0a03949a864c5325f5d395da9afb943469ab2044d504"
+    },
+    "headless-protocol-v1.json": {
+      "rawSha256": "6481c50a32c8904accd09666f361c17520ef3185543a287e89433dff2463c8b1"
+    },
+    "inherited-animation-timing-v1.json": {
+      "rawSha256": "05561aef7cfe66c897e5169efeb6ca099464f8d727db6ef51b1b93028cb231c3"
+    },
+    "initial-motion-preset-pack-v1.json": {
+      "rawSha256": "5d44df908edc1bcda44a1fa9b055b3963c9f7254aeb5e504afb68db179c0b647"
+    },
+    "mask-models-v1.json": {
+      "rawSha256": "636145854e815422db75bcd819f225c5c3e8c3e902089d8b80de13425ba922f7"
+    },
+    "mask-rendering-v1.json": {
+      "rawSha256": "acf64fca44e376db1f58a73549c37842fc4356eed904aca24f03168be3f17f32"
+    },
+    "masked-hero-reveal-v1.json": {
+      "rawSha256": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541"
+    },
+    "mcp-surface-v1.json": {
+      "rawSha256": "563bcd4a1b926602f3dc480229e68940243ae140dae7dc28fe08669dfdec65e7"
+    },
+    "motion-blur-sampling-v1.json": {
+      "rawSha256": "891e67fd3e15046d139ef39f4aebdc01d5c875329d0e1dba1fb6c87fd55f16ae"
+    },
+    "parameterized-effects-v1.json": {
+      "rawSha256": "c746b39ad2aa2401a452a667fb2ccb48e21505bdbdff0028227baa1633c091aa"
+    },
+    "track-mattes-v1.json": {
+      "rawSha256": "842135639abaecd0a4204737d58bc28c3003f002ccd13774a5fe6519ac9585e4"
+    }
+  }
+}

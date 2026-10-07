@@ -326,7 +326,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(
       statusSchema.parse(await call("editor_get_status", {}))
         .projectSchemaVersion
-    ).toBe(37);
+    ).toBe(38);
   } finally {
     await client.close();
     rmSync(root, { force: true, recursive: true });

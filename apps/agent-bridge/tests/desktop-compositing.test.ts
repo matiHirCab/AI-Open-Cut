@@ -35,7 +35,7 @@ describe("governed desktop controls and unchanged API inputs", () => {
         }).effects
       ).toEqual([effect]);
     }
-    expect(catalog.projectSchemaVersion).toBe(37);
+    expect(catalog.projectSchemaVersion).toBe(38);
     expect(catalog.headlessProtocolVersion).toBe(1);
     expect(catalog.registeredToolCount).toBe(78);
     expect(surface.tools).toHaveLength(78);

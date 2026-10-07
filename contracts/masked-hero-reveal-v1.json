@@ -1,7 +1,7 @@
 {
   "catalogVersion": 1,
   "fixtureId": "masked-hero-reveal-v1",
-  "projectSchemaVersion": 37,
+  "projectSchemaVersion": 38,
   "headlessProtocolVersion": 1,
   "registeredToolCount": 78,
   "settings": {

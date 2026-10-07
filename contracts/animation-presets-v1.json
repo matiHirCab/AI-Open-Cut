@@ -1,7 +1,7 @@
 {
   "version": 1,
   "compilerVersion": 2,
-  "projectSchemaVersion": 37,
+  "projectSchemaVersion": 38,
   "capability": "animation_presets_v1",
   "operation": "apply_animation_preset",
   "tool": "timeline_apply_animation_preset",

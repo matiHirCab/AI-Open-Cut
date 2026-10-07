@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
-import { BridgeError } from "../src/headless";
+import { BridgeError, type HeadlessClient } from "../src/headless";
 import type { HeadlessRequest } from "../src/headless-contract";
 import { schemas } from "../src/schemas";
 import type { Server, ServerDependencies } from "../src/server/shared";
@@ -11,6 +11,7 @@ import {
   SpeechApplicationService,
   type SpeechSynthesisRequest,
   type SpeechSynthesizer,
+  type SynthesizedSpeech,
 } from "../src/speech";
 
 const status = {
@@ -41,6 +42,7 @@ const status = {
 };
 
 class FakeSpeechSynthesizer implements SpeechSynthesizer {
+  alignment: SynthesizedSpeech["alignment"];
   cleaned: string[] = [];
   closed = false;
   cancelled = false;
@@ -83,12 +85,15 @@ class FakeSpeechSynthesizer implements SpeechSynthesizer {
     ]);
   }
 
-  synthesize(synthesisRequest: SpeechSynthesisRequest) {
+  synthesize(
+    synthesisRequest: SpeechSynthesisRequest
+  ): Promise<SynthesizedSpeech> {
     this.requests.push(synthesisRequest);
     if (this.failure) {
       return Promise.reject(this.failure);
     }
     return Promise.resolve({
+      ...(this.alignment === undefined ? {} : { alignment: this.alignment }),
       durationMs: 250,
       modelId: status.modelId,
       modelVersion: status.modelVersion,
@@ -548,4 +553,159 @@ it("recommits a retained artifact without rerunning synthesis", async () => {
       code: "GENERATED_ARTIFACT_NOT_FOUND",
     }
   );
+});
+
+const suppliedAlignment = (): NonNullable<SynthesizedSpeech["alignment"]> => ({
+  modelId: null,
+  modelVersion: "2",
+  phonemes: [],
+  providerId: "independent-aligner",
+  quality: "forced",
+  sentences: [],
+  words: [{ endMs: 250, startMs: 0, text: "Hola" }],
+});
+it("owns returned nested provenance before preview retention and conflict retry", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  provider.alignment = suppliedAlignment();
+  const original = structuredClone(provider.alignment);
+  const requests: HeadlessRequest[] = [];
+  const service = new SpeechApplicationService(provider, (request) => {
+    requests.push(request);
+    if (requests.length === 1) {
+      return Promise.reject(new BridgeError("REVISION_CONFLICT", "refresh"));
+    }
+    return Promise.resolve({
+      assetId: "aligned",
+      itemId: "item",
+      projectId: "project",
+      revision: 9,
+      summary: "done",
+      warnings: [],
+    });
+  });
+  try {
+    const preview = await service.preview(
+      { text: "Hola", type: "request" },
+      taskContext()
+    );
+    const firstWord = provider.alignment.words.at(0);
+    if (!firstWord) {
+      throw new Error("fixture word missing");
+    }
+    firstWord.text = "mutated by provider";
+    provider.alignment.words.push({ endMs: 1, startMs: 0, text: "new" });
+    await expect(
+      service.commitPreview(preview.token, "project", 7, {
+        startMs: 0,
+        trackId: "audio",
+        type: "insert",
+      })
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    await service.commitGeneratedArtifact(preview.token, 8);
+    expect(provider.requests).toHaveLength(1);
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        origin: { generation: { alignment: original } },
+      });
+    }
+    expect(provider.cleaned).toEqual(["generated.wav"]);
+  } finally {
+    await service.close();
+  }
+});
+it.each([
+  null,
+  { ...suppliedAlignment(), extra: true },
+  { ...suppliedAlignment(), modelId: undefined },
+])(
+  "cleans owned output and reports TTS_INVALID_OUTPUT for malformed alignment %j",
+  async (malformed) => {
+    const provider = new FakeSpeechSynthesizer();
+    provider.alignment = malformed as unknown as SynthesizedSpeech["alignment"];
+    const commit = unusedCommit();
+    const service = new SpeechApplicationService(provider, commit);
+    try {
+      await expect(
+        service.preview({ text: "Hola", type: "request" }, taskContext())
+      ).rejects.toMatchObject({ code: "TTS_INVALID_OUTPUT" });
+      expect(provider.cleaned).toEqual(["generated.wav"]);
+      expect(commit).not.toHaveBeenCalled();
+    } finally {
+      await service.close();
+    }
+  }
+);
+
+it("regeneration preserves the item and sends newly supplied independent provenance", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  provider.alignment = suppliedAlignment();
+  provider.alignment.quality = "estimated";
+  provider.alignment.providerId = "regeneration-aligner";
+  const expected = structuredClone(provider.alignment);
+  const replacements: HeadlessRequest[] = [];
+  const headless = {
+    call: (request: HeadlessRequest) => {
+      if (request.operation === "get_state") {
+        return Promise.resolve({
+          project: {
+            assets: [
+              {
+                id: "old-asset",
+                origin: {
+                  generation: {
+                    request: {
+                      language: "es-UY",
+                      speed: 1.1,
+                      text: "Hola",
+                      textOptions: {},
+                      voiceId: "voice-uy",
+                    },
+                  },
+                  type: "speech_synthesis",
+                },
+              },
+            ],
+            tracks: [
+              {
+                items: [
+                  { assetId: "old-asset", id: "stable-item", type: "media" },
+                ],
+              },
+            ],
+          },
+        });
+      }
+      replacements.push(request);
+      return Promise.resolve({
+        assetId: "new-asset",
+        itemId: "stable-item",
+        projectId: "project",
+        replacedAssetId: "old-asset",
+        revision: 9,
+        summary: "regenerated",
+        warnings: [],
+      });
+    },
+  } as unknown as HeadlessClient;
+  const service = new SpeechApplicationService(provider, headless);
+  try {
+    const result = await service.regenerate(
+      { expectedRevision: 8, itemId: "stable-item", projectId: "project" },
+      taskContext()
+    );
+    expect(result).toMatchObject({
+      itemId: "stable-item",
+      replacedAssetId: "old-asset",
+    });
+    expect(replacements).toHaveLength(1);
+    expect(replacements[0]).toMatchObject({
+      itemId: "stable-item",
+      operation: "replace_generated_asset",
+      origin: { generation: { alignment: expected } },
+    });
+    expect(provider.requests).toHaveLength(1);
+    expect(provider.cleaned).toEqual(["generated.wav"]);
+  } finally {
+    await service.close();
+  }
 });
