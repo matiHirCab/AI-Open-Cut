@@ -36,3 +36,9 @@ No schema, contract or resource migration. All fixture files are beneath the tes
 ## Open Questions
 
 The Windows cause is unconfirmed. Diagnostic outputs must determine shell entry, PowerShell errors and worker response before authorizing a correction.
+
+## Approved prerequisite amendment
+
+The untouched main control now passes renderer startup/cleanup and fails a different independent hero-oracle test at5000ms (job112822127891). This supplies no renderer root cause. Complete the diagnostic outcome with that uncertainty explicit, without production repair. The separately evidenced private verifier timeout is covered by the user's Windows prerequisite-repair authority.
+
+Precompute ordered valid Gaussian neighbors for each coordinate using the same normalized seven weights. Preserve ascending kernel accumulation and horizontal-then-vertical passes; unroll RGBA additions without reassociation. Hoist each plate's invariant quantized hero RGB. Do not vectorize through production code, regenerate references, change frozen catalogs, cache keys/copy isolation, PCM math, tolerances or test deadlines. Existing complete byte/hash/witness/PCM and refusal/cache-isolation assertions are the acceptance authority. Before/after unprofiled timings are local diagnostics; native Windows full-suite evidence is required and a speed claim must identify its environment. This amendment changes only private independent verifier evaluation overhead.

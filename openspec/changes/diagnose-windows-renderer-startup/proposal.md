@@ -23,6 +23,10 @@ None.
 
 ## Impact
 
+### Evidence-driven prerequisite amendment
+
+Unchanged main attempt3/job112822127891 passes the original renderer fixture but fails the independent hero oracle test at Vitest's unchanged5000ms deadline. All9 substantive jobs on diagnostic headf526b84c pass; no renderer production correction is justified. Preserve the earlier startup failures and record their cause as unresolved rather than falsely attributing recovery to diagnostics. Repair the separately observed Windows prerequisite by removing redundant coordinate/bounds/channel-loop work in the private scalar Python Gaussian oracle. Local cProfile attributes1.262s of2.679s to19 Gaussian calls; this is profiling evidence, not Windows timing proof. Hoist invariant quantized hero colors. Preserve exact arithmetic order, zero-padding, immutable references, full16-plate/eight-witness/38400-frame comparisons, cache isolation, refusal behavior, unchanged5-second test deadline and all required CI. Actual final-head native Windows correctness remains required.
+
 The existing headless integration fixture, a portable diagnostic formatter with automated fixture tests, a focused Windows CI workflow and documentation/evidence. No public/persisted/provider contract or production process semantics changes are authorized in this diagnostic phase. The original issue60 work stays untouched in its own checkout.
 
 ## Non-goals
