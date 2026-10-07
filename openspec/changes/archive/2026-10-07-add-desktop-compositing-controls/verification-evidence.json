@@ -1,0 +1,312 @@
+{
+  "implementationChecks": {
+    "status": "PASS",
+    "checks": [
+      {
+        "check": "verified-contracts",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-contracts.log",
+        "sha256": "a537f5b7a06d00973482d013d6b9bea1c8d6b192ebb00fd0cf67bd7c4958c12e"
+      },
+      {
+        "check": "verified-default-build",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-default-build.log",
+        "sha256": "f0788aa36d1c86b6ccdfb7f4042a5574102d82061c046422a2d42e008a1e4710"
+      },
+      {
+        "check": "verified-default-headless-build",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-default-headless-build.log",
+        "sha256": "22e0df986057b9ba5be07526ac5fb348862a3dedef42108383cc3e088acbb889"
+      },
+      {
+        "check": "verified-default-headless-tests",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-default-headless-tests.log",
+        "sha256": "023bb390488b8eea01bdac6bf9b3795881bcf253f0dd38f24f8ce722ff93952f"
+      },
+      {
+        "check": "verified-golden-report",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-golden-report.log",
+        "sha256": "860318dcfc8287edd0fd731e8771d4c62defb2f2799cd71ad3f578d2c546d99e"
+      },
+      {
+        "check": "verified-integration",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-integration.log",
+        "sha256": "1cd1a95813b7b2a351f02b2a5fd2f8598e20e81ec22cf2e29e983560ac6e9c78"
+      },
+      {
+        "check": "verified-lint",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-lint.log",
+        "sha256": "a5147da3a58b858124c747a36da3b44785f8a23fd2a44e8ccc5c201cbe14c3d6"
+      },
+      {
+        "check": "verified-native-mcp-blend",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-blend.log",
+        "sha256": "387141a7c9e9d78a115fd09b0ab97e0756010b1b37655ff7e070edc6b6040c83"
+      },
+      {
+        "check": "verified-native-mcp-group",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-group.log",
+        "sha256": "8c40bc9073ff5c8817109db5bead3f4b99df40f2ab43448c7b6777971b93a8dd"
+      },
+      {
+        "check": "verified-native-mcp-mask",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-mask.log",
+        "sha256": "c8913dcdc6b14ed63f9bffb9c255551c39c54e296d6c475133e8057b1195ea49"
+      },
+      {
+        "check": "verified-native-mcp-matte",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-matte.log",
+        "sha256": "69fe176ed890b0b1acb4a198c0dd83cf207db087de951f009b68d2f9dee8c842"
+      },
+      {
+        "check": "verified-native-mcp-ordered",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-ordered.log",
+        "sha256": "839421910cc0c1d3c4fb812cb22a061391ad7161238a1fe826b47d49c3c50521"
+      },
+      {
+        "check": "verified-native-mcp-parameterized",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-parameterized.log",
+        "sha256": "8c33316f0037c11abb632a47346d404473ada31c52c42d5ab6c80500c11e6469"
+      },
+      {
+        "check": "verified-protocol-group",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-protocol-group.log",
+        "sha256": "a6892585e944727d4d662b2021e8988a5614acf4224d44eb3e31ee8623c66f6d"
+      },
+      {
+        "check": "verified-protocol-matte",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-protocol-matte.log",
+        "sha256": "4920cab6e3319e461904d18fa6aeea02da76533eb2912279ffcef0f02bdecf2a"
+      },
+      {
+        "check": "verified-protocol-parameterized",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-protocol-parameterized.log",
+        "sha256": "e7b65919eb56c005171341d5c790a1c4e7ca2798359fb30f1c744693c6be2ff0"
+      },
+      {
+        "check": "verified-python",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-python.log",
+        "sha256": "55032159dd0a6c224f4e968646ac16744023e8fa4e08e76b5bd235493b82b354"
+      },
+      {
+        "check": "verified-raster-core",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-raster-core.log",
+        "sha256": "24696d525249d02f80d263db6d3eb70a5bad4c53e5898dc2946c9a357a33eb4a"
+      },
+      {
+        "check": "verified-raster-public",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-raster-public.log",
+        "sha256": "3e0e46685e6471d9da68b12ba7c4936456bc95d05bc10977256dfb5304cf0011"
+      },
+      {
+        "check": "verified-raster-worker-build",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-raster-worker-build.log",
+        "sha256": "2bc683fb4e4f4f21ee9ee39e2b8ecce2efe20d3b1be57bda5316aa519ab3d30a"
+      },
+      {
+        "check": "verified-raster-worker",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-raster-worker.log",
+        "sha256": "28357b8307685ddd32a61e4a67609b5d66d13772f5a723001c5f766762789988"
+      },
+      {
+        "check": "verified-release-native-golden",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-release-native-golden.log",
+        "sha256": "8efa832d193ec457e2890835554319237f2946790be320cde2e50440941da100"
+      },
+      {
+        "check": "verified-rules-1280x720",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rules-1280x720.log",
+        "sha256": "2360760c6e181a4a0b52f236650e307f360864a174bfc80c2de141e040f2de33"
+      },
+      {
+        "check": "verified-rules-1920x1080",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rules-1920x1080.log",
+        "sha256": "3377d9311ac8d370b6b01a776ec77b58d97ebd4c26d46154e2a2c4674ebb5637"
+      },
+      {
+        "check": "verified-rules-960x540",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rules-960x540.log",
+        "sha256": "f1bb409a708d79732be86676842db8efc50d60a7e9707232132214f9d5830b09"
+      },
+      {
+        "check": "verified-rust-clippy",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rust-clippy.log",
+        "sha256": "d56b9bc521b33a345a81bc98c934cdcbd313949ac21dc9c503391eb9ca76989c"
+      },
+      {
+        "check": "verified-rust-fmt",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rust-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "check": "verified-rust-workspace",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-rust-workspace.log",
+        "sha256": "ae8a1695337f97a0e52cc783383e2306089e9acae91933e1ab7ca2c187a017a1"
+      },
+      {
+        "check": "verified-smoke",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-smoke.log",
+        "sha256": "455788a966908521dbca7bdd993d35622641af8c65d0988d7989bb699a8646f5"
+      },
+      {
+        "check": "verified-typecheck",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-typecheck.log",
+        "sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+      },
+      {
+        "check": "verified-unit",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/verified-unit.log",
+        "sha256": "343af826f6a19492aba1107923a8db019e42ab941a0d4af055f1c37ac59ce713"
+      },
+      {
+        "check": "final-fmt.log",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/final-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "check": "final-all-root-tests.log",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/logs/continuation/issue57/final-all-root-tests.log",
+        "sha256": "71274b8047ecb326caf9e676d69b7db06256b73b551b6fccb616854f7e4ccf64"
+      },
+      {
+        "check": "final-stable-clippy-second.log",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/issue57-planning/final-stable-clippy-second.log",
+        "sha256": "571583147a628c73f71bd3162775a58910f1c809962ad66eba5dea3aa11f33c4"
+      },
+      {
+        "check": "final-stable-desktop-all-second.log",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/issue57-planning/final-stable-desktop-all-second.log",
+        "sha256": "71ad013cc61cf094593645311c19738b28fb757a418f84089e79c50744c5a6d5"
+      },
+      {
+        "check": "final-error-parity-mcp-second.log",
+        "exit": 0,
+        "log": "/workspace/.opencut-tools/issue57-planning/final-error-parity-mcp-second.log",
+        "sha256": "29343efc1ad3f8b3e9e7731b9e56d1f1821cb81bbea94491beb7be9b844d248b"
+      }
+    ],
+    "qualification": "Configured native opt-in suites executed independently. Integration uses unchanged tests with local Node --max-opt=0 memory workaround; exact remote standard CI remains pending. Final desktop40 and compositing18 include all later review tests; no production source change invalidates the earlier configured workspace result."
+  },
+  "actualGui": {
+    "projectId": "e37dc795-6f1c-4887-a92c-81e8c32805e0",
+    "records": 168,
+    "receiptSha256": "bf031208d3cf0cfbfeec221b404ecc605f0dd51cc249910406550c629e94fe4f",
+    "receipt": "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+    "productionBuildBindingSha256": "b8a86c263b1c4c0fdb11bad3fec2ffc76ea9199106cf976d0ba8cdbc68e9fd8e",
+    "productionBuildBinding": {
+      "fixtureProjectId": "e37dc795-6f1c-4887-a92c-81e8c32805e0",
+      "display": ":91",
+      "window": "1400x960+20+20",
+      "sourcesAndBinaries": {
+        "apps/desktop/src/compositing_inspector.rs": "ca895deb287e2d2af4517fcae6f1cf9b7ce5766a41a802b25c0e97f0016bf691",
+        "apps/desktop/src/animation_inspector.rs": "9db1ce0180ed3e76b50fdd009cfee1e8ab4ad08dc714047604a0fba1e52c31cf",
+        "apps/desktop/src/components/badge.rs": "04b40266889f57ed179ec2cee4b7f2a13a649397b35439d5a4f6d1b512b8b933",
+        "apps/desktop/src/components/button.rs": "c2cf64e879f2e7df42dd726cdec97a89b120ebf51a0b6a8e950036bd153365d1",
+        "apps/desktop/src/components/context_menu.rs": "7b0f9bd439b1dda000193ba7296ac7277b9f4aa1bac64fa2b1556d31ee8450f9",
+        "apps/desktop/src/components/label.rs": "889b6fe760505dcee710fb0b54cbfd18e0a96eb8331c9c65561db0cbefde85e9",
+        "apps/desktop/src/components/mod.rs": "e19b8e1226efd9598177cc6d16e4f082ceea062355aa5c8da61cc5a17f302c19",
+        "apps/desktop/src/components/resizable.rs": "8ebf41e3cb585a95018849d090392cba02ef1b0356d432169ce7eb9bcc79d35f",
+        "apps/desktop/src/components/separator.rs": "a8279b178d4084036dfe203741142e7e1bfa4f62abdc61737bb7a1d2b4da700c",
+        "apps/desktop/src/hierarchy.rs": "a7ea3d9dfe7d356f6ba43a67aff58a308038ef076475ae37f00a14c48b9a9999",
+        "apps/desktop/src/inspector_edit.rs": "03244ee5afb4a30c1b702b6d203904c912b623a5e75ef40a0e274bf2b229a7ca",
+        "apps/desktop/src/main.rs": "d32235180e829ca3cbd0a40e9ae5326b5d13f71849be7b6b1c4bb3076781fc31",
+        "apps/desktop/src/panels/browser.rs": "dbe004c839bc4be2a4f76fb674af7a528da7284342ac42429999b619d74302a2",
+        "apps/desktop/src/panels/inspector.rs": "f7e39ba25c77806f4ef56083875aeb724ec368594135e3ec2a18369f217b8476",
+        "apps/desktop/src/panels/mod.rs": "6b2fc8c7887f84d450def9e15afc2ee5541a289ac9da75ce070a242e94ec108b",
+        "apps/desktop/src/panels/preview.rs": "914d67c5f1bc7364861c6c3b3e2dad75795564b331f14a70adc9fb38aa0a1bd5",
+        "apps/desktop/src/panels/timeline.rs": "c9944d5cc442024f4f86e8f77047fb080f2471f1c5b7871fb06106733b719a6a",
+        "apps/desktop/src/session.rs": "5fb8bb78e44554eb6d9674a705b8fa604b4603088b17128695ff2c2397a3a83b",
+        "apps/desktop/src/shell.rs": "838b1cfc5031b147107439a3de7c7e02a070f7efccadd476db944b6855be3fe2",
+        "apps/desktop/src/theme.rs": "750f3aede69186d9d3724b2e98d10c2758a5e3d15244c2a43174695c14cf4126",
+        "target/debug/opencut-desktop": "a5ecc7a9629da68347768af6d677d541b6e2ade848932bf8fcc22782193db276"
+      },
+      "buildLog": "second-desktop-build.log",
+      "preview": "placeholder",
+      "productionEvidence": "separate configured native gates",
+      "originalBuildManifest": {
+        "apps/desktop/src/compositing_inspector.rs": "ca895deb287e2d2af4517fcae6f1cf9b7ce5766a41a802b25c0e97f0016bf691",
+        "apps/desktop/src/compositing_predecessor.rs": "d1e436866f7a738632754e586af9e9488af95c4aa85623cc9cbd371a565f3885",
+        "apps/desktop/src/compositing_tests.rs": "83d038b155b762983dd7ce0cb22618be6371812ca83c9b9c2c373463a73061b4",
+        "apps/desktop/src/animation_inspector.rs": "9db1ce0180ed3e76b50fdd009cfee1e8ab4ad08dc714047604a0fba1e52c31cf",
+        "apps/desktop/src/components/badge.rs": "04b40266889f57ed179ec2cee4b7f2a13a649397b35439d5a4f6d1b512b8b933",
+        "apps/desktop/src/components/button.rs": "c2cf64e879f2e7df42dd726cdec97a89b120ebf51a0b6a8e950036bd153365d1",
+        "apps/desktop/src/components/context_menu.rs": "7b0f9bd439b1dda000193ba7296ac7277b9f4aa1bac64fa2b1556d31ee8450f9",
+        "apps/desktop/src/components/label.rs": "889b6fe760505dcee710fb0b54cbfd18e0a96eb8331c9c65561db0cbefde85e9",
+        "apps/desktop/src/components/mod.rs": "e19b8e1226efd9598177cc6d16e4f082ceea062355aa5c8da61cc5a17f302c19",
+        "apps/desktop/src/components/resizable.rs": "8ebf41e3cb585a95018849d090392cba02ef1b0356d432169ce7eb9bcc79d35f",
+        "apps/desktop/src/components/separator.rs": "a8279b178d4084036dfe203741142e7e1bfa4f62abdc61737bb7a1d2b4da700c",
+        "apps/desktop/src/hierarchy.rs": "a7ea3d9dfe7d356f6ba43a67aff58a308038ef076475ae37f00a14c48b9a9999",
+        "apps/desktop/src/inspector_edit.rs": "03244ee5afb4a30c1b702b6d203904c912b623a5e75ef40a0e274bf2b229a7ca",
+        "apps/desktop/src/main.rs": "d32235180e829ca3cbd0a40e9ae5326b5d13f71849be7b6b1c4bb3076781fc31",
+        "apps/desktop/src/panels/browser.rs": "dbe004c839bc4be2a4f76fb674af7a528da7284342ac42429999b619d74302a2",
+        "apps/desktop/src/panels/inspector.rs": "f7e39ba25c77806f4ef56083875aeb724ec368594135e3ec2a18369f217b8476",
+        "apps/desktop/src/panels/mod.rs": "6b2fc8c7887f84d450def9e15afc2ee5541a289ac9da75ce070a242e94ec108b",
+        "apps/desktop/src/panels/preview.rs": "914d67c5f1bc7364861c6c3b3e2dad75795564b331f14a70adc9fb38aa0a1bd5",
+        "apps/desktop/src/panels/timeline.rs": "c9944d5cc442024f4f86e8f77047fb080f2471f1c5b7871fb06106733b719a6a",
+        "apps/desktop/src/session.rs": "5fb8bb78e44554eb6d9674a705b8fa604b4603088b17128695ff2c2397a3a83b",
+        "apps/desktop/src/shell.rs": "838b1cfc5031b147107439a3de7c7e02a070f7efccadd476db944b6855be3fe2",
+        "apps/desktop/src/tests.rs": "b8117fec103bf158ff998b2f9ee3057631f8e3e05a8cd8c11048fd6c5a0607f9",
+        "apps/desktop/src/theme.rs": "750f3aede69186d9d3724b2e98d10c2758a5e3d15244c2a43174695c14cf4126",
+        "target/debug/opencut-desktop": "a5ecc7a9629da68347768af6d677d541b6e2ade848932bf8fcc22782193db276",
+        "target/debug/opencut-headless": "789472df4daa6272fdb2351533f837e9e64107787523b33ddec8eaab8ba0a71e"
+      },
+      "bindingQualification": "All production desktop sources and the actual GPUI binary remain byte-identical to the second desktop build. Later independent-review changes touch cfg(test)-only files and documentation. The default headless binary was rebuilt after hook verification; it is not the GPUI UI binary.",
+      "testOnlySources": [
+        "apps/desktop/src/compositing_tests.rs",
+        "apps/desktop/src/compositing_predecessor.rs",
+        "apps/desktop/src/tests.rs"
+      ]
+    }
+  },
+  "protectedPrearchive": "Expected rejection only for own add-desktop-compositing-controls; never reported as success. All45 strict items pass.",
+  "independentConformance": "APPROVED: independent-final-conformance-approval.json; Sol Medium",
+  "postarchiveProtectedAndStrict": {
+    "status": "PASS",
+    "items": 44,
+    "logs": [
+      {
+        "path": "/workspace/.opencut-tools/issue57-planning/final-postarchive-protected.log",
+        "sha256": "444c238074fa76f1ae8f6629d549bdb02073d2a373c00e6ab0e7f383a392136e"
+      },
+      {
+        "path": "/workspace/.opencut-tools/issue57-planning/final-postarchive-strict.log",
+        "sha256": "ce2f197d44432de38af07d1e316422f8b0f569bc1766a38a04ed49695a6cb832"
+      }
+    ]
+  },
+  "publicationExactHeadCI": "PENDING"
+}

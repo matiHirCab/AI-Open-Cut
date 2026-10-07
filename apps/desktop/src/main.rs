@@ -5,6 +5,7 @@ use gpui::{
 
 mod animation_inspector;
 mod components;
+mod compositing_inspector;
 mod hierarchy;
 mod inspector_edit;
 mod panels;
@@ -12,6 +13,10 @@ mod session;
 mod shell;
 mod theme;
 
+#[cfg(test)]
+mod compositing_predecessor;
+#[cfg(test)]
+mod compositing_tests;
 #[cfg(test)]
 mod tests;
 

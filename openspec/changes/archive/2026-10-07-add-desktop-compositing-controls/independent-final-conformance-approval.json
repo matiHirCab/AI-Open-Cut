@@ -1,0 +1,95 @@
+{
+  "status": "APPROVED_IMPLEMENTATION_CONFORMANCE_OWN_ONLY_SYNC_ARCHIVE_CONDITIONAL_FINAL_GATES",
+  "reviewer": "Independent Sol Medium reviewer /root/review57_final",
+  "reviewedAtUtc": "2026-10-07T04:15:25.927350+00:00",
+  "change": "add-desktop-compositing-controls",
+  "branch": "feat/issue-57-desktop-compositing-20261007",
+  "base": "abc06b75",
+  "scope": {
+    "requirements": 14,
+    "scenarios": 31,
+    "approvedDeltaSpecs": [
+      "desktop-hierarchy",
+      "contract-governance"
+    ]
+  },
+  "findings": [],
+  "resolvedPriorFindings": [
+    "ABA async completion context guarded by interaction epoch",
+    "Bounded legacy Text representation and frozen nonempty/rich predecessor equality",
+    "Regular package authority Windows negative control",
+    "Valid maximum4096-command path and allocation evidence",
+    "Complete item eligibility matrix",
+    "Out-of-scope provider rejection inventory",
+    "Exact MCP standalone/batch code and retryability",
+    "All Move/Line/Quadratic/Cubic coordinates committed with independent full-item expected state"
+  ],
+  "independentlyVerifiedEvidence": {
+    "reviewedImplementationInputs": 1805,
+    "inputHashMismatches": 0,
+    "requiredCheckReceipts": 36,
+    "checkLogHashMismatches": 0,
+    "nonzeroCheckExits": 0,
+    "desktopFullTests": 40,
+    "compositingTests": 18,
+    "rootScriptTests": 458,
+    "guiRecords": 168,
+    "guiReceiptOrScreenshotHashMismatches": 0,
+    "productionSourceAndBinaryBindings": 21,
+    "productionBindingMismatches": 0,
+    "fixtureProjectId": "e37dc795-6f1c-4887-a92c-81e8c32805e0",
+    "independentlyViewedScreenshots": [
+      "3550-referenced-mask-delete-fails.png",
+      "3704-component-local-readonly-visible.png",
+      "2583-gradient-next-stop.png",
+      "3349-edit-Effect-seed.png",
+      "3604-external-conflict-no-mutation.png",
+      "3709-fresh-gpui-reopen-exact-project-and-files.png"
+    ],
+    "visibleObservations": [
+      "ITEM_NOT_FOUND mask target missing retryable:false at revision139",
+      "Component-local occurrence read-only with authored mask retained",
+      "Exact particle seed4294967295 at revision101",
+      "REVISION_CONFLICT expected142/current143 retryable:true with Refresh required",
+      "Fresh reopened app at revision143",
+      "Preview explicitly labelled placeholder"
+    ],
+    "preservation": "No editor-core production, preexisting living spec/archive, lockfile or toolchain pin changes relative to verified base. Governed public defaults/surfaces remain pinned; only approved additive desktop catalog/ownership/parity policy changes observed.",
+    "prearchiveStrict": "45 passed,0 failed",
+    "prearchiveProtected": "Expected exit1 solely because add-desktop-compositing-controls remains active; not counted as a passing protected gate",
+    "baselineTrackedFiles": 1788,
+    "baselinePreservedFiles": 1771,
+    "scopedTrackedModifications": 17
+  },
+  "evidenceBindings": {
+    "final-scenario-trace.json": "1f2537536c6d2b2fbb521d937d58b6aa13c80027cbf540f410f304293b7ab82f",
+    "final-required-checks.json": "9d637226ee295a81b95a4533e34834930ebb5815803296594ba9642c2432f156",
+    "final-prearchive-inputs.json": "c3152790dad7fa430f366eb8e3bfb3f637cb5e73cfab78455e6802e7da63f16b",
+    "final-gui-production-build-binding.json": "b8a86c263b1c4c0fdb11bad3fec2ffc76ea9199106cf976d0ba8cdbc68e9fd8e",
+    "gui-acceptance-receipt.json": "bf031208d3cf0cfbfeec221b404ecc605f0dd51cc249910406550c629e94fe4f",
+    "final-prearchive-strict.log": "f73181ac2bd8e60b2fbcb63fd19a63018ee413fff9a933f9eb95efca2aa22e08",
+    "final-prearchive-protected.log": "92f11da0c66b937456a524799449e50a858234cb7e28ac440565f070ad495527",
+    "prearchive-preservation.json": "b59e22d444c4afec63243f34e2b251d5d9359192d99fe6742829f6adfd428ad4"
+  },
+  "qualifications": [
+    "Configured native opt-in suites have separate executed passing evidence. Ordinary unit log reports583passed and7skipped; skipped outcomes are not described as passing by that unit run.",
+    "Local integration23passes uses unchanged tests and Node --max-opt=0; it does not establish the exact standard remote CI invocation.",
+    "Actual GUI uses Xvfb/Mesa lavapipe and real xdotool mouse/keyboard with authoritative state receipts. Placeholder preview supplies no production rendering claim.",
+    "Later reviewed test-only and documentation changes preserve production desktop source/binary bytes; cfg(test) modules are excluded from the GUI binary.",
+    "Own active-change scenario-coverage.json and verification-evidence.json are historical prepublication evidence; archive/postarchive and exact-head remote publication gates remain pending. Their additions are administrative evidence, not changed reviewed executable inputs."
+  ],
+  "authorization": {
+    "allowed": "Synchronize and archive only this change accepted deltas after recording review completion in its tasks/report.",
+    "requiredBeforeCommitOrPublication": [
+      "Prove accepted-block equality and preservation of unrelated living requirements, prior archives, reviewed production/test inputs and contract/toolchain pins",
+      "Pass unchanged protected Moon gate after own-only archive",
+      "Pass strict all-spec postarchive validation",
+      "Retain all mandatory archive/final-validation gates"
+    ],
+    "publication": "Separate pending gate: stacked draft PR only; all11 required remote CI jobs must succeed on exact published head before branching58. No merge or deploy authorized."
+  },
+  "administrativeEvidenceBindings": {
+    "openspec/changes/add-desktop-compositing-controls/scenario-coverage.json": "0ca50c43cb694ab7da7fa2de9627bce7f6d3b771a2535d5c2599458dec80def5",
+    "openspec/changes/add-desktop-compositing-controls/verification-evidence.json": "dea637bf9ab7dfcbf858a488d9cca09e14ae00a21a6e717faf66b46709a46ca4"
+  }
+}

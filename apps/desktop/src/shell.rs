@@ -3,12 +3,58 @@ use opencut_editor_core::{EditOperation, ParentReference};
 
 use crate::{
     animation_inspector::{self, Cursor, DraftIdentity},
+    compositing_inspector::{self, Action, Cursor as CompositingCursor},
     hierarchy::{Selection, editable},
     inspector_edit::{self, Field},
     panels::{self, Preview},
     session::{Command, Session, Startup, parse_z_index},
     theme::ActiveTheme,
 };
+
+#[derive(Clone, Debug)]
+pub(crate) struct InspectorDraft {
+    pub source: DraftIdentity,
+    pub compositing: CompositingCursor,
+    pub path: String,
+    pub update_key: &'static str,
+}
+
+impl InspectorDraft {
+    pub(crate) fn matches(
+        &self,
+        project: &opencut_editor_core::Project,
+        selection: Option<&Selection>,
+        animation: Cursor,
+        compositing: &CompositingCursor,
+        field: &Field,
+    ) -> bool {
+        self.source.matches(project, selection, animation)
+            && &self.compositing == compositing
+            && self.path == field.path
+            && self.update_key == field.update_key
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ActionContext {
+    pub source: DraftIdentity,
+    pub compositing: CompositingCursor,
+    pub epoch: u64,
+}
+impl ActionContext {
+    pub(crate) fn matches(
+        &self,
+        project: &opencut_editor_core::Project,
+        selection: Option<&Selection>,
+        animation: Cursor,
+        compositing: &CompositingCursor,
+        epoch: u64,
+    ) -> bool {
+        self.epoch == epoch
+            && &self.compositing == compositing
+            && self.source.matches(project, selection, animation)
+    }
+}
 
 pub(crate) struct Shell {
     startup: Option<Startup>,
@@ -18,8 +64,10 @@ pub(crate) struct Shell {
     pub inspector_focus: FocusHandle,
     pub inspector_field: Option<usize>,
     pub inspector_text: String,
-    inspector_source: Option<DraftIdentity>,
+    inspector_source: Option<InspectorDraft>,
     pub animation_cursor: Cursor,
+    pub compositing_cursor: CompositingCursor,
+    interaction_epoch: u64,
     preview: Entity<Preview>,
 }
 
@@ -35,6 +83,8 @@ impl Shell {
             inspector_text: String::new(),
             inspector_source: None,
             animation_cursor: Cursor::default(),
+            compositing_cursor: CompositingCursor::default(),
+            interaction_epoch: 0,
             preview: cx.new(|_| Preview),
         };
         shell.dispatch(Command::Refresh, cx);
@@ -42,6 +92,15 @@ impl Shell {
     }
 
     pub fn dispatch(&mut self, command: Command, cx: &mut Context<Self>) {
+        self.dispatch_compositing(command, None, cx);
+    }
+
+    fn dispatch_compositing(
+        &mut self,
+        command: Command,
+        next: Option<CompositingCursor>,
+        cx: &mut Context<Self>,
+    ) {
         if self.session.needs_refresh && !matches!(&command, Command::Refresh) {
             cx.notify();
             return;
@@ -52,6 +111,21 @@ impl Shell {
         let Some(generation) = self.session.begin() else {
             return;
         };
+        self.reset_inspector();
+        let context = self
+            .session
+            .selected
+            .as_ref()
+            .zip(self.session.project.as_ref())
+            .map(|(selection, project)| ActionContext {
+                source: DraftIdentity {
+                    selection: selection.clone(),
+                    revision: project.revision,
+                    cursor: self.animation_cursor,
+                },
+                compositing: self.compositing_cursor.clone(),
+                epoch: self.interaction_epoch,
+            });
         let work = cx
             .background_executor()
             .spawn(async move { startup.execute(command) });
@@ -59,7 +133,26 @@ impl Shell {
             let result = work.await;
             let _ = this.update(cx, |this, cx| {
                 let succeeded = result.is_ok();
+                let same_context = context
+                    .as_ref()
+                    .zip(this.session.project.as_ref())
+                    .is_some_and(|(context, project)| {
+                        context.matches(
+                            project,
+                            this.session.selected.as_ref(),
+                            this.animation_cursor,
+                            &this.compositing_cursor,
+                            this.interaction_epoch,
+                        )
+                    });
                 this.session.finish(generation, result);
+                if succeeded
+                    && same_context
+                    && let Some(next) = next
+                {
+                    this.compositing_cursor = next;
+                }
+                this.resolve_compositing_cursor();
                 this.reset_z_text();
                 if succeeded {
                     this.reset_inspector();
@@ -74,6 +167,8 @@ impl Shell {
     pub fn select(&mut self, selection: Selection, cx: &mut Context<Self>) {
         self.session.selected = Some(selection);
         self.animation_cursor = Cursor::default();
+        self.compositing_cursor = CompositingCursor::default();
+        self.resolve_compositing_cursor();
         self.reset_z_text();
         self.reset_inspector();
         cx.notify();
@@ -90,12 +185,79 @@ impl Shell {
     }
 
     pub fn reset_inspector(&mut self) {
+        self.interaction_epoch += 1;
         self.inspector_field = None;
         self.inspector_text.clear();
         self.inspector_source = None;
     }
 
+    fn resolve_compositing_cursor(&mut self) {
+        if let Some((_, item)) = self
+            .session
+            .project
+            .as_ref()
+            .and_then(|p| self.session.selected.as_ref()?.resolve(p))
+        {
+            self.compositing_cursor.resolve(item);
+        } else {
+            self.compositing_cursor = CompositingCursor::default();
+        }
+    }
+
+    pub fn change_compositing_cursor(&mut self, axis: u8, next: bool, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        if let Some((_, item)) = self
+            .session
+            .project
+            .as_ref()
+            .and_then(|p| self.session.selected.as_ref()?.resolve(p))
+        {
+            self.compositing_cursor.navigate(item, axis, next);
+            self.reset_inspector();
+            cx.notify();
+        }
+    }
+
+    pub fn compositing_action(&mut self, action: Action, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        let Some(project) = self.session.project.as_ref() else {
+            return;
+        };
+        let Some(selection) = self.session.selected.as_ref() else {
+            return;
+        };
+        let Some((_, item)) = selection.resolve(project) else {
+            return;
+        };
+        match compositing_inspector::action(
+            project,
+            selection,
+            item,
+            &self.compositing_cursor,
+            action,
+        ) {
+            Ok((edit, next)) => self.dispatch_compositing(
+                Command::Edit(project.revision, Box::new(edit)),
+                Some(next),
+                cx,
+            ),
+            Err(error) => {
+                self.reset_inspector();
+                self.session.error = Some(error);
+                cx.notify();
+            }
+        }
+    }
+
     pub fn choose_inspector_field(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        self.resolve_compositing_cursor();
         let Some(project) = &self.session.project else {
             return;
         };
@@ -111,10 +273,15 @@ impl Shell {
         let Some(field) = self.inspector_fields(item).get(index).cloned() else {
             return;
         };
-        self.inspector_source = Some(DraftIdentity {
-            selection: selection.clone(),
-            revision: project.revision,
-            cursor: self.animation_cursor,
+        self.inspector_source = Some(InspectorDraft {
+            source: DraftIdentity {
+                selection: selection.clone(),
+                revision: project.revision,
+                cursor: self.animation_cursor,
+            },
+            compositing: self.compositing_cursor.clone(),
+            path: field.path.clone(),
+            update_key: field.update_key,
         });
         self.inspector_field = Some(index);
         self.inspector_text = field.value;
@@ -124,18 +291,30 @@ impl Shell {
     fn active_inspector_field(&self) -> Option<(&opencut_editor_core::TimelineItem, Field)> {
         let identity = self.inspector_source.as_ref()?;
         let project = self.session.project.as_ref()?;
-        if !identity.matches(
+        if !identity.source.matches(
             project,
             self.session.selected.as_ref(),
             self.animation_cursor,
         ) {
             return None;
         }
-        let (_, item) = identity.selection.resolve(project)?;
+        if identity.compositing != self.compositing_cursor {
+            return None;
+        }
+        let (_, item) = identity.source.selection.resolve(project)?;
         let field = self
             .inspector_fields(item)
             .get(self.inspector_field?)?
             .clone();
+        if !identity.matches(
+            project,
+            self.session.selected.as_ref(),
+            self.animation_cursor,
+            &self.compositing_cursor,
+            &field,
+        ) {
+            return None;
+        }
         Some((item, field))
     }
 
@@ -159,10 +338,19 @@ impl Shell {
             self.animation_cursor,
             animation_inspector::audio_only(project, item),
         ));
+        fields.extend(compositing_inspector::fields(
+            project,
+            selection,
+            item,
+            &self.compositing_cursor,
+        ));
         fields
     }
 
     pub fn change_animation_cursor(&mut self, axis: u8, next: bool, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
         let Some((_, item)) = self
             .session
             .project
@@ -206,7 +394,7 @@ impl Shell {
     }
 
     pub fn apply_inspector(&mut self, cx: &mut Context<Self>) {
-        if self.session.busy {
+        if self.session.busy || self.session.needs_refresh {
             return;
         }
         let Some((item, field)) = self.active_inspector_field() else {
@@ -232,7 +420,10 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.session.busy || self.active_inspector_field().is_none() {
+        if self.session.busy
+            || self.session.needs_refresh
+            || self.active_inspector_field().is_none()
+        {
             return;
         }
         match event.keystroke.key.as_str() {
@@ -298,7 +489,7 @@ impl Shell {
     }
 
     pub fn z_key(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        if self.session.busy {
+        if self.session.busy || self.session.needs_refresh {
             return;
         }
         match event.keystroke.key.as_str() {

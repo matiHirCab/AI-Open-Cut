@@ -23,6 +23,7 @@ tasks:
       - 'scripts/run-ci-policy.ts'
       - 'scripts/run-ci-policy.test.ts'
       - 'scripts/run-ci-policy.integration.test.ts'
+      - 'apps/agent-bridge/package.json'
       - '.github/workflows/bun-ci.yml'
       - '.github/workflows/rules-screen-full.yml'
       - 'bunfig.toml'

@@ -2,11 +2,12 @@
 use opencut_editor_core::{EditOperation, TextLayout, TimelineItem, Transform2D};
 use serde_json::{Value, json};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FieldKind {
     Text,
     Number,
     Integer,
+    Unsigned16,
     SignedInteger,
     Milliseconds,
     SignedMilliseconds,
@@ -18,7 +19,7 @@ pub(crate) enum FieldKind {
     Choice(&'static [&'static str]),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Field {
     pub label: String,
     pub path: String,
@@ -52,6 +53,18 @@ pub(crate) fn add(
 ) {
     let path = path.into();
     let value = source.pointer(&path).unwrap_or(&Value::Null);
+    add_value(result, value, label, path, update_key, kind);
+}
+
+pub(crate) fn add_value(
+    result: &mut Vec<Field>,
+    value: &Value,
+    label: impl Into<String>,
+    path: impl Into<String>,
+    update_key: &'static str,
+    kind: FieldKind,
+) {
+    let path = path.into();
     let value = match kind {
         FieldKind::HexColor => hex_color(value).unwrap_or_default(),
         FieldKind::Boolean => value.as_bool().unwrap_or(false).to_string(),
@@ -85,8 +98,82 @@ fn effective_transform(item: &TimelineItem) -> Transform2D {
     transform
 }
 
+// Serialize only legacy fields consumed below, never visual collections or path/gradient
+// payloads used merely to determine a tag. Edit construction still preserves full records.
+fn paint_source(paint: &opencut_editor_core::Paint) -> Value {
+    match paint {
+        opencut_editor_core::Paint::Solid { color } => json!({"type":"solid","color":color}),
+        opencut_editor_core::Paint::LinearGradient { .. } => json!({"type":"linearGradient"}),
+        opencut_editor_core::Paint::RadialGradient { .. } => json!({"type":"radialGradient"}),
+    }
+}
+fn stroke_source(stroke: &opencut_editor_core::Stroke) -> Value {
+    json!({"width":stroke.width,"paint":paint_source(&stroke.paint)})
+}
+fn legacy_source(item: &TimelineItem) -> Value {
+    use opencut_editor_core::{GridPattern, ShapeGeometry};
+    match item {
+        TimelineItem::Shape(s) => {
+            let geometry = match &s.geometry {
+                ShapeGeometry::Rectangle { .. }
+                | ShapeGeometry::RoundedRectangle { .. }
+                | ShapeGeometry::Ellipse { .. } => serde_json::to_value(&s.geometry).unwrap(),
+                _ => Value::Null,
+            };
+            json!({"geometry":geometry,"fill":s.fill.as_ref().map(paint_source),
+                "stroke":s.stroke.as_ref().map(stroke_source)})
+        }
+        TimelineItem::Grid(g) => {
+            let pattern = match &g.grid.pattern {
+                GridPattern::Rectangular {
+                    spacing_x,
+                    spacing_y,
+                    stroke,
+                } => {
+                    json!({"spacingX":spacing_x,"spacingY":spacing_y,"stroke":stroke_source(stroke)})
+                }
+                GridPattern::Dot {
+                    spacing_x,
+                    spacing_y,
+                    ..
+                } => json!({"spacingX":spacing_x,"spacingY":spacing_y}),
+                GridPattern::Diagonal { spacing, stroke }
+                | GridPattern::Isometric { spacing, stroke } => {
+                    json!({"spacing":spacing,"stroke":stroke_source(stroke)})
+                }
+            };
+            json!({"grid":{"pattern":pattern},"transform2d":effective_transform(item)})
+        }
+        TimelineItem::Text(t) => {
+            use opencut_editor_core::TextPaintLayer;
+            let runs: Vec<_> = t
+                .document
+                .runs
+                .iter()
+                .map(|r| json!({"bold":r.bold,"italic":r.italic,"color":r.color}))
+                .collect();
+            let layers: Vec<_> = t.style.paint_layers.as_deref().unwrap_or(&[]).iter().map(|layer|match layer {
+                TextPaintLayer::Fill { color,opacity } => json!({"color":color,"opacity":opacity}),
+                TextPaintLayer::Stroke { color,opacity,width_px } => json!({"color":color,"opacity":opacity,"widthPx":width_px}),
+                TextPaintLayer::Shadow { color,opacity,offset_x_px,offset_y_px,blur_sigma_px } =>
+                    json!({"color":color,"opacity":opacity,"offsetXPx":offset_x_px,"offsetYPx":offset_y_px,"blurSigmaPx":blur_sigma_px}),
+            }).collect();
+            let mut style = json!({"outlineColor":t.style.outline_color,"outlineWidthPx":t.style.outline_width_px,
+                "shadow":{"color":t.style.shadow.color,"opacity":t.style.shadow.opacity,"offsetX":t.style.shadow.offset_x,"offsetY":t.style.shadow.offset_y},"paintLayers":layers});
+            if let Some(layout) = &t.style.layout {
+                style["layout"] = json!({"trackingPx":layout.tracking_px,"lineHeightPx":layout.line_height_px,"bounds":layout.bounds,"fit":layout.fit});
+            }
+            json!({"text":t.text,"fontSize":t.font_size,"color":t.color,"document":{"runs":runs},"style":style})
+        }
+        TimelineItem::Group(g) => json!({"staggerMs":g.stagger_ms}),
+        TimelineItem::ComponentInstance(i) => json!({"staggerMs":i.stagger_ms}),
+        TimelineItem::Repeater(v) => json!({"repeater":{"timeOffsetMs":v.repeater.time_offset_ms}}),
+        _ => json!({}),
+    }
+}
+
 pub(crate) fn fields(item: &TimelineItem) -> Vec<Field> {
-    let mut source = serde_json::to_value(item).expect("serialize selected item");
+    let mut source = legacy_source(item);
     let mut result = Vec::new();
     match item {
         TimelineItem::Shape(shape) => {
@@ -422,6 +509,10 @@ fn parsed_value(field: &Field, input: &str, original: &Value) -> Result<Value, S
                     .map_err(|_| "Use an integer count or infinite.".into())
             }
         }
+        FieldKind::Unsigned16 => input
+            .parse::<u16>()
+            .map(|value| json!(value))
+            .map_err(|_| format!("{} needs an unsigned 16-bit integer.", field.label)),
         FieldKind::Integer => input
             .parse::<u32>()
             .map(|value| json!(value))
@@ -452,7 +543,7 @@ fn parsed_value(field: &Field, input: &str, original: &Value) -> Result<Value, S
         FieldKind::HexColor => {
             let bytes = input
                 .strip_prefix('#')
-                .filter(|s| s.len() == 6)
+                .filter(|s| s.len() == 6 && s.is_ascii())
                 .ok_or("Use #RRGGBB.")?;
             let rgb: Vec<_> = (0..3)
                 .map(|i| u8::from_str_radix(&bytes[i * 2..i * 2 + 2], 16))
@@ -471,6 +562,9 @@ pub(crate) fn build(
     input: &str,
 ) -> Result<EditOperation, String> {
     let mut source = serde_json::to_value(item).expect("serialize selected item");
+    if field.update_key == "matte" && source.get("matte").is_none() {
+        source["matte"] = json!({"sourceId":"", "channel":"alpha"});
+    }
     let original = source.pointer(&field.path).cloned().unwrap_or(Value::Null);
     let value = parsed_value(field, input, &original)?;
     if field.update_key == "transform2d" && source.pointer("/transform2d").is_none() {

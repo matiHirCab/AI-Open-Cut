@@ -1,0 +1,431 @@
+{
+  "requirements": 14,
+  "scenarios": [
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "C25 Match controls defaults and unchanged public surfaces",
+      "desktopTests": [
+        "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity",
+        "desktop_compositing_catalog_bounds_choices_readonly_eligibility_and_semantics_are_exact"
+      ],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing.test.ts",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "C26 Exercise standalone alias batch and rollback parity",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing.test.ts",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "Accept synchronized contracts",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "Reject fixture or consumer drift",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "Reject an injected contract preparation step",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "Reject a neutralized contract command",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/contract-governance/spec.md",
+      "scenario": "Preserve current contract compatibility",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "requiredActualGui": false,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C1 Inspect eligible leaf owner and scoped audio selections",
+      "desktopTests": [
+        "desktop_compositing_every_item_kind_root_local_and_media_facts",
+        "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C2 Inspect complete retained state",
+      "desktopTests": [
+        "desktop_compositing_legacy_field_vectors_match_frozen_predecessor",
+        "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded",
+        "desktop_compositing_nonempty_representative_predecessor_field_and_animation_equivalence",
+        "desktop_compositing_predecessor_equivalence_for_rich_optional_fields_and_nonempty_animation"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C3 Navigate maximum retained collections",
+      "desktopTests": [
+        "desktop_compositing_maximum_collections_do_not_materialize_unselected_payloads"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C4 Follow stable IDs across collection mutations",
+      "desktopTests": [
+        "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C5 Preserve floating precision and integer endpoints",
+      "desktopTests": [
+        "desktop_compositing_typed_every_mask_and_effect_field_preserves_complete_records"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C6 Reject malformed representations without mutation",
+      "desktopTests": [
+        "desktop_compositing_rejects_malformed_numeric_choice_and_unicode_without_panics"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C7 Apply all selected mask scalar families",
+      "desktopTests": [
+        "desktop_compositing_every_parameter_family_commits_through_existing_core",
+        "desktop_compositing_all_path_coordinate_variants_commit_and_preserve_neighbors"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C8 Retain gradient and command variants",
+      "desktopTests": [
+        "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C9 Add default and preserve ordered masks",
+      "desktopTests": [
+        "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C10 Reject limits and referenced mask deletion",
+      "desktopTests": [
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C11 Apply every effect parameter family",
+      "desktopTests": [
+        "desktop_compositing_every_parameter_family_commits_through_existing_core"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C12 Retain unsupported owner and target behavior",
+      "desktopTests": [
+        "desktop_compositing_every_item_kind_root_local_and_media_facts",
+        "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic",
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+        "desktop_compositing_every_parameter_family_commits_through_existing_core"
+      ],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C13 Add all defaults and reorder noncommuting effects",
+      "desktopTests": [
+        "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity",
+        "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids",
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+        "desktop_compositing_every_parameter_family_commits_through_existing_core"
+      ],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C14 Reject overflow and referenced effect deletion",
+      "desktopTests": [
+        "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C15 Apply blend matte channel clear and matteOnly",
+      "desktopTests": [
+        "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests",
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+        "desktop_compositing_every_parameter_family_commits_through_existing_core"
+      ],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C16 Reject invalid provider graphs",
+      "desktopTests": [
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C17 Set and clear isolated owner clip",
+      "desktopTests": [
+        "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests",
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+        "desktop_compositing_every_parameter_family_commits_through_existing_core"
+      ],
+      "additionalEvidence": [
+        "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C18 Preserve owner compatibility",
+      "desktopTests": [
+        "desktop_compositing_every_item_kind_root_local_and_media_facts"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C19 Discard obsolete drafts across contexts",
+      "desktopTests": [
+        "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C20 Guard pending and conflicting actions",
+      "desktopTests": [
+        "desktop_compositing_completion_epoch_rejects_aba_selection_reset_and_navigation",
+        "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C21 Preserve full state on valid edits and history",
+      "desktopTests": [
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C22 Preserve failure inventory and explicit refresh",
+      "desktopTests": [
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+      ],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C23 Exercise actual built compositing controls",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    },
+    {
+      "spec": "openspec/changes/add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+      "scenario": "C24 Distinguish GUI state from production rendering",
+      "desktopTests": [],
+      "additionalEvidence": [
+        "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+        "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-mask.status",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-matte.status",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-blend.status",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-parameterized.status",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-ordered.status",
+        "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-group.status"
+      ],
+      "requiredActualGui": true,
+      "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+    }
+  ],
+  "status": "APPROVED_INDEPENDENT_CONFORMANCE"
+}

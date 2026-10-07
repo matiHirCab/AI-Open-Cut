@@ -1,7 +1,7 @@
 //! Bounded presentation of authoritative authored animation, never a sampler.
 use crate::{
     hierarchy::Selection,
-    inspector_edit::{Field, FieldKind, add},
+    inspector_edit::{Field, FieldKind, add_value},
 };
 use opencut_editor_core::{AnimationChannelValue, MediaType, Project, TimelineItem};
 use serde_json::Value;
@@ -70,28 +70,23 @@ pub(crate) fn fields(item: &TimelineItem, cursor: Cursor, audio_only: bool) -> V
     {
         return vec![];
     }
-    let source = serde_json::to_value(item).unwrap();
+    let source = serde_json::to_value(key).unwrap();
     let mut fields = vec![];
+    let prefix = format!("/animationChannels/{index}/keyframes/{key_index}");
     for (label, path, kind) in [
-        (
-            "Source key time · ms",
-            format!("/animationChannels/{index}/keyframes/{key_index}/timeMs"),
-            FieldKind::Milliseconds,
-        ),
-        (
-            "Scalar key value",
-            format!("/animationChannels/{index}/keyframes/{key_index}/value/value"),
-            FieldKind::Number,
-        ),
+        ("Source key time · ms", "/timeMs", FieldKind::Milliseconds),
+        ("Scalar key value", "/value/value", FieldKind::Number),
     ] {
-        add(&mut fields, &source, label, path, "animationChannels", kind);
+        add_value(
+            &mut fields,
+            source.pointer(path).unwrap_or(&Value::Null),
+            label,
+            format!("{prefix}{path}"),
+            "animationChannels",
+            kind,
+        );
     }
-    if let Some(curve) = source
-        .pointer(&format!(
-            "/animationChannels/{index}/keyframes/{key_index}/curve"
-        ))
-        .and_then(Value::as_object)
-    {
+    if let Some(curve) = source.get("curve").and_then(Value::as_object) {
         for name in [
             "x1",
             "y1",
@@ -102,34 +97,37 @@ pub(crate) fn fields(item: &TimelineItem, cursor: Cursor, audio_only: bool) -> V
             "damping",
             "initialVelocity",
         ] {
-            if curve.contains_key(name) {
-                add(
+            if let Some(value) = curve.get(name) {
+                add_value(
                     &mut fields,
-                    &source,
+                    value,
                     format!("Curve {name}"),
-                    format!("/animationChannels/{index}/keyframes/{key_index}/curve/{name}"),
+                    format!("{prefix}/curve/{name}"),
                     "animationChannels",
                     FieldKind::Number,
                 );
             }
         }
     }
-    add(
+    let loop_source = channel.r#loop.map(|v| serde_json::to_value(v).unwrap());
+    add_value(
         &mut fields,
-        &source,
+        loop_source
+            .as_ref()
+            .and_then(|v| v.get("mode"))
+            .unwrap_or(&Value::Null),
         "Loop mode · none/repeat/ping_pong",
         format!("/animationChannels/{index}/loop/mode"),
         "animationChannels",
         FieldKind::LoopMode,
     );
-    let last = fields.last_mut().unwrap();
     if channel.r#loop.is_none() {
-        last.value = "none".into();
+        fields.last_mut().unwrap().value = "none".into();
     }
-    if channel.r#loop.is_some() {
-        add(
+    if let Some(value) = loop_source.as_ref().and_then(|v| v.get("iterations")) {
+        add_value(
             &mut fields,
-            &source,
+            value,
             "Loop iterations · count/infinite",
             format!("/animationChannels/{index}/loop/iterations"),
             "animationChannels",

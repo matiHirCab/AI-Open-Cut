@@ -5,6 +5,7 @@ import {
 	mkdtempSync,
 	readFileSync,
 	rmSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,6 +29,7 @@ it("keeps Bun preload and dotenv files outside the policy bootstrap", async () =
 	);
 	const nullConfig = process.platform === "win32" ? "NUL" : "/dev/null";
 	mkdirSync(join(directory, ".moon"));
+	mkdirSync(join(directory,"apps","agent-bridge"),{recursive:true});
 	mkdirSync(join(directory, ".github", "workflows"), { recursive: true });
 	mkdirSync(join(directory, "openspec", "changes", "archive"), { recursive: true });
 	writeFileSync(
@@ -35,6 +37,7 @@ it("keeps Bun preload and dotenv files outside the policy bootstrap", async () =
 		readFileSync(join(repositoryRoot, ".github", "workflows", "rules-screen-full.yml")),
 	);
 	for (const policyPath of [
+		"apps/agent-bridge/package.json",
 		"moon.yml",
 		".prototools",
 		join(".moon", "workspace.yml"),
@@ -218,3 +221,21 @@ it("reproduces Moon BASH_ENV forgery and blocks it in the bootstrap preflight", 
 		rmSync(directory, { recursive: true, force: true });
 	}
 }, 30_000);
+
+it("requires actual regular bridge package before Moon or policy attestation",async()=>{
+	const root=resolve(import.meta.dir,"..");
+	for(const kind of ["missing","malformed","directory","symlink"] as const) {
+		const directory=mkdtempSync(join(tmpdir(),"opencut-package-authority-"));
+		try {
+			mkdirSync(join(directory,"apps","agent-bridge"),{recursive:true});mkdirSync(join(directory,".moon"));mkdirSync(join(directory,".github","workflows"),{recursive:true});mkdirSync(join(directory,"openspec","changes","archive"),{recursive:true});
+			for(const path of ["bunfig.toml","moon.yml",".prototools",".moon/workspace.yml",".moon/toolchains.yml",".github/workflows/bun-ci.yml",".github/workflows/rules-screen-full.yml"]) {writeFileSync(join(directory,path),readFileSync(join(root,path)));}
+			const packagePath=join(directory,"apps","agent-bridge","package.json");
+			if(kind==="malformed"){writeFileSync(packagePath,"{");}
+			if(kind==="directory"){mkdirSync(packagePath);}
+			if(kind==="symlink"){const target=join(directory,"actual-package");if(process.platform==="win32"){mkdirSync(target);symlinkSync(target,packagePath,"junction");}else{writeFileSync(target,readFileSync(join(root,"apps/agent-bridge/package.json")));symlinkSync(target,packagePath,"file");}}
+			const marker=join(directory,"unwanted-moon-or-attestation");const runner=join(directory,"runner.ts");
+			writeFileSync(runner,`import {writeFileSync} from "node:fs"; import {loadMoonPolicySources} from ${JSON.stringify(join(root,"scripts/validate-ci-gates.ts"))}; import {runCiPolicyBootstrap} from ${JSON.stringify(join(root,"scripts/run-ci-policy.ts"))}; await runCiPolicyBootstrap({workflowSource:await Bun.file(${JSON.stringify(join(directory,".github/workflows/bun-ci.yml"))}).text(),moonSources:loadMoonPolicySources(),cwd:${JSON.stringify(directory)},environment:{},runMoon:async()=>{writeFileSync(${JSON.stringify(marker)},"moon");return 0;},writeAttestation:()=>{writeFileSync(${JSON.stringify(marker)},"attestation");}});`);
+			const child=Bun.spawn({cmd:[process.execPath,`--config=${process.platform==="win32"?"NUL":"/dev/null"}`,"--no-env-file","run",runner],cwd:directory,stdout:"pipe",stderr:"pipe"});const [exit,stderr]=await Promise.all([child.exited,new Response(child.stderr).text()]);expect(exit).not.toBe(0);expect(stderr).toContain(kind==="malformed"?"valid JSON":kind==="missing"?"required policy configuration is missing":"must be a regular file");expect(existsSync(marker)).toBe(false);
+		}finally{rmSync(directory,{recursive:true,force:true});}
+	}
+},30_000);

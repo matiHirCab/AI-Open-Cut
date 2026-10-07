@@ -311,3 +311,23 @@
 /apps/agent-bridge/tests/fixtures/group-compositing-additions.json @matiHirCab
 /apps/agent-bridge/tests/fixtures/group-compositing-predecessor-pins.json @matiHirCab
 /docs/group-compositing.md @matiHirCab
+
+# Governed desktop compositing presentation and parity (#57).
+/apps/desktop/src/compositing_inspector.rs @matiHirCab
+/apps/desktop/src/compositing_tests.rs @matiHirCab
+/apps/desktop/src/shell.rs @matiHirCab
+/apps/desktop/src/panels/inspector.rs @matiHirCab
+/apps/desktop/src/inspector_edit.rs @matiHirCab
+/apps/desktop/src/animation_inspector.rs @matiHirCab
+/apps/agent-bridge/tests/desktop-compositing.test.ts @matiHirCab
+/apps/headless/tests/protocol.rs @matiHirCab
+/apps/agent-bridge/tests/desktop-compositing-workflow.ts @matiHirCab
+/apps/agent-bridge/package.json @matiHirCab
+/scripts/validate-ci-gates.ts @matiHirCab
+/scripts/validate-ci-gates.test.ts @matiHirCab
+/scripts/run-ci-policy.test.ts @matiHirCab
+/scripts/run-ci-policy.integration.test.ts @matiHirCab
+/.github/workflows/bun-ci.yml @matiHirCab
+/moon.yml @matiHirCab
+/docs/desktop-compositing-controls.md @matiHirCab
+/contracts/desktop-compositing-controls-v1.json @matiHirCab

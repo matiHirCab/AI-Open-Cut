@@ -1,0 +1,386 @@
+{
+  "catalogVersion": 1,
+  "projectSchemaVersion": 37,
+  "headlessProtocolVersion": 1,
+  "registeredToolCount": 78,
+  "coreMutation": "update_item",
+  "mcpMutation": "timeline_update_item",
+  "idPolicy": {
+    "maskPrefix": "mask-",
+    "effectPrefix": "effect-",
+    "firstOrdinal": 1,
+    "allocation": "first_unused_over_complete_collection",
+    "immutable": true
+  },
+  "defaultMask": {
+    "id": "mask-1",
+    "source": {
+      "type": "path",
+      "path": {
+        "fillRule": "nonzero",
+        "commands": [
+          {
+            "type": "moveTo",
+            "to": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 64,
+              "y": 0
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 64,
+              "y": 64
+            }
+          },
+          {
+            "type": "lineTo",
+            "to": {
+              "x": 0,
+              "y": 64
+            }
+          },
+          {
+            "type": "close"
+          }
+        ]
+      },
+      "paint": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 1,
+          "b": 1,
+          "a": 1
+        }
+      }
+    },
+    "channel": "alpha",
+    "operation": "add",
+    "inverted": false,
+    "transform": {
+      "position": {
+        "x": 0,
+        "y": 0,
+        "unit": "pixels"
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1
+    },
+    "featherPx": 0,
+    "expansionPx": 0
+  },
+  "maskLabel": "Fixed 64 local-pixel rectangle",
+  "effectDefaults": {
+    "gaussian_blur": {
+      "type": "gaussian_blur",
+      "id": "effect-1",
+      "radiusPx": 2
+    },
+    "glow": {
+      "type": "glow",
+      "id": "effect-1",
+      "radiusPx": 2,
+      "intensity": 0.5,
+      "color": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    "color_tint": {
+      "type": "color_tint",
+      "id": "effect-1",
+      "color": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    "vignette": {
+      "type": "vignette",
+      "id": "effect-1",
+      "amount": 0.5
+    },
+    "color_adjustment": {
+      "type": "color_adjustment",
+      "id": "effect-1",
+      "exposureStops": 0,
+      "contrast": 1,
+      "saturation": 1
+    },
+    "screen_flash": {
+      "type": "screen_flash",
+      "id": "effect-1",
+      "startMs": 0,
+      "durationMs": 200,
+      "intensity": 0.5,
+      "color": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    "particle_overlay": {
+      "type": "particle_overlay",
+      "id": "effect-1",
+      "count": 16,
+      "seed": 1,
+      "radiusPx": 2,
+      "speedPxPerSecond": 20,
+      "lifetimeMs": 1000,
+      "color": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    }
+  },
+  "maskFields": {
+    "channel": [
+      "alpha",
+      "luma"
+    ],
+    "operation": [
+      "add",
+      "subtract",
+      "intersect",
+      "exclude"
+    ],
+    "inverted": "boolean",
+    "featherPx": "finite_f64",
+    "expansionPx": "finite_f64",
+    "transform.position.unit": [
+      "pixels",
+      "normalized"
+    ],
+    "source.path.fillRule": [
+      "nonzero",
+      "evenodd"
+    ],
+    "transform.position.x": "finite_f64",
+    "transform.position.y": "finite_f64",
+    "transform.anchor.x": "finite_f64",
+    "transform.anchor.y": "finite_f64",
+    "transform.scaleX": "finite_f64",
+    "transform.scaleY": "finite_f64",
+    "transform.rotationDeg": "finite_f64",
+    "transform.skewXDeg": "finite_f64",
+    "transform.skewYDeg": "finite_f64",
+    "transform.opacity": "finite_f64",
+    "source.paint.color.r": "finite_f64",
+    "source.paint.color.g": "finite_f64",
+    "source.paint.color.b": "finite_f64",
+    "source.paint.color.a": "finite_f64"
+  },
+  "effectFields": {
+    "gaussian_blur": {
+      "radiusPx": "finite_f64"
+    },
+    "glow": {
+      "radiusPx": "finite_f64",
+      "intensity": "finite_f64",
+      "color.r": "finite_f64",
+      "color.g": "finite_f64",
+      "color.b": "finite_f64",
+      "color.a": "finite_f64"
+    },
+    "color_tint": {
+      "color.r": "finite_f64",
+      "color.g": "finite_f64",
+      "color.b": "finite_f64",
+      "color.a": "finite_f64"
+    },
+    "vignette": {
+      "amount": "finite_f64"
+    },
+    "color_adjustment": {
+      "exposureStops": "finite_f64",
+      "contrast": "finite_f64",
+      "saturation": "finite_f64"
+    },
+    "screen_flash": {
+      "startMs": "u32",
+      "durationMs": "u32",
+      "intensity": "finite_f64",
+      "color.r": "finite_f64",
+      "color.g": "finite_f64",
+      "color.b": "finite_f64",
+      "color.a": "finite_f64"
+    },
+    "particle_overlay": {
+      "count": "u16",
+      "seed": "u32",
+      "radiusPx": "finite_f64",
+      "speedPxPerSecond": "finite_f64",
+      "lifetimeMs": "u32",
+      "color.r": "finite_f64",
+      "color.g": "finite_f64",
+      "color.b": "finite_f64",
+      "color.a": "finite_f64"
+    }
+  },
+  "pathCommandFields": {
+    "moveTo": [
+      "to.x",
+      "to.y"
+    ],
+    "lineTo": [
+      "to.x",
+      "to.y"
+    ],
+    "quadraticTo": [
+      "control.x",
+      "control.y",
+      "to.x",
+      "to.y"
+    ],
+    "cubicTo": [
+      "control1.x",
+      "control1.y",
+      "control2.x",
+      "control2.y",
+      "to.x",
+      "to.y"
+    ],
+    "close": []
+  },
+  "readOnlyMaskFields": [
+    "id",
+    "source.type",
+    "source.paint.type",
+    "gradient geometry",
+    "selected gradient stop offset",
+    "selected gradient stop RGBA",
+    "path command type"
+  ],
+  "blendModes": [
+    "normal",
+    "multiply",
+    "screen",
+    "overlay",
+    "add",
+    "darken",
+    "lighten"
+  ],
+  "matteChannels": [
+    "alpha",
+    "luma"
+  ],
+  "newMatteChannel": "alpha",
+  "clipValue": {
+    "type": "composition_bounds"
+  },
+  "presentationBounds": {
+    "masksPerItem": 16,
+    "effectsPerItem": 16,
+    "commandsPerMask": 4096,
+    "gradientStops": 64,
+    "commandDetailsAtOnce": 1,
+    "gradientStopDetailsAtOnce": 1
+  },
+  "eligibility": {
+    "visual_leaves": [
+      "image_media",
+      "video_media",
+      "text",
+      "solid_color",
+      "rectangle",
+      "shape",
+      "svg",
+      "grid"
+    ],
+    "visualLeafControls": [
+      "masks",
+      "matte",
+      "matteOnly",
+      "blendMode",
+      "effects"
+    ],
+    "captionControls": [
+      "blendMode"
+    ],
+    "groupControls": [
+      "effects",
+      "clip"
+    ],
+    "componentInstanceControls": [
+      "effects",
+      "clip"
+    ],
+    "noCompositingControls": [
+      "repeater",
+      "transition",
+      "audio_only_media"
+    ],
+    "componentLocalMutation": false
+  },
+  "editSemantics": {
+    "masks": {
+      "omitted": "preserve",
+      "array": "ordered_replace",
+      "empty": "clear",
+      "null": "reject"
+    },
+    "effects": {
+      "omitted": "preserve",
+      "array": "ordered_replace",
+      "empty": "clear",
+      "null": "reject"
+    },
+    "matte": {
+      "omitted": "preserve",
+      "null": "clear"
+    },
+    "clip": {
+      "omitted": "preserve",
+      "null": "clear"
+    },
+    "blendMode": {
+      "omitted": "preserve",
+      "normal": "reset",
+      "null": "reject"
+    }
+  },
+  "leafFields": {
+    "matte.sourceId": "string",
+    "matte.channel": [
+      "alpha",
+      "luma"
+    ],
+    "matteOnly": "boolean",
+    "blendMode": [
+      "normal",
+      "multiply",
+      "screen",
+      "overlay",
+      "add",
+      "darken",
+      "lighten"
+    ]
+  },
+  "pathCoordinateType": "finite_f64",
+  "maskFieldConditions": {
+    "source.paint.color": "editable only when source.paint.type is solid",
+    "gradient variants": "geometry and selected stop fields readonly; no retyping/conversion"
+  }
+}

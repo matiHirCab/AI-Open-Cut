@@ -1,0 +1,45 @@
+{
+  "review": "independent-contract-parity-living-requirement-reconciliation",
+  "reviewer": "/root/review57",
+  "observedAt": "2026-10-07T03:10:05.787156+00:00",
+  "decision": "EXPLICIT_RECONCILIATION_SCOPE_APPROVAL",
+  "approval": "I explicitly approve the added MODIFIED independently visible contract-parity gate requirement as reconciliation within previously approved issue57 native prerequisite/governed consumer configuration scope. Implementation may proceed against the exact frozen updated artifacts; no product/API/render scope expands.",
+  "artifactHashes": {
+    ".openspec.yaml": "720b3de6231f9647898feba395449b03234e0c4fa3bd4ce47fc3bb341b0f16d6",
+    "beforecode-scope-approval.json": "1c6c3f28ca6a047d68f497204debc0a75f6d3127c4fb6e4fcae079f221637566",
+    "design.md": "ee662b8c80c5535bcadb598daf65ee740e1c003dae604ac3b40c4ba02983f737",
+    "proposal.md": "878adb9f2b58b7ef1488c0020c7f547ce59ff099a7c699fb5db0dc58df2a8066",
+    "specs/contract-governance/spec.md": "ac89c7959790951a242537513b8c2b1d4dc529c361c1e9390b3ddcc1ed2485e7",
+    "specs/desktop-hierarchy/spec.md": "7b8e7a2da476558ee3abf42b9d88b46ba02baac785fbe898a5eff6b235fc9c99",
+    "tasks.md": "335523445217732b074436e32b88cf3a375ad1b1b94e5e4dd7167eddf2c75e06"
+  },
+  "requirements": 14,
+  "scenarios": 31,
+  "addedRequirements": 13,
+  "addedScenarios": 26,
+  "modifiedRequirements": 1,
+  "retainedScenarios": 5,
+  "exactChange": {
+    "from": "The gate MUST contain only its exact reviewed checkout, toolchain, installation, and parity steps in that order.",
+    "to": "The gate MUST contain only its exact reviewed checkout, signed desktop native prerequisite installation, toolchain, JavaScript installation, and parity steps in that order."
+  },
+  "evidence": "Programmatically compared complete modified block to living block and proved exact equality after this single sentence replacement; all five inherited scenarios and every other normative word retained.",
+  "canonicalCatalogSha256": "c0a87addaf44302bdef3ddc1cf04aa7bc9d06117b138598095622d056722d4bf",
+  "blockingFindings": [],
+  "strictValidation": {
+    "exitCode": 0,
+    "command": "bunx @fission-ai/openspec@1.5.0 validate add-desktop-compositing-controls --strict --no-interactive",
+    "log": "/workspace/.opencut-tools/issue57-planning/reconciliation-strict-validation.log"
+  },
+  "previousApprovalsPreserved": [
+    "beforecode-scope-approval.json",
+    "canonical-contracts-command-review.json"
+  ],
+  "mandatoryGatesPreserved": [
+    "Exact complete contracts command and fail-closed package source before Moon/attestation; additive native prerequisite/tracked input/negative controls preserving every predecessor.",
+    "Actual built GPUI workflow and required implementation/scenario/source evidence remain pending mandatory acceptance.",
+    "Exact public/catalog/history pins and core/render semantics, own-only archive/preservation/final protected/strict checks and all11 exact-head publication checks remain mandatory; no merge/deploy."
+  ],
+  "earlyFindingsStatus": "Observed Text source now selectively constructs consumed run/style/layout/layer data and aggregate navigation now exposes effect axis only. Final equivalence and acceptance evidence still require review.",
+  "noRepositoryEditsByReviewer": true
+}

@@ -1,0 +1,20 @@
+{
+  "review": "independent-exact-canonical-contracts-command-freeze",
+  "reviewer": "/root/review57",
+  "observedAt": "2026-10-07T02:58:26.373409+00:00",
+  "decision": "EXPLICIT_SCOPE_CONFORMING_COMMAND_APPROVAL",
+  "baselineHead": "abc06b75d491d10ddd5aa3cf7bda0638aa437fe7",
+  "source": "/workspace/.opencut-tools/issue57-planning/canonical-contracts-command.json",
+  "sourceSha256": "e6fdd5ca308f8e8e7749a2753a7ba927075e3d69f172ffa551e36091e03fbf58",
+  "canonicalCommandSha256": "a830ef1a569c49b7daed0b3b86b400ff3c8f5443f27d905563b8ff363fb127a0",
+  "predecessorCommandSha256": "3484ada92529cfb7faf42481f20e4941b67edee6492a716ac76cbe3d0f330100",
+  "canonicalCommand": "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test parameterized_effects --test group_compositing_models --test ordered_effect_stacks --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution && cargo test -p opencut-desktop desktop_compositing && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/parameterized-effects.test.ts tests/group-compositing.test.ts tests/ordered-effect-stacks.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts tests/desktop-compositing.test.ts",
+  "findings": [],
+  "evidence": "Independently compared predecessor byte command with git-show verified56 bridge package authority, and computed canonical by only inserting approved desktop consumer before vitest and appending desktop TS catalog test. Every predecessor command/test/order retained.",
+  "acceptanceGates": [
+    "Policy must reject omissions/substitutions/reordering/failure masking against this exact command before Moon/attestation.",
+    "Actual governed desktop tests must execute nonzero matching scenarios; filter name alone cannot establish coverage.",
+    "Retain deadlines and signed prerequisites, all predecessor consumer tests and negative controls. Actual GUI acceptance remains separate."
+  ],
+  "noRepositoryEdits": true
+}
