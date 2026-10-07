@@ -1,0 +1,14 @@
+{
+  "status": "APPROVED_NARROW_SOURCE_CHANGE_WITH_EXISTING_EXECUTION_GATE",
+  "timestampUtc": "2026-10-07T05:36:03.448409+00:00",
+  "reportSha256": "35a7c87bf2651a625bd070331222ca0ca2af90d8427b4a6b5318f933abb5da9c",
+  "files": {
+    "scripts/create-masked-hero-reveal-references.py": "bd0794bfee3597e6358777ff4bfc5eec13a7054ca37723324eccb34475780f66",
+    "apps/agent-bridge/tests/masked-hero-reveal-oracle.ts": "a010f9307dc3930c154082908450fb63686054bc2be319592aa7ee222f771c27",
+    "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts": "fa15d09af37e3bb0248ba906f44f951e412d988630630a2a515839f270d64ac9",
+    "apps/agent-bridge/tests/masked-hero-reveal.test.ts": "de1161bcdd7c8c4e0d793e268ea009f26df7ff544e852b3d346a697062dc01d6"
+  },
+  "productionReferenceToleranceDeadlineChanges": false,
+  "optimizedExecutionStillRequired": true,
+  "repositoryEdits": false
+}

@@ -331,3 +331,15 @@
 /moon.yml @matiHirCab
 /docs/desktop-compositing-controls.md @matiHirCab
 /contracts/desktop-compositing-controls-v1.json @matiHirCab
+
+# Governed masked hero acceptance fixture and independent references
+/contracts/masked-hero-reveal-v1.json @matiHirCab
+/contracts/fixtures/masked-hero-reveal-v1/ @matiHirCab
+/scripts/create-masked-hero-reveal-references.py @matiHirCab
+/crates/editor-core/tests/support/masked_hero_reveal.rs @matiHirCab
+/crates/editor-core/tests/support/masked_hero_media.rs @matiHirCab
+/crates/editor-core/tests/support/masked_hero_authoring.rs @matiHirCab
+/crates/editor-core/tests/masked_hero_reveal*.rs @matiHirCab
+/apps/headless/tests/masked_hero_reveal_native.rs @matiHirCab
+/apps/agent-bridge/tests/masked-hero-reveal*.ts @matiHirCab
+/docs/masked-hero-reveal.md @matiHirCab

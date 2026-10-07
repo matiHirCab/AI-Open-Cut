@@ -1,0 +1,1493 @@
+{
+  "catalogVersion": 1,
+  "fixtureId": "masked-hero-reveal-v1",
+  "projectSchemaVersion": 37,
+  "headlessProtocolVersion": 1,
+  "registeredToolCount": 78,
+  "settings": {
+    "width": 64,
+    "height": 64,
+    "fps": 10
+  },
+  "durationMs": 800,
+  "startMs": 0,
+  "defaultBlend": "normal",
+  "roles": {
+    "provider": {
+      "kind": "shape",
+      "geometry": {
+        "type": "rectangle",
+        "width": 44,
+        "height": 48
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 1,
+          "b": 1,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 4,
+          "y": 8,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "parent": null,
+      "matteOnly": true,
+      "effects": [],
+      "masks": [],
+      "zIndex": -1
+    },
+    "owner": {
+      "kind": "group",
+      "transform2d": {
+        "position": {
+          "x": 4,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "clip": {
+        "type": "composition_bounds"
+      },
+      "effects": [
+        {
+          "id": "hero-flash",
+          "type": "screen_flash",
+          "startMs": 300,
+          "durationMs": 300,
+          "intensity": 0.65,
+          "color": {
+            "r": 0.8,
+            "g": 0.65,
+            "b": 0.9,
+            "a": 1
+          }
+        },
+        {
+          "id": "hero-particles",
+          "type": "particle_overlay",
+          "count": 8,
+          "seed": 1,
+          "radiusPx": 2,
+          "speedPxPerSecond": 12,
+          "lifetimeMs": 700,
+          "color": {
+            "r": 0.95,
+            "g": 0.8,
+            "b": 0.2,
+            "a": 0.75
+          }
+        }
+      ],
+      "zIndex": 0
+    },
+    "probe": {
+      "kind": "shape",
+      "geometry": {
+        "type": "rectangle",
+        "width": 12,
+        "height": 8
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.75,
+          "g": 0.125,
+          "b": 0.25,
+          "a": 0.75
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": -6,
+          "y": 20,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "parentRole": "owner",
+      "effects": [],
+      "masks": [],
+      "zIndex": 0
+    },
+    "hero": {
+      "kind": "shape",
+      "geometry": {
+        "type": "rectangle",
+        "width": 48,
+        "height": 40
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.2,
+          "g": 0.55,
+          "b": 0.85,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 8,
+          "y": 12,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "parentRole": "owner",
+      "matte": {
+        "sourceRole": "provider",
+        "channel": "alpha"
+      },
+      "matteOnly": false,
+      "effects": [
+        {
+          "id": "hero-blur",
+          "type": "gaussian_blur",
+          "radiusPx": 1
+        },
+        {
+          "id": "hero-glow",
+          "type": "glow",
+          "radiusPx": 1,
+          "intensity": 0.6,
+          "color": {
+            "r": 0.9,
+            "g": 0.25,
+            "b": 0.1,
+            "a": 0.8
+          }
+        },
+        {
+          "id": "hero-tint",
+          "type": "color_tint",
+          "color": {
+            "r": 0.15,
+            "g": 0.8,
+            "b": 0.3,
+            "a": 0.45
+          }
+        }
+      ],
+      "masks": [
+        {
+          "id": "hero-wipe",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "nonzero",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 1,
+                    "y": 1
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 1
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 41
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 41
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            }
+          },
+          "channel": "alpha",
+          "operation": "add",
+          "inverted": false,
+          "featherPx": 0,
+          "expansionPx": 0,
+          "transform": {
+            "position": {
+              "x": 1,
+              "y": 1,
+              "unit": "pixels"
+            },
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotationDeg": 0,
+            "skewXDeg": 0,
+            "skewYDeg": 0,
+            "opacity": 1,
+            "anchor": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        }
+      ],
+      "animationChannels": [
+        {
+          "property": "mask.path_points",
+          "target": {
+            "kind": "mask",
+            "scope": "root",
+            "id": "hero-wipe"
+          },
+          "keyframes": [
+            {
+              "timeMs": 0,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 200,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 17,
+                    "y": 1
+                  },
+                  {
+                    "x": 17,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 400,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 33,
+                    "y": 1
+                  },
+                  {
+                    "x": 33,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 600,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 799,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            }
+          ]
+        }
+      ],
+      "zIndex": 1
+    },
+    "audio": {
+      "kind": "media",
+      "mediaType": "audio",
+      "resource": "source.wav",
+      "sourceInMs": 0,
+      "gainDb": 0,
+      "audioRole": "unassigned",
+      "noDucking": true
+    }
+  },
+  "generations": {
+    "baselineOrder": [
+      "hero-blur",
+      "hero-glow",
+      "hero-tint"
+    ],
+    "reverseOrder": [
+      "hero-blur",
+      "hero-tint",
+      "hero-glow"
+    ],
+    "draftCurrentUnchanged": true,
+    "commitUndoRedoReopen": "complete authored state and context-matched references"
+  },
+  "sourceRasterBasis": {
+    "hero": {
+      "size": [
+        50,
+        42
+      ],
+      "origin": [
+        -1,
+        -1
+      ],
+      "density": 1
+    },
+    "maskPointsOffset": [
+      1,
+      1
+    ],
+    "quantization": "straight sRGB/alpha to nearest8bit PAM before decoding to linear premultiplied effect input"
+  },
+  "plates": {
+    "oracle": "independently authored scalar equations; no production helpers/evaluator/output",
+    "samples": [
+      0,
+      100,
+      200,
+      300,
+      400,
+      500,
+      600,
+      700
+    ],
+    "records": [
+      {
+        "variant": "baseline",
+        "atMs": 0,
+        "path": "baseline-0000.rgba",
+        "sha256": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 100,
+        "path": "baseline-0100.rgba",
+        "sha256": "316f8c7eb07cca7fda74e75c0097e0aa5182d238cec1063cd4196e126cfd7774"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 200,
+        "path": "baseline-0200.rgba",
+        "sha256": "c2c630dbc16dff4933dd8f68c0cef6c800e06116a5d28582c4a6adcf1ba5773a"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 300,
+        "path": "baseline-0300.rgba",
+        "sha256": "ebd499db9c67ee2b3769d50f19ddedb5a13c6454c0bd413f5410cf3c544a2333"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 400,
+        "path": "baseline-0400.rgba",
+        "sha256": "6d9b924135d23bf3b1e139a8601e7519b06b94d458abb64342b0866f335831e7"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 500,
+        "path": "baseline-0500.rgba",
+        "sha256": "a322ab4ae3dd853d3331d5845123b7cee3898f0330f6a8585dbcb1c498e16196"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 600,
+        "path": "baseline-0600.rgba",
+        "sha256": "f8d29459017a8f25acfbe15b75ed37007aa4eb93090e07ff32253a721750baa6"
+      },
+      {
+        "variant": "baseline",
+        "atMs": 700,
+        "path": "baseline-0700.rgba",
+        "sha256": "a1c2025231ea8dbcff596ef1610c8c03c14b6364864861343733528c1fb3ec8c"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 0,
+        "path": "reverse-0000.rgba",
+        "sha256": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 100,
+        "path": "reverse-0100.rgba",
+        "sha256": "a83302d30324d0c8d19a6d002dbc1d0d6312de4b9b11338ba9a6fceb0283a155"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 200,
+        "path": "reverse-0200.rgba",
+        "sha256": "0d2b146fa47ca3d4f56cf9aed660edb91ac71211693e53f386e4704d184f355d"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 300,
+        "path": "reverse-0300.rgba",
+        "sha256": "bd06b23985e7d9fd0d4353f11dfa0278017a3a903c13e90cbe90a11ec3ee646c"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 400,
+        "path": "reverse-0400.rgba",
+        "sha256": "be3c6659982ee091b99a2a38e76aceb85ed7430fb3515135c49dcc76315f78ac"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 500,
+        "path": "reverse-0500.rgba",
+        "sha256": "b5d6488d5ae855776fbe9c509975bb8419f9acedb1a95d544f09ca7606fb6435"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 600,
+        "path": "reverse-0600.rgba",
+        "sha256": "9be76343c5b22159849dcf744cf4bc4dffa5edaa1ca25d6ce2050fab79dac347"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 700,
+        "path": "reverse-0700.rgba",
+        "sha256": "c2cbcdc5ffdc195aae40bca93162cd8e148f00c400275bab275736d84cc0fa95"
+      }
+    ],
+    "witnesses": [
+      {
+        "variant": "no-mask",
+        "atMs": 200,
+        "pixel": [
+          47,
+          48
+        ],
+        "baseline": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "counterfactual": [
+          46,
+          173,
+          172,
+          255
+        ],
+        "maximumByteDelta": 173,
+        "counterfactualSha256": "9c7e860550ba4436fea3b6f40b622ca30d00e33b0ef6338711e39c0655351e34"
+      },
+      {
+        "variant": "no-matte",
+        "atMs": 700,
+        "pixel": [
+          56,
+          48
+        ],
+        "baseline": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "counterfactual": [
+          46,
+          173,
+          172,
+          255
+        ],
+        "maximumByteDelta": 173,
+        "counterfactualSha256": "33f8ffd349678bf06137ad3b32efbfc9f99cdceeccbd519fb73efc10e82ee53b"
+      },
+      {
+        "variant": "no-glow",
+        "atMs": 200,
+        "pixel": [
+          24,
+          52
+        ],
+        "baseline": [
+          70,
+          112,
+          101,
+          255
+        ],
+        "counterfactual": [
+          22,
+          99,
+          99,
+          255
+        ],
+        "maximumByteDelta": 48,
+        "counterfactualSha256": "58d8c23a3a2e1460843b8464156be076294374d499d528d3bb8be19ce62aa1e8"
+      },
+      {
+        "variant": "no-tint",
+        "atMs": 400,
+        "pixel": [
+          40,
+          49
+        ],
+        "baseline": [
+          145,
+          189,
+          205,
+          255
+        ],
+        "counterfactual": [
+          146,
+          166,
+          231,
+          255
+        ],
+        "maximumByteDelta": 26,
+        "counterfactualSha256": "5dbe193580a64d3bf61f42dedb413c2926a83c5222f55a13081535390310e166"
+      },
+      {
+        "variant": "no-flash",
+        "atMs": 300,
+        "pixel": [
+          32,
+          49
+        ],
+        "baseline": [
+          171,
+          197,
+          220,
+          255
+        ],
+        "counterfactual": [
+          46,
+          172,
+          172,
+          255
+        ],
+        "maximumByteDelta": 125,
+        "counterfactualSha256": "d70106ee1fa060f766e5528eb6a59a0c92c1104e27b96ff08c145a80cda07127"
+      },
+      {
+        "variant": "no-particles",
+        "atMs": 0,
+        "pixel": [
+          48,
+          43
+        ],
+        "baseline": [
+          213,
+          179,
+          44,
+          255
+        ],
+        "counterfactual": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "maximumByteDelta": 213,
+        "counterfactualSha256": "f2f42a3ba54b87c66e388662f38de8bafc38482dd4ee9586c4b2f8b33e592854"
+      },
+      {
+        "variant": "no-clip",
+        "atMs": 0,
+        "pixel": [
+          3,
+          27
+        ],
+        "baseline": [
+          0,
+          0,
+          0,
+          255
+        ],
+        "counterfactual": [
+          168,
+          27,
+          55,
+          255
+        ],
+        "maximumByteDelta": 168,
+        "counterfactualSha256": "cfa0515c20b79323fcf19aaf15dc75783789865dadec444234ab5456ebd45f49"
+      },
+      {
+        "variant": "reverse",
+        "atMs": 400,
+        "pixel": [
+          39,
+          53
+        ],
+        "baseline": [
+          65,
+          67,
+          69,
+          255
+        ],
+        "counterfactual": [
+          75,
+          58,
+          68,
+          255
+        ],
+        "maximumByteDelta": 10,
+        "counterfactualSha256": "be3c6659982ee091b99a2a38e76aceb85ed7430fb3515135c49dcc76315f78ac"
+      }
+    ],
+    "originalClockPartialSamples": [
+      200,
+      300,
+      400,
+      500,
+      600,
+      700
+    ],
+    "sourceBoundary": "independent PAM8 nearest-byte straight sRGB and alpha before linear premultiplication; mask points offset(1,1) in padded50x42 source-raster basis"
+  },
+  "audio": {
+    "sourceSha256": "b60ba8a0fa6a3388a2267f1575f2f4fe84140fbb85181fa9e99ecdea913ef000",
+    "specification": {
+      "segments": [
+        [
+          0,
+          137,
+          0.0625
+        ],
+        [
+          137,
+          359,
+          0.125
+        ],
+        [
+          359,
+          611,
+          0.09375
+        ],
+        [
+          611,
+          800,
+          0.03125
+        ]
+      ],
+      "sampleRate": 48000,
+      "channelsHz": [
+        437,
+        659
+      ],
+      "sampleFrames": 38400,
+      "integerRule": "round half away from zero of32767*amplitude*sin(2pi*f*n/48000)",
+      "wavHeader": "Python wave PCM RIFF44bytes stereo16bit48000Hz"
+    },
+    "referenceCommand": "configured_ffmpeg -v error -i source.wav -ss ORIGIN_SECONDS -t DURATION_SECONDS -map 0:a -c:a aac -y reference.m4a; output-side seek; full0/.8 and partial.2/.6",
+    "decodeCommand": "configured_ffmpeg -v error -i reference_or_actual -map 0:a:0 -ar 48000 -ac 2 -f f32le pipe:1",
+    "maximumRms": 0.0001,
+    "maximumOffsetStereoFrames": 4800,
+    "minimumOverlap": "shorter decoded count minus4800 stereo frames",
+    "restartNegativeMinimumAllOffsets": [
+      0.030688204807126605,
+      3118,
+      [
+        0.031727642472000356,
+        0.029612303722223576
+      ],
+      26578
+    ]
+  },
+  "nativeRequests": {
+    "stillsMs": [
+      0,
+      100,
+      200,
+      300,
+      400,
+      500,
+      600,
+      700
+    ],
+    "fullRange": [
+      0,
+      800
+    ],
+    "partialRange": [
+      200,
+      800
+    ],
+    "rangeFps": 10,
+    "includeAudio": true,
+    "exportResolution": "project",
+    "frameCounts": [
+      8,
+      6
+    ],
+    "maxLosslessByteDelta": 1,
+    "minimumEncodedSsim": 0.99,
+    "maximumTimingErrorMs": 100
+  },
+  "negativeBudget": {
+    "scope": "fresh separate root leaf derived from hero; no Group ancestor",
+    "geometry": {
+      "type": "rectangle",
+      "width": 48,
+      "height": 40
+    },
+    "transform2d": {
+      "position": {
+        "x": 12,
+        "y": 12,
+        "unit": "pixels"
+      },
+      "scaleX": 32,
+      "scaleY": 32,
+      "rotationDeg": 0,
+      "skewXDeg": 0,
+      "skewYDeg": 0,
+      "opacity": 1,
+      "anchor": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "matte": null,
+    "effects": [
+      {
+        "id": "budget-particles",
+        "type": "particle_overlay",
+        "count": 256,
+        "seed": 1,
+        "radiusPx": 16,
+        "speedPxPerSecond": 12,
+        "lifetimeMs": 700,
+        "color": {
+          "r": 0.95,
+          "g": 0.8,
+          "b": 0.2,
+          "a": 0.75
+        }
+      }
+    ],
+    "sourceSize": [
+      1538,
+      1282
+    ],
+    "sourceDensity": 32,
+    "expandedSize": [
+      2562,
+      2306
+    ],
+    "expandedArea": 5907972,
+    "scanBound": 1027,
+    "circleWork": 5400212480,
+    "workLimit": 268435456,
+    "firstFailure": "core final-candidate mutation admission before persistence; particle work exceeds limits; nonretryable INVALID_ARGUMENT",
+    "requests": "standalone, alias-batch with later invalid final candidate, draft; full inventory unchanged; no accepted persisted overbudget project",
+    "masks": [],
+    "matteMeaning": "explicit edit:null clear; persisted omission; no stored null",
+    "exactTranscript": {
+      "standalone": [
+        "create separate fresh64x64fps10 project",
+        "add_shape48x40 with hero fill/no stroke/transformposition(12,12),scale1,masksomitted/matteomitted/effectsomitted",
+        "update_item same leaf transformscale32 and specified particle-only stack -> INVALID_ARGUMENT false, complete baseline unchanged"
+      ],
+      "batch": [
+        "separate fresh project",
+        "one batch add_shape with resultAlias budget followed by update_item @budget scale32+particle-only stack -> complete empty project/history/resources unchanged"
+      ],
+      "draft": [
+        "separate fresh project with valid scale1 leaf",
+        "create draft",
+        "draft apply existing update_item scale32+particle-only stack -> draft and current/history/resources unchanged"
+      ]
+    }
+  },
+  "idBindings": {
+    "project": "generated by create_project and never replaced in saved state",
+    "tracks": {
+      "overlayTrackId": {
+        "name": "Overlay",
+        "trackType": "overlay"
+      },
+      "audioTrackId": {
+        "name": "Audio",
+        "trackType": "audio",
+        "audioRole": "unassigned",
+        "ducking": null
+      }
+    },
+    "items": "generated UUIDs bound from changedIds/aliases; stable named aliases owner/provider/probe/hero/audio; no ID normalization in rollback/history equality",
+    "asset": "import generated audioAssetId from canonical WAV within allowed media root",
+    "records": "frozen authored mask/effect IDs exactly as recipe; role aliases are metadata, never serialized into model fields"
+  },
+  "operationTranscript": {
+    "createProject": {
+      "name": "Masked hero reveal v1",
+      "settings": {
+        "width": 64,
+        "height": 64,
+        "fps": 10
+      }
+    },
+    "importAudio": {
+      "mediaType": "audio",
+      "path": "allowed_media_root/source.wav",
+      "facts": {
+        "durationMs": 800,
+        "sampleRate": 48000,
+        "channels": 2
+      }
+    },
+    "aliasBatch": [
+      {
+        "operation": "add_group",
+        "trackId": "{{overlayTrackId}}",
+        "startMs": 0,
+        "durationMs": 800,
+        "resultAlias": "owner"
+      },
+      {
+        "operation": "update_item",
+        "itemId": "@owner",
+        "transform2d": {
+          "position": {
+            "x": 4,
+            "y": 0,
+            "unit": "pixels"
+          },
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotationDeg": 0,
+          "skewXDeg": 0,
+          "skewYDeg": 0,
+          "opacity": 1,
+          "anchor": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "clip": {
+          "type": "composition_bounds"
+        },
+        "effects": [
+          {
+            "id": "hero-flash",
+            "type": "screen_flash",
+            "startMs": 300,
+            "durationMs": 300,
+            "intensity": 0.65,
+            "color": {
+              "r": 0.8,
+              "g": 0.65,
+              "b": 0.9,
+              "a": 1
+            }
+          },
+          {
+            "id": "hero-particles",
+            "type": "particle_overlay",
+            "count": 8,
+            "seed": 1,
+            "radiusPx": 2,
+            "speedPxPerSecond": 12,
+            "lifetimeMs": 700,
+            "color": {
+              "r": 0.95,
+              "g": 0.8,
+              "b": 0.2,
+              "a": 0.75
+            }
+          }
+        ]
+      },
+      {
+        "operation": "add_shape",
+        "trackId": "{{overlayTrackId}}",
+        "startMs": 0,
+        "durationMs": 800,
+        "geometry": {
+          "type": "rectangle",
+          "width": 44,
+          "height": 48
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 1,
+            "g": 1,
+            "b": 1,
+            "a": 1
+          }
+        },
+        "stroke": null,
+        "transform2d": {
+          "position": {
+            "x": 4,
+            "y": 8,
+            "unit": "pixels"
+          },
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotationDeg": 0,
+          "skewXDeg": 0,
+          "skewYDeg": 0,
+          "opacity": 1,
+          "anchor": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "resultAlias": "provider"
+      },
+      {
+        "operation": "update_item",
+        "itemId": "@provider",
+        "matteOnly": true
+      },
+      {
+        "operation": "item_set_z_index",
+        "itemId": "@provider",
+        "zIndex": -1
+      },
+      {
+        "operation": "add_shape",
+        "trackId": "{{overlayTrackId}}",
+        "startMs": 0,
+        "durationMs": 800,
+        "geometry": {
+          "type": "rectangle",
+          "width": 12,
+          "height": 8
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 0.75,
+            "g": 0.125,
+            "b": 0.25,
+            "a": 0.75
+          }
+        },
+        "stroke": null,
+        "transform2d": {
+          "position": {
+            "x": -6,
+            "y": 20,
+            "unit": "pixels"
+          },
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotationDeg": 0,
+          "skewXDeg": 0,
+          "skewYDeg": 0,
+          "opacity": 1,
+          "anchor": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "resultAlias": "probe"
+      },
+      {
+        "operation": "item_set_parent",
+        "itemId": "@probe",
+        "parent": {
+          "scope": "root",
+          "id": "@owner"
+        }
+      },
+      {
+        "operation": "item_set_z_index",
+        "itemId": "@probe",
+        "zIndex": 0
+      },
+      {
+        "operation": "add_shape",
+        "trackId": "{{overlayTrackId}}",
+        "startMs": 0,
+        "durationMs": 800,
+        "geometry": {
+          "type": "rectangle",
+          "width": 48,
+          "height": 40
+        },
+        "fill": {
+          "type": "solid",
+          "color": {
+            "r": 0.2,
+            "g": 0.55,
+            "b": 0.85,
+            "a": 1
+          }
+        },
+        "stroke": null,
+        "transform2d": {
+          "position": {
+            "x": 8,
+            "y": 12,
+            "unit": "pixels"
+          },
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotationDeg": 0,
+          "skewXDeg": 0,
+          "skewYDeg": 0,
+          "opacity": 1,
+          "anchor": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "resultAlias": "hero"
+      },
+      {
+        "operation": "item_set_parent",
+        "itemId": "@hero",
+        "parent": {
+          "scope": "root",
+          "id": "@owner"
+        }
+      },
+      {
+        "operation": "update_item",
+        "itemId": "@hero",
+        "masks": [
+          {
+            "id": "hero-wipe",
+            "source": {
+              "type": "path",
+              "path": {
+                "fillRule": "nonzero",
+                "commands": [
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 1,
+                      "y": 1
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 1,
+                      "y": 1
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 1,
+                      "y": 41
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 1,
+                      "y": 41
+                    }
+                  },
+                  {
+                    "type": "close"
+                  }
+                ]
+              },
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "r": 1,
+                  "g": 1,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            },
+            "channel": "alpha",
+            "operation": "add",
+            "inverted": false,
+            "featherPx": 0,
+            "expansionPx": 0,
+            "transform": {
+              "position": {
+                "x": 1,
+                "y": 1,
+                "unit": "pixels"
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1,
+              "anchor": {
+                "x": 0,
+                "y": 0
+              }
+            }
+          }
+        ],
+        "effects": [
+          {
+            "id": "hero-blur",
+            "type": "gaussian_blur",
+            "radiusPx": 1
+          },
+          {
+            "id": "hero-glow",
+            "type": "glow",
+            "radiusPx": 1,
+            "intensity": 0.6,
+            "color": {
+              "r": 0.9,
+              "g": 0.25,
+              "b": 0.1,
+              "a": 0.8
+            }
+          },
+          {
+            "id": "hero-tint",
+            "type": "color_tint",
+            "color": {
+              "r": 0.15,
+              "g": 0.8,
+              "b": 0.3,
+              "a": 0.45
+            }
+          }
+        ],
+        "matte": {
+          "sourceId": "@provider",
+          "channel": "alpha"
+        },
+        "matteOnly": false,
+        "blendMode": "normal"
+      },
+      {
+        "operation": "item_set_z_index",
+        "itemId": "@hero",
+        "zIndex": 1
+      },
+      {
+        "operation": "set_animation_channels",
+        "itemId": "@hero",
+        "animationChannels": [
+          {
+            "property": "mask.path_points",
+            "target": {
+              "kind": "mask",
+              "scope": "root",
+              "id": "hero-wipe"
+            },
+            "keyframes": [
+              {
+                "timeMs": 0,
+                "value": {
+                  "type": "path_points",
+                  "points": [
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    }
+                  ]
+                },
+                "curve": "linear"
+              },
+              {
+                "timeMs": 200,
+                "value": {
+                  "type": "path_points",
+                  "points": [
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 17,
+                      "y": 1
+                    },
+                    {
+                      "x": 17,
+                      "y": 41
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    }
+                  ]
+                },
+                "curve": "linear"
+              },
+              {
+                "timeMs": 400,
+                "value": {
+                  "type": "path_points",
+                  "points": [
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 33,
+                      "y": 1
+                    },
+                    {
+                      "x": 33,
+                      "y": 41
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    }
+                  ]
+                },
+                "curve": "linear"
+              },
+              {
+                "timeMs": 600,
+                "value": {
+                  "type": "path_points",
+                  "points": [
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 49,
+                      "y": 1
+                    },
+                    {
+                      "x": 49,
+                      "y": 41
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    }
+                  ]
+                },
+                "curve": "linear"
+              },
+              {
+                "timeMs": 799,
+                "value": {
+                  "type": "path_points",
+                  "points": [
+                    {
+                      "x": 1,
+                      "y": 1
+                    },
+                    {
+                      "x": 49,
+                      "y": 1
+                    },
+                    {
+                      "x": 49,
+                      "y": 41
+                    },
+                    {
+                      "x": 1,
+                      "y": 41
+                    }
+                  ]
+                },
+                "curve": "linear"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "operation": "add_media",
+        "trackId": "{{audioTrackId}}",
+        "assetId": "{{audioAssetId}}",
+        "sourceInMs": 0,
+        "startMs": 0,
+        "durationMs": 800,
+        "resultAlias": "audio"
+      }
+    ],
+    "standalone": "exact same operation order; remove resultAlias, resolve each @role from its actual creation changedId before existing typed edit; do not serialize metadata role fields",
+    "mcp": "map each approved core operation to its unchanged canonical MCP schema, omit operation field for standalone, preserve complete operation records inside timeline_batch_edit",
+    "headless": "wrap actual edit/typed batch with existing operation/edit/projectId/expectedRevision transport fields"
+  },
+  "referenceConversion": {
+    "commandManifest": "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json",
+    "profile": {
+      "rangeAndExport": "unchanged extended scene libx264/preset medium/crf18/yuv420p/AAC",
+      "proof": "render_plan.text_layout_fidelity preserves extended_visual::required original facts after composed input"
+    },
+    "filmManifest": "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json",
+    "canonicalAuthority": "RGBA bytes/hashes plus exact conversion/AAC commands; local PNG/film hashes are reference provenance, not cross-toolchain encoded-file pins",
+    "actualComparisons": "captured prepared64x64sceneRGBA <=1byte; actualPNG RGB<=1byte against same-tool independent conversion; actualrange/export full and partial samples SSIM>=.99 against independent context-matched frames and each other; audio channel-preserving RMS<=.0001, all permitted offsets/overlap"
+  },
+  "errorExpectations": {
+    "invalidBoundsOrDuplicateIDsOrUnknownClipOrCycles": {
+      "code": "INVALID_ARGUMENT",
+      "retryable": false
+    },
+    "missingProvider": {
+      "code": "ITEM_NOT_FOUND",
+      "retryable": false
+    },
+    "staleRevision": {
+      "code": "REVISION_CONFLICT",
+      "retryable": true
+    },
+    "lockedTrack": {
+      "code": "TRACK_LOCKED",
+      "retryable": false
+    },
+    "pathOutsideAllowedRoot": {
+      "code": "PATH_NOT_ALLOWED",
+      "retryable": false
+    },
+    "pathTraversal": {
+      "code": "PATH_TRAVERSAL",
+      "retryable": false
+    },
+    "unavailableNativeDependency": {
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "retryable": false
+    },
+    "runtimeInjectedEncoderFailure": {
+      "code": "FFMPEG_FAILED",
+      "retryable": false
+    }
+  },
+  "referenceDirectory": "contracts/fixtures/masked-hero-reveal-v1",
+  "oraclePath": "scripts/create-masked-hero-reveal-references.py"
+}

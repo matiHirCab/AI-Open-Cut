@@ -1,0 +1,41 @@
+{
+  "status": "APPROVED_IMPLEMENTATION_CONFORMANCE_AND_OWN_ONLY_SYNC_ARCHIVE_PLAN",
+  "timestampUtc": "2026-10-07T06:19:35.306070+00:00",
+  "reportSha256": "41e23e4d99b5f8fac7a504ec37efb32b5ecf5e13aa528c239c202b6ff01b32d0",
+  "reviewedArtifacts": {
+    "openspec/changes/add-masked-hero-reveal-fixture/verification.md": "c633644b3d7c96df78524ef62bccce25d2275b9f7643795ec7e06c727b868c1a",
+    "openspec/changes/add-masked-hero-reveal-fixture/epic7-implementation-acceptance.md": "2839a7c7064b118d9e3e598075dc3e0c04cd8e5b130cb21f553df70adad92e25",
+    "openspec/changes/add-masked-hero-reveal-fixture/epic7-implementation-acceptance.json": "0d6c845eb1955c22be08f6ea6c121b7f7cece0ee00aaf0404a82cc30d2e138f2",
+    "openspec/changes/add-masked-hero-reveal-fixture/final-required-implementation-checks.json": "e683c9e110422abf1e4663d031d3c2e5a04a4d98478a1e67626e4e58fe54ca62",
+    "openspec/changes/add-masked-hero-reveal-fixture/final-implementation-source-freeze.json": "aa0ebbddfc76c2fb60b418745eee7dfe62111fdb01e9806ff6f021768ecaa3e6",
+    "openspec/changes/add-masked-hero-reveal-fixture/tasks.md": "724c83fb62f75a665e318cb4c63ea7623a9ed3829119f4ba5f1f53d85bb8446b",
+    "openspec/changes/add-masked-hero-reveal-fixture/design.md": "13b2c6f934e046e83986577e23b342fb876f78d361716ace47a9f077ad9d5e91",
+    "openspec/changes/add-masked-hero-reveal-fixture/proposal.md": "f4aab49f281b5982f60b3fc808a794ab2bcde3e5bea4e9338b99733b8deff894",
+    "openspec/changes/add-masked-hero-reveal-fixture/dependency-verification.json": "3acede4b60318d5c90672548928c783e9eee28df72a6a7cace6738a2dd010dde",
+    "openspec/changes/add-masked-hero-reveal-fixture/preserved-real-gui-production-binding.json": "a825caf2da92cf6fbfb3f8417b16588e62458a4c4b50c5582e68055eeb8b355e",
+    "openspec/changes/add-masked-hero-reveal-fixture/subsequent-main-preservation-proof.json": "df36ec498139569adf3185b211c6eef3bb63b1c4ba24cf4b7a1ab3e99586a9ce",
+    "openspec/changes/add-masked-hero-reveal-fixture/specs/contract-governance/spec.md": "67da496fa3cde1b546d3c4a26625396bedf163327ab1f00ce09b2db8c7820a9f",
+    "openspec/changes/add-masked-hero-reveal-fixture/specs/repository-validation/spec.md": "46aac08e0b6c04f2cd846f8b0a59befcdebc3d39b34150306030476e72ab99d1",
+    "openspec/changes/add-masked-hero-reveal-fixture/specs/masked-hero-reveal/spec.md": "760f5b41dd79173bc3eb0f00210159ca2e618e3cdf55797fa1bfc539cbaba30b"
+  },
+  "verifiedImplementationInputCount": 38,
+  "verifiedPassingCheckCount": 35,
+  "oldLivingRequirementCount": 507,
+  "newAddedRequirementCount": 8,
+  "expectedPostSyncRequirementCount": 515,
+  "oldArchiveFiles": 1158,
+  "prearchiveBaselineSha256": "5d8158f51ab3d8ba1ee6dea3aefc4a1fbf967a573c45342a0919189b221d7d63",
+  "authorizedScope": [
+    "sync exact own8ADDEDrequirements",
+    "archive only add-masked-hero-reveal-fixture after preservation proof"
+  ],
+  "pendingGates": [
+    "postarchive independent preservation review",
+    "unchanged protected Moon and strict allspec passes",
+    "published exact-head all11CI",
+    "terminal live-state epic audit"
+  ],
+  "repositoryEditsByReviewer": false,
+  "terminalAcceptanceApproved": false,
+  "mergeDeployClosureAuthorized": false
+}

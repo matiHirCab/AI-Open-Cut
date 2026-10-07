@@ -1,0 +1,35 @@
+{
+  "status": "APPROVED_SOURCE_CONFORMANCE_WITH_EXECUTION_GATE",
+  "timestampUtc": "2026-10-07T05:34:28.042864+00:00",
+  "traceSha256": "f46a969087d3f9f0cd6a5b1f0973e05810053e60df06bb72dee02cb107e615cd",
+  "reviewedFiles": {
+    ".github/CODEOWNERS": "78f4c2158ff3d4bcce10b523094cacaaaaa173224e11e78d42fd036ccdd9db03",
+    ".github/workflows/bun-ci.yml": "56167c6780470793a022be84b7159a01690a5115e957c8778debc1903bf66caf",
+    "apps/agent-bridge/package.json": "a156fa6fe93a17e109d309c69836b5c5b83bd6ad2151c006c6eacbd9e589cb5a",
+    "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts": "e08120dff432b47c8c3ded8ae01de4a0243f6b7a6e738d90552de61c5526be30",
+    "apps/agent-bridge/tests/masked-hero-reveal-oracle.ts": "8aa468eb14231e3e3d4e54267b2e710f2221ec85da2b94f4bd980dc10b848e6c",
+    "apps/agent-bridge/tests/masked-hero-reveal.test.ts": "de1161bcdd7c8c4e0d793e268ea009f26df7ff544e852b3d346a697062dc01d6",
+    "apps/headless/tests/masked_hero_reveal_native.rs": "2d123fe59bfffe14216e86ff78e172dad3cd706c69fd27a358a53846d739db8b",
+    "contracts/contract-ownership-v1.json": "c2e345834728e9e55a421be4c93fcd8920ba6692e0a12a24b2b3ed865abcc789",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-audio-provenance.json": "4c820c658261701b24bab9c6b68bcbd3143fe69e9428eb04b5d0c5be5d88d4de",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+    "contracts/masked-hero-reveal-v1.json": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541",
+    "crates/editor-core/tests/masked_hero_reveal_models.rs": "c73ea13b725f41478bb6fd9e5a61033a9ca1e145f321b43a6cbe7233514e1f85",
+    "crates/editor-core/tests/masked_hero_reveal_native.rs": "9ac905ad538af6eebd0a3a7d3d91794adef7321796bf02704c2263343dd0ebb8",
+    "crates/editor-core/tests/support/masked_hero_authoring.rs": "2a95213131bacf479e38e6074b7f8d0c2e0080242002254cd096df4b080df164",
+    "crates/editor-core/tests/support/masked_hero_media.rs": "1838842dc57282f96164ee609aa1ca97ab259b9b326b20c1141577abda48dc16",
+    "crates/editor-core/tests/support/masked_hero_reveal.rs": "7f00f56109d6c7ca67b088e0c64369a1814cd027ec2eae624ca222bcd9a9ddb9",
+    "docs/masked-hero-reveal.md": "4f1c076b843117be36bd1cf8a928fcc015c7bde7ef319947e9759a72002ab9b8",
+    "scripts/create-masked-hero-reveal-references.py": "bd0794bfee3597e6358777ff4bfc5eec13a7054ca37723324eccb34475780f66",
+    "scripts/validate-ci-gates.test.ts": "03e01ec4e8b0dbe0c0717f042c3d06ccfe513858e5b85872c59dadcd95d37b40",
+    "scripts/validate-ci-gates.ts": "3e32e359575d47d67bb2733e9fa672f658c6a7827c5883bf790421f14f81ee32"
+  },
+  "pendingGates": [
+    "stable required checks and current configured native passes",
+    "review final epic audit and own-only archive proof",
+    "published exact-head all11CI"
+  ],
+  "repositoryEdits": false,
+  "mergeDeploymentIssueClosureAuthorized": false
+}

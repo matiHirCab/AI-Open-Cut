@@ -1,0 +1,8 @@
+{
+  "atUtc": "2026-10-07T05:58:31.984200+00:00",
+  "main": "944a048c13e58cfa79acc2ac39c865ada396403b",
+  "verifiedPredecessor": "c383a2d1fd3aa30de2deefb587fd10ec7e0e5a7d",
+  "mainIsAncestorOfVerifiedPredecessor": true,
+  "uniqueMainCommitsOmitted": [],
+  "branch": "feat/issue-58-masked-hero-reveal-20261007"
+}

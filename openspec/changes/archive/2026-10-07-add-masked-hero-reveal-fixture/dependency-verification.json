@@ -1,0 +1,56 @@
+{
+  "issue": 57,
+  "pr": 151,
+  "head": "c383a2d1fd3aa30de2deefb587fd10ec7e0e5a7d",
+  "run": 37570900710,
+  "jobs": [
+    {
+      "name": "Render parity",
+      "conclusion": "success"
+    },
+    {
+      "name": "Rules-screen parity (1280x720)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Contract parity",
+      "conclusion": "success"
+    },
+    {
+      "name": "OpenSpec validation",
+      "conclusion": "success"
+    },
+    {
+      "name": "Correctness (macos-latest)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Rules-screen parity (1920x1080)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Correctness (windows-latest)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Correctness (ubuntu-latest)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Packaged fake-provider integration and smoke",
+      "conclusion": "success"
+    },
+    {
+      "name": "Rules-screen parity (960x540)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Motion-graphics foundation parity",
+      "conclusion": "success"
+    }
+  ],
+  "baseMain": "944a048c13e58cfa79acc2ac39c865ada396403b",
+  "testedMerge": "0801da4e4502e9256207fd104845a830881fe5bd",
+  "stackBaseRestored": "feat/issue-56-group-effects-20261006",
+  "currentMain": "944a048c13e58cfa79acc2ac39c865ada396403b"
+}

@@ -1,0 +1,515 @@
+{
+  "status": "ALL_REQUIRED_IMPLEMENTATION_CHECKS_PASSED",
+  "atUtc": "2026-10-07T06:15:28.150770+00:00",
+  "frozenImplementationInputsPreserved": true,
+  "implementationSourceFreezeSha256": "aa0ebbddfc76c2fb60b418745eee7dfe62111fdb01e9806ff6f021768ecaa3e6",
+  "checks": {
+    "verified-rust-fmt": {
+      "exit": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rust-fmt.log",
+      "terminalSummaries": []
+    },
+    "verified-rust-clippy": {
+      "exit": 0,
+      "logSha256": "277982728e82ef6b85257ed307cc78d6e09a05c388b89a2b95356424c99efc73",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rust-clippy.log",
+      "terminalSummaries": []
+    },
+    "verified-rust-workspace": {
+      "exit": 0,
+      "logSha256": "d29b4667232c11054c196011e8e51794576a2aa7e48af120c524e027f760ba7f",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rust-workspace.log",
+      "terminalSummaries": [
+        "test inspector_edit::tests::shape_and_grid_fields_patch_only_the_selected_descriptor ... ok",
+        "test inspector_edit::tests::text_fields_preserve_documents_and_style ... ok",
+        "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.69s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.28s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.04s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.11s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.13s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.03s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.23s",
+        "test result: ok. 644 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 636.24s",
+        "test incompatible_audio_target_and_persisted_inactive_channel_fail_before_render ... ok",
+        "test invalid_persisted_curve_or_loop_preflights_all_render_intents_before_artifacts ... ok",
+        "test result: ok. 130 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 220.34s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.70s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.76s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.32s",
+        "test injected_draft_intent_is_rejected_on_every_materialization_without_writes ... ok",
+        "test invalid_catalog_cases_and_half_open_timing_publish_nothing ... ok",
+        "test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 138.16s",
+        "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.35s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.96s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.81s",
+        "test invalid_current_and_retained_components_never_rewrite ... ok",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.09s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.64s",
+        "test invalid_render_samples_fail_before_inspecting_or_replacing_destination ... ok",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.22s",
+        "test inherited_component_binding_conflicts_fail_before_font_publication ... ok",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 71.66s",
+        "test invalid_batch_and_stale_revision_publish_no_binding ... ok",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.04s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s",
+        "test independent_complete_flash_particle_positive_gaussian_and_noncommuting_order_plates ... ok",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.12s",
+        "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.60s",
+        "test inherited_bounds_reject_every_publication_boundary_without_resource_changes ... ok",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s",
+        "test invalid_later_batch_and_draft_edits_preserve_every_authoritative_and_resource_byte ... ok",
+        "test inclusive_hidden_and_unused_composition_and_project_budgets_are_owned_by_core ... ok",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.61s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.63s",
+        "test independently_derived_collective_work_bound_rejects_before_standalone_batch_or_draft_persistence ... ok",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.50s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 83.07s",
+        "test integer_boundary_midpoints_match_every_allowed_count_and_angle_neighbor ... ok",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.00s",
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.22s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test independent_primary_and_expanded_order_plates_preserve_exact_anchor_support_and_color_domain ... ok",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.33s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s",
+        "test independent_parameterized_color_identity_final_clamp_order_and_positive_gaussian_plates ... ok",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.20s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 71.51s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+        "test invalid_unused_slots_fail_before_render_output_or_process_execution ... ok",
+        "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.47s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.34s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.03s",
+        "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.67s",
+        "test incompatible_animation_and_failed_batch_preserve_state ... ok",
+        "test invalid_transform_in_retained_history_is_never_published ... ok",
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.95s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 141.49s",
+        "test inherited_bounds_batch_fails_before_transport_reports_publication ... ok",
+        "test inherited_timing_batch_round_trip_and_rollback ... ok",
+        "test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.46s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    "verified-desktop-build": {
+      "exit": 0,
+      "logSha256": "87d0548a5681f0b88058252cb3112e6ba7d1f3716417fa081d905c5707b99b9f",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-desktop-build.log",
+      "terminalSummaries": []
+    },
+    "verified-typecheck": {
+      "exit": 0,
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-typecheck.log",
+      "terminalSummaries": []
+    },
+    "verified-lint": {
+      "exit": 0,
+      "logSha256": "4131613258d668c163ac3ace40f2efa5d7e8d3d6935703205ee4d8da04c7e884",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-lint.log",
+      "terminalSummaries": [
+        "Checked 135 files in 8s. No fixes applied."
+      ]
+    },
+    "verified-unit": {
+      "exit": 0,
+      "logSha256": "d457bcef33e1a98557ffe5bb81d74d6eaa93f10c077eb97dc62dc6559325c2a0",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-unit.log",
+      "terminalSummaries": [
+        " Test Files  42 passed | 8 skipped (50)",
+        "      Tests  587 passed | 9 skipped (596)"
+      ]
+    },
+    "verified-default-build": {
+      "exit": 0,
+      "logSha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-default-build.log",
+      "terminalSummaries": []
+    },
+    "verified-protocol-parameterized": {
+      "exit": 0,
+      "logSha256": "219e4f24763d74f555a70a84fd1c2c2883cd2569c842420e44128bc60f2b3f4b",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-protocol-parameterized.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.70s"
+      ]
+    },
+    "verified-protocol-group": {
+      "exit": 0,
+      "logSha256": "ddaca1cdf641aa4391cff205a064d7b1f8c04cbc06316c8474de9d7ae6eb3032",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-protocol-group.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 2.05s"
+      ]
+    },
+    "verified-protocol-matte": {
+      "exit": 0,
+      "logSha256": "c02eebfeee8643df8338fe1d87d9b15c2d62bb03639b7bc6ba336164cf654be7",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-protocol-matte.log",
+      "terminalSummaries": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.17s"
+      ]
+    },
+    "verified-contracts": {
+      "exit": 0,
+      "logSha256": "96fb1a457a3688ca7a90cc86362c5068ca9abbee5cc2bc4eee898f3c514b987e",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-contracts.log",
+      "terminalSummaries": [
+        "$ bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test parameterized_effects --test group_compositing_models --test ordered_effect_stacks --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution --test masked_hero_reveal_models && cargo test -p opencut-desktop desktop_compositing && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/parameterized-effects.test.ts tests/group-compositing.test.ts tests/ordered-effect-stacks.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts tests/desktop-compositing.test.ts tests/masked-hero-reveal.test.ts",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 212.54s",
+        "test inherited_bounds_batch_fails_before_transport_reports_publication ... ok",
+        "test inherited_timing_batch_round_trip_and_rollback ... ok",
+        "test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.28s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s",
+        "test incompatible_audio_target_and_persisted_inactive_channel_fail_before_render ... ok",
+        "test invalid_persisted_curve_or_loop_preflights_all_render_intents_before_artifacts ... ok",
+        "test result: ok. 130 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 247.35s",
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s",
+        "test invalid_batch_and_stale_revision_publish_no_binding ... ok",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.00s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s",
+        "test inherited_bounds_reject_every_publication_boundary_without_resource_changes ... ok",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test invalid_later_batch_and_draft_edits_preserve_every_authoritative_and_resource_byte ... ok",
+        "test inclusive_hidden_and_unused_composition_and_project_budgets_are_owned_by_core ... ok",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.41s",
+        "test independently_derived_collective_work_bound_rejects_before_standalone_batch_or_draft_persistence ... ok",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.72s",
+        "test integer_boundary_midpoints_match_every_allowed_count_and_angle_neighbor ... ok",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.80s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.38s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+        "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 12.85s",
+        " Test Files  25 passed (25)",
+        "      Tests  446 passed (446)"
+      ]
+    },
+    "verified-native-mcp-matte": {
+      "exit": 0,
+      "logSha256": "49bafa7df1b7817b380926fa69e087d6e268fdd348af92289dd0b2df9d9841a3",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-matte.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-native-mcp-blend": {
+      "exit": 0,
+      "logSha256": "abca3c968493cafa0dbe72d063344563346c1db9dfe56b5f9823ad26d246abf3",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-blend.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-native-mcp-mask": {
+      "exit": 0,
+      "logSha256": "511f2ca1611a763d71b3e20333a25b2ed9c6b65631bcbb5ed10ca12e72d6eb2f",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-mask.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-native-mcp-ordered": {
+      "exit": 0,
+      "logSha256": "8ef9602599d05705bfffc871f61f44ade338907a17852f19529057f3c679358e",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-ordered.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-native-mcp-parameterized": {
+      "exit": 0,
+      "logSha256": "011265243b19f887b44cf94c783880cb23d182f0f8a7274efb1b4e75d9b55b05",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-parameterized.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-native-mcp-group": {
+      "exit": 0,
+      "logSha256": "10336b8768341e86c70e52860a7d1ffbe201cd647ab706b0e9a64b7d9059a50a",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-native-mcp-group.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "verified-integration": {
+      "exit": 0,
+      "logSha256": "b639bf046a84a6863d0d21af91836b084db5b15e14989c833c96061415ddbacf",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-integration.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  23 passed (23)"
+      ]
+    },
+    "verified-smoke": {
+      "exit": 0,
+      "logSha256": "073b807bd4bf2c81fbdc328215763d03b6c6b58c405d0abd9909847b30961ec0",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-smoke.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  20 passed (20)"
+      ]
+    },
+    "verified-python": {
+      "exit": 0,
+      "logSha256": "95d0dd4a67aeabf2e4e90c79ebb17fbb319f3baf0d9e9376e49c3871314db747",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-python.log",
+      "terminalSummaries": [
+        "Ran 12 tests in 0.139s",
+        "5 passed in 0.06s"
+      ]
+    },
+    "verified-root-policy-tests": {
+      "exit": 0,
+      "logSha256": "e2ea39bac1509dba32d2d643df13b2b2b88004f4d3524b976277bbd16f0e27c6",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-root-policy-tests.log",
+      "terminalSummaries": [
+        " 471 pass",
+        " 0 fail",
+        "Ran 471 tests across 6 files. [915.00ms]"
+      ]
+    },
+    "verified-hero-mcp-native": {
+      "exit": 0,
+      "logSha256": "2da8194586024279c4d866f7f46e20b4fe41f4f965c96baee934546756c5461c",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-hero-mcp-native.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  2 passed (2)"
+      ]
+    },
+    "verified-hero-unit": {
+      "exit": 0,
+      "logSha256": "c6dc7fdd3f1366a116f860ecc076d201e1863a772811df920568e09eb9564643",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-hero-unit.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  4 passed (4)"
+      ]
+    },
+    "verified-release-native-golden": {
+      "exit": 0,
+      "logSha256": "1e406473ea9fa04e6ed06361ca91a1c0e407f4647493a6f015607adca9ed11f6",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-release-native-golden.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 151.79s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 130 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s"
+      ]
+    },
+    "verified-golden-report": {
+      "exit": 0,
+      "logSha256": "00d249b46fe793d433073e58cf3ab98af491b9bc81336676933f17b2ad95466c",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-golden-report.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 0.01s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 130 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s"
+      ]
+    },
+    "verified-rules-960x540": {
+      "exit": 0,
+      "logSha256": "65db1248bf56565b1cd0c220c77d8501a0cbee258023e8922704cca6d5e7337d",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rules-960x540.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 43.13s"
+      ]
+    },
+    "verified-rules-1280x720": {
+      "exit": 0,
+      "logSha256": "7d5e88e49c2457ae7ecc4ef8ef6db712bfdc1b056260879a0873f7efd94a5a16",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rules-1280x720.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 62.07s"
+      ]
+    },
+    "verified-rules-1920x1080": {
+      "exit": 0,
+      "logSha256": "6db9f3cdd17ca47ddd8d9573fef8f0e4cb3b321b52b7fff0c0cba49cf43465f0",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-rules-1920x1080.log",
+      "terminalSummaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 652 filtered out; finished in 44.90s"
+      ]
+    },
+    "cache-final-raster-core": {
+      "exit": 0,
+      "logSha256": "1929ff1a99b100f88743948415a4fef5f40821d5f8e165d0e96c085101f011ec",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-raster-core.log",
+      "terminalSummaries": [
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 637 filtered out; finished in 11.53s"
+      ]
+    },
+    "cache-final-raster-worker": {
+      "exit": 0,
+      "logSha256": "30b26144c3817b6a2dcdba95b530aaa61d3aa96c5ea9a046610aad4851df8ac5",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-raster-worker.log",
+      "terminalSummaries": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.13s"
+      ]
+    },
+    "cache-final-raster-worker-build": {
+      "exit": 0,
+      "logSha256": "4cf86278c1e6d659943a46a3d7e3da429ac15be90f0f17742e24ef85228e7d3e",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-raster-worker-build.log",
+      "terminalSummaries": []
+    },
+    "cache-final-raster-public": {
+      "exit": 0,
+      "logSha256": "ca256eeccc849896b119701b4b7cde6aee770948662946226c737fa97a26bf82",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-raster-public.log",
+      "terminalSummaries": [
+        " Test Files  1 passed (1)",
+        "      Tests  1 passed (1)"
+      ]
+    },
+    "cache-final-default-headless-build": {
+      "exit": 0,
+      "logSha256": "4cf86278c1e6d659943a46a3d7e3da429ac15be90f0f17742e24ef85228e7d3e",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-default-headless-build.log",
+      "terminalSummaries": []
+    },
+    "cache-final-default-headless-tests": {
+      "exit": 0,
+      "logSha256": "7168796345b6ebbf31ae5a434d29645c1bb406e85c29f0229717380269924bad",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/cache-final-default-headless-tests.log",
+      "terminalSummaries": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 139.86s",
+        "test inherited_bounds_batch_fails_before_transport_reports_publication ... ok",
+        "test inherited_timing_batch_round_trip_and_rollback ... ok",
+        "test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.45s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s"
+      ]
+    }
+  },
+  "qualifications": [
+    "Default unit587pass/9optionalnative skips are requalified separately by all configured native MCP/core/headless and cache suites",
+    "Integration uses established local Node24 --execArgv=--max-opt=0; final exact-head CI will run repository standard commands",
+    "Workspace executes current core model/native tests including final provenancepins and SSIMempty guard; older focused receipts remain historical",
+    "All previous failed attempts retain their separate logs/receipts; no failure is relabeled success",
+    "Postarchive protected/strict gates and published-head CI remain pending"
+  ]
+}

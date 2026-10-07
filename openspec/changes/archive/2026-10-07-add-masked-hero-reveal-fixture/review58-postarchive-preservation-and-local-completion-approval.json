@@ -1,0 +1,48 @@
+{
+  "status": "APPROVED_POSTARCHIVE_PRESERVATION_AND_LOCAL_COMPLETION",
+  "timestampUtc": "2026-10-07T06:23:23.578433+00:00",
+  "checks": {
+    "oldArchiveFilesPreserved": true,
+    "implementation38Preserved": true,
+    "old507Preserved": true,
+    "appendSeparatorOnly": [
+      "openspec/specs/contract-governance/spec.md::### Requirement: Governed desktop compositing catalog and fresh API parity",
+      "openspec/specs/repository-validation/spec.md::### Requirement: Mandatory native group compositing CI conformance"
+    ],
+    "exact8AcceptedAdditions": true,
+    "livingRequirementCount": 515,
+    "ownActiveGone": true,
+    "otherActiveChanges": [],
+    "allTasksDone": true,
+    "administrativeStatusUpdatesOnly": [
+      "verification.md",
+      "tasks.md"
+    ],
+    "postarchiveGates": {
+      "protected-postarchive": {
+        "exit": 0,
+        "logSha256": "30b94ca7bdcebf36ed8f0d8baa269f736f406f59537c442365f13440e6cf75f6",
+        "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-protected-postarchive.log",
+        "itemsPassed": 45
+      },
+      "strict-postarchive": {
+        "exit": 0,
+        "logSha256": "d2ba9289881d5e03eb500f59c47bea0ca66c77d35265df717d03968050589502",
+        "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-strict-postarchive.log",
+        "itemsPassed": 45
+      }
+    }
+  },
+  "reportSha256": "cc1f44566a8bc1c8c86284566d03e5160cbf4a800e44d905719f887069add14a",
+  "archivedAdministrativeHashes": {
+    "tasks.md": "1f152f0ff06d2f3e07855cc6d19777b999177ef0cfa2126eeb9ea6669ecaa303",
+    "verification.md": "6dd7fe2971a43d403f8b2f9d4d9828fd39e0ff30227c6132177d22c3d954a7a7",
+    "postarchive-gates.json": "ddc406ac6576b33500dd6a403e3eab471d4b5ade9c853ac8ff753d1320ff555f"
+  },
+  "pending": [
+    "published exact-head all11CI",
+    "terminal live-state epic audit"
+  ],
+  "reviewerRepositoryEdits": false,
+  "mergeDeployClosureAuthorized": false
+}

@@ -878,6 +878,27 @@
         "moon.yml",
         "docs/desktop-compositing-controls.md"
       ]
+    },
+    "maskedHeroReveal": {
+      "canonical": "contracts/masked-hero-reveal-v1.json",
+      "consumers": [
+        "contracts/fixtures/masked-hero-reveal-v1/",
+        "scripts/create-masked-hero-reveal-references.py",
+        "crates/editor-core/tests/support/masked_hero_reveal.rs",
+        "crates/editor-core/tests/support/masked_hero_media.rs",
+        "crates/editor-core/tests/support/masked_hero_authoring.rs",
+        "crates/editor-core/tests/masked_hero_reveal_models.rs",
+        "crates/editor-core/tests/masked_hero_reveal_native.rs",
+        "apps/headless/tests/masked_hero_reveal_native.rs",
+        "apps/agent-bridge/tests/masked-hero-reveal.test.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal-oracle.ts",
+        "apps/agent-bridge/package.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        ".github/workflows/bun-ci.yml",
+        "docs/masked-hero-reveal.md"
+      ]
     }
   }
 }
