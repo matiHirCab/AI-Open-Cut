@@ -1,0 +1,14 @@
+{
+  "protected-postarchive": {
+    "exit": 0,
+    "logSha256": "30b94ca7bdcebf36ed8f0d8baa269f736f406f59537c442365f13440e6cf75f6",
+    "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-protected-postarchive.log",
+    "itemsPassed": 45
+  },
+  "strict-postarchive": {
+    "exit": 0,
+    "logSha256": "d2ba9289881d5e03eb500f59c47bea0ca66c77d35265df717d03968050589502",
+    "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-strict-postarchive.log",
+    "itemsPassed": 45
+  }
+}

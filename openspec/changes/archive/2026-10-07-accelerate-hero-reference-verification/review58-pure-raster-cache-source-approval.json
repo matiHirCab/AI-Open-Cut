@@ -1,0 +1,39 @@
+{
+  "status": "APPROVED_NARROW_SOURCE_IMPLEMENTATION_PENDING_RELEVANT_CHECKS",
+  "timestampUtc": "2026-10-07T06:46:53.137744+00:00",
+  "sourceValidation": {
+    "scalar9BodyAstIdentical": {
+      "lin": true,
+      "encode": true,
+      "idx": true,
+      "empty": true,
+      "over": true,
+      "gaussian": true,
+      "tint": true,
+      "glow": true,
+      "plate": true
+    },
+    "nonemptyRasterOriginalParityAndFreshCopyIsolation": {
+      "gaussian": true,
+      "glow": true
+    },
+    "other37FrozenInputsPreserved": true,
+    "oldCommittedArchiveFilesPreserved": 1192,
+    "sourceSha256": "c1e176c44250d8727861f9fa278663d8ba4e06f8242d92a5e173b94e2db586d9"
+  },
+  "observedLogs": {
+    "oracle": {
+      "exit": 0,
+      "logSha256": "263f1430545fbd81ba3e5a8ad8aa93fda0043dc7d7a8a29025835dbd62e51f53",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-oracle.log"
+    },
+    "hero-unit": {
+      "exit": 0,
+      "logSha256": "3a7ec595b6c1341b2e118cc8283cd4922dfb3f5a1bec10f2460283101384cc77",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-hero-unit.log"
+    }
+  },
+  "reportSha256": "edab381e2d574db60cae8b3c95ad00020b1ca7a40310831353e0a22714b0d090",
+  "repositoryEdits": false,
+  "finalExactHeadCiStillRequired": true
+}

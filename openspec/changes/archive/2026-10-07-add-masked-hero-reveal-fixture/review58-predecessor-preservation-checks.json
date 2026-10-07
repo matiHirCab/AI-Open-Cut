@@ -1,0 +1,7 @@
+{
+  "workflow_exact_predecessor_preserved": true,
+  "package_exact_predecessor_preserved": true,
+  "ownership_all_predecessors_preserved": true,
+  "no_existing_production_or_native_test_changes": true,
+  "canonical_hash": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541"
+}

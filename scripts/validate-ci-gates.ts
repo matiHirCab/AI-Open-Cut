@@ -13,7 +13,7 @@ const DEFAULT_OPENSPEC_CHANGES_DIRECTORY = "openspec/changes";
 const OPENSPEC_ARCHIVE_DIRECTORY = "archive";
 const AGENT_BRIDGE_DIRECTORY = "apps/agent-bridge";
 const AGENT_BRIDGE_PACKAGE = "apps/agent-bridge/package.json";
-const CONTRACTS_COMMAND = "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test parameterized_effects --test group_compositing_models --test ordered_effect_stacks --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution && cargo test -p opencut-desktop desktop_compositing && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/parameterized-effects.test.ts tests/group-compositing.test.ts tests/ordered-effect-stacks.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts tests/desktop-compositing.test.ts";
+const CONTRACTS_COMMAND = "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test parameterized_effects --test group_compositing_models --test ordered_effect_stacks --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution --test masked_hero_reveal_models && cargo test -p opencut-desktop desktop_compositing && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/parameterized-effects.test.ts tests/group-compositing.test.ts tests/ordered-effect-stacks.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts tests/desktop-compositing.test.ts tests/masked-hero-reveal.test.ts";
 const DESKTOP_NATIVE_COMMAND = "sudo apt-get update && sudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev";
 const REPORT_PATH = "target/render-baseline-linux.json";
 const ABSOLUTE_REPORT_PATH = "${{ github.workspace }}/target/render-baseline-linux.json";
@@ -78,7 +78,11 @@ cargo build -p opencut-headless
 bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/parameterized-effect-native.test.ts
 cargo test -p opencut-editor-core --test group_compositing_native -- --nocapture
 cargo build -p opencut-headless
-bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts`;
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts
+cargo test -p opencut-editor-core --test masked_hero_reveal_native -- --nocapture
+cargo build -p opencut-headless
+cargo test -p opencut-headless --test masked_hero_reveal_native -- --nocapture
+bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/masked-hero-reveal-native.test.ts`;
 
 const NATIVE_CACHE_COMMAND = `cargo test -p opencut-editor-core --lib raster_cach
 cargo test -p opencut-headless --features raster-cache-test-hooks --test render_worker

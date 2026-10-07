@@ -1581,6 +1581,55 @@ describe("CI parity gate policy", () => {
     );
   });
 
+  const heroRevealCommands = [
+    "cargo test -p opencut-editor-core --test masked_hero_reveal_native -- --nocapture",
+    "cargo build -p opencut-headless",
+    "cargo test -p opencut-headless --test masked_hero_reveal_native -- --nocapture",
+    "bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/masked-hero-reveal-native.test.ts",
+  ] as const;
+  const heroRevealBlock = heroRevealCommands
+    .map((command) => `          ${command}`)
+    .join("\n");
+  for (const command of heroRevealCommands) {
+    for (const [label, replacement] of [
+      ["omitted", ""],
+      [
+        "altered",
+        command
+          .replace("opencut-editor-core", "opencut-headless")
+          .replace("cargo build", "cargo check")
+          .replace("cargo test -p opencut-headless", "cargo test -p opencut-desktop")
+          .replace("masked-hero-reveal-native.test.ts", "mask-rendering-native.test.ts"),
+      ],
+      ["success fallback", `${command} || true`],
+    ] as const) {
+      it(`rejects ${label} mandatory masked-hero-reveal command: ${command}`, () => {
+        expect(() =>
+          validateCiGates(
+            replaceRequired(
+              workflow,
+              heroRevealBlock,
+              heroRevealBlock.replace(command, replacement)
+            )
+          )
+        ).toThrow(
+          "render-parity native step must use the exact fail-closed command body"
+        );
+      });
+    }
+  }
+
+  it("rejects an instrumented headless build before mandatory MCP masked-hero-reveal proof", () => {
+    const weakened = replaceRequired(
+      workflow,
+      "          cargo build -p opencut-headless\n          cargo test -p opencut-headless --test masked_hero_reveal_native -- --nocapture\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/masked-hero-reveal-native.test.ts",
+      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          cargo test -p opencut-headless --test masked_hero_reveal_native -- --nocapture\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/masked-hero-reveal-native.test.ts"
+    );
+    expect(() => validateCiGates(weakened)).toThrow(
+      "render-parity native step must use the exact fail-closed command body"
+    );
+  });
+
   const goldenCommand =
     "cargo test --release -p opencut-editor-core renderer::golden::native_golden_render_conformance -- --exact --nocapture";
   for (const [label, replacement] of [

@@ -1,0 +1,74 @@
+{
+  "status": "APPROVED_CORRECTION_CONFORMANCE_AND_OWN_ONLY_SYNC_ARCHIVE",
+  "timestampUtc": "2026-10-07T07:02:19.727514+00:00",
+  "reviewSha256": "26d15efd04a0866d9a1501e00bdcc9de7664ff1463b15653cdb0c6260465506c",
+  "artifactHashes": {
+    "openspec/changes/accelerate-hero-reference-verification/tasks.md": "c213684a286d47c33af7954c1705d4a8b1dee2ca3564e2a189377ca214c24739",
+    "openspec/changes/accelerate-hero-reference-verification/verification.md": "5c80ea9044f7d226fabf7b97f60bf0c98510a676db8970c957e73ed5b8cbc2fa",
+    "openspec/changes/accelerate-hero-reference-verification/cache-correction-final-local-checks.json": "89da98bc83c639df74bb1d7d93ca51df351911c19981a663060bb2e3269b4758",
+    "openspec/changes/accelerate-hero-reference-verification/cache-correction-source-and-reuse-proof.json": "9cca986296ed80a7a185ba9ea4f6e2cbfe8991d7193232c976725272fb1f9857",
+    "openspec/changes/accelerate-hero-reference-verification/sync-plan.md": "8070d6c44a9d1b6040d33efe2fb49f68c980aeabcc92be15480af9211ff9dca3",
+    "openspec/changes/accelerate-hero-reference-verification/specs/masked-hero-reveal/spec.md": "3ba9c5a4d3f5d2253bc81c77bf7c1dc05b87c8423354aa156208844e562c699f"
+  },
+  "affected9Checks": {
+    "oracle": {
+      "exit": 0,
+      "logSha256": "263f1430545fbd81ba3e5a8ad8aa93fda0043dc7d7a8a29025835dbd62e51f53",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-oracle.log"
+    },
+    "hero-unit": {
+      "exit": 0,
+      "logSha256": "3a7ec595b6c1341b2e118cc8283cd4922dfb3f5a1bec10f2460283101384cc77",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-hero-unit.log"
+    },
+    "core": {
+      "exit": 0,
+      "logSha256": "1e811ad320170cea057c460f160e0e5649b5566bbd824fb1d397112969c357bc",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-core.log"
+    },
+    "headless": {
+      "exit": 0,
+      "logSha256": "562179752609cfe4364fb58d0617b414ffb063cc01b607ebc0e07872da761356",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-headless.log"
+    },
+    "mcp": {
+      "exit": 0,
+      "logSha256": "e187db4a0df701c7f61f6fca321066a187367917a31b22b5d082be8ecbcf266f",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-mcp.log"
+    },
+    "unit": {
+      "exit": 0,
+      "logSha256": "de7da9504b4d1dd8fb7aa734a6fd6ff5285b64a03bdc8ab46e029fa4091a2d51",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-unit.log"
+    },
+    "contracts": {
+      "exit": 0,
+      "logSha256": "0d30c6b8dbfd87e58f1c95274c1ab27e1a07c1b9f577b67b6f6c630272fc6993",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-contracts.log"
+    },
+    "types": {
+      "exit": 0,
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-types.log"
+    },
+    "lint": {
+      "exit": 0,
+      "logSha256": "d495ce7db8e078e4d4d15e075b0cbeb56f6c4766a164c1fd9918f30c0e643086",
+      "logPath": "/workspace/.opencut-tools/logs/continuation/issue58/verified-cache-correction-lint.log"
+    }
+  },
+  "prearchiveProtected": {
+    "exit": 1,
+    "strictItemsPassed": 46,
+    "onlyActiveRejection": "accelerate-hero-reference-verification",
+    "logSha256": "2f7c9cfef9429e805ffb416418f66d10423c1105ab905b2536ec83b0fba7942d"
+  },
+  "pendingGates": [
+    "postarchive preserved514/1192/37 proof",
+    "postarchive protected and strict success",
+    "exact correction-head all11CI",
+    "terminal audit"
+  ],
+  "repositoryEdits": false,
+  "mergeDeployClosureAuthorized": false
+}

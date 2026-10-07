@@ -1,0 +1,31 @@
+{
+  "status": "PRESERVED_REAL_GUI_INPUT_BINDING",
+  "atUtc": "2026-10-07T05:42:52.577378+00:00",
+  "originalReceiptSha256": "b8a86c263b1c4c0fdb11bad3fec2ffc76ea9199106cf976d0ba8cdbc68e9fd8e",
+  "checkedSourcesAndBinaries": {
+    "apps/desktop/src/compositing_inspector.rs": "ca895deb287e2d2af4517fcae6f1cf9b7ce5766a41a802b25c0e97f0016bf691",
+    "apps/desktop/src/animation_inspector.rs": "9db1ce0180ed3e76b50fdd009cfee1e8ab4ad08dc714047604a0fba1e52c31cf",
+    "apps/desktop/src/components/badge.rs": "04b40266889f57ed179ec2cee4b7f2a13a649397b35439d5a4f6d1b512b8b933",
+    "apps/desktop/src/components/button.rs": "c2cf64e879f2e7df42dd726cdec97a89b120ebf51a0b6a8e950036bd153365d1",
+    "apps/desktop/src/components/context_menu.rs": "7b0f9bd439b1dda000193ba7296ac7277b9f4aa1bac64fa2b1556d31ee8450f9",
+    "apps/desktop/src/components/label.rs": "889b6fe760505dcee710fb0b54cbfd18e0a96eb8331c9c65561db0cbefde85e9",
+    "apps/desktop/src/components/mod.rs": "e19b8e1226efd9598177cc6d16e4f082ceea062355aa5c8da61cc5a17f302c19",
+    "apps/desktop/src/components/resizable.rs": "8ebf41e3cb585a95018849d090392cba02ef1b0356d432169ce7eb9bcc79d35f",
+    "apps/desktop/src/components/separator.rs": "a8279b178d4084036dfe203741142e7e1bfa4f62abdc61737bb7a1d2b4da700c",
+    "apps/desktop/src/hierarchy.rs": "a7ea3d9dfe7d356f6ba43a67aff58a308038ef076475ae37f00a14c48b9a9999",
+    "apps/desktop/src/inspector_edit.rs": "03244ee5afb4a30c1b702b6d203904c912b623a5e75ef40a0e274bf2b229a7ca",
+    "apps/desktop/src/main.rs": "d32235180e829ca3cbd0a40e9ae5326b5d13f71849be7b6b1c4bb3076781fc31",
+    "apps/desktop/src/panels/browser.rs": "dbe004c839bc4be2a4f76fb674af7a528da7284342ac42429999b619d74302a2",
+    "apps/desktop/src/panels/inspector.rs": "f7e39ba25c77806f4ef56083875aeb724ec368594135e3ec2a18369f217b8476",
+    "apps/desktop/src/panels/mod.rs": "6b2fc8c7887f84d450def9e15afc2ee5541a289ac9da75ce070a242e94ec108b",
+    "apps/desktop/src/panels/preview.rs": "914d67c5f1bc7364861c6c3b3e2dad75795564b331f14a70adc9fb38aa0a1bd5",
+    "apps/desktop/src/panels/timeline.rs": "c9944d5cc442024f4f86e8f77047fb080f2471f1c5b7871fb06106733b719a6a",
+    "apps/desktop/src/session.rs": "5fb8bb78e44554eb6d9674a705b8fa604b4603088b17128695ff2c2397a3a83b",
+    "apps/desktop/src/shell.rs": "838b1cfc5031b147107439a3de7c7e02a070f7efccadd476db944b6855be3fe2",
+    "apps/desktop/src/theme.rs": "750f3aede69186d9d3724b2e98d10c2758a5e3d15244c2a43174695c14cf4126",
+    "target/debug/opencut-desktop": "a5ecc7a9629da68347768af6d677d541b6e2ade848932bf8fcc22782193db276"
+  },
+  "originalGuiRecordCount": 168,
+  "freshGuiRunClaimed": false,
+  "productionInputsUnchanged": true
+}

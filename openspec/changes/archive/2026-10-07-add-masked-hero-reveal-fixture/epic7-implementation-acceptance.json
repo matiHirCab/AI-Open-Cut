@@ -1,0 +1,2231 @@
+{
+  "formatVersion": 1,
+  "status": "PREPUBLICATION_IMPLEMENTATION_ACCEPTANCE_PASSED_PENDING_INDEPENDENT_AUDIT_REVIEW",
+  "predecessorHead": "c383a2d1fd3aa30de2deefb587fd10ec7e0e5a7d",
+  "mainObservation": "944a048c13e58cfa79acc2ac39c865ada396403b",
+  "mg3Prerequisite": {
+    "status": "RESOLVED existing receipt independently corroborated",
+    "issues6And38Through48": "AllCLOSEDlive",
+    "pr141": "MERGEDlive",
+    "exactCI": {
+      "run": 37253039737,
+      "head": "75432f21807753360eaf97fcc823cef6af8b881a",
+      "all11TerminalSuccess": true
+    },
+    "ancestorChecks": [
+      {
+        "commit": "75432f21807753360eaf97fcc823cef6af8b881a",
+        "ancestorOfLiveMain": true
+      },
+      {
+        "commit": "67a35d05acb5df0e0ca8da1ee9b1e93637fd99b1",
+        "ancestorOfLiveMain": true
+      }
+    ],
+    "liveReviewCounts": {
+      "141": 0,
+      "150": 0,
+      "151": 0
+    },
+    "qualification": "No inferred humanCODEOWNERsignoff; delegatedSolreviews distinct. Run/jobs/steps refreshed; archived quantitativecounts not newly observed from remote full logdownloads"
+  },
+  "issues49Through57": [
+    {
+      "issue": 49,
+      "scope": "Premultiplied linear source/effect/affine/matte/shutter/blend pipeline; all intents; finite bounded admission; reviewed reference/report transition.",
+      "archive": "openspec/changes/archive/2026-10-05-implement-linear-light-compositing",
+      "authoredRequirementEntries": 13,
+      "scenarios": 40,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Linear premultiplied working representation",
+          "scenarios": [
+            "Decode translucent and hidden colors",
+            "Preserve floating-point resampling and temporal averaging",
+            "Convert only the completed scene"
+          ]
+        },
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults"
+          ]
+        },
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Canonical bounded composition and fail-closed publication",
+          "scenarios": [
+            "Reject invalid or excessive composition before side effects",
+            "Reject missing bindings and clean runtime failures",
+            "Reject aggregate memory excess"
+          ]
+        },
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Certified fractional native media clocks",
+          "scenarios": [
+            "Reject unsafe large fractional source offset before resources",
+            "Preserve realistic fractions and whole-clock compatibility"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Hybrid renderer boundary",
+          "scenarios": [
+            "Replace a graphics backend",
+            "Reject unsafe renderer input",
+            "Fail over to a conforming local backend",
+            "Reject degraded fallback"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Shared complete Transform2D rendering",
+          "scenarios": [
+            "Render all transformed visual kinds",
+            "Compare preview and export",
+            "Preserve old rendered fixtures"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Shared complete linear scene rendering",
+          "scenarios": [
+            "Compare all production intents",
+            "Preserve editing and persistence behavior"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Readiness-gated linear composition capability",
+          "scenarios": [
+            "Detect ready corrected rendering",
+            "Omit unsupported capability"
+          ]
+        },
+        {
+          "capability": "render-regression-fixtures",
+          "requirement": "Independent linear composition evidence",
+          "scenarios": [
+            "Detect shared encoded-space drift",
+            "Review corrected goldens"
+          ]
+        },
+        {
+          "capability": "render-regression-fixtures",
+          "requirement": "Report-only timing and memory baseline",
+          "scenarios": [
+            "Verify without benchmark capture",
+            "Capture and validate stage observations",
+            "Report a stage with no work",
+            "Derive benchmark workloads from production semantics",
+            "Reject malformed observations",
+            "Publish the required Linux observation",
+            "Compare unlike environments or definitions",
+            "Attribute linear materialization honestly"
+          ]
+        },
+        {
+          "capability": "render-regression-fixtures",
+          "requirement": "Exact schema-3 fixture work counts",
+          "scenarios": [
+            "Accept canonical work counts",
+            "Reject incorrect work counts",
+            "Preserve incompatible stage definitions"
+          ]
+        },
+        {
+          "capability": "render-regression-fixtures",
+          "requirement": "Exact legacy fixture migration",
+          "scenarios": [
+            "Migrate a complete legacy generation",
+            "Reject incomplete legacy evidence"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "linear_source_over_matches_independent_alpha_oracle",
+        "linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_oracle",
+        "native_linear_overlap_matches_frame_range_draft_and_export"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-05-implement-linear-light-compositing/verification.md"
+      ],
+      "pr": 142,
+      "head": "b0a9075f3303fb0a3dc3104efa1da1a562c4cc5a",
+      "prState": "MERGED",
+      "ciRun": "37321368419",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "linear_source_over_matches_independent_alpha_oracle": [
+          "crates/editor-core/src/render_artifact/extended_visual.rs:1256"
+        ],
+        "linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_oracle": [
+          "crates/editor-core/src/evaluated_scene/temporal_fixture_tests.rs:1204"
+        ],
+        "native_linear_overlap_matches_frame_range_draft_and_export": [
+          "crates/editor-core/src/renderer/golden/linear.rs:221"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Premultiplied linear source/effect/affine/matte/shutter/blend pipeline; all intents; finite bounded admission; reviewed reference/report transition.",
+        "successStandaloneAliasBatchAndHistory": "Existing typed core operations;49capability introduces no new mutation",
+        "invalidMissingConflictRollback": "Existing typed transactions and49finite/memory/missingbackend tests",
+        "currentRetainedMigration": "N/A49no authored schema change",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "linear_source_over_matches_independent_alpha_oracle",
+          "linear_crop_ordered_effects_ancestor_affine_and_opacity_have_independent_oracle",
+          "native_linear_overlap_matches_frame_range_draft_and_export"
+        ],
+        "docs": "docs/linear-light-compositing.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-05T14:39:23Z",
+        "draft": false,
+        "head": "b0a9075f3303fb0a3dc3104efa1da1a562c4cc5a",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-142.json": "6fc01710a0d3ef2bcb4887cc2bee281a0b999b86eb43e946e587fb1205016017",
+        "run-37321368419.json": "b3e06d123c190599a4ad7f3ed96cd2b29fc3f9e698c745a8d9cca21092d73eb2"
+      }
+    },
+    {
+      "issue": 50,
+      "scope": "Closed alpha/luma painted-path models, ordered operations/transforms/feather/expansion; schema32 metadata-only adoption and lifecycle.",
+      "archive": "openspec/changes/archive/2026-10-05-add-mask-models-and-validation",
+      "authoredRequirementEntries": 11,
+      "scenarios": 25,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults",
+            "Preserve identity rendering of authored mask models"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Mask metadata preserves current evaluated rendering",
+          "scenarios": [
+            "Preserve every intent with authored masks",
+            "Keep render failures and budgets unchanged"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Reviewed additive mask MCP digest transition",
+          "scenarios": [
+            "Prove the additive contract boundary"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Closed painted path mask records",
+          "scenarios": [
+            "Accept meaningful alpha and luma descriptions",
+            "Reject malformed and unsafe descriptions"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Bounded stored mask ownership",
+          "scenarios": [
+            "Enforce inclusive stored bounds",
+            "Preserve scoped identity and target eligibility"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Transactional ordered mask edits",
+          "scenarios": [
+            "Author and reorder through standalone and alias batch edits",
+            "Preserve omit clear and atomic failure semantics"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Explicit inactive rendering interpretation",
+          "scenarios": [
+            "Distinguish authored model support from rendering readiness"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Schema32 mask model migration",
+          "scenarios": [
+            "Migrate retained history and reopen deterministically",
+            "Reject premature and future retained fields"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic mask migration and draft validation",
+          "scenarios": [
+            "Preserve an invalid applicable draft generation",
+            "Preserve unavailable-base stale drafts",
+            "Preserve crash-consistent generation boundaries"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "canonical_cases_and_ordered_stacks_use_the_public_owner_and_preserve_rejected_bytes",
+        "predecessor_migration_preserves_managed_resource_provenance_and_revision",
+        "native_activated_masks_preserve_strict_frame_range_draft_export_witnesses"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-05-add-mask-models-and-validation/verification.md"
+      ],
+      "pr": 143,
+      "head": "62c30eb224d36e0b0a73c88362e4423555a084f7",
+      "prState": "MERGED",
+      "ciRun": "37340769145",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "canonical_cases_and_ordered_stacks_use_the_public_owner_and_preserve_rejected_bytes": [
+          "crates/editor-core/tests/mask_models.rs:124"
+        ],
+        "predecessor_migration_preserves_managed_resource_provenance_and_revision": [
+          "crates/editor-core/tests/mask_models.rs:601"
+        ],
+        "native_activated_masks_preserve_strict_frame_range_draft_export_witnesses": [
+          "crates/editor-core/tests/mask_models.rs:684"
+        ],
+        "aliases_order_omission_clear_and_history_are_exact_after_reopen": [
+          "crates/editor-core/tests/mask_models.rs:188"
+        ],
+        "invalid_later_batch_and_draft_edits_preserve_every_authoritative_and_resource_byte": [
+          "crates/editor-core/tests/mask_models.rs:222"
+        ],
+        "predecessor_migration_adopts_current_undo_redo_and_applicable_draft_without_rewriting_reopen": [
+          "crates/editor-core/tests/mask_models.rs:309"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Closed alpha/luma painted-path models, ordered operations/transforms/feather/expansion; schema32 metadata-only adoption and lifecycle.",
+        "successStandaloneAliasBatchAndHistory": "aliases_order_omission_clear_and_history_are_exact_after_reopen",
+        "invalidMissingConflictRollback": "invalid_later_batch_and_draft_edits_preserve_every_authoritative_and_resource_byte",
+        "currentRetainedMigration": "predecessor_migration_adopts_current_undo_redo_and_applicable_draft_without_rewriting_reopen",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "canonical_cases_and_ordered_stacks_use_the_public_owner_and_preserve_rejected_bytes",
+          "predecessor_migration_preserves_managed_resource_provenance_and_revision",
+          "native_activated_masks_preserve_strict_frame_range_draft_export_witnesses"
+        ],
+        "docs": "docs/mask-models.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-05T17:02:36Z",
+        "draft": false,
+        "head": "62c30eb224d36e0b0a73c88362e4423555a084f7",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-143.json": "1d282daa5bc044a2bcc3ba7bfe255be96da8aa1889ff10f9703141de2f6c6414",
+        "run-37340769145.json": "4f48473b28672718fe57e5535ddfdcccec2e24a455191f0b61d5e348dba5dd9f"
+      }
+    },
+    {
+      "issue": 51,
+      "scope": "Deterministic static/animated raster masks,15typed channels,continuous safety and shared budgets; schema33 activation.",
+      "archive": "openspec/changes/archive/2026-10-05-render-static-and-animated-masks",
+      "authoredRequirementEntries": 18,
+      "scenarios": 43,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults",
+            "Activate authored masks before effects"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Shared evaluated mask rendering",
+          "scenarios": [
+            "Compare every production intent with animated masks",
+            "Preserve no-mask output and failures"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Reviewed additive mask MCP digest transition",
+          "scenarios": [
+            "Prove both additive mask boundaries"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Canonical active mask renderer and animation contract",
+          "scenarios": [
+            "Detect algorithm channel and readiness drift"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Explicit mask rendering activation boundary",
+          "scenarios": [
+            "Distinguish model and rendering support after activation",
+            "Preserve deferred source and topology scope"
+          ]
+        },
+        {
+          "capability": "mask-models",
+          "requirement": "Strict-lint-compatible activated mask conformance witnesses",
+          "scenarios": [
+            "Preserve independent witnesses under strict Clippy"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Schema33 mask model and channel migration",
+          "scenarios": [
+            "Migrate retained history and reopen deterministically",
+            "Reject premature and future retained fields",
+            "Reject newly unsafe prior metadata atomically"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic mask activation migration and draft validation",
+          "scenarios": [
+            "Preserve an invalid applicable draft generation",
+            "Preserve unavailable-base stale drafts",
+            "Preserve crash-consistent generation boundaries",
+            "Preserve source-matched channel-only staged requests"
+          ]
+        },
+        {
+          "capability": "animation-channels",
+          "requirement": "Closed typed animation channels",
+          "scenarios": [
+            "Accept supported channel value",
+            "Reject incompatible or unavailable channel",
+            "Reject incompatible transform representation",
+            "Resolve audio gain",
+            "Animate a supported parent"
+          ]
+        },
+        {
+          "capability": "animation-channels",
+          "requirement": "Bounded mask channel targets",
+          "scenarios": [
+            "Target every supported mask property",
+            "Reject missing incompatible or dangling targets atomically"
+          ]
+        },
+        {
+          "capability": "animation-channels",
+          "requirement": "Deterministic complete mask sampling",
+          "scenarios": [
+            "Preserve integer fractional and shutter clocks",
+            "Reject unsafe intermediate mask samples"
+          ]
+        },
+        {
+          "capability": "mask-rendering",
+          "requirement": "Deterministic painted path coverage",
+          "scenarios": [
+            "Distinguish geometry from colored paint",
+            "Preserve empty paths and precise coordinates"
+          ]
+        },
+        {
+          "capability": "mask-rendering",
+          "requirement": "Bounded alpha-aware signed expansion",
+          "scenarios": [
+            "Prove exact distance reconstruction and zero identity",
+            "Preserve thin support and padded boundaries"
+          ]
+        },
+        {
+          "capability": "mask-rendering",
+          "requirement": "Canonical feather and ordered mask composition",
+          "scenarios": [
+            "Prove kernel transform inversion and operation order",
+            "Preserve clipping and source alpha"
+          ]
+        },
+        {
+          "capability": "mask-rendering",
+          "requirement": "Certified mask work and shared live memory",
+          "scenarios": [
+            "Reject EDT kernel and aggregate memory excess",
+            "Reject unsafe curve interiors and singular transforms"
+          ]
+        },
+        {
+          "capability": "mask-rendering",
+          "requirement": "Complete shared sampled masks and readiness",
+          "scenarios": [
+            "Compare every intent at inherited and shutter samples",
+            "Keep unsupported readiness and no-mask compatibility honest"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "native_animated_mask_family_board_preserves_all_intents_and_independent_linear_colors",
+        "native_inherited_mask_shutter_hold_averages_independently_across_all_intents",
+        "coupled_mask_safe_endpoints_do_not_hide_unsafe_continuous_interior"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-05-render-static-and-animated-masks/verification.md"
+      ],
+      "pr": 144,
+      "head": "5f456618b9335a5f87519c5c4375a49e7f52c2d3",
+      "prState": "MERGED",
+      "ciRun": "37373695134",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "native_animated_mask_family_board_preserves_all_intents_and_independent_linear_colors": [
+          "crates/editor-core/tests/mask_rendering.rs:514"
+        ],
+        "native_inherited_mask_shutter_hold_averages_independently_across_all_intents": [
+          "crates/editor-core/tests/mask_rendering.rs:951"
+        ],
+        "coupled_mask_safe_endpoints_do_not_hide_unsafe_continuous_interior": [
+          "crates/editor-core/tests/mask_rendering.rs:135"
+        ],
+        "literal_at_unicode_mask_ids_survive_single_batch_draft_and_missing_controls": [
+          "crates/editor-core/tests/mask_rendering.rs:195"
+        ],
+        "mask_channels_enforce_local_ids_scope_owner_topology_and_atomic_rollback": [
+          "crates/editor-core/tests/mask_rendering.rs:82"
+        ],
+        "schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back": [
+          "crates/editor-core/tests/mask_rendering.rs:360"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Deterministic static/animated raster masks,15typed channels,continuous safety and shared budgets; schema33 activation.",
+        "successStandaloneAliasBatchAndHistory": "literal_at_unicode_mask_ids_survive_single_batch_draft_and_missing_controls",
+        "invalidMissingConflictRollback": "mask_channels_enforce_local_ids_scope_owner_topology_and_atomic_rollback",
+        "currentRetainedMigration": "schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "native_animated_mask_family_board_preserves_all_intents_and_independent_linear_colors",
+          "native_inherited_mask_shutter_hold_averages_independently_across_all_intents",
+          "coupled_mask_safe_endpoints_do_not_hide_unsafe_continuous_interior"
+        ],
+        "docs": "docs/mask-rendering.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-05T23:23:01Z",
+        "draft": false,
+        "head": "5f456618b9335a5f87519c5c4375a49e7f52c2d3",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-144.json": "811129fd35d81d7a30e39f1c480d2f356d0022380bc65be1ec12ccda148e32b5",
+        "run-37373695134.json": "f7ea46dbc6eb43c5de3894dfb7dffc723f2f258b10c7d40c175d5b1d5b81ed04"
+      }
+    },
+    {
+      "issue": 52,
+      "scope": "Scoped alpha/luma providers,matteOnly/audio,DAG/copy/shutter/memo semantics,shared resource ledger; schema34 adoption.",
+      "archive": "openspec/changes/archive/2026-10-06-add-track-mattes",
+      "authoredRequirementEntries": 17,
+      "scenarios": 41,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults",
+            "Activate authored masks before effects",
+            "Activate isolated matte after transforms"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Closed scoped matte references and visibility",
+          "scenarios": [
+            "Author through standalone and creation-alias batches",
+            "Preserve defaults and eligibility failures"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Composition-scoped finite matte dependency DAG",
+          "scenarios": [
+            "Reject hidden scoped cycles and dangling edges",
+            "Accept exact bounds and atomic reference replacement"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Isolated premultiplied provider coverage",
+          "scenarios": [
+            "Distinguish colored alpha luma and stage order",
+            "Use matte-only and inactive providers"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Deterministic occurrence and sampled matte semantics",
+          "scenarios": [
+            "Bind two component occurrences and staggered copies",
+            "Distinguish overlapping copy averaging order",
+            "Preserve nested shutter and exact clock sampling"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Preflight matte work and live memory",
+          "scenarios": [
+            "Reject work memory and nested multiplicity overflow",
+            "Preserve exact absence and complete readiness",
+            "Preserve existing mask reservations under dependency reuse",
+            "Reject invalid premultiplied provider data"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages",
+            "Keep scope occurrence and paint order independent"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Single inward owner for matte dependencies",
+          "scenarios": [
+            "Enforce owner and handoff boundaries"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Shared evaluated track matte semantics",
+          "scenarios": [
+            "Compare analytic and actual native all-intent output",
+            "Validate dependencies before cache hits or output",
+            "Require both defaults for exact bypass"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Canonical matte model graph and renderer contracts",
+          "scenarios": [
+            "Share all public representation and failure cases"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Distinct matte model and complete rendering readiness",
+          "scenarios": [
+            "Reject incomplete readiness and audit digest scope"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Exact matte MCP predecessor projection",
+          "scenarios": [
+            "Reject missing additions and unrelated drift"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift",
+            "Match active authoring and matte schema contracts"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Bounded exact MCP predecessor conformance proof",
+          "scenarios": [
+            "Preserve the complete current and predecessor proof",
+            "Preserve malformed and unrelated drift rejection"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native track-matte CI conformance",
+          "scenarios": [
+            "Execute actual native core and MCP conformance on the CI head",
+            "Reject weakened mandatory matte execution"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic schema 34 scoped matte adoption",
+          "scenarios": [
+            "Adopt all retained generations and resources",
+            "Reject premature or malformed retained data atomically"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Source-matched matte drafts and journal recovery",
+          "scenarios": [
+            "Validate stale available and unavailable draft bases",
+            "Preserve recovery across publication phases"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "native_alpha_luma_chain_hidden_offscreen_mask_effect_affine_and_audio_all_intents",
+        "native_repeater_copy_shutters_before_aggregate_and_nested_recipient_shutter_all_intents",
+        "native_pinned_text_provider_real_fitting_and_glyph_interior_all_intents"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-06-add-track-mattes/public-native-boundary-verification.md",
+        "openspec/changes/archive/2026-10-06-add-track-mattes/native-boundary-verification.md",
+        "openspec/changes/archive/2026-10-06-add-track-mattes/verification-plan.md",
+        "openspec/changes/archive/2026-10-06-add-track-mattes/verification-report.md"
+      ],
+      "pr": 145,
+      "head": "65e89d637d882d56aa98735aae9374de6a0da9fe",
+      "prState": "MERGED",
+      "ciRun": "37458611299",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "native_alpha_luma_chain_hidden_offscreen_mask_effect_affine_and_audio_all_intents": [
+          "crates/editor-core/tests/track_mattes_native.rs:639"
+        ],
+        "native_repeater_copy_shutters_before_aggregate_and_nested_recipient_shutter_all_intents": [
+          "crates/editor-core/tests/track_mattes_native.rs:920"
+        ],
+        "native_pinned_text_provider_real_fitting_and_glyph_interior_all_intents": [
+          "crates/editor-core/tests/track_mattes_native.rs:759"
+        ],
+        "public_matte_fields_are_observable_and_omission_null_and_visibility_are_distinct": [
+          "crates/editor-core/tests/track_mattes.rs:38"
+        ],
+        "matte_graph_failures_are_atomic_and_delete_clear_batch_validates_final_candidate": [
+          "crates/editor-core/tests/track_mattes.rs:88"
+        ],
+        "genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_changes": [
+          "crates/editor-core/tests/track_mattes.rs:276"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Scoped alpha/luma providers,matteOnly/audio,DAG/copy/shutter/memo semantics,shared resource ledger; schema34 adoption.",
+        "successStandaloneAliasBatchAndHistory": "public_matte_fields_are_observable_and_omission_null_and_visibility_are_distinct",
+        "invalidMissingConflictRollback": "matte_graph_failures_are_atomic_and_delete_clear_batch_validates_final_candidate",
+        "currentRetainedMigration": "genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_changes",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "native_alpha_luma_chain_hidden_offscreen_mask_effect_affine_and_audio_all_intents",
+          "native_repeater_copy_shutters_before_aggregate_and_nested_recipient_shutter_all_intents",
+          "native_pinned_text_provider_real_fitting_and_glyph_interior_all_intents"
+        ],
+        "docs": "docs/track-mattes.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-06T19:12:57Z",
+        "draft": false,
+        "head": "65e89d637d882d56aa98735aae9374de6a0da9fe",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-145.json": "d59f5c69c3a06b07a685685a8f7656aa51f3dfa80e1d00313c109f237c83e753",
+        "run-37458611299.json": "baf973a169e4d9d55d539f5d63c81a2262d84008acc9029be08b1cbb17c4a7cd"
+      }
+    },
+    {
+      "issue": 53,
+      "scope": "Seven premultiplied blend modes,one final blend per occurrence,transparent provider independence,graph-free resources; schema35 adoption.",
+      "archive": "openspec/changes/archive/2026-10-06-add-blend-modes",
+      "authoredRequirementEntries": 16,
+      "scenarios": 44,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults",
+            "Activate authored masks before effects",
+            "Activate isolated matte after transforms",
+            "Activate linear blend after source shutter averaging"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages",
+            "Preserve active defaults and complete readiness",
+            "Keep scope occurrence and paint order independent",
+            "Keep Caption source assembly as one blend unit"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Shared evaluated blend selection and public native lifecycle",
+          "scenarios": [
+            "Compare all modes Caption and normal all-intent evidence",
+            "Exercise actual public noncommuting reorder lifecycle",
+            "Reject incomplete rendering before publication"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Closed default-normal blend selection",
+          "scenarios": [
+            "Author all seven selections with lifecycle and aliases",
+            "Reject malformed unsupported missing and stale edits atomically"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Seven premultiplied linear destination blend equations",
+          "scenarios": [
+            "Match independent translucent and transparent unit equations",
+            "Correct accepted near-alpha roundoff before division",
+            "Preserve actual opaque black background"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "One final blend per owning evaluated occurrence",
+          "scenarios": [
+            "Distinguish source averaging from averaging nonlinear blend",
+            "Blend multiline Caption as one source occurrence",
+            "Observe order and inherited stage effects"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Matte providers ignore destination blend selection",
+          "scenarios": [
+            "Change provider mode without changing coverage"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Bounded fail-closed blend execution and normal identity",
+          "scenarios": [
+            "Preserve exact normal and reject bounded overflow",
+            "Activate shared bounded resources without a provider graph",
+            "Preserve provider-only accounting and completed owner facts",
+            "Preserve original destination until infallible commit"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Canonical blend model formula and public contracts",
+          "scenarios": [
+            "Exercise all declared consumers and public failures"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Distinct model and complete blend rendering readiness",
+          "scenarios": [
+            "Scope capability and exact predecessor digest transition"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift",
+            "Match active authoring and matte schema contracts"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Bounded exact MCP predecessor conformance proof",
+          "scenarios": [
+            "Preserve the complete current and predecessor proof",
+            "Preserve malformed and unrelated drift rejection"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native track-matte CI conformance",
+          "scenarios": [
+            "Execute actual native core and MCP conformance on the CI head",
+            "Reject weakened mandatory matte execution"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native blend-mode CI conformance",
+          "scenarios": [
+            "Execute actual native core and public blend conformance",
+            "Reject weakened mandatory blend execution"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic schema 35 default-normal blend migration",
+          "scenarios": [
+            "Adopt genuine predecessor current history and resources",
+            "Reject premature malformed or future retained fields"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Source-matched blend drafts and complete journal recovery",
+          "scenarios": [
+            "Validate stale and unavailable bases without current replay",
+            "Preserve failure and interrupted publication atomicity"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "native_seven_modes_full_independent_plate_draft_history_reopen_range_export_audio",
+        "native_real_shutter_source_average_precedes_nonlinear_add_once",
+        "native_provider_blend_is_coverage_independent_and_only_visible_direct_draw_changes"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-06-add-blend-modes/conformance-trace.md"
+      ],
+      "pr": 146,
+      "head": "6bd39ed327d3288ea5556ad3c56078672e427fc0",
+      "prState": "MERGED",
+      "ciRun": "37489175452",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "native_seven_modes_full_independent_plate_draft_history_reopen_range_export_audio": [
+          "crates/editor-core/tests/blend_modes_native.rs:524"
+        ],
+        "native_real_shutter_source_average_precedes_nonlinear_add_once": [
+          "crates/editor-core/tests/blend_modes_native.rs:774"
+        ],
+        "native_provider_blend_is_coverage_independent_and_only_visible_direct_draw_changes": [
+          "crates/editor-core/tests/blend_modes_native.rs:815"
+        ],
+        "canonical_selections_omission_reset_history_and_reopen_use_public_owner": [
+          "crates/editor-core/tests/blend_modes.rs:54"
+        ],
+        "missing_target_and_stale_revision_preserve_stable_errors_and_state": [
+          "crates/editor-core/tests/blend_modes.rs:145"
+        ],
+        "current_and_retained_absence_migrate_once_and_pre35_history_presence_rejects_atomically": [
+          "crates/editor-core/tests/blend_modes.rs:252"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Seven premultiplied blend modes,one final blend per occurrence,transparent provider independence,graph-free resources; schema35 adoption.",
+        "successStandaloneAliasBatchAndHistory": "canonical_selections_omission_reset_history_and_reopen_use_public_owner",
+        "invalidMissingConflictRollback": "missing_target_and_stale_revision_preserve_stable_errors_and_state",
+        "currentRetainedMigration": "current_and_retained_absence_migrate_once_and_pre35_history_presence_rejects_atomically",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "native_seven_modes_full_independent_plate_draft_history_reopen_range_export_audio",
+          "native_real_shutter_source_average_precedes_nonlinear_add_once",
+          "native_provider_blend_is_coverage_independent_and_only_visible_direct_draw_changes"
+        ],
+        "docs": "docs/blend-modes.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-06T19:13:15Z",
+        "draft": false,
+        "head": "6bd39ed327d3288ea5556ad3c56078672e427fc0",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-146.json": "f442c59296694f69308430a78882fb61b42e8fef7e9b5e803f1fa1856a90e72a",
+        "run-37489175452.json": "9a3ed8043356dbc7bb22097a96f621d97bcc73cd4ef3305955356622cb4292d8"
+      }
+    },
+    {
+      "issue": 54,
+      "scope": "Persisted16record ordered effects,stable IDs/channel targets,noncommuting independent plates,atomic staged adoption without new schema.",
+      "archive": "openspec/changes/archive/2026-10-06-prove-ordered-effect-stacks",
+      "authoredRequirementEntries": 8,
+      "scenarios": 23,
+      "acceptedRequirements": [
+        {
+          "capability": "visual-effects",
+          "requirement": "Bounded authored effect stacks",
+          "scenarios": [
+            "Edit bounded effects transactionally",
+            "Reject invalid stacks and references",
+            "Preserve omission clear and stable target identity"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Canonical effect composition",
+          "scenarios": [
+            "Preserve ordered effects and anchors",
+            "Prove independent nonexpanding effect order",
+            "Fail bounded work without side effects",
+            "Preserve identity and encoded-color interpretation"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Independent public ordered-effect render lifecycle evidence",
+          "scenarios": [
+            "Render both orders through all intents",
+            "Reorder undo redo and reopen through public native operations",
+            "Preserve draft component and scoped channel clock semantics",
+            "Preserve independently predicted expanded effect support"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Governed ordered-effect evidence preserves public contract identity",
+          "scenarios": [
+            "Prove exact fixture-only predecessor and retained history",
+            "Consume one canonical independently expected witness",
+            "Prove exact unchanged public identity"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native track-matte CI conformance",
+          "scenarios": [
+            "Execute actual native core and MCP conformance on the CI head",
+            "Reject weakened mandatory matte execution"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native blend-mode CI conformance",
+          "scenarios": [
+            "Execute actual native core and public blend conformance",
+            "Reject weakened mandatory blend execution"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native ordered-effect CI conformance",
+          "scenarios": [
+            "Execute actual core and public ordered-effect evidence",
+            "Reject weakened ordered-effect native execution"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Ordered-effect retained generation conformance without new migration",
+          "scenarios": [
+            "Preserve both ordered generations through existing adoption",
+            "Reject invalid retained sources before publication",
+            "Adopt ordered edits within one existing transaction"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "native_ordered_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock",
+        "ordered_effect_edits_preserve_staged_resources_and_fault_generations",
+        "native_component_scoped_effect_ids_keep_original_clock_after_reorder_and_ancestor_translation"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-06-prove-ordered-effect-stacks/conformance-trace.md"
+      ],
+      "pr": 147,
+      "head": "016586571e8f49d59aa19062fd59076a017ff128",
+      "prState": "MERGED",
+      "ciRun": "37508868548",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "native_ordered_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock": [
+          "crates/editor-core/tests/ordered_effects_native.rs:542"
+        ],
+        "ordered_effect_edits_preserve_staged_resources_and_fault_generations": [
+          "crates/editor-core/src/store.rs:7723"
+        ],
+        "native_component_scoped_effect_ids_keep_original_clock_after_reorder_and_ancestor_translation": [
+          "crates/editor-core/tests/ordered_effects_native.rs:797"
+        ],
+        "ordered_effect_public_lifecycle_preserves_exact_arrays_aliases_drafts_history_and_reopen": [
+          "crates/editor-core/tests/ordered_effect_stacks.rs:83"
+        ],
+        "ordered_effect_failures_preserve_complete_current_history_draft_and_resources": [
+          "crates/editor-core/tests/ordered_effect_stacks.rs:156"
+        ],
+        "genuine_schema34_ordered_effect_adoption_preserves_all_orders_resources_and_provenance": [
+          "crates/editor-core/src/store.rs:7452"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Persisted16record ordered effects,stable IDs/channel targets,noncommuting independent plates,atomic staged adoption without new schema.",
+        "successStandaloneAliasBatchAndHistory": "ordered_effect_public_lifecycle_preserves_exact_arrays_aliases_drafts_history_and_reopen",
+        "invalidMissingConflictRollback": "ordered_effect_failures_preserve_complete_current_history_draft_and_resources",
+        "currentRetainedMigration": "genuine_schema34_ordered_effect_adoption_preserves_all_orders_resources_and_provenance",
+        "migrationQualification": "54introduces no new persisted shape; genuine34adoption preserves inherited order.57/58also no new migration.",
+        "deterministicSharedPreviewExport": [
+          "native_ordered_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock",
+          "ordered_effect_edits_preserve_staged_resources_and_fault_generations",
+          "native_component_scoped_effect_ids_keep_original_clock_after_reorder_and_ancestor_translation"
+        ],
+        "docs": "docs/extended-visual-animation.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-06T19:13:35Z",
+        "draft": false,
+        "head": "016586571e8f49d59aa19062fd59076a017ff128",
+        "base": "main",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-147.json": "6d655d8f8dba24e5130ac746c0780dd637c6a017a2d91d52a662d08bc55cd113",
+        "run-37508868548.json": "56422f5fb19fcb388b2fb4d6995950b248133dd6577df7fee2eb95ca062939b1"
+      }
+    },
+    {
+      "issue": 55,
+      "scope": "Existing blur/glow/tint/vignette plus color adjustment,finite alpha-safe equations/final clamp,full intents; schema36 adoption.",
+      "archive": "openspec/changes/archive/2026-10-06-add-parameterized-color-effects",
+      "authoredRequirementEntries": 10,
+      "scenarios": 29,
+      "acceptedRequirements": [
+        {
+          "capability": "visual-effects",
+          "requirement": "Bounded authored effect stacks",
+          "scenarios": [
+            "Edit bounded effects transactionally",
+            "Reject invalid stacks and references",
+            "Preserve omission clear and stable target identity"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Canonical effect composition",
+          "scenarios": [
+            "Preserve ordered effects and anchors",
+            "Prove independent nonexpanding effect order",
+            "Fail bounded work without side effects",
+            "Preserve identity and encoded-color interpretation"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Deterministic parameterized color-control evidence",
+          "scenarios": [
+            "Validate all parameter endpoints and failures",
+            "Preserve independent color and alpha semantics",
+            "Preserve stable targets and observable order"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Independent parameterized effect render-intent conformance",
+          "scenarios": [
+            "Prove new color controls across all intents",
+            "Prove positive Gaussian with the existing effect set",
+            "Preserve admission failure and artifacts"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift",
+            "Match active authoring and matte schema contracts"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Bounded exact MCP predecessor conformance proof",
+          "scenarios": [
+            "Preserve the complete current and predecessor proof",
+            "Preserve malformed and unrelated drift rejection",
+            "Preserve fresh own-key JSON copies within bounded proof"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Governed parameterized effects public parity",
+          "scenarios": [
+            "Discover and execute the fifth typed effect",
+            "Reject unapproved public and predecessor drift"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native parameterized-effect CI conformance",
+          "scenarios": [
+            "Execute actual parameterized native artifacts",
+            "Reject weakened parameterized native execution"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic schema36 color-control activation",
+          "scenarios": [
+            "Migrate authentic schema35 generations together",
+            "Reject premature malformed and future sources",
+            "Preserve current color-control histories"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Source-matched color-control drafts and complete recovery",
+          "scenarios": [
+            "Preserve matched stale and unavailable base policies",
+            "Recover complete color-effect generations"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "native_parameterized_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock",
+        "color_stack_limits_and_incompatible_animation_targets_are_atomic",
+        "parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-06-add-parameterized-color-effects/conformance.md",
+        "openspec/changes/archive/2026-10-06-add-parameterized-color-effects/verification.md"
+      ],
+      "pr": 148,
+      "head": "ef94d8267216211164e03978c1c81e8dfc7e8694",
+      "prState": "MERGED",
+      "ciRun": "37527736697",
+      "ciJobsSuccess": 11,
+      "actualWorkflowBaseQualification": "Saved PR current base is metadata; no inference run executed against that same base",
+      "sourceWitnessLocations": {
+        "native_parameterized_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock": [
+          "crates/editor-core/tests/parameterized_effects_native.rs:548"
+        ],
+        "color_stack_limits_and_incompatible_animation_targets_are_atomic": [
+          "crates/editor-core/tests/parameterized_effects.rs:282"
+        ],
+        "parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract": [
+          "apps/headless/tests/protocol.rs:72"
+        ],
+        "parameterized_effect_public_lifecycle_preserves_exact_arrays_aliases_drafts_history_and_reopen": [
+          "crates/editor-core/tests/parameterized_effects.rs:87"
+        ],
+        "parameterized_effect_failures_preserve_complete_current_history_draft_and_resources": [
+          "crates/editor-core/tests/parameterized_effects.rs:161"
+        ],
+        "genuine_schema35_parameterized_effect_adoption_preserves_all_orders_resources_and_provenance": [
+          "crates/editor-core/src/store.rs:8116"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "Existing blur/glow/tint/vignette plus color adjustment,finite alpha-safe equations/final clamp,full intents; schema36 adoption.",
+        "successStandaloneAliasBatchAndHistory": "parameterized_effect_public_lifecycle_preserves_exact_arrays_aliases_drafts_history_and_reopen",
+        "invalidMissingConflictRollback": "parameterized_effect_failures_preserve_complete_current_history_draft_and_resources",
+        "currentRetainedMigration": "genuine_schema35_parameterized_effect_adoption_preserves_all_orders_resources_and_provenance",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "native_parameterized_effect_intents_draft_commit_undo_redo_reopen_preserve_real_audio_and_original_clock",
+          "color_stack_limits_and_incompatible_animation_targets_are_atomic",
+          "parameterized_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract"
+        ],
+        "docs": "docs/parameterized-effects.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "closed",
+        "mergedAt": "2026-10-06T21:34:53Z",
+        "draft": false,
+        "head": "ef94d8267216211164e03978c1c81e8dfc7e8694",
+        "base": "feat/issue-54-ordered-effects-20261006",
+        "issueState": "closed"
+      },
+      "ciStatus": "Historical matching11SUCCESS receipt; final58tree requires fresh gates",
+      "historicalReceiptBindings": {
+        "pr-148.json": "12ba4867cb7ee543d5d45da6007aaed27c81be6fd572d9cfdbc78bab0c925cf6",
+        "run-37527736697.json": "e219ed1dced8a226d0037df4354888b219adac090ad4bb6fc5c485b48db317bb"
+      }
+    },
+    {
+      "issue": 56,
+      "scope": "ScreenFlash/ParticleOverlay/Group+Instance isolation andclip,relative temporal boundaries,signed private queries and continuous admission; schema37 adoption.",
+      "archive": "openspec/changes/archive/2026-10-07-add-group-compositing-overlays",
+      "authoredRequirementEntries": 27,
+      "scenarios": 101,
+      "acceptedRequirements": [
+        {
+          "capability": "linear-light-compositing",
+          "requirement": "Explicit current layer pipeline",
+          "scenarios": [
+            "Observe crop effects and affine ordering",
+            "Blend mixed current sources in evaluated order",
+            "Preserve absent-stage defaults",
+            "Activate authored masks before effects",
+            "Activate isolated matte after transforms",
+            "Activate linear blend after source shutter averaging",
+            "Compose explicit controlled linear aggregates"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Isolated premultiplied provider coverage",
+          "scenarios": [
+            "Distinguish colored alpha luma and stage order",
+            "Use matte-only and inactive providers",
+            "Separate private providers from aggregate drawing"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Deterministic occurrence and sampled matte semantics",
+          "scenarios": [
+            "Bind two component occurrences and staggered copies",
+            "Distinguish overlapping copy averaging order",
+            "Preserve nested shutter and exact clock sampling",
+            "Query certified offcanvas provider domains"
+          ]
+        },
+        {
+          "capability": "track-mattes",
+          "requirement": "Preflight matte work and live memory",
+          "scenarios": [
+            "Reject work memory and nested multiplicity overflow",
+            "Preserve exact absence and complete readiness",
+            "Preserve existing mask reservations under dependency reuse",
+            "Reject invalid premultiplied provider data",
+            "Certify aggregate query memory and multiplicity"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Normative coordinate and compositing semantics",
+          "scenarios": [
+            "Resolve equal z-index layers",
+            "Evaluate an inherited visual",
+            "Distinguish current and future pipeline stages",
+            "Preserve active defaults and complete readiness",
+            "Keep scope occurrence and paint order independent",
+            "Keep Caption source assembly as one blend unit",
+            "Distinguish isolated and root blend backdrops"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Canonical group ancestor evaluation",
+          "scenarios": [
+            "Evaluate nested transforms independently",
+            "Apply visibility and intervals",
+            "Preserve ordering and legacy behavior",
+            "Inherit animated ancestors and staggered clocks",
+            "Preserve defaults and activate explicit group blocks"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Hierarchical instance transforms and stacking",
+          "scenarios": [
+            "Resolve nested coordinates and order",
+            "Preserve shared evaluation and overflow behavior",
+            "Distinguish nested isolated instance stages"
+          ]
+        },
+        {
+          "capability": "motion-graphics-architecture",
+          "requirement": "Certified controlled aggregate evaluation",
+          "scenarios": [
+            "Retain signed offcanvas support before culling",
+            "Reject exact count work capacity and geometry overflow"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Bounded authored effect stacks",
+          "scenarios": [
+            "Edit bounded effects transactionally",
+            "Reject invalid stacks and references",
+            "Preserve omission clear and stable target identity",
+            "Keep aggregate and overlay target activation finite"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Canonical effect composition",
+          "scenarios": [
+            "Preserve ordered effects and anchors",
+            "Prove independent nonexpanding effect order",
+            "Fail bounded work without side effects",
+            "Preserve identity and encoded-color interpretation",
+            "Distinguish aggregate effects and clip order"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Bounded coverage-preserving screen flash",
+          "scenarios": [
+            "Prove envelope color and coverage independently",
+            "Reject malformed flash atomically"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Bounded deterministic particle overlay",
+          "scenarios": [
+            "Prove hash clocks coverage and stacking independently",
+            "Distinguish particle stack order and identities",
+            "Reject finite bounds and excessive sampled work",
+            "Retain density ownership and degenerate identity"
+          ]
+        },
+        {
+          "capability": "visual-effects",
+          "requirement": "Explicit bounded composition clip",
+          "scenarios": [
+            "Author preserve clear and restore spatial clip",
+            "Reject unsupported or malformed clipping atomically"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Independent public ordered-effect render lifecycle evidence",
+          "scenarios": [
+            "Render both orders through all intents",
+            "Reorder undo redo and reopen through public native operations",
+            "Preserve draft component and scoped channel clock semantics",
+            "Preserve independently predicted expanded effect support"
+          ]
+        },
+        {
+          "capability": "rendering-export",
+          "requirement": "Independent group overlay render-intent conformance",
+          "scenarios": [
+            "Prove positive all-intent plates and audio",
+            "Fail complete readiness and output admission"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Seven premultiplied linear destination blend equations",
+          "scenarios": [
+            "Match independent translucent and transparent unit equations",
+            "Correct accepted near-alpha roundoff before division",
+            "Preserve actual opaque black background",
+            "Distinguish transparent controlled and opaque root destinations"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "One final blend per owning evaluated occurrence",
+          "scenarios": [
+            "Distinguish source averaging from averaging nonlinear blend",
+            "Blend multiline Caption as one source occurrence",
+            "Observe order and inherited stage effects",
+            "Retain one child blend inside explicit isolation"
+          ]
+        },
+        {
+          "capability": "blend-modes",
+          "requirement": "Bounded fail-closed blend execution and normal identity",
+          "scenarios": [
+            "Preserve exact normal and reject bounded overflow",
+            "Activate shared bounded resources without a provider graph",
+            "Preserve provider-only accounting and completed owner facts",
+            "Preserve original destination until infallible commit",
+            "Retain bounded blend closure through controlled draws"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Active mask authoring contract and capability",
+          "scenarios": [
+            "Detect supported mask models through unavailable rendering",
+            "Reject cross-language catalog drift",
+            "Synchronize current catalog schema markers without feature drift",
+            "Match active authoring and matte schema contracts",
+            "Synchronize schema37 without historical drift"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Bounded exact MCP predecessor conformance proof",
+          "scenarios": [
+            "Preserve the complete current and predecessor proof",
+            "Preserve malformed and unrelated drift rejection",
+            "Preserve fresh own-key JSON copies within bounded proof",
+            "Reject broadened group predecessor projection"
+          ]
+        },
+        {
+          "capability": "contract-governance",
+          "requirement": "Governed group compositing and overlay parity",
+          "scenarios": [
+            "Discover model versus complete renderer support",
+            "Detect exact registered cross-language drift"
+          ]
+        },
+        {
+          "capability": "motion-blur-sampling",
+          "requirement": "Canonical deterministic shutter interval",
+          "scenarios": [
+            "Sample inherited boundaries",
+            "Clamp the timeline boundaries",
+            "Floor exact midpoint boundaries for every allowed count",
+            "Freeze only explicit aggregate outward ancestry"
+          ]
+        },
+        {
+          "capability": "motion-blur-sampling",
+          "requirement": "Shared bounded temporal composition",
+          "scenarios": [
+            "Preserve full inherited motion and ordering",
+            "Bound work and preserve output",
+            "Preserve audio and compatibility",
+            "Preserve controlled nested shutter all-intent parity"
+          ]
+        },
+        {
+          "capability": "repository-validation",
+          "requirement": "Mandatory native group compositing CI conformance",
+          "scenarios": [
+            "Execute actual aggregate and overlay artifacts",
+            "Reject weakened group native execution"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Atomic schema37 aggregate and overlay activation",
+          "scenarios": [
+            "Migrate complete authentic generations without controls",
+            "Reject premature malformed or future generations"
+          ]
+        },
+        {
+          "capability": "project-persistence",
+          "requirement": "Source-matched aggregate drafts and complete recovery",
+          "scenarios": [
+            "Validate matched drafts and preserve unmatched disposition",
+            "Recover all applicable interrupted boundaries"
+          ]
+        },
+        {
+          "capability": "timeline-editing",
+          "requirement": "Non-drawing group timeline nodes",
+          "scenarios": [
+            "Create and edit a group",
+            "Reject unsupported group edits",
+            "Duplicate a node",
+            "Duplicate and ungroup controlled nodes reversibly"
+          ]
+        }
+      ],
+      "representativeWitnesses": [
+        "independent_complete_flash_particle_positive_gaussian_and_noncommuting_order_plates",
+        "signed_private_provider_excludes_owner_halo_and_uses_full_world_unequal_shutters_and_opacity",
+        "group_compositing_public_intents_drafts_history_original_clock_grid_duration_and_positive_pcm"
+      ],
+      "conformanceFiles": [
+        "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/conformance.md",
+        "openspec/changes/archive/2026-10-07-add-group-compositing-overlays/verification.md"
+      ],
+      "pr": 150,
+      "head": "abc06b75d491d10ddd5aa3cf7bda0638aa437fe7",
+      "ciRun": 37561714579,
+      "ciJobsSuccess": 11,
+      "foundation": "Not yet terminal; all11success required",
+      "localEvidence": "36completedrequired suites;79source/11doc frozen;101exacttrace;postarchiveprotected/strict44passed;integration23passedwithlocalNodeworkermax-opt0 afternormalOOM;smoke20normalworker;Python12+5",
+      "sourceWitnessLocations": {
+        "independent_complete_flash_particle_positive_gaussian_and_noncommuting_order_plates": [
+          "crates/editor-core/tests/group_compositing_native.rs:479"
+        ],
+        "signed_private_provider_excludes_owner_halo_and_uses_full_world_unequal_shutters_and_opacity": [
+          "crates/editor-core/tests/group_compositing_native.rs:710"
+        ],
+        "group_compositing_public_intents_drafts_history_original_clock_grid_duration_and_positive_pcm": [
+          "crates/editor-core/tests/group_compositing_native.rs:512"
+        ],
+        "clip_and_ordered_overlay_lifecycle_preserves_aliases_drafts_history_null_clear_and_reopen": [
+          "crates/editor-core/tests/group_compositing_models.rs:234"
+        ],
+        "canonical_overlay_endpoints_closed_fields_and_atomic_later_batch_failures": [
+          "crates/editor-core/tests/group_compositing_models.rs:311"
+        ],
+        "authentic_schema36_adoption_migrates_complete_history_without_enabling_controls_or_changing_identity": [
+          "crates/editor-core/tests/group_compositing_models.rs:432"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": "ScreenFlash/ParticleOverlay/Group+Instance isolation andclip,relative temporal boundaries,signed private queries and continuous admission; schema37 adoption.",
+        "successStandaloneAliasBatchAndHistory": "clip_and_ordered_overlay_lifecycle_preserves_aliases_drafts_history_null_clear_and_reopen",
+        "invalidMissingConflictRollback": "canonical_overlay_endpoints_closed_fields_and_atomic_later_batch_failures",
+        "currentRetainedMigration": "authentic_schema36_adoption_migrates_complete_history_without_enabling_controls_or_changing_identity",
+        "migrationQualification": "Final58tree must preserve current/history/own-base draft and resource migration evidence",
+        "deterministicSharedPreviewExport": [
+          "independent_complete_flash_particle_positive_gaussian_and_noncommuting_order_plates",
+          "signed_private_provider_excludes_owner_halo_and_uses_full_world_unequal_shutters_and_opacity",
+          "group_compositing_public_intents_drafts_history_original_clock_grid_duration_and_positive_pcm"
+        ],
+        "docs": "docs/group-compositing.md",
+        "contracts": "Governed catalogs in contracts with contracts:check and ownership registry; actual table is preserved from epic-audit-planning.md"
+      },
+      "liveGitHub": {
+        "state": "open",
+        "mergedAt": null,
+        "draft": true,
+        "head": "abc06b75d491d10ddd5aa3cf7bda0638aa437fe7",
+        "base": "main",
+        "issueState": "open"
+      },
+      "ciStatus": "completed success independently refreshed; draftPR150 remains OPEN unmerged, issue56OPEN",
+      "historicalSupersededFields": {
+        "ciObservedAt": "2026-10-07T02:09:35.036921+00:00",
+        "ciSnapshot": "/workspace/.opencut-tools/logs/continuation/issue56/ci-dcc6b28b/snapshot-1791338975036982206.json",
+        "ciRemaining": [
+          [
+            "Correctness (macos-latest)",
+            "in_progress",
+            null
+          ],
+          [
+            "Correctness (windows-latest)",
+            "in_progress",
+            null
+          ]
+        ],
+        "publicationQualification": "Exactheadall11notpassed; Windows failure reported byroot, correctionpendingapproval."
+      }
+    },
+    {
+      "issue": 57,
+      "scope": "Bounded scoped masks/mattes/blend/all7effects/aggregate clip over existing typedAPI; immutable cursors/complete records/exactf64/u16/u32/guards/actualGPUI",
+      "archive": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls",
+      "authoredRequirementEntries": 14,
+      "scenarios": 31,
+      "scenarioMapping": [
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "C25 Match controls defaults and unchanged public surfaces",
+          "desktopTests": [
+            "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity",
+            "desktop_compositing_catalog_bounds_choices_readonly_eligibility_and_semantics_are_exact"
+          ],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing.test.ts",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "C26 Exercise standalone alias batch and rollback parity",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing.test.ts",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "Accept synchronized contracts",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "scripts/validate-ci-gates.test.ts",
+            "scripts/run-ci-policy.test.ts",
+            "scripts/run-ci-policy.integration.test.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "Reject fixture or consumer drift",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "scripts/validate-ci-gates.test.ts",
+            "scripts/run-ci-policy.test.ts",
+            "scripts/run-ci-policy.integration.test.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "Reject an injected contract preparation step",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "scripts/validate-ci-gates.test.ts",
+            "scripts/run-ci-policy.test.ts",
+            "scripts/run-ci-policy.integration.test.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "Reject a neutralized contract command",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "scripts/validate-ci-gates.test.ts",
+            "scripts/run-ci-policy.test.ts",
+            "scripts/run-ci-policy.integration.test.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/contract-governance/spec.md",
+          "scenario": "Preserve current contract compatibility",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "scripts/validate-ci-gates.test.ts",
+            "scripts/run-ci-policy.test.ts",
+            "scripts/run-ci-policy.integration.test.ts"
+          ],
+          "requiredActualGui": false,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C1 Inspect eligible leaf owner and scoped audio selections",
+          "desktopTests": [
+            "desktop_compositing_every_item_kind_root_local_and_media_facts",
+            "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C2 Inspect complete retained state",
+          "desktopTests": [
+            "desktop_compositing_legacy_field_vectors_match_frozen_predecessor",
+            "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded",
+            "desktop_compositing_nonempty_representative_predecessor_field_and_animation_equivalence",
+            "desktop_compositing_predecessor_equivalence_for_rich_optional_fields_and_nonempty_animation"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C3 Navigate maximum retained collections",
+          "desktopTests": [
+            "desktop_compositing_maximum_collections_do_not_materialize_unselected_payloads"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C4 Follow stable IDs across collection mutations",
+          "desktopTests": [
+            "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C5 Preserve floating precision and integer endpoints",
+          "desktopTests": [
+            "desktop_compositing_typed_every_mask_and_effect_field_preserves_complete_records"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C6 Reject malformed representations without mutation",
+          "desktopTests": [
+            "desktop_compositing_rejects_malformed_numeric_choice_and_unicode_without_panics"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C7 Apply all selected mask scalar families",
+          "desktopTests": [
+            "desktop_compositing_every_parameter_family_commits_through_existing_core",
+            "desktop_compositing_all_path_coordinate_variants_commit_and_preserve_neighbors"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C8 Retain gradient and command variants",
+          "desktopTests": [
+            "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C9 Add default and preserve ordered masks",
+          "desktopTests": [
+            "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C10 Reject limits and referenced mask deletion",
+          "desktopTests": [
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C11 Apply every effect parameter family",
+          "desktopTests": [
+            "desktop_compositing_every_parameter_family_commits_through_existing_core"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C12 Retain unsupported owner and target behavior",
+          "desktopTests": [
+            "desktop_compositing_every_item_kind_root_local_and_media_facts",
+            "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic",
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+            "desktop_compositing_every_parameter_family_commits_through_existing_core"
+          ],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C13 Add all defaults and reorder noncommuting effects",
+          "desktopTests": [
+            "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity",
+            "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids",
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+            "desktop_compositing_every_parameter_family_commits_through_existing_core"
+          ],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C14 Reject overflow and referenced effect deletion",
+          "desktopTests": [
+            "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C15 Apply blend matte channel clear and matteOnly",
+          "desktopTests": [
+            "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests",
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+            "desktop_compositing_every_parameter_family_commits_through_existing_core"
+          ],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C16 Reject invalid provider graphs",
+          "desktopTests": [
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C17 Set and clear isolated owner clip",
+          "desktopTests": [
+            "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests",
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+            "desktop_compositing_every_parameter_family_commits_through_existing_core"
+          ],
+          "additionalEvidence": [
+            "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity",
+            "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C18 Preserve owner compatibility",
+          "desktopTests": [
+            "desktop_compositing_every_item_kind_root_local_and_media_facts"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C19 Discard obsolete drafts across contexts",
+          "desktopTests": [
+            "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C20 Guard pending and conflicting actions",
+          "desktopTests": [
+            "desktop_compositing_completion_epoch_rejects_aba_selection_reset_and_navigation",
+            "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C21 Preserve full state on valid edits and history",
+          "desktopTests": [
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C22 Preserve failure inventory and explicit refresh",
+          "desktopTests": [
+            "desktop_compositing_core_lifecycle_failures_full_inventory_and_history"
+          ],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C23 Exercise actual built compositing controls",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        },
+        {
+          "spec": "openspec/changes/archive/2026-10-07-add-desktop-compositing-controls/specs/desktop-hierarchy/spec.md",
+          "scenario": "C24 Distinguish GUI state from production rendering",
+          "desktopTests": [],
+          "additionalEvidence": [
+            "/workspace/.opencut-tools/issue57-planning/gui-acceptance-receipt.json",
+            "/workspace/.opencut-tools/issue57-planning/final-gui-production-build-binding.json",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-mask.status",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-matte.status",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-blend.status",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-parameterized.status",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-ordered.status",
+            "/workspace/.opencut-tools/logs/continuation/issue57/verified-native-mcp-group.status"
+          ],
+          "requiredActualGui": true,
+          "acceptanceStatus": "IMPLEMENTED_TESTED_INDEPENDENTLY_REVIEWED"
+        }
+      ],
+      "sourceWitnessLocations": {
+        "desktop_compositing_all_path_coordinate_variants_commit_and_preserve_neighbors": [
+          "apps/desktop/src/compositing_tests.rs:1463"
+        ],
+        "desktop_compositing_catalog_bounds_choices_readonly_eligibility_and_semantics_are_exact": [
+          "apps/desktop/src/compositing_tests.rs:956"
+        ],
+        "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity": [
+          "apps/desktop/src/compositing_tests.rs:82"
+        ],
+        "desktop_compositing_completion_epoch_rejects_aba_selection_reset_and_navigation": [
+          "apps/desktop/src/compositing_tests.rs:913"
+        ],
+        "desktop_compositing_core_lifecycle_failures_full_inventory_and_history": [
+          "apps/desktop/src/compositing_tests.rs:343"
+        ],
+        "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic": [
+          "apps/desktop/src/compositing_tests.rs:1031"
+        ],
+        "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids": [
+          "apps/desktop/src/compositing_tests.rs:243"
+        ],
+        "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field": [
+          "apps/desktop/src/compositing_tests.rs:702"
+        ],
+        "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests": [
+          "apps/desktop/src/compositing_tests.rs:489"
+        ],
+        "desktop_compositing_every_item_kind_root_local_and_media_facts": [
+          "apps/desktop/src/compositing_tests.rs:1123"
+        ],
+        "desktop_compositing_every_parameter_family_commits_through_existing_core": [
+          "apps/desktop/src/compositing_tests.rs:800"
+        ],
+        "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded": [
+          "apps/desktop/src/compositing_tests.rs:282"
+        ],
+        "desktop_compositing_legacy_field_vectors_match_frozen_predecessor": [
+          "apps/desktop/src/compositing_tests.rs:559"
+        ],
+        "desktop_compositing_maximum_collections_do_not_materialize_unselected_payloads": [
+          "apps/desktop/src/compositing_tests.rs:629"
+        ],
+        "desktop_compositing_nonempty_representative_predecessor_field_and_animation_equivalence": [
+          "apps/desktop/src/compositing_tests.rs:1228"
+        ],
+        "desktop_compositing_predecessor_equivalence_for_rich_optional_fields_and_nonempty_animation": [
+          "apps/desktop/src/compositing_tests.rs:1293"
+        ],
+        "desktop_compositing_rejects_malformed_numeric_choice_and_unicode_without_panics": [
+          "apps/desktop/src/compositing_tests.rs:208"
+        ],
+        "desktop_compositing_typed_every_mask_and_effect_field_preserves_complete_records": [
+          "apps/desktop/src/compositing_tests.rs:146"
+        ]
+      },
+      "sharedAcceptanceMapping": {
+        "intendedOutcome": [
+          "desktop_compositing_all_path_coordinate_variants_commit_and_preserve_neighbors",
+          "desktop_compositing_catalog_bounds_choices_readonly_eligibility_and_semantics_are_exact",
+          "desktop_compositing_catalog_defaults_complete_fields_and_surface_identity",
+          "desktop_compositing_completion_epoch_rejects_aba_selection_reset_and_navigation",
+          "desktop_compositing_core_lifecycle_failures_full_inventory_and_history",
+          "desktop_compositing_core_overflow_effect_target_and_locked_collection_failures_are_atomic",
+          "desktop_compositing_cursor_defaults_order_deletion_and_exact_first_unused_ids",
+          "desktop_compositing_draft_identity_guards_each_scope_cursor_revision_and_field",
+          "desktop_compositing_eligibility_matte_clip_omission_and_exact_clear_requests",
+          "desktop_compositing_every_item_kind_root_local_and_media_facts",
+          "desktop_compositing_every_parameter_family_commits_through_existing_core",
+          "desktop_compositing_gradient_and_path_variants_remain_readonly_and_bounded",
+          "desktop_compositing_legacy_field_vectors_match_frozen_predecessor",
+          "desktop_compositing_maximum_collections_do_not_materialize_unselected_payloads",
+          "desktop_compositing_nonempty_representative_predecessor_field_and_animation_equivalence",
+          "desktop_compositing_predecessor_equivalence_for_rich_optional_fields_and_nonempty_animation",
+          "desktop_compositing_rejects_malformed_numeric_choice_and_unicode_without_panics",
+          "desktop_compositing_typed_every_mask_and_effect_field_preserves_complete_records"
+        ],
+        "standaloneAliasBatchHistoryFailure": "apps/headless/tests/protocol.rs::desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity; apps/agent-bridge/tests/desktop-compositing-workflow.ts actualMCP",
+        "migration": "N/A newschema; inherited authentic36\u219237migration must remain passing",
+        "previewExport": "Presentation-only; independently executed configured core/defaultheadless/MCP native/golden/rules; GUI preview placeholder supplies no media claim",
+        "docs": "docs/desktop-compositing-controls.md",
+        "catalog": "contracts/desktop-compositing-controls-v1.json",
+        "actualGUI": "168 hash-bound realGPUI screenshots/state/files with seed4294967295/exact errors/history/scopedreadonly/conflict/refresh/freshreopen"
+      },
+      "liveGitHub": {
+        "state": "open",
+        "draft": true,
+        "head": "c383a2d1fd3aa30de2deefb587fd10ec7e0e5a7d",
+        "base": "feat/issue-56-group-effects-20261006",
+        "mergedAt": null,
+        "issueState": "open"
+      },
+      "head": "c383a2d1fd3aa30de2deefb587fd10ec7e0e5a7d",
+      "ciRun": 37570900710,
+      "ciStatus": "COMPLETED SUCCESS exactc383 eleven terminal successful jobs independently refreshed",
+      "ciJobsSuccess": 11,
+      "implementationEvidence": "Independent14/31conformance and36localchecks,40desktop/18compositing,postarchive/protectedstrict44pass; source andactual168GUIreviewdone. Historicallocal23integrationusesNode--max-opt=0; completedexacthead37570900710all11hostedSUCCESSsuppliesstandardremoteverification. Merge/closureseparate.",
+      "artifactQualification": "95e2\u2192c383 correction only archivedgovernance EOF LF; independent-eof-normalization-approval.json supersedes that artifact hash; source/test inputs unchanged",
+      "publicationEvidence": "PR151 OPEN draft unmerged, issue57OPEN. Required published implementation exact-head gate satisfied; #58 branch dependency satisfied. Hosted standard tests passed; historical local Node --max-opt=0 remains honest local qualification.",
+      "actualWorkflowBaseQualification": "Run37570900710 executed whilePR151basewasmain; live base now restoredto56branch. Record actualCIbase separately from currentintendedstackbase."
+    }
+  ],
+  "issue58ScenarioTrace": "review58-h1-h17-independent-source-trace.md",
+  "issue58SourceReview": [
+    "review58-h1-h17-independent-source-approval.json",
+    "review58-performance-source-approval-addendum.json",
+    "review58-typed-mcp-request-source-approval.json"
+  ],
+  "qualifications": [
+    "Historical CI receipts retain independently recorded cutoffs; final implementation execution requalifies affected source",
+    "Real GUI168records are reused only with unchanged21source/binary hashes",
+    "H10/H11 owner-stage negatives are core evidence; actual headless/MCP projections are named separately",
+    "Final own archive/protected strict and exact published-head all11CI are not yet observed"
+  ],
+  "mergedByThisTask": false,
+  "deployedByThisTask": false,
+  "atUtc": "2026-10-07T06:16:48.922997+00:00",
+  "implementationCheckReceiptSha256": "e683c9e110422abf1e4663d031d3c2e5a04a4d98478a1e67626e4e58fe54ca62",
+  "requiredImplementationCheckCount": 35,
+  "implementationInputsPreserved": 38,
+  "guiInputBinding": "preserved-real-gui-production-binding.json",
+  "subsequentMainAncestry": "subsequent-main-preservation-proof.json",
+  "remainingExecutionGates": [
+    "Own-only archive/protected strict final checks",
+    "Published exact-head all11CI",
+    "Terminal live-state epic audit"
+  ],
+  "auditTraceCorrections": [
+    "Inherited former-active scenario/spec links now resolve to each approved committed archive; historical scopes/CI cuts unchanged."
+  ]
+}

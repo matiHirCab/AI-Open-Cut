@@ -1,0 +1,11 @@
+{
+  "lin": true,
+  "encode": true,
+  "idx": true,
+  "empty": true,
+  "over": true,
+  "gaussian": true,
+  "tint": true,
+  "glow": true,
+  "plate": true
+}

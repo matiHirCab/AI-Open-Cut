@@ -1,0 +1,387 @@
+{
+  "review": "Independent mask geometric-anchor diagnosis and before-code authoringcorrection",
+  "reviewerTask": "/root/review58_freeze",
+  "reviewedAtUtc": "2026-10-07T05:09:16.019105+00:00",
+  "decision": "APPROVED_NARROW_MASK_PLACEMENT_CORRECTION",
+  "correctedAuthoritySha256": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541",
+  "supersedesOnly": "Priorauthoring maskTransform2Dposition0/0 and associateddefaulttransform assumption; retainapproved799ms and14typedoperations plusallpriorverification/gates.",
+  "exactChanges": [
+    "roles.hero.masks[0].transform.position.x:0\u21921",
+    "roles.hero.masks[0].transform.position.y:0\u21921",
+    "operationTranscript.aliasBatch[10].masks[0].transform.position.x:0\u21921",
+    "operationTranscript.aliasBatch[10].masks[0].transform.position.y:0\u21921"
+  ],
+  "diagnosis": "AUTHORING/ORACLE recipeplacement assumption, not evidencedproductiondefect. Existing source-raster basis and geometricmaskanchor semantics agree with actualrender.",
+  "owningEvidence": [
+    "mask-models Explicit mask rendering activation boundary says anchors use sampled untransformedunexpandedpathbounds.",
+    "evaluated_scene/masks.rs affine302\u2013310 normalizesboundsminimum; identitylinear/anchor0/pathmin(1,1) yields matrixtranslationauthoredposition\u2212(1,1).",
+    "At oldposition(0,0), mask maps source-raster[0,w)\u00d7[0,40), clipping lastlogicalhero row/column becausegraphicorigin(-1,-1).",
+    "At correctedposition(1,1), normalization cancelsmin(1,1); mask covers source-raster[1,1+w)\u00d7[1,41), selectingexactlogicalhero[0,w)\u00d7[0,40) as frozenindependentplates require.",
+    "FiveactualdiagnosticPAMs independentlypredicted EXACTLY(maxbyte0) using normativezero-positionanchor equations: baseline0000,baseline0100,no-mask200,no-matte700,no-glow200. Predictions diagnoseexistingauthoring; noactualoutputbecamecanonicalexpectation.",
+    "First baseline0000 hasexactcanonicalmatch. Actualfailureisbaseline0100andno-glow200; initial0msfailure attribution waswrong andrectified.",
+    "Actual14recordRusttypedroundtrip andexistingstrictMCPbatch/standaloneschemasrecheckedPASS for correctedpositioncandidate."
+  ],
+  "independentPredictionReceipt": "review58-native-anchor-diagnostic-prediction.json",
+  "referenceProtection": {
+    "all60PriorReferenceMathCodeCommandInputsVerifiedUnchanged": true,
+    "noCanonicalPlateOrWavRecapture": true,
+    "allOtherRecipeFieldsExactlyUnchanged": true,
+    "noToleranceOrProfileChanges": true
+  },
+  "allowedAdoption": [
+    "Copy exactmaskplacementauthority and4companionartifacts; updateauthorityhash assertions/provenance; leavecontractgovernance/repositoryvalidationdeltas unchanged.",
+    "Nonnormative correctionparagraph pending independent review may become independently approved oncopy; hashfinalactualartifacts for independentpostcopyreview.",
+    "Retain unchanged sourcepoints/keyframes/referenceplates/witnesses/WAV/oraclemath/commands/resourcebounds; noproductionmask/evaluator/contractedbehaviorchange authorized.",
+    "Correct dangling-mask target expectation to existing ITEM_NOT_FOUND nonretryable when validation/extended_visual.rs355 path isexercised; retaincompleteinventoryassertions. This is anexistingcatalogerror expectation, not newAPIbehavior.",
+    "Actualnativecorrectedprojectmustexecuteandpass unchangedcompleteplate/encoded/audio/lifecycle/failurechecks; diagnosis/candidateapproval isnotpassingproductconformance.",
+    "AllpriorCI/specscope/independentsource/conformance/own-onlyarchive/protectedstrict/finalpublication/epicaudit gates remainbinding."
+  ],
+  "frozenCorrectionAndEvidenceFiles": [
+    {
+      "path": "canonical-masked-hero-reveal-v1-mask-placement-candidate.json",
+      "sha256": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541",
+      "bytes": 36384
+    },
+    {
+      "path": "mask-placement-specification-candidate/design.md",
+      "sha256": "a6cd27f7bac8b1f26d18d6cd13abd13fd907590493a52f5bdd022b9b2b98cc78",
+      "bytes": 11722
+    },
+    {
+      "path": "mask-placement-specification-candidate/proposal.md",
+      "sha256": "30489dc9c653cfd28d4cd2391f761b7f564ecb09a65a3e313280fad2d1fc2ba9",
+      "bytes": 4358
+    },
+    {
+      "path": "mask-placement-specification-candidate/specs/masked-hero-reveal/spec.md",
+      "sha256": "1c5b6a7cc37eff61c23b2013157acde7a3a60c38565690dd5ee1934531d60a84",
+      "bytes": 10552
+    },
+    {
+      "path": "mask-placement-specification-candidate/tasks.md",
+      "sha256": "1e5da6ab7980b920c5cab0d14897b844b074409003949ae8c4cd2a32be4f81b5",
+      "bytes": 4825
+    },
+    {
+      "path": "review58-native-anchor-diagnostic-prediction.json",
+      "sha256": "808eb923888cb368c09ac7aa67354ab3f0c26d98349347206aed22d97a2a408f",
+      "bytes": 1792
+    },
+    {
+      "path": "review58-typed-roundtrip-mask-placement.log",
+      "sha256": "1d720fa96572e61f87c97ce1a9f4f0e9dff95209d0b7d23e84a32f1587121165",
+      "bytes": 686
+    },
+    {
+      "path": "review58-mcp-strict-schemas-mask-placement.log",
+      "sha256": "5a5044c82e5cde23e0a120212d4bbb139ebb08bd74315ee61ac00a71276c0ad4",
+      "bytes": 798
+    }
+  ],
+  "preservedInputs": [
+    {
+      "path": "independent-plate-candidate-v2.py",
+      "sha256": "9df81218fcbb123e1ce503de8d78ccb3f817322624715dfcb5f879b016432878",
+      "bytes": 4979
+    },
+    {
+      "path": "freeze-reference-conversion-candidate.py",
+      "sha256": "4f7c5bad6b44a4fefc321de817080645287bc6c5c320578c9c5ae9ba898f5ff9",
+      "bytes": 2330
+    },
+    {
+      "path": "freeze-reference-film-crf18-candidate.py",
+      "sha256": "54dd208d232313337a5870417aa146b880268154745b7e215105b88877a76381",
+      "bytes": 2425
+    },
+    {
+      "path": "review58-independent-audio.py",
+      "sha256": "1799622b567376d1c444806949a6c6b0d4703890f9fb43503262ca0c692082d5",
+      "bytes": 4182
+    },
+    {
+      "path": "unapproved-independent-plates-v2/manifest.json",
+      "sha256": "66c6c3d5f41142049d83105f737c82e083d753191b06a2e48213d5b366133225",
+      "bytes": 6572
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/manifest.json",
+      "sha256": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+      "bytes": 26669
+    },
+    {
+      "path": "independent-reference-film-crf18-feasibility.json",
+      "sha256": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+      "bytes": 7539
+    },
+    {
+      "path": "review58-audio-feasibility/source.wav",
+      "sha256": "b60ba8a0fa6a3388a2267f1575f2f4fe84140fbb85181fa9e99ecdea913ef000",
+      "bytes": 153644
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0000.rgba",
+      "sha256": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0100.rgba",
+      "sha256": "316f8c7eb07cca7fda74e75c0097e0aa5182d238cec1063cd4196e126cfd7774",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0200.rgba",
+      "sha256": "c2c630dbc16dff4933dd8f68c0cef6c800e06116a5d28582c4a6adcf1ba5773a",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0300.rgba",
+      "sha256": "ebd499db9c67ee2b3769d50f19ddedb5a13c6454c0bd413f5410cf3c544a2333",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0400.rgba",
+      "sha256": "6d9b924135d23bf3b1e139a8601e7519b06b94d458abb64342b0866f335831e7",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0500.rgba",
+      "sha256": "a322ab4ae3dd853d3331d5845123b7cee3898f0330f6a8585dbcb1c498e16196",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0600.rgba",
+      "sha256": "f8d29459017a8f25acfbe15b75ed37007aa4eb93090e07ff32253a721750baa6",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/baseline-0700.rgba",
+      "sha256": "a1c2025231ea8dbcff596ef1610c8c03c14b6364864861343733528c1fb3ec8c",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0000.rgba",
+      "sha256": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0100.rgba",
+      "sha256": "a83302d30324d0c8d19a6d002dbc1d0d6312de4b9b11338ba9a6fceb0283a155",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0200.rgba",
+      "sha256": "0d2b146fa47ca3d4f56cf9aed660edb91ac71211693e53f386e4704d184f355d",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0300.rgba",
+      "sha256": "bd06b23985e7d9fd0d4353f11dfa0278017a3a903c13e90cbe90a11ec3ee646c",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0400.rgba",
+      "sha256": "be3c6659982ee091b99a2a38e76aceb85ed7430fb3515135c49dcc76315f78ac",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0500.rgba",
+      "sha256": "b5d6488d5ae855776fbe9c509975bb8419f9acedb1a95d544f09ca7606fb6435",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0600.rgba",
+      "sha256": "9be76343c5b22159849dcf744cf4bc4dffa5edaa1ca25d6ce2050fab79dac347",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/reverse-0700.rgba",
+      "sha256": "c2cbcdc5ffdc195aae40bca93162cd8e148f00c400275bab275736d84cc0fa95",
+      "bytes": 16384
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0000.png",
+      "sha256": "7c860c1aa561df5dc704fe62b44e546ea662bce8aadde9881763e4fb7a9d4b3f",
+      "bytes": 855
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0000.rgb",
+      "sha256": "dbff4fb88daa3eef26eda6d6f007006ff647f64bc0d64aef2a8c97c97ba77412",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0100.png",
+      "sha256": "e5aae281e3f285064430ef1f412e319da251b5f2dbb1711b949b35dcac55200f",
+      "bytes": 1153
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0100.rgb",
+      "sha256": "f7a93ab13a452dbee8a2ae57d1bbb74139a2896b42770fac21ac2196c96db92f",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0200.png",
+      "sha256": "de4f840526929e27724334d9f6a5e5191113e14c0e01760658ea85578542d9bc",
+      "bytes": 1120
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0200.rgb",
+      "sha256": "196b21ee6a61b0809febee23e7ae0b1b0b924b9b49e999fbee1b867c541313e6",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0300.png",
+      "sha256": "7974d78a3c7f27aa1a640735bb6a1169f46f4eb4dd27fb991d8f5708482fbe4a",
+      "bytes": 1109
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0300.rgb",
+      "sha256": "f4d79ab5b17e868b1acafdeec4ce771dd7eaa920493fe76c38c5142d49b0cd1b",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0400.png",
+      "sha256": "28a1b55f67e19b1db6320321b5766c75cdf47e0eeee349f2a7e3d8624a064173",
+      "bytes": 1185
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0400.rgb",
+      "sha256": "da365d09275230b06804334de8aa47ba383347a5118ab863ed5dd476799c3850",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0500.png",
+      "sha256": "24427144ea199abf7cd4681df8b665a277612235e30b71d4bd93ee56bcea5be1",
+      "bytes": 1097
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0500.rgb",
+      "sha256": "7903998124c141dc6eaba008de1ff35c7b1d02c84d17f1c949eccdbbc79c5bb7",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0600.png",
+      "sha256": "5c37ab875ace99364be056ac19041da4ba4d809b981874f64d7a80c59d6d48c4",
+      "bytes": 1173
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0600.rgb",
+      "sha256": "d9d080337d6bbbf544819c0377d2b81ccae810ba0284a61cf4b83210410559ac",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0700.png",
+      "sha256": "217cbbc01fae55871833586830ab8a4703d9c55ef0ac3f1286def13568aab722",
+      "bytes": 1216
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-0700.rgb",
+      "sha256": "f96ceb8fbf935cd415f801409fe98ff8c72432d7cfd612bdb83dc0af249256e1",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0000.png",
+      "sha256": "7c860c1aa561df5dc704fe62b44e546ea662bce8aadde9881763e4fb7a9d4b3f",
+      "bytes": 855
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0000.rgb",
+      "sha256": "dbff4fb88daa3eef26eda6d6f007006ff647f64bc0d64aef2a8c97c97ba77412",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0100.png",
+      "sha256": "e81b5c371e8c12a35213426be57bd88830b33af6f88a97175b7fcb4dc365d9e6",
+      "bytes": 1158
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0100.rgb",
+      "sha256": "886c04973e713da1bdbd0cf5ecfab4cc98863cf7dbb705ca30c38af82d256ca2",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0200.png",
+      "sha256": "fffc5261311d8b6d355bafa7ef883e5681bdf22b470072f79fe7b978f4872e6f",
+      "bytes": 1135
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0200.rgb",
+      "sha256": "89cf7fdc0a7035d80f3a4d6d02633cbde58ca009ec7df76aadd62ef3e76f9b58",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0300.png",
+      "sha256": "1645b79bf953d8290d0e02dc4fefc5a4e1bf2dcf844c9c6300772c1f296261bb",
+      "bytes": 1123
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0300.rgb",
+      "sha256": "12d10523de8edb4c365fbe53e0b779d5c854fe728752a80837016d225d4b2302",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0400.png",
+      "sha256": "e16f74ec1106177bc963174f05218647cd08733b7502138a46cfccbf0deb5ae5",
+      "bytes": 1217
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0400.rgb",
+      "sha256": "e35fd7a9d0794631fcad7f79c2d0ba41e0a75d5c95b9daa805ec5bb6500c9d33",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0500.png",
+      "sha256": "464606888e864f5bb9397c58a37dd3f4afb8849ad03fc7508f12cfd79dbbf89e",
+      "bytes": 1132
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0500.rgb",
+      "sha256": "82b869317b832352c202327e3310e6cdfcc99159a907554b1a8ce99be53aace8",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0600.png",
+      "sha256": "43f4b226ad748b523adc3e82c67c82029cba8ba4c63bfc670b722602842ec48f",
+      "bytes": 1171
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0600.rgb",
+      "sha256": "bc11515fb30b95f3981f8f754019c3460ca679fe39e53013cd21ced51595c3ae",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0700.png",
+      "sha256": "635fbd7f3d60b234381510751f7fa4e7a96be9fe8e25c25b87a060b6fffcdb63",
+      "bytes": 1186
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-0700.rgb",
+      "sha256": "a04c8c92747c7111d5f5e7f23cfea2e49a08d658a83bc35ce7597405ba0ab142",
+      "bytes": 12288
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-full-crf18.mp4",
+      "sha256": "133e930cdec8461d43045f90fa1f5d17202acd669962d28dec782fcf19f984c6",
+      "bytes": 18428
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/baseline-partial-crf18.mp4",
+      "sha256": "b851bbad8f6c886b9a4e87cf7cb447d6d3b3d90ff22d45c44c1787dea6967ec1",
+      "bytes": 14334
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-full-crf18.mp4",
+      "sha256": "d5e782d4a06425afc081dbf2f21d36dfb207d64216340e133a93fd93e5bbef31",
+      "bytes": 18441
+    },
+    {
+      "path": "unapproved-independent-plates-v2/conversion/reverse-partial-crf18.mp4",
+      "sha256": "55ccb751ed3e4a87908201ff69385a2cd66d9a80d08dd9732e1d4b688f99d311",
+      "bytes": 14319
+    }
+  ],
+  "priorReviewCorrection": "Previousreview recognizedsourcepadding but missed maskgeometricboundsanchor normalization. This receipt corrects theauthoredmaskposition, preservesimmutablemathematicalexpectations and candidlyretainspriornativefailures.",
+  "remainingBlockingCandidateDefectsFound": [],
+  "noRepositoryEditsByReviewer": true,
+  "noMergeDeployClosureAuthorized": true
+}

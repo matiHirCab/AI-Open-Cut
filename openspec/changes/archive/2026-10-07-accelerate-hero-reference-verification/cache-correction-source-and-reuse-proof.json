@@ -1,0 +1,51 @@
+{
+  "baselineHead": "1bc6bd6f93b78ba29081bede06904f01ab168b66",
+  "approvedChangedInputs": {
+    "scripts/create-masked-hero-reveal-references.py": {
+      "before": "bd0794bfee3597e6358777ff4bfc5eec13a7054ca37723324eccb34475780f66",
+      "after": "c1e176c44250d8727861f9fa278663d8ba4e06f8242d92a5e173b94e2db586d9"
+    }
+  },
+  "unchangedInputCount": 37,
+  "newImplementationInputs": {
+    ".github/CODEOWNERS": "78f4c2158ff3d4bcce10b523094cacaaaaa173224e11e78d42fd036ccdd9db03",
+    ".github/workflows/bun-ci.yml": "56167c6780470793a022be84b7159a01690a5115e957c8778debc1903bf66caf",
+    "apps/agent-bridge/package.json": "a156fa6fe93a17e109d309c69836b5c5b83bd6ad2151c006c6eacbd9e589cb5a",
+    "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts": "62341a26797ac19a6fa66f238b4f2e1f434b2f5b3674465a6ece872198ce6e4b",
+    "apps/agent-bridge/tests/masked-hero-reveal-oracle.ts": "a010f9307dc3930c154082908450fb63686054bc2be319592aa7ee222f771c27",
+    "apps/agent-bridge/tests/masked-hero-reveal.test.ts": "de1161bcdd7c8c4e0d793e268ea009f26df7ff544e852b3d346a697062dc01d6",
+    "apps/headless/tests/masked_hero_reveal_native.rs": "2d123fe59bfffe14216e86ff78e172dad3cd706c69fd27a358a53846d739db8b",
+    "contracts/contract-ownership-v1.json": "c2e345834728e9e55a421be4c93fcd8920ba6692e0a12a24b2b3ed865abcc789",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0000.rgba": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0100.rgba": "316f8c7eb07cca7fda74e75c0097e0aa5182d238cec1063cd4196e126cfd7774",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0200.rgba": "c2c630dbc16dff4933dd8f68c0cef6c800e06116a5d28582c4a6adcf1ba5773a",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0300.rgba": "ebd499db9c67ee2b3769d50f19ddedb5a13c6454c0bd413f5410cf3c544a2333",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0400.rgba": "6d9b924135d23bf3b1e139a8601e7519b06b94d458abb64342b0866f335831e7",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0500.rgba": "a322ab4ae3dd853d3331d5845123b7cee3898f0330f6a8585dbcb1c498e16196",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0600.rgba": "f8d29459017a8f25acfbe15b75ed37007aa4eb93090e07ff32253a721750baa6",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0700.rgba": "a1c2025231ea8dbcff596ef1610c8c03c14b6364864861343733528c1fb3ec8c",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-audio-provenance.json": "4c820c658261701b24bab9c6b68bcbd3143fe69e9428eb04b5d0c5be5d88d4de",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0000.rgba": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0100.rgba": "a83302d30324d0c8d19a6d002dbc1d0d6312de4b9b11338ba9a6fceb0283a155",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0200.rgba": "0d2b146fa47ca3d4f56cf9aed660edb91ac71211693e53f386e4704d184f355d",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0300.rgba": "bd06b23985e7d9fd0d4353f11dfa0278017a3a903c13e90cbe90a11ec3ee646c",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0400.rgba": "be3c6659982ee091b99a2a38e76aceb85ed7430fb3515135c49dcc76315f78ac",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0500.rgba": "b5d6488d5ae855776fbe9c509975bb8419f9acedb1a95d544f09ca7606fb6435",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0600.rgba": "9be76343c5b22159849dcf744cf4bc4dffa5edaa1ca25d6ce2050fab79dac347",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0700.rgba": "c2cbcdc5ffdc195aae40bca93162cd8e148f00c400275bab275736d84cc0fa95",
+    "contracts/fixtures/masked-hero-reveal-v1/source.wav": "b60ba8a0fa6a3388a2267f1575f2f4fe84140fbb85181fa9e99ecdea913ef000",
+    "contracts/masked-hero-reveal-v1.json": "a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541",
+    "crates/editor-core/tests/masked_hero_reveal_models.rs": "c73ea13b725f41478bb6fd9e5a61033a9ca1e145f321b43a6cbe7233514e1f85",
+    "crates/editor-core/tests/masked_hero_reveal_native.rs": "9ac905ad538af6eebd0a3a7d3d91794adef7321796bf02704c2263343dd0ebb8",
+    "crates/editor-core/tests/support/masked_hero_authoring.rs": "2a95213131bacf479e38e6074b7f8d0c2e0080242002254cd096df4b080df164",
+    "crates/editor-core/tests/support/masked_hero_media.rs": "1838842dc57282f96164ee609aa1ca97ab259b9b326b20c1141577abda48dc16",
+    "crates/editor-core/tests/support/masked_hero_reveal.rs": "7f00f56109d6c7ca67b088e0c64369a1814cd027ec2eae624ca222bcd9a9ddb9",
+    "docs/masked-hero-reveal.md": "4f1c076b843117be36bd1cf8a928fcc015c7bde7ef319947e9759a72002ab9b8",
+    "scripts/create-masked-hero-reveal-references.py": "c1e176c44250d8727861f9fa278663d8ba4e06f8242d92a5e173b94e2db586d9",
+    "scripts/validate-ci-gates.test.ts": "03e01ec4e8b0dbe0c0717f042c3d06ccfe513858e5b85872c59dadcd95d37b40",
+    "scripts/validate-ci-gates.ts": "3e32e359575d47d67bb2733e9fa672f658c6a7827c5883bf790421f14f81ee32"
+  },
+  "reuseQualification": "Original35check receipts remain historical. Unchangedproduction/Rust/TypeScript/toolchain/GUI inputs preserve unaffected check evidence. Original hero oracle runtime qualification is replaced by current complete oracle, hero models/core/headless/MCP, unit and full contracts receipts; actual new-headCI remains mandatory."
+}

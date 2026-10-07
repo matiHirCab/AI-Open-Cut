@@ -1,0 +1,20 @@
+{
+  "status": "APPROVED_NARROW_SOURCE_CORRECTION_WITH_EXECUTION_GATE",
+  "timestampUtc": "2026-10-07T05:39:09.574302+00:00",
+  "sourcePath": "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts",
+  "sourceSha256": "62341a26797ac19a6fa66f238b4f2e1f434b2f5b3674465a6ece872198ce6e4b",
+  "previousReviewedSourceSha256": "fa15d09af37e3bb0248ba906f44f951e412d988630630a2a515839f270d64ac9",
+  "reportSha256": "553823361050553a8804dfc9402c32ffa9eeffeae6acd1461f1fa7b36ebb3dbd",
+  "sdkInspected": {
+    "version": "2.0.0",
+    "sources": {
+      "apps/agent-bridge/node_modules/@modelcontextprotocol/client/dist/index.mjs": "af3ec9fcf3a70fb4681e9b3c11aa18a7ce9aca36fed9f138a6e704043695d414",
+      "apps/agent-bridge/node_modules/@modelcontextprotocol/client/dist/src-D_zzAWoS.mjs": "fb539b120913afb2a469cfdd8f233b4c6aac98d7532f3172e783258aaadef084"
+    }
+  },
+  "positiveZodParsePreserved": true,
+  "negativeExactErrorInventoryPreserved": true,
+  "sdkEnvelopeValidationPreserved": true,
+  "requiredExecutionPending": true,
+  "repositoryEdits": false
+}

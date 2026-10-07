@@ -1,0 +1,32 @@
+{
+  "review": "H4 mask-disabled operational clarification",
+  "reviewerTask": "/root/review58_freeze",
+  "reviewedAtUtc": "2026-10-07T04:44:26.725354+00:00",
+  "decision": "APPROVED_WITH_DEPENDENCY_GATE",
+  "parentApprovalSha256": "8c682a87f519b7f5cac8f53f2b42aa0ecc3402289d936ffcefe4ebcade830c27",
+  "authoritySha256": "4056c4ec6817f4ea4eefc5b4749f0f63cc9756ca1dd3576a4e2595c5ce87192f",
+  "all67PriorFrozenInputsUnchanged": true,
+  "scope": "Existing H4 no-mask negative fixture operation transcript only; no authority/specification/reference/math/profile/expected-byte changes.",
+  "exactNegativeOnlyBatch": [
+    {
+      "operation": "set_animation_channels",
+      "itemId": "actual bound hero ID or existing @hero alias",
+      "animationChannels": []
+    },
+    {
+      "operation": "update_item",
+      "itemId": "same bound hero ID or existing @hero alias",
+      "masks": []
+    }
+  ],
+  "semantics": "Clear sole hero mask.path_points channel first, then clear mask stack, preserving all geometry/paint/transforms/matte/effects/parent/clip/overlays/resources and original owner clocks. Final candidate has full unmasked48x40 source matching already frozen no-mask mathematical counterfactual. Clear channels prevents a dangling animation target; do not claim deleting retained target alone is valid.",
+  "requiredChecks": [
+    "Execute real existing typed atomic batch APIs with normal revision/alias semantics.",
+    "Compare actual native no-mask counterfactual against frozen independent reference hash/witness under existing tolerances; never recapture reference.",
+    "Separately preserve dangling-mask-target rejection with complete current/history/redo/draft/resource inventories unchanged.",
+    "Retain all other H4 disabled variants as existing typed updates and exact independent expectations.",
+    "Root must observe verified57 exact-head all11CI SUCCESS before implementation; no production behavior/public API/schema changes."
+  ],
+  "implementationAuthorizedNow": false,
+  "noRepositoryEdits": true
+}

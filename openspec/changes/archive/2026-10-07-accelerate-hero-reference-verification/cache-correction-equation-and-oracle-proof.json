@@ -1,0 +1,17 @@
+{
+  "originalHead": "1bc6bd6f93b78ba29081bede06904f01ab168b66",
+  "scalarBodiesIdentical": {
+    "lin": true,
+    "encode": true,
+    "idx": true,
+    "empty": true,
+    "over": true,
+    "gaussian": true,
+    "tint": true,
+    "glow": true,
+    "plate": true
+  },
+  "oracleWallSeconds": 1.3494972780026728,
+  "newPythonSha256": "c1e176c44250d8727861f9fa278663d8ba4e06f8242d92a5e173b94e2db586d9",
+  "deadlinesChanged": false
+}

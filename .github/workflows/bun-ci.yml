@@ -146,6 +146,10 @@ jobs:
           cargo test -p opencut-editor-core --test group_compositing_native -- --nocapture
           cargo build -p opencut-headless
           bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/group-compositing-native.test.ts
+          cargo test -p opencut-editor-core --test masked_hero_reveal_native -- --nocapture
+          cargo build -p opencut-headless
+          cargo test -p opencut-headless --test masked_hero_reveal_native -- --nocapture
+          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/masked-hero-reveal-native.test.ts
       - name: Native raster-cache parity
         env:
           OPENCUT_FFMPEG_PATH: ffmpeg

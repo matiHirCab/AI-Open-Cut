@@ -1,0 +1,13 @@
+# Verification of add-masked-hero-reveal-fixture
+
+Completeness: all implementation tasks/scenarios are implemented and independently source-reviewed; final independent epic/own-only archive review is pending. Correctness: all8 requirements/H1–H17 are mapped to named tests in the independent source trace, with owning-stage qualifications. Coherence: existing APIs/layer boundaries, schema37/protocol1/78tools, authoritative references, profiles/budgets/tolerances and all predecessor inputs remain intact.
+
+All35 required implementation check receipts pass in `final-required-implementation-checks.json`; 38 frozen inputs match. Commands include cargo fmt --check --all; strict workspace/all-target Clippy; cargo test --workspace; desktop build; bridge typecheck/lint/defaultunit/contracts; all six required predecessor MCP native suites and both hero modes; integration (established local Node24 --max-opt=0 workaround), packaged smoke and hermetic Python;471rootpolicy tests; release native golden/external report; all three PR rules resolutions; raster core/instrumented worker/MCP and default headless rebuild/tests. Native core/headless hero full-suite execution is in the workspace and final default-restoration receipts, after final guard/provenance changes. Default9optional unit skips are separately requalified by configured execution.
+
+Every intermediate source finding was corrected and independently reviewed. All scalar equation ASTs match independently reviewed v2 references; pure oracle caching/early existing-directory refusal preserves equations. Typed real MCP wire requests retain SDK envelope validation, explicit strict Zod structured output parsing, actual78tool list, jobs/resources and all assertions; they avoid duplicate automatic AJV compilation. Deadlines remain120000ms per hero native authoring mode.
+
+Strict prearchive validation passed45items. Protected Moon rejected only this own active change after its strict validation/policy checks passed; this expected rejection is not protected-gate success. Failed earlier attempts remain in separate local logs and are not relabeled passes.
+
+Own-only synchronization/archival, accepted-block/unrelated507requirement/old-archive preservation and postarchive protected/strict success remain pending. Publication and all11CI on the exact final head plus terminal live-state epic acceptance remain future external gates. No merge/deploy/closure is performed.
+
+Final archival verification: own eight accepted ADDED requirements synchronized; own change archived on2026-10-07. Unchanged protected Moon gate and strict all-spec validation each exited0 with45 passed/0failed. Publication and terminal exact-headCI acceptance remain pending.

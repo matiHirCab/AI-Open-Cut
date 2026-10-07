@@ -1,0 +1,63 @@
+{
+  "status": "APPROVED_BEFORE_CODE_NARROW_PURE_RASTER_MEMOIZATION",
+  "timestampUtc": "2026-10-07T06:44:59.367563+00:00",
+  "baseHead": "1bc6bd6f93b78ba29081bede06904f01ab168b66",
+  "specificationHashes": {
+    "openspec/changes/accelerate-hero-reference-verification/proposal.md": "50e22c70f1514bde2d115c5c92722387817a7b27bc724c3d498918ab6064dea7",
+    "openspec/changes/accelerate-hero-reference-verification/design.md": "da706d16fb7da71b2c711de59f2f8f56a583e537495c24c64c529badb13c496a",
+    "openspec/changes/accelerate-hero-reference-verification/tasks.md": "2e83db77a7452b618e06670d5c7675731c374f266f99aa9428ccbf90c6705021",
+    "openspec/changes/accelerate-hero-reference-verification/specs/masked-hero-reveal/spec.md": "3ba9c5a4d3f5d2253bc81c77bf7c1dc05b87c8423354aa156208844e562c699f"
+  },
+  "preImplementationOracleSha256": "bd0794bfee3597e6358777ff4bfc5eec13a7054ca37723324eccb34475780f66",
+  "scalarBodyAstHashes": {
+    "lin": "d1b6b78261f3246d17732fd9529f7f6864ae32beb495d607d0c65a9b164cb9ae",
+    "encode": "3c66c66d3c0d0873fc6fcde4df2f42f942f8a93acb3de7726f6c944b1f1bec5a",
+    "idx": "67bf1fc951cb3d175ce958404baa45451e23b19e527db55cd78cce6a06287766",
+    "empty": "7893ade1ea48c96ed13401caf63be905ce013fde42d254ebcd6bb8bdc966d467",
+    "over": "90af20195e4ec58a2e0be95c822bda0f60433817718e21ab9737e4afcb985c79",
+    "gaussian": "bdfa8179ed5d7572c4160924ae80d5a057befc4133d7e985bd40eff8c7324188",
+    "tint": "50f0cfcd3c3e68c8c3ac8a0e1a756fb2193eb06f48db3086366faf9376c3525c",
+    "glow": "19e3c40d6edd29ee81a16e924b62c809768e8d910c3baf7418702cc737e11f4b",
+    "plate": "48b582415af2a84c7d40c27c916d26a1fc8dfd893ed26dcf92347e2c6491aa0b"
+  },
+  "protectedReferenceHashes": {
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0200.rgba": "c2c630dbc16dff4933dd8f68c0cef6c800e06116a5d28582c4a6adcf1ba5773a",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0600.rgba": "9be76343c5b22159849dcf744cf4bc4dffa5edaa1ca25d6ce2050fab79dac347",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0000.rgba": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0300.rgba": "ebd499db9c67ee2b3769d50f19ddedb5a13c6454c0bd413f5410cf3c544a2333",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-audio-provenance.json": "4c820c658261701b24bab9c6b68bcbd3143fe69e9428eb04b5d0c5be5d88d4de",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0400.rgba": "6d9b924135d23bf3b1e139a8601e7519b06b94d458abb64342b0866f335831e7",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0100.rgba": "316f8c7eb07cca7fda74e75c0097e0aa5182d238cec1063cd4196e126cfd7774",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0500.rgba": "a322ab4ae3dd853d3331d5845123b7cee3898f0330f6a8585dbcb1c498e16196",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0600.rgba": "f8d29459017a8f25acfbe15b75ed37007aa4eb93090e07ff32253a721750baa6",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0500.rgba": "b5d6488d5ae855776fbe9c509975bb8419f9acedb1a95d544f09ca7606fb6435",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0100.rgba": "a83302d30324d0c8d19a6d002dbc1d0d6312de4b9b11338ba9a6fceb0283a155",
+    "contracts/fixtures/masked-hero-reveal-v1/source.wav": "b60ba8a0fa6a3388a2267f1575f2f4fe84140fbb85181fa9e99ecdea913ef000",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0700.rgba": "a1c2025231ea8dbcff596ef1610c8c03c14b6364864861343733528c1fb3ec8c",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0700.rgba": "c2cbcdc5ffdc195aae40bca93162cd8e148f00c400275bab275736d84cc0fa95",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0400.rgba": "be3c6659982ee091b99a2a38e76aceb85ed7430fb3515135c49dcc76315f78ac",
+    "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0200.rgba": "0d2b146fa47ca3d4f56cf9aed660edb91ac71211693e53f386e4704d184f355d",
+    "contracts/fixtures/masked-hero-reveal-v1/reverse-0300.rgba": "bd06b23985e7d9fd0d4353f11dfa0278017a3a903c13e90cbe90a11ec3ee646c",
+    "contracts/fixtures/masked-hero-reveal-v1/baseline-0000.rgba": "654e6a8dc805438fbd6cb4de0c826a76cd4e1d15164961cbc42ee9b72a9b1b04"
+  },
+  "authorizedImplementation": [
+    "pure memoization decorator keyed by full tuple numeric raster separately for gaussian and glow",
+    "calculate original unchanged function on a fresh list; freeze result tuple; return fresh list on every access"
+  ],
+  "requiredVerification": [
+    "all9scalar bodiesAST unchanged",
+    "multiple callers mutating returned raster cannot affect cached tuple or later results",
+    "complete16RGBA8counterfactualWAV comparisons remain exact",
+    "existing5sunit/120snative deadlines unchanged",
+    "actual optimized required relevant checks and configured native positive pass",
+    "explicit preservation binding for reused unaffected checks",
+    "own-only modified requirement sync/archive then protected strict",
+    "exact new published-head all11CI and terminal audit"
+  ],
+  "productionReferenceToleranceDeadlineChangesAuthorized": false,
+  "repositoryEditsByReviewer": false,
+  "reviewSha256": "96b23f593df9cd96fef454a7ee9209a3d2607e8c055ca97c80a9c674102ca654",
+  "automaticIsolationClarificationApproved": "Inside verifier main, for each gaussian/glow immutable empty input, snapshot result, mutate returned fresh list, require subsequent fresh result equals snapshot and original input unchanged; all complete references still verified."
+}
