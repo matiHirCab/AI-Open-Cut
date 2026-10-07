@@ -1,0 +1,13 @@
+{
+  "priorFiles": 1260,
+  "priorArchiveFiles": 1215,
+  "priorLivingRequirements": 515,
+  "addedRequirements": 3,
+  "modifiedLivingFiles": [
+    "openspec/specs/masked-hero-reveal/spec.md",
+    "openspec/specs/repository-validation/spec.md"
+  ],
+  "preservedExistingBytes": true,
+  "acceptedDeltaSuffixesExact": true,
+  "priorInputManifestSha256": "27cf634ce7e537e494325cbc01e3aee69aa8bd21c9520910d17262aba5cfc925"
+}

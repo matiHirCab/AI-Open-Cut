@@ -19,7 +19,14 @@
 
 ## 4. Complete correction and repository verification
 
-- [ ] 4.1 Remove redundant private scalar hero-oracle loop work per the reviewed amendment; preserve every arithmetic equation/order, immutable reference comparison, cache isolation/refusal assertion and original deadline. Record before/after evidence and require native Windows acceptance; do not claim a renderer root cause.
-- [ ] 4.2 Run required `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; bridge `bun run typecheck`, `bun run lint`, `bun run test`, `bun run test:integration`, `bun run test:smoke`; relevant hermetic Python checks and full policy/spec validation. Preserve full failures; no coverage suppression or standard acceptance substitution.
-- [ ] 4.3 Independently review conformance with openspec-verify-change, synchronize/archive only after required implementation checks pass, then run final `moon run root:openspec-validate` and strict all-spec validation.
-- [ ] 4.4 Rewrite the draft PR around the final verified fix targeting main, verify every required check on the exact final head, report material evidence and blockers, and only then resume preserved issue60 work. Do not merge or deploy.
+- [x] 4.1 Remove redundant private scalar hero-oracle loop work per the reviewed amendment; preserve every arithmetic equation/order, immutable reference comparison, cache isolation/refusal assertion and original deadline. Record before/after evidence and require native Windows acceptance; do not claim a renderer root cause.
+- [x] 4.2 Run required `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; bridge `bun run typecheck`, `bun run lint`, `bun run test`, `bun run test:integration`, `bun run test:smoke`; relevant hermetic Python checks and full policy/spec validation. Preserve full failures; no coverage suppression or standard acceptance substitution.
+- [x] 4.3 Independently review conformance with openspec-verify-change, prove prerequisite preservation and authorize own-only accepted-delta synchronization/archive after required implementation checks pass. Preserve every mandatory archive and publication gate below.
+
+## Mandatory archive and final-validation gates
+
+Status: PASS. Own-only synchronization/archive preserves all1215 prior archive files and515 existing requirements, adds exactly3 accepted blocks, and unchanged protected Moon/strict validation passes45/45. Synchronize/archive only this verified change, prove exact accepted-block equality and preservation of unrelated living requirements and all prior archive files. Pass final `moon run root:openspec-validate` and strict all-spec validation before commit/publication. These administrative gates remain mandatory and separate from prearchive implementation conformance, following the repository's established prepublication convention.
+
+## Mandatory post-archive publication gates
+
+Status: PENDING. Rewrite draft PR154 around the final verified correction and diagnostics, targeting main; commit/push the archived head, verify every required check on that exact final head and report material evidence/blockers. Preserve the original unresolved renderer cause. Only then resume issue60 from this verified implementation branch, with all subsequent drafts targeting main and cumulative scope/merge order explicit. Do not merge, deploy or close issues. Publication evidence is not supplied by this prepublication snapshot and remains pending until actually observed.
