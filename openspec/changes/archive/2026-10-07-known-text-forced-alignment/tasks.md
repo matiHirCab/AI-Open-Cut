@@ -19,10 +19,10 @@
 ## 4. Conformance and review
 
 - [x] 4.1 Run pinned `cargo fmt --check --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, retaining full original logs and all required coverage.
-- [ ] 4.2 In apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, `bun run test:smoke`; run root `bun run apps/agent-bridge/scripts/run-python-tests.ts`. Preserve any local OOM/runtime failure; diagnostics do not count as standard acceptance. Final external unchanged standard suites must pass.
+- [x] 4.2 In apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test`, `bun run contracts:check`, `bun run test:integration`, `bun run test:smoke`; run root `bun run apps/agent-bridge/scripts/run-python-tests.ts`. Preserve any local OOM/runtime failure; diagnostics do not count as standard acceptance. Final external unchanged standard suites must pass.
 - [x] 4.3 Run `bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive` and `bunx @moonrepo/cli@2.3.3 run root:openspec-validate` with pinned globals. Before archive only this active-change rejection is expected; every other failure blocks.
-- [ ] 4.4 Perform a separate substantive owner-authorized review of actual source/fixtures/failures, resolve findings, record identity and reviewed hashes without claiming distinct human or GitHub APPROVED review.
-- [ ] 4.5 Use openspec-verify-change against every requirement/scenario/design/task/test and record conformance after all implementation checks pass.
+- [x] 4.4 Perform a separate substantive owner-authorized review of actual source/fixtures/failures, resolve findings, record identity and reviewed hashes without claiming distinct human or GitHub APPROVED review.
+- [x] 4.5 Use openspec-verify-change against every requirement/scenario/design/task/test and record conformance after all implementation checks pass.
 
 ## Post-verification delivery obligations
 

@@ -1,0 +1,24 @@
+{
+  "predecessorVerifiedHead": "e2985f09e565f6386d4804da266a964c1c3bc75b",
+  "reviewedImplementationHead": "a66109bb0ceab803ae0cd1a37da5c116fcf66b9c",
+  "standardSourceAcceptance": {
+    "run": 37690956107,
+    "job": 113030694181,
+    "integrationPassed": 24,
+    "packagedPassed": 21
+  },
+  "archivedChange": "openspec/changes/archive/2026-10-07-known-text-forced-alignment",
+  "unchangedReviewedSourceFiles": 33,
+  "localPostArchiveProtected": {
+    "exit": 0,
+    "controlsPassed": 457,
+    "specificationsPassed": 47,
+    "log": "/tmp/opencut-issue61-protected-final.log"
+  },
+  "localStrictSpecifications": {
+    "exit": 0,
+    "passed": 47,
+    "log": "/tmp/opencut-issue61-openspec-final.log"
+  },
+  "all11FinalHeadCi": "pending; require an external exact-SHA receipt after publication before completion or issue62"
+}
