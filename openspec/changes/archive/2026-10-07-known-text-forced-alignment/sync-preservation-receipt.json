@@ -1,0 +1,19 @@
+{
+  "predecessor": "e2985f09e565f6386d4804da266a964c1c3bc75b",
+  "unchangedPriorArchiveFiles": 1248,
+  "unchangedPriorRequirementBlocks": 523,
+  "addedRequirements": 5,
+  "updatedCapabilities": [
+    "openspec/specs/contract-governance/spec.md",
+    "openspec/specs/known-text-alignment/spec.md",
+    "openspec/specs/transcription-captions/spec.md"
+  ],
+  "unchangedOtherPriorLivingFiles": 44,
+  "reviewedSourceFiles": 33,
+  "standardExternalSourceHead": "a66109bb0ceab803ae0cd1a37da5c116fcf66b9c",
+  "standardPackageRun": 37690956107,
+  "standardPackageJob": 113030694181,
+  "standardIntegrationTests": 24,
+  "standardPackagedTests": 21,
+  "finalHeadCi": "pending external exact-SHA receipt after archival/push"
+}

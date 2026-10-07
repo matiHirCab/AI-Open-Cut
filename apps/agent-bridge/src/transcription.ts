@@ -8,8 +8,10 @@ import { BridgeError, type HeadlessClient } from "./headless";
 import type { JobTaskContext } from "./jobs";
 import type { Logger } from "./logger";
 import {
+  knownTextAlignmentSupportSchema,
   resolvedAssetInputSchema,
   type schemas,
+  speechAlignmentSchema,
   transcriptionEstimateSchema,
   transcriptionPreviewResultSchema,
   transcriptionSegmentSchema,
@@ -20,16 +22,41 @@ import {
 type Status = z.infer<typeof transcriptionStatusSchema>;
 type Segment = z.infer<typeof transcriptionSegmentSchema>;
 
+const parseTranscriptionStatus = (value: unknown): Status => {
+  if (
+    value &&
+    typeof value === "object" &&
+    Object.hasOwn(value, "knownTextAlignment") &&
+    !knownTextAlignmentSupportSchema.safeParse(
+      (value as Record<string, unknown>).knownTextAlignment
+    ).success
+  ) {
+    throw new BridgeError(
+      "TRANSCRIPTION_INVALID_OUTPUT",
+      "Provider returned malformed known-text support"
+    );
+  }
+  return transcriptionStatusSchema.parse(value);
+};
+
 export interface TranscriptionResult {
+  alignment?: z.infer<typeof speechAlignmentSchema> | undefined;
   durationMs: number;
   language: string;
   segments: Segment[];
 }
 
 export interface Transcriber {
+  align?: (
+    path: string,
+    knownText: string,
+    language: string | undefined,
+    durationMs: number,
+    signal: AbortSignal
+  ) => Promise<TranscriptionResult>;
   close: () => Promise<void>;
   queueStatus: () => Status["queue"];
-  status: () => Promise<Status>;
+  status: () => Promise<z.input<typeof transcriptionStatusSchema>>;
   transcribe: (
     path: string,
     language: string | undefined,
@@ -89,6 +116,7 @@ export class FasterWhisperTranscriber implements Transcriber {
       .object({
         computeType: z.literal("int8"),
         device: z.literal("cpu"),
+        knownTextAlignment: z.unknown().optional(),
         maxDurationMs: z.int().positive(),
         modelCached: z.boolean(),
         modelId: z.string().min(1),
@@ -105,7 +133,7 @@ export class FasterWhisperTranscriber implements Transcriber {
           this.#config.transcriptionControlTimeoutMs
         )
       );
-    return transcriptionStatusSchema.parse({
+    return parseTranscriptionStatus({
       ...result,
       limits: { maxDurationMs },
       queue: this.queueStatus(),
@@ -118,6 +146,43 @@ export class FasterWhisperTranscriber implements Transcriber {
     durationMs: number,
     signal: AbortSignal
   ) {
+    return await this.#infer(
+      {
+        durationMs,
+        language,
+        operation: "transcribe",
+        path,
+        vadFilter: true,
+        wordTimestamps: true,
+      },
+      signal
+    );
+  }
+
+  async align(
+    path: string,
+    knownText: string,
+    language: string | undefined,
+    durationMs: number,
+    signal: AbortSignal
+  ) {
+    const result = await this.#infer(
+      { durationMs, knownText, language, operation: "align", path },
+      signal
+    );
+    if (!result.alignment) {
+      throw new BridgeError(
+        "TRANSCRIPTION_INVALID_OUTPUT",
+        "Alignment provider omitted alignment"
+      );
+    }
+    return result;
+  }
+
+  async #infer(request: Record<string, unknown>, signal: AbortSignal) {
+    if (request.operation === "align" && signal.aborted) {
+      throw new BridgeError("JOB_CANCELLED", "Alignment was cancelled", true);
+    }
     // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
     if (this.#closed) {
       throw new BridgeError(
@@ -142,27 +207,33 @@ export class FasterWhisperTranscriber implements Transcriber {
     this.#queued -= 1;
     this.#active = 1;
     try {
+      if (request.operation === "align" && signal.aborted) {
+        throw new BridgeError("JOB_CANCELLED", "Alignment was cancelled", true);
+      }
       const result = await this.#request(
-        {
-          durationMs,
-          language,
-          operation: "transcribe",
-          path,
-          vadFilter: true,
-          wordTimestamps: true,
-        },
+        request,
         this.#config.transcriptionTimeoutMs,
         signal
       );
-      const parsed = z
+      const resultSchema = z
         .object({
+          alignment: speechAlignmentSchema.optional(),
           durationMs: z.int().positive(),
           language: z.string().min(1),
           segments: z.array(transcriptionSegmentSchema),
         })
-        .strict()
-        .parse(result);
-      return parsed;
+        .strict();
+      if (request.operation === "align") {
+        const parsed = resultSchema.safeParse(result);
+        if (!parsed.success) {
+          throw new BridgeError(
+            "TRANSCRIPTION_INVALID_OUTPUT",
+            "Alignment worker returned malformed output"
+          );
+        }
+        return parsed.data;
+      }
+      return resultSchema.parse(result);
     } finally {
       this.#active = 0;
       release();
@@ -363,7 +434,7 @@ export class TranscriptionApplicationService {
   }
 
   status() {
-    return this.#provider.status();
+    return this.#provider.status().then(parseTranscriptionStatus);
   }
 
   async doctorTranscribe(path: string, durationMs: number) {
@@ -381,7 +452,12 @@ export class TranscriptionApplicationService {
       this.#headless.call(
         {
           assetId: input.assetId,
-          operation: "resolve_asset_input",
+          ...(input.knownText === undefined
+            ? { operation: "resolve_asset_input" as const }
+            : {
+                knownText: input.knownText,
+                operation: "validate_speech_alignment" as const,
+              }),
           projectId: input.projectId,
         },
         resolvedAssetInputSchema
@@ -393,6 +469,11 @@ export class TranscriptionApplicationService {
         "Asset has no probed audio duration"
       );
     }
+    this.#assertAlignmentSupport(
+      input.knownText,
+      status,
+      asset.probe.durationMs
+    );
     return transcriptionEstimateSchema.parse({
       cost: { amount: 0, billing: "local", currency: null },
       durationMs: asset.probe.durationMs,
@@ -414,7 +495,12 @@ export class TranscriptionApplicationService {
       this.#headless.call(
         {
           assetId: input.assetId,
-          operation: "resolve_asset_input",
+          ...(input.knownText === undefined
+            ? { operation: "resolve_asset_input" as const }
+            : {
+                knownText: input.knownText,
+                operation: "validate_speech_alignment" as const,
+              }),
           projectId: input.projectId,
         },
         resolvedAssetInputSchema
@@ -438,16 +524,30 @@ export class TranscriptionApplicationService {
         "Asset exceeds transcription duration limit"
       );
     }
-    context.onProgress(0.05);
-    const result = await this.#provider.transcribe(
-      asset.path,
-      input.language,
-      asset.probe.durationMs,
-      context.signal
+    this.#assertAlignmentSupport(
+      input.knownText,
+      status,
+      asset.probe.durationMs
     );
+    context.onProgress(0.05);
+    const result =
+      input.knownText === undefined
+        ? await this.#provider.transcribe(
+            asset.path,
+            input.language,
+            asset.probe.durationMs,
+            context.signal
+          )
+        : await this.#alignKnownText(
+            asset.path,
+            input.knownText,
+            input.language,
+            asset.probe.durationMs,
+            context.signal
+          );
     const token = randomUUID();
     const expiresAtMs = this.#now() + this.#ttlMs;
-    const preview = transcriptionPreviewResultSchema.parse({
+    const parsed = transcriptionPreviewResultSchema.safeParse({
       ...result,
       assetId: input.assetId,
       baseRevision: asset.revision,
@@ -458,6 +558,37 @@ export class TranscriptionApplicationService {
       providerId: status.providerId,
       token,
     });
+    if (
+      !parsed.success ||
+      (input.knownText !== undefined && !parsed.data.alignment)
+    ) {
+      throw new BridgeError(
+        "TRANSCRIPTION_INVALID_OUTPUT",
+        "Transcription provider returned malformed preview data"
+      );
+    }
+    const preview = parsed.data;
+    if (input.knownText !== undefined) {
+      this.#assertOpen();
+      if (context.signal.aborted) {
+        throw new BridgeError("JOB_CANCELLED", "Alignment was cancelled", true);
+      }
+      await this.#headless.call(
+        {
+          alignment: preview.alignment,
+          assetId: input.assetId,
+          expectedRevision: asset.revision,
+          knownText: input.knownText,
+          operation: "validate_speech_alignment",
+          projectId: input.projectId,
+        },
+        resolvedAssetInputSchema
+      );
+      this.#assertOpen();
+      if (context.signal.aborted) {
+        throw new BridgeError("JOB_CANCELLED", "Alignment was cancelled", true);
+      }
+    }
     const timer = setTimeout(() => this.#previews.delete(token), this.#ttlMs);
     timer.unref?.();
     this.#previews.set(token, { ...preview, timer });
@@ -530,5 +661,57 @@ export class TranscriptionApplicationService {
         "Transcription service is closed"
       );
     }
+  }
+  #assertAlignmentSupport(
+    knownText: string | undefined,
+    status: Status,
+    durationMs: number
+  ) {
+    if (knownText === undefined) {
+      return;
+    }
+    if (
+      !(
+        status.ready &&
+        status.knownTextAlignment.supported &&
+        this.#provider.align
+      )
+    ) {
+      throw new BridgeError(
+        "TRANSCRIPTION_UNAVAILABLE",
+        "Provider does not expose ready known-text alignment"
+      );
+    }
+    if (
+      durationMs > status.knownTextAlignment.maxDurationMs ||
+      Buffer.byteLength(knownText, "utf8") >
+        status.knownTextAlignment.maxTextBytes
+    ) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Known-text input exceeds provider alignment limits"
+      );
+    }
+  }
+  async #alignKnownText(
+    path: string,
+    knownText: string,
+    language: string | undefined,
+    durationMs: number,
+    signal: AbortSignal
+  ) {
+    if (!this.#provider.align) {
+      throw new BridgeError(
+        "TRANSCRIPTION_UNAVAILABLE",
+        "Known-text alignment is unavailable"
+      );
+    }
+    return await this.#provider.align(
+      path,
+      knownText,
+      language,
+      durationMs,
+      signal
+    );
   }
 }

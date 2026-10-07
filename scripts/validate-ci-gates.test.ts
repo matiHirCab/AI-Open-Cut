@@ -2163,3 +2163,15 @@ describe("speech alignment mandatory contract consumers", () => {
     });
   }
 });
+
+describe("known-text alignment mandatory consumer", () => {
+  for (const mask of [false, true]) {
+    it(`rejects known-text consumer ${mask ? "failure masking" : "omission"}`, () => {
+      const sources = moonPolicySources();
+      const parsed = JSON.parse(sources.bridgePackage!);
+      const consumer = " tests/known-text-alignment.test.ts";
+      parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+      expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+    });
+  }
+});

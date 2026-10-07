@@ -1,7 +1,9 @@
 {
   "version": "transcription-provider-v1",
   "requests": {
-    "status": { "operation": "status" },
+    "status": {
+      "operation": "status"
+    },
     "transcribe": {
       "operation": "transcribe",
       "path": "absolute provider-only media path",
@@ -9,6 +11,13 @@
       "language": "optional BCP-47/ISO language code",
       "wordTimestamps": true,
       "vadFilter": true
+    },
+    "align": {
+      "operation": "align",
+      "path": "absolute core-resolved provider-only media path",
+      "durationMs": "positive integer within advertised known-text window",
+      "knownText": "nonblank supplied text within core/provider UTF-8 and model-token budgets",
+      "language": "optional language; defaults to en for alignment"
     }
   },
   "responses": {
@@ -21,12 +30,19 @@
       "computeType": "int8",
       "modelCached": "boolean",
       "modelLoaded": "boolean",
-      "maxDurationMs": "positive integer"
+      "maxDurationMs": "positive integer",
+      "knownTextAlignment": "optional closed support/limits record; omitted legacy means unsupported"
     },
     "transcribe": {
       "language": "string",
       "durationMs": "positive integer",
       "segments": "ordered segment array with optional word timestamps"
+    },
+    "align": {
+      "language": "string",
+      "durationMs": "positive source audio duration",
+      "segments": "supplied text caption segments derived from actual aligned words",
+      "alignment": "closed speech-alignment-v1 record with forced quality and actual producer/model identity"
     }
   }
 }

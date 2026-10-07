@@ -128,6 +128,14 @@ enum Request {
         project_id: String,
         asset_id: String,
     },
+    ValidateSpeechAlignment {
+        project_id: String,
+        asset_id: String,
+        known_text: String,
+        expected_revision: Option<u64>,
+        #[serde(default, deserialize_with = "present_speech_alignment")]
+        alignment: Option<opencut_editor_core::SpeechAlignment>,
+    },
     CommitTranscription {
         project_id: String,
         expected_revision: u64,
@@ -538,6 +546,19 @@ fn dispatch(
             project_id,
             asset_id,
         } => sink.value(core.resolve_asset_input(&project_id, &asset_id)?),
+        Request::ValidateSpeechAlignment {
+            project_id,
+            asset_id,
+            known_text,
+            expected_revision,
+            alignment,
+        } => sink.value(core.validate_speech_alignment(
+            &project_id,
+            &asset_id,
+            &known_text,
+            expected_revision,
+            alignment.as_ref(),
+        )?),
         Request::CommitTranscription {
             project_id,
             expected_revision,
@@ -783,7 +804,14 @@ fn editor_capabilities() -> Vec<&'static str> {
         "blend_models_v1",
         "parameterized_effect_models_v1",
         "group_compositing_models_v1",
+        "speech_alignment_validation_v1",
     ]
+}
+
+fn present_speech_alignment<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<opencut_editor_core::SpeechAlignment>, D::Error> {
+    opencut_editor_core::SpeechAlignment::deserialize(deserializer).map(Some)
 }
 
 fn render_capabilities() -> Vec<&'static str> {

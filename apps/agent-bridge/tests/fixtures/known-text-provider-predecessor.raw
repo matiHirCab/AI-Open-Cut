@@ -1,0 +1,32 @@
+{
+  "version": "transcription-provider-v1",
+  "requests": {
+    "status": { "operation": "status" },
+    "transcribe": {
+      "operation": "transcribe",
+      "path": "absolute provider-only media path",
+      "durationMs": "positive integer no greater than provider maximum",
+      "language": "optional BCP-47/ISO language code",
+      "wordTimestamps": true,
+      "vadFilter": true
+    }
+  },
+  "responses": {
+    "status": {
+      "ready": "boolean",
+      "providerId": "faster-whisper",
+      "modelId": "string",
+      "modelVersion": "string|null",
+      "device": "cpu",
+      "computeType": "int8",
+      "modelCached": "boolean",
+      "modelLoaded": "boolean",
+      "maxDurationMs": "positive integer"
+    },
+    "transcribe": {
+      "language": "string",
+      "durationMs": "positive integer",
+      "segments": "ordered segment array with optional word timestamps"
+    }
+  }
+}

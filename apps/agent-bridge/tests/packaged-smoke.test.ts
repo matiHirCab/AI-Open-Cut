@@ -31,6 +31,7 @@ import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyInstanceWorkflow } from "./instance-workflow";
+import { verifyKnownTextWorkflow } from "./known-text-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
@@ -298,6 +299,10 @@ it("completes packaged editing, draft, speech, and transcription flows", async (
         (item) => item.type === "caption" && item.text === "Packaged caption"
       )
   ).toBe(true);
+});
+
+it("aligns known text and preserves caption retry, history and reopen through the package", async () => {
+  await verifyKnownTextWorkflow(client, call);
 });
 
 it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () => {

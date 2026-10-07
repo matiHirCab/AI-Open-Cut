@@ -1,0 +1,7 @@
+# Issue61 scoped specification approval
+
+The user delegates approval of issue-scoped specifications and autonomous dependency-ready implementation. The parent reaffirmed issue60 acceptance and issue61 continuation after independently verifying all11 CI on e2985f09, under existing authorization. Issue59 is closed; issue60 is implementation-complete in draft PR155. The branch starts from that exact verified head; main stillc756a999. No other implementation owner is active for this sequence.
+
+Approve proposal/design/tasks and all three delta specs for this bounded issue61 outcome before executable edits. Read root AGENTS, ADR0002, existing transcription-captions/speech-generation/alignment requirements and applicable local skills. Core retains semantic ownership; known-text mode is optional, advertised and real known-token local inference with fake-provider checks. Protocol1/schema38 remain unchanged; no marker/render/bus work is included. Existing automatic project-open migration semantics remain those of ordinary transcription, not a new schema or adoption path.
+
+This authorization is for the scoped implementation/spec lifecycle, not automatic substantive CODEOWNER acceptance or technical verification. The user's explicit permission to give CODEOWNER review persists, but a real separate review pass/findings/evidence record is required. GitHub self-approval and human/platform merge gates are not bypassed. All required checks, archive and exact-head11-job acceptance remain mandatory. No merge/deploy/closure.

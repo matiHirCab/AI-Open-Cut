@@ -1,0 +1,208 @@
+{
+  "additions": [
+    {
+      "path": [
+        "toolDefinitions",
+        "transcription_estimate",
+        "inputSchema",
+        "properties",
+        "knownText"
+      ],
+      "value": {
+        "type": "string"
+      }
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "transcription_preview",
+        "inputSchema",
+        "properties",
+        "knownText"
+      ],
+      "value": {
+        "type": "string"
+      }
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "transcription_get_status",
+        "outputSchema",
+        "properties",
+        "knownTextAlignment"
+      ],
+      "value": {
+        "additionalProperties": false,
+        "default": {
+          "maxDurationMs": 30000,
+          "maxTextBytes": 4096,
+          "phoneme": false,
+          "sentence": false,
+          "supported": false,
+          "word": false
+        },
+        "properties": {
+          "maxDurationMs": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "maxTextBytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "phoneme": {
+            "type": "boolean"
+          },
+          "sentence": {
+            "type": "boolean"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "word": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "maxDurationMs",
+          "maxTextBytes",
+          "phoneme",
+          "sentence",
+          "supported",
+          "word"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "DraftPreviewFrameOutputProperties",
+        "transcriptionPreview",
+        "properties",
+        "alignment"
+      ],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "modelId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modelVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phonemes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "endMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": ["endMs", "startMs", "text"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "quality": {
+            "enum": ["native", "forced", "estimated"],
+            "type": "string"
+          },
+          "sentences": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "endMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": ["endMs", "startMs", "text"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "words": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "endMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "startMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": ["endMs", "startMs", "text"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "modelId",
+          "modelVersion",
+          "phonemes",
+          "providerId",
+          "quality",
+          "sentences",
+          "words"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "requiredPath": [
+    "toolDefinitions",
+    "transcription_get_status",
+    "outputSchema",
+    "required"
+  ],
+  "requiredAddition": "knownTextAlignment"
+}

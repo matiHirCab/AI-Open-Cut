@@ -351,3 +351,9 @@
 /apps/agent-bridge/tests/speech-alignment.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/speech-alignment* @matiHirCab
 /docs/speech-alignment.md @matiHirCab
+
+# Governed known-text alignment boundary
+/contracts/known-text-alignment-v1.json @matiHirCab
+/apps/agent-bridge/tests/known-text-alignment.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/known-text-* @matiHirCab
+/docs/known-text-alignment.md @matiHirCab
