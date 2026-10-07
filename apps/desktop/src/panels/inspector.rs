@@ -1,5 +1,6 @@
 use crate::{
     animation_inspector,
+    compositing_inspector::{self, Action, EFFECT_TYPES, Eligibility},
     hierarchy::{editable, kind},
     shell::{Shell, button},
     theme::ActiveTheme,
@@ -160,8 +161,78 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
             );
         }
     }
+    panel = panel.child(
+        div()
+            .py_2()
+            .text_sm()
+            .child("Compositing · authored values"),
+    );
+    for text in compositing_inspector::descriptions(item, &shell.compositing_cursor) {
+        panel = panel.child(div().text_xs().py_1().child(text));
+    }
     if !animation_inspector::editable(selection) {
         return panel.child("Component-local content · read-only");
+    }
+    let eligibility = compositing_inspector::eligibility(project, selection, item);
+    let mut actions = vec![];
+    if eligibility == Eligibility::Leaf {
+        actions.extend([
+            ("Add mask · fixed 64 local px".to_owned(), Action::AddMask),
+            ("Delete selected mask".into(), Action::DeleteMask),
+            ("Mask earlier".into(), Action::MoveMask(false)),
+            ("Mask later".into(), Action::MoveMask(true)),
+            ("Clear matte".into(), Action::ClearMatte),
+        ]);
+    }
+    if matches!(eligibility, Eligibility::Leaf | Eligibility::Aggregate) {
+        for kind in EFFECT_TYPES {
+            actions.push((format!("Add effect · {kind}"), Action::AddEffect(kind)));
+        }
+        actions.extend([
+            ("Delete selected effect".into(), Action::DeleteEffect),
+            ("Effect earlier".into(), Action::MoveEffect(false)),
+            ("Effect later".into(), Action::MoveEffect(true)),
+        ]);
+    }
+    if eligibility == Eligibility::Aggregate {
+        actions.extend([
+            ("Set composition bounds clip".into(), Action::SetClip(true)),
+            ("Clear clip".into(), Action::SetClip(false)),
+        ]);
+    }
+    for (index, (label, action)) in actions.into_iter().enumerate() {
+        panel = panel.child(button(("compositing-action", index), label).on_click(
+            cx.listener(move |this, _, _, cx| this.compositing_action(action.clone(), cx)),
+        ));
+    }
+    for (axis, label) in [
+        (0usize, "mask"),
+        (1, "effect"),
+        (2, "path command"),
+        (3, "gradient stop"),
+    ] {
+        if eligibility == Eligibility::Leaf || (axis == 1 && eligibility == Eligibility::Aggregate)
+        {
+            panel = panel.child(
+                div()
+                    .flex()
+                    .gap_1()
+                    .child(
+                        button(("compositing-prev", axis), format!("Previous {label}")).on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                this.change_compositing_cursor(axis as u8, false, cx)
+                            }),
+                        ),
+                    )
+                    .child(
+                        button(("compositing-next", axis), format!("Next {label}")).on_click(
+                            cx.listener(move |this, _, _, cx| {
+                                this.change_compositing_cursor(axis as u8, true, cx)
+                            }),
+                        ),
+                    ),
+            );
+        }
     }
     let fields = shell.inspector_fields(item);
 
@@ -172,24 +243,6 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
                 .text_sm()
                 .child("Supported fields · select one to edit"),
         );
-        for (index, field) in fields.iter().enumerate() {
-            let label = format!("{}: {}", field.label, field.value);
-            panel = panel.child(
-                button(("inspector-field", index), label).on_click(cx.listener(
-                    move |this, _, window, cx| {
-                        this.choose_inspector_field(index, cx);
-                        this.inspector_focus.focus(window);
-                    },
-                )),
-            );
-        }
-        if shell
-            .inspector_field
-            .and_then(|i| fields.get(i))
-            .is_some_and(|f| f.update_key == "animationChannels")
-        {
-            panel = panel.child(div().py_2().child("Applying any animation field replaces the authored channel collection and clears all preset attribution on this item, even if the value is unchanged. Source clocks and untouched keys/channels are preserved."));
-        }
         if shell.inspector_field.is_some() {
             panel = panel
                 .child(
@@ -221,6 +274,24 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
                         },
                     )),
                 );
+        }
+        for (index, field) in fields.iter().enumerate() {
+            let label = format!("{}: {}", field.label, field.value);
+            panel = panel.child(
+                button(("inspector-field", index), label).on_click(cx.listener(
+                    move |this, _, window, cx| {
+                        this.choose_inspector_field(index, cx);
+                        this.inspector_focus.focus(window);
+                    },
+                )),
+            );
+        }
+        if shell
+            .inspector_field
+            .and_then(|i| fields.get(i))
+            .is_some_and(|f| f.update_key == "animationChannels")
+        {
+            panel = panel.child(div().py_2().child("Applying any animation field replaces the authored channel collection and clears all preset attribution on this item, even if the value is unchanged. Source clocks and untouched keys/channels are preserved."));
         }
     }
     if !editable(project, selection) {

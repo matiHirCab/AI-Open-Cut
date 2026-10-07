@@ -1,0 +1,75 @@
+{
+  "review": "independent-issue57-final-artifacts-before-code",
+  "reviewer": "/root/review57",
+  "observedAt": "2026-10-07T02:53:54.948298+00:00",
+  "decision": "EXPLICIT_BEFORECODE_SCOPE_APPROVAL",
+  "approval": "I explicitly approve implementation of issue57 only through the exact reviewed add-desktop-compositing-controls proposal, design, tasks and delta requirements whose hashes are frozen here, using the frozen canonical proposed desktop controls catalog. The verified issue56 dependency and final artifact approval gates are satisfied; implementation may begin within this scope.",
+  "branch": "feat/issue-57-desktop-compositing-20261007",
+  "baselineHead": "abc06b75d491d10ddd5aa3cf7bda0638aa437fe7",
+  "verifiedDependency": {
+    "issue": 56,
+    "pr": 150,
+    "run": 37561714579,
+    "requiredJobs": 11,
+    "allRequiredJobs": "SUCCESS",
+    "receipt": "/workspace/.opencut-tools/logs/continuation/issue56/ci-abc06b75/final-exact-head.json",
+    "receiptSha256": "9c61124aac41557872cf99360cd774fe174e074a599fa968b500cb4c1d29a49c"
+  },
+  "preservedOriginMain": "944a048c13e58cfa79acc2ac39c865ada396403b",
+  "artifactRoot": "/workspace/AI-Open-Cut/openspec/changes/add-desktop-compositing-controls",
+  "artifactHashes": {
+    ".openspec.yaml": "720b3de6231f9647898feba395449b03234e0c4fa3bd4ce47fc3bb341b0f16d6",
+    "design.md": "ee662b8c80c5535bcadb598daf65ee740e1c003dae604ac3b40c4ba02983f737",
+    "proposal.md": "878adb9f2b58b7ef1488c0020c7f547ce59ff099a7c699fb5db0dc58df2a8066",
+    "specs/contract-governance/spec.md": "12c0e7053d2b76162fc69da32e65c8bd80e9a9db23bc4d29f4491aa33660ba28",
+    "specs/desktop-hierarchy/spec.md": "7b8e7a2da476558ee3abf42b9d88b46ba02baac785fbe898a5eff6b235fc9c99",
+    "tasks.md": "3d06e54399b6a9fb97b450ae77507ec82178c3c4b334b84fff5550deddd74f6a"
+  },
+  "canonicalProposedCatalog": "/workspace/.opencut-tools/issue57-planning/proposed-desktop-compositing-controls-v1.json",
+  "canonicalProposedCatalogSha256": "c0a87addaf44302bdef3ddc1cf04aa7bc9d06117b138598095622d056722d4bf",
+  "requirements": 13,
+  "scenarios": 26,
+  "blockingFindings": [],
+  "liveIssueReviewed": {
+    "number": 57,
+    "title": "[MG-M4-09] Expose compositing APIs and desktop controls",
+    "source": "gh issue view 57 --repo matiHirCab/AI-Open-Cut --json number,title,body,state"
+  },
+  "instructionsReviewed": [
+    "AGENTS.md",
+    "docs/spec-driven-development.md"
+  ],
+  "livingRequirementCoverage": [
+    "desktop-hierarchy",
+    "contract-governance",
+    "visual-effects"
+  ],
+  "strictValidation": {
+    "command": "bunx @fission-ai/openspec@1.5.0 validate add-desktop-compositing-controls --strict --no-interactive",
+    "exitCode": 0,
+    "result": "Change add-desktop-compositing-controls is valid",
+    "log": "/workspace/.opencut-tools/issue57-planning/beforecode-strict-validation.log"
+  },
+  "approvedCoverage": [
+    "Exact canonical mask/defaults, immutable first-unused IDs, all seven effect defaults/fields and complete eligibility matrix.",
+    "Exact finite f64 and u16/u32 parsing; no clamp/quantization; semantic validation stays core-owned; complete authoritative record/channel/clock/metadata preservation.",
+    "Bounded selected command/stop presentation with no incidental whole-item/path/gradient serialization in legacy helpers; exact predecessor full Field-vector equivalence and actual nonmaterialization evidence required.",
+    "Scoped identity/revision/animation/compositing/field drafts, busy/refresh guards, stale async completion handling, explicit conflict refresh and full unchanged failure inventory.",
+    "Fresh canonical core/headless/MCP standalone and alias-batch lifecycle/failure/history parity; preserve schema37/protocol1/78 tools/all current and predecessor catalogs/pins and renderer semantics.",
+    "Required hermetic Rust desktop catalog consumer in complete contracts:check; signed native prerequisites; fail-closed regular package authority before Moon/attestation, exact complete command enforcement, additive tracked input and negative controls retaining predecessors.",
+    "Actual built GPUI deterministic project workflow mandatory; environment/Xvfb readiness or hermetic tests cannot establish acceptance; production output only through native tests.",
+    "All repository-required suites, own-change-only sync/archive, accepted-block/unrelated artifact preservation, final protected/strict gates, stacked draft publication and exact-head11 CI gate before58."
+  ],
+  "implementationAcceptanceGates": [
+    "Implement only traced approved tasks/scenarios; every changed normative scenario needs named automated evidence or technically impossible justification.",
+    "Preserve exact prior Field-vector formatting and legacy enumeration/defaults; prove actual maximum unrelated collection nonmaterialization, not only bounded output.",
+    "Core remains sole domain validator; complete authoritative records/channels/clocks/metadata remain exact and failures retain full unchanged inventory.",
+    "Freeze and enforce the complete canonical contracts:check command retaining every predecessor consumer plus approved desktop/new catalog; fail-closed regular package authority before Moon/attestation, additive Moon input/prerequisite/negative controls.",
+    "Actual built GPUI deterministic workflow is mandatory; setup/Xvfb readiness and hermetic module/session tests do not replace it.",
+    "Preserve schema37/protocol1/78tools/all38 current catalogs and all historical MCP pins/core validation/render semantics.",
+    "All repository-required implementation checks and independent implementation review must pass; sync/archive only verified own delta with accepted-block and unrelated artifact preservation; final protected/strict gates remain mandatory.",
+    "Stacked draft PR targets verified56 branch; exact-head all11 SUCCESS required before58. No merge/deploy."
+  ],
+  "acceptanceStatus": "IMPLEMENTATION_NOT_YET_VERIFIED; approval authorizes scope only, not completion/publication/merge",
+  "noImplementationEditsByReviewer": true
+}

@@ -29,6 +29,8 @@ The workflow and all six required validation jobs plus foundation must omit job-
 
 ## Local reproduction
 
+The contract leaf installs signed desktop link prerequisites before the pinned toolchain, and the canonical package command also runs hermetic desktop compositing tests. Protected preflight requires the regular bridge package source, its complete exact contracts command, and the package Moon tracked input before execution or attestation. Actual GPUI acceptance is separate.
+
 Run the contract boundary from `apps/agent-bridge`:
 
 ```sh

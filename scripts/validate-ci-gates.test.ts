@@ -43,6 +43,7 @@ function moonPolicySources(overrides: Partial<MoonPolicySources> = {}): MoonPoli
     workspace: moonWorkspaceConfig,
     toolchains: moonToolchainsConfig,
     proto: protoConfig,
+    bridgePackage: readFileSync(resolve(import.meta.dir,"..","apps/agent-bridge/package.json"),"utf8"),
     globalTasks: [],
     unexpectedConfigurations: [],
     activeChanges: [],
@@ -816,7 +817,7 @@ describe("CI parity gate policy", () => {
         "      - name: Install JavaScript dependencies\n",
         "      - name: Alternate dependency installation\n"
       ),
-      "contract-parity.steps[2] must be",
+      "contract-parity.steps[3] must be",
     ],
     [
       "reordered render steps",
@@ -2081,6 +2082,16 @@ describe("protected CI duration governance", () => {
       expect(() =>
         validateCiGates(workflow.slice(0, timeoutAt) + "    timeout-minutes: 180\n" + workflow.slice(timeoutAt + timeout.length)),
       ).toThrow();
+    });
+  }
+});
+
+describe("required desktop contract native prerequisites",()=>{
+  for (const [label,body] of [["omitted",undefined],["replaced","true"],["masked","sudo apt-get update && sudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev || true"]] as const) {
+    it(`rejects ${label} native desktop setup`,()=>{
+      const expected="      - name: Install desktop native dependencies\n        run: sudo apt-get update && sudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev\n";
+      const changed=replaceRequired(workflow,expected,body===undefined?"":`      - name: Install desktop native dependencies\n        run: ${body}\n`);
+      expect(()=>validateCiGates(changed)).toThrow();
     });
   }
 });

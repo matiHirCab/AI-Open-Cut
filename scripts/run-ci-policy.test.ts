@@ -149,3 +149,33 @@ describe("CI policy bootstrap", () => {
 		).resolves.toBeUndefined();
 	});
 });
+
+describe("required complete desktop contracts command authority", () => {
+	for (const [label, command] of [
+		["omitted desktop", "desktop"],
+		["substituted desktop", "substitute"],
+		["masked desktop", "mask"],
+		["weakened predecessor", "predecessor"],
+		["missing command", "missing"],
+		["invalid package", "malformed"],
+	] as const) {
+		it(`rejects ${label} before Moon and attestation`, async () => {
+			const sources=archivedOnlySources();
+			const pkg=JSON.parse(sources.bridgePackage);
+			const previous=pkg.scripts["contracts:check"] as string;
+			const next=command==="desktop" ? previous.replace(" && cargo test -p opencut-desktop desktop_compositing","")
+				: command==="substitute" ? previous.replace("desktop_compositing","startup_and_load")
+				: command==="mask" ? previous.replace("cargo test -p opencut-desktop desktop_compositing","cargo test -p opencut-desktop desktop_compositing || true")
+				: command==="predecessor" ? previous.replace(" --test mask_models","") : undefined;
+			pkg.scripts["contracts:check"]=next;
+			sources.bridgePackage=command==="malformed" ? "{" : JSON.stringify(pkg);
+			let launched=false,attested=false;
+			await expect(runCiPolicyBootstrap({workflowSource:workflow,moonSources:sources,cwd:root,environment:{},runMoon:async()=>{launched=true;return 0;},writeAttestation:()=>{attested=true;}})).rejects.toThrow(command==="malformed"?"valid JSON":"exact complete canonical command");
+			expect(launched).toBe(false);expect(attested).toBe(false);
+		});
+	}
+	it("rejects missing package tracked input before Moon and attestation",async()=>{
+		const sources=archivedOnlySources();sources.project=sources.project.replace("      - 'apps/agent-bridge/package.json'\n","");let launched=false,attested=false;
+		await expect(runCiPolicyBootstrap({workflowSource:workflow,moonSources:sources,cwd:root,environment:{},runMoon:async()=>{launched=true;return 0;},writeAttestation:()=>{attested=true;}})).rejects.toThrow();expect(launched).toBe(false);expect(attested).toBe(false);
+	});
+});

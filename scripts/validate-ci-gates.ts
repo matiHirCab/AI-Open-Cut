@@ -12,6 +12,9 @@ const DEFAULT_PROTO_CONFIG = ".prototools";
 const DEFAULT_OPENSPEC_CHANGES_DIRECTORY = "openspec/changes";
 const OPENSPEC_ARCHIVE_DIRECTORY = "archive";
 const AGENT_BRIDGE_DIRECTORY = "apps/agent-bridge";
+const AGENT_BRIDGE_PACKAGE = "apps/agent-bridge/package.json";
+const CONTRACTS_COMMAND = "bun run typecheck && cargo test -p opencut-headless && cargo test -p opencut-editor-core --test mask_models --test track_mattes --test blend_modes --test parameterized_effects --test group_compositing_models --test ordered_effect_stacks --test preview_review --test motion_blur_sampling --test inherited_animation_timing --test animation_channels --test vector_primitives --test shape_items --test svg_ingestion --test procedural_grids --test repeaters --test rich_text_documents --test font_resolution && cargo test -p opencut-desktop desktop_compositing && vitest run --config vitest.unit.config.ts tests/contracts.test.ts tests/mask-models.test.ts tests/mask-rendering.test.ts tests/track-mattes.test.ts tests/blend-modes.test.ts tests/parameterized-effects.test.ts tests/group-compositing.test.ts tests/ordered-effect-stacks.test.ts tests/preview-review.test.ts tests/motion-blur-sampling.test.ts tests/inherited-animation-timing.test.ts tests/animation-channels.test.ts tests/extended-visual-animation.test.ts tests/vector-primitives.test.ts tests/shape-items.test.ts tests/svg-ingestion.test.ts tests/procedural-grids.test.ts tests/repeaters.test.ts tests/rich-text-documents.test.ts tests/text-layout.test.ts tests/advanced-text-layout.test.ts tests/render-worker.test.ts tests/artifact-responses.test.ts tests/desktop-compositing.test.ts";
+const DESKTOP_NATIVE_COMMAND = "sudo apt-get update && sudo apt-get install -y libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev";
 const REPORT_PATH = "target/render-baseline-linux.json";
 const ABSOLUTE_REPORT_PATH = "${{ github.workspace }}/target/render-baseline-linux.json";
 const FOUNDATION_CONDITION = "${{ always() }}";
@@ -33,6 +36,7 @@ const OPENSPEC_TASK_INPUTS = [
   "scripts/run-ci-policy.ts",
   "scripts/run-ci-policy.test.ts",
   "scripts/run-ci-policy.integration.test.ts",
+  "apps/agent-bridge/package.json",
   ".github/workflows/bun-ci.yml",
   ".github/workflows/rules-screen-full.yml",
   "bunfig.toml",
@@ -132,6 +136,7 @@ export interface MoonPolicySources {
   workspace: string;
   toolchains: string;
   proto: string;
+  bridgePackage: string;
   globalTasks: readonly MoonConfigurationSource[];
   unexpectedConfigurations: readonly string[];
   activeChanges: readonly string[];
@@ -567,6 +572,15 @@ function validateGlobalTaskConfigurations(
   }
 }
 
+function validateBridgeContractCommand(source: string): void {
+  let parsed: unknown;
+  try { parsed=JSON.parse(source); } catch { throw new Error("required bridge package must contain valid JSON"); }
+  const scripts=record(record(parsed,"bridge package").scripts,"bridge package scripts");
+  if (scripts["contracts:check"] !== CONTRACTS_COMMAND) {
+    throw new Error("bridge package contracts:check must retain the exact complete canonical command including desktop parity");
+  }
+}
+
 export function validateMoonPolicyBoundary(sources: MoonPolicySources): void {
   if (sources.activeChanges.length > 0) {
     throw new Error(
@@ -584,6 +598,7 @@ export function validateMoonPolicyBoundary(sources: MoonPolicySources): void {
         .join(", ")}`
     );
   }
+  validateBridgeContractCommand(sources.bridgePackage);
   validateBunConfiguration(sources.bun);
   validateOpenSpecTask(sources.project);
   validateMoonWorkspace(sources.workspace);
@@ -633,6 +648,7 @@ function validateContractJob(job: UnknownRecord): void {
     jobSteps,
     [
       undefined,
+      "Install desktop native dependencies",
       "Setup pinned toolchain",
       "Install JavaScript dependencies",
       "Cross-language contract parity",
@@ -640,6 +656,9 @@ function validateContractJob(job: UnknownRecord): void {
     "contract-parity"
   );
   validateCheckout(jobSteps[0]!, "contract-parity checkout step");
+  const native = requiredStep(jobSteps, "Install desktop native dependencies", "contract-parity");
+  validateCriticalStep(native.step, DESKTOP_NATIVE_COMMAND, "contract-parity desktop native prerequisites");
+  requireExactKeys(native.step, ["name", "run"], "contract-parity desktop native prerequisites");
   const toolchainIndex = validatePinnedToolchain(jobSteps, "contract-parity");
   const install = requiredStep(jobSteps, "Install JavaScript dependencies", "contract-parity");
   const parity = requiredStep(jobSteps, "Cross-language contract parity", "contract-parity");
@@ -1284,6 +1303,7 @@ export function loadMoonPolicySources(): MoonPolicySources {
     workspace: readRequiredPolicyConfiguration(DEFAULT_MOON_WORKSPACE_CONFIG),
     toolchains: readRequiredPolicyConfiguration(DEFAULT_MOON_TOOLCHAINS_CONFIG),
     proto: readRequiredPolicyConfiguration(DEFAULT_PROTO_CONFIG),
+    bridgePackage: readRequiredPolicyConfiguration(AGENT_BRIDGE_PACKAGE),
     globalTasks: discoverGlobalTaskConfigurations(),
     unexpectedConfigurations: discoverUnexpectedMoonConfigurations(),
     activeChanges: discoverActiveOpenSpecChanges(),

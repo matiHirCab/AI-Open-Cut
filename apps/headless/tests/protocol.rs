@@ -632,6 +632,29 @@ struct Harness {
 }
 
 impl Harness {
+    fn project_files(&self, id: &str) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        fn visit(
+            root: &std::path::Path,
+            path: &std::path::Path,
+            out: &mut std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+        ) {
+            for entry in std::fs::read_dir(path).unwrap() {
+                let e = entry.unwrap();
+                if e.file_type().unwrap().is_dir() {
+                    visit(root, &e.path(), out);
+                } else {
+                    out.insert(
+                        e.path().strip_prefix(root).unwrap().to_owned(),
+                        std::fs::read(e.path()).unwrap(),
+                    );
+                }
+            }
+        }
+        let root = self.root.path().join("projects").join(id);
+        let mut files = std::collections::BTreeMap::new();
+        visit(&root, &root, &mut files);
+        files
+    }
     fn new() -> Self {
         Self {
             root: tempfile::tempdir().unwrap(),
@@ -3018,4 +3041,114 @@ fn canonical_blend_selections_aliases_history_drafts_and_raw_duplicates_roundtri
             [1]["items"][0]["blendMode"],
         "multiply"
     );
+}
+
+#[test]
+fn desktop_compositing_catalog_fresh_alias_standalone_clear_failure_history_reopen_parity() {
+    let h = Harness::new();
+    let c: Value = serde_json::from_str(include_str!(
+        "../../../contracts/desktop-compositing-controls-v1.json"
+    ))
+    .unwrap();
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Desktop controls API","settings":{"width":64,"height":64,"fps":10}})),
+    )["projectId"]
+        .clone();
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let state = read();
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let created=result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":64,"height":64,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"provider"},
+        {"operation":"update_item","itemId":"@provider","matteOnly":true},
+        {"operation":"add_rectangle","trackId":track,"startMs":0,"durationMs":1000,"width":64,"height":64,"color":"#ffffff","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1},"resultAlias":"leaf"},
+        {"operation":"update_item","itemId":"@leaf","masks":[c["defaultMask"]],"effects":[c["effectDefaults"]["glow"],{"id":"tint","type":"color_tint","color":{"r":0.12345678901234566,"g":0.3333333333333333,"b":0.9876543210987654,"a":0.8765432109876543}}],"matte":{"sourceId":"@provider","channel":"luma"},"blendMode":"screen"},
+        {"operation":"add_group","trackId":track,"startMs":0,"durationMs":1000,"resultAlias":"owner"},
+        {"operation":"update_item","itemId":"@owner","effects":[c["effectDefaults"]["screen_flash"]],"clip":c["clipValue"]}
+    ]})));
+    let leaf = created["aliases"]["leaf"].clone();
+    let owner = created["aliases"]["owner"].clone();
+    let baseline = read();
+    let project: opencut_editor_core::Project =
+        serde_json::from_value(baseline["project"].clone()).unwrap();
+    let value = serde_json::to_value(project.find_item(leaf.as_str().unwrap()).unwrap()).unwrap();
+    assert_eq!(value["matte"]["sourceId"], created["aliases"]["provider"]);
+    assert_eq!(value["effects"][1]["color"]["r"], 0.12345678901234566);
+    let revision = baseline["project"]["revision"].as_u64().unwrap();
+    for edit in [
+        json!({"operation":"update_item","itemId":leaf,"masks":[c["defaultMask"],c["defaultMask"]]}),
+        json!({"operation":"update_item","itemId":leaf,"matte":{"sourceId":"missing","channel":"alpha"}}),
+        json!({"operation":"update_item","itemId":"missing","effects":[]}),
+    ] {
+        let before = h.project_files(id.as_str().unwrap());
+        let standalone = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(standalone["type"], "error");
+        assert_eq!(read(), baseline);
+        assert_eq!(h.project_files(id.as_str().unwrap()), before);
+        let failed=event(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision,"operations":[{"operation":"update_item","itemId":owner,"clip":null},edit]})));
+        assert_eq!(failed["type"], "error");
+        assert_eq!(failed["error"]["code"], standalone["error"]["code"]);
+        assert_eq!(read(), baseline);
+        assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    }
+    let before = h.project_files(id.as_str().unwrap());
+    let stale=event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision-1,"edit":{"operation":"update_item","itemId":leaf,"blendMode":"multiply"}})));
+    assert_eq!(stale["error"]["code"], "REVISION_CONFLICT");
+    assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_item","itemId":leaf,"blendMode":"overlay"}})));
+    let updated = read();
+    let project: opencut_editor_core::Project =
+        serde_json::from_value(updated["project"].clone()).unwrap();
+    let mut expected = value;
+    expected["blendMode"] = json!("overlay");
+    assert_eq!(
+        serde_json::to_value(project.find_item(leaf.as_str().unwrap()).unwrap()).unwrap(),
+        expected
+    );
+    result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":revision+1,"operations":[{"operation":"update_item","itemId":leaf,"matte":null,"masks":[],"effects":[]},{"operation":"update_item","itemId":owner,"clip":null}]})));
+    let cleared = read();
+    let project: opencut_editor_core::Project =
+        serde_json::from_value(cleared["project"].clone()).unwrap();
+    let v = project
+        .find_item(leaf.as_str().unwrap())
+        .unwrap()
+        .visual_properties();
+    assert!(v.matte.is_none() && v.masks.is_empty() && v.effects.is_empty());
+    assert!(
+        project
+            .find_item(owner.as_str().unwrap())
+            .unwrap()
+            .visual_properties()
+            .clip
+            .is_none()
+    );
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":revision+2})));
+    let undo = read();
+    let mut expected = updated["project"].clone();
+    expected["revision"] = undo["project"]["revision"].clone();
+    assert!(
+        undo["project"]["updatedAtMs"].as_u64().unwrap()
+            >= updated["project"]["updatedAtMs"].as_u64().unwrap()
+    );
+    expected["updatedAtMs"] = undo["project"]["updatedAtMs"].clone();
+    assert_eq!(undo["project"], expected);
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":revision+3})));
+    let reopened = read();
+    let mut expected = cleared["project"].clone();
+    expected["revision"] = reopened["project"]["revision"].clone();
+    assert!(
+        reopened["project"]["updatedAtMs"].as_u64().unwrap()
+            >= cleared["project"]["updatedAtMs"].as_u64().unwrap()
+    );
+    expected["updatedAtMs"] = reopened["project"]["updatedAtMs"].clone();
+    assert_eq!(reopened["project"], expected);
+    let revision = reopened["project"]["revision"].as_u64().unwrap();
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"update_track","trackId":track,"locked":true}})));
+    let locked = read();
+    let before = h.project_files(id.as_str().unwrap());
+    let rejected=event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision+1,"edit":{"operation":"update_item","itemId":leaf,"effects":[]}})));
+    assert_eq!(rejected["error"]["code"], "TRACK_LOCKED");
+    assert_eq!(read(), locked);
+    assert_eq!(h.project_files(id.as_str().unwrap()), before);
 }
