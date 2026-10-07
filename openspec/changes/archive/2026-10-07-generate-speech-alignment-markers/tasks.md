@@ -18,8 +18,12 @@
 
 ## 4. Verify, review and archive
 
-- [ ] 4.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Keep full logs and fix failures without weakening coverage.
-- [ ] 4.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test; bun run contracts:check; bun run test:integration; bun run test:smoke. Run relevant existing hermetic Python worker unittest/pytest unchanged. Preserve standard/runtime diagnostic evidence distinctions.
-- [ ] 4.3 Run bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive and moon run root:openspec-validate pre-archive; inspect expected rejection naming only this active change. Perform substantive delegated CODEOWNER/conformance review with openspec-verify-change and fix every mismatch.
-- [ ] 4.4 Synchronize accepted deltas and archive only this verified change using openspec-sync-specs/openspec-archive-change; preserve all prior living requirement blocks/archive bytes and rerun the unchanged protected gate plus strict all-spec validation.
-- [ ] 4.5 Push verified work and create/update one draft cumulative PR targeting main, explicitly ordered after PR156 while unmerged. Require all 11 exact-head CI successes before reporting completion or starting the next dependency-ready issue, and reconcile any user merges without discarding work.
+- [x] 4.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Keep full logs and fix failures without weakening coverage.
+- [x] 4.2 From apps/agent-bridge run bun run typecheck; bun run lint; bun run test; bun run contracts:check; bun run test:integration; bun run test:smoke. Run relevant existing hermetic Python worker unittest/pytest unchanged. Preserve standard/runtime diagnostic evidence distinctions.
+- [x] 4.3 Run bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive and moon run root:openspec-validate pre-archive; inspect expected rejection naming only this active change. Perform substantive delegated CODEOWNER/conformance review with openspec-verify-change and fix every mismatch.
+
+## Post-verification delivery obligations (pending)
+
+Synchronize accepted deltas and archive only this verified change using openspec-sync-specs/openspec-archive-change; preserve all prior living requirement blocks/archive bytes and rerun the unchanged protected gate plus strict all-spec validation. Push verified work and create/update one draft cumulative PR targeting main, explicitly ordered after PR156 while unmerged. Require all 11 exact-head CI successes before reporting completion or starting the next dependency-ready issue, and reconcile any user merges without discarding work. These future publication/self-head checks remain pending external exact-SHA receipt obligations, not predeclared source-snapshot passes. Issue completion remains blocked until every delivery gate passes. No merge, deployment or closure is performed.
+
+Local synchronization, archival, strict48-spec validation and protected461-control gate now pass, recorded in local-archival-gate-receipt.json. Final publication/external exact-head CI acceptance remains pending and must be recorded outside this self-referential source snapshot before completion or issue65.

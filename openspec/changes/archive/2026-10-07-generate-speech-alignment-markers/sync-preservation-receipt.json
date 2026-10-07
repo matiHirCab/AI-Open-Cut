@@ -1,0 +1,20 @@
+{
+  "reviewedSourceHead": "6ae8bce3f1e091281e15760bc531c2a6290869e0",
+  "standardAcceptance": {
+    "run": 37701149167,
+    "job": 113064630708,
+    "integration": 25,
+    "packaged": 22,
+    "sameMergeTree": "031ad4f2ab5fdb66edf0190d2ab12e9390ce950c"
+  },
+  "unchangedPriorArchiveFiles": 1262,
+  "unchangedOtherPriorLivingFiles": 46,
+  "unchangedPriorRequirementBlocks": 528,
+  "addedRequirements": 5,
+  "updatedCapabilities": [
+    "speech-alignment-markers",
+    "contract-governance"
+  ],
+  "unchangedReviewedSourceFiles": 41,
+  "finalHeadCi": "pending external exact-SHA receipt; completion and next issue remain blocked"
+}
