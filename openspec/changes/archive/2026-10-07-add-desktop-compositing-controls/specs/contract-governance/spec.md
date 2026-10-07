@@ -35,4 +35,3 @@ Continuous integration MUST publish a dedicated contract-parity status that exec
 #### Scenario: Preserve current contract compatibility
 - **WHEN** the dedicated gate's isolated closed sequence is enforced
 - **THEN** existing protocol versions, requests, responses, capabilities, stable errors, persisted schemas, and fixture contents remain unchanged
-
