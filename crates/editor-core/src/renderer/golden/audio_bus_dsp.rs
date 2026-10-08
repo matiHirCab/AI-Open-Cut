@@ -40,7 +40,7 @@ fn stereo_channels(ffmpeg: &Path, path: &Path) -> [Vec<f32>; 2] {
     assert_eq!(output.stdout.len() % 8, 0);
     let mut channels: [Vec<f32>; 2] =
         std::array::from_fn(|_| Vec::with_capacity(output.stdout.len() / 8));
-    for frame in output.stdout.chunks_exact(8) {
+    for frame in output.stdout.as_chunks::<8>().0 {
         for index in 0..2 {
             channels[index].push(f32::from_le_bytes(
                 frame[index * 4..index * 4 + 4].try_into().unwrap(),
