@@ -565,6 +565,10 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
         "../../../apps/agent-bridge/tests/fixtures/semantic-sound-events-predecessor-pins.json"
     ))
     .unwrap();
+    let audio_event_pins: Value = serde_json::from_str(include_str!(
+        "../../../apps/agent-bridge/tests/fixtures/audio-events-predecessor-pins.json"
+    ))
+    .unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts");
     for name in pins["currentMarkerCatalogs"].as_array().unwrap() {
         let name = name.as_str().unwrap();
@@ -583,6 +587,23 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
                 | "mask-models-v1.json"
                 | "motion-blur-sampling-v1.json"
         ) {
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 41").count(),
+                1,
+                "{name}"
+            );
+            let current = current.replacen(
+                "\"projectSchemaVersion\": 41",
+                "\"projectSchemaVersion\": 40",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(current.as_bytes())),
+                audio_event_pins["catalogRawSha256"][format!("contracts/{name}")]
+                    .as_str()
+                    .unwrap(),
+                "{name}"
+            );
             assert_eq!(
                 current.matches("\"projectSchemaVersion\": 40").count(),
                 1,
