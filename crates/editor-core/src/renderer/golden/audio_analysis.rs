@@ -68,8 +68,10 @@ impl ProcessExecutor for RecordingProcess {
         let result = SystemProcessExecutor.analyze_audio(f, p, s, a, g)?;
         *self.pcm.lock().unwrap() = fs::read(a)
             .unwrap()
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| f32::from_le_bytes(*b))
             .collect();
         Ok(result)
     }
@@ -108,8 +110,10 @@ fn reference_pcm(tools: &NativeTools, source: &Path, filter: &str) -> Vec<f32> {
     assert_eq!(result.stdout.len() % 8, 0);
     result
         .stdout
-        .chunks_exact(4)
-        .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| f32::from_le_bytes(*b))
         .collect()
 }
 fn reference_metrics(tools: &NativeTools, pcm: &[f32], path: &Path) -> LoudnessMetrics {
@@ -445,7 +449,9 @@ fn native_audio_analysis_original_pcm_statistics_loudness_warm_routes_components
         let expected = reference_pcm(&tools, &root.path().join("independent-tone.wav"), &filter);
         if case == "stereo_tone" {
             let distinct = (expected
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|frame| (f64::from(frame[0]) - f64::from(frame[1])).powi(2))
                 .sum::<f64>()
                 / (expected.len() / 2) as f64)
