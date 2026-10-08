@@ -357,6 +357,31 @@ fn native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_co
 }
 
 #[test]
+fn absent_dsp_preserves_historical_direct_render_inputs() {
+    let mut historical = fixture();
+    historical.schema_version = 18;
+    for track in &mut historical.tracks {
+        track.audio_bus_id = None;
+    }
+    let mut baseline = historical.clone();
+    baseline.audio_buses.clear();
+    let expected = evaluate_project(&baseline, WIDTH, HEIGHT, FPS).unwrap();
+    // Existing native affine fixtures retain today's default bus records when
+    // selecting their historical unbound-font render path. DSP omission must
+    // preserve that direct renderer input rather than add a migration guard.
+    let actual = evaluate_project(&historical, WIDTH, HEIGHT, FPS).unwrap();
+    assert_eq!(actual.scene, expected.scene);
+    assert_eq!(
+        format!("{:?}", actual.scene),
+        format!("{:?}", expected.scene)
+    );
+    set(&mut historical, 1, identity());
+    let error = evaluate_project(&historical, WIDTH, HEIGHT, FPS).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidArgument);
+    assert_eq!(error.message, "audio bus DSP requires schema 42");
+}
+
+#[test]
 fn neutral_and_unreachable_dsp_preserve_exact_evaluated_scene_and_plan() {
     let p = fixture();
     let baseline = evaluate_project(&p, WIDTH, HEIGHT, FPS).unwrap();

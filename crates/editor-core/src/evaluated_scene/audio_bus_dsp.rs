@@ -42,6 +42,12 @@ impl EvaluatedBusGraph {
 }
 
 pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<(), CoreError> {
+    // Omission retains the complete legacy direct-render path, including native
+    // historical fixtures. Persistence validates routing independently; only
+    // authored DSP introduces the DSP model/render guards here.
+    if project.audio_buses.iter().all(|bus| bus.dsp.is_none()) {
+        return Ok(());
+    }
     project.validate_audio_bus_model()?;
     let mut reachable = [false; 4];
     for audio in &scene.audio_layers {
