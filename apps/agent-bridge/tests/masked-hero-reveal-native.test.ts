@@ -300,6 +300,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         soundCatalog.operation,
         "timeline_add_audio_event",
         "audio_bus_set_dsp",
+        audioBusDucking.operation,
       ];
       expect(
         tools.filter((tool) => !addedTools.includes(tool.name))
