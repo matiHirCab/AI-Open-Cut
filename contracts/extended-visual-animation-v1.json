@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 40,
+  "projectSchemaVersion": 41,
   "capability": "extended_visual_animation_v1",
   "limits": {"maxEffectsPerItem": 16, "maxEffectIdBytes": 128, "maxEffectRadiusPx": 128, "maxPixelPassesPerSample": 268435456, "maxCandidateAnalysisNodes": 65536},
   "candidateCertification": {"node": "bounded time interval for one visual occurrence", "order": "canonical occurrences, left subdivision before right", "unresolvedAtLimit": "INVALID_ARGUMENT", "conservativeRejection": true},

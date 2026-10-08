@@ -19,6 +19,13 @@ pub struct EditDraft {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "deserialize_present"
     )]
+    pub audio_event_asset_ids: Option<Vec<String>>,
+
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_present"
+    )]
     pub font_catalog: Option<std::collections::BTreeMap<String, crate::FontRecord>>,
     #[serde(
         default,
@@ -79,6 +86,34 @@ pub(crate) fn read_draft(
 
 pub(crate) fn validate_draft_envelope(draft: &EditDraft) -> Result<(), CoreError> {
     reject_preset_intents(&draft.operations)?;
+    let has_audio_events = draft
+        .operations
+        .iter()
+        .any(|operation| matches!(operation, EditOperation::TimelineAddAudioEvent { .. }));
+    if has_audio_events
+        && draft
+            .audio_event_asset_ids
+            .as_ref()
+            .is_none_or(|ids| ids.is_empty())
+        || draft.audio_event_asset_ids.as_ref().is_some_and(|ids| {
+            ids.is_empty()
+                || ids.len() > draft.operations.len()
+                || ids.windows(2).any(|pair| pair[0] >= pair[1])
+                || ids.iter().any(|id| {
+                    id.is_empty()
+                        || id.len() > 128
+                        || !id
+                            .bytes()
+                            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+                })
+        })
+        || draft.version == 1 && draft.audio_event_asset_ids.is_some()
+    {
+        return Err(CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            "draft audio event roots are incomplete",
+        ));
+    }
     if !matches!(draft.version, 1 | DRAFT_VERSION) {
         return Err(CoreError::new(
             ErrorCode::InternalError,

@@ -4,6 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   editDraftSchema,
   projectStateSchema,
@@ -23,7 +24,8 @@ export const verifySoundEventWorkflow = async (
   mediaDirectory: string
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(catalog.projectSchemaVersion);
+  expect(catalog.projectSchemaVersion).toBe(40);
+  expect(status.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
   expect(status.subsystems.editor.capabilities).toContain(catalog.capability);
   expect(
     (await client.listTools()).tools.filter(

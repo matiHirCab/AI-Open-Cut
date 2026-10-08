@@ -13,7 +13,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/parameterized-effects-v1.json";
-import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -227,7 +227,7 @@ fn main() {
       };
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        soundEvents.projectSchemaVersion
+        audioEvents.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(status.capabilities).toContain("parameterized_effect_models_v1");

@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(40).optional(),
+    projectSchemaVersion: z.literal(41).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1201,12 +1201,36 @@ export const transcriptionEstimateSchema = z
   })
   .strict();
 
+export const audioEventItemSchema = z.strictObject({
+  busId: z.enum(["voiceover", "music", "sfx", "master"]),
+  contentHash: z.strictObject({
+    algorithm: z.literal("sha256"),
+    digest: z.string().regex(/^[0-9a-f]{64}$/),
+  }),
+  defaultGainDb: finite.min(-120).max(24),
+  event: id.regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/),
+  gainDb: finite.min(-120).max(24),
+  variantIndex: z.int().min(0).max(31),
+  variantSeed: z.int().min(0).max(Number.MAX_SAFE_INTEGER),
+});
+
+const audioEventInputFields = {
+  at: timeExpressionSchema,
+  durationMs: positiveMilliseconds.optional(),
+  event: id,
+  gainDb: finite.min(-120).max(24).optional(),
+  scope: audioBusScope,
+  trackId: id,
+  variantSeed: z.int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+};
+
 const mediaItemSchema = z
   .object({
     animationChannels: z.array(animationChannelSchema).max(64).optional(),
     animationPresetProvenance: animationPresetProvenanceMapSchema.optional(),
     assetId: id,
     audio: audioSchema,
+    audioEvent: audioEventItemSchema.optional(),
     blendMode: blendModeSchema.optional(),
     clip: compositionClipSchema.optional(),
     crop: mediaCropSchema.optional(),
@@ -1931,7 +1955,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(40),
+        schemaVersion: z.literal(41),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2036,6 +2060,14 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    ...audioEventInputFields,
+    operation: z.literal("timeline_add_audio_event"),
+    resultAlias: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+      .optional(),
+  }),
   z.strictObject({
     ...soundEventInputFields,
     operation: z.literal("sound_event_register"),
@@ -2434,6 +2466,7 @@ export const headlessEditSchema = z.discriminatedUnion("operation", [
 
 export const editDraftSchema = z
   .object({
+    audioEventAssetIds: z.array(id).min(1).max(100).optional(),
     baseRevision: z.int().nonnegative(),
     createdAtMs: milliseconds,
     fontCatalog: fontCatalogSchema,
@@ -2688,6 +2721,9 @@ export const schemas = {
       textOptions: speechTextOptionsSchema.optional(),
       voice: speechVoiceIdSchema.optional(),
     })
+    .strict(),
+  timelineAddAudioEvent: projectRevisionSchema
+    .extend(audioEventInputFields)
     .strict(),
   timelineAddGrid: projectRevisionSchema.extend(addGridSchema.shape).strict(),
   timelineAddMedia: projectRevisionSchema

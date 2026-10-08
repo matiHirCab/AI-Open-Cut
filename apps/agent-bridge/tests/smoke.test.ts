@@ -25,6 +25,7 @@ import {
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
 import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
+import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
@@ -1294,4 +1295,8 @@ it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and
 
 it("registers sound definitions with aliases, drafts, rollback, ownership and reopen", async () => {
   await verifySoundEventWorkflow(client, call, media);
+});
+
+it("places semantic sounds through real standalone batch draft history and reopen", async () => {
+  await verifyAudioEventWorkflow(client, call, media);
 });

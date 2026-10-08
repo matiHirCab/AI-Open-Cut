@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import CONTRACT from "../../../contracts/inherited-animation-timing-v1.json";
-import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import { repeaterDescriptorSchema } from "../src/repeaters";
 import { headlessEditSchema, schemas } from "../src/schemas";
 import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
@@ -29,7 +29,7 @@ const repeater = {
 describe("inherited animation timing contract", () => {
   it("matches schema 26 and accepts additive fields in standalone and batch edits", () => {
     expect(CONTRACT.projectSchemaVersion).toBe(
-      soundEvents.projectSchemaVersion
+      audioEvents.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(CONTRACT).projectSchemaVersion).toBe(
       38

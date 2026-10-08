@@ -18,8 +18,8 @@ import {
   removeAudioBusHeadlessAdditions,
   removeAudioBusOwnershipAddition,
 } from "./fixtures/audio-buses-projection";
+import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
-
 import { projectSoundEventMcpPredecessor } from "./fixtures/semantic-sound-events-projection";
 
 const hash = (value: Uint8Array | string) =>
@@ -92,8 +92,14 @@ it("keeps independently pinned issue62 raw and semantic contracts plus all histo
       resolve(import.meta.dirname, "../../..", path),
       "utf8"
     );
-    const raw = currentHeaders.has(path.replace("contracts/", ""))
+    const issue63Raw = currentHeaders.has(path.replace("contracts/", ""))
       ? currentRaw.replace(
+          '"projectSchemaVersion": 41',
+          '"projectSchemaVersion": 40'
+        )
+      : currentRaw;
+    const raw = currentHeaders.has(path.replace("contracts/", ""))
+      ? issue63Raw.replace(
           '"projectSchemaVersion": 40',
           '"projectSchemaVersion": 39'
         )
@@ -210,7 +216,7 @@ it("rejects unrelated tool schema, field, version, annotation and predecessor dr
       properties.schemaVersion.const = 41;
     },
   ]) {
-    const changed = structuredClone(mcp);
+    const changed = removeAudioEventMcpAdditions(mcp);
     mutate(changed);
     expect(() => projectAudioBusMcpPredecessor(changed)).toThrow();
   }

@@ -132,6 +132,22 @@ fn resolve(
     }
 }
 
+pub(crate) fn resolve_time(
+    project: &Project,
+    scope: &str,
+    expression: &TimeExpression,
+) -> Result<u64, CoreError> {
+    let mut by_name = BTreeMap::new();
+    for marker in markers_for_scope(project, scope)? {
+        if let Some(value) = by_name.get_mut(marker.name.as_str()) {
+            *value = None;
+        } else {
+            by_name.insert(marker.name.as_str(), Some(marker.time_ms));
+        }
+    }
+    resolve(&by_name, expression)
+}
+
 fn check_interval(item: &TimelineItem, start: u64, duration: Option<u64>) -> Result<(), CoreError> {
     let end = start
         .checked_add(item.duration_ms())

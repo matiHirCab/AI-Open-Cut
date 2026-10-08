@@ -303,6 +303,24 @@
         "busId": "sfx",
         "variantSeed": 42
       }
+    },
+    "timelineAddAudioEvent": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "timeline_add_audio_event",
+        "scope": "root",
+        "trackId": "audio",
+        "event": "impact",
+        "at": {
+          "type": "milliseconds",
+          "valueMs": 250
+        },
+        "durationMs": 300,
+        "gainDb": -3,
+        "variantSeed": 1
+      }
     }
   },
   "events": [
@@ -368,7 +386,8 @@
       "speech_alignment_validation_v1",
       "speech_alignment_markers_v1",
       "project_audio_buses_v1",
-      "semantic_sound_event_definitions_v1"
+      "semantic_sound_event_definitions_v1",
+      "timeline_audio_events_v1"
     ],
     "renderingCapabilities": [
       "preview",

@@ -11,10 +11,13 @@ fn invalid(message: &str) -> CoreError {
 }
 pub(crate) fn eligible(item: &TimelineItem, assets: Option<&HashMap<&str, MediaType>>) -> bool {
     match item {
-        TimelineItem::Media(media) => assets.is_none_or(|a| {
-            a.get(media.asset_id.as_str())
-                .is_none_or(|kind| matches!(kind, MediaType::Image | MediaType::Video))
-        }),
+        TimelineItem::Media(media) => {
+            media.audio_event.is_none()
+                && assets.is_none_or(|a| {
+                    a.get(media.asset_id.as_str())
+                        .is_none_or(|kind| matches!(kind, MediaType::Image | MediaType::Video))
+                })
+        }
         TimelineItem::Text(_)
         | TimelineItem::SolidColor(_)
         | TimelineItem::Rectangle(_)

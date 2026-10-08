@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 41,
+  "headlessProtocolVersion": 1,
+  "capability": "timeline_audio_events_v1",
+  "operation": "timeline_add_audio_event",
+  "placement": "immutable_selected_content_and_definition_settings_snapshot",
+  "gain": "audio.volume * 10^((defaultGainDb + gainDb)/20)",
+  "minimumGainDb": -120,
+  "maximumGainDb": 24,
+  "maximumVariantSeed": 9007199254740991,
+  "maximumVariantIndex": 31,
+  "audioOnly": true,
+  "scope": [
+    "root",
+    "component:<id>"
+  ],
+  "at": [
+    {
+      "type": "milliseconds",
+      "valueMs": 250
+    },
+    {
+      "type": "marker",
+      "markerName": "impact",
+      "offsetMs": -50
+    }
+  ],
+  "input": {
+    "operation": "timeline_add_audio_event",
+    "scope": "root",
+    "trackId": "audio",
+    "event": "impact",
+    "at": {
+      "type": "milliseconds",
+      "valueMs": 250
+    },
+    "durationMs": 300,
+    "gainDb": -3,
+    "variantSeed": 1
+  },
+  "provenance": {
+    "event": "impact",
+    "gainDb": -3,
+    "defaultGainDb": -6,
+    "busId": "sfx",
+    "variantSeed": 1,
+    "variantIndex": 1,
+    "contentHash": {
+      "algorithm": "sha256",
+      "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "errors": {
+    "missingEvent": "INVALID_ARGUMENT",
+    "missingTrack": "TRACK_NOT_FOUND",
+    "lockedTrack": "TRACK_LOCKED",
+    "missingMarker": "ITEM_NOT_FOUND",
+    "ambiguousMarker": "INVALID_ARGUMENT",
+    "staleRevision": "REVISION_CONFLICT",
+    "invalidAlias": "VALIDATION_FAILED",
+    "invalidContent": "ASSET_INTEGRITY_FAILED",
+    "ownedAsset": "ASSET_IN_USE"
+  },
+  "invalidInputChanges": [
+    {
+      "field": "gainDb",
+      "value": 24.01
+    },
+    {
+      "field": "gainDb",
+      "value": -120.01
+    },
+    {
+      "field": "variantSeed",
+      "value": 9007199254740992
+    },
+    {
+      "field": "event",
+      "value": "missing"
+    },
+    {
+      "field": "durationMs",
+      "value": 0
+    },
+    {
+      "field": "durationMs",
+      "value": 501
+    },
+    {
+      "field": "at",
+      "value": {
+        "type": "milliseconds",
+        "valueMs": 9007199254740991
+      }
+    },
+    {
+      "field": "at",
+      "value": {
+        "type": "marker",
+        "markerName": "missing",
+        "offsetMs": 0
+      }
+    }
+  ]
+}

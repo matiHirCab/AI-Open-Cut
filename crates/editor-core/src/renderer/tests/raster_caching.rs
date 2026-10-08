@@ -376,6 +376,7 @@ fn warm_preflight_matches_cold_across_routes_before_any_lookup() {
             }
             _ => {
                 bad.tracks[1].items[0] = TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "missing".into(),
                     asset_id: "absent".into(),
                     start_ms: 0,

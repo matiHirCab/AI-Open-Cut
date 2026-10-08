@@ -512,3 +512,227 @@ fn main(){{let args:Vec<_>=std::env::args_os().skip(1).collect();if !args.iter()
         "no temporary output/workspace or project/history/draft/resource writes"
     );
 }
+
+#[test]
+fn semantic_audio_and_video_variants_preserve_original_hero_oracles_through_drafts() {
+    let Some(native) = Native::configured() else {
+        eprintln!("SKIP: optional native hero tools not configured");
+        return;
+    };
+    for video in [false, true] {
+        let mut f = Fixture::new(true);
+        f.root.disable_cleanup(true);
+        eprintln!(
+            "preserved semantic native fixture: {}",
+            f.root.path().display()
+        );
+        let (renderer, captured) = native.capturing_renderer(f.root.path());
+        let baseline = f.core.get_project(&f.id).unwrap();
+        let old = baseline.tracks[2].items[0].clone();
+        let opencut_editor_core::TimelineItem::Media(original) = &old else {
+            panic!("expected original audio")
+        };
+        let asset_id = if video {
+            let movie = f.root.path().join("media/audio-bearing-video.mkv");
+            let wav = f.root.path().join("media/source.wav");
+            let result = std::process::Command::new(&native.ffmpeg)
+                .args([
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=c=yellow:s=64x64:r=10:d=0.8",
+                    "-i",
+                ])
+                .arg(&wav)
+                .args(["-c:v", "ffv1", "-c:a", "pcm_s16le", "-shortest", "-y"])
+                .arg(&movie)
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            f.core
+                .import_asset(
+                    &f.id,
+                    f.rev(),
+                    movie,
+                    opencut_editor_core::MediaType::Video,
+                    opencut_editor_core::MediaProbeFacts {
+                        duration_ms: Some(800),
+                        has_audio: true,
+                        has_video: true,
+                        audio_codec: Some("pcm_s16le".into()),
+                        audio_channels: Some(2),
+                        audio_sample_rate_hz: Some(48000),
+                        ..Default::default()
+                    },
+                )
+                .unwrap()
+                .changed_ids[0]
+                .clone()
+        } else {
+            original.asset_id.clone()
+        };
+        f.core
+            .edit(
+                &f.id,
+                f.rev(),
+                op(
+                    json!({"operation":"sound_event_register","event":"hero_audio",
+            "variantAssetIds":[asset_id],"defaultGainDb":-6,"busId":"sfx","variantSeed":0}),
+                ),
+            )
+            .unwrap();
+        let draft = f.core.create_draft(&f.id,f.rev(),vec![
+            op(json!({"operation":"delete_item","itemId":original.id})),
+            op(json!({"operation":"timeline_add_audio_event","scope":"root","trackId":baseline.tracks[2].id,
+                "event":"hero_audio","at":{"type":"milliseconds","valueMs":0},"durationMs":800,"gainDb":6}))
+        ],None).unwrap();
+        let candidate = f.core.get_draft_state(&f.id, &draft.id).unwrap().project;
+        for time in (0..800).step_by(100) {
+            still(
+                &native, &renderer, &f, &captured, &candidate, "baseline", time,
+            );
+        }
+        let rendered = movies(
+            &native,
+            &renderer,
+            &f,
+            &candidate,
+            "baseline",
+            if video {
+                "event-video-draft"
+            } else {
+                "event-audio-draft"
+            },
+        );
+        f.core.commit_draft(&f.id, &draft.id, f.rev()).unwrap();
+        let committed = f.core.get_project(&f.id).unwrap();
+        assert_eq!(
+            rendered,
+            movies(
+                &native,
+                &renderer,
+                &f,
+                &committed,
+                "baseline",
+                if video {
+                    "event-video-committed"
+                } else {
+                    "event-audio-committed"
+                }
+            )
+        );
+        f.core.undo(&f.id, f.rev()).unwrap();
+        still(
+            &native,
+            &renderer,
+            &f,
+            &captured,
+            &f.core.get_project(&f.id).unwrap(),
+            "baseline",
+            400,
+        );
+        f.core.redo(&f.id, f.rev()).unwrap();
+        let reopened = opencut_editor_core::EditorCore::new(f.core.paths().clone())
+            .get_project(&f.id)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&reopened).unwrap(),
+            serde_json::to_value(f.core.get_project(&f.id).unwrap()).unwrap()
+        );
+        assert_eq!(reopened.revision, committed.revision + 2);
+        assert_eq!(
+            serde_json::to_value(&reopened.tracks).unwrap(),
+            serde_json::to_value(&committed.tracks).unwrap()
+        );
+        still(
+            &native, &renderer, &f, &captured, &reopened, "baseline", 400,
+        );
+        let existing = reopened.tracks[2].items[0].id();
+        let gained_draft = f.core.create_draft(&f.id, f.rev(), vec![
+            op(json!({"operation":"delete_item","itemId":existing})),
+            op(json!({"operation":"timeline_add_audio_event","scope":"root","trackId":baseline.tracks[2].id,
+                "event":"hero_audio","at":{"type":"milliseconds","valueMs":0},"durationMs":800,"gainDb":-3}))
+        ], None).unwrap();
+        let gained = f
+            .core
+            .get_draft_state(&f.id, &gained_draft.id)
+            .unwrap()
+            .project;
+        for start in [0, 200] {
+            let artifact = renderer
+                .render_preview_range(
+                    &gained,
+                    &f.dir(),
+                    PreviewRangeOptions {
+                        start_ms: start,
+                        end_ms: 800,
+                        width: 64,
+                        height: 64,
+                        fps: 10,
+                        include_audio: true,
+                    },
+                    |_| {},
+                )
+                .unwrap();
+            // Independent -9 dB reference uses the unchanged six-decimal native
+            // graph precision; sub-quantum input differences alter AAC coding.
+            let reference_path = f.root.path().join(format!("independent-gain-{start}.m4a"));
+            let result = std::process::Command::new(&native.ffmpeg)
+                .args(["-v", "error", "-nostdin", "-i"])
+                .arg(media::media_reference("source.wav"))
+                .args([
+                    "-af",
+                    "volume=0.354813",
+                    "-ss",
+                    &format!("{}", start as f64 / 1000.0),
+                    "-t",
+                    &format!("{}", (800 - start) as f64 / 1000.0),
+                    "-c:a",
+                    "aac",
+                    "-y",
+                ])
+                .arg(&reference_path)
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let expected_audio = native.decode(&reference_path, true, None);
+            let actual_audio = native.decode(&f.dir().join(artifact.relative_path), true, None);
+            let rms = aligned_stereo(&actual_audio, &expected_audio);
+            assert!(
+                rms.iter().all(|v| *v <= 0.0001),
+                "independent -9dB stereo RMS {rms:?}"
+            );
+            if start == 0 {
+                let output = f.root.path().join("exports/hero-event-nonzero-gain.mp4");
+                renderer
+                    .export_video(
+                        &gained,
+                        &f.dir(),
+                        ExportOptions {
+                            output: &output,
+                            width: 64,
+                            height: 64,
+                            overwrite: false,
+                        },
+                        |_| {},
+                    )
+                    .unwrap();
+                let rms = aligned_stereo(&native.decode(&output, true, None), &expected_audio);
+                assert!(
+                    rms.iter().all(|v| *v <= 0.0001),
+                    "export independent -9dB stereo RMS {rms:?}"
+                );
+            }
+        }
+    }
+}

@@ -184,7 +184,7 @@ pub(crate) fn validate_channels(
                     .ok_or_else(|| {
                         CoreError::new(ErrorCode::AssetNotFound, "animation media asset missing")
                     })?;
-                if asset.media_type == MediaType::Audio {
+                if asset.media_type == MediaType::Audio || media.audio_event.is_some() {
                     return Err(invalid("audio-only media cannot use visual animation"));
                 }
             }

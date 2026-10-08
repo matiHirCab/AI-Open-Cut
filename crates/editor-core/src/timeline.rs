@@ -44,7 +44,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::SoundEventRegister { .. }
+        EditOperation::TimelineAddAudioEvent { .. }
+            | EditOperation::SoundEventRegister { .. }
             | EditOperation::SpeechMarkersGenerate { .. }
             | EditOperation::MarkerCreate { .. }
             | EditOperation::ComponentCreate { .. }
@@ -85,6 +86,16 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::TimelineAddAudioEvent {
+            scope,
+            track_id,
+            event,
+            ..
+        } => {
+            resolve_scope_alias(scope, aliases)?;
+            resolve_alias(track_id, aliases)?;
+            resolve_alias(event, aliases)?;
+        }
         EditOperation::SoundEventRegister {
             event,
             variant_asset_ids,
@@ -331,6 +342,119 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::TimelineAddAudioEvent {
+            scope,
+            track_id,
+            event,
+            at,
+            duration_ms,
+            gain_db,
+            variant_seed,
+        } => {
+            if !gain_db.is_finite()
+                || !(crate::MIN_SOUND_GAIN_DB..=crate::MAX_SOUND_GAIN_DB).contains(&gain_db)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "audio event gain must be finite within [-120,24] dB",
+                ));
+            }
+            let selected = project.resolve_sound_event_variant(&event, variant_seed)?;
+            let duration_ms = duration_ms
+                .or(selected.asset.duration_ms)
+                .filter(|duration| *duration > 0 && *duration <= crate::MAX_SOUND_VARIANT_SEED)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "audio event requires a positive safe duration",
+                    )
+                })?;
+            if selected
+                .asset
+                .duration_ms
+                .is_some_and(|duration| duration_ms > duration)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "audio event duration exceeds selected asset",
+                ));
+            }
+            let provenance = crate::AudioEventItem {
+                event,
+                gain_db,
+                default_gain_db: selected.default_gain_db,
+                bus_id: selected.bus_id.to_owned(),
+                variant_seed: selected.variant_seed,
+                variant_index: selected.variant_index,
+                content_hash: selected.asset.content_hash.clone().ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::AssetIntegrityFailed,
+                        "selected sound hash is missing",
+                    )
+                })?,
+            };
+            let asset_id = selected.asset.id.clone();
+            let start_ms = crate::markers::resolve_time(project, &scope, &at)?;
+            if start_ms
+                .checked_add(duration_ms)
+                .is_none_or(|end| end > crate::MAX_SOUND_VARIANT_SEED)
+            {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "audio event interval exceeds safe time",
+                ));
+            }
+            let tracks = if scope == "root" {
+                &mut project.tracks
+            } else {
+                let component = scope
+                    .strip_prefix("component:")
+                    .filter(|id| !id.is_empty())
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::InvalidArgument, "invalid audio event scope")
+                    })?;
+                &mut project
+                    .components
+                    .iter_mut()
+                    .find(|c| c.id == component)
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::ItemNotFound, "audio event component not found")
+                    })?
+                    .tracks
+            };
+            let track = tracks
+                .iter_mut()
+                .find(|track| track.id == track_id)
+                .ok_or_else(|| {
+                    CoreError::new(ErrorCode::TrackNotFound, "audio event track not found")
+                })?;
+            if track.locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            if track.track_type != TrackType::Audio {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "audio events require an audio track",
+                ));
+            }
+            let id = Uuid::new_v4().to_string();
+            let visual_properties = crate::VisualProperties {
+                start_time: matches!(at, TimeExpression::Marker { .. }).then_some(at),
+                ..Default::default()
+            };
+            track.items.push(TimelineItem::Media(MediaItem {
+                id: id.clone(),
+                asset_id,
+                start_ms,
+                duration_ms,
+                source_in_ms: 0,
+                audio_event: Some(provenance),
+                visual_properties,
+                audio: AudioSettings::default(),
+                keyframes: vec![],
+            }));
+            Ok((vec![id], "Placed semantic audio event"))
+        }
         EditOperation::SoundEventRegister {
             event,
             variant_asset_ids,
@@ -915,7 +1039,7 @@ fn apply_operation_inner(
             }
             let item = &project.tracks[track].items[index];
             if matches!(item, TimelineItem::Transition(_))
-                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && (asset.media_type == MediaType::Audio || media.audio_event.is_some())))
             {
                 return Err(CoreError::new(
                     ErrorCode::InvalidArgument,
@@ -983,6 +1107,7 @@ fn apply_operation_inner(
             validate_track_media(track.track_type, asset_media_type)?;
             let id = Uuid::new_v4().to_string();
             track.items.push(TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: id.clone(),
                 asset_id,
                 start_ms,
@@ -1276,7 +1401,7 @@ fn apply_operation_inner(
                 ));
             }
             let is_audio = project.find_item(&item_id).is_some_and(|item| {
-                matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+                matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && (asset.media_type == MediaType::Audio || media.audio_event.is_some())))
             });
             let item = find_editable_item_mut(project, &item_id)?;
             if let Some(value) = clip {

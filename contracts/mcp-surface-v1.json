@@ -39,7 +39,8 @@
     "group_compositing_v1",
     "speech_alignment_markers_v1",
     "project_audio_buses_v1",
-    "semantic_sound_event_definitions_v1"
+    "semantic_sound_event_definitions_v1",
+    "timeline_audio_events_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2443,7 +2444,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 40,
+            "const": 41,
             "type": "number"
           },
           "protocolVersion": {
@@ -11319,6 +11320,169 @@
         ],
         "type": "object"
       }
+    },
+    "timeline_add_audio_event": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "milliseconds",
+                    "type": "string"
+                  },
+                  "valueMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "type",
+                  "valueMs"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "markerName": {
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                    "type": "string"
+                  },
+                  "offsetMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": {
+                    "const": "marker",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "markerName",
+                  "offsetMs",
+                  "type"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "durationMs": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "event": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "gainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "variantSeed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "at",
+          "event",
+          "scope",
+          "trackId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
     }
   },
   "tools": [
@@ -11370,6 +11534,7 @@
     "speech_markers_generate",
     "speech_preview",
     "speech_regenerate",
+    "timeline_add_audio_event",
     "timeline_add_grid",
     "timeline_add_media",
     "timeline_add_rectangle",
@@ -14356,6 +14521,103 @@
         {
           "additionalProperties": false,
           "properties": {
+            "at": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "milliseconds",
+                      "type": "string"
+                    },
+                    "valueMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "valueMs"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "markerName": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "type": {
+                      "const": "marker",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "markerName",
+                    "offsetMs",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "event": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "gainDb": {
+              "maximum": 24,
+              "minimum": -120,
+              "type": "number"
+            },
+            "operation": {
+              "const": "timeline_add_audio_event",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "trackId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "variantSeed": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "at",
+            "event",
+            "scope",
+            "trackId",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
             "busId": {
               "maxLength": 128,
               "minLength": 1,
@@ -16372,6 +16634,16 @@
       "type": "object"
     },
     "DraftCreateOutputProperties": {
+      "audioEventAssetIds": {
+        "items": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array"
+      },
       "baseRevision": {
         "maximum": 9007199254740991,
         "minimum": 0,
@@ -16511,6 +16783,103 @@
     },
     "DraftCreateOutputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "at": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "milliseconds",
+                      "type": "string"
+                    },
+                    "valueMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "valueMs"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "markerName": {
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+                      "type": "string"
+                    },
+                    "offsetMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "type": {
+                      "const": "marker",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "markerName",
+                    "offsetMs",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "durationMs": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "event": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "gainDb": {
+              "maximum": 24,
+              "minimum": -120,
+              "type": "number"
+            },
+            "operation": {
+              "const": "timeline_add_audio_event",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "trackId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "variantSeed": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "at",
+            "event",
+            "scope",
+            "trackId",
+            "operation"
+          ],
+          "type": "object"
+        },
         {
           "additionalProperties": false,
           "properties": {
@@ -21811,6 +22180,74 @@
           "fadeOutMs",
           "muted",
           "volume"
+        ],
+        "type": "object"
+      },
+      "audioEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "enum": [
+              "voiceover",
+              "music",
+              "sfx",
+              "master"
+            ],
+            "type": "string"
+          },
+          "contentHash": {
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "sha256",
+                "type": "string"
+              },
+              "digest": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "algorithm",
+              "digest"
+            ],
+            "type": "object"
+          },
+          "defaultGainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "event": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+            "type": "string"
+          },
+          "gainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "variantIndex": {
+            "maximum": 31,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "variantSeed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "busId",
+          "contentHash",
+          "defaultGainDb",
+          "event",
+          "gainDb",
+          "variantIndex",
+          "variantSeed"
         ],
         "type": "object"
       },
@@ -27702,7 +28139,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 40,
+        "const": 41,
         "type": "number"
       },
       "settings": {
@@ -29979,6 +30416,74 @@
           "fadeOutMs",
           "muted",
           "volume"
+        ],
+        "type": "object"
+      },
+      "audioEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "enum": [
+              "voiceover",
+              "music",
+              "sfx",
+              "master"
+            ],
+            "type": "string"
+          },
+          "contentHash": {
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "sha256",
+                "type": "string"
+              },
+              "digest": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "algorithm",
+              "digest"
+            ],
+            "type": "object"
+          },
+          "defaultGainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "event": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+            "type": "string"
+          },
+          "gainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "variantIndex": {
+            "maximum": 31,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "variantSeed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "busId",
+          "contentHash",
+          "defaultGainDb",
+          "event",
+          "gainDb",
+          "variantIndex",
+          "variantSeed"
         ],
         "type": "object"
       },

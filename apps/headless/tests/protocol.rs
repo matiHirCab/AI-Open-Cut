@@ -3590,3 +3590,84 @@ fn run_speech_alignment_protocol_cases(h: &Harness, probe: &std::path::Path) {
         }
     }
 }
+
+#[test]
+fn timeline_audio_events_typed_marker_alias_draft_rollback_history_and_fresh_process_reopen() {
+    let h = Harness::new();
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/timeline-audio-events-v1.json"
+    ))
+    .unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Semantic audio"})))["projectId"].as_str().unwrap().to_owned();
+    let path = h.root.path().join("media/semantic.wav");
+    std::fs::write(&path, b"immutable typed transport source").unwrap();
+    let core = opencut_editor_core::EditorCore::new(
+        opencut_editor_core::PathPolicy::new(
+            h.root.path().join("projects"),
+            [h.root.path().join("media")],
+            h.root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let asset = core
+        .import_asset(
+            &id,
+            0,
+            path,
+            opencut_editor_core::MediaType::Audio,
+            opencut_editor_core::MediaProbeFacts {
+                duration_ms: Some(500),
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    let batch = result(&h.request(json!({"operation":"edit_batch","projectId":id,"expectedRevision":1,"operations":[
+        {"operation":"sound_event_register","event":"impact","variantAssetIds":[asset],"defaultGainDb":-6,"busId":"sfx","variantSeed":0,"resultAlias":"sound"},
+        {"operation":"create_track","name":"Events","trackType":"audio","resultAlias":"events"},
+        {"operation":"marker_create","scope":"root","name":"impact","timeMs":300,"kind":"cue","resultAlias":"cue"},
+        {"operation":"timeline_add_audio_event","scope":"root","trackId":"@events","event":"@sound","at":{"type":"marker","markerName":"impact","offsetMs":-50},"durationMs":300,"gainDb":-3,"resultAlias":"placed"}
+    ]})));
+    assert_eq!(batch["revision"], 2);
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let state = read();
+    assert_eq!(
+        state["project"]["schemaVersion"],
+        catalog["projectSchemaVersion"]
+    );
+    let track = batch["aliases"]["events"].clone();
+    let item = |state: &Value| {
+        state["project"]["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == track)
+            .unwrap()["items"][0]
+            .clone()
+    };
+    assert_eq!(item(&state)["startMs"], 250);
+    assert_eq!(item(&state)["audioEvent"]["defaultGainDb"], -6.0);
+    assert_eq!(item(&state)["audioEvent"]["gainDb"], -3.0);
+    let before = h.project_files(&id);
+    for request in [
+        json!({"operation":"edit","projectId":id,"expectedRevision":1,"edit":catalog["input"]}),
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":2,"operations":[{"operation":"timeline_add_audio_event","scope":"root","trackId":track,"event":"missing","at":{"type":"milliseconds","valueMs":0}}]}),
+    ] {
+        assert_eq!(event(&h.request(request))["type"], "error");
+        assert_eq!(h.project_files(&id), before);
+    }
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":2,"operations":[
+        {"operation":"timeline_add_audio_event","scope":"root","trackId":track,"event":"impact","at":{"type":"milliseconds","valueMs":600}}
+    ]})));
+    assert_eq!(draft["audioEventAssetIds"], json!([asset]));
+    assert_eq!(read()["project"], state["project"]);
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"draftId":draft["id"],"expectedRevision":2})));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":3})));
+    assert_eq!(item(&read()), item(&state));
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":4})));
+    let reopened = result(&h.request(json!({"operation":"open_project","projectId":id})));
+    assert_eq!(reopened["project"], read()["project"]);
+    assert_eq!(reopened["project"]["revision"], 5);
+}

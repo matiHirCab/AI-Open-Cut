@@ -4124,6 +4124,7 @@ mod tests {
             audio_role: AudioTrackRole::Unassigned,
             ducking: None,
             items: vec![TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: "leaf".into(),
                 asset_id: "absent".into(),
                 start_ms: 0,
@@ -4275,6 +4276,7 @@ mod tests {
             ducking: None,
             items: vec![
                 TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "video".into(),
                     asset_id: "video-asset".into(),
                     start_ms: 0,
@@ -4285,6 +4287,7 @@ mod tests {
                     keyframes: vec![],
                 }),
                 TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "audio".into(),
                     asset_id: "audio-asset".into(),
                     start_ms: 500,
@@ -4295,6 +4298,7 @@ mod tests {
                     keyframes: vec![],
                 }),
                 TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "video-reuse".into(),
                     asset_id: "video-asset".into(),
                     start_ms: 1_500,
@@ -4476,6 +4480,7 @@ mod tests {
                         }],
                     }),
                     TimelineItem::Media(MediaItem {
+                        audio_event: None,
                         id: "video-first".into(),
                         asset_id: "video-asset".into(),
                         start_ms: 0,
@@ -4486,6 +4491,7 @@ mod tests {
                         keyframes: vec![],
                     }),
                     TimelineItem::Media(MediaItem {
+                        audio_event: None,
                         id: "video-reuse".into(),
                         asset_id: "video-asset".into(),
                         start_ms: 2_000,
@@ -4517,6 +4523,7 @@ mod tests {
                 audio_role: AudioTrackRole::Voiceover,
                 ducking: None,
                 items: vec![TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "voice-item".into(),
                     asset_id: "voice-asset".into(),
                     start_ms: 1_000,
@@ -4543,6 +4550,7 @@ mod tests {
                     release_ms: 75,
                 }),
                 items: vec![TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "music-item".into(),
                     asset_id: "music-asset".into(),
                     start_ms: 0,
@@ -4819,6 +4827,7 @@ mod tests {
             audio_role: AudioTrackRole::Voiceover,
             ducking: None,
             items: vec![TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: "speech-item".into(),
                 asset_id: "speech".into(),
                 start_ms: 0,

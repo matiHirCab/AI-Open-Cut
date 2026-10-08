@@ -27,6 +27,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     if project.schema_version <= PROJECT_SCHEMA_VERSION {
         project.validate_audio_bus_model()?;
         project.validate_sound_definition_model()?;
+        project.validate_audio_event_model()?;
     }
     for asset in &project.assets {
         if project.schema_version < 38
@@ -375,6 +376,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             "root component instances require schema 13",
         ));
     }
+    let adopts_sound_definitions = project.schema_version < 40;
     let adopts_audio_buses = project.schema_version < 39;
     let changed = match project.schema_version {
         1..=8 => {
@@ -390,7 +392,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=39 => {
+        9..=40 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -404,7 +406,9 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
         )),
     }?;
     if changed {
-        project.sound_definitions = Vec::new();
+        if adopts_sound_definitions {
+            project.sound_definitions = Vec::new();
+        }
         if adopts_audio_buses {
             project.audio_buses = crate::default_audio_buses();
         }
