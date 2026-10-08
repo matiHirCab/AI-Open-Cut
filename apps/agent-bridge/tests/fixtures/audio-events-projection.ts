@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  removeAudioBusDspHeadlessAdditions,
+  removeAudioBusDspMcpAdditions,
+  removeAudioBusDspOwnershipAddition,
+} from "./audio-bus-dsp-projection";
 import additions from "./audio-events-mcp-additions.json";
 import ownership from "./audio-events-ownership-addition.json";
 import pins from "./audio-events-predecessor-pins.json";
@@ -21,6 +26,9 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 export const restoreAudioEventCatalogMarker = (source: unknown) => {
   const value = structuredClone(at(source, []));
+  if (value.projectSchemaVersion === 42) {
+    value.projectSchemaVersion = 41;
+  }
   if (value.projectSchemaVersion !== 41) {
     throw new Error("Incorrect audio-event schema transition");
   }
@@ -28,7 +36,7 @@ export const restoreAudioEventCatalogMarker = (source: unknown) => {
   return value;
 };
 export const removeAudioEventMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDspMcpAdditions(source);
   for (const change of [...additions.additions].reverse()) {
     if (change.kind === "array") {
       const array = at(result, change.path) as unknown as unknown[];
@@ -58,7 +66,7 @@ export const removeAudioEventMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioEventHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDspHeadlessAdditions(source);
   const root = at(result, []);
   const requests = at(root, ["requests"]);
   const expected = {
@@ -94,7 +102,7 @@ export const removeAudioEventHeadlessAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioEventOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDspOwnershipAddition(source);
   const categories = at(result, ["categories"]);
   if (digest(categories.timelineAudioEvents) !== digest(ownership.category)) {
     throw new Error("Incorrect audio-event ownership");

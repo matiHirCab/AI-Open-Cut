@@ -11,6 +11,7 @@ import {
   headlessEditSchema,
   schemas,
 } from "../src/schemas";
+import { restoreAudioBusDspRawHeader } from "./fixtures/audio-bus-dsp-projection";
 import pins from "./fixtures/audio-events-predecessor-pins.json";
 import {
   projectAudioEventMcpPredecessor,
@@ -67,9 +68,8 @@ it("preserves independent verified issue63 raw, expanded, semantic and frozen ca
     if (Object.hasOwn(pins.rawSha256, path)) {
       continue;
     }
-    const raw = readFileSync(
-      resolve(import.meta.dirname, "../../..", path),
-      "utf8"
+    const raw = restoreAudioBusDspRawHeader(
+      readFileSync(resolve(import.meta.dirname, "../../..", path), "utf8")
     );
     if (headers.has(path.replace("contracts/", ""))) {
       expect(raw.match(/"projectSchemaVersion": 41/g)).toHaveLength(1);

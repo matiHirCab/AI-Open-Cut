@@ -399,7 +399,10 @@ fn all_source_versions_mixed_history_preserve_registered40_and_routed39_generati
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for list in ["undo", "redo"] {
         for (index, snapshot) in history[list].as_array().unwrap().iter().enumerate() {
-            assert_eq!(snapshot["schemaVersion"], 41);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(
                 snapshot["soundDefinitions"],
                 if index == 39 {

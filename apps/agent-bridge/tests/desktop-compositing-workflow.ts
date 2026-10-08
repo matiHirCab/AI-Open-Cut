@@ -11,10 +11,10 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import { z } from "zod";
+import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/desktop-compositing-controls-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
-import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   projectStateSchema,
   publicErrorSchema,
@@ -89,7 +89,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
   try {
     const status = statusSchema.parse(await call("editor_get_status", {}));
     expect(catalog.projectSchemaVersion).toBe(38);
-    expect(status.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
+    expect(status.projectSchemaVersion).toBe(audioBusDsp.projectSchemaVersion);
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
     const addedTools = [
@@ -98,6 +98,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
       "audio_track_route",
       soundCatalog.operation,
       "timeline_add_audio_event",
+      "audio_bus_set_dsp",
     ];
     expect(
       tools.tools.filter((tool) => !addedTools.includes(tool.name))
@@ -345,7 +346,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(
       statusSchema.parse(await call("editor_get_status", {}))
         .projectSchemaVersion
-    ).toBe(audioEvents.projectSchemaVersion);
+    ).toBe(audioBusDsp.projectSchemaVersion);
   } finally {
     await client.close();
     rmSync(root, { force: true, recursive: true });

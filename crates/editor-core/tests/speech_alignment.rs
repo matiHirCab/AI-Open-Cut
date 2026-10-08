@@ -587,6 +587,27 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
                 | "mask-models-v1.json"
                 | "motion-blur-sampling-v1.json"
         ) {
+            let dsp_pins: Value = serde_json::from_str(include_str!(
+                "../../../apps/agent-bridge/tests/fixtures/audio-bus-dsp-predecessor-pins.json"
+            ))
+            .unwrap();
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 42").count(),
+                1,
+                "{name}"
+            );
+            let current = current.replacen(
+                "\"projectSchemaVersion\": 42",
+                "\"projectSchemaVersion\": 41",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(current.as_bytes())),
+                dsp_pins["catalogRawSha256"][format!("contracts/{name}")]
+                    .as_str()
+                    .unwrap(),
+                "{name}"
+            );
             assert_eq!(
                 current.matches("\"projectSchemaVersion\": 41").count(),
                 1,

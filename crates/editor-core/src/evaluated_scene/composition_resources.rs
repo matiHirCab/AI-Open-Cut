@@ -376,6 +376,9 @@ pub(crate) fn layer_heap_bytes(
 /// and every sampled callback coexist. Capacity, rather than length, is charged.
 pub(crate) fn scene_heap_bytes(scene: &super::EvaluatedScene) -> Result<u64, crate::CoreError> {
     let mut bytes = std::mem::size_of::<super::EvaluatedScene>() as u64;
+    if let Some(graph) = &scene.audio_bus_graph {
+        bytes = add(bytes, graph.heap_bytes())?;
+    }
     if let Some(aggregates) = &scene.aggregates {
         bytes = add(bytes, super::group_compositing::heap_bytes(aggregates)?)?;
     }

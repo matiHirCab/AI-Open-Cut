@@ -1,7 +1,7 @@
 {
   "version": 1,
   "contract": "inherited-animation-timing-v1",
-  "projectSchemaVersion": 41,
+  "projectSchemaVersion": 42,
   "capability": "inherited_animation_timing_v1",
   "fields": {
     "group.staggerMs": {"optional": true, "default": 0, "integer": true, "minimum": 0, "maximum": 60000},

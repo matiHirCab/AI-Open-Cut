@@ -2228,3 +2228,25 @@ describe("audio-event mandatory consumers", () => {
     }
   }
 });
+
+describe("audio-bus DSP mandatory consumers", () => {
+  for (const consumer of [" --test audio_bus_dsp", " tests/audio-bus-dsp.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects audio-bus DSP consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
+
+describe("audio-bus DSP native coverage", () => {
+  const command = "cargo test -p opencut-editor-core --lib renderer::golden::audio_bus_dsp::native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_conformance -- --exact --nocapture";
+  for (const replacement of ["", `${command} || true`]) {
+    it(`rejects missing or masked bus DSP native evidence: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, command, replacement))).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+});

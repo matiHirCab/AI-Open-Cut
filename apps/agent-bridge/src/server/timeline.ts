@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "audio_bus_set_dsp",
+    {
+      annotations: WRITE,
+      description:
+        "Set normalized gain, stereo balance, EQ and compression on a built-in audio bus.",
+      inputSchema: schemas.audioBusSetDsp,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "audio_bus_set_dsp",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "timeline_add_audio_event",
     {
       annotations: WRITE,

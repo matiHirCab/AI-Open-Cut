@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 42,
+  "headlessProtocolVersion": 1,
+  "capability": "audio_bus_dsp_v1",
+  "operation": "audio_bus_set_dsp",
+  "busIds": ["voiceover", "music", "sfx", "master"],
+  "maximumBuses": 4,
+  "maximumRouteNodes": 4,
+  "maximumEqBandsPerBus": 8,
+  "bounds": {
+    "gainDb": [-120, 24],
+    "pan": [-1, 1],
+    "frequencyHz": [20, 20000],
+    "q": [0.1, 10],
+    "eqGainDb": [-24, 24],
+    "thresholdDb": [-60, 0],
+    "ratio": [1, 20],
+    "attackMs": [0.01, 2000],
+    "releaseMs": [0.01, 9000],
+    "makeupGainDb": [0, 24]
+  },
+  "identity": {"gainDb": 0.0, "pan": 0.0, "eq": [], "compressor": null},
+  "input": {
+    "operation": "audio_bus_set_dsp",
+    "busId": "music",
+    "dsp": {
+      "gainDb": -6.0,
+      "pan": -0.5,
+      "eq": [{"frequencyHz": 1000.0, "q": 1.0, "gainDb": 3.0}],
+      "compressor": {"thresholdDb": -12.0, "ratio": 4.0, "attackMs": 10.0, "releaseMs": 100.0, "makeupGainDb": 2.0}
+    }
+  },
+  "order": ["sum", "gain", "ordered_eq", "compression", "stereo_balance", "output_bus"],
+  "channels": {"sampleRate": 48000, "format": "fltp", "layout": "stereo", "conversion": "standard_ffmpeg_up_downmix"},
+  "compression": {"mode": "downward", "detection": "peak", "link": "maximum", "knee": 1, "mix": 1, "levelIn": 1},
+  "balance": {"negative": [1, "1 + pan"], "positive": ["1 - pan", 1], "center": [1, 1]},
+  "requiredFilters": ["volume", "aformat", "pan", "equalizer", "acompressor"],
+  "identityBehavior": "unchanged scene, plan, filter graph, pixels, PCM and role ducking for absent, neutral or unreachable DSP",
+  "routePrecedence": ["audioEvent.busId", "track.audioBusId", "track.audioRole"],
+  "errors": {"invalidModel": "INVALID_ARGUMENT", "staleRevision": "REVISION_CONFLICT", "invalidAlias": "VALIDATION_FAILED", "unavailableFilters": "DEPENDENCY_UNAVAILABLE"}
+}

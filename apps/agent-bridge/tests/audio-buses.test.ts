@@ -12,6 +12,7 @@ import {
   headlessEditSchema,
   schemas,
 } from "../src/schemas";
+import { restoreAudioBusDspRawHeader } from "./fixtures/audio-bus-dsp-projection";
 import pins from "./fixtures/audio-buses-predecessor-pins.json";
 import {
   projectAudioBusMcpPredecessor,
@@ -88,9 +89,8 @@ it("keeps independently pinned issue62 raw and semantic contracts plus all histo
     if (changedSurfaces.has(path)) {
       continue;
     }
-    const currentRaw = readFileSync(
-      resolve(import.meta.dirname, "../../..", path),
-      "utf8"
+    const currentRaw = restoreAudioBusDspRawHeader(
+      readFileSync(resolve(import.meta.dirname, "../../..", path), "utf8")
     );
     const issue63Raw = currentHeaders.has(path.replace("contracts/", ""))
       ? currentRaw.replace(

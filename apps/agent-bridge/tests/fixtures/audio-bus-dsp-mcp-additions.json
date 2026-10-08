@@ -1,0 +1,544 @@
+{
+  "additions": [
+    {
+      "path": [
+        "toolDefinitions",
+        "editor_get_status",
+        "outputSchema",
+        "properties",
+        "projectSchemaVersion"
+      ],
+      "kind": "replacement",
+      "value": {
+        "const": 42,
+        "type": "number"
+      },
+      "before": {
+        "const": 41,
+        "type": "number"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "schemaVersion"
+      ],
+      "kind": "replacement",
+      "value": {
+        "const": 42,
+        "type": "number"
+      },
+      "before": {
+        "const": 41,
+        "type": "number"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "audioBuses",
+        "items",
+        "properties",
+        "dsp"
+      ],
+      "kind": "property",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "compressor": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "attackMs": {
+                    "maximum": 2000,
+                    "minimum": 0.01,
+                    "type": "number"
+                  },
+                  "makeupGainDb": {
+                    "maximum": 24,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "ratio": {
+                    "maximum": 20,
+                    "minimum": 1,
+                    "type": "number"
+                  },
+                  "releaseMs": {
+                    "maximum": 9000,
+                    "minimum": 0.01,
+                    "type": "number"
+                  },
+                  "thresholdDb": {
+                    "maximum": 0,
+                    "minimum": -60,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "attackMs",
+                  "makeupGainDb",
+                  "ratio",
+                  "releaseMs",
+                  "thresholdDb"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eq": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "frequencyHz": {
+                  "maximum": 20000,
+                  "minimum": 20,
+                  "type": "number"
+                },
+                "gainDb": {
+                  "maximum": 24,
+                  "minimum": -24,
+                  "type": "number"
+                },
+                "q": {
+                  "maximum": 10,
+                  "minimum": 0.1,
+                  "type": "number"
+                }
+              },
+              "required": ["frequencyHz", "gainDb", "q"],
+              "type": "object"
+            },
+            "maxItems": 8,
+            "type": "array"
+          },
+          "gainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "pan": {
+            "maximum": 1,
+            "minimum": -1,
+            "type": "number"
+          }
+        },
+        "required": ["compressor", "eq", "gainDb", "pan"],
+        "type": "object"
+      }
+    },
+    {
+      "path": ["$defs", "DraftCreateInputPropertiesOperationsItems", "oneOf"],
+      "kind": "array",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "dsp": {
+            "additionalProperties": false,
+            "properties": {
+              "compressor": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attackMs": {
+                        "maximum": 2000,
+                        "minimum": 0.01,
+                        "type": "number"
+                      },
+                      "makeupGainDb": {
+                        "maximum": 24,
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "ratio": {
+                        "maximum": 20,
+                        "minimum": 1,
+                        "type": "number"
+                      },
+                      "releaseMs": {
+                        "maximum": 9000,
+                        "minimum": 0.01,
+                        "type": "number"
+                      },
+                      "thresholdDb": {
+                        "maximum": 0,
+                        "minimum": -60,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "attackMs",
+                      "makeupGainDb",
+                      "ratio",
+                      "releaseMs",
+                      "thresholdDb"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "eq": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "frequencyHz": {
+                      "maximum": 20000,
+                      "minimum": 20,
+                      "type": "number"
+                    },
+                    "gainDb": {
+                      "maximum": 24,
+                      "minimum": -24,
+                      "type": "number"
+                    },
+                    "q": {
+                      "maximum": 10,
+                      "minimum": 0.1,
+                      "type": "number"
+                    }
+                  },
+                  "required": ["frequencyHz", "gainDb", "q"],
+                  "type": "object"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              "gainDb": {
+                "maximum": 24,
+                "minimum": -120,
+                "type": "number"
+              },
+              "pan": {
+                "maximum": 1,
+                "minimum": -1,
+                "type": "number"
+              }
+            },
+            "required": ["compressor", "eq", "gainDb", "pan"],
+            "type": "object"
+          },
+          "operation": {
+            "const": "audio_bus_set_dsp",
+            "type": "string"
+          }
+        },
+        "required": ["busId", "dsp", "operation"],
+        "type": "object"
+      },
+      "index": 0
+    },
+    {
+      "path": ["$defs", "DraftCreateOutputPropertiesOperationsItems", "oneOf"],
+      "kind": "array",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "dsp": {
+            "additionalProperties": false,
+            "properties": {
+              "compressor": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attackMs": {
+                        "maximum": 2000,
+                        "minimum": 0.01,
+                        "type": "number"
+                      },
+                      "makeupGainDb": {
+                        "maximum": 24,
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "ratio": {
+                        "maximum": 20,
+                        "minimum": 1,
+                        "type": "number"
+                      },
+                      "releaseMs": {
+                        "maximum": 9000,
+                        "minimum": 0.01,
+                        "type": "number"
+                      },
+                      "thresholdDb": {
+                        "maximum": 0,
+                        "minimum": -60,
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "attackMs",
+                      "makeupGainDb",
+                      "ratio",
+                      "releaseMs",
+                      "thresholdDb"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "eq": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "frequencyHz": {
+                      "maximum": 20000,
+                      "minimum": 20,
+                      "type": "number"
+                    },
+                    "gainDb": {
+                      "maximum": 24,
+                      "minimum": -24,
+                      "type": "number"
+                    },
+                    "q": {
+                      "maximum": 10,
+                      "minimum": 0.1,
+                      "type": "number"
+                    }
+                  },
+                  "required": ["frequencyHz", "gainDb", "q"],
+                  "type": "object"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              "gainDb": {
+                "maximum": 24,
+                "minimum": -120,
+                "type": "number"
+              },
+              "pan": {
+                "maximum": 1,
+                "minimum": -1,
+                "type": "number"
+              }
+            },
+            "required": ["compressor", "eq", "gainDb", "pan"],
+            "type": "object"
+          },
+          "operation": {
+            "const": "audio_bus_set_dsp",
+            "type": "string"
+          }
+        },
+        "required": ["busId", "dsp", "operation"],
+        "type": "object"
+      },
+      "index": 0
+    },
+    {
+      "path": ["toolDefinitions", "audio_bus_set_dsp"],
+      "kind": "property",
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "dsp": {
+              "additionalProperties": false,
+              "properties": {
+                "compressor": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "attackMs": {
+                          "maximum": 2000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "makeupGainDb": {
+                          "maximum": 24,
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "ratio": {
+                          "maximum": 20,
+                          "minimum": 1,
+                          "type": "number"
+                        },
+                        "releaseMs": {
+                          "maximum": 9000,
+                          "minimum": 0.01,
+                          "type": "number"
+                        },
+                        "thresholdDb": {
+                          "maximum": 0,
+                          "minimum": -60,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "attackMs",
+                        "makeupGainDb",
+                        "ratio",
+                        "releaseMs",
+                        "thresholdDb"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "eq": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "frequencyHz": {
+                        "maximum": 20000,
+                        "minimum": 20,
+                        "type": "number"
+                      },
+                      "gainDb": {
+                        "maximum": 24,
+                        "minimum": -24,
+                        "type": "number"
+                      },
+                      "q": {
+                        "maximum": 10,
+                        "minimum": 0.1,
+                        "type": "number"
+                      }
+                    },
+                    "required": ["frequencyHz", "gainDb", "q"],
+                    "type": "object"
+                  },
+                  "maxItems": 8,
+                  "type": "array"
+                },
+                "gainDb": {
+                  "maximum": 24,
+                  "minimum": -120,
+                  "type": "number"
+                },
+                "pan": {
+                  "maximum": 1,
+                  "minimum": -1,
+                  "type": "number"
+                }
+              },
+              "required": ["compressor", "eq", "gainDb", "pan"],
+              "type": "object"
+            },
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": ["expectedRevision", "projectId", "busId", "dsp"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "changedIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "aliases",
+            "changedIds",
+            "projectId",
+            "revision",
+            "summary",
+            "warnings"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["tools"],
+      "kind": "array",
+      "value": "audio_bus_set_dsp",
+      "index": 4
+    },
+    {
+      "path": ["capabilityIdentifiers"],
+      "kind": "array",
+      "value": "audio_bus_dsp_v1"
+    }
+  ],
+  "authorship": "manually reviewed normalized issue66 schema; never derived from runtime producers"
+}

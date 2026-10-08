@@ -2916,6 +2916,7 @@ fn requires_composition_staging(
             crate::EditOperation::TimelineAddAudioEvent { .. }
                 | crate::EditOperation::SoundEventRegister { .. }
                 | crate::EditOperation::AudioBusSetRoute { .. }
+                | crate::EditOperation::AudioBusSetDsp { .. }
                 | crate::EditOperation::AudioTrackRoute { .. }
                 | crate::EditOperation::ComponentCreate { .. }
                 | crate::EditOperation::ComponentUpdate { .. }
@@ -3653,6 +3654,108 @@ mod tests {
                     serde_json::to_value(&current.tracks).unwrap()
                 );
                 assert!(!transaction_path(&dir).exists());
+                let stable = project_file_bytes(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), stable);
+            }
+        }
+    }
+
+    #[test]
+    fn audio_bus_dsp_preserves_all_publication_fault_and_recovery_boundaries() {
+        for draft_commit in [false, true] {
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let (core, _root) = core();
+                let id = core
+                    .create_project("DSP recovery", ProjectSettings::default())
+                    .unwrap()
+                    .project_id;
+                let operation:crate::EditOperation=serde_json::from_str(r#"{"operation":"audio_bus_set_dsp","busId":"music","dsp":{"gainDb":-6,"pan":-0.5,"eq":[],"compressor":null}}"#).unwrap();
+                let draft = core
+                    .create_draft(&id, 0, vec![operation.clone()], None)
+                    .unwrap();
+                let dir = core.project_directory(&id).unwrap();
+                let mut old: Project = read_json(&project_path(&dir)).unwrap();
+                old.schema_version = 41;
+                std::fs::write(project_path(&dir), serde_json::to_vec_pretty(&old).unwrap())
+                    .unwrap();
+                std::fs::write(
+                    history_path(&dir),
+                    serde_json::to_vec_pretty(&History {
+                        undo: vec![old.clone()],
+                        redo: vec![old.clone()],
+                    })
+                    .unwrap(),
+                )
+                .unwrap();
+                let before = project_file_bytes(&dir);
+                let apply = || {
+                    if draft_commit {
+                        core.commit_draft(&id, &draft.id, 0)
+                    } else {
+                        core.edit(&id, 0, operation.clone())
+                    }
+                };
+                set_persistence_fault(&core, phase);
+                let result = apply();
+                if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InternalError,
+                        "{phase:?}/{draft_commit}"
+                    );
+                    assert_eq!(project_file_bytes(&dir), before, "{phase:?}/{draft_commit}");
+                    assert!(!transaction_path(&dir).exists());
+                    apply().unwrap();
+                } else {
+                    assert_eq!(result.unwrap().revision, 1, "{phase:?}/{draft_commit}");
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                let current = reopened.get_project(&id).unwrap();
+                assert_eq!(current.schema_version, 42);
+                assert_eq!(current.revision, 1);
+                let expected = match &operation {
+                    crate::EditOperation::AudioBusSetDsp { dsp, .. } => dsp,
+                    _ => unreachable!(),
+                };
+                assert_eq!(current.audio_buses[1].dsp.as_ref(), Some(expected));
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert!(
+                    history
+                        .undo
+                        .iter()
+                        .chain(&history.redo)
+                        .all(|p| p.schema_version == 42)
+                );
+                assert!(!transaction_path(&dir).exists());
+                reopened.undo(&id, 1).unwrap();
+                assert!(
+                    reopened.get_project(&id).unwrap().audio_buses[1]
+                        .dsp
+                        .is_none()
+                );
+                reopened.redo(&id, 2).unwrap();
+                assert_eq!(
+                    reopened.get_project(&id).unwrap().audio_buses[1]
+                        .dsp
+                        .as_ref(),
+                    Some(expected)
+                );
                 let stable = project_file_bytes(&dir);
                 reopened.get_project(&id).unwrap();
                 assert_eq!(project_file_bytes(&dir), stable);

@@ -172,6 +172,7 @@ struct PreparedRender {
 }
 
 struct RenderPreflight {
+    audio_bus_dsp_readiness_completed: bool,
     controlled_readiness_completed: bool,
     raster_scope: [u8; 32],
     scene: EvaluatedScene,
@@ -257,6 +258,12 @@ impl Renderer {
     pub fn readiness(&self) -> Result<(), CoreError> {
         self.process_executor
             .readiness(&self.ffmpeg_path, &self.ffprobe_path)
+    }
+
+    pub fn audio_bus_dsp_readiness(&self) -> Result<(), CoreError> {
+        self.readiness()?;
+        self.process_executor
+            .audio_bus_dsp_readiness(&self.ffmpeg_path)
     }
 
     pub fn probe(&self, path: &Path) -> Result<ProbeResult, CoreError> {
@@ -868,6 +875,7 @@ impl Renderer {
             self.readiness()?;
         }
         Ok(RenderPreflight {
+            audio_bus_dsp_readiness_completed: false,
             controlled_readiness_completed: false,
             raster_scope: crate::render_artifact::raster_cache::scope(evaluated)?,
             scene: finalized,
@@ -893,6 +901,10 @@ impl Renderer {
             self.readiness()?;
             preflight.controlled_readiness_completed = true;
         }
+        if preflight.scene.audio_bus_graph.is_some() {
+            self.audio_bus_dsp_readiness()?;
+            preflight.audio_bus_dsp_readiness_completed = true;
+        }
         Ok(())
     }
 
@@ -903,6 +915,7 @@ impl Renderer {
         intent: RenderIntent,
     ) -> Result<PreparedRender, CoreError> {
         let RenderPreflight {
+            audio_bus_dsp_readiness_completed,
             controlled_readiness_completed,
             raster_scope,
             scene: mut finalized,
@@ -919,6 +932,9 @@ impl Renderer {
                 project_dir,
             )?;
             self.readiness()?;
+        }
+        if finalized.audio_bus_graph.is_some() && !audio_bus_dsp_readiness_completed {
+            self.audio_bus_dsp_readiness()?;
         }
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut resources = prepare_render_resources(
@@ -1720,6 +1736,46 @@ mod tests {
         assert_eq!(error.code, ErrorCode::PathNotAllowed);
         assert!(artifact_io.events.lock().unwrap().is_empty());
         assert!(process.executions.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn active_audio_bus_dsp_requires_dependencies_before_all_facade_side_effects() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/tone.wav"), b"fixture").unwrap();
+        let mut project = super::golden::fixture_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
+        project.tracks[0].items.clear();
+        project.audio_buses[3].dsp = Some(
+            serde_json::from_str(r#"{"gainDb":-6,"pan":0,"eq":[],"compressor":null}"#).unwrap(),
+        );
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::DependencyUnavailable,
+        );
+        project.audio_buses[3].dsp.as_mut().unwrap().gain_db = 25.0;
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
     }
 
     #[test]
@@ -4400,6 +4456,7 @@ mod tests {
                             .all(|v| v.source_size == Some((20, 40)))
                     );
                     let RenderPreflight {
+                        audio_bus_dsp_readiness_completed,
                         controlled_readiness_completed,
                         raster_scope,
                         scene,
@@ -4411,6 +4468,7 @@ mod tests {
                     renderer
                         .materialize_render(
                             RenderPreflight {
+                                audio_bus_dsp_readiness_completed,
                                 controlled_readiness_completed,
                                 raster_scope,
                                 scene,

@@ -1,8 +1,8 @@
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
+import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
 import contract from "../../../contracts/blend-modes-v1.json";
-import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   editDraftSchema,
   projectStateSchema,
@@ -17,7 +17,7 @@ type Call = <Output>(
 ) => Promise<Output>;
 export const verifyBlendModeWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(audioBusDsp.projectSchemaVersion);
   expect(status.subsystems.editor.capabilities).toContain(
     contract.capabilities.editor
   );

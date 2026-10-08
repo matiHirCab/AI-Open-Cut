@@ -12,6 +12,10 @@ import {
   schemas,
   soundEventDefinitionSchema,
 } from "../src/schemas";
+import {
+  removeAudioBusDspMcpAdditions,
+  restoreAudioBusDspRawHeader,
+} from "./fixtures/audio-bus-dsp-projection";
 import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import pins from "./fixtures/semantic-sound-events-predecessor-pins.json";
@@ -67,9 +71,8 @@ it("preserves independently captured issue65 raw, expanded and semantic predeces
     if (changed.has(path)) {
       continue;
     }
-    const raw = readFileSync(
-      resolve(import.meta.dirname, "../../..", path),
-      "utf8"
+    const raw = restoreAudioBusDspRawHeader(
+      readFileSync(resolve(import.meta.dirname, "../../..", path), "utf8")
     );
     if (headers.has(path.replace("contracts/", ""))) {
       expect(raw.match(/"projectSchemaVersion": 41/g)).toHaveLength(1);
@@ -229,8 +232,8 @@ it("rejects unrelated, missing or malformed additions and keeps restored replace
       .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
   ).toBe(40);
   expect(
-    mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
-      .const
+    removeAudioBusDspMcpAdditions(mcp).$defs
+      .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
   ).toBe(41);
   const protocol = structuredClone(headless);
   protocol.requests.soundEventRegister.edit.variantSeed = 1;

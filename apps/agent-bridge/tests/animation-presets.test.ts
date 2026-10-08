@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
+import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
-import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import type { HeadlessEdit } from "../src/headless-contract";
 import {
   animationPresetParametersSchema,
@@ -26,9 +26,9 @@ describe("canonical versioned animation presets", () => {
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
     ]);
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
+    expect(PRESETS.projectSchemaVersion).toBe(audioBusDsp.projectSchemaVersion);
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
-    expect(PACK.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
+    expect(PACK.projectSchemaVersion).toBe(audioBusDsp.projectSchemaVersion);
     expect(restoreAudioBusCatalogMarker(PACK).projectSchemaVersion).toBe(38);
   });
 

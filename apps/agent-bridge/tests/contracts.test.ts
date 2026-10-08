@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
+import AUDIO_BUS_DSP from "../../../contracts/audio-bus-dsp-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -67,6 +68,7 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { removeAudioBusDspMcpAdditions } from "./fixtures/audio-bus-dsp-projection";
 import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 import AUDIO_EVENT_PINS from "./fixtures/audio-events-predecessor-pins.json";
 import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
@@ -382,7 +384,7 @@ describe("canonical public contracts", () => {
     });
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      AUDIO_EVENTS.projectSchemaVersion
+      AUDIO_BUS_DSP.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
@@ -399,7 +401,7 @@ describe("canonical public contracts", () => {
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
       expect(catalog.projectSchemaVersion, name).toBe(
-        AUDIO_EVENTS.projectSchemaVersion
+        AUDIO_BUS_DSP.projectSchemaVersion
       );
       expect(
         restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
@@ -453,7 +455,14 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(83);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(84);
+    expect(
+      Object.keys(
+        expandMcpSurfaceCatalog(
+          removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
+        ).toolDefinitions
+      )
+    ).toHaveLength(83);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -468,9 +477,17 @@ describe("canonical public contracts", () => {
         ).toolDefinitions
       )
     ).toHaveLength(81);
-    expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
-      AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256
-    );
+    expect(
+      createHash("sha256")
+        .update(
+          JSON.stringify(
+            expandMcpSurfaceCatalog(
+              removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
+            )
+          )
+        )
+        .digest("hex")
+    ).toBe(AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256);
     expect(
       createHash("sha256")
         .update(
@@ -903,7 +920,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
+      projectSchemaVersion: AUDIO_BUS_DSP.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -967,6 +984,7 @@ describe("canonical public contracts", () => {
       "project_audio_buses_v1",
       SOUND_EVENTS.capability,
       AUDIO_EVENTS.capability,
+      "audio_bus_dsp_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -991,7 +1009,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
+        projectSchemaVersion: AUDIO_BUS_DSP.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {
