@@ -18,10 +18,10 @@
 
 ## 4. Required acceptance, substantive review and archive
 
-- [ ] 4.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Preserve full logs and all original failures; correct failures without suppressions, weakened assertions or skipped required checks.
-- [ ] 4.2 In apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run bun run apps/agent-bridge/scripts/run-python-tests.ts from root. Run existing required native render suites with real FFmpeg/FFprobe/font and OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1; no diagnostic runtime adjustment substitutes for standard full-suite acceptance.
-- [ ] 4.3 Run pinned bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive and unchanged moon run root:openspec-validate before archive; inspect complete results, with only this active-change inventory rejection expected. Perform $openspec-verify-change and a separate substantive delegated same-agent CODEOWNER review with scenario traceability and exact reviewed-source hashes, transparently not human/GitHub APPROVED.
-- [ ] 4.4 After required implementation acceptance and conformance, use $openspec-sync-specs and $openspec-archive-change; prove all predecessor requirement/archive bytes preserved, then pass unchanged protected Moon gate and strict all-spec validation after archive.
+- [x] 4.1 Run cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Preserve full logs and all original failures; correct failures without suppressions, weakened assertions or skipped required checks.
+- [x] 4.2 In apps/agent-bridge run bun run typecheck; bun run lint; bun run test:unit; bun run contracts:check; bun run test:integration; bun run test:smoke. Run bun run apps/agent-bridge/scripts/run-python-tests.ts from root. Run existing required native render suites with real FFmpeg/FFprobe/font and OPENCUT_ANIMATION_CHANNEL_RENDER_REQUIRED=1; no diagnostic runtime adjustment substitutes for standard full-suite acceptance.
+- [x] 4.3 Run pinned bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive and unchanged moon run root:openspec-validate before archive; inspect complete results, with only this active-change inventory rejection expected. Perform $openspec-verify-change and a separate substantive delegated same-agent CODEOWNER review with scenario traceability and exact reviewed-source hashes, transparently not human/GitHub APPROVED.
+- [x] 4.4 After required implementation acceptance and conformance, use $openspec-sync-specs and $openspec-archive-change; prove all predecessor requirement/archive bytes preserved, then pass unchanged protected Moon gate and strict all-spec validation after archive.
 
 ## External publication obligations
 
