@@ -37,3 +37,7 @@ None requiring user input; decisions above are issue-scoped and approved under d
 ## User merge reconciliation
 
 At 22:47 UTC the user reported PR156 merged. Fresh GitHub and Git verification confirmed merge e22c34367e7dcdf1ab473222059e9a8a779eea42 contains verified 76b87baf as an ancestor and has exactly the same tree. This already-created issue62 branch was fast-forwarded through that merge without changing or discarding any in-progress edits. Its PR will show issue62 scope against main; cumulative ordering with the predecessor is now satisfied. Postmerge CI37697399278 has all11 checks successful, independently inspected at issue62 verification time; it supplements the completed11-job exact-head evidence for unchanged76b87baf source.
+
+## Reopened native-consumer verification correction
+
+Final render CI37701970271 revealed an existing native-only masked-hero count assertion not exercised by hermetic unit/contracts suites. The production renderer and preceding native Rust cases passed. Keep the historical78 expectation and every native visual/audio/history assertion; remove only the exact newly approved speech_markers_generate when counting predecessor tools and separately assert one new tool. Reopening this same approved change preserves accepted living requirements and all prior archive authorities; no new production behavior is added. All affected checks and final exact-head CI must pass before completion.

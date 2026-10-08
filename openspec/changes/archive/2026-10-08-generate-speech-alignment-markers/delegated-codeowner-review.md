@@ -37,3 +37,5 @@ This is additive protocol 1/schema 38 behavior using ordinary persisted cue mark
 ## Merge reconciliation
 
 Branch creation started from verified issue 61 implementation 76b87baf, all eleven checks successful. It was then fast-forwarded through the user's PR156 merge e22c3436 with identical predecessor tree, retaining all uncommitted issue 62 work. Fresh job inspection confirms all eleven postmerge jobs in CI37697399278 succeeded. This PR targets main; predecessor merge order is already satisfied. No merge, deployment or issue closure was performed by this agent.
+
+The first archived-head CI exposed a missed mandatory native consumer despite all prior accepted input checks. The correction and its substantive review are recorded in native-consumer-correction-review.md; the original41-file snapshot stays immutable, while the corrected42-file snapshot explicitly records the new native consumer and two ownership metadata changes. No production source or media/history assertion was altered. New all11 exact-head CI remains pending.

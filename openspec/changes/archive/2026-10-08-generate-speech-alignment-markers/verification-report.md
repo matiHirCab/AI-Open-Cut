@@ -1,6 +1,6 @@
 # Verification report: generate-speech-alignment-markers
 
-Implementation conformance review: all twelve pre-archive tasks are complete; all five requirements and fifteen scenarios are covered by automated tests in delegated-codeowner-review.md. Correctness and ownership agree with the approved design, with no remaining confirmed production defect. Forty-one reviewed source files remain identical to the 6ae8bce3 snapshot. All required implementation suites have passing acceptance, including standard external integration25/25 and packaged22/22. Synchronization/archive and local protected/strict gates are complete. Final exact-head external CI remains a pending delivery obligation; issue completion is not declared.
+Current corrective conformance review: all thirteen pre-archive tasks are complete; all five requirements and fifteen scenarios agree with the approved design. The current42-file reviewed snapshot includes only a native-test correction and its two ownership metadata changes relative to the first archived head; all production sources and39 of41 original reviewed hashes remain unchanged. The initial41-file snapshot and complete original CI failure are preserved. Affected native/type/lint/unit/contracts checks pass, accepted living specs are unchanged, and rearchival/local protected/strict gates pass. New all11 exact-head external CI remains mandatory and pending; issue completion is not declared.
 ## Passing evidence on current implementation
 
 - Full TypeScript unit suite: 649 pass, nine existing skips; /tmp/opencut-issue62-unit-full-second.log.
@@ -38,7 +38,7 @@ Draft PR157 targets main at 6ae8bce3f1e091281e15760bc531c2a6290869e0. CI37701149
 
 | Dimension | Evidence |
 | --- | --- |
-| Completeness | 12/12 implementation and pre-archive tasks;5/5 requirements;15/15 automated scenarios |
+| Completeness | 13/13 implementation and corrective pre-archive tasks;5/5 requirements;15/15 automated scenarios |
 | Correctness | All scenarios mapped to canonical native/TS/protocol/MCP/workflow/native RGB tests; all required implementation suites accepted |
 | Coherence | Core owns semantics and publication; thin typed transports; unchanged schema38/protocol1/provider/render defaults; preserved historical authorities |
 
@@ -47,3 +47,11 @@ No critical or warning implementation mismatch remains. Future archive/publicati
 ## Final local archival gates
 
 The authorized synchronization added exactly five requirements across the new speech-alignment-markers capability and contract governance. Preservation receipt proves all1262 previous archive files, all528 previous raw requirement blocks and all46 unaffected living files unchanged. The unchanged protected gate passes461 controls and48 living specifications in /tmp/opencut-issue62-protected-final-first.log; separate strict validation passes48/48 in /tmp/opencut-issue62-openspec-final-first.log. All41 reviewed source hashes still match. Commit/push and final exact-SHA external CI receipts remain separate mandatory delivery gates; no final-head success is predeclared here.
+
+## Corrective verification after first final-head CI failure
+
+CI37701970271 on96ed60a4 finished with9 successful jobs and render/foundation failures. The mandatory native masked-hero MCP consumer retained an unprojected78 count against79 current tools; no production/render defect was found. The full original log remains /tmp/opencut-issue62-final-render-first-failure-ci.log. Reopened approval preceded executable correction. native-consumer-correction-review.md records the separate substantive review; corrected-reviewed-source-sha256.json pins42 current files, retaining39 of41 original hashes and documenting only the two ownership metadata changes plus one added native-test source. Production/native declarations, schemas, canonical marker data and MCP digest remain unchanged.
+
+Both complete native workflows pass on final spelling in /tmp/opencut-issue62-native-consumer-native-second.log; all649 unit cases and9 existing skips pass in *-unit-first.log; complete contracts393 native/502 TS cases pass in *-contracts-first.log; final pinned format/typecheck/lint pass in *-second.log. The original useDestructuring format finding remains *-format-first.log. Every old78 catalog/expectation and all media/history/oracle assertions remain; exactly one approved new tool is asserted separately. The reopened prearchive gate passes461 controls and49 strict items then rejects only this active change, *-protected-pre-first.log. No issue completion is claimed; new all11 exact-head acceptance remains mandatory.
+
+Corrective rearchival uses the current UTC date2026-10-08. No new requirement synchronization was needed: all533 accepted living blocks remain unchanged. The final corrective protected gate passes461 controls and48 living specs, /tmp/opencut-issue62-native-consumer-protected-final-first.log; separate strict48/48 passes in *-openspec-final-first.log. All1262 pre-issue archive files and528 original raw requirement blocks remain exact. The current42-source snapshot is unchanged after review. Final new-head publication/CI acceptance remains pending.

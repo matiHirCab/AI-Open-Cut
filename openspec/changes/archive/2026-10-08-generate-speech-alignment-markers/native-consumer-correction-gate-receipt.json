@@ -1,0 +1,33 @@
+{
+  "preservedFailedHead": "96ed60a4eeac23b8b4488cd15802ca1ee046b2cf",
+  "failedRun": 37701970271,
+  "failedRenderJob": 113067704310,
+  "originalLog": "/tmp/opencut-issue62-final-render-first-failure-ci.log",
+  "scope": [
+    ".github/CODEOWNERS",
+    "contracts/contract-ownership-v1.json",
+    "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
+  ],
+  "productionChanged": false,
+  "reviewedSourceFiles": 42,
+  "unchangedOriginalReviewedSourceFiles": 39,
+  "nativeHeroWorkflowCasesPassed": 2,
+  "completeUnitCasesPassed": 649,
+  "completeContractTsCasesPassed": 502,
+  "archivedChange": "openspec/changes/archive/2026-10-08-generate-speech-alignment-markers",
+  "unchangedPreviousArchives": 1262,
+  "unchangedPreviousRequirements": 528,
+  "unchangedAcceptedLivingRequirements": 533,
+  "localProtected": {
+    "exit": 0,
+    "controls": 461,
+    "livingSpecs": 48,
+    "log": "/tmp/opencut-issue62-native-consumer-protected-final-first.log"
+  },
+  "localStrict": {
+    "exit": 0,
+    "specs": 48,
+    "log": "/tmp/opencut-issue62-native-consumer-openspec-final-first.log"
+  },
+  "newAll11ExactHeadCI": "pending mandatory external receipt; issue62 andissue65 progressionblocked"
+}

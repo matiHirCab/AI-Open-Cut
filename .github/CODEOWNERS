@@ -364,6 +364,7 @@
 /crates/editor-core/tests/speech_markers.rs @matiHirCab
 /apps/agent-bridge/tests/speech-markers.test.ts @matiHirCab
 /apps/agent-bridge/tests/speech-markers-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/masked-hero-reveal-native.test.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/speech-markers-projection.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/speech-markers-mcp-additions.json @matiHirCab
 /docs/speech-alignment-markers.md @matiHirCab
