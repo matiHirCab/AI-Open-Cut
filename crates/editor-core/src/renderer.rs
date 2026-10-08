@@ -1655,6 +1655,7 @@ mod tests {
             audio_role: crate::AudioTrackRole::Unassigned,
             ducking: None,
             items: vec![TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: "missing".into(),
                 asset_id: "missing-asset".into(),
                 start_ms: 0,
@@ -1753,6 +1754,7 @@ mod tests {
             audio_role: crate::AudioTrackRole::Unassigned,
             ducking: None,
             items: vec![TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: "video-item".into(),
                 asset_id: "video".into(),
                 start_ms: 0,
@@ -2007,6 +2009,7 @@ mod tests {
                     probe: None,
                 });
                 project.tracks[0].items[1] = TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "audio-item".into(),
                     asset_id: "audio".into(),
                     start_ms: 0,
@@ -2138,6 +2141,7 @@ mod tests {
             audio_role: crate::AudioTrackRole::Unassigned,
             ducking: None,
             items: vec![TimelineItem::Media(MediaItem {
+                audio_event: None,
                 id: "missing-item".into(),
                 asset_id: "missing-asset".into(),
                 start_ms: 0,
@@ -2739,6 +2743,7 @@ mod tests {
         }];
         let media = |id: &str, start_ms: u64, volume: f64, keyframes: Vec<Keyframe>| {
             TimelineItem::Media(crate::MediaItem {
+                audio_event: None,
                 id: id.into(),
                 asset_id: "voice".into(),
                 start_ms,
@@ -3367,6 +3372,7 @@ mod tests {
                     audio_role: crate::AudioTrackRole::Unassigned,
                     ducking: None,
                     items: vec![TimelineItem::Media(MediaItem {
+                        audio_event: None,
                         id: "tone-item".into(),
                         asset_id: "tone".into(),
                         start_ms: 0,

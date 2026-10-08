@@ -101,6 +101,7 @@ pub(crate) fn validate_project_visual_properties_without_mattes(
 ) -> Result<(), CoreError> {
     audio_buses::validate_project(project)?;
     project.validate_sound_definition_model()?;
+    project.validate_audio_event_model()?;
     mask::validate_project(project)?;
     validate_project_visual_projection(project)
 }
@@ -149,7 +150,7 @@ pub(crate) fn validate_project_visual_projection(project: &Project) -> Result<()
         if let Some(value) = &item.visual_properties().transform2d {
             value.validate()?;
             if matches!(item, TimelineItem::Transition(_))
-                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+                || matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && (asset.media_type == MediaType::Audio || media.audio_event.is_some())))
                 || item
                     .keyframes()
                     .iter()
@@ -328,7 +329,7 @@ fn validate_scope(
     let invalid = |message: &str| CoreError::new(ErrorCode::InvalidArgument, message);
     let is_visual = |item: &TimelineItem| {
         !matches!(item, TimelineItem::Transition(_))
-            && !matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && asset.media_type == MediaType::Audio))
+            && !matches!(item, TimelineItem::Media(media) if project.assets.iter().any(|asset| asset.id == media.asset_id && (asset.media_type == MediaType::Audio || media.audio_event.is_some())))
     };
     if tracks
         .iter()
@@ -999,8 +1000,15 @@ fn validate_component_content(
                                 "component media asset not found",
                             )
                         })?;
-                    validate_track_media(track.track_type, asset.media_type)
-                        .map_err(|e| invalid(&e.message))?;
+                    validate_track_media(
+                        track.track_type,
+                        if media.audio_event.is_some() {
+                            MediaType::Audio
+                        } else {
+                            asset.media_type
+                        },
+                    )
+                    .map_err(|e| invalid(&e.message))?;
                     validate_audio(&media.audio).map_err(|e| invalid(&e.message))?;
                     if media.audio.fade_in_ms > safe_time || media.audio.fade_out_ms > safe_time {
                         return Err(invalid("component media fade exceeds safe integer time"));
@@ -1015,7 +1023,7 @@ fn validate_component_content(
                     {
                         return Err(invalid("component media interval exceeds asset"));
                     }
-                    if asset.media_type == MediaType::Audio
+                    if (asset.media_type == MediaType::Audio || media.audio_event.is_some())
                         && media.visual_properties.transform2d.is_some()
                     {
                         return Err(invalid("audio cannot use Transform2D"));
@@ -1248,7 +1256,7 @@ fn validate_slot_definition(
         .ok_or_else(|| CoreError::new(ErrorCode::ItemNotFound, "slot target not found"))?;
     let visual = track.track_type != TrackType::Audio
         && !matches!(target, TimelineItem::Transition(_))
-        && !matches!(target, TimelineItem::Media(m) if project.assets.iter().any(|a| a.id == m.asset_id && a.media_type == MediaType::Audio));
+        && !matches!(target, TimelineItem::Media(m) if project.assets.iter().any(|a| a.id == m.asset_id && (a.media_type == MediaType::Audio || m.audio_event.is_some())));
     let compatible = match slot.binding.property {
         P::TextDocument => {
             matches!(slot.kind, K::Text | K::RichText) && matches!(target, TimelineItem::Text(_))

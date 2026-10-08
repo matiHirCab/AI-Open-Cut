@@ -30,15 +30,20 @@ pub(crate) fn validate_stack(masks: &[Mask]) -> Result<usize, CoreError> {
 
 fn eligible(item: &TimelineItem, project: Option<&Project>) -> bool {
     match item {
-        TimelineItem::Media(media) => project.is_none_or(|project| {
-            // Missing resources retain the existing ASSET_NOT_FOUND owner/error.
-            // Only a known nonvisual asset establishes an ineligible target.
-            project
-                .assets
-                .iter()
-                .find(|asset| asset.id == media.asset_id)
-                .is_none_or(|asset| matches!(asset.media_type, MediaType::Image | MediaType::Video))
-        }),
+        TimelineItem::Media(media) => {
+            media.audio_event.is_none()
+                && project.is_none_or(|project| {
+                    // Missing resources retain the existing ASSET_NOT_FOUND owner/error.
+                    // Only a known nonvisual asset establishes an ineligible target.
+                    project
+                        .assets
+                        .iter()
+                        .find(|asset| asset.id == media.asset_id)
+                        .is_none_or(|asset| {
+                            matches!(asset.media_type, MediaType::Image | MediaType::Video)
+                        })
+                })
+        }
         TimelineItem::Text(_)
         | TimelineItem::SolidColor(_)
         | TimelineItem::Rectangle(_)

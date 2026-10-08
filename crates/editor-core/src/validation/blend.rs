@@ -6,11 +6,16 @@ pub(crate) fn validate_item(item: &TimelineItem, project: &Project) -> Result<()
         return Ok(());
     }
     let eligible = match item {
-        TimelineItem::Media(media) => project
-            .assets
-            .iter()
-            .find(|asset| asset.id == media.asset_id)
-            .is_none_or(|asset| matches!(asset.media_type, MediaType::Image | MediaType::Video)),
+        TimelineItem::Media(media) => {
+            media.audio_event.is_none()
+                && project
+                    .assets
+                    .iter()
+                    .find(|asset| asset.id == media.asset_id)
+                    .is_none_or(|asset| {
+                        matches!(asset.media_type, MediaType::Image | MediaType::Video)
+                    })
+        }
         TimelineItem::Text(_)
         | TimelineItem::SolidColor(_)
         | TimelineItem::Rectangle(_)

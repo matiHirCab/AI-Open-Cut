@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import audioBuses from "../../../contracts/audio-buses-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
-import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   normalizeProviderErrorCode,
   publicDescriptionFor,
@@ -36,7 +36,7 @@ describe("MCP contracts", () => {
         markers: [],
         name: "Visual properties",
         revision: 0,
-        schemaVersion: soundEvents.projectSchemaVersion,
+        schemaVersion: audioEvents.projectSchemaVersion,
         settings: { fps: 30, height: 1080, width: 1920 },
         soundDefinitions: [],
         tracks: [

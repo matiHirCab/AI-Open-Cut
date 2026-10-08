@@ -687,7 +687,13 @@ fn premature_malformed_retained_future_and_failed_legacy_edits_never_publish() {
                 value.as_object_mut().unwrap().remove("soundDefinitions");
             }
             "null_current" => value["soundDefinitions"] = Value::Null,
-            "future" => value["schemaVersion"] = json!(41),
+            "future" => {
+                // Retain the frozen predecessor's version boundary while the
+                // live rejection probe follows the current schema successor.
+                assert_eq!(catalog()["projectSchemaVersion"], 40);
+                assert_eq!(catalog()["projectSchemaVersion"].as_u64().unwrap() + 1, 41);
+                value["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
+            }
             "malformed_retained" => {
                 let mut snapshot = current.clone();
                 snapshot["soundDefinitions"] = json!([catalog()["definition"].clone()]);

@@ -497,6 +497,7 @@ pub(super) fn fixture_project() -> Project {
                 audio_role: AudioTrackRole::Unassigned,
                 ducking: None,
                 items: vec![TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "tone-item".into(),
                     asset_id: "tone".into(),
                     start_ms: 0,

@@ -20,6 +20,7 @@ pub(crate) const ASSET_GC_FAILED: &str = "ASSET_GC_FAILED";
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DraftAssetOperations<'a> {
+    pub(crate) audio_event_asset_ids: Option<&'a [String]>,
     pub(crate) font_catalog: Option<&'a std::collections::BTreeMap<String, crate::FontRecord>>,
     pub(crate) id: &'a str,
     pub(crate) operations: &'a [EditOperation],
@@ -51,6 +52,26 @@ pub(crate) struct AssetReference {
     pub(crate) asset_id: String,
     pub(crate) kind: AssetReferenceKind,
     pub(crate) owner_id: String,
+}
+
+pub(crate) fn audio_event_roots_for_items(
+    project: &Project,
+    ids: &[String],
+) -> std::collections::BTreeSet<String> {
+    project
+        .tracks
+        .iter()
+        .chain(project.components.iter().flat_map(|c| &c.tracks))
+        .flat_map(|track| &track.items)
+        .filter_map(|item| match item {
+            TimelineItem::Media(media)
+                if media.audio_event.is_some() && ids.contains(&media.id) =>
+            {
+                Some(media.asset_id.clone())
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference> {
@@ -124,7 +145,16 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
 }
 
 pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<AssetReference> {
-    let mut references = Vec::new();
+    let mut references: Vec<_> = draft
+        .audio_event_asset_ids
+        .into_iter()
+        .flatten()
+        .map(|asset_id| AssetReference {
+            asset_id: asset_id.clone(),
+            kind: AssetReferenceKind::DraftOperation,
+            owner_id: draft.id.to_owned(),
+        })
+        .collect();
     for operation in draft.operations {
         let mut ids = Vec::new();
         match operation {
@@ -844,6 +874,7 @@ mod tests {
                 audio_role: AudioTrackRole::Unassigned,
                 ducking: None,
                 items: vec![TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: "item".into(),
                     asset_id: "asset".into(),
                     start_ms: 0,
@@ -868,6 +899,7 @@ mod tests {
             source_in_ms: 0,
         }];
         let draft = DraftAssetOperations {
+            audio_event_asset_ids: None,
             font_catalog: None,
             id: "draft",
             operations: &operations,

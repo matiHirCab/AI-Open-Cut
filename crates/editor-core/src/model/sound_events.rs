@@ -21,6 +21,25 @@ pub struct SoundEventDefinition {
     pub variant_seed: u64,
 }
 
+/// Immutable semantic selection attached to an ordinary audio-only media item.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AudioEventItem {
+    pub event: String,
+    pub gain_db: f64,
+    pub default_gain_db: f64,
+    pub bus_id: String,
+    pub variant_seed: u64,
+    pub variant_index: usize,
+    pub content_hash: super::ContentHash,
+}
+
+impl AudioEventItem {
+    pub fn linear_gain(&self) -> f64 {
+        10.0_f64.powf((self.default_gain_db + self.gain_db) / 20.0)
+    }
+}
+
 #[derive(Debug)]
 pub struct ResolvedSoundVariant<'a> {
     pub asset: &'a Asset,
@@ -127,6 +146,90 @@ fn validate_definition(
 }
 
 impl Project {
+    pub(crate) fn validate_audio_event_model(&self) -> Result<(), CoreError> {
+        for track in self
+            .tracks
+            .iter()
+            .chain(self.components.iter().flat_map(|c| &c.tracks))
+        {
+            for item in &track.items {
+                let super::TimelineItem::Media(media) = item else {
+                    continue;
+                };
+                let Some(event) = &media.audio_event else {
+                    continue;
+                };
+                if self.schema_version < 41 {
+                    return Err(invalid("semantic audio placement requires schema 41"));
+                }
+                if track.track_type != super::TrackType::Audio
+                    || !bounded_id(&event.event, true)
+                    || !self
+                        .sound_definitions
+                        .iter()
+                        .any(|definition| definition.event == event.event)
+                    || !event.gain_db.is_finite()
+                    || !(MIN_SOUND_GAIN_DB..=MAX_SOUND_GAIN_DB).contains(&event.gain_db)
+                    || !event.default_gain_db.is_finite()
+                    || !(MIN_SOUND_GAIN_DB..=MAX_SOUND_GAIN_DB).contains(&event.default_gain_db)
+                    || event.variant_seed > MAX_SOUND_VARIANT_SEED
+                    || event.variant_index >= MAX_SOUND_VARIANTS
+                    || !super::AUDIO_BUS_IDS.contains(&event.bus_id.as_str())
+                    || !self.audio_buses.iter().any(|bus| bus.id == event.bus_id)
+                    || media.duration_ms == 0
+                    || media.start_ms > MAX_SOUND_VARIANT_SEED
+                    || media.source_in_ms > MAX_SOUND_VARIANT_SEED
+                    || media
+                        .start_ms
+                        .checked_add(media.duration_ms)
+                        .is_none_or(|end| end > MAX_SOUND_VARIANT_SEED)
+                {
+                    return Err(invalid(
+                        "invalid semantic audio item provenance or interval",
+                    ));
+                }
+                let asset = self
+                    .assets
+                    .iter()
+                    .find(|asset| asset.id == media.asset_id)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::AssetIntegrityFailed,
+                            "captured sound asset not found",
+                        )
+                    })?;
+                if asset.media_type != MediaType::Audio
+                    && !(asset.media_type == MediaType::Video && asset.has_audio)
+                    || !asset.has_audio
+                    || asset.content_hash.as_ref() != Some(&event.content_hash)
+                    || event.content_hash.algorithm != "sha256"
+                    || event.content_hash.digest.len() != 64
+                    || !event
+                        .content_hash
+                        .digest
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    || asset.size_bytes.is_none_or(|size| size == 0)
+                {
+                    return Err(CoreError::new(
+                        ErrorCode::AssetIntegrityFailed,
+                        "captured sound content is invalid",
+                    ));
+                }
+                if media
+                    .source_in_ms
+                    .checked_add(media.duration_ms)
+                    .is_none_or(|end| asset.duration_ms.is_some_and(|duration| end > duration))
+                {
+                    return Err(invalid(
+                        "semantic audio source interval exceeds asset duration",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn validate_sound_definition_model(&self) -> Result<(), CoreError> {
         if self.schema_version < 40 {
             return if self.sound_definitions.is_empty() {

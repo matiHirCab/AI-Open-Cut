@@ -38,7 +38,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 40;
+pub const PROJECT_SCHEMA_VERSION: u32 = 41;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -1971,6 +1971,12 @@ pub struct GroupItem {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MediaItem {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub audio_event: Option<AudioEventItem>,
     pub id: String,
     pub asset_id: String,
     pub start_ms: u64,
@@ -2423,6 +2429,26 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    TimelineAddAudioEvent {
+        scope: String,
+        track_id: String,
+        event: String,
+        at: TimeExpression,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_present"
+        )]
+        duration_ms: Option<u64>,
+        #[serde(default)]
+        gain_db: f64,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_present"
+        )]
+        variant_seed: Option<u64>,
+    },
     SoundEventRegister {
         event: String,
         variant_asset_ids: Vec<String>,
@@ -2876,6 +2902,26 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    TimelineAddAudioEvent {
+        scope: String,
+        track_id: String,
+        event: String,
+        at: TimeExpression,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_present"
+        )]
+        duration_ms: Option<u64>,
+        #[serde(default)]
+        gain_db: f64,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_present"
+        )]
+        variant_seed: Option<u64>,
+    },
     SoundEventRegister {
         event: String,
         variant_asset_ids: Vec<String>,
@@ -3387,6 +3433,16 @@ impl<'de> Deserialize<'de> for EditOperation {
             return Err(serde::de::Error::custom("repeater cannot be null"));
         }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("timeline_add_audio_event") => Some(&[
+                "operation",
+                "scope",
+                "trackId",
+                "event",
+                "at",
+                "durationMs",
+                "gainDb",
+                "variantSeed",
+            ]),
             Some("sound_event_register") => Some(&[
                 "operation",
                 "event",

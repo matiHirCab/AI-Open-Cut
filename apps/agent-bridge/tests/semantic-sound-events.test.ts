@@ -12,6 +12,7 @@ import {
   schemas,
   soundEventDefinitionSchema,
 } from "../src/schemas";
+import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import pins from "./fixtures/semantic-sound-events-predecessor-pins.json";
 import {
@@ -71,10 +72,15 @@ it("preserves independently captured issue65 raw, expanded and semantic predeces
       "utf8"
     );
     if (headers.has(path.replace("contracts/", ""))) {
-      expect(raw.match(/"projectSchemaVersion": 40/g)).toHaveLength(1);
+      expect(raw.match(/"projectSchemaVersion": 41/g)).toHaveLength(1);
+      const original40 = raw.replace(
+        '"projectSchemaVersion": 41',
+        '"projectSchemaVersion": 40'
+      );
+      expect(original40.match(/"projectSchemaVersion": 40/g)).toHaveLength(1);
       expect(
         hash(
-          raw.replace(
+          original40.replace(
             '"projectSchemaVersion": 40',
             '"projectSchemaVersion": 39'
           )
@@ -207,7 +213,7 @@ it("rejects unrelated, missing or malformed additions and keeps restored replace
       value.tools.push("unexpected");
     },
   ]) {
-    const changed = structuredClone(mcp);
+    const changed = removeAudioEventMcpAdditions(mcp);
     mutate(changed);
     expect(() => projectSoundEventMcpPredecessor(changed)).toThrow();
   }
@@ -219,9 +225,13 @@ it("rejects unrelated, missing or malformed additions and keeps restored replace
       .const
   ).toBe(39);
   expect(
+    removeAudioEventMcpAdditions(mcp).$defs
+      .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
+  ).toBe(40);
+  expect(
     mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
       .const
-  ).toBe(40);
+  ).toBe(41);
   const protocol = structuredClone(headless);
   protocol.requests.soundEventRegister.edit.variantSeed = 1;
   expect(() => removeSoundEventHeadlessAdditions(protocol)).toThrow();

@@ -63,6 +63,19 @@ interface Revisioned {
 
 export type HeadlessEdit =
   | {
+      operation: "timeline_add_audio_event";
+      scope: string;
+      trackId: string;
+      event: string;
+      at:
+        | { type: "milliseconds"; valueMs: number }
+        | { type: "marker"; markerName: string; offsetMs: number };
+      durationMs?: number | undefined;
+      gainDb?: number | undefined;
+      variantSeed?: number | undefined;
+      resultAlias?: string | undefined;
+    }
+  | {
       operation: "sound_event_register";
       event: string;
       variantAssetIds: string[];

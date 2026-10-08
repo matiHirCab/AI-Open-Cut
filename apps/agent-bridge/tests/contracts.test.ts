@@ -68,6 +68,8 @@ import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
 import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
+import AUDIO_EVENT_PINS from "./fixtures/audio-events-predecessor-pins.json";
+import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
 import {
   projectBlendCatalogPredecessor,
   projectBlendMcpPredecessor,
@@ -112,6 +114,7 @@ const projectMaskRenderingMcpPredecessor = (source: unknown) =>
   );
 
 import SOUND_EVENTS from "../../../contracts/semantic-sound-events-v1.json";
+import AUDIO_EVENTS from "../../../contracts/timeline-audio-events-v1.json";
 import { projectSoundEventMcpPredecessor } from "./fixtures/semantic-sound-events-projection";
 
 const MCP_SURFACE = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
@@ -379,7 +382,7 @@ describe("canonical public contracts", () => {
     });
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      SOUND_EVENTS.projectSchemaVersion
+      AUDIO_EVENTS.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
@@ -396,7 +399,7 @@ describe("canonical public contracts", () => {
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
       expect(catalog.projectSchemaVersion, name).toBe(
-        SOUND_EVENTS.projectSchemaVersion
+        AUDIO_EVENTS.projectSchemaVersion
       );
       expect(
         restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
@@ -450,7 +453,14 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(82);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(83);
+    expect(
+      Object.keys(
+        expandMcpSurfaceCatalog(
+          removeAudioEventMcpAdditions(MCP_SURFACE_SOURCE)
+        ).toolDefinitions
+      )
+    ).toHaveLength(82);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -459,8 +469,19 @@ describe("canonical public contracts", () => {
       )
     ).toHaveLength(81);
     expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
-      MCP_CURRENT_DIGEST
+      AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256
     );
+    expect(
+      createHash("sha256")
+        .update(
+          JSON.stringify(
+            expandMcpSurfaceCatalog(
+              removeAudioEventMcpAdditions(MCP_SURFACE_SOURCE)
+            )
+          )
+        )
+        .digest("hex")
+    ).toBe(MCP_CURRENT_DIGEST);
     expect(
       createHash("sha256")
         .update(
@@ -882,7 +903,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: SOUND_EVENTS.projectSchemaVersion,
+      projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -945,6 +966,7 @@ describe("canonical public contracts", () => {
       "speech_alignment_markers_v1",
       "project_audio_buses_v1",
       SOUND_EVENTS.capability,
+      AUDIO_EVENTS.capability,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -969,7 +991,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: SOUND_EVENTS.projectSchemaVersion,
+        projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

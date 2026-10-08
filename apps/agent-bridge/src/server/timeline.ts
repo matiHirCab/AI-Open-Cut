@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "timeline_add_audio_event",
+    {
+      annotations: WRITE,
+      description:
+        "Place a deterministic semantic sound at an absolute or scoped marker-relative time.",
+      inputSchema: schemas.timelineAddAudioEvent,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "timeline_add_audio_event",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "sound_event_register",
     {
       annotations: WRITE,

@@ -1231,7 +1231,9 @@ impl<'a> ScopeTiming<'a> {
             })
             .filter(|(_, item)| match item {
                 TimelineItem::Media(media) => assets.iter().any(|asset| {
-                    asset.id == media.asset_id && asset.media_type != MediaType::Audio
+                    asset.id == media.asset_id
+                        && asset.media_type != MediaType::Audio
+                        && media.audio_event.is_none()
                 }),
                 TimelineItem::Caption(_) | TimelineItem::Transition(_) => false,
                 _ => true,
@@ -3011,7 +3013,7 @@ fn evaluate_flat_project(
                         })
                         .collect();
                     let transform = evaluate_transform(&media.transform)?;
-                    if asset.media_type != MediaType::Audio {
+                    if asset.media_type != MediaType::Audio && media.audio_event.is_none() {
                         visual_layers.push(EvaluatedVisualLayer {
                             blend_mode: item.visual_properties().blend_mode,
                             extended: extended_visual::authored(item, project.settings.fps),
@@ -3047,7 +3049,11 @@ fn evaluate_flat_project(
                             asset_id: media.asset_id.clone(),
                             span,
                             source_in_ms: media.source_in_ms,
-                            volume: media.audio.volume,
+                            volume: media.audio.volume
+                                * media
+                                    .audio_event
+                                    .as_ref()
+                                    .map_or(1.0, crate::AudioEventItem::linear_gain),
                             fade_in_ms: media.audio.fade_in_ms,
                             fade_out_ms: media.audio.fade_out_ms,
                             volume_keyframes,
@@ -3526,7 +3532,7 @@ fn preflight_project<'a>(
                     {
                         return Err(invalid("evaluated media resource limit exceeded"));
                     }
-                    if asset.media_type != MediaType::Audio {
+                    if asset.media_type != MediaType::Audio && media.audio_event.is_none() {
                         increment_bounded(
                             &mut visual_layer_count,
                             MAX_EVALUATED_VISUAL_LAYERS,
@@ -4547,6 +4553,7 @@ mod tests {
 
     fn media(id: &str, asset_id: &str, start_ms: u64) -> TimelineItem {
         TimelineItem::Media(MediaItem {
+            audio_event: None,
             id: id.into(),
             asset_id: asset_id.into(),
             start_ms,

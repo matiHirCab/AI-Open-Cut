@@ -4,7 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
-import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -128,7 +128,7 @@ export const verifyPackClockMigrationWorkflow = async (
   writeFileSync(projectPath, JSON.stringify(oldProject));
   writeFileSync(historyPath, JSON.stringify(oldHistory));
   const migrated = await read();
-  expect(migrated.project.schemaVersion).toBe(soundEvents.projectSchemaVersion);
+  expect(migrated.project.schemaVersion).toBe(audioEvents.projectSchemaVersion);
   expect(JSON.parse(readFileSync(projectPath, "utf8"))).toEqual(
     originalProject
   );
@@ -219,7 +219,7 @@ export const verifyPackClockMigrationWorkflow = async (
   ) as SavedHistory;
   expect(
     [...retained.undo, ...retained.redo].every(
-      (snapshot) => snapshot.schemaVersion === soundEvents.projectSchemaVersion
+      (snapshot) => snapshot.schemaVersion === audioEvents.projectSchemaVersion
     )
   ).toBe(true);
 };

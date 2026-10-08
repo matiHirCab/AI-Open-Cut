@@ -1,4 +1,10 @@
 import { createHash } from "node:crypto";
+import {
+  removeAudioEventHeadlessAdditions,
+  removeAudioEventMcpAdditions,
+  removeAudioEventOwnershipAddition,
+  restoreAudioEventCatalogMarker,
+} from "./audio-events-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import additions from "./semantic-sound-events-mcp-additions.json";
 import ownership from "./semantic-sound-events-ownership-addition.json";
@@ -19,15 +25,27 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 
 export const restoreSoundEventCatalogMarker = (source: unknown) => {
-  const value = at(source, []);
+  const original = at(source, []);
+  const value =
+    original.projectSchemaVersion === 41
+      ? restoreAudioEventCatalogMarker(original)
+      : original;
   if (value.projectSchemaVersion !== 40) {
     throw new Error("Incorrect approved sound-definition catalog marker");
   }
   return { ...structuredClone(value), projectSchemaVersion: 39 };
 };
 
+const soundEventMcpInput = (source: unknown) => {
+  const root = at(source, []);
+  const caps = root.capabilityIdentifiers;
+  return Array.isArray(caps) && caps.includes("timeline_audio_events_v1")
+    ? removeAudioEventMcpAdditions(source)
+    : structuredClone(source);
+};
+
 export const removeSoundEventMcpAdditions = (source: unknown) => {
-  const result = structuredClone(source);
+  const result = soundEventMcpInput(source);
   for (const change of additions.additions) {
     if (change.kind === "array") {
       const array = at(result, change.path) as unknown as unknown[];
@@ -73,9 +91,12 @@ export const projectSoundEventMcpPredecessor = (source: unknown) => {
 };
 
 export const removeSoundEventHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const requests = at(source, ["requests"]);
+  const result = Object.hasOwn(requests, "timelineAddAudioEvent")
+    ? removeAudioEventHeadlessAdditions(source)
+    : structuredClone(source);
   const object = at(result, []);
-  const requests = at(object, ["requests"]);
+  const requestValues = at(object, ["requests"]);
   const expected = {
     soundEventRegister: {
       edit: {
@@ -92,10 +113,12 @@ export const removeSoundEventHeadlessAdditions = <T>(source: T): T => {
     },
   };
   for (const [key, value] of Object.entries(expected)) {
-    if (orderedEffectDigest(requests[key]) !== orderedEffectDigest(value)) {
+    if (
+      orderedEffectDigest(requestValues[key]) !== orderedEffectDigest(value)
+    ) {
       throw new Error("Incorrect approved sound-definition headless request");
     }
-    Reflect.deleteProperty(requests, key);
+    Reflect.deleteProperty(requestValues, key);
   }
   const capabilities = at(object, ["status"]).editorCapabilities;
   if (
@@ -113,7 +136,10 @@ export const removeSoundEventHeadlessAdditions = <T>(source: T): T => {
 };
 
 export const removeSoundEventOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const sourceCategories = at(source, ["categories"]);
+  const result = Object.hasOwn(sourceCategories, "timelineAudioEvents")
+    ? removeAudioEventOwnershipAddition(source)
+    : structuredClone(source);
   const categories = at(result, ["categories"]);
   if (
     orderedEffectDigest(categories.semanticSoundEventDefinitions) !==

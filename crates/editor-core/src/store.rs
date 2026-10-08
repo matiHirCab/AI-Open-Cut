@@ -526,6 +526,7 @@ impl EditorCore {
             project.tracks[track_index]
                 .items
                 .push(TimelineItem::Media(MediaItem {
+                    audio_event: None,
                     id: item_id.clone(),
                     asset_id: asset_id.clone(),
                     start_ms: request.start_ms,
@@ -1116,6 +1117,7 @@ impl EditorCore {
         }
         let now = now_ms()?;
         let mut draft = EditDraft {
+            audio_event_asset_ids: None,
             font_catalog: None,
             font_steps: None,
             version: DRAFT_VERSION,
@@ -1313,6 +1315,7 @@ impl EditorCore {
                 }
                 (
                     EditDraft {
+                        audio_event_asset_ids: None,
                         font_catalog: None,
                         font_steps: None,
                         version: DRAFT_VERSION,
@@ -1442,6 +1445,10 @@ impl EditorCore {
             crate::evaluated_scene::preflight_inherited_project(&candidate)?;
             let (output, committed_draft_id, publish) = match request {
                 MaskDraftRequest::Rebase => {
+                    let roots =
+                        crate::assets::audio_event_roots_for_items(&candidate, &changed_ids);
+                    draft.audio_event_asset_ids =
+                        (!roots.is_empty()).then(|| roots.into_iter().collect());
                     draft.base_revision = prepared.project.revision;
                     draft.updated_at_ms = now_ms()?;
                     prepared
@@ -2277,12 +2284,20 @@ fn matched_draft_base<'a>(
         .find(|p| p.revision == revision)
 }
 fn raw_composition_draft_operations(raw: &serde_json::Value) -> bool {
-    raw.get("operations").is_some_and(|ops| {
-        crate::reject_raw_matte_edit_fields(ops).is_err()
-            || crate::reject_raw_blend_edit_fields(ops).is_err()
-            || crate::reject_raw_color_effect_edit_fields(ops).is_err()
-            || crate::reject_raw_group_compositing_edit_fields(ops).is_err()
-    })
+    raw.get("audioEventAssetIds").is_some()
+        || raw
+            .get("operations")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|ops| {
+                ops.iter()
+                    .any(|op| op["operation"] == "timeline_add_audio_event")
+            })
+        || raw.get("operations").is_some_and(|ops| {
+            crate::reject_raw_matte_edit_fields(ops).is_err()
+                || crate::reject_raw_blend_edit_fields(ops).is_err()
+                || crate::reject_raw_color_effect_edit_fields(ops).is_err()
+                || crate::reject_raw_group_compositing_edit_fields(ops).is_err()
+        })
 }
 fn validate_matte_journal_draft_sources(
     project: &Project,
@@ -2291,6 +2306,25 @@ fn validate_matte_journal_draft_sources(
 ) -> Result<(), CoreError> {
     for bytes in updates.values() {
         let raw: serde_json::Value = serde_json::from_slice(bytes)?;
+        if let Some(base) = raw
+            .get("baseRevision")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|revision| matched_draft_base(project, history, revision))
+            && base.schema_version < 41
+            && (raw.get("audioEventAssetIds").is_some()
+                || raw
+                    .get("operations")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|ops| {
+                        ops.iter()
+                            .any(|op| op["operation"] == "timeline_add_audio_event")
+                    }))
+        {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "semantic audio draft intent requires schema 41 source",
+            ));
+        }
         if let Some(base) = raw
             .get("baseRevision")
             .and_then(serde_json::Value::as_u64)
@@ -2721,8 +2755,11 @@ fn prepare_draft_fonts(
     let mut candidate = project.clone();
     let mut catalog = draft.font_catalog.clone().unwrap_or_default();
     let mut steps = vec![];
+    let mut audio_roots = std::collections::BTreeSet::new();
     for (index, operation) in draft.operations.iter().enumerate() {
-        crate::timeline::apply_operation_in_batch(&mut candidate, operation.clone())?;
+        let (ids, _) =
+            crate::timeline::apply_operation_in_batch(&mut candidate, operation.clone())?;
+        audio_roots.extend(crate::assets::audio_event_roots_for_items(&candidate, &ids));
         let unresolved = candidate.clone();
         let mut inherited = BTreeMap::new();
         if let Some(matches) = retained {
@@ -2751,6 +2788,8 @@ fn prepare_draft_fonts(
     draft.version = DRAFT_VERSION;
     draft.font_catalog = Some(catalog);
     draft.font_steps = Some(steps);
+    draft.audio_event_asset_ids =
+        (!audio_roots.is_empty()).then(|| audio_roots.into_iter().collect());
     Ok(())
 }
 
@@ -2787,13 +2826,24 @@ fn replay_font_draft(
             )
         })?;
     let mut changed_ids = vec![];
+    let mut audio_roots = std::collections::BTreeSet::new();
     for (operation, step) in draft.operations.iter().zip(steps) {
         let (ids, _) = crate::timeline::apply_operation_in_batch(project, operation.clone())?;
+        audio_roots.extend(crate::assets::audio_event_roots_for_items(project, &ids));
         crate::assets::fonts::apply_draft_bindings(project, catalog, step)?;
         observe(project, operation);
         changed_ids.extend(ids);
     }
     crate::validation::matte::validate_project(project)?;
+    if project.revision == draft.base_revision
+        && draft.audio_event_asset_ids.as_deref().unwrap_or_default()
+            != audio_roots.into_iter().collect::<Vec<_>>()
+    {
+        return Err(CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            "draft captured audio event roots do not match replay",
+        ));
+    }
     Ok(changed_ids)
 }
 
@@ -2816,6 +2866,7 @@ fn draft_asset_operations(drafts: &[EditDraft]) -> Vec<DraftAssetOperations<'_>>
     drafts
         .iter()
         .map(|draft| DraftAssetOperations {
+            audio_event_asset_ids: draft.audio_event_asset_ids.as_deref(),
             font_catalog: draft.font_catalog.as_ref(),
             id: &draft.id,
             operations: &draft.operations,
@@ -2827,6 +2878,7 @@ fn validate_single_draft_assets(project: &Project, draft: &EditDraft) -> Result<
     validate_draft_asset_references(
         project,
         &[DraftAssetOperations {
+            audio_event_asset_ids: draft.audio_event_asset_ids.as_deref(),
             font_catalog: draft.font_catalog.as_ref(),
             id: &draft.id,
             operations: &draft.operations,
@@ -2861,7 +2913,8 @@ fn requires_composition_staging(
     Ok(operations.iter().any(|operation| {
         matches!(
             operation,
-            crate::EditOperation::SoundEventRegister { .. }
+            crate::EditOperation::TimelineAddAudioEvent { .. }
+                | crate::EditOperation::SoundEventRegister { .. }
                 | crate::EditOperation::AudioBusSetRoute { .. }
                 | crate::EditOperation::AudioTrackRoute { .. }
                 | crate::EditOperation::ComponentCreate { .. }
@@ -3483,6 +3536,123 @@ mod tests {
                     reopened.get_project(&id).unwrap().sound_definitions,
                     current.sound_definitions
                 );
+                let stable = project_file_bytes(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), stable);
+            }
+        }
+    }
+
+    #[test]
+    fn semantic_audio_events_preserve_all_publication_fault_and_recovery_boundaries() {
+        for draft_commit in [false, true] {
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let (core, root) = core();
+                let id = core
+                    .create_project("Audio event recovery", ProjectSettings::default())
+                    .unwrap()
+                    .project_id;
+                let asset = import_test_audio(&core, &root, &id, 0, "event.wav");
+                core.edit(
+                    &id,
+                    1,
+                    crate::EditOperation::SoundEventRegister {
+                        event: "impact".into(),
+                        variant_asset_ids: vec![asset.clone()],
+                        default_gain_db: -6.0,
+                        bus_id: "sfx".into(),
+                        variant_seed: 0,
+                    },
+                )
+                .unwrap();
+                let project = core.get_project(&id).unwrap();
+                let track = project.tracks[2].id.clone();
+                let operation:crate::EditOperation=serde_json::from_value(serde_json::json!({"operation":"timeline_add_audio_event","scope":"root","trackId":track,"event":"impact","at":{"type":"milliseconds","valueMs":100},"durationMs":500,"gainDb":-3})).unwrap();
+                let draft = core
+                    .create_draft(&id, 2, vec![operation.clone()], None)
+                    .unwrap();
+                let dir = core.project_directory(&id).unwrap();
+                let mut history: History = read_json(&history_path(&dir)).unwrap();
+                for retained in history.undo.iter_mut().chain(&mut history.redo) {
+                    retained.schema_version = 40;
+                }
+                std::fs::write(
+                    history_path(&dir),
+                    serde_json::to_vec_pretty(&history).unwrap(),
+                )
+                .unwrap();
+                let before = project_file_bytes(&dir);
+                let apply = || {
+                    if draft_commit {
+                        core.commit_draft(&id, &draft.id, 2)
+                    } else {
+                        core.edit(&id, 2, operation.clone())
+                    }
+                };
+                set_persistence_fault(&core, phase);
+                let result = apply();
+                if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InternalError,
+                        "{phase:?}/{draft_commit}"
+                    );
+                    assert_eq!(project_file_bytes(&dir), before, "{phase:?}/{draft_commit}");
+                    assert!(!transaction_path(&dir).exists());
+                    apply().unwrap();
+                } else {
+                    assert_eq!(result.unwrap().revision, 3, "{phase:?}/{draft_commit}");
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                let current = reopened.get_project(&id).unwrap();
+                assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
+                assert_eq!(current.revision, 3);
+                let TimelineItem::Media(media) = &current.tracks[2].items[0] else {
+                    panic!("event missing")
+                };
+                assert_eq!(media.asset_id, asset);
+                let provenance = media.audio_event.as_ref().unwrap();
+                assert_eq!(
+                    (provenance.default_gain_db, provenance.gain_db),
+                    (-6.0, -3.0)
+                );
+                assert_eq!(current.sound_definitions, project.sound_definitions);
+                assert_eq!(current.audio_buses, project.audio_buses);
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert!(
+                    history
+                        .undo
+                        .iter()
+                        .chain(&history.redo)
+                        .all(|snapshot| snapshot.schema_version == PROJECT_SCHEMA_VERSION)
+                );
+                reopened.undo(&id, 3).unwrap();
+                assert!(
+                    reopened.get_project(&id).unwrap().tracks[2]
+                        .items
+                        .is_empty()
+                );
+                reopened.redo(&id, 4).unwrap();
+                assert_eq!(
+                    serde_json::to_value(&reopened.get_project(&id).unwrap().tracks).unwrap(),
+                    serde_json::to_value(&current.tracks).unwrap()
+                );
+                assert!(!transaction_path(&dir).exists());
                 let stable = project_file_bytes(&dir);
                 reopened.get_project(&id).unwrap();
                 assert_eq!(project_file_bytes(&dir), stable);

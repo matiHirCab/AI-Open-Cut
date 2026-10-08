@@ -4,7 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/audio-buses-v1.json";
-import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
+import audioEvents from "../../../contracts/timeline-audio-events-v1.json";
 import {
   editDraftSchema,
   projectStateSchema,
@@ -20,7 +20,7 @@ type Call = <Output>(
 export const verifyAudioBusWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(catalog.projectSchemaVersion).toBe(39);
-  expect(status.projectSchemaVersion).toBe(soundEvents.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(audioEvents.projectSchemaVersion);
   expect(status.subsystems.editor.capabilities).toContain(catalog.capability);
   const { tools } = await client.listTools();
   for (const name of catalog.operations) {

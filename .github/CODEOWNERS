@@ -389,3 +389,17 @@
 /apps/agent-bridge/tests/semantic-sound-events* @matiHirCab
 /apps/agent-bridge/tests/fixtures/semantic-sound-events-* @matiHirCab
 /docs/semantic-sound-events.md @matiHirCab
+
+# Timeline semantic audio-event placement consumers.
+/crates/editor-core/src/drafts.rs @matiHirCab
+/crates/editor-core/tests/audio_events.rs @matiHirCab
+/apps/agent-bridge/tests/audio-events.test.ts @matiHirCab
+/apps/agent-bridge/tests/audio-events-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-mcp-additions.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-predecessor-pins.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-ownership-addition.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-headless-protocol-v1-predecessor.raw @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-mcp-surface-v1-predecessor.raw @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-events-contract-ownership-v1-predecessor.raw @matiHirCab
+/docs/timeline-audio-events.md @matiHirCab
