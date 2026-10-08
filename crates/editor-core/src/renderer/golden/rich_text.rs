@@ -34,6 +34,7 @@ pub(super) fn conformance(tools: &NativeTools) {
     let renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
     let mut legacy = serde_json::to_value(&project).unwrap();
     legacy["schemaVersion"] = json!(17);
+    legacy.as_object_mut().unwrap().remove("audioBuses");
     legacy["tracks"][0]["items"][1]
         .as_object_mut()
         .unwrap()

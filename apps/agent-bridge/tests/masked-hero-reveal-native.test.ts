@@ -15,6 +15,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
+import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
 import {
   editDraftSchema,
@@ -63,7 +64,9 @@ function assertRecipe(
   const p = state.project;
   expect(p.settings).toEqual(catalog.settings);
   expect(p.name).toBe("Masked hero reveal v1");
-  expect(p.schemaVersion).toBe(38);
+  expect(catalog.projectSchemaVersion).toBe(38);
+  expect(p.schemaVersion).toBe(busCatalog.projectSchemaVersion);
+  expect(p.audioBuses).toEqual(busCatalog.defaultBuses);
   expect(p.tracks.map((t) => t.items.length)).toEqual([0, 4, 1, 0]);
   for (const [index, role] of (
     ["owner", "provider", "probe", "hero"] as const
@@ -283,15 +286,23 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
     };
     try {
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(38);
+      expect(status.projectSchemaVersion).toBe(busCatalog.projectSchemaVersion);
       expect(status.subsystems.rendering.ready).toBe(true);
       const { tools } = await client.request({ method: "tools/list" });
+      const addedTools = [
+        "speech_markers_generate",
+        "audio_bus_set_route",
+        "audio_track_route",
+      ];
       expect(
-        tools.filter((tool) => tool.name !== "speech_markers_generate")
+        tools.filter((tool) => !addedTools.includes(tool.name))
       ).toHaveLength(78);
       expect(
         tools.filter((tool) => tool.name === "speech_markers_generate")
       ).toHaveLength(1);
+      for (const name of busCatalog.operations) {
+        expect(tools.filter((tool) => tool.name === name)).toHaveLength(1);
+      }
 
       const created = await call(
           "project_create",
@@ -650,6 +661,104 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       expect(await read()).toEqual(persisted);
       expect(await frame("reverse", 400)).toEqual(reversed);
       sameMovies(committed, await movies("reverse", "reopened"));
+      const audioTrack = persisted.project.tracks.find(
+        (track) => track.trackType === "audio"
+      );
+      if (!audioTrack) {
+        throw new Error("Canonical native audio track missing");
+      }
+      await call(
+        "timeline_batch_edit",
+        {
+          expectedRevision: persisted.project.revision,
+          operations: [
+            {
+              busId: "music",
+              operation: "audio_bus_set_route",
+              outputBusId: "sfx",
+            },
+            {
+              busId: "music",
+              operation: "audio_track_route",
+              scope: "root",
+              trackId: audioTrack.id,
+            },
+          ],
+          projectId,
+        },
+        writeResultSchema
+      );
+      const busRouted = await read();
+      expect(busRouted.project.audioBuses[1]?.outputBusId).toBe("sfx");
+      expect(
+        busRouted.project.tracks.find((track) => track.id === audioTrack.id)
+          ?.audioBusId
+      ).toBe("music");
+      expect(
+        busRouted.project.tracks.map(
+          ({ audioBusId: _route, ...track }) => track
+        )
+      ).toEqual(persisted.project.tracks);
+      expect(await frame("reverse", 400)).toEqual(reversed);
+      sameMovies(committed, await movies("reverse", "bus-routed"));
+      await client.close();
+      client = await connect();
+      expect(await read()).toEqual(busRouted);
+      expect(await frame("reverse", 400)).toEqual(reversed);
+      const busDraft = await call(
+        "draft_create",
+        {
+          expectedRevision: busRouted.project.revision,
+          operations: [
+            {
+              busId: "voiceover",
+              operation: "audio_track_route",
+              scope: "root",
+              trackId: audioTrack.id,
+            },
+          ],
+          projectId,
+        },
+        editDraftSchema
+      );
+      expect(await frame("reverse", 400, busDraft.id)).toEqual(reversed);
+      expect(await read()).toEqual(busRouted);
+      await call(
+        "draft_commit",
+        {
+          draftId: busDraft.id,
+          expectedRevision: busRouted.project.revision,
+          projectId,
+        },
+        writeResultSchema
+      );
+      sameMovies(committed, await movies("reverse", "bus-draft-committed"));
+      const beforeLegacy = await read();
+      const legacy = structuredClone(beforeLegacy.project) as unknown as Record<
+        string,
+        unknown
+      >;
+      legacy.schemaVersion = 38;
+      Reflect.deleteProperty(legacy, "audioBuses");
+      for (const track of legacy.tracks as Record<string, unknown>[]) {
+        Reflect.deleteProperty(track, "audioBusId");
+      }
+      writeFileSync(join(dir, "project.json"), JSON.stringify(legacy, null, 2));
+      const adopted = await read();
+      expect(adopted.project.revision).toBe(beforeLegacy.project.revision);
+      expect(adopted.project.schemaVersion).toBe(
+        busCatalog.projectSchemaVersion
+      );
+      expect(adopted.project.audioBuses).toEqual(busCatalog.defaultBuses);
+      const oldFields = structuredClone(adopted.project) as unknown as Record<
+        string,
+        unknown
+      >;
+      oldFields.schemaVersion = 38;
+      Reflect.deleteProperty(oldFields, "audioBuses");
+      expect(oldFields).toEqual(legacy);
+      expect(await frame("reverse", 400)).toEqual(reversed);
+      sameMovies(committed, await movies("reverse", "legacy-adopted"));
     } finally {
       await client.close();
       rmSync(root, { force: true, recursive: true });

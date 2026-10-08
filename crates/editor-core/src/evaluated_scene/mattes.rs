@@ -1488,7 +1488,7 @@ mod tests {
     use crate::{ErrorCode, Project};
     use serde_json::json;
     fn project() -> Project {
-        serde_json::from_value(json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"p","revision":0,"name":"Matte facts","createdAtMs":1,"updatedAtMs":1,"settings":{"width":64,"height":64,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],"tracks":[{"id":"track","name":"Track","trackType":"overlay","items":[
+        serde_json::from_value(json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION, "audioBuses":crate::default_audio_buses(),"id":"p","revision":0,"name":"Matte facts","createdAtMs":1,"updatedAtMs":1,"settings":{"width":64,"height":64,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],"tracks":[{"id":"track","name":"Track","trackType":"overlay","items":[
             {"type":"rectangle","id":"provider","color":"#ffffff","width":4,"height":4,"startMs":0,"durationMs":1000,"matteOnly":true,"stackOrder":0,"zIndex":0,"keyframes":[]},
             {"type":"rectangle","id":"recipient","color":"#ff0000","width":4,"height":4,"startMs":0,"durationMs":1000,"matte":{"sourceId":"provider","channel":"alpha"},"stackOrder":1,"zIndex":0,"keyframes":[]}
         ]}]})).unwrap()

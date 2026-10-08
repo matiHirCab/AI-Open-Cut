@@ -1,0 +1,497 @@
+{
+  "predecessor": "d8168ad6631d834891df9303485e1d8c1b9b1116",
+  "additions": [
+    {
+      "kind": "property",
+      "path": ["toolDefinitions", "audio_bus_set_route"],
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "outputBusId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": ["expectedRevision", "projectId", "busId", "outputBusId"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "changedIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "aliases",
+            "changedIds",
+            "projectId",
+            "revision",
+            "summary",
+            "warnings"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["tools"],
+      "value": "audio_bus_set_route"
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateInputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "operation": {
+            "const": "audio_bus_set_route",
+            "type": "string"
+          },
+          "outputBusId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["busId", "operation", "outputBusId"],
+        "type": "object"
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateOutputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "operation": {
+            "const": "audio_bus_set_route",
+            "type": "string"
+          },
+          "outputBusId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["busId", "operation", "outputBusId"],
+        "type": "object"
+      }
+    },
+    {
+      "kind": "property",
+      "path": ["toolDefinitions", "audio_track_route"],
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "busId": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "scope": {
+              "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "trackId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "expectedRevision",
+            "projectId",
+            "busId",
+            "scope",
+            "trackId"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "changedIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "aliases",
+            "changedIds",
+            "projectId",
+            "revision",
+            "summary",
+            "warnings"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["tools"],
+      "value": "audio_track_route"
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateInputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "const": "audio_track_route",
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["busId", "operation", "scope", "trackId"],
+        "type": "object"
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "DraftCreateOutputPropertiesOperationsItems", "oneOf"],
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "const": "audio_track_route",
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["busId", "operation", "scope", "trackId"],
+        "type": "object"
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["capabilityIdentifiers"],
+      "value": "project_audio_buses_v1"
+    },
+    {
+      "kind": "property",
+      "path": [
+        "$defs",
+        "ComponentCreateInputPropertiesTracksItemsProperties",
+        "audioBusId"
+      ],
+      "value": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "$defs",
+        "ComponentCreatePropertiesTracksItemsProperties",
+        "audioBusId"
+      ],
+      "value": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "$defs",
+        "ComponentsItemsPropertiesTracksItemsProperties",
+        "audioBusId"
+      ],
+      "value": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": ["$defs", "ProjectPropertiesTracksItemsProperties", "audioBusId"],
+      "value": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "property",
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "audioBuses"
+      ],
+      "value": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "outputBusId": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["id", "outputBusId"],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "kind": "array",
+      "path": ["$defs", "ProjectGetStateOutputPropertiesProject", "required"],
+      "value": "audioBuses"
+    },
+    {
+      "kind": "replacement",
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "schemaVersion"
+      ],
+      "before": {
+        "const": 38,
+        "type": "number"
+      },
+      "value": {
+        "const": 39,
+        "type": "number"
+      }
+    },
+    {
+      "kind": "replacement",
+      "path": [
+        "toolDefinitions",
+        "editor_get_status",
+        "outputSchema",
+        "properties",
+        "projectSchemaVersion"
+      ],
+      "before": {
+        "const": 38,
+        "type": "number"
+      },
+      "value": {
+        "const": 39,
+        "type": "number"
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import audioBuses from "../../../contracts/audio-buses-v1.json";
 import contract from "../../../contracts/mask-models-v1.json";
 import {
   headlessEditSchema,
@@ -7,6 +8,7 @@ import {
   schemas,
   timelineItemSchema,
 } from "../src/schemas";
+import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 
 const mask = () => maskSchema.parse(contract.cases[0]?.value);
 const update = (masks: unknown) => ({
@@ -25,7 +27,10 @@ describe("mask model structural contracts", () => {
       }
     }
     expect(contract.status).toBe("authoring_with_active_rendering_contract");
-    expect(contract.projectSchemaVersion).toBe(38);
+    expect(contract.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+    expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
+      38
+    );
   });
 
   it("rejects nonfinite coverage controls and nested canonical inputs", () => {

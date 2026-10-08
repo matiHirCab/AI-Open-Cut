@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 39,
+  "headlessProtocolVersion": 1,
+  "capability": "project_audio_buses_v1",
+  "busIds": ["voiceover", "music", "sfx", "master"],
+  "maxBuses": 4,
+  "maxRouteNodes": 4,
+  "defaultBuses": [
+    {"id": "voiceover", "outputBusId": "master"},
+    {"id": "music", "outputBusId": "master"},
+    {"id": "sfx", "outputBusId": "master"},
+    {"id": "master", "outputBusId": null}
+  ],
+  "roleFallback": {
+    "unassigned": "master",
+    "voiceover": "voiceover",
+    "music": "music",
+    "sound_effects": "sfx"
+  },
+  "routableTrackTypes": ["audio", "video"],
+  "operations": ["audio_bus_set_route", "audio_track_route"],
+  "cases": {
+    "stemViaStem": {
+      "buses": [
+        {"id": "voiceover", "outputBusId": "master"},
+        {"id": "music", "outputBusId": "sfx"},
+        {"id": "sfx", "outputBusId": "master"},
+        {"id": "master", "outputBusId": null}
+      ],
+      "trackBusId": "music",
+      "expectedRoute": ["music", "sfx", "master"]
+    },
+    "maximalChain": {
+      "buses": [
+        {"id": "voiceover", "outputBusId": "music"},
+        {"id": "music", "outputBusId": "sfx"},
+        {"id": "sfx", "outputBusId": "master"},
+        {"id": "master", "outputBusId": null}
+      ],
+      "trackBusId": "voiceover",
+      "expectedRoute": ["voiceover", "music", "sfx", "master"]
+    },
+    "clearExplicit": {"busId": null, "role": "music", "expectedRoute": ["music", "master"]},
+    "invalidModels": [
+      {"name": "missing", "reason": "exact four ordered built-ins required"},
+      {"name": "duplicate", "reason": "distinct fixed IDs required"},
+      {"name": "extra", "reason": "four-bus bound"},
+      {"name": "reordered", "reason": "stable canonical order"},
+      {"name": "self", "reason": "self route"},
+      {"name": "cycle", "reason": "acyclic master-terminating path"},
+      {"name": "unknownOutput", "reason": "existing output reference"},
+      {"name": "stemNull", "reason": "stem output required"},
+      {"name": "masterOutput", "reason": "master terminal"},
+      {"name": "missingField", "reason": "explicit nullable output field required"},
+      {"name": "unknownField", "reason": "closed records"}
+    ],
+    "invalidTrackRoutes": ["unknown-bus", "overlay", "caption"],
+    "transactionErrors": ["INVALID_ARGUMENT", "TRACK_NOT_FOUND", "TRACK_LOCKED", "REVISION_CONFLICT"],
+    "prematureFields": ["audioBuses", "audioBusId"],
+    "migrationVersions": [1, 7, 19, 24, 37, 38],
+    "renderBehavior": "unchanged normalized plans, filter graphs, pixels, decoded PCM and existing role ducking"
+  }
+}

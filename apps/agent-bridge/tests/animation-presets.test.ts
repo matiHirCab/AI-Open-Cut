@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
+import audioBuses from "../../../contracts/audio-buses-v1.json";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
 import type { HeadlessEdit } from "../src/headless-contract";
 import {
@@ -8,6 +9,7 @@ import {
   headlessEditSchema,
   schemas,
 } from "../src/schemas";
+import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 
 describe("canonical versioned animation presets", () => {
   it("matches the fixed catalog and materializes only declared defaults", () => {
@@ -24,8 +26,10 @@ describe("canonical versioned animation presets", () => {
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
     ]);
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(38);
-    expect(PACK.projectSchemaVersion).toBe(38);
+    expect(PRESETS.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+    expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
+    expect(PACK.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+    expect(restoreAudioBusCatalogMarker(PACK).projectSchemaVersion).toBe(38);
   });
 
   it("accepts structurally valid unknown identities for canonical core rejection", () => {

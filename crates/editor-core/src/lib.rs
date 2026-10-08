@@ -23,6 +23,7 @@ pub use assets::fonts::FontConfig;
 pub use drafts::EditDraft;
 pub use error::{CoreError, ErrorCode};
 pub use model::*;
+pub use validation::audio_buses::resolve_audio_bus_route;
 mod markers;
 pub use path_policy::PathPolicy;
 pub use render_artifact::RenderArtifact;

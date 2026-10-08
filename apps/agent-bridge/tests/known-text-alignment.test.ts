@@ -20,6 +20,10 @@ import {
   type Transcriber,
   TranscriptionApplicationService,
 } from "../src/transcription";
+import {
+  removeAudioBusHeadlessAdditions,
+  removeAudioBusOwnershipAddition,
+} from "./fixtures/audio-buses-projection";
 import ownershipPin from "./fixtures/known-text-ownership-predecessor-pin.json";
 import rawPins from "./fixtures/known-text-predecessor-raw-pins.json";
 import { projectKnownTextMcpPredecessor } from "./fixtures/known-text-projection";
@@ -309,7 +313,7 @@ it("preserves independently captured prior operation/provider/ownership catalogs
       "utf8"
     )
   );
-  const protocol = structuredClone(headlessCatalog);
+  const protocol = removeAudioBusHeadlessAdditions(headlessCatalog);
   expect(
     protocol.status.editorCapabilities.filter(
       (value) => value === "speech_alignment_markers_v1"
@@ -353,7 +357,7 @@ it("preserves independently captured prior operation/provider/ownership catalogs
     "knownTextAlignment"
   );
   expect(providerProjection).toEqual(priorProvider);
-  const owners = structuredClone(ownership);
+  const owners = removeAudioBusOwnershipAddition(ownership);
   expect(owners.categories.speechAlignmentMarkers.canonical).toBe(
     "contracts/speech-alignment-markers-v1.json"
   );

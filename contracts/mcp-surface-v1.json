@@ -37,7 +37,8 @@
     "parameterized_effects_v1",
     "group_compositing_models_v1",
     "group_compositing_v1",
-    "speech_alignment_markers_v1"
+    "speech_alignment_markers_v1",
+    "project_audio_buses_v1"
   ],
   "prompts": [
     "add_narration",
@@ -712,6 +713,208 @@
           "projectId",
           "mediaType",
           "path"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "audio_bus_set_route": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "outputBusId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "busId",
+          "outputBusId"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
+    },
+    "audio_track_route": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+            "type": "string"
+          },
+          "trackId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "busId",
+          "scope",
+          "trackId"
         ],
         "type": "object"
       },
@@ -2239,7 +2442,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 38,
+            "const": 39,
             "type": "number"
           },
           "protocolVersion": {
@@ -11004,6 +11207,8 @@
     "add_group",
     "asset_delete",
     "asset_import",
+    "audio_bus_set_route",
+    "audio_track_route",
     "component_create",
     "component_define_slots",
     "component_delete",
@@ -11448,6 +11653,18 @@
       "type": "object"
     },
     "ComponentCreateInputPropertiesTracksItemsProperties": {
+      "audioBusId": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "audioRole": {
         "default": "unassigned",
         "enum": [
@@ -11599,6 +11816,18 @@
       "type": "object"
     },
     "ComponentCreatePropertiesTracksItemsProperties": {
+      "audioBusId": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "audioRole": {
         "default": "unassigned",
         "enum": [
@@ -13806,6 +14035,18 @@
       "type": "object"
     },
     "ComponentsItemsPropertiesTracksItemsProperties": {
+      "audioBusId": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "audioRole": {
         "default": "unassigned",
         "enum": [
@@ -13992,6 +14233,68 @@
     },
     "DraftCreateInputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "audio_bus_set_route",
+              "type": "string"
+            },
+            "outputBusId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "busId",
+            "operation",
+            "outputBusId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operation": {
+              "const": "audio_track_route",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "trackId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "busId",
+            "operation",
+            "scope",
+            "trackId"
+          ],
+          "type": "object"
+        },
         {
           "additionalProperties": false,
           "properties": {
@@ -16036,6 +16339,68 @@
     },
     "DraftCreateOutputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "audio_bus_set_route",
+              "type": "string"
+            },
+            "outputBusId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "busId",
+            "operation",
+            "outputBusId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operation": {
+              "const": "audio_track_route",
+              "type": "string"
+            },
+            "scope": {
+              "pattern": "^(?:root|component:@?[A-Za-z0-9_-]{1,128})$",
+              "type": "string"
+            },
+            "trackId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "busId",
+            "operation",
+            "scope",
+            "trackId"
+          ],
+          "type": "object"
+        },
         {
           "additionalProperties": false,
           "properties": {
@@ -26969,6 +27334,7 @@
       },
       "required": [
         "assets",
+        "audioBuses",
         "components",
         "createdAtMs",
         "fonts",
@@ -26986,6 +27352,36 @@
     "ProjectGetStateOutputPropertiesProjectProperties": {
       "assets": {
         "$ref": "#/$defs/ProjectPropertiesAssets"
+      },
+      "audioBuses": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "outputBusId": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "outputBusId"
+          ],
+          "type": "object"
+        },
+        "type": "array"
       },
       "components": {
         "$ref": "#/$defs/ProjectPropertiesComponents"
@@ -27081,7 +27477,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 38,
+        "const": 39,
         "type": "number"
       },
       "settings": {
@@ -27714,6 +28110,18 @@
       "type": "object"
     },
     "ProjectPropertiesTracksItemsProperties": {
+      "audioBusId": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "audioRole": {
         "enum": [
           "unassigned",

@@ -1635,6 +1635,7 @@ impl InstanceTraversal<'_> {
             .as_ref()
             .map_or(0, |graph| graph.nodes.len());
         let mut local = Project {
+            audio_buses: self.project.audio_buses.clone(),
             markers: Vec::new(),
             schema_version: self.project.schema_version,
             id: self.project.id.clone(),
@@ -4107,6 +4108,7 @@ mod tests {
     fn typed_channels_reach_shared_visual_and_audio_scene() {
         let mut visual_project = project();
         visual_project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        visual_project.audio_buses = crate::default_audio_buses();
         let rectangle: TimelineItem = serde_json::from_value(serde_json::json!({
             "type":"rectangle", "id":"animated", "color":"#ff0000",
             "width":20, "height":10, "startMs":0, "durationMs":1000,
@@ -4143,6 +4145,7 @@ mod tests {
 
         let mut audio_project = project();
         audio_project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        audio_project.audio_buses = crate::default_audio_buses();
         audio_project.assets = vec![asset("sound", MediaType::Audio, true)];
         let mut sound = media("sound-item", "sound", 0);
         sound.visual_properties_mut().animation_channels =
@@ -4509,6 +4512,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -4557,6 +4561,7 @@ mod tests {
             item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
         }
         Track {
+            audio_bus_id: None,
             id: id.into(),
             name: id.into(),
             track_type,
@@ -6377,6 +6382,7 @@ mod instance_tests {
     fn sampled_transition_gain_preserves_fractional_nested_clocks_and_exact_boundaries() {
         let mut p = project();
         p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.audio_buses = crate::default_audio_buses();
         p.components[0].tracks[0].items.push(serde_json::from_value(json!({"type":"transition","id":"fade","transitionType":"crossfade","fromItemId":"same","toItemId":"same","startMs":25,"durationMs":100,"stackOrder":1,"zIndex":0})).unwrap());
         let scene = evaluate_project(&p, 100, 100, 30).unwrap().scene;
         let mut layer = scene.visual_layers[0].clone();
@@ -6426,6 +6432,7 @@ mod instance_tests {
     fn sampled_preflight_uses_root_visibility_for_effect_work_before_preparation() {
         let mut p = project();
         p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.audio_buses = crate::default_audio_buses();
         let TimelineItem::ComponentInstance(root) = &mut p.tracks[0].items[0] else {
             unreachable!()
         };
@@ -6499,6 +6506,7 @@ mod instance_tests {
     fn inherited_stagger_preserves_fractional_clocks_and_parent_phase() {
         let mut p = project();
         p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.audio_buses = crate::default_audio_buses();
         let channel = json!([{"property":"transform.position_x","loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.0},"curve":"linear"},{"timeMs":200,"value":{"type":"scalar","value":20.0},"curve":"hold"}]}]);
         p.tracks[0].items[0]
             .visual_properties_mut()
@@ -6559,6 +6567,7 @@ mod instance_tests {
     fn staggered_nested_instance_preserves_audio_clock() {
         let mut p = project();
         p.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        p.audio_buses = crate::default_audio_buses();
         p.assets=serde_json::from_value(json!([{"id":"sound","mediaType":"audio","fileName":"sound.wav","projectRelativePath":"assets/sound.wav","durationMs":1000,"hasAudio":true}])).unwrap();
         p.components[0].tracks=serde_json::from_value(json!([{"id":"audio","name":"Audio","trackType":"audio","items":[{"type":"media","id":"sound","assetId":"sound","startMs":0,"durationMs":500,"sourceInMs":125,"audio":{"volume":1,"muted":false,"fadeInMs":0,"fadeOutMs":0},"keyframes":[]}]}])).unwrap();
         let baseline = evaluate_project(&p, 100, 100, 30)
@@ -7079,6 +7088,7 @@ mod instance_tests {
         second["stackOrder"] = json!(1);
         second["slotValues"] = json!({"__proto__":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}],"spans":[{"start":0,"end":3,"style":{"paintLayers":[]}}]}}});
         value["schemaVersion"] = json!(20);
+        value.as_object_mut().unwrap().remove("audioBuses");
         let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());
         value["fonts"] = serde_json::to_value(
             records
@@ -7242,6 +7252,7 @@ mod instance_tests {
     fn repeater_adds_stable_translated_and_faded_shape_occurrences() {
         let mut value = project();
         value.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        value.audio_buses = crate::default_audio_buses();
         value.components.clear();
         value.tracks = serde_json::from_value(serde_json::json!([{
             "id":"overlay","name":"Overlay","trackType":"overlay","items":[
@@ -7884,6 +7895,7 @@ mod instance_tests {
 
         let mut value = serde_json::to_value(&project).unwrap();
         value["schemaVersion"] = json!(20);
+        value.as_object_mut().unwrap().remove("audioBuses");
         let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());
         value["fonts"] = serde_json::to_value(
             records

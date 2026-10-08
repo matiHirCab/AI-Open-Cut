@@ -259,6 +259,12 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         let p = core.paths().project_dir(&id).unwrap();
         let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         state["schemaVersion"] = json!(version);
+        if state["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            state.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut state);
         std::fs::write(p.join("project.json"), serde_json::to_vec(&state).unwrap()).unwrap();
         std::fs::write(
@@ -289,6 +295,7 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         old["schemaVersion"] = json!(13);
+        old.as_object_mut().unwrap().remove("audioBuses");
         clear_legacy_font_fields(&mut old);
         if location == "current" {
             std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
@@ -396,6 +403,12 @@ fn old_schema_and_invalid_shapes_in_unused_hidden_definitions_never_rewrite() {
         p["tracks"][1]["items"] = json!([]);
         p["components"] = json!([{"id":"unused","name":"Unused","width":160,"height":120,"durationMs":1000,"slots":[],"tracks":[{"id":"local","name":"Local","trackType":"overlay","hidden":true,"items":[shape]}]}]);
         p["schemaVersion"] = json!(version);
+        if p["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            p.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut p);
         let dir = core.paths().project_dir(&id).unwrap();
         std::fs::write(dir.join("project.json"), serde_json::to_vec(&p).unwrap()).unwrap();
@@ -466,10 +479,17 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
     let (_root, core, id, _track) = setup();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(13);
+    state.as_object_mut().unwrap().remove("audioBuses");
     clear_legacy_font_fields(&mut state);
     let snapshot = |version| {
         let mut v = state.clone();
         v["schemaVersion"] = json!(version);
+        if v["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            v.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut v);
         v
     };

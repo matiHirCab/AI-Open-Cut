@@ -369,6 +369,7 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        audio_buses: Vec::new(),
         markers: Vec::new(),
         fonts: Default::default(),
         components: vec![],
@@ -397,6 +398,7 @@ pub(super) fn fixture_project() -> Project {
         }],
         tracks: vec![
             Track {
+                audio_bus_id: None,
                 id: "overlay".into(),
                 name: "Overlay".into(),
                 track_type: TrackType::Overlay,
@@ -484,6 +486,7 @@ pub(super) fn fixture_project() -> Project {
                 ],
             },
             Track {
+                audio_bus_id: None,
                 id: "audio".into(),
                 name: "Audio".into(),
                 track_type: TrackType::Audio,

@@ -104,7 +104,10 @@ fn known_text_source_validation_is_bounded_revisioned_and_nonmutating() {
         ErrorCode::ValidationFailed
     );
     assert_eq!(inventory(root.path()), before);
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 38);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert!(dir.join("history.json").is_file());
     assert_eq!(
         core.validate_speech_alignment("missing-project", &asset_id, "Hello", None, None)
@@ -358,6 +361,7 @@ fn legacy_adoption_aligned_replacement_history_and_no_rewrite_reopen() {
     let project_file = dir.join("project.json");
     let mut legacy = read_json(&project_file);
     legacy["schemaVersion"] = json!(37);
+    legacy.as_object_mut().unwrap().remove("audioBuses");
     write_json(&project_file, &legacy);
     let original = origin(true);
     let committed = core
@@ -406,7 +410,10 @@ fn legacy_adoption_aligned_replacement_history_and_no_rewrite_reopen() {
         .iter()
         .chain(history["redo"].as_array().unwrap())
     {
-        assert_eq!(snapshot["schemaVersion"], 38);
+        assert_eq!(
+            snapshot["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
     }
     let before = inventory(&dir);
     core.get_project(&id).unwrap();
@@ -439,12 +446,18 @@ fn invalid_current_and_retained_alignment_or_future_schema_never_adopt_bytes() {
                         json!(0)
                 }
                 "unknown-duration" => broken["assets"][0]["durationMs"] = Value::Null,
-                "pre-introduction" => broken["schemaVersion"] = json!(37),
+                "pre-introduction" => {
+                    broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("audioBuses");
+                }
                 "pre-introduction-null" => {
                     broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("audioBuses");
                     broken["assets"][0]["origin"]["generation"]["alignment"] = Value::Null;
                 }
-                _ => broken["schemaVersion"] = json!(39),
+                _ => {
+                    broken["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1)
+                }
             }
             if location == "current" {
                 project = broken;
@@ -472,13 +485,21 @@ fn mixed_legacy_history_preserves_genuine_unaligned_speech_without_inference() {
     let history_file = dir.join("history.json");
     let mut project = read_json(&project_file);
     project["schemaVersion"] = json!(37);
+    project.as_object_mut().unwrap().remove("audioBuses");
     let mut history = read_json(&history_file);
     history["undo"][0]["schemaVersion"] = json!(36);
+    history["undo"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("audioBuses");
     history["redo"] = json!([project.clone()]);
     write_json(&project_file, &project);
     write_json(&history_file, &history);
     let adopted = core.get_project(&id).unwrap();
-    assert_eq!(adopted.schema_version, 38);
+    assert_eq!(
+        adopted.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let GeneratedAssetOrigin::SpeechSynthesis(provenance) =
         adopted.assets[0].origin.as_ref().unwrap();
     assert!(provenance.alignment.is_none());
@@ -489,7 +510,10 @@ fn mixed_legacy_history_preserves_genuine_unaligned_speech_without_inference() {
         .iter()
         .chain(read_json(&history_file)["redo"].as_array().unwrap())
     {
-        assert_eq!(snapshot["schemaVersion"], 38);
+        assert_eq!(
+            snapshot["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
     }
     assert!(
         read_json(&project_file)["assets"][0]["origin"]["generation"]
@@ -533,6 +557,48 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
     for name in pins["currentMarkerCatalogs"].as_array().unwrap() {
         let name = name.as_str().unwrap();
         let current = std::fs::read_to_string(root.join(name)).unwrap();
+        let bus_pins: Value = serde_json::from_str(include_str!(
+            "../../../apps/agent-bridge/tests/fixtures/audio-buses-predecessor-pins.json"
+        ))
+        .unwrap();
+        let current = if matches!(
+            name,
+            "animation-channels-v1.json"
+                | "animation-presets-v1.json"
+                | "extended-visual-animation-v1.json"
+                | "inherited-animation-timing-v1.json"
+                | "initial-motion-preset-pack-v1.json"
+                | "mask-models-v1.json"
+                | "motion-blur-sampling-v1.json"
+        ) {
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 39").count(),
+                1,
+                "{name}"
+            );
+            let restored = current.replacen(
+                "\"projectSchemaVersion\": 39",
+                "\"projectSchemaVersion\": 38",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(restored.as_bytes())),
+                bus_pins["catalogRawSha256"][format!("contracts/{name}")]
+                    .as_str()
+                    .unwrap(),
+                "{name}"
+            );
+            restored
+        } else {
+            assert_eq!(
+                format!("{:x}", Sha256::digest(current.as_bytes())),
+                bus_pins["catalogRawSha256"][format!("contracts/{name}")]
+                    .as_str()
+                    .unwrap(),
+                "{name}"
+            );
+            current
+        };
         assert_eq!(
             current.matches("\"projectSchemaVersion\": 38").count(),
             1,
@@ -564,6 +630,7 @@ fn aligned_request_failures_preserve_current_and_legacy_files_and_exact_codes() 
             let path = dir.join("project.json");
             let mut raw = read_json(&path);
             raw["schemaVersion"] = json!(37);
+            raw.as_object_mut().unwrap().remove("audioBuses");
             write_json(&path, &raw);
         }
         let before = inventory(&dir);

@@ -169,11 +169,13 @@ fn lifecycle_schema26_missing_draft_base_preserves_draft_and_generation() {
         let mut value: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if name == "project.json" {
             value["schemaVersion"] = json!(26);
+            value.as_object_mut().unwrap().remove("audioBuses");
         } else {
             // Both retained sides have an unrelated revision; the draft's valid base was evicted.
             for side in ["undo", "redo"] {
                 value[side] = json!([current]);
                 value[side][0]["schemaVersion"] = json!(26);
+                value[side][0].as_object_mut().unwrap().remove("audioBuses");
                 value[side][0]["revision"] = json!(0);
             }
         }

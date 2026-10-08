@@ -194,6 +194,7 @@ struct Outputs {
 fn historical_layout(project: &Project) -> Project {
     let mut project = project.clone();
     project.schema_version = 18;
+    project.audio_buses.clear();
     project.fonts.clear();
     for item in project
         .tracks

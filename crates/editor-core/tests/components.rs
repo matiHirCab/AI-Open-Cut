@@ -606,6 +606,12 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut project = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         project["schemaVersion"] = version.clone();
+        if project["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            project.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut project);
         project.as_object_mut().unwrap().remove("components");
         let snapshots = |key: &str| {
@@ -616,6 +622,12 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
                 .map(|v| {
                     let mut s = project.clone();
                     s["schemaVersion"] = v.clone();
+                    if s["schemaVersion"]
+                        .as_u64()
+                        .is_some_and(|version| version < 39)
+                    {
+                        s.as_object_mut().unwrap().remove("audioBuses");
+                    }
                     clear_legacy_font_fields(&mut s);
                     s
                 })
@@ -668,6 +680,12 @@ fn invalid_current_and_retained_components_never_rewrite() {
         for version in [0, 12, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = original.clone();
             bad["schemaVersion"] = json!(version);
+            if bad["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 39)
+            {
+                bad.as_object_mut().unwrap().remove("audioBuses");
+            }
             clear_legacy_font_fields(&mut bad);
             if version == 12 {
                 let mut def = catalog()["definition"].clone();
@@ -803,6 +821,7 @@ fn canonical_component_item_validation_is_atomic_at_every_core_boundary() {
         let mut bad = original.clone();
         bad["components"][0]["tracks"] = value["tracks"].clone();
         bad["schemaVersion"] = json!(18);
+        bad.as_object_mut().unwrap().remove("audioBuses");
         clear_legacy_font_fields(&mut bad);
         let project: Project = serde_json::from_value(bad.clone()).unwrap();
         let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);

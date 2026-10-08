@@ -227,6 +227,12 @@ fn svg_migration_current_history_and_future_rejection() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         state["schemaVersion"] = json!(version);
+        if state["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            state.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut state);
         std::fs::write(
             dir.join("project.json"),
@@ -265,6 +271,12 @@ fn svg_migration_current_history_and_future_rejection() {
         for version in [14, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = state.clone();
             bad["schemaVersion"] = json!(version);
+            if bad["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 39)
+            {
+                bad.as_object_mut().unwrap().remove("audioBuses");
+            }
             clear_legacy_font_fields(&mut bad);
             std::fs::write(
                 dir.join("project.json"),

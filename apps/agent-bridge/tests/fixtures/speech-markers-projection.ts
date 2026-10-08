@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { removeAudioBusMcpAdditions } from "./audio-buses-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import additions from "./speech-markers-mcp-additions.json";
 import pin from "./speech-markers-predecessor-pins.json";
@@ -17,7 +18,15 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 export const removeSpeechMarkerMcpAdditions = (source: unknown) => {
-  const result = structuredClone(source);
+  const result =
+    source &&
+    typeof source === "object" &&
+    "toolDefinitions" in source &&
+    source.toolDefinitions &&
+    typeof source.toolDefinitions === "object" &&
+    "audio_bus_set_route" in source.toolDefinitions
+      ? removeAudioBusMcpAdditions(source)
+      : structuredClone(source);
   for (const { kind, path, value } of additions.additions) {
     if (kind === "property") {
       const parent = at(result, path.slice(0, -1));

@@ -24,6 +24,9 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version <= PROJECT_SCHEMA_VERSION {
+        project.validate_audio_bus_model()?;
+    }
     for asset in &project.assets {
         if project.schema_version < 38
             && matches!(&asset.origin, Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation)) if generation.alignment.is_some())
@@ -371,7 +374,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             "root component instances require schema 13",
         ));
     }
-    match project.schema_version {
+    let changed = match project.schema_version {
         1..=8 => {
             for track in &mut project.tracks {
                 for (index, item) in track.items.iter_mut().enumerate() {
@@ -385,7 +388,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=37 => {
+        9..=38 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -397,7 +400,12 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
                 "unsupported project schema version {version}; this build supports up to {PROJECT_SCHEMA_VERSION}"
             ),
         )),
+    }?;
+    if changed {
+        project.audio_buses = crate::default_audio_buses();
     }
+    project.validate_audio_bus_model()?;
+    Ok(changed)
 }
 
 /// Check historical constraints before migration discards the source version.
@@ -428,6 +436,11 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            audio_buses: if schema_version >= 39 {
+                crate::default_audio_buses()
+            } else {
+                Vec::new()
+            },
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],

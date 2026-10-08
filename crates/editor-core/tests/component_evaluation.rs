@@ -156,6 +156,7 @@ fn old_schema_cannot_smuggle_root_instances() {
     let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
     value["schemaVersion"] = json!(12);
+    value.as_object_mut().unwrap().remove("audioBuses");
     clear_legacy_font_fields(&mut value);
     assert!(serde_json::from_value::<Project>(value).is_err());
 }
@@ -572,6 +573,12 @@ fn migration_component_document(
 ) -> Value {
     let mut document = serde_json::to_value(core.get_project(id).unwrap()).unwrap();
     document["schemaVersion"] = json!(version);
+    if document["schemaVersion"]
+        .as_u64()
+        .is_some_and(|version| version < 39)
+    {
+        document.as_object_mut().unwrap().remove("audioBuses");
+    }
     clear_legacy_font_fields(&mut document);
     document["components"] = json!([
         {"id":"leaf","name":"Leaf","width":320,"height":240,"durationMs":1000,"tracks":[],"slots":[]},
@@ -658,17 +665,22 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let typed: Project = serde_json::from_value(document).unwrap();
             let mut expected = serde_json::to_value(&typed).unwrap();
             expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected["audioBuses"] =
+                serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             expected["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected);
             expected["fonts"] = json!({});
             let mut older = expected.clone();
             older["schemaVersion"] = json!(11);
+            older.as_object_mut().unwrap().remove("audioBuses");
             clear_legacy_font_fields(&mut older);
             older["components"][1]["tracks"][0]["items"][0]["transform"] =
                 json!({"positionX":0,"positionY":0,"scale":1,"opacity":1});
             let older: Project = serde_json::from_value(older).unwrap();
             let mut expected_older = serde_json::to_value(&older).unwrap();
             expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected_older["audioBuses"] =
+                serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             expected_older["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected_older);
             expected_older["fonts"] = json!({});

@@ -305,7 +305,10 @@ fn clip_and_ordered_overlay_lifecycle_preserves_aliases_drafts_history_null_clea
         serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap(),
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap()
     );
-    assert_eq!(reopened.get_project(&id).unwrap().schema_version, 38);
+    assert_eq!(
+        reopened.get_project(&id).unwrap().schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
 }
 #[test]
 fn canonical_overlay_endpoints_closed_fields_and_atomic_later_batch_failures() {
@@ -458,9 +461,11 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(36);
+    current.as_object_mut().unwrap().remove("audioBuses");
     for key in ["undo", "redo"] {
         for snapshot in history[key].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(36);
+            snapshot.as_object_mut().unwrap().remove("audioBuses");
         }
     }
     std::fs::write(
@@ -485,15 +490,31 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
     reopened.get_project(&id).unwrap();
     let mut adopted: Value =
         serde_json::from_slice(&std::fs::read(dir.join("project.json")).unwrap()).unwrap();
-    assert_eq!(adopted["schemaVersion"], 38);
+    assert_eq!(
+        adopted["schemaVersion"],
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        adopted["audioBuses"],
+        json!(opencut_editor_core::default_audio_buses())
+    );
     adopted["schemaVersion"] = json!(36);
+    adopted.as_object_mut().unwrap().remove("audioBuses");
     assert_eq!(adopted, current);
     let mut adopted_history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for key in ["undo", "redo"] {
         for snapshot in adopted_history[key].as_array_mut().unwrap() {
-            assert_eq!(snapshot["schemaVersion"], 38);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
+            assert_eq!(
+                snapshot["audioBuses"],
+                json!(opencut_editor_core::default_audio_buses())
+            );
             snapshot["schemaVersion"] = json!(36);
+            snapshot.as_object_mut().unwrap().remove("audioBuses");
         }
     }
     assert_eq!(adopted_history, history);
@@ -539,6 +560,7 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
                 "undo" | "redo" => {
                     let mut snapshot = current.clone();
                     snapshot["schemaVersion"] = json!(36);
+                    snapshot.as_object_mut().unwrap().remove("audioBuses");
                     snapshots[location] = json!([snapshot]);
                     &mut snapshots[location][0]["tracks"][1]["items"][0]
                 }
@@ -552,6 +574,7 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
             }
             if !["undo", "redo"].contains(&location) {
                 project["schemaVersion"] = json!(36);
+                project.as_object_mut().unwrap().remove("audioBuses");
             }
             std::fs::write(
                 dir.join("project.json"),

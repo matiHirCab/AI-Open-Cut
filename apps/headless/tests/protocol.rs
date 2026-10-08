@@ -8,6 +8,85 @@ fn headless_contract() -> Value {
 }
 
 #[test]
+fn audio_bus_typed_routes_aliases_history_and_fresh_process_reopen_match_catalog() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/audio-buses-v1.json")).unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Bus protocol"})))["projectId"].clone();
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(read()["project"]["audioBuses"], catalog["defaultBuses"]);
+    assert_eq!(
+        read()["project"]["schemaVersion"],
+        catalog["projectSchemaVersion"]
+    );
+    let created = result(&h.request(
+        json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
+            {"operation":"create_track","name":"Routed","trackType":"audio","resultAlias":"audio"},
+            {"operation":"audio_track_route","scope":"root","trackId":"@audio","busId":"music"},
+            {"operation":"audio_bus_set_route","busId":"music","outputBusId":"sfx"}
+        ]}),
+    ));
+    let track = &created["aliases"]["audio"];
+    let before = read();
+    assert_eq!(before["project"]["audioBuses"][1]["outputBusId"], "sfx");
+    assert_eq!(
+        before["project"]["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|value| &value["id"] == track)
+            .unwrap()["audioBusId"],
+        "music"
+    );
+    for (revision, edit, code, retryable) in [
+        (
+            0,
+            json!({"operation":"audio_track_route","scope":"root","trackId":track,"busId":null}),
+            "REVISION_CONFLICT",
+            true,
+        ),
+        (
+            1,
+            json!({"operation":"audio_bus_set_route","busId":"sfx","outputBusId":"music"}),
+            "INVALID_ARGUMENT",
+            false,
+        ),
+        (
+            1,
+            json!({"operation":"audio_track_route","scope":"root","trackId":"absent","busId":"music"}),
+            "TRACK_NOT_FOUND",
+            false,
+        ),
+    ] {
+        let error = event(&h.request(
+            json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":edit}),
+        ));
+        assert_eq!(error["error"]["code"], code);
+        assert_eq!(error["error"]["retryable"], retryable);
+        assert_eq!(read(), before);
+    }
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"audio_track_route","scope":"root","trackId":track,"busId":null}]})));
+    assert_eq!(read(), before);
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"expectedRevision":1,"draftId":draft["id"]})));
+    assert!(
+        read()["project"]["tracks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|value| &value["id"] == track)
+            .unwrap()
+            .get("audioBusId")
+            .is_none()
+    );
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    assert_eq!(read()["project"]["tracks"], before["project"]["tracks"]);
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})));
+    let reopened = read();
+    assert_eq!(reopened["project"]["revision"], 4);
+    assert_eq!(read(), reopened);
+}
+
+#[test]
 fn ordered_effect_aliases_arrays_drafts_failures_and_fresh_process_reopen_preserve_contract() {
     let h = Harness::new();
     let f: Value = serde_json::from_str::<Value>(include_str!(
@@ -2341,10 +2420,12 @@ fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation
         let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if name == "project.json" {
             document["schemaVersion"] = json!(28);
+            document.as_object_mut().unwrap().remove("audioBuses");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(28);
+                    snapshot.as_object_mut().unwrap().remove("audioBuses");
                 }
             }
         }
@@ -2430,10 +2511,12 @@ fn motion_pack_raw_wire_errors_preserve_schema29_documents() {
         let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if name == "project.json" {
             document["schemaVersion"] = json!(29);
+            document.as_object_mut().unwrap().remove("audioBuses");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(29);
+                    snapshot.as_object_mut().unwrap().remove("audioBuses");
                 }
             }
         }
@@ -3306,7 +3389,11 @@ fn run_speech_alignment_protocol_cases(h: &Harness, probe: &std::path::Path) {
         );
         assert_eq!(asset["durationMs"], 1000);
         assert_eq!(asset["probe"]["audioSampleRateHz"], 24000);
-        assert_eq!(state["project"]["schemaVersion"], 38);
+        assert_eq!(catalog["projectSchemaVersion"], 38);
+        assert_eq!(
+            state["project"]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         let before = h.project_files(id);
         let mut forced = case["alignment"].clone();
         forced["quality"] = json!("forced");

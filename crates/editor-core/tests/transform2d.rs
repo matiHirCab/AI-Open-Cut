@@ -205,9 +205,16 @@ fn migrate_every_supported_version_and_mixed_history() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         value["schemaVersion"] = json!(version);
+        if value["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            value.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut value);
         let mut old = value.clone();
         old["schemaVersion"] = json!(1);
+        old.as_object_mut().unwrap().remove("audioBuses");
         clear_legacy_font_fields(&mut old);
         std::fs::write(
             dir.join("project.json"),
@@ -365,6 +372,7 @@ fn invalid_transform_in_retained_history_is_never_published() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(7);
+    state.as_object_mut().unwrap().remove("audioBuses");
     clear_legacy_font_fields(&mut state);
     let mut invalid = state.clone();
     invalid["tracks"][1]["items"][0]["transform2d"] = fixture()["identity"].clone();

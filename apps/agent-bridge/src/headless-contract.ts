@@ -63,6 +63,17 @@ interface Revisioned {
 
 export type HeadlessEdit =
   | {
+      operation: "audio_bus_set_route";
+      busId: string;
+      outputBusId: string;
+    }
+  | {
+      operation: "audio_track_route";
+      scope: string;
+      trackId: string;
+      busId: string | null;
+    }
+  | {
       operation: "speech_markers_generate";
       scope: string;
       assetId: string;

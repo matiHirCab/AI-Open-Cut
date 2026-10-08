@@ -214,7 +214,10 @@ fn fresh_default_headless_exact_standalone_alias_hero_native_lifecycle_and_rollb
         }
         let dir = wire.root.path().join("projects").join(id.as_str().unwrap());
         let baseline = wire.state(&id);
-        assert_eq!(baseline["project"]["schemaVersion"], 38);
+        assert_eq!(
+            baseline["project"]["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         assert_eq!(baseline["durationMs"], 800);
         assert_eq!(aliases.len(), 5);
         authoring::assert_recipe(

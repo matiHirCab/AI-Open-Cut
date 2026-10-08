@@ -42,10 +42,12 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(20);
+    old.as_object_mut().unwrap().remove("audioBuses");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(dir.join("history.json"), serde_json::to_vec(&json!({"undo":[old],"redo":[old]})).unwrap()).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    old["audioBuses"] = serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     assert_eq!(migrated, old);
     let history: Value = serde_json::from_slice(&bytes(&core, &id).1).unwrap();
     assert_eq!(history, json!({"undo":[old],"redo":[old]}));
@@ -54,6 +56,7 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     core.get_project(&id).unwrap();
     assert_eq!(bytes(&core, &id), first);
     old["schemaVersion"] = json!(20);
+    old.as_object_mut().unwrap().remove("audioBuses");
     old["tracks"][1]["items"][0]["style"]["layout"] = json!({});
     assert!(serde_json::from_value::<Project>(old).is_err());
 }
@@ -97,8 +100,7 @@ fn retained_invalid_layout_rejects_reopen_and_migration_without_publication() {
             if version == 20 {
                 for name in ["project.json", "history.json"] {
                     let path = dir.join(name);
-                    let value = String::from_utf8(std::fs::read(&path).unwrap()).unwrap().replace("\"schemaVersion\":21", "\"schemaVersion\":20").replace("\"schemaVersion\": 21", "\"schemaVersion\": 20");
-                    std::fs::write(path, value).unwrap();
+                    write_legacy_layout_generation(&path, 20);
                 }
             }
             let before = inventory(&dir);
@@ -191,6 +193,7 @@ fn persisted_layout_classification_preserves_legacy_and_unrelated_errors() {
             1 => value["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION + 1),
             _ => {
                 value["schemaVersion"] = json!(20);
+                value.as_object_mut().unwrap().remove("audioBuses");
                 let text = value["tracks"].as_array_mut().unwrap().iter_mut()
                     .flat_map(|track| track["items"].as_array_mut().unwrap()).find(|item| item["type"] == "text").unwrap();
                 text["style"]["layout"] = json!({});
@@ -215,10 +218,7 @@ fn valid_stale_layout_draft_survives_migration_without_replay() {
         let before = std::fs::read(&draft_path).unwrap();
         for name in ["project.json","history.json"] {
             let path=dir.join(name);
-            let raw=std::fs::read_to_string(&path).unwrap()
-                .replace(&format!("\"schemaVersion\":{PROJECT_SCHEMA_VERSION}"), &format!("\"schemaVersion\":{version}"))
-                .replace(&format!("\"schemaVersion\": {PROJECT_SCHEMA_VERSION}"), &format!("\"schemaVersion\": {version}"));
-            std::fs::write(path,raw).unwrap();
+            write_legacy_layout_generation(&path, version);
         }
         let project = core.get_project(&id).unwrap();
         assert_eq!(project.schema_version,PROJECT_SCHEMA_VERSION);
@@ -228,4 +228,20 @@ fn valid_stale_layout_draft_survives_migration_without_replay() {
         assert_eq!(std::fs::read(draft_path).unwrap(),before);
         assert_eq!(core.get_draft_state(&id,&draft.id).unwrap_err().code,ErrorCode::RevisionConflict);
     }
+}
+
+fn write_legacy_layout_generation(path: &std::path::Path, version: u32) {
+    let mut value: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let downgrade = |project: &mut Value| {
+        project["schemaVersion"] = json!(version);
+        project.as_object_mut().unwrap().remove("audioBuses");
+    };
+    if path.file_name().unwrap() == "project.json" {
+        downgrade(&mut value);
+    } else {
+        for side in ["undo", "redo"] {
+            for project in value[side].as_array_mut().unwrap() { downgrade(project); }
+        }
+    }
+    std::fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
 }

@@ -183,6 +183,12 @@ fn edits_preserve_projection_aliases_history_and_atomic_failures() {
 
 fn legacy(project: &mut Value, version: u32) {
     project["schemaVersion"] = json!(version);
+    if project["schemaVersion"]
+        .as_u64()
+        .is_some_and(|version| version < 39)
+    {
+        project.as_object_mut().unwrap().remove("audioBuses");
+    }
     clear_legacy_font_fields(project);
     for track in project["tracks"].as_array_mut().unwrap() {
         for item in track["items"].as_array_mut().unwrap() {
@@ -262,7 +268,10 @@ fn persisted_current_and_retained_documents_fail_closed() {
             let mut project = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
             let mut invalid = project.clone();
             match failure {
-                "old-document" => invalid["schemaVersion"] = json!(17),
+                "old-document" => {
+                    invalid["schemaVersion"] = json!(17);
+                    invalid.as_object_mut().unwrap().remove("audioBuses");
+                }
                 "missing-document" => {
                     invalid["tracks"][1]["items"][0]
                         .as_object_mut()

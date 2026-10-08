@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import contract from "../../../contracts/animation-channels-v1.json";
+import audioBuses from "../../../contracts/audio-buses-v1.json";
 import {
   animationChannelPropertySchema,
   animationChannelSchema,
@@ -7,6 +8,7 @@ import {
   schemas,
   timelineItemSchema,
 } from "../src/schemas";
+import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 
 const channel = (property: string, value: number) => ({
   keyframes: [{ curve: "linear", timeMs: 0, value: { type: "scalar", value } }],
@@ -15,7 +17,10 @@ const channel = (property: string, value: number) => ({
 
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
-    expect(contract.projectSchemaVersion).toBe(38);
+    expect(contract.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+    expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
+      38
+    );
     const names = [
       ...Object.keys(contract.active),
       ...Object.keys(contract.inactive),

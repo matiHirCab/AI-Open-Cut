@@ -2,7 +2,7 @@ use opencut_editor_core::{PROJECT_SCHEMA_VERSION, Project};
 use serde_json::{Value, json};
 
 fn project_with_timing(schema_version: u32) -> Value {
-    json!({
+    let mut value = json!({
         "schemaVersion": schema_version,
         "id": "timing-project",
         "revision": 0,
@@ -33,7 +33,11 @@ fn project_with_timing(schema_version: u32) -> Value {
             ]
         }],
         "components": []
-    })
+    });
+    if schema_version >= 39 {
+        value["audioBuses"] = json!(opencut_editor_core::default_audio_buses());
+    }
+    value
 }
 
 #[test]

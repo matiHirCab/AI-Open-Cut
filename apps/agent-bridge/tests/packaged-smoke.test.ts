@@ -22,6 +22,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import {
   verifyComponentDefinitionWorkflow,
@@ -308,6 +309,10 @@ it("aligns known text and preserves caption retry, history and reopen through th
 
 it("generates speech markers with atomic failure, history and reopen through the package", async () => {
   await verifySpeechMarkerWorkflow(client, call);
+});
+
+it("routes project buses with atomic aliases, drafts, failures, history and reopen through the package", async () => {
+  await verifyAudioBusWorkflow(client, call);
 });
 
 it("round-trips Transform2D through MCP batch, undo, redo, and reset", async () => {

@@ -84,6 +84,13 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::AudioBusSetRoute { .. } => {}
+        EditOperation::AudioTrackRoute {
+            scope, track_id, ..
+        } => {
+            resolve_scope_alias(scope, aliases)?;
+            resolve_alias(track_id, aliases)?;
+        }
         EditOperation::SpeechMarkersGenerate {
             scope, asset_id, ..
         } => {
@@ -313,6 +320,65 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::AudioBusSetRoute {
+            bus_id,
+            output_bus_id,
+        } => {
+            if bus_id == "master" {
+                return Err(CoreError::new(
+                    ErrorCode::InvalidArgument,
+                    "master audio bus must be terminal",
+                ));
+            }
+            let bus = project
+                .audio_buses
+                .iter_mut()
+                .find(|bus| bus.id == bus_id)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "audio bus reference was not found",
+                    )
+                })?;
+            bus.output_bus_id = Some(output_bus_id);
+            Ok((vec![bus_id], "Updated audio bus route"))
+        }
+        EditOperation::AudioTrackRoute {
+            scope,
+            track_id,
+            bus_id,
+        } => {
+            let tracks = if scope == "root" {
+                &mut project.tracks
+            } else {
+                let component_id = scope
+                    .strip_prefix("component:")
+                    .filter(|id| !id.is_empty())
+                    .ok_or_else(|| {
+                        CoreError::new(ErrorCode::InvalidArgument, "invalid audio track scope")
+                    })?;
+                &mut project
+                    .components
+                    .iter_mut()
+                    .find(|component| component.id == component_id)
+                    .ok_or_else(|| {
+                        CoreError::new(
+                            ErrorCode::InvalidArgument,
+                            "audio track scope was not found",
+                        )
+                    })?
+                    .tracks
+            };
+            let track = tracks
+                .iter_mut()
+                .find(|track| track.id == track_id)
+                .ok_or_else(|| CoreError::new(ErrorCode::TrackNotFound, "track was not found"))?;
+            if track.locked {
+                return Err(CoreError::new(ErrorCode::TrackLocked, "track is locked"));
+            }
+            track.audio_bus_id = bus_id;
+            Ok((vec![track_id], "Updated audio track route"))
+        }
         EditOperation::SpeechMarkersGenerate {
             scope,
             asset_id,
@@ -1907,6 +1973,7 @@ fn apply_operation_inner(
             let id = Uuid::new_v4().to_string();
             validate_track_audio_settings(track_type, audio_role, ducking.as_ref())?;
             let track = Track {
+                audio_bus_id: None,
                 id: id.clone(),
                 name: name.into(),
                 track_type,
@@ -2275,6 +2342,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -2287,6 +2355,7 @@ mod tests {
             settings: ProjectSettings::default(),
             assets: vec![],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "overlay".into(),
                 name: "Overlay".into(),
                 track_type: TrackType::Overlay,
