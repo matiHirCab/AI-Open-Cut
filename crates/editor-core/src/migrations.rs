@@ -25,7 +25,7 @@ pub(crate) fn migrate_project_documents(
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     if project.schema_version <= PROJECT_SCHEMA_VERSION {
-        crate::validation::audio_buses::validate_project(project)?;
+        project.validate_audio_bus_model()?;
     }
     for asset in &project.assets {
         if project.schema_version < 38
@@ -404,7 +404,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
     if changed {
         project.audio_buses = crate::default_audio_buses();
     }
-    crate::validation::audio_buses::validate_project(project)?;
+    project.validate_audio_bus_model()?;
     Ok(changed)
 }
 
