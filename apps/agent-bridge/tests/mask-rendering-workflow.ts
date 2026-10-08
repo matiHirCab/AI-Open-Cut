@@ -1,7 +1,7 @@
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import models from "../../../contracts/mask-models-v1.json";
 import rendering from "../../../contracts/mask-rendering-v1.json";
 import {
@@ -22,7 +22,9 @@ export const verifyMaskRenderingWorkflow = async (
   call: Call
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(audioBusDsp.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(
+    audioBusDucking.projectSchemaVersion
+  );
   expect(status.subsystems.editor.capabilities).toContain("mask_animation_v1");
   expect(status.subsystems.editor.capabilities).not.toContain(
     "mask_rendering_v1"

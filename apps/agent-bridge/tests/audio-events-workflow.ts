@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import catalog from "../../../contracts/timeline-audio-events-v1.json";
 import {
   editDraftSchema,
@@ -22,7 +23,10 @@ export const verifyAudioEventWorkflow = async (
   mediaDirectory: string
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(catalog.projectSchemaVersion + 1);
+  expect(catalog.projectSchemaVersion).toBe(41);
+  expect(status.projectSchemaVersion).toBe(
+    audioBusDucking.projectSchemaVersion
+  );
   expect(status.subsystems.editor.capabilities).toContain(catalog.capability);
   const { projectId } = await call(
     "project_create",

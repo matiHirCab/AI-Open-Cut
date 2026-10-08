@@ -23,6 +23,7 @@ import {
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
 import { verifyAudioBusDspWorkflow } from "./audio-bus-dsp-workflow";
+import { verifyAudioBusDuckingWorkflow } from "./audio-bus-ducking-workflow";
 import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
 import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
@@ -658,4 +659,8 @@ it("places semantic sounds through real standalone batch draft history and reope
 
 it("runs normalized bus DSP standalone, batch, draft and history transactions", async () => {
   await verifyAudioBusDspWorkflow(client, call);
+});
+
+it("runs narration bus ducking standalone, batch, draft and history transactions", async () => {
+  await verifyAudioBusDuckingWorkflow(client, call);
 });

@@ -10,6 +10,7 @@ import type {
   animationChannelSchema,
   animationPresetParametersSchema,
   audioBusDspSchema,
+  audioBusDuckingSchema,
   blendModeSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
@@ -94,6 +95,11 @@ export type HeadlessEdit =
       operation: "audio_bus_set_dsp";
       busId: string;
       dsp: z.infer<typeof audioBusDspSchema>;
+    }
+  | {
+      operation: "audio_bus_set_ducking";
+      busId: string;
+      ducking: z.infer<typeof audioBusDuckingSchema>;
     }
   | {
       operation: "audio_track_route";

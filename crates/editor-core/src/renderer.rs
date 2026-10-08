@@ -266,6 +266,23 @@ impl Renderer {
             .audio_bus_dsp_readiness(&self.ffmpeg_path)
     }
 
+    pub fn audio_bus_ducking_readiness(&self) -> Result<(), CoreError> {
+        self.readiness()?;
+        self.process_executor
+            .audio_bus_ducking_readiness(&self.ffmpeg_path)
+    }
+
+    fn audio_bus_processing_readiness(&self, scene: &EvaluatedScene) -> Result<(), CoreError> {
+        if let Some(graph) = &scene.audio_bus_graph {
+            if graph.requires_dsp() {
+                self.audio_bus_dsp_readiness()?;
+            } else {
+                self.audio_bus_ducking_readiness()?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn probe(&self, path: &Path) -> Result<ProbeResult, CoreError> {
         self.process_executor.probe(&self.ffprobe_path, path)
     }
@@ -902,7 +919,7 @@ impl Renderer {
             preflight.controlled_readiness_completed = true;
         }
         if preflight.scene.audio_bus_graph.is_some() {
-            self.audio_bus_dsp_readiness()?;
+            self.audio_bus_processing_readiness(&preflight.scene)?;
             preflight.audio_bus_dsp_readiness_completed = true;
         }
         Ok(())
@@ -934,7 +951,7 @@ impl Renderer {
             self.readiness()?;
         }
         if finalized.audio_bus_graph.is_some() && !audio_bus_dsp_readiness_completed {
-            self.audio_bus_dsp_readiness()?;
+            self.audio_bus_processing_readiness(&finalized)?;
         }
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
         let mut resources = prepare_render_resources(
@@ -1775,6 +1792,89 @@ mod tests {
             &project,
             root.path(),
             ErrorCode::InvalidArgument,
+        );
+    }
+
+    #[test]
+    fn active_audio_bus_ducking_requires_dependencies_before_all_facade_side_effects() {
+        let root = tempdir().unwrap();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/tone.wav"), b"fixture").unwrap();
+        let mut project = super::golden::fixture_project();
+        project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
+        project.tracks[0].items.clear();
+        project.tracks[1].audio_bus_id = Some("music".into());
+        let mut source = project.tracks[1].clone();
+        source.id = "narration-source".into();
+        source.audio_bus_id = Some("voiceover".into());
+        if let crate::TimelineItem::Media(item) = &mut source.items[0] {
+            item.id = "narration-item".into();
+        }
+        project.tracks.push(source);
+        project.audio_buses[1].ducking = Some(crate::AudioBusDucking {
+            enabled: true,
+            source_bus_id: "voiceover".into(),
+            gain: 0.25,
+            attack_ms: 100,
+            release_ms: 200,
+        });
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let artifact_io = Arc::new(LifecycleArtifactIo::default());
+        let renderer = Renderer::new("ffmpeg", "ffprobe", None)
+            .with_adapters(process.clone(), artifact_io.clone());
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::DependencyUnavailable,
+        );
+        project.audio_buses[1].ducking.as_mut().unwrap().gain = 1.01;
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        project.audio_buses[1].ducking.as_mut().unwrap().gain = 0.25;
+        let template = project.tracks[2].items[0].clone();
+        project.tracks[2].items = (0..65)
+            .map(|index| {
+                let mut item = template.clone();
+                if let crate::TimelineItem::Media(media) = &mut item {
+                    media.id = format!("source-{index}");
+                    media.start_ms = index * 1000;
+                    media.duration_ms = 100;
+                    media.visual_properties.stack_order = index as u32;
+                }
+                item
+            })
+            .collect();
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::InvalidArgument,
+        );
+        project.tracks[2].items.pop();
+        assert_all_facades_reject_without_side_effects(
+            &renderer,
+            &artifact_io,
+            &process,
+            &project,
+            root.path(),
+            ErrorCode::DependencyUnavailable,
         );
     }
 

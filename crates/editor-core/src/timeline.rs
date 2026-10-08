@@ -106,7 +106,9 @@ pub(crate) fn resolve_operation_aliases(
                 resolve_alias(id, aliases)?;
             }
         }
-        EditOperation::AudioBusSetRoute { .. } | EditOperation::AudioBusSetDsp { .. } => {}
+        EditOperation::AudioBusSetRoute { .. }
+        | EditOperation::AudioBusSetDsp { .. }
+        | EditOperation::AudioBusSetDucking { .. } => {}
         EditOperation::AudioTrackRoute {
             scope, track_id, ..
         } => {
@@ -470,6 +472,20 @@ fn apply_operation_inner(
                 variant_seed,
             })?;
             Ok((vec![event], "Registered sound event"))
+        }
+        EditOperation::AudioBusSetDucking { bus_id, ducking } => {
+            let bus = project
+                .audio_buses
+                .iter_mut()
+                .find(|bus| bus.id == bus_id)
+                .ok_or_else(|| {
+                    CoreError::new(
+                        ErrorCode::InvalidArgument,
+                        "audio bus reference was not found",
+                    )
+                })?;
+            bus.ducking = Some(ducking);
+            Ok((vec![bus_id], "Updated audio bus ducking"))
         }
         EditOperation::AudioBusSetDsp { bus_id, dsp } => {
             dsp.validate()?;

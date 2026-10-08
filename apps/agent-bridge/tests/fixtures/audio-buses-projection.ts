@@ -30,7 +30,8 @@ export const restoreAudioBusCatalogMarker = (source: unknown) => {
   const value = at(
     original.projectSchemaVersion === 40 ||
       original.projectSchemaVersion === 41 ||
-      original.projectSchemaVersion === 42
+      original.projectSchemaVersion === 42 ||
+      original.projectSchemaVersion === 43
       ? restoreSoundEventCatalogMarker(original)
       : original,
     []

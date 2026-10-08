@@ -17,7 +17,7 @@ fn set(p: &mut Project, index: usize, value: serde_json::Value) {
     p.audio_buses[index].dsp = Some(serde_json::from_value(value).unwrap());
 }
 
-fn stereo_channels(ffmpeg: &Path, path: &Path) -> [Vec<f32>; 2] {
+pub(super) fn stereo_channels(ffmpeg: &Path, path: &Path) -> [Vec<f32>; 2] {
     let output = Command::new(ffmpeg)
         .args(["-v", "error", "-i"])
         .arg(path)

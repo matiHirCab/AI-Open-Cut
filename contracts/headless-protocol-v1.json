@@ -348,6 +348,22 @@
           }
         }
       }
+    },
+    "audioBusSetDucking": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "audio_bus_set_ducking",
+        "busId": "music",
+        "ducking": {
+          "enabled": true,
+          "sourceBusId": "voiceover",
+          "gain": 0.25,
+          "attackMs": 100,
+          "releaseMs": 200
+        }
+      }
     }
   },
   "events": [
@@ -433,7 +449,8 @@
       "blend_modes_v1",
       "parameterized_effects_v1",
       "group_compositing_v1",
-      "audio_bus_dsp_v1"
+      "audio_bus_dsp_v1",
+      "audio_bus_ducking_v1"
     ]
   }
 }

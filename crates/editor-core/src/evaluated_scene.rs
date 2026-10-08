@@ -6,6 +6,7 @@
 use std::collections::{HashMap, HashSet};
 
 pub(crate) mod audio_bus_dsp;
+pub(crate) mod audio_bus_ducking;
 pub(crate) mod composition_resources;
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
@@ -3055,11 +3056,10 @@ fn evaluate_flat_project(
                         }
                         let ducking = evaluate_ducking(track, !voiceover_intervals.is_empty())?;
                         audio_layers.push(EvaluatedAudioLayer {
-                            bus_index: if project
-                                .audio_buses
-                                .iter()
-                                .any(|b| b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
-                            {
+                            bus_index: if project.audio_buses.iter().any(|b| {
+                                b.dsp.as_ref().is_some_and(|d| !d.is_identity())
+                                    || b.ducking.as_ref().is_some_and(|d| !d.is_identity())
+                            }) {
                                 let id = media
                                     .audio_event
                                     .as_ref()

@@ -2,6 +2,12 @@ import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/audio-bus-dsp-v1.json";
 import additions from "./audio-bus-dsp-mcp-additions.json";
 import owners from "./audio-bus-dsp-ownership-addition.json";
+import {
+  removeAudioBusDuckingHeadlessAdditions,
+  removeAudioBusDuckingMcpAdditions,
+  removeAudioBusDuckingOwnershipAddition,
+  restoreAudioBusDuckingRawHeader,
+} from "./audio-bus-ducking-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
 const at = (source: unknown, path: string[]): Record<string, unknown> => {
@@ -47,7 +53,7 @@ const removeAddition = (
   }
 };
 export const removeAudioBusDspMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDuckingMcpAdditions(source);
   const capabilities = at(result, []).capabilityIdentifiers;
   if (
     !(Array.isArray(capabilities) && capabilities.includes("audio_bus_dsp_v1"))
@@ -60,7 +66,7 @@ export const removeAudioBusDspMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioBusDspHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDuckingHeadlessAdditions(source);
   const requests = at(result, ["requests"]);
   if (!Object.hasOwn(requests, "audioBusSetDsp")) {
     return result;
@@ -89,7 +95,7 @@ export const removeAudioBusDspHeadlessAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioBusDspOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioBusDuckingOwnershipAddition(source);
   const categories = at(result, ["categories"]);
   if (!Object.hasOwn(categories, "audioBusDsp")) {
     return result;
@@ -104,13 +110,14 @@ export const removeAudioBusDspOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const restoreAudioBusDspRawHeader = (source: string): string => {
-  if (!source.includes('"projectSchemaVersion": 42')) {
-    return source;
+  const restored = restoreAudioBusDuckingRawHeader(source);
+  if (!restored.includes('"projectSchemaVersion": 42')) {
+    return restored;
   }
-  if (source.match(/"projectSchemaVersion": 42/g)?.length !== 1) {
+  if (restored.match(/"projectSchemaVersion": 42/g)?.length !== 1) {
     throw new Error("Incorrect DSP header");
   }
-  return source.replace(
+  return restored.replace(
     '"projectSchemaVersion": 42',
     '"projectSchemaVersion": 41'
   );

@@ -2250,3 +2250,26 @@ describe("audio-bus DSP native coverage", () => {
     });
   }
 });
+
+
+describe("audio-bus ducking mandatory consumers", () => {
+  for (const consumer of [" --test audio_bus_ducking", " tests/audio-bus-ducking.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects audio-bus ducking consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
+
+describe("audio-bus ducking native coverage", () => {
+  const command = "cargo test -p opencut-editor-core --lib renderer::golden::audio_bus_ducking::native_narration_bus_ducking_attack_release_routing_and_component_conformance -- --exact --nocapture";
+  for (const replacement of ["", `${command} || true`]) {
+    it(`rejects missing or masked bus ducking native evidence: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, command, replacement))).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+});

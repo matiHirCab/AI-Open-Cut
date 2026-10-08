@@ -45,6 +45,12 @@ pub(super) fn compile(
         if let Some(c) = &bus.compressor {
             effect.push_str(&format!(",acompressor=threshold={:.6}:ratio={:.6}:attack={:.6}:release={:.6}:makeup={:.6}:mode=downward:detection=peak:link=maximum:knee=1:mix=1:level_in=1",c.threshold,c.ratio,c.attack_ms,c.release_ms,c.makeup));
         }
+        if let Some(segments) = &bus.ducking {
+            effect.push_str(&format!(
+                ",volume='{}':eval=frame",
+                super::audio_bus_ducking::expression(segments)
+            ));
+        }
         effect.push_str(&format!(
             ",pan=stereo|c0={:.6}*c0|c1={:.6}*c1",
             bus.balance[0], bus.balance[1]

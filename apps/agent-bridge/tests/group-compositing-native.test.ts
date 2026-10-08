@@ -12,7 +12,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import catalog from "../../../contracts/group-compositing-v1.json";
 import {
   editDraftSchema,
@@ -234,7 +234,7 @@ fn main() {
         bStack = [particles, flash, blur];
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        audioBusDsp.projectSchemaVersion
+        audioBusDucking.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(status.capabilities).toContain("group_compositing_models_v1");

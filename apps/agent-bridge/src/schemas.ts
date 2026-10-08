@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(42).optional(),
+    projectSchemaVersion: z.literal(43).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1903,6 +1903,14 @@ export const soundEventDefinitionSchema = z.strictObject({
     .max(32),
 });
 
+export const audioBusDuckingSchema = z.strictObject({
+  attackMs: z.int().min(0).max(2000),
+  enabled: z.boolean(),
+  gain: finite.min(0).max(1),
+  releaseMs: z.int().min(0).max(9000),
+  sourceBusId: id,
+});
+
 export const audioBusDspSchema = z.strictObject({
   compressor: z
     .strictObject({
@@ -1928,6 +1936,7 @@ export const audioBusDspSchema = z.strictObject({
 
 export const audioBusSchema = z.strictObject({
   dsp: audioBusDspSchema.optional(),
+  ducking: audioBusDuckingSchema.optional(),
   id,
   outputBusId: id.nullable(),
 });
@@ -1979,7 +1988,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(42),
+        schemaVersion: z.literal(43),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2084,6 +2093,11 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    busId: id,
+    ducking: audioBusDuckingSchema,
+    operation: z.literal("audio_bus_set_ducking"),
+  }),
   z.strictObject({
     busId: id,
     dsp: audioBusDspSchema,
@@ -2532,6 +2546,9 @@ export const schemas = {
     .strict(),
   audioBusSetDsp: projectRevisionSchema
     .extend({ busId: id, dsp: audioBusDspSchema })
+    .strict(),
+  audioBusSetDucking: projectRevisionSchema
+    .extend({ busId: id, ducking: audioBusDuckingSchema })
     .strict(),
   audioBusSetRoute: projectRevisionSchema
     .extend({ busId: id, outputBusId: id })
