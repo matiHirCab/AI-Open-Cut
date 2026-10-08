@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Timeline Audio Events Specification
+
+## Purpose
+
+Define deterministic semantic sound placement, captured content ownership, scoped timing and shared audio-only evaluation.
+
+## Requirements
 
 ### Requirement: Bounded deterministic semantic audio placement
 Core SHALL expose timeline_add_audio_event with scope, trackId, event and closed at TimeExpression; optional durationMs SHALL default to the selected asset's known positive safe duration, gainDb SHALL default0 and variantSeed SHALL default the definition seed. It MUST select existing definition variants by seed modulo ordered count and place source0 on an unlocked audio track in root or component:<existing ID>. A schema41 type:media item MUST retain selected asset plus optional nonnull closed audioEvent provenance requiring event, gainDb, captured defaultGainDb, busId, variantSeed, variantIndex and contentHash. Gain values MUST independently be finite[-120,24], seed/intervals JavaScript-safe, index0..31, duration positive and source range within recorded asset duration; content MUST be eligible managed audio or video-with-audio with the canonical sha256. Complexity SHALL retain existing item/composition and definition limits. Missing event or malformed inputs MUST use INVALID_ARGUMENT, missing track TRACK_NOT_FOUND, locked track TRACK_LOCKED, missing scoped component/marker ITEM_NOT_FOUND. Extra nested fields, null provenance, executable/path/network inputs MUST fail closed.
@@ -34,8 +40,8 @@ Standalone, ordered timeline_batch_edit and durable-draft placement SHALL use th
 - **THEN** existing ordered alias resolution commits all edits as one revision and history entry
 
 #### Scenario: Conflict late failure and publication fault
-- **WHEN** a stale request, invalid later batch operation or existing injected publication phase fails
-- **THEN** all project/history/draft/resource bytes remain unchanged and original error precedence is preserved
+- **WHEN** a stale request, invalid later batch operation or injected precommit publication phase rejects the candidate, or an existing publication fault occurs after the durable commit point
+- **THEN** rejected precommit candidates retain all prior project/history/draft/resource bytes and original error precedence, while postcommit faults preserve and recover the exact complete target generation under the existing warning/recovery rules without treating it as rejected
 
 #### Scenario: Commit and restore a materialized draft
 - **WHEN** a valid placement draft is previewed/committed then undone/redone/reopened

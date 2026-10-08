@@ -19,9 +19,9 @@
 
 ## 4. Verification and delivery
 
-- [ ] 4.1 Pass cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace; bun run typecheck; bun run lint; bun run test; bun run contracts:check; bun run test:integration; bun run test:smoke; hermetic Python unittest/pytest; complete required native/render/policy gates. Preserve every original failure/log/fixture, and distinguish diagnostics from standard acceptance.
-- [ ] 4.2 Run pinned strict OpenSpec and unchanged protected Moon prearchive gate, verify conformance through openspec-verify-change and substantive transparent separate same-agent CODEOWNER COMMENT review; fix all mismatches.
-- [ ] 4.3 Sync/archive only this approved verified change preserving unrelated specs/archive bytes, then pass protected Moon and strict all-spec validation.
+- [x] 4.1 Pass cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace; bun run typecheck; bun run lint; bun run test; bun run contracts:check; bun run test:integration; bun run test:smoke; hermetic Python unittest/pytest; complete required native/render/policy gates. Preserve every original failure/log/fixture, and distinguish diagnostics from standard acceptance.
+- [x] 4.2 Run pinned strict OpenSpec and unchanged protected Moon prearchive gate, verify conformance through openspec-verify-change and substantive transparent separate same-agent CODEOWNER COMMENT review; fix all mismatches.
+- [x] 4.3 Sync/archive only this approved verified change preserving unrelated specs/archive bytes, then pass protected Moon and strict all-spec validation.
 
 ## External publication and completion
 
