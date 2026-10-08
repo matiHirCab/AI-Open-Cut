@@ -1,7 +1,7 @@
 //! Immutable audio-only analysis orchestration through the existing owners.
 use super::*;
 use crate::{
-    render_artifact::audio_analysis::prepare_audio_media,
+    render_artifact::audio_analysis::{AudioAnalysisOutputDirectory, prepare_audio_media},
     render_plan::audio_analysis::{
         AudioAnalysisOptions, AudioAnalysisSummary, build_audio_analysis_plan,
     },
@@ -37,6 +37,8 @@ impl Renderer {
             project.settings.fps,
         )?;
         let media = prepare_audio_media(self.artifact_io.as_ref(), &evaluated, project_dir)?;
+        let output_directory =
+            AudioAnalysisOutputDirectory::admit(self.artifact_io.as_ref(), project_dir)?;
         let plan = build_audio_analysis_plan(&evaluated.scene, media.inputs, media.paths, options)?;
         // Complete semantic/resource/graph admission precedes dependency probes
         // and any request workspace, selected PCM, or published JSON work.
@@ -59,14 +61,16 @@ impl Renderer {
         )?;
         let bytes = document.bounded_json(options)?;
         let file_name = format!("audio-analysis-{}.json", Uuid::new_v4());
-        let directory = project_dir.join("previews");
-        if !self.artifact_io.artifact_path_exists(&directory) {
+        let directory = &output_directory.path;
+        output_directory.validate(self.artifact_io.as_ref(), false)?;
+        if !self.artifact_io.artifact_path_exists(directory) {
             self.artifact_io
-                .create_dir(&directory)
+                .create_dir(directory)
                 .map_err(|_| CoreError::render_failure(GRAPH_BUILD_STAGE, None, None))?;
         }
+        output_directory.validate(self.artifact_io.as_ref(), true)?;
         let output = directory.join(&file_name);
-        let temporary = temporary_output(self.artifact_io.as_ref(), &directory, "json");
+        let temporary = temporary_output(self.artifact_io.as_ref(), directory, "json");
         let mut published = false;
         let result = (|| {
             self.artifact_io
@@ -241,7 +245,25 @@ mod tests {
         fn entry_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
             FileSystemArtifactIo.entry_kind(p)
         }
+        fn audio_analysis_output_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
+            if self.fault == "output-metadata" {
+                return Err(std::io::Error::other("output metadata fault"));
+            }
+            if self.fault == "output-unsupported" {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "output metadata unsupported",
+                ));
+            }
+            FileSystemArtifactIo.audio_analysis_output_kind(p)
+        }
         fn canonicalize_artifact_path(&self, p: &Path) -> std::io::Result<PathBuf> {
+            if p.file_name().is_some_and(|name| name == "previews")
+                && (self.fault == "unsafe-output"
+                    || (self.fault == "changed-output" && self.writes.load(Ordering::SeqCst) > 0))
+            {
+                return Ok(p.parent().unwrap().join("outside"));
+            }
             FileSystemArtifactIo.canonicalize_artifact_path(p)
         }
         fn artifact_path_exists(&self, p: &Path) -> bool {
@@ -279,6 +301,10 @@ mod tests {
             "json",
             "publish",
             "metadata",
+            "unsafe-output",
+            "changed-output",
+            "output-metadata",
+            "output-unsupported",
             "success",
         ] {
             let root = tempfile::tempdir().unwrap();
@@ -325,7 +351,9 @@ mod tests {
             } else {
                 assert_eq!(
                     result.unwrap_err().code,
-                    if fault == "unsupported" {
+                    if matches!(fault, "unsafe-output" | "changed-output") {
+                        ErrorCode::PathNotAllowed
+                    } else if fault == "unsupported" {
                         ErrorCode::DependencyUnavailable
                     } else {
                         ErrorCode::FfmpegFailed
@@ -351,9 +379,27 @@ mod tests {
             assert_eq!(outputs.len(), usize::from(fault == "success"), "{fault}");
             assert_eq!(
                 process.calls.load(Ordering::SeqCst),
-                usize::from(!matches!(fault, "unsupported" | "workspace" | "filter")),
+                usize::from(!matches!(
+                    fault,
+                    "unsupported"
+                        | "workspace"
+                        | "filter"
+                        | "unsafe-output"
+                        | "output-metadata"
+                        | "output-unsupported"
+                )),
                 "{fault}"
             );
+            if matches!(
+                fault,
+                "unsafe-output" | "changed-output" | "output-metadata" | "output-unsupported"
+            ) {
+                assert_eq!(
+                    io.writes.load(Ordering::SeqCst),
+                    usize::from(fault == "changed-output"),
+                    "{fault} must never write destination JSON"
+                );
+            }
         }
     }
 }

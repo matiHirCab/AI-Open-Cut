@@ -45,6 +45,10 @@ Analysis MUST validate the entire canonical model/evaluation and resolve only it
 - **WHEN** audio comes from trimmed media, video, events or clipped/scaled components
 - **THEN** canonical media input selection/indices/source trim/duration and audio lowering remain exact rather than being reconstructed by an adapter
 
+#### Scenario: Confine preview publication before work
+- **WHEN** the owned previews destination is a symlink, non-directory or escapes its canonical project root, or its identity changes before publication
+- **THEN** safe existing PATH_NOT_ALLOWED or FFMPEG_FAILED occurs before any write to that destination, initial unsafe paths fail before workspace/process work, and no outside artifact or project/history mutation occurs
+
 ### Requirement: Explicit analysis work and process bounds
 Core SHALL require integer0<=startMs<endMs<=project duration, complete project duration<=600000ms and waveformBins1..4096. Output SHALL be stereo48000Hz with expected frames48*(endMs-startMs)<=28800000 and byte bound8*frameCount<=230400000. These limits MUST apply only to analysis. Processing SHALL use bounded buffers and concurrent bounded stderr drainage, reject nonfinite/partial/oversized/short PCM or failed exit, kill/reap failed descendants, and require exactly expected frames before publication. JSON serialization SHALL be at most4MiB and all public numeric values finite except explicit null logarithmic/unmeasurable metrics. Progress SHALL remain finite0..1.
 

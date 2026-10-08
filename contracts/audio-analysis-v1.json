@@ -10,10 +10,7 @@
   "resourceName": "Audio analysis",
   "bounds": {
     "maximumProjectDurationMs": 600000,
-    "waveformBins": [
-      1,
-      4096
-    ],
+    "waveformBins": [1, 4096],
     "maximumFrames": 28800000,
     "maximumPcmBytes": 230400000,
     "maximumJsonBytes": 4194304
@@ -108,28 +105,7 @@
     "thresholdLufs": -70
   },
   "independentPcm": {
-    "frames": [
-      [
-        0,
-        1
-      ],
-      [
-        -2,
-        0
-      ],
-      [
-        3,
-        -1
-      ],
-      [
-        0,
-        4
-      ],
-      [
-        -1,
-        0
-      ]
-    ],
+    "frames": [[0, 1], [-2, 0], [3, -1], [0, 4], [-1, 0]],
     "requestedBins": 2,
     "bins": [
       {
@@ -173,6 +149,7 @@
     "routed_dsp_and_ducking",
     "component_and_event_clocks",
     "missing_unrelated_visual",
-    "missing_selected_audio"
+    "missing_selected_audio",
+    "unsafe_preview_output"
   ]
 }

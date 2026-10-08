@@ -1,8 +1,11 @@
 import {
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -162,6 +165,52 @@ export const verifyAudioAnalysisWorkflow = async (
       expect(bin.left).toEqual({ max: 0, min: 0, rms: 0 });
       expect(bin.right).toEqual({ max: 0, min: 0, rms: 0 });
     }
+  }
+  const previews = join(dir, "previews");
+  const preservedPreviews = join(dir, "previews-before-confinement");
+  const outside = join(
+    status.paths.projectsDirectory.resolvedPath,
+    `${projectId}-outside-output`
+  );
+  const inside = join(dir, "alternate-output");
+  mkdirSync(outside);
+  mkdirSync(inside);
+  renameSync(previews, preservedPreviews);
+  const unsafeOutputs =
+    process.platform === "win32"
+      ? ["file"]
+      : ["file", "external-link", "internal-link", "dangling-link"];
+  try {
+    for (const unsafe of unsafeOutputs) {
+      if (unsafe === "file") {
+        writeFileSync(previews, "not a directory");
+      } else {
+        const targets: Record<string, string> = {
+          "dangling-link": join(dir, "absent-output"),
+          "external-link": outside,
+          "internal-link": inside,
+        };
+        symlinkSync(targets[unsafe] ?? "", previews, "dir");
+      }
+      // biome-ignore lint/performance/noAwaitInLoops: Actual reusable headless requests independently reject each unsafe destination.
+      const failed = await terminal((await queue()).jobId);
+      expect(failed).toMatchObject({
+        error: { code: "PATH_NOT_ALLOWED", retryable: false },
+        status: "failed",
+      });
+      expect(failed.artifact).toBeUndefined();
+      expect(failed.audioAnalysis).toBeUndefined();
+      expect(readdirSync(outside)).toEqual([]);
+      expect(readdirSync(inside)).toEqual([]);
+      expect(
+        readdirSync(dir).some((name) => name.startsWith(".opencut-"))
+      ).toBe(false);
+      expect(persisted()).toEqual(bytes);
+      rmSync(previews);
+    }
+  } finally {
+    rmSync(previews, { force: true });
+    renameSync(preservedPreviews, previews);
   }
   for (const [selection, code] of [
     [{ endMs: 1001, expectedRevision: 0 }, "REVISION_CONFLICT"],

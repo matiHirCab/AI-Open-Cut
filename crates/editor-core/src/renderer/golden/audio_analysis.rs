@@ -215,7 +215,7 @@ fn native_audio_analysis_original_pcm_statistics_loudness_warm_routes_components
         "../../../../../contracts/audio-analysis-v1.json"
     ))
     .unwrap();
-    let cases: [&str; 9] = [
+    let cases: [&str; 10] = [
         "stereo_tone",
         "silence",
         "short_audible",
@@ -225,6 +225,7 @@ fn native_audio_analysis_original_pcm_statistics_loudness_warm_routes_components
         "component_and_event_clocks",
         "missing_unrelated_visual",
         "missing_selected_audio",
+        "unsafe_preview_output",
     ];
     assert_eq!(serde_json::to_value(cases).unwrap(), catalog["nativeCases"]);
     for case in cases {
@@ -385,6 +386,58 @@ fn native_audio_analysis_original_pcm_statistics_loudness_warm_routes_components
         let recorder = Arc::new(RecordingProcess::default());
         let mut renderer = Renderer::new(&tools.ffmpeg, &tools.ffprobe, Some(tools.font.clone()));
         renderer.process_executor = recorder.clone();
+        if case == "unsafe_preview_output" {
+            let history = fs::read(dir.join("history.json")).unwrap();
+            let output = dir.join("previews");
+            let outside = root.path().join("outside-previews");
+            let inside = dir.join("alternate-previews");
+            fs::create_dir(&outside).unwrap();
+            fs::create_dir(&inside).unwrap();
+            fs::remove_dir(&output).unwrap();
+            #[cfg(unix)]
+            let invalid_outputs = ["file", "external-link", "internal-link", "dangling-link"];
+            #[cfg(not(unix))]
+            let invalid_outputs = ["file"];
+            for invalid in invalid_outputs {
+                match invalid {
+                    #[cfg(unix)]
+                    "external-link" => std::os::unix::fs::symlink(&outside, &output).unwrap(),
+                    #[cfg(unix)]
+                    "internal-link" => std::os::unix::fs::symlink(&inside, &output).unwrap(),
+                    #[cfg(unix)]
+                    "dangling-link" => std::os::unix::fs::symlink(
+                        root.path().join("absent-preview-target"),
+                        &output,
+                    )
+                    .unwrap(),
+                    _ => fs::write(&output, b"not a directory").unwrap(),
+                }
+                assert_eq!(
+                    renderer
+                        .analyze_audio(&p, &dir, options, |_| {
+                            panic!("unsafe output must precede progress/process work")
+                        })
+                        .unwrap_err()
+                        .code,
+                    ErrorCode::PathNotAllowed,
+                    "{invalid}"
+                );
+                assert!(recorder.pcm.lock().unwrap().is_empty());
+                assert_eq!(fs::read(dir.join("project.json")).unwrap(), before);
+                assert_eq!(fs::read(dir.join("history.json")).unwrap(), history);
+                assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+                assert_eq!(fs::read_dir(&inside).unwrap().count(), 0);
+                assert!(!fs::read_dir(&dir).unwrap().any(|entry| {
+                    entry
+                        .unwrap()
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with(".opencut-")
+                }));
+                fs::remove_file(&output).unwrap();
+            }
+            continue;
+        }
         if case == "missing_selected_audio" {
             fs::remove_file(dir.join("assets/tone.wav")).unwrap();
             assert_eq!(

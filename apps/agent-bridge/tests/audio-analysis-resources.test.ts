@@ -20,7 +20,11 @@ vi.mock("node:fs/promises", async (importOriginal) => {
     ...fs,
     open: async (...args: Parameters<typeof fs.open>) => {
       const handle = await fs.open(...args);
-      if (String(args[0]) === growth.path) {
+      if (
+        growth.path &&
+        (await fs.realpath(String(args[0]))) ===
+          (await fs.realpath(growth.path))
+      ) {
         const read = handle.read.bind(handle);
         let first = true;
         handle.read = ((...readArgs: unknown[]) => {

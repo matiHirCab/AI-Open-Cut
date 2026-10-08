@@ -51,7 +51,8 @@
       "apps/agent-bridge/tests/fixtures/fake-media-tool.mjs",
       "apps/agent-bridge/tests/fixtures/fake-render-worker.ts",
       "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
-      "apps/agent-bridge/tests/fake-media-tool.test.ts"
+      "apps/agent-bridge/tests/fake-media-tool.test.ts",
+      "crates/editor-core/src/render_artifact/request_scope.rs"
     ]
   }
 }

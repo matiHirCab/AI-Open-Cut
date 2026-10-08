@@ -83,6 +83,12 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
     fn list(&self, path: &Path) -> std::io::Result<Vec<PathBuf>>;
     fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind>;
+    fn audio_analysis_output_kind(&self, _path: &Path) -> std::io::Result<ArtifactEntryKind> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "nonfollowing analysis output metadata unavailable",
+        ))
+    }
     fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf>;
     fn artifact_path_exists(&self, path: &Path) -> bool;
     fn remove(&self, path: &Path) -> std::io::Result<()>;
@@ -202,6 +208,9 @@ impl ArtifactIo for MatteMeasurementIo<'_> {
     }
     fn entry_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
         self.inner.entry_kind(p)
+    }
+    fn audio_analysis_output_kind(&self, p: &Path) -> std::io::Result<ArtifactEntryKind> {
+        self.inner.audio_analysis_output_kind(p)
     }
     fn canonicalize_artifact_path(&self, p: &Path) -> std::io::Result<PathBuf> {
         self.inner.canonicalize_artifact_path(p)
@@ -336,6 +345,16 @@ impl ArtifactIo for FileSystemArtifactIo {
     }
     fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         path.canonicalize()
+    }
+    fn audio_analysis_output_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+        let kind = std::fs::symlink_metadata(path)?.file_type();
+        Ok(if kind.is_dir() {
+            ArtifactEntryKind::Directory
+        } else if kind.is_file() {
+            ArtifactEntryKind::File
+        } else {
+            ArtifactEntryKind::Other
+        })
     }
     fn artifact_path_exists(&self, path: &Path) -> bool {
         path.exists()
