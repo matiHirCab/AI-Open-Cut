@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
+import AUDIO_BUSES from "../../../contracts/audio-buses-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -67,6 +68,7 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 import {
   projectBlendCatalogPredecessor,
   projectBlendMcpPredecessor,
@@ -122,7 +124,7 @@ const MCP_PRE_GROUP_DIGEST =
 const MCP_SCHEMA37_DIGEST =
   "2351ab33260b7bd695f87037567264c7580c1139071eb9eaff19a738454ad8c4";
 const MCP_CURRENT_DIGEST =
-  "cb0cb43b3817113887c265cd2ebd98d58c56420527f547677fcdfe367c73397b";
+  "dcfb955991e054da1f34f38851dc8bce4e4498f77259718779e576fea7daa4cc";
 const MCP_PRE_KNOWN_TEXT_DIGEST =
   "1f048f2f5a61c61b65dfb8763477db0156d1965d3b44efbd1cc90791856c310a";
 const MCP_PRE_TRACK_MATTES_DIGEST =
@@ -374,7 +376,8 @@ describe("canonical public contracts", () => {
       parameters: { ...PRESETS.examples.apply.parameters, curve: "linear" },
     });
     expect(PRESETS.compilerVersion).toBe(2);
-    expect(PRESETS.projectSchemaVersion).toBe(38);
+    expect(PRESETS.projectSchemaVersion).toBe(AUDIO_BUSES.projectSchemaVersion);
+    expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
       { curve: "linear", timeMs: 0, value: { type: "scalar", value: 0 } },
       { curve: "hold", timeMs: 500, value: { type: "scalar", value: 1 } },
@@ -388,7 +391,13 @@ describe("canonical public contracts", () => {
       name,
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
-      expect(catalog.projectSchemaVersion, name).toBe(38);
+      expect(catalog.projectSchemaVersion, name).toBe(
+        AUDIO_BUSES.projectSchemaVersion
+      );
+      expect(
+        restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
+        name
+      ).toBe(38);
       const schema32 = projectMaskRenderingCatalogPredecessor(name, catalog);
       expect(animationCatalogDigest(schema32), name).toBe(
         MASK_RENDERING_PREDECESSOR_PINS[name]
@@ -437,7 +446,7 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(79);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(81);
     expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
       MCP_CURRENT_DIGEST
     );
@@ -862,7 +871,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: 38,
+      projectSchemaVersion: AUDIO_BUSES.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -923,6 +932,7 @@ describe("canonical public contracts", () => {
       "group_compositing_models_v1",
       "group_compositing_v1",
       "speech_alignment_markers_v1",
+      "project_audio_buses_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -947,7 +957,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: 38,
+        projectSchemaVersion: AUDIO_BUSES.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

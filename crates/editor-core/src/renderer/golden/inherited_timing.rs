@@ -14,6 +14,7 @@ fn encoded_linear_coverage(alpha: f64) -> f64 {
 fn fixture() -> Project {
     let mut project = fixture_project();
     project.schema_version = PROJECT_SCHEMA_VERSION;
+    project.audio_buses = crate::default_audio_buses();
     project.components.clear();
     let channel = |property: &str, first: f64, last: f64| {
         json!({
@@ -169,6 +170,7 @@ const NESTED_HEIGHT: u32 = 56;
 fn nested_fixture() -> Project {
     let mut p = fixture_project();
     p.schema_version = PROJECT_SCHEMA_VERSION;
+    p.audio_buses = crate::default_audio_buses();
     p.settings.width = NESTED_WIDTH;
     p.settings.height = NESTED_HEIGHT;
     let keys = |property: &str, a: f64, b: f64, curve: serde_json::Value| json!({"property":property,"loop":{"mode":"ping_pong","iterations":"infinite"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":a},"curve":curve},{"timeMs":200,"value":{"type":"scalar","value":b},"curve":"hold"}]});
@@ -618,6 +620,7 @@ fn native_inherited_timing_fractional_loop_seams() {
         );
         let mut p = fixture_project();
         p.schema_version = PROJECT_SCHEMA_VERSION;
+        p.audio_buses = crate::default_audio_buses();
         p.settings.width = 200;
         p.settings.height = 40;
         p.assets.clear();

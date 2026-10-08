@@ -2322,6 +2322,7 @@ mod tests {
         }))
         .unwrap();
         project.tracks.push(Track {
+            audio_bus_id: None,
             id: "cadence-track".into(),
             name: "Cadence".into(),
             track_type: TrackType::Overlay,
@@ -2529,7 +2530,7 @@ mod tests {
         // The existing ancestor predicate remains an independent reason to
         // normalize even when local keys and both root endpoints are static.
         let mut project = empty_project();
-        project.tracks.push(Track { id:"ancestors".into(),name:"Ancestors".into(),track_type:TrackType::Overlay,locked:false,hidden:false,muted:false,audio_role:AudioTrackRole::Unassigned,ducking:None,items:vec![serde_json::from_value(serde_json::json!({"type":"group","id":"parent","startMs":0,"durationMs":1000,"animationChannels":[{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.7},"curve":"hold"}]}]})).unwrap(),serde_json::from_value(serde_json::json!({"type":"shape","id":"child","startMs":0,"durationMs":1000,"stackOrder":1,"geometry":{"type":"rectangle","width":5,"height":5},"fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,"parent":{"scope":"root","id":"parent"},"keyframes":[]})).unwrap()] });
+        project.tracks.push(Track { audio_bus_id:None,id:"ancestors".into(),name:"Ancestors".into(),track_type:TrackType::Overlay,locked:false,hidden:false,muted:false,audio_role:AudioTrackRole::Unassigned,ducking:None,items:vec![serde_json::from_value(serde_json::json!({"type":"group","id":"parent","startMs":0,"durationMs":1000,"animationChannels":[{"property":"transform.opacity","keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.7},"curve":"hold"}]}]})).unwrap(),serde_json::from_value(serde_json::json!({"type":"shape","id":"child","startMs":0,"durationMs":1000,"stackOrder":1,"geometry":{"type":"rectangle","width":5,"height":5},"fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null,"parent":{"scope":"root","id":"parent"},"keyframes":[]})).unwrap()] });
         scene = evaluate_project(&project, 64, 64, 10).unwrap().scene;
         assert!(scene.visual_layers[0].has_animated_ancestors());
         assert!(affine_shape_needs_scene_cadence(
@@ -2824,6 +2825,7 @@ mod tests {
     fn epic6_fullscene_synthetic_compatibility_is_structural_and_intent_qualified() {
         let mut p = empty_project();
         p.tracks.push(Track {
+            audio_bus_id: None,
             id: "plain".into(),
             name: "plain".into(),
             track_type: TrackType::Overlay,
@@ -3986,7 +3988,9 @@ mod tests {
     fn authored_mask_facts_preserve_empty_identity_base_geometry_resources_and_semantic_plans() {
         let mut project = empty_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         project.tracks = vec![Track {
+            audio_bus_id: None,
             id: "visuals".into(),
             name: "Visuals".into(),
             track_type: TrackType::Video,
@@ -4108,7 +4112,9 @@ mod tests {
     fn active_mask_metadata_preserves_missing_media_error() {
         let mut project = empty_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         project.tracks = vec![Track {
+            audio_bus_id: None,
             id: "visuals".into(),
             name: "Visuals".into(),
             track_type: TrackType::Video,
@@ -4148,6 +4154,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -4256,6 +4263,7 @@ mod tests {
             },
         ];
         project.tracks = vec![Track {
+            audio_bus_id: None,
             id: "track".into(),
             name: "Track".into(),
             track_type: TrackType::Video,
@@ -4405,6 +4413,7 @@ mod tests {
         ];
         project.tracks = vec![
             Track {
+                audio_bus_id: None,
                 id: "visual".into(),
                 name: "Visual".into(),
                 track_type: TrackType::Overlay,
@@ -4497,6 +4506,7 @@ mod tests {
                 ],
             },
             Track {
+                audio_bus_id: None,
                 id: "voice".into(),
                 name: "Voice".into(),
                 track_type: TrackType::Audio,
@@ -4517,6 +4527,7 @@ mod tests {
                 })],
             },
             Track {
+                audio_bus_id: None,
                 id: "music".into(),
                 name: "Music".into(),
                 track_type: TrackType::Audio,
@@ -4644,6 +4655,75 @@ mod tests {
         assert!(plans[0].filter_graph.contains("100"));
         assert!(!plans[0].serial_bezier_filters);
 
+        // Independently retain the complete existing scene and role-ducking plan
+        // across pre-bus, default-bus and explicitly rerouted generations.
+        let mut bus_fixture = project.clone();
+        bus_fixture.tracks[0]
+            .items
+            .retain(|item| !matches!(item, TimelineItem::Text(_) | TimelineItem::Transition(_)));
+        for (index, item) in bus_fixture.tracks[0].items.iter_mut().enumerate() {
+            item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
+        }
+        let bus_baseline = evaluate_project(&bus_fixture, 640, 360, 24).unwrap();
+        for generation in ["legacy", "default", "rerouted"] {
+            let mut routed = bus_fixture.clone();
+            routed.schema_version = if generation == "legacy" { 38 } else { 39 };
+            routed.audio_buses = if generation == "legacy" {
+                vec![]
+            } else {
+                crate::default_audio_buses()
+            };
+            if generation == "rerouted" {
+                routed.audio_buses[1].output_bus_id = Some("sfx".into());
+                routed.tracks[1].audio_bus_id = Some("music".into());
+                routed.tracks[2].audio_bus_id = Some("voiceover".into());
+            }
+            let scene = evaluate_project(&routed, 640, 360, 24).unwrap();
+            assert!(scene.scene == bus_baseline.scene, "{generation}");
+            assert_eq!(
+                media_input_requests(&scene).unwrap(),
+                media_inputs,
+                "{generation}"
+            );
+            assert!(
+                scene.scene.audio_layers[1].ducking.is_some(),
+                "{generation}"
+            );
+            for intent in [
+                RenderIntent::Frame { at_ms: 1_500 },
+                RenderIntent::Range {
+                    start_ms: 500,
+                    end_ms: 3_500,
+                    include_audio: true,
+                },
+                RenderIntent::Export,
+            ] {
+                let mut plan = build_render_plan(
+                    &scene.scene,
+                    &text,
+                    media_inputs.clone(),
+                    media_paths.clone(),
+                    Some(Path::new("/fonts/deterministic.ttf")),
+                    intent,
+                    &mut vec![],
+                )
+                .unwrap();
+                plan.intent = RenderIntent::Export;
+                let mut expected = build_render_plan(
+                    &bus_baseline.scene,
+                    &text,
+                    media_inputs.clone(),
+                    media_paths.clone(),
+                    Some(Path::new("/fonts/deterministic.ttf")),
+                    intent,
+                    &mut vec![],
+                )
+                .unwrap();
+                expected.intent = RenderIntent::Export;
+                assert_eq!(plan, expected, "{generation}");
+            }
+        }
+
         let curve_channel = |curve: serde_json::Value| {
             serde_json::from_value(serde_json::json!([{
                 "property": "transform.position_x", "keyframes": [
@@ -4693,6 +4773,7 @@ mod tests {
     fn supplied_speech_alignment_never_changes_scene_resources_or_render_plans() {
         let mut project = empty_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         project.assets.push(Asset {
             id: "speech".into(),
             media_type: MediaType::Audio,
@@ -4706,6 +4787,7 @@ mod tests {
             probe: None,
         });
         project.tracks.push(Track {
+            audio_bus_id: None,
             id: "audio".into(),
             name: "Audio".into(),
             track_type: TrackType::Audio,

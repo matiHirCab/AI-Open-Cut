@@ -41,6 +41,53 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "audio_bus_set_route",
+    {
+      annotations: WRITE,
+      description: "Set the output route of a built-in audio bus.",
+      inputSchema: schemas.audioBusSetRoute,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "audio_bus_set_route",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "audio_track_route",
+    {
+      annotations: WRITE,
+      description:
+        "Route a scoped audio-bearing track; null restores role fallback.",
+      inputSchema: schemas.audioTrackRoute,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "audio_track_route",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "speech_markers_generate",
     {
       annotations: WRITE,

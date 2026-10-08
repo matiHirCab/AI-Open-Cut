@@ -94,9 +94,12 @@ pub(crate) fn validate_project_visual_properties(project: &Project) -> Result<()
     validate_project_visual_properties_without_mattes(project)
 }
 
+pub(crate) mod audio_buses;
+
 pub(crate) fn validate_project_visual_properties_without_mattes(
     project: &Project,
 ) -> Result<(), CoreError> {
+    audio_buses::validate_project(project)?;
     mask::validate_project(project)?;
     validate_project_visual_projection(project)
 }

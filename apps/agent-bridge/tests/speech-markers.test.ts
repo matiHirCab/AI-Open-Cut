@@ -11,6 +11,10 @@ import {
   schemas,
   speechMarkerPolicySchema,
 } from "../src/schemas";
+import {
+  removeAudioBusHeadlessAdditions,
+  removeAudioBusOwnershipAddition,
+} from "./fixtures/audio-buses-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import pins from "./fixtures/speech-markers-predecessor-pins.json";
 import { projectSpeechMarkerMcpPredecessor } from "./fixtures/speech-markers-projection";
@@ -73,7 +77,7 @@ it("preserves the exact frozen issue61 catalog raw bytes and additive projection
     expect(createHash("sha256").update(raw).digest("hex")).toBe(pin.rawSha256);
     const prior: unknown = JSON.parse(raw.toString());
     if (name === "headless-protocol-v1.json") {
-      const current = structuredClone(headless);
+      const current = removeAudioBusHeadlessAdditions(headless);
       expect(current.requests.speechMarkersGenerate.edit).toEqual({
         alignment: contract.alignment,
         assetId: "asset-1",
@@ -94,7 +98,7 @@ it("preserves the exact frozen issue61 catalog raw bytes and additive projection
         );
       expect(current).toEqual(prior);
     } else {
-      const current = structuredClone(ownership);
+      const current = removeAudioBusOwnershipAddition(ownership);
       expect(current.categories.speechAlignmentMarkers.canonical).toBe(
         "contracts/speech-alignment-markers-v1.json"
       );

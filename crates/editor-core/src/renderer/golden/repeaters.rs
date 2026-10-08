@@ -6,6 +6,7 @@ use serde_json::json;
 fn fixture() -> Project {
     let mut project = fixture_project();
     project.schema_version = PROJECT_SCHEMA_VERSION;
+    project.audio_buses = crate::default_audio_buses();
     project.assets.clear();
     project.components.clear();
     project.tracks.truncate(1);

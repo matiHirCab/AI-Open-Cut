@@ -1,5 +1,7 @@
 mod buffered;
 use buffered::BufferedValue;
+mod audio_buses;
+pub use audio_buses::*;
 mod speech_alignment;
 pub use speech_alignment::*;
 mod animation_channels;
@@ -34,7 +36,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 38;
+pub const PROJECT_SCHEMA_VERSION: u32 = 39;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -78,6 +80,7 @@ where
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[serde(try_from = "ProjectDocument")]
 pub struct Project {
+    pub audio_buses: Vec<AudioBus>,
     pub fonts: std::collections::BTreeMap<String, FontRecord>,
     pub schema_version: u32,
     pub id: String,
@@ -97,7 +100,9 @@ impl Serialize for Project {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct(
             "Project",
-            if self.schema_version >= 24 {
+            if self.schema_version >= 39 {
+                13
+            } else if self.schema_version >= 24 {
                 12
             } else if self.schema_version >= 19 {
                 11
@@ -105,6 +110,9 @@ impl Serialize for Project {
                 10
             },
         )?;
+        if self.schema_version >= 39 {
+            state.serialize_field("audioBuses", &self.audio_buses)?;
+        }
         if self.schema_version >= 19 {
             state.serialize_field("fonts", &self.fonts)?;
         }
@@ -130,6 +138,8 @@ impl Serialize for Project {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProjectDocument {
     #[serde(default, deserialize_with = "deserialize_double_option")]
+    audio_buses: Option<Option<Vec<AudioBus>>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
     fonts: Option<Option<std::collections::BTreeMap<String, FontRecord>>>,
     schema_version: u32,
     id: String,
@@ -150,6 +160,41 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 39 {
+            if value.audio_buses.is_some() {
+                return Err("audio buses require schema 39".into());
+            }
+            let premature = |tracks: &BufferedValue| {
+                tracks.as_array().is_some_and(|tracks| {
+                    tracks.iter().any(|track| {
+                        track
+                            .as_object()
+                            .is_some_and(|t| t.contains_key("audioBusId"))
+                    })
+                })
+            };
+            if premature(&value.tracks)
+                || value.components.as_ref().is_some_and(|components| {
+                    components.as_array().is_some_and(|components| {
+                        components.iter().any(|component| {
+                            component.get("tracks").is_some_and(|tracks| {
+                                tracks.as_array().is_some_and(|tracks| {
+                                    tracks.iter().any(|track| {
+                                        track
+                                            .as_object()
+                                            .is_some_and(|t| t.contains_key("audioBusId"))
+                                    })
+                                })
+                            })
+                        })
+                    })
+                })
+            {
+                return Err("audio track routing requires schema 39".into());
+            }
+        } else if value.audio_buses.as_ref().is_none_or(Option::is_none) {
+            return Err("schema 39 requires audio buses".into());
+        }
         if value.schema_version < 38
             && value.assets.as_array().is_some_and(|assets| {
                 assets.iter().any(|asset| {
@@ -409,6 +454,7 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         Ok(Self {
+            audio_buses: value.audio_buses.flatten().unwrap_or_default(),
             fonts: value.fonts.flatten().unwrap_or_default(),
             components: value
                 .components
@@ -1390,6 +1436,8 @@ pub enum TrackType {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Track {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_bus_id: Option<String>,
     pub id: String,
     pub name: String,
     pub track_type: TrackType,
@@ -2357,6 +2405,15 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    AudioBusSetRoute {
+        bus_id: String,
+        output_bus_id: String,
+    },
+    AudioTrackRoute {
+        scope: String,
+        track_id: String,
+        bus_id: Option<String>,
+    },
     SpeechMarkersGenerate {
         scope: String,
         asset_id: String,
@@ -2794,6 +2851,16 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    AudioBusSetRoute {
+        bus_id: String,
+        output_bus_id: String,
+    },
+    AudioTrackRoute {
+        scope: String,
+        track_id: String,
+        #[serde(deserialize_with = "audio_buses::deserialize_nullable_bus_id")]
+        bus_id: Option<String>,
+    },
     SpeechMarkersGenerate {
         scope: String,
         asset_id: String,
@@ -3288,6 +3355,8 @@ impl<'de> Deserialize<'de> for EditOperation {
             return Err(serde::de::Error::custom("repeater cannot be null"));
         }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("audio_bus_set_route") => Some(&["operation", "busId", "outputBusId"]),
+            Some("audio_track_route") => Some(&["operation", "scope", "trackId", "busId"]),
             Some("add_component_instance") => Some(&[
                 "operation",
                 "trackId",
@@ -3587,6 +3656,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],

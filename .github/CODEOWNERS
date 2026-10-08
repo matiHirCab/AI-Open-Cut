@@ -368,3 +368,15 @@
 /apps/agent-bridge/tests/fixtures/speech-markers-projection.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/speech-markers-mcp-additions.json @matiHirCab
 /docs/speech-alignment-markers.md @matiHirCab
+
+# Issue 65 project audio bus routing contract
+/contracts/audio-buses-v1.json @matiHirCab
+/crates/editor-core/src/model/audio_buses.rs @matiHirCab
+/crates/editor-core/src/validation/audio_buses.rs @matiHirCab
+/crates/editor-core/tests/audio_buses.rs @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-buses-* @matiHirCab
+
+# Project audio bus routing acceptance
+/apps/agent-bridge/tests/audio-buses.test.ts @matiHirCab
+/apps/agent-bridge/tests/audio-buses-workflow.ts @matiHirCab
+/docs/project-audio-buses.md @matiHirCab

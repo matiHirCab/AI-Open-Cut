@@ -1120,7 +1120,7 @@ fn owning_mode_owner_and_blend_work_forgeries_fail_before_callbacks() {
 #[test]
 fn graph_free_4096_owning_averages_execute_all65536_callbacks_without_providers() {
     let items=(0..4096).map(|index|serde_json::json!({"type":"rectangle","id":format!("ordinary-{index}"),"color":"#ffffff","width":1,"height":1,"startMs":0,"durationMs":1000,"blendMode":"screen","motionBlur":{"shutterAngleDeg":360,"sampleCount":16},"stackOrder":index,"zIndex":0,"keyframes":[]})).collect::<Vec<_>>();
-    let project:crate::Project=serde_json::from_value(serde_json::json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION,"id":"p","revision":0,"name":"Callbacks","createdAtMs":1,"updatedAtMs":1,"settings":{"width":1,"height":1,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],"tracks":[{"id":"t","name":"Track","trackType":"overlay","items":items}]})).unwrap();
+    let project:crate::Project=serde_json::from_value(serde_json::json!({"schemaVersion":crate::PROJECT_SCHEMA_VERSION, "audioBuses":crate::default_audio_buses(),"id":"p","revision":0,"name":"Callbacks","createdAtMs":1,"updatedAtMs":1,"settings":{"width":1,"height":1,"fps":10},"fonts":{},"markers":[],"assets":[],"components":[],"tracks":[{"id":"t","name":"Track","trackType":"overlay","items":items}]})).unwrap();
     let evaluated = crate::evaluated_scene::evaluate_project(&project, 1, 1, 10).unwrap();
     assert!(evaluated.scene.mattes.is_none());
     let schedule = crate::evaluated_scene::mattes::frame_schedule(&evaluated.scene, 400).unwrap();

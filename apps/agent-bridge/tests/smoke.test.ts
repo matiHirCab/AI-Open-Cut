@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
@@ -620,6 +621,10 @@ it("aligns known text and preserves caption retry, history and reopen through MC
 
 it("generates speech markers with atomic failure, history and reopen through MCP", async () => {
   await verifySpeechMarkerWorkflow(client, call);
+});
+
+it("routes project buses with atomic aliases, drafts, failures, history and reopen through MCP", async () => {
+  await verifyAudioBusWorkflow(client, call);
 });
 
 it("supports discoverable voices, preview, commit, discard, and in-place regeneration", async () => {

@@ -74,6 +74,7 @@ fn signed_copy_offsets_shift_complete_component_source_clock() {
             json!([definition("leaf", json!([child]))]),
         );
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("audioBuses");
         value["components"][0]["markers"] = json!([]);
         value["fonts"] = json!({});
         value["markers"] = json!([]);
@@ -122,6 +123,7 @@ fn shifted_sources_can_enter_ancestor_clips_but_cannot_escape_them() {
             json!([definition("leaf", json!([child]))]),
         );
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("audioBuses");
         value["components"][0]["markers"] = json!([]);
         value["fonts"] = json!({});
         value["markers"] = json!([]);
@@ -431,12 +433,14 @@ fn shifted_transition_budget_boundaries_preflight_before_copies() {
     for offset in [-60000, 0, 60000] {
         let mut exact = transition_fixture(16, 255, false);
         exact.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        exact.audio_buses = crate::default_audio_buses();
         if let TimelineItem::Repeater(item) = &mut exact.tracks[0].items[1] {
             item.repeater.time_offset_ms = offset;
         }
         assert!(evaluate_project(&exact, 100, 100, 30).is_ok());
         let mut over = transition_fixture(16, 255, true);
         over.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        over.audio_buses = crate::default_audio_buses();
         if let TimelineItem::Repeater(item) = &mut over.tracks[0].items[1] {
             item.repeater.time_offset_ms = offset;
         }
@@ -455,6 +459,7 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
     let group = json!({"type":"group","id":"parent","startMs":0,"durationMs":u64::MAX,"hidden":true,"staggerMs":1,"stackOrder":0,"zIndex":0});
     let mut value = project_value(json!([group, first, last]), json!([]));
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
+    value["audioBuses"] = json!(crate::default_audio_buses());
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     reject_inherited(
@@ -470,6 +475,7 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
         json!([definition("unused", json!([group, child]))]),
     );
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
+    value["audioBuses"] = json!(crate::default_audio_buses());
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     value["components"][0]["markers"] = json!([]);
@@ -500,6 +506,7 @@ fn staggered_controller_restores_short_source_with_fractional_signed_clocks() {
         root["staggerMs"] = json!(200);
         let mut value = project_value(json!([root]), json!([definition("leaf", json!(children))]));
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("audioBuses");
         value["markers"] = json!([]);
         value["fonts"] = json!({});
         value["components"][0]["markers"] = json!([]);
@@ -560,6 +567,7 @@ fn nested_repeater_controller_shifts_source_stages_once_and_preserves_outside_cl
         ]),
     );
     value["schemaVersion"] = json!(26);
+    value.as_object_mut().unwrap().remove("audioBuses");
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     for c in value["components"].as_array_mut().unwrap() {

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { restoreAudioBusCatalogMarker } from "./audio-buses-projection";
 import { removeKnownTextMcpAdditions } from "./known-text-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import addition from "./speech-alignment-addition.json";
@@ -16,7 +17,9 @@ const digest = (value: unknown) =>
 export const restoreSpeechAlignmentCatalogMarker = (
   source: unknown
 ): RecordValue => {
-  const value = object(source);
+  const raw = object(source);
+  const value =
+    raw.projectSchemaVersion === 39 ? restoreAudioBusCatalogMarker(raw) : raw;
   if (value.projectSchemaVersion !== 38) {
     throw new Error(
       "Incorrect approved speech alignment marker: Unrelated verified predecessor"

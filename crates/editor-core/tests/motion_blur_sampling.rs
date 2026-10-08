@@ -736,9 +736,11 @@ fn migration_adopts_complete_history_and_rejects_premature_fields_atomically() {
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(27);
+    current.as_object_mut().unwrap().remove("audioBuses");
     for key in ["undo", "redo"] {
         for snapshot in history[key].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(27);
+            snapshot.as_object_mut().unwrap().remove("audioBuses");
         }
     }
     std::fs::write(
@@ -771,6 +773,15 @@ fn migration_adopts_complete_history_and_rejects_premature_fields_atomically() {
     for stack in ["undo", "redo"] {
         let mut invalid_history = adopted.clone();
         invalid_history[stack][0]["schemaVersion"] = json!(27);
+        if invalid_history[stack][0]["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            invalid_history[stack][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("audioBuses");
+        }
         let mut premature = current["tracks"][1]["items"][0].clone();
         premature["motionBlur"] = Value::Null;
         invalid_history[stack][0]["tracks"][1]["items"] = json!([premature]);
@@ -1346,9 +1357,11 @@ fn legacy_draft_fields_fail_before_adoption_and_compatible_drafts_reopen_determi
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     project["schemaVersion"] = json!(27);
+    project.as_object_mut().unwrap().remove("audioBuses");
     for stack in ["undo", "redo"] {
         for snapshot in history[stack].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(27);
+            snapshot.as_object_mut().unwrap().remove("audioBuses");
         }
     }
     std::fs::write(

@@ -792,6 +792,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -815,6 +816,7 @@ mod tests {
                 probe: None,
             }],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "video".into(),
                 name: "Video".into(),
                 track_type: TrackType::Video,

@@ -1468,6 +1468,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -1489,6 +1490,7 @@ mod tests {
         project.settings.height = 180;
         project.settings.fps = 15;
         project.tracks.push(Track {
+            audio_bus_id: None,
             id: "overlay".into(),
             name: "Overlay".into(),
             track_type: TrackType::Overlay,
@@ -1642,6 +1644,7 @@ mod tests {
     fn canonical_evaluation_failure_precedes_workspace_and_process_side_effects() {
         let mut project = empty_project();
         project.tracks.push(Track {
+            audio_bus_id: None,
             id: "video".into(),
             name: "Video".into(),
             track_type: TrackType::Video,
@@ -1739,6 +1742,7 @@ mod tests {
             probe: None,
         });
         project.tracks.push(Track {
+            audio_bus_id: None,
             id: "video-track".into(),
             name: "Video".into(),
             track_type: TrackType::Video,
@@ -1833,6 +1837,7 @@ mod tests {
             Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
         let mut project = visual_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         let effects = (0..16)
             .map(|i| crate::VisualEffect::ColorAdjustment {
                 id: format!("grade-{i}"),
@@ -1906,6 +1911,7 @@ mod tests {
                 Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
             let mut project = visual_project();
             project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+            project.audio_buses = crate::default_audio_buses();
             let effects=(0..if unavailable{1}else{16}).map(|index|serde_json::json!({"id":format!("particles-{index}"),"type":"particle_overlay","count":256,"seed":1,"radiusPx":16,"speedPxPerSecond":12,"lifetimeMs":1000,"color":{"r":0,"g":1,"b":0,"a":0.7}})).collect::<Vec<_>>();
             let size = if unavailable { 32 } else { 3000 };
             project.tracks[0].items=vec![
@@ -2121,6 +2127,7 @@ mod tests {
 
         let mut missing = empty_project();
         missing.tracks.push(Track {
+            audio_bus_id: None,
             id: "missing-track".into(),
             name: "Missing".into(),
             track_type: TrackType::Video,
@@ -2696,6 +2703,7 @@ mod tests {
         let adjacent = vec![(0, 1_000), (1_100, 2_000)];
         assert!(ducking_gain_at(&settings, &adjacent, 1_050) < 0.5);
         let track = Track {
+            audio_bus_id: None,
             id: "music".into(),
             name: "Music".into(),
             track_type: TrackType::Audio,
@@ -2750,6 +2758,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -2762,6 +2771,7 @@ mod tests {
             settings: ProjectSettings::default(),
             assets: assets.to_vec(),
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "voiceover".into(),
                 name: "Voiceover".into(),
                 track_type: TrackType::Audio,
@@ -2853,6 +2863,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -2865,6 +2876,7 @@ mod tests {
             settings: ProjectSettings::default(),
             assets: vec![],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "overlay".into(),
                 name: "Overlay".into(),
                 track_type: TrackType::Overlay,
@@ -3064,6 +3076,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -3076,6 +3089,7 @@ mod tests {
             settings: ProjectSettings::default(),
             assets: vec![],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "overlay".into(),
                 name: "Overlay".into(),
                 track_type: TrackType::Overlay,
@@ -3139,6 +3153,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -3219,6 +3234,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -3247,6 +3263,7 @@ mod tests {
             }],
             tracks: vec![
                 Track {
+                    audio_bus_id: None,
                     id: "overlay".into(),
                     name: "Overlay".into(),
                     track_type: TrackType::Overlay,
@@ -3334,6 +3351,7 @@ mod tests {
                     ],
                 },
                 Track {
+                    audio_bus_id: None,
                     id: "audio".into(),
                     name: "Audio".into(),
                     track_type: TrackType::Audio,
@@ -3492,6 +3510,7 @@ mod tests {
             ],
         };
         let project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -3508,6 +3527,7 @@ mod tests {
             },
             assets: vec![],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "overlay".into(),
                 name: "Overlay".into(),
                 track_type: TrackType::Overlay,
@@ -3801,6 +3821,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
             components: vec![],
@@ -3813,6 +3834,7 @@ mod tests {
             settings: ProjectSettings::default(),
             assets: vec![],
             tracks: vec![Track {
+                audio_bus_id: None,
                 id: "caption-track".into(),
                 name: "Captions".into(),
                 track_type: TrackType::Caption,
@@ -4180,6 +4202,7 @@ mod tests {
         let root = tempdir().unwrap();
         let mut project = visual_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         let (text, faces) =
             crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
         for bytes in faces.values() {
@@ -4243,6 +4266,7 @@ mod tests {
         let root = tempdir().unwrap();
         let mut project = visual_project();
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
+        project.audio_buses = crate::default_audio_buses();
         let (text, faces) =
             crate::evaluated_scene::text_layout::tests::sample(crate::TextLayout::default());
         std::fs::create_dir(root.path().join("fonts")).unwrap();

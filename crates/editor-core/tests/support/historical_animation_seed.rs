@@ -77,6 +77,9 @@ pub(crate) fn write(dir: &Path, current: &Value, undo: &Value, redo: &Value) {
 }
 pub(crate) fn historical(mut value: Value, version: u32) -> Value {
     value["schemaVersion"] = json!(version);
+    if version < 39 {
+        value.as_object_mut().unwrap().remove("audioBuses");
+    }
     value
 }
 pub(crate) fn slot_generation(mut p: Value, value: f64) -> Value {

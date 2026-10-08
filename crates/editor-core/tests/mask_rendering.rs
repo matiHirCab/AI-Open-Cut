@@ -173,6 +173,7 @@ fn source32_channels_reject_even_empty_keys_without_migration_writes() {
         let path = core.paths().project_dir(&id).unwrap().join("project.json");
         let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         document["schemaVersion"] = json!(32);
+        document.as_object_mut().unwrap().remove("audioBuses");
         let target = document["tracks"]
             .as_array_mut()
             .unwrap()
@@ -363,6 +364,9 @@ fn schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back(
             Value::Object(fields) => {
                 if fields.contains_key("schemaVersion") {
                     fields.insert("schemaVersion".into(), json!(to));
+                    if to < 39 && fields.contains_key("tracks") && fields.contains_key("assets") {
+                        fields.remove("audioBuses");
+                    }
                 }
                 for v in fields.values_mut() {
                     version(v, to)
@@ -456,6 +460,7 @@ fn schema32_static_masks_adopt_all_generations_but_newly_unsafe_masks_roll_back(
     let p = core.paths().project_dir(&id).unwrap().join("project.json");
     let mut value: Value = serde_json::from_slice(&std::fs::read(&p).unwrap()).unwrap();
     value["schemaVersion"] = json!(32);
+    value.as_object_mut().unwrap().remove("audioBuses");
     let leaf = value["tracks"]
         .as_array_mut()
         .unwrap()
@@ -494,6 +499,7 @@ fn source32_retained_draft_mask_channel_tags_reject_even_empty_keys_atomically()
         let mut project: Value =
             serde_json::from_slice(&std::fs::read(&project_path).unwrap()).unwrap();
         project["schemaVersion"] = json!(32);
+        project.as_object_mut().unwrap().remove("audioBuses");
         std::fs::write(project_path, serde_json::to_vec(&project).unwrap()).unwrap();
         let path = dir.join("drafts").join(format!("{}.json", draft.id));
         let mut raw: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();

@@ -95,6 +95,9 @@ const markerIdentifier = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/);
 const markerScope = z
   .string()
   .regex(/^(?:root|component:[A-Za-z0-9_-]{1,128})$/);
+const audioBusScope = z
+  .string()
+  .regex(/^(?:root|component:@?[A-Za-z0-9_-]{1,128})$/);
 const safeMilliseconds = z.int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const markerTimeExpressionSchema = z.strictObject({
   markerName: markerIdentifier,
@@ -676,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(38).optional(),
+    projectSchemaVersion: z.literal(39).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1728,6 +1731,7 @@ export const componentInstanceUpdateSchema = instanceTimingSchema
   .strict();
 export const componentTrackSchema = z
   .object({
+    audioBusId: id.nullable().optional(),
     audioRole: audioRoleSchema.default("unassigned"),
     ducking: duckingSchema.nullable().default(null),
     hidden: z.boolean().default(false),
@@ -1858,6 +1862,11 @@ export const projectSummarySchema = z
 
 export const projectListSchema = z.array(projectSummarySchema);
 
+export const audioBusSchema = z.strictObject({
+  id,
+  outputBusId: id.nullable(),
+});
+
 export const projectStateSchema = z
   .object({
     durationMs: milliseconds,
@@ -1897,6 +1906,7 @@ export const projectStateSchema = z
             })
             .strict()
         ),
+        audioBuses: z.array(audioBusSchema),
         components: z.array(componentDefinitionSchema).max(512),
         createdAtMs: milliseconds,
         fonts: fontCatalogSchema,
@@ -1904,7 +1914,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(38),
+        schemaVersion: z.literal(39),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1915,6 +1925,7 @@ export const projectStateSchema = z
         tracks: z.array(
           z
             .object({
+              audioBusId: id.nullable().optional(),
               audioRole: audioRoleSchema,
               ducking: duckingSchema.nullable(),
               hidden: z.boolean(),
@@ -2007,6 +2018,17 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    busId: id,
+    operation: z.literal("audio_bus_set_route"),
+    outputBusId: id,
+  }),
+  z.strictObject({
+    busId: id.nullable(),
+    operation: z.literal("audio_track_route"),
+    scope: audioBusScope,
+    trackId: id,
+  }),
   z.strictObject({
     alignment: speechAlignmentSchema.optional(),
     assetId: id,
@@ -2419,6 +2441,12 @@ export const schemas = {
       mediaType: z.enum(["image", "video", "audio"]),
       path: z.string().min(1),
     })
+    .strict(),
+  audioBusSetRoute: projectRevisionSchema
+    .extend({ busId: id, outputBusId: id })
+    .strict(),
+  audioTrackRoute: projectRevisionSchema
+    .extend({ busId: id.nullable(), scope: audioBusScope, trackId: id })
     .strict(),
   componentCreate: projectRevisionSchema
     .extend(componentFieldsSchema.shape)

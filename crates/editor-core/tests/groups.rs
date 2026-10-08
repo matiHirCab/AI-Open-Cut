@@ -192,6 +192,7 @@ fn canonical_graph_failures_are_rejected_on_open_without_publication() {
         assert_eq!(std::fs::read(dir.join("history.json")).unwrap(), history);
         let mut legacy = state.clone();
         legacy["schemaVersion"] = json!(9);
+        legacy.as_object_mut().unwrap().remove("audioBuses");
         clear_legacy_font_fields(&mut legacy);
         legacy["tracks"][1]["items"] = json!([]);
         let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
@@ -405,9 +406,16 @@ fn migration_preserves_every_supported_history_and_rejects_bad_graphs_atomically
         let dir = core.paths().project_dir(&id).unwrap();
         let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         state["schemaVersion"] = json!(version);
+        if state["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 39)
+        {
+            state.as_object_mut().unwrap().remove("audioBuses");
+        }
         clear_legacy_font_fields(&mut state);
         let mut oldest = state.clone();
         oldest["schemaVersion"] = json!(1);
+        oldest.as_object_mut().unwrap().remove("audioBuses");
         clear_legacy_font_fields(&mut oldest);
         std::fs::write(
             dir.join("project.json"),
