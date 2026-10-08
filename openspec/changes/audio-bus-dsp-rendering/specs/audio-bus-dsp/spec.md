@@ -74,3 +74,7 @@ Protocol1 SHALL add unique audio_bus_set_dsp tool/operation and audio_bus_dsp_v1
 #### Scenario: Reject unrelated contract and consumer drift
 - **WHEN** a producer or gate changes beyond approved additions or omits/masks a required consumer
 - **THEN** independent predecessor and policy negatives reject without altering old hashes/counts/oracles
+
+#### Scenario: Retain deterministic catalog expansion within existing verification bounds
+- **WHEN** additive DSP schemas and every historical projection are expanded under the unchanged standard contract test
+- **THEN** preserve complete ordered JSON trees, independent mutable schema occurrences, strict reference errors and every literal digest/count while avoiding redundant intermediate cloning; retain the original five-second test timeout and every assertion

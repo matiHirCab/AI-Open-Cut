@@ -688,6 +688,74 @@ describe("canonical public contracts", () => {
     ).toBe(true);
   });
 
+  it("isolates nested memoized references across branches tools and calls", () => {
+    const source = {
+      $defs: {
+        Leaf: { properties: { choices: { enum: ["first", "second"] } } },
+        Parent: {
+          properties: {
+            left: { $ref: "#/$defs/Leaf" },
+            right: { $ref: "#/$defs/Leaf" },
+          },
+        },
+      },
+      capabilityIdentifiers: [],
+      prompts: [],
+      resources: [],
+      toolDefinitions: Object.fromEntries(
+        ["first", "second"].map((name) => [
+          name,
+          {
+            annotations: {},
+            inputSchema: { $ref: "#/$defs/Parent" },
+            outputSchema: { $ref: "#/$defs/Parent" },
+          },
+        ])
+      ),
+      tools: ["first", "second"],
+      version: 1,
+    };
+    const original = JSON.stringify(source);
+    const first = expandMcpSurfaceCatalog(source);
+    const second = expandMcpSurfaceCatalog(source);
+    const unchanged = JSON.stringify(first);
+    interface Parent {
+      properties: Record<
+        string,
+        { properties: { choices: { enum: string[] } } }
+      >;
+    }
+    const tool = first.toolDefinitions.first as NonNullable<
+      typeof first.toolDefinitions.first
+    >;
+    const secondTool = second.toolDefinitions.first as NonNullable<
+      typeof second.toolDefinitions.first
+    >;
+    expect(secondTool).toBeDefined();
+    const input = tool.inputSchema as unknown as Parent;
+    const left = input.properties.left as NonNullable<
+      Parent["properties"][string]
+    >;
+    const right = input.properties.right as NonNullable<
+      Parent["properties"][string]
+    >;
+    expect(left).not.toBe(right);
+    expect(left.properties.choices.enum).not.toBe(
+      right.properties.choices.enum
+    );
+    left.properties.choices.enum[0] = "changed";
+    expect(right.properties.choices.enum).toEqual(["first", "second"]);
+    expect(JSON.stringify(tool.outputSchema)).toBe(
+      JSON.stringify(secondTool.outputSchema)
+    );
+    expect(JSON.stringify(first.toolDefinitions.second)).toBe(
+      JSON.stringify(second.toolDefinitions.second)
+    );
+    expect(JSON.stringify(first)).not.toBe(unchanged);
+    expect(JSON.stringify(second)).toBe(unchanged);
+    expect(JSON.stringify(source)).toBe(original);
+  });
+
   it("governs every mask model fixture in the canonical contract gate", () => {
     expect(MASK_MODELS.capability).toBe(MASK_MODELS_CAPABILITY);
     expect(HEADLESS_CONTRACT.status.editorCapabilities).toContain(
