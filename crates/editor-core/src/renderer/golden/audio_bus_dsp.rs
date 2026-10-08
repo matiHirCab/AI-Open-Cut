@@ -67,6 +67,7 @@ fn native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_co
         "master",
         "neutral",
         "unreachable",
+        "zero_gain",
         "event_route",
         "component_clock",
     ] {
@@ -146,6 +147,13 @@ fn native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_co
                 set(&mut p, 2, dsp.clone());
                 dsp = identity();
                 "anull"
+            }
+            "zero_gain" => {
+                if let TimelineItem::Media(item) = &mut p.tracks[1].items[0] {
+                    item.audio.volume = 0.0;
+                }
+                dsp["gainDb"] = json!(-6);
+                "volume=0"
             }
             "event_route" => {
                 p.sound_definitions = vec![crate::SoundEventDefinition {
@@ -347,10 +355,21 @@ fn native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_co
             structural_similarity(&preview_rgb, &exported_rgb).unwrap() >= SSIM_MINIMUM,
             "{case} RGB"
         );
-        assert!(
-            actual.iter().any(|s| s.abs() > 0.01),
-            "{case} cannot silently drop audio"
-        );
+        if case == "zero_gain" {
+            assert!(
+                actual.iter().all(|sample| *sample == 0.0),
+                "known silent PCM"
+            );
+            assert!(
+                exported.iter().all(|sample| *sample == 0.0),
+                "known silent export PCM"
+            );
+        } else {
+            assert!(
+                actual.iter().any(|s| s.abs() > 0.01),
+                "{case} cannot silently drop audio"
+            );
+        }
         let duration = renderer.probe(&output).unwrap().duration_ms.unwrap();
         assert!(duration.abs_diff(1000) <= 100, "{case} timing {duration}");
     }
@@ -427,4 +446,90 @@ fn neutral_and_unreachable_dsp_preserve_exact_evaluated_scene_and_plan() {
             plan(&baseline.scene).unwrap()
         );
     }
+}
+
+#[test]
+fn zero_item_gain_preserves_legacy_scene_despite_volume_automation_and_bus_dsp() {
+    let mut p = fixture();
+    if let TimelineItem::Media(item) = &mut p.tracks[1].items[0] {
+        item.audio.volume = 0.0;
+        item.keyframes = serde_json::from_value(json!([
+            {"property":"volume","timeMs":0,"value":{"type":"scalar","value":1},"easing":"linear"},
+            {"property":"volume","timeMs":500,"value":{"type":"scalar","value":2},"easing":"linear"}
+        ]))
+        .unwrap();
+    }
+    let baseline = evaluate_project(&p, WIDTH, HEIGHT, FPS).unwrap();
+    set(
+        &mut p,
+        1,
+        json!({"gainDb":-6,"pan":0,"eq":[],"compressor":null}),
+    );
+    let current = evaluate_project(&p, WIDTH, HEIGHT, FPS).unwrap();
+    assert_eq!(current.scene, baseline.scene);
+    assert_eq!(
+        format!("{:?}", current.scene),
+        format!("{:?}", baseline.scene)
+    );
+    let plan = |scene: &EvaluatedScene| {
+        build_render_plan(
+            scene,
+            &HashMap::new(),
+            vec![crate::render_plan::MediaInputRequest {
+                item_id: "tone-item".into(),
+                asset_id: "tone".into(),
+                project_relative_path: PathBuf::from("assets/tone.wav"),
+                input_index: 2,
+                media_type: MediaType::Audio,
+                source_in_ms: 0,
+                duration_ms: 1000,
+            }],
+            vec![PathBuf::from("tone.wav")],
+            None,
+            RenderIntent::Export,
+            &mut vec![],
+        )
+        .unwrap()
+    };
+    assert_eq!(plan(&current.scene), plan(&baseline.scene));
+}
+
+#[test]
+fn audible_upstream_route_activates_dsp_and_keeps_zero_gain_stream_connected() {
+    let mut p = fixture();
+    let mut audible = p.tracks[1].clone();
+    audible.id = "audible-sfx".into();
+    audible.audio_bus_id = Some("sfx".into());
+    if let TimelineItem::Media(item) = &mut audible.items[0] {
+        item.id = "audible-tone".into();
+    }
+    if let TimelineItem::Media(item) = &mut p.tracks[1].items[0] {
+        item.audio.volume = 0.0;
+    }
+    p.tracks.push(audible);
+    set(
+        &mut p,
+        1,
+        json!({"gainDb":-6,"pan":0,"eq":[],"compressor":null}),
+    );
+    // The audible signal bypasses the changed bus: preserve the legacy graph.
+    let bypassed = evaluate_project(&p, WIDTH, HEIGHT, FPS).unwrap();
+    assert!(bypassed.scene.audio_bus_graph.is_none());
+    assert!(
+        bypassed
+            .scene
+            .audio_layers
+            .iter()
+            .all(|layer| layer.bus_index.is_none())
+    );
+    p.audio_buses[2].output_bus_id = Some("music".into());
+    let routed = evaluate_project(&p, WIDTH, HEIGHT, FPS).unwrap();
+    let graph = routed.scene.audio_bus_graph.as_ref().unwrap();
+    assert_eq!(
+        graph.buses.iter().map(|bus| bus.index).collect::<Vec<_>>(),
+        vec![2, 1, 3]
+    );
+    assert_eq!(routed.scene.audio_layers.len(), 2);
+    assert_eq!(routed.scene.audio_layers[0].bus_index, Some(1));
+    assert_eq!(routed.scene.audio_layers[1].bus_index, Some(2));
 }

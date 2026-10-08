@@ -1,4 +1,8 @@
-# Issue66 verified implementation and archived specification
+# Issue66 verification record — known-silent correction reopened
+
+Current status: the approved zero-item-gain activation correction is implemented; local exact-plan/native and strict Clippy checks pass; fresh full CI, conformance review and rearchive remain pending. The prior verification sections below record historical evidence and do not complete the reopened tasks. The approved deltas now contain9 requirements/24 scenarios.
+
+## Historical first-archive acceptance
 
 This is a separate same-agent reviewer-role audit under delegated scoped approval, not an independent human review or GitHub APPROVED. Reviewed the approved four deltas (9 requirements/23 scenarios), design, canonical owners, implementation, independently captured predecessor fixtures and original check logs. All9 functional CI jobs at corrected implementation head4d8bcbcc passed; local archive acceptance passes; final exact-head acceptance remains pending. No future self-head evidence is claimed.
 
@@ -29,3 +33,11 @@ Corrected-head standard CI passed all29 source and26 packaged tests, contract pa
 ## Final local archive verification
 
 Applied6 added requirements and3 expressly modified requirements (9 requirements/23 scenarios) to the four governed capabilities, with no removals. Archived only audio-bus-dsp-rendering. Preservation checks prove1359 prior living/archive files byte-exact,59 unmodified requirements in the three touched living specs retained, and the complete original persistence raw prefix retained. Protected Moon and pinned strict-all OpenSpec both pass all52 items, with valid mandatory CI policy. All16 implementation/lifecycle tasks are complete. Separate corrected-head same-agent reviewer COMMENT5456451513 records conformance and all9 functional CI successes at4d8bcbcc; no independent human/GitHub APPROVED is claimed. Final self-head CI/startup/source-tested-merge receipt remains outside this artifact and blocks issue completion/67 implementation until confirmed.
+
+## Reopened known-silent activation check
+
+Final review found an uncovered boundary: zero evaluated item gain always multiplies audio controls to zero, but selected-layer reachability still activates DSP. Reopened only the same unmerged66 scope, preserving every original predecessor spec/archive. Approval/design/scenario precede executable edits. Previous all9 functional successes and local archive validation remain valid historical evidence; final acceptance and affected tasks are pending the known-silent correction, required tests/review and rearchive. No issue completion or67 implementation has occurred.
+
+## Known-silent correction local evidence
+
+The new zero-volume-with-automation regression failed against the previous implementation with scene inequality; the original failure is preserved. The canonical evaluator now separately propagates potentially audible reachability from positive evaluated item gain and complete selected-stream reachability. Only the former activates nonidentity DSP; the latter retains every connected stream after activation. Authored DSP still validates before either decision. Pure tests prove exact legacy scene/Debug/plan equality, no activation when audible audio bypasses changed DSP, and activation with an audible upstream route while the zero-gain stream remains connected. Required native conformance passes14 cases, including exact-zero range/export PCM, all original audible-presence assertions, stereo channels and unchanged RGB/PCM/timing thresholds (5 tests,145.61s). The final explicit-plan regression also passes. Strict workspace Clippy, fmt and strict scoped OpenSpec pass. Required full standard remote checks and final conformance/rearchive remain pending; unchanged historical contract/TypeScript/Python evidence is retained without claiming completion of fresh CI.

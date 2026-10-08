@@ -48,15 +48,15 @@ Standalone, ordered timeline_batch_edit and durable-draft placement SHALL use th
 - **THEN** all surfaces retain the exact variant snapshot and marker expression under shared core validation
 
 ### Requirement: Shared deterministic audio-only event evaluation
-The canonical scene SHALL evaluate event-bearing media as audio-only, including video-bearing variants, and apply audio.volume * 10^((captured defaultGainDb+gainDb)/20) once while retaining existing fades/mute/volume animation/source timing and role ducking. Preview/draft/export MUST share that behavior and existing SSIM>=0.99, aligned float-PCM RMS<=0.0001 and one-frame bounds. In schema42 approved bus DSP, captured bus identity SHALL select the starting route ahead of track explicit/role fallback without rewriting captured content/gains; older/neutral DSP remains identity. Projects without audioEvent metadata MUST retain exact evaluated plans, filter graphs, RGB and PCM.
+The canonical scene SHALL evaluate event-bearing media as audio-only, including video-bearing variants, and apply audio.volume * 10^((captured defaultGainDb+gainDb)/20) once while retaining existing fades/mute/volume animation/source timing and role ducking. Preview/draft/export MUST share that behavior and existing SSIM>=0.99, aligned float-PCM RMS<=0.0001 and one-frame bounds. Captured bus identity SHALL remain metadata until later approved DSP activation. Projects without audioEvent metadata MUST retain exact evaluated plans, filter graphs, RGB and PCM.
 
 #### Scenario: Compare native event and equivalent media
-- **WHEN** fixed audio and audio-bearing video are placed via semantic events and equivalent ordinary audio-only media with the same effective gain/timing and bus route
+- **WHEN** fixed audio and audio-bearing video are placed via semantic events and equivalent ordinary audio-only media with the same effective gain/timing
 - **THEN** native preview/export/draft match original RGB/PCM/timing oracles and video events do not add visual layers
 
 #### Scenario: Preserve legacy role and render behavior
-- **WHEN** a project contains only ordinary media or a definition is registered/replaced without placement, and DSP is absent/neutral/unreachable
-- **THEN** every existing plan/filter/ducking and native pixel/audio result remains exact without altering old role ducking or claiming unimplemented explicit-bus side-chain support
+- **WHEN** a project contains only ordinary media or a definition is registered/replaced without placement
+- **THEN** every existing plan/filter/ducking and native pixel/audio result remains exact without claiming bus DSP support
 
 ### Requirement: Independently governed additive placement contracts
 Protocol1 SHALL retain every old contract while adding timeline_add_audio_event, timeline_audio_events_v1 support and schema41 reporting. Canonical timeline-audio-events-v1, Rust, Zod/MCP, headless, drafts and persisted responses MUST agree. Seven active current-schema headers MUST advance exactly40→41; all frozen catalogs/counts/original assertions SHALL remain independently pinned. Projection MUST permit only exact independently captured new surfaces, rejecting unrelated schema/annotation/error/capability drift. Every original full contract/integration/package/native consumer MUST remain mandatory.

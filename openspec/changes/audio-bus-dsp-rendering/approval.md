@@ -11,3 +11,7 @@ Approve complete strict checks, actual independent native overlap-compression/ga
 ## User merge reconciliation
 
 At11:08UTC main068f5904dd090e4038c10a8edf3ed88e718cd46b contains user merges157→158→159→160. Its tree equals verified predecessor6b5 exactly. Fast-forwarded this issue branch to include those merge commits, retaining all scoped uncommitted66 work. The branch still descends the exact verified64 head; PR targets main and now shows66 only. No predecessor work was discarded.
+
+## Delegated final correction approval before executable edits
+
+Explicitly approve reopening this same unmerged issue66 change for the existing inactive/unreachable-DSP requirement and its new known-silent scenario (9 requirements/24 scenarios total). Main remains068f5904 and no other archive/spec is changed. Item gain0 multiplies all automation: a positive evaluated gain must witness activation through canonical routes; all selected routes remain connected whenever another input activates DSP. This restores exact legacy scene/plan/filter/readiness for provably silent sources while preserving all validation, positive/upstream processing, limits, fixtures, typed surfaces and errors. Existing delegated issue-scoped approval and lifecycle authorization applies; no independent human/GitHub APPROVED is claimed. Preserve previous CI/local failures and acceptance records, red-test this edge before the production correction, run required checks and rearchive before final all11 exact-head completion/67.

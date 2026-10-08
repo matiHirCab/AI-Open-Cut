@@ -27,3 +27,7 @@ Nonlinear compression before summation is wrong→overlapping-source reference p
 ## Delivery
 
 Required checks and substantive transparent separate same-agent COMMENT precede sync/archive. Final all11 exact-head CI, startup evidence and source/tested-merge equality receipt precede issue completion or67 implementation. Every PR targets main and successor starts preceding verified head. No merge/deploy/close.
+
+## Final known-silent reachability correction
+
+Zero evaluated item gain multiplies all existing volume/gain automation and fades, so it cannot carry a signal. DSP activation must therefore witness a positive-gain input reaching nonidentity settings, propagating that witness through the same fixed4 routes. Retain the complete selected-input reachability graph once any audible DSP activates, so zero-gain streams still have connected consumers and preserve original clocks/routes; no dangling labels or extra dependency filter is introduced. Validate every authored setting first, including identity/unreachable/invalid settings. No decoded waveform inference, extra resource owner, public/schema change or budget/threshold relaxation is introduced. Add exact zero-gain/automation and positive-upstream coverage plus a native zero-gain case against independent legacy references.

@@ -45,6 +45,10 @@ Every render intent SHALL consume one renderer-neutral evaluated bus graph. Each
 - **WHEN** all reached DSP is absent/identity or changed DSP has no audible input
 - **THEN** original scenes/plans/filter graphs and required legacy pixels/audio remain exact
 
+#### Scenario: Preserve a known silent routed signal
+- **WHEN** every selected input reaching changed DSP has zero evaluated item gain, including volume automation on that zero-gain item
+- **THEN** retain the exact legacy scene/plan/filter/readiness behavior because item gain multiplies every audio control; positive-gain upstream routes still activate processing and all authored settings still validate
+
 #### Scenario: Compare native gain balance EQ and compressor across intents
 - **WHEN** fixed normalized effects are rendered in frame/range/draft/export and history/reopen
 - **THEN** common evaluated semantics satisfy original SSIM>=0.99, aligned float-PCM RMS<=0.0001 and one-frame timing bounds against independent native references

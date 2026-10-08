@@ -23,7 +23,9 @@ stereo balance before its output bus. Master runs once. Active DSP uses48kHz
 planar float stereo with standard FFmpeg channel conversion; negative pan
 attenuates the right channel by1+pan and positive pan attenuates the left by1−pan.
 Center leaves both channels unchanged. Neutral or unreachable DSP retains the
-legacy scene, plan, graph and audio output exactly.
+legacy scene, plan, graph and audio output exactly. A zero item gain stays silent
+even with automation and cannot activate DSP. An audible upstream route through
+that bus can activate DSP; all selected streams remain connected.
 
 DSP editing remains available independently of render readiness. Status advertises
 `audio_bus_dsp_v1` only when the base renderer and all five required DSP filters

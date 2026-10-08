@@ -25,9 +25,9 @@
 
 ## 5. Verification
 
-- [x] 5.1 Pass fmt, strict workspace Clippy, full workspace, bridge typecheck/lint/unit/contracts/integration/package smoke, hermetic Python and complete mandatory native/render/policy checks. Preserve original failures; no profile/timeout/gate/coverage/oracle reduction.
-- [x] 5.2 Perform strict OpenSpec/prearchive Moon, full requirement/scenario/design audit and substantive transparent separate same-agent CODEOWNER COMMENT; fix every mismatch.
-- [x] 5.3 Sync/archive only this approved verified change, preserving untouched specs/archives and old requirement text outside approved modifications, then pass protected Moon/strict all.
+- [ ] 5.1 Pass fmt, strict workspace Clippy, full workspace, bridge typecheck/lint/unit/contracts/integration/package smoke, hermetic Python and complete mandatory native/render/policy checks. Preserve original failures; no profile/timeout/gate/coverage/oracle reduction.
+- [ ] 5.2 Perform strict OpenSpec/prearchive Moon, full requirement/scenario/design audit and substantive transparent separate same-agent CODEOWNER COMMENT; fix every mismatch.
+- [ ] 5.3 Sync/archive only this approved verified change, preserving untouched specs/archives and old requirement text outside approved modifications, then pass protected Moon/strict all.
 
 ## External publication/completion
 

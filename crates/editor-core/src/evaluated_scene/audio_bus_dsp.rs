@@ -50,6 +50,7 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
     }
     project.validate_audio_bus_model()?;
     let mut reachable = [false; 4];
+    let mut audible_reachable = [false; 4];
     for audio in &scene.audio_layers {
         let Some(mut index) = audio.bus_index else {
             continue;
@@ -60,6 +61,10 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
                 .get(index)
                 .ok_or_else(|| invalid("evaluated audio bus was not found"))?;
             reachable[index] = true;
+            // Item gain multiplies every automation control. A zero item gain
+            // cannot activate DSP, but its stream must remain connected when
+            // another potentially audible input activates the bus graph.
+            audible_reachable[index] |= audio.volume > 0.0;
             match &bus.output_bus_id {
                 Some(id) => {
                     index = crate::AUDIO_BUS_IDS
@@ -75,7 +80,7 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
         .audio_buses
         .iter()
         .enumerate()
-        .any(|(i, b)| reachable[i] && b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
+        .any(|(i, b)| audible_reachable[i] && b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
     {
         for audio in &mut scene.audio_layers {
             audio.bus_index = None;
