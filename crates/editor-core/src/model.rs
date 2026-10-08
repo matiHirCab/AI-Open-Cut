@@ -38,7 +38,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 41;
+pub const PROJECT_SCHEMA_VERSION: u32 = 42;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -170,6 +170,15 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 42
+            && value
+                .audio_buses
+                .as_ref()
+                .and_then(Option::as_ref)
+                .is_some_and(|buses| buses.iter().any(|bus| bus.dsp.is_some()))
+        {
+            return Err("audio bus DSP requires schema42".into());
+        }
         if value.schema_version < 40 {
             if value.sound_definitions.is_some() {
                 return Err("sound definitions require schema40".into());
@@ -2460,6 +2469,10 @@ pub enum EditOperation {
         bus_id: String,
         output_bus_id: String,
     },
+    AudioBusSetDsp {
+        bus_id: String,
+        dsp: AudioBusDsp,
+    },
     AudioTrackRoute {
         scope: String,
         track_id: String,
@@ -2932,6 +2945,10 @@ enum EditOperationDef {
     AudioBusSetRoute {
         bus_id: String,
         output_bus_id: String,
+    },
+    AudioBusSetDsp {
+        bus_id: String,
+        dsp: AudioBusDsp,
     },
     AudioTrackRoute {
         scope: String,

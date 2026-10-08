@@ -654,6 +654,7 @@ fn temporal_requested_origin_eligibility_and_media_source_mapping_are_scoped() {
     };
     let calls = std::cell::RefCell::new(vec![]);
     scene.audio_layers.push(EvaluatedAudioLayer {
+        bus_index: None,
         instance: None,
         item_id: "unchanged-audio".into(),
         order: EvaluatedLayerOrder {

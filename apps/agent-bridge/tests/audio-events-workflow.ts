@@ -22,7 +22,7 @@ export const verifyAudioEventWorkflow = async (
   mediaDirectory: string
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(41);
+  expect(status.projectSchemaVersion).toBe(catalog.projectSchemaVersion + 1);
   expect(status.subsystems.editor.capabilities).toContain(catalog.capability);
   const { projectId } = await call(
     "project_create",

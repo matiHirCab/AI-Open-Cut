@@ -47,6 +47,7 @@ const AUDIO_SAMPLE_RATE_HZ: u32 = 48_000;
 const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
+mod audio_bus_dsp;
 mod grids;
 mod inherited_timing;
 mod linear;

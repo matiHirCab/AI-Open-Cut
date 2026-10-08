@@ -861,7 +861,13 @@ fn status(renderer: &Renderer) -> Status {
     let rendering = match renderer.readiness() {
         Ok(()) => SubsystemStatus {
             ready: true,
-            capabilities: render_capabilities(),
+            capabilities: {
+                let mut capabilities = render_capabilities();
+                if renderer.audio_bus_dsp_readiness().is_ok() {
+                    capabilities.push("audio_bus_dsp_v1");
+                }
+                capabilities
+            },
             error: None,
         },
         Err(error) => SubsystemStatus {
@@ -1023,7 +1029,12 @@ mod tests {
             contract["status"]["editorCapabilities"]
         );
         assert_eq!(
-            serde_json::to_value(render_capabilities()).unwrap(),
+            serde_json::to_value({
+                let mut capabilities = render_capabilities();
+                capabilities.push("audio_bus_dsp_v1");
+                capabilities
+            })
+            .unwrap(),
             contract["status"]["renderingCapabilities"]
         );
         assert_eq!(

@@ -35,8 +35,8 @@ const assertKeys = (value: JsonRecord, keys: string[], label: string) => {
   }
 };
 
-// Expanded schemas are JSON trees. Copy every node freshly, including cached
-// references, without structuredClone's platform-dependent graph machinery.
+// Public schemas are independent JSON trees. Keep sharing private to resolution
+// and copy every public node without platform-dependent graph cloning.
 const cloneExpanded = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map(cloneExpanded);
@@ -118,14 +118,14 @@ export const expandMcpSurfaceCatalog = (source: unknown): McpSurfaceCatalog => {
     used.add(name);
     const cached = memo.get(name);
     if (cached) {
-      return asRecord(cloneExpanded(cached), "Copied MCP definition");
+      return cached;
     }
     const resolved = asRecord(
       expand(definitions[name], [...stack, name]),
       `Expanded MCP definition ${name}`
     );
     memo.set(name, resolved);
-    return asRecord(cloneExpanded(resolved), "Copied MCP definition");
+    return resolved;
   }
 
   function expand(value: unknown, stack: string[]): unknown {
@@ -160,11 +160,11 @@ export const expandMcpSurfaceCatalog = (source: unknown): McpSurfaceCatalog => {
             `MCP tool ${name} annotations`
           ),
           inputSchema: asRecord(
-            expand(definition.inputSchema, []),
+            cloneExpanded(expand(definition.inputSchema, [])),
             `MCP tool ${name} inputSchema`
           ),
           outputSchema: asRecord(
-            expand(definition.outputSchema, []),
+            cloneExpanded(expand(definition.outputSchema, [])),
             `MCP tool ${name} outputSchema`
           ),
         },

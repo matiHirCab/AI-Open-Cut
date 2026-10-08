@@ -5,6 +5,7 @@
 //! separate path-bearing resource-binding sidecar.
 use std::collections::{HashMap, HashSet};
 
+pub(crate) mod audio_bus_dsp;
 pub(crate) mod composition_resources;
 pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
@@ -106,6 +107,7 @@ pub(crate) fn evaluate_project(
     masks::certify_authored_program_memory(project)?;
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps, true, false)?;
+    audio_bus_dsp::finalize(project, &mut result.scene)?;
     if let Some(graph) = &mut result.scene.composition_resources {
         // Admit index, sidecar geometric capacity and temporary clone overlaps
         // before cloning any asset identity/hash/path strings.
@@ -515,6 +517,7 @@ fn evaluate_project_inner(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            audio_bus_graph: None,
             aggregates: None,
             composed_input: None,
             mattes: None,
@@ -599,6 +602,7 @@ fn evaluate_project_inner(
                 project_id: project.id.clone(),
                 revision: project.revision,
                 scene: EvaluatedScene {
+                    audio_bus_graph: None,
                     aggregates: result.scene.aggregates.as_ref().map(|_| Default::default()),
                     composed_input: None,
                     mattes: result
@@ -2466,6 +2470,9 @@ impl std::fmt::Debug for EvaluatedScene {
         value.field("resources", &self.resources);
         value.field("visual_layers", &self.visual_layers);
         value.field("audio_layers", &self.audio_layers);
+        if let Some(graph) = &self.audio_bus_graph {
+            value.field("audio_bus_graph", graph);
+        }
         value.field("voiceover_intervals", &self.voiceover_intervals);
         if let Some(extra) = &self.instance_voiceover_intervals {
             value.field("instance_voiceover_intervals", extra);
@@ -2475,6 +2482,7 @@ impl std::fmt::Debug for EvaluatedScene {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
+    pub(crate) audio_bus_graph: Option<audio_bus_dsp::EvaluatedBusGraph>,
     pub(crate) aggregates: Option<group_compositing::AggregateGraph>,
     pub(crate) composed_input: Option<(String, u64)>,
     pub(crate) mattes: Option<mattes::EvaluatedMatteGraph>,
@@ -2904,6 +2912,9 @@ impl std::fmt::Debug for EvaluatedAudioLayer {
         }
         value.field("role", &self.role);
         value.field("ducking", &self.ducking);
+        if let Some(index) = self.bus_index {
+            value.field("bus_index", &index);
+        }
         if let Some(extra) = &self.instance {
             value.field("instance", extra);
         }
@@ -2912,6 +2923,7 @@ impl std::fmt::Debug for EvaluatedAudioLayer {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedAudioLayer {
+    pub(crate) bus_index: Option<usize>,
     pub(crate) instance: Option<EvaluatedInstance>,
     pub(crate) item_id: String,
     pub(crate) order: EvaluatedLayerOrder,
@@ -3043,6 +3055,28 @@ fn evaluate_flat_project(
                         }
                         let ducking = evaluate_ducking(track, !voiceover_intervals.is_empty())?;
                         audio_layers.push(EvaluatedAudioLayer {
+                            bus_index: if project
+                                .audio_buses
+                                .iter()
+                                .any(|b| b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
+                            {
+                                let id = media
+                                    .audio_event
+                                    .as_ref()
+                                    .map(|e| e.bus_id.as_str())
+                                    .or(track.audio_bus_id.as_deref())
+                                    .unwrap_or(track.audio_role.default_audio_bus_id());
+                                Some(
+                                    crate::AUDIO_BUS_IDS
+                                        .iter()
+                                        .position(|b| *b == id)
+                                        .ok_or_else(|| {
+                                            invalid("evaluated audio bus was not found")
+                                        })?,
+                                )
+                            } else {
+                                None
+                            },
                             instance: None,
                             item_id: media.id.clone(),
                             order,
@@ -3364,6 +3398,7 @@ fn evaluate_flat_project(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            audio_bus_graph: None,
             aggregates: None,
             composed_input: None,
             mattes: None,

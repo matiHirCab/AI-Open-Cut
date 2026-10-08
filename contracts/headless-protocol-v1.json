@@ -321,6 +321,33 @@
         "gainDb": -3,
         "variantSeed": 1
       }
+    },
+    "audioBusSetDsp": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "audio_bus_set_dsp",
+        "busId": "music",
+        "dsp": {
+          "gainDb": -6.0,
+          "pan": -0.5,
+          "eq": [
+            {
+              "frequencyHz": 1000.0,
+              "q": 1.0,
+              "gainDb": 3.0
+            }
+          ],
+          "compressor": {
+            "thresholdDb": -12.0,
+            "ratio": 4.0,
+            "attackMs": 10.0,
+            "releaseMs": 100.0,
+            "makeupGainDb": 2.0
+          }
+        }
+      }
     }
   },
   "events": [
@@ -405,7 +432,8 @@
       "transform2d",
       "blend_modes_v1",
       "parameterized_effects_v1",
-      "group_compositing_v1"
+      "group_compositing_v1",
+      "audio_bus_dsp_v1"
     ]
   }
 }

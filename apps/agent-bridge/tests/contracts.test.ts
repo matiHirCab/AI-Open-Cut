@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
+import AUDIO_BUS_DSP from "../../../contracts/audio-bus-dsp-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -67,6 +68,7 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { removeAudioBusDspMcpAdditions } from "./fixtures/audio-bus-dsp-projection";
 import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
 import AUDIO_EVENT_PINS from "./fixtures/audio-events-predecessor-pins.json";
 import { removeAudioEventMcpAdditions } from "./fixtures/audio-events-projection";
@@ -382,7 +384,7 @@ describe("canonical public contracts", () => {
     });
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      AUDIO_EVENTS.projectSchemaVersion
+      AUDIO_BUS_DSP.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
@@ -399,7 +401,7 @@ describe("canonical public contracts", () => {
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
       expect(catalog.projectSchemaVersion, name).toBe(
-        AUDIO_EVENTS.projectSchemaVersion
+        AUDIO_BUS_DSP.projectSchemaVersion
       );
       expect(
         restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
@@ -453,7 +455,14 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(83);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(84);
+    expect(
+      Object.keys(
+        expandMcpSurfaceCatalog(
+          removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
+        ).toolDefinitions
+      )
+    ).toHaveLength(83);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -468,9 +477,17 @@ describe("canonical public contracts", () => {
         ).toolDefinitions
       )
     ).toHaveLength(81);
-    expect(createHash("sha256").update(firstSerialized).digest("hex")).toBe(
-      AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256
-    );
+    expect(
+      createHash("sha256")
+        .update(
+          JSON.stringify(
+            expandMcpSurfaceCatalog(
+              removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
+            )
+          )
+        )
+        .digest("hex")
+    ).toBe(AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256);
     expect(
       createHash("sha256")
         .update(
@@ -669,6 +686,74 @@ describe("canonical public contracts", () => {
     expect(
       Object.is((shared.last as { values: unknown[] }).values[3], -0)
     ).toBe(true);
+  });
+
+  it("isolates nested memoized references across branches tools and calls", () => {
+    const source = {
+      $defs: {
+        Leaf: { properties: { choices: { enum: ["first", "second"] } } },
+        Parent: {
+          properties: {
+            left: { $ref: "#/$defs/Leaf" },
+            right: { $ref: "#/$defs/Leaf" },
+          },
+        },
+      },
+      capabilityIdentifiers: [],
+      prompts: [],
+      resources: [],
+      toolDefinitions: Object.fromEntries(
+        ["first", "second"].map((name) => [
+          name,
+          {
+            annotations: {},
+            inputSchema: { $ref: "#/$defs/Parent" },
+            outputSchema: { $ref: "#/$defs/Parent" },
+          },
+        ])
+      ),
+      tools: ["first", "second"],
+      version: 1,
+    };
+    const original = JSON.stringify(source);
+    const first = expandMcpSurfaceCatalog(source);
+    const second = expandMcpSurfaceCatalog(source);
+    const unchanged = JSON.stringify(first);
+    interface Parent {
+      properties: Record<
+        string,
+        { properties: { choices: { enum: string[] } } }
+      >;
+    }
+    const tool = first.toolDefinitions.first as NonNullable<
+      typeof first.toolDefinitions.first
+    >;
+    const secondTool = second.toolDefinitions.first as NonNullable<
+      typeof second.toolDefinitions.first
+    >;
+    expect(secondTool).toBeDefined();
+    const input = tool.inputSchema as unknown as Parent;
+    const left = input.properties.left as NonNullable<
+      Parent["properties"][string]
+    >;
+    const right = input.properties.right as NonNullable<
+      Parent["properties"][string]
+    >;
+    expect(left).not.toBe(right);
+    expect(left.properties.choices.enum).not.toBe(
+      right.properties.choices.enum
+    );
+    left.properties.choices.enum[0] = "changed";
+    expect(right.properties.choices.enum).toEqual(["first", "second"]);
+    expect(JSON.stringify(tool.outputSchema)).toBe(
+      JSON.stringify(secondTool.outputSchema)
+    );
+    expect(JSON.stringify(first.toolDefinitions.second)).toBe(
+      JSON.stringify(second.toolDefinitions.second)
+    );
+    expect(JSON.stringify(first)).not.toBe(unchanged);
+    expect(JSON.stringify(second)).toBe(unchanged);
+    expect(JSON.stringify(source)).toBe(original);
   });
 
   it("governs every mask model fixture in the canonical contract gate", () => {
@@ -903,7 +988,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
+      projectSchemaVersion: AUDIO_BUS_DSP.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -967,6 +1052,7 @@ describe("canonical public contracts", () => {
       "project_audio_buses_v1",
       SOUND_EVENTS.capability,
       AUDIO_EVENTS.capability,
+      "audio_bus_dsp_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -991,7 +1077,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: AUDIO_EVENTS.projectSchemaVersion,
+        projectSchemaVersion: AUDIO_BUS_DSP.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

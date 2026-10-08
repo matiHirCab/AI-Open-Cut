@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyAudioBusDspWorkflow } from "./audio-bus-dsp-workflow";
 import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
 import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
@@ -1299,4 +1300,8 @@ it("registers sound definitions with aliases, drafts, rollback, ownership and re
 
 it("places semantic sounds through real standalone batch draft history and reopen", async () => {
   await verifyAudioEventWorkflow(client, call, media);
+});
+
+it("runs normalized bus DSP standalone, batch, draft and history transactions", async () => {
+  await verifyAudioBusDspWorkflow(client, call);
 });

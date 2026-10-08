@@ -1,0 +1,39 @@
+{
+  "category": {
+    "canonical": "contracts/audio-bus-dsp-v1.json",
+    "consumers": [
+      "crates/editor-core/src/model.rs",
+      "crates/editor-core/src/model/audio_buses.rs",
+      "crates/editor-core/src/migrations.rs",
+      "crates/editor-core/src/timeline.rs",
+      "crates/editor-core/src/store.rs",
+      "crates/editor-core/src/evaluated_scene.rs",
+      "crates/editor-core/src/evaluated_scene/audio_bus_dsp.rs",
+      "crates/editor-core/src/evaluated_scene/composition_resources.rs",
+      "crates/editor-core/src/render_plan.rs",
+      "crates/editor-core/src/render_plan/audio_bus_dsp.rs",
+      "crates/editor-core/src/render_process.rs",
+      "crates/editor-core/src/renderer.rs",
+      "crates/editor-core/src/renderer/golden/audio_bus_dsp.rs",
+      "crates/editor-core/tests/audio_bus_dsp.rs",
+      "apps/headless/src/main.rs",
+      "apps/headless/tests/protocol.rs",
+      "apps/agent-bridge/src/schemas.ts",
+      "apps/agent-bridge/src/headless-contract.ts",
+      "apps/agent-bridge/src/server/timeline.ts",
+      "apps/agent-bridge/tests/audio-bus-dsp.test.ts",
+      "apps/agent-bridge/tests/audio-bus-dsp-workflow.ts",
+      "apps/agent-bridge/tests/fixtures/audio-bus-dsp-projection.ts",
+      "apps/agent-bridge/tests/fixtures/audio-bus-dsp-mcp-additions.json",
+      "apps/agent-bridge/tests/fixtures/audio-bus-dsp-predecessor-pins.json",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/tests/smoke.test.ts",
+      "apps/agent-bridge/tests/packaged-smoke.test.ts",
+      "apps/agent-bridge/package.json",
+      "scripts/validate-ci-gates.ts",
+      "scripts/validate-ci-gates.test.ts",
+      "docs/audio-bus-dsp.md",
+      ".github/workflows/bun-ci.yml"
+    ]
+  }
+}

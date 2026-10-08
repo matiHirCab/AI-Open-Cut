@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+mod audio_bus_dsp;
 
 use crate::{
     CoreError, ErrorCode, MediaType,
@@ -464,11 +465,15 @@ pub(crate) fn build_render_plan(
     filters.push(format!(
             "[{current_video}]scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[video]"
         ));
-    filters.push(format!(
-        "{}amix=inputs={}:duration=longest:normalize=0[audio]",
-        audio_labels.join(""),
-        audio_labels.len()
-    ));
+    if let Some(graph) = &scene.audio_bus_graph {
+        audio_bus_dsp::compile(&mut filters, &audio_labels, scene, graph)?;
+    } else {
+        filters.push(format!(
+            "{}amix=inputs={}:duration=longest:normalize=0[audio]",
+            audio_labels.join(""),
+            audio_labels.len()
+        ));
+    }
     Ok(RenderPlan {
         serial_bezier_filters: scene.visual_layers.iter().any(|layer| {
             // Inherited affine expressions and Bezier easing both use mutable
@@ -629,7 +634,7 @@ fn append_audio_layer(
             precise_seconds(clock.end_ms),
             clock.start_ms
         ));
-    } else if audio.retained_timeline_delay {
+    } else if audio.retained_timeline_delay || audio.bus_index.is_some() {
         // amix consumes sequential samples, so a timestamp shift alone cannot
         // place edited clips. Physical silence also establishes the global
         // clock for ducking after local source animation has been sampled.

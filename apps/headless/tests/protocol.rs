@@ -8,6 +8,53 @@ fn headless_contract() -> Value {
 }
 
 #[test]
+fn audio_bus_dsp_typed_transactions_and_fresh_process_reopen_match_independent_catalog() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/audio-bus-dsp-v1.json")).unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"DSP protocol"})))["projectId"].clone();
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(read()["project"]["schemaVersion"], 42);
+    let applied = result(&h.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":catalog["input"]}),
+    ));
+    assert_eq!(applied["changedIds"], json!(["music"]));
+    assert_eq!(
+        read()["project"]["audioBuses"][1]["dsp"],
+        catalog["input"]["dsp"]
+    );
+    let before = read();
+    for (revision, bus, code) in [
+        (0, "music", "REVISION_CONFLICT"),
+        (1, "missing", "INVALID_ARGUMENT"),
+    ] {
+        let error=event(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":revision,"edit":{"operation":"audio_bus_set_dsp","busId":bus,"dsp":catalog["identity"]}})));
+        assert_eq!(error["error"]["code"], code);
+        assert_eq!(read(), before);
+    }
+    let draft=result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{"operation":"audio_bus_set_dsp","busId":"music","dsp":catalog["identity"]}]})));
+    assert_eq!(read(), before);
+    let candidate = result(
+        &h.request(json!({"operation":"get_draft_state","projectId":id,"draftId":draft["id"]})),
+    );
+    assert_eq!(
+        candidate["project"]["audioBuses"][1]["dsp"],
+        catalog["identity"]
+    );
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"expectedRevision":1,"draftId":draft["id"]})));
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    assert_eq!(
+        read()["project"]["audioBuses"][1]["dsp"],
+        catalog["input"]["dsp"]
+    );
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})));
+    assert_eq!(
+        read()["project"]["audioBuses"][1]["dsp"],
+        catalog["identity"]
+    );
+}
+
+#[test]
 fn audio_bus_typed_routes_aliases_history_and_fresh_process_reopen_match_catalog() {
     let h = Harness::new();
     let catalog: Value =
@@ -1594,6 +1641,108 @@ fn ready_renderer_advertises_canonical_linear_composition_in_protocol_v1() {
                 .unwrap()
                 .contains(&json!("linear_light_compositing_v1"))
         );
+    }
+}
+
+#[test]
+fn audio_bus_dsp_capability_requires_each_filter_without_disabling_base_rendering() {
+    let contract = headless_contract();
+    let base = [
+        "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad", "crop",
+        "format",
+    ];
+    let dsp = ["volume", "aformat", "pan", "equalizer", "acompressor"];
+    for missing in dsp.iter().copied().map(Some).chain(std::iter::once(None)) {
+        let harness = Harness::new();
+        let filters = base
+            .iter()
+            .chain(dsp.iter())
+            .filter(|name| Some(**name) != missing)
+            .map(|name| format!(" {name} "))
+            .collect::<Vec<_>>();
+        let executable = harness.root.path().join(if cfg!(windows) {
+            "filters.cmd"
+        } else {
+            "filters.sh"
+        });
+        let script = if cfg!(windows) {
+            format!(
+                "@echo off\r\n{}\r\n",
+                filters
+                    .iter()
+                    .map(|name| format!("echo {name}"))
+                    .collect::<Vec<_>>()
+                    .join("\r\n")
+            )
+        } else {
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' {}\n",
+                filters
+                    .iter()
+                    .map(|name| format!("'{name}'"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        std::fs::write(&executable, script).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let projects = harness.root.path().join("projects");
+        let media = harness.root.path().join("media");
+        let exports = harness.root.path().join("exports");
+        for directory in [&projects, &media, &exports] {
+            std::fs::create_dir_all(directory).unwrap();
+        }
+        let mut child = Command::new(env!("CARGO_BIN_EXE_opencut-headless"))
+            .env("OPENCUT_PROJECTS_DIR", projects)
+            .env("OPENCUT_ALLOWED_MEDIA_DIRS", media)
+            .env("OPENCUT_EXPORTS_DIR", exports)
+            .env("OPENCUT_FFMPEG_PATH", &executable)
+            .env("OPENCUT_FFPROBE_PATH", &executable)
+            .env_remove("OPENCUT_DEFAULT_FONT_PATH")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::io::Write::write_all(
+            &mut child.stdin.take().unwrap(),
+            serde_json::to_string(&contract["requests"]["statusCurrent"])
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        let status = result(&child.wait_with_output().unwrap());
+        assert_eq!(
+            status["subsystems"]["rendering"]["ready"], true,
+            "missing {missing:?}: {status}"
+        );
+        assert_eq!(status["subsystems"]["rendering"]["error"], Value::Null);
+        let expected = contract["status"]["renderingCapabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|capability| missing.is_none() || **capability != json!("audio_bus_dsp_v1"))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(
+            status["subsystems"]["rendering"]["capabilities"],
+            json!(expected),
+            "missing {missing:?}"
+        );
+        assert_eq!(
+            status["subsystems"]["editor"]["capabilities"],
+            contract["status"]["editorCapabilities"]
+        );
+        let mut union = contract["status"]["editorCapabilities"]
+            .as_array()
+            .unwrap()
+            .clone();
+        union.extend(expected);
+        assert_eq!(status["capabilities"], json!(union));
     }
 }
 
@@ -3635,7 +3784,7 @@ fn timeline_audio_events_typed_marker_alias_draft_rollback_history_and_fresh_pro
     let state = read();
     assert_eq!(
         state["project"]["schemaVersion"],
-        catalog["projectSchemaVersion"]
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
     );
     let track = batch["aliases"]["events"].clone();
     let item = |state: &Value| {

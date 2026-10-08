@@ -9,6 +9,7 @@ import type {
   addSvgSchema,
   animationChannelSchema,
   animationPresetParametersSchema,
+  audioBusDspSchema,
   blendModeSchema,
   componentFieldsSchema,
   componentInstanceDuplicateSchema,
@@ -88,6 +89,11 @@ export type HeadlessEdit =
       operation: "audio_bus_set_route";
       busId: string;
       outputBusId: string;
+    }
+  | {
+      operation: "audio_bus_set_dsp";
+      busId: string;
+      dsp: z.infer<typeof audioBusDspSchema>;
     }
   | {
       operation: "audio_track_route";

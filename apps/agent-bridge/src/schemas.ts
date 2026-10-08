@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(41).optional(),
+    projectSchemaVersion: z.literal(42).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1903,7 +1903,31 @@ export const soundEventDefinitionSchema = z.strictObject({
     .max(32),
 });
 
+export const audioBusDspSchema = z.strictObject({
+  compressor: z
+    .strictObject({
+      attackMs: finite.min(0.01).max(2000),
+      makeupGainDb: finite.min(0).max(24),
+      ratio: finite.min(1).max(20),
+      releaseMs: finite.min(0.01).max(9000),
+      thresholdDb: finite.min(-60).max(0),
+    })
+    .nullable(),
+  eq: z
+    .array(
+      z.strictObject({
+        frequencyHz: finite.min(20).max(20_000),
+        gainDb: finite.min(-24).max(24),
+        q: finite.min(0.1).max(10),
+      })
+    )
+    .max(8),
+  gainDb: finite.min(-120).max(24),
+  pan: finite.min(-1).max(1),
+});
+
 export const audioBusSchema = z.strictObject({
+  dsp: audioBusDspSchema.optional(),
   id,
   outputBusId: id.nullable(),
 });
@@ -1955,7 +1979,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(41),
+        schemaVersion: z.literal(42),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2060,6 +2084,11 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    busId: id,
+    dsp: audioBusDspSchema,
+    operation: z.literal("audio_bus_set_dsp"),
+  }),
   z.strictObject({
     ...audioEventInputFields,
     operation: z.literal("timeline_add_audio_event"),
@@ -2500,6 +2529,9 @@ export const schemas = {
       mediaType: z.enum(["image", "video", "audio"]),
       path: z.string().min(1),
     })
+    .strict(),
+  audioBusSetDsp: projectRevisionSchema
+    .extend({ busId: id, dsp: audioBusDspSchema })
     .strict(),
   audioBusSetRoute: projectRevisionSchema
     .extend({ busId: id, outputBusId: id })

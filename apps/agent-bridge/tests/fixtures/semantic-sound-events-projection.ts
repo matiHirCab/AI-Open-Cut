@@ -27,7 +27,7 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 export const restoreSoundEventCatalogMarker = (source: unknown) => {
   const original = at(source, []);
   const value =
-    original.projectSchemaVersion === 41
+    original.projectSchemaVersion === 41 || original.projectSchemaVersion === 42
       ? restoreAudioEventCatalogMarker(original)
       : original;
   if (value.projectSchemaVersion !== 40) {

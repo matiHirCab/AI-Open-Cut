@@ -98,6 +98,40 @@ pub(crate) fn readiness(ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), C
     Ok(())
 }
 
+fn audio_bus_dsp_readiness(ffmpeg_path: &Path) -> Result<(), CoreError> {
+    let output = Command::new(ffmpeg_path)
+        .args(["-hide_banner", "-filters"])
+        .output()
+        .map_err(|error| {
+            CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                format!("cannot start FFmpeg: {error}"),
+            )
+        })?;
+    if !output.status.success() {
+        return Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio bus DSP readiness check failed",
+        ));
+    }
+    let filters = String::from_utf8_lossy(&output.stdout);
+    for required in [
+        " volume ",
+        " aformat ",
+        " pan ",
+        " equalizer ",
+        " acompressor ",
+    ] {
+        if !filters.contains(required) {
+            return Err(CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                format!("FFmpeg is missing the {} filter", required.trim()),
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn probe(ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError> {
     let output = Command::new(ffprobe_path)
         .args([
@@ -482,6 +516,12 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn audio_bus_dsp_readiness(&self, _ffmpeg_path: &Path) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio bus DSP filter readiness is unavailable",
+        ))
+    }
     fn raster_source(
         &self,
         _ffmpeg: &Path,
@@ -567,6 +607,9 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn audio_bus_dsp_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
+        audio_bus_dsp_readiness(ffmpeg_path)
+    }
     fn raster_source(
         &self,
         ffmpeg: &Path,
