@@ -1,5 +1,7 @@
 # Issue67 delegated scoped specification approval
 
+Reviewer-approved correction of the runtime schema consumer found by unchanged remote source integration: include `audio-events-workflow.ts` among the manually reviewed new ducking/header consumers and assert current43 through the ducking catalog while retaining its frozen event41 catalog. This implements the existing additive current-version reporting requirement without changing any historical fixture, domain behavior or coverage.
+
 Reviewer-approved correction within precise root-clock conformance: preserve the existing full-item tempo context before component clipping. The new trimmed-component reference uses independently derived sample bounds `(324-200)/1.5*48 = 3968` through `200/1.5*48 = 6400`, after tempo1.5 on the original200ms clip. The prior thirteen-case failure/reference diagnostics remain retained; no existing reference, production source-timing rule or tolerance changes. Required full thirteen-case native acceptance remains pending until rerun.
 
 Explicitly approve this proposal/design/tasks and four delta specifications under the original user instruction to approve issue-scoped specifications and autonomously implement dependency-ready issues. This is transparent same-agent delegated reviewer authorization, not independent human or GitHub APPROVED. Separate substantive CODEOWNER-role COMMENT remains required.

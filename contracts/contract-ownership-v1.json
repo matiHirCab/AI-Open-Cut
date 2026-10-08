@@ -1383,7 +1383,8 @@
         "apps/agent-bridge/tests/rich-text-workflow.ts",
         "apps/agent-bridge/tests/schemas.test.ts",
         "apps/agent-bridge/tests/semantic-sound-events-workflow.ts",
-        "apps/agent-bridge/tests/track-matte-workflow.ts"
+        "apps/agent-bridge/tests/track-matte-workflow.ts",
+        "apps/agent-bridge/tests/audio-events-workflow.ts"
       ]
     }
   }
