@@ -8,7 +8,7 @@
 - [x] 2.1 Add closed bounded schema40 registry and pure model-owned validation/seed selector; retain existing architecture matrix and cover all three bounded-library scenarios with independent fixtures.
 - [x] 2.2 Add presence-aware/version-aware registry decoding/serialization and atomic empty-registry migration across current/undo/redo, preserving all original guards and tests; cover all five persistence scenarios and every legacy source version.
 - [x] 2.3 Add named stable-order registration/replacement to standalone/batch/draft operations, existing batch alias creator/resolver and prepared resource transactions; cover all three atomic-registration scenarios and failed genuine legacy mutations.
-- [ ] 2.4 Add sound/draft variant roots to the existing asset owner, preserving all prior references/deletion/integrity/GC; cover all three ownership scenarios and expand all original persistence fault phases plus exact evaluated-plan/native no-output-change evidence.
+- [x] 2.4 Add sound/draft variant roots to the existing asset owner, preserving all prior references/deletion/integrity/GC; cover all three ownership scenarios and expand all original persistence fault phases plus exact evaluated-plan/native no-output-change evidence.
 
 ## 3. Governed additive transports and conformance
 
@@ -18,10 +18,10 @@
 
 ## 4. Required checks substantive review and archive
 
-- [ ] 4.1 Pass cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Preserve original failures/logs/test data and correct failures without suppressions or weakened coverage.
-- [ ] 4.2 Pass bridge bun run typecheck, lint, test:unit, contracts:check, test:integration and test:smoke; run root Python worker tests and complete required real FFmpeg/FFprobe/font native suites. Standard CI acceptance is mandatory; diagnostic runtime adjustments do not substitute.
-- [ ] 4.3 Run pinned strict all-spec validation and unchanged protected Moon prearchive gate, accepting only this active-change inventory rejection as expected; apply $openspec-verify-change and separate substantive delegated same-agent CODEOWNER COMMENT review with complete6-requirement/18-scenario mapping and reviewed-source hashes.
-- [ ] 4.4 After required implementation acceptance/conformance, apply authorized $openspec-sync-specs and $openspec-archive-change, preserve every predecessor requirement/archive byte, and pass final unchanged protected Moon and strict all-spec gates.
+- [x] 4.1 Pass cargo fmt --check --all; cargo clippy --workspace --all-targets -- -D warnings; cargo test --workspace. Preserve original failures/logs/test data and correct failures without suppressions or weakened coverage.
+- [x] 4.2 Pass bridge bun run typecheck, lint, test:unit, contracts:check, test:integration and test:smoke; run root Python worker tests and complete required real FFmpeg/FFprobe/font native suites. Standard CI acceptance is mandatory; diagnostic runtime adjustments do not substitute.
+- [x] 4.3 Run pinned strict all-spec validation and unchanged protected Moon prearchive gate, accepting only this active-change inventory rejection as expected; apply $openspec-verify-change and separate substantive delegated same-agent CODEOWNER COMMENT review with complete6-requirement/18-scenario mapping and reviewed-source hashes.
+- [x] 4.4 After required implementation acceptance/conformance, apply authorized $openspec-sync-specs and $openspec-archive-change, preserve every predecessor requirement/archive byte, and pass final unchanged protected Moon and strict all-spec gates.
 
 ## External publication and completion
 
