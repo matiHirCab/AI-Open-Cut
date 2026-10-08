@@ -183,6 +183,10 @@ impl Project {
                         .start_ms
                         .checked_add(media.duration_ms)
                         .is_none_or(|end| end > MAX_SOUND_VARIANT_SEED)
+                    || media
+                        .source_in_ms
+                        .checked_add(media.duration_ms)
+                        .is_none_or(|end| end > MAX_SOUND_VARIANT_SEED)
                 {
                     return Err(invalid(
                         "invalid semantic audio item provenance or interval",

@@ -507,3 +507,66 @@ fn component_marker_moves_ignore_root_names_and_keep_selection_through_timing_ed
     core.redo(&id, 7).unwrap();
     assert_eq!(read().start_ms(), 450);
 }
+
+#[test]
+fn unknown_duration_event_source_intervals_stay_javascript_safe_through_trim() {
+    let mut root = tempfile::tempdir().unwrap();
+    root.disable_cleanup(true);
+    eprintln!(
+        "preserved unknown-duration event fixture: {}",
+        root.path().display()
+    );
+    let media = root.path().join("media");
+    std::fs::create_dir(&media).unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            root.path().join("projects"),
+            [&media],
+            root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let id = core
+        .create_project("unknown duration", ProjectSettings::default())
+        .unwrap()
+        .project_id;
+    let path = media.join("unknown.wav");
+    std::fs::write(&path, b"immutable unknown duration audio").unwrap();
+    let asset = core
+        .import_asset(
+            &id,
+            0,
+            path,
+            MediaType::Audio,
+            MediaProbeFacts {
+                has_audio: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .changed_ids[0]
+        .clone();
+    core.edit(&id, 1, serde_json::from_value(json!({"operation":"sound_event_register","event":"unknown","variantAssetIds":[asset],"defaultGainDb":0,"busId":"sfx","variantSeed":0})).unwrap()).unwrap();
+    let track = core.get_project(&id).unwrap().tracks[2].id.clone();
+    let placed = core.edit(&id, 2, serde_json::from_value(json!({"operation":"timeline_add_audio_event","scope":"root","trackId":track,"event":"unknown","at":{"type":"milliseconds","valueMs":0},"durationMs":300})).unwrap()).unwrap();
+    let before = inventory(root.path());
+    let error = core.edit(&id, 3, serde_json::from_value(json!({"operation":"trim_item","itemId":placed.changed_ids[0],"startMs":0,"durationMs":300,"sourceInMs":9007199254740991_u64})).unwrap()).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidArgument);
+    assert_eq!(inventory(root.path()), before);
+    core.edit(&id, 3, serde_json::from_value(json!({"operation":"trim_item","itemId":placed.changed_ids[0],"startMs":0,"durationMs":300,"sourceInMs":9007199254740691_u64})).unwrap()).unwrap();
+    let project = core.get_project(&id).unwrap();
+    let TimelineItem::Media(item) = &project.tracks[2].items[0] else {
+        panic!("event")
+    };
+    assert_eq!(item.source_in_ms + item.duration_ms, 9007199254740991);
+    let path = root.path().join("projects").join(&id).join("project.json");
+    let mut forged = serde_json::to_value(&project).unwrap();
+    forged["tracks"][2]["items"][0]["sourceInMs"] = json!(9007199254740692_u64);
+    std::fs::write(path, serde_json::to_vec_pretty(&forged).unwrap()).unwrap();
+    let before = inventory(root.path());
+    assert_eq!(
+        core.get_project(&id).unwrap_err().code,
+        ErrorCode::InvalidArgument
+    );
+    assert_eq!(inventory(root.path()), before);
+}
