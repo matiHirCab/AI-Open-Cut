@@ -3,8 +3,8 @@ import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -119,14 +119,16 @@ export const verifyPackClockMigrationWorkflow = async (
   const oldHistory = structuredClone(originalHistory);
   oldProject.schemaVersion = 30;
   Reflect.deleteProperty(oldProject, "audioBuses");
+  Reflect.deleteProperty(oldProject, "soundDefinitions");
   for (const snapshot of [...oldHistory.undo, ...oldHistory.redo]) {
     snapshot.schemaVersion = 30;
     Reflect.deleteProperty(snapshot, "audioBuses");
+    Reflect.deleteProperty(snapshot, "soundDefinitions");
   }
   writeFileSync(projectPath, JSON.stringify(oldProject));
   writeFileSync(historyPath, JSON.stringify(oldHistory));
   const migrated = await read();
-  expect(migrated.project.schemaVersion).toBe(audioBuses.projectSchemaVersion);
+  expect(migrated.project.schemaVersion).toBe(soundEvents.projectSchemaVersion);
   expect(JSON.parse(readFileSync(projectPath, "utf8"))).toEqual(
     originalProject
   );
@@ -217,7 +219,7 @@ export const verifyPackClockMigrationWorkflow = async (
   ) as SavedHistory;
   expect(
     [...retained.undo, ...retained.redo].every(
-      (snapshot) => snapshot.schemaVersion === audioBuses.projectSchemaVersion
+      (snapshot) => snapshot.schemaVersion === soundEvents.projectSchemaVersion
     )
   ).toBe(true);
 };

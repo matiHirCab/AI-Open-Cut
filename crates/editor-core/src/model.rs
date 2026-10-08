@@ -1,5 +1,7 @@
 mod buffered;
 use buffered::BufferedValue;
+mod sound_events;
+pub use sound_events::*;
 mod audio_buses;
 pub use audio_buses::*;
 mod speech_alignment;
@@ -36,7 +38,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 39;
+pub const PROJECT_SCHEMA_VERSION: u32 = 40;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -80,6 +82,7 @@ where
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[serde(try_from = "ProjectDocument")]
 pub struct Project {
+    pub sound_definitions: Vec<SoundEventDefinition>,
     pub audio_buses: Vec<AudioBus>,
     pub fonts: std::collections::BTreeMap<String, FontRecord>,
     pub schema_version: u32,
@@ -100,7 +103,9 @@ impl Serialize for Project {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct(
             "Project",
-            if self.schema_version >= 39 {
+            if self.schema_version >= 40 {
+                14
+            } else if self.schema_version >= 39 {
                 13
             } else if self.schema_version >= 24 {
                 12
@@ -110,6 +115,9 @@ impl Serialize for Project {
                 10
             },
         )?;
+        if self.schema_version >= 40 {
+            state.serialize_field("soundDefinitions", &self.sound_definitions)?;
+        }
         if self.schema_version >= 39 {
             state.serialize_field("audioBuses", &self.audio_buses)?;
         }
@@ -138,6 +146,8 @@ impl Serialize for Project {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProjectDocument {
     #[serde(default, deserialize_with = "deserialize_double_option")]
+    sound_definitions: Option<Option<Vec<SoundEventDefinition>>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
     audio_buses: Option<Option<Vec<AudioBus>>>,
     #[serde(default, deserialize_with = "deserialize_double_option")]
     fonts: Option<Option<std::collections::BTreeMap<String, FontRecord>>>,
@@ -160,6 +170,13 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 40 {
+            if value.sound_definitions.is_some() {
+                return Err("sound definitions require schema40".into());
+            }
+        } else if value.sound_definitions.as_ref().is_none_or(Option::is_none) {
+            return Err("schema40 requires sound definitions".into());
+        }
         if value.schema_version < 39 {
             if value.audio_buses.is_some() {
                 return Err("audio buses require schema 39".into());
@@ -454,6 +471,7 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         Ok(Self {
+            sound_definitions: value.sound_definitions.flatten().unwrap_or_default(),
             audio_buses: value.audio_buses.flatten().unwrap_or_default(),
             fonts: value.fonts.flatten().unwrap_or_default(),
             components: value
@@ -2405,6 +2423,13 @@ pub struct ProjectState {
     rename_all_fields = "camelCase"
 )]
 pub enum EditOperation {
+    SoundEventRegister {
+        event: String,
+        variant_asset_ids: Vec<String>,
+        default_gain_db: f64,
+        bus_id: String,
+        variant_seed: u64,
+    },
     AudioBusSetRoute {
         bus_id: String,
         output_bus_id: String,
@@ -2851,6 +2876,13 @@ pub enum EditOperation {
     rename_all_fields = "camelCase"
 )]
 enum EditOperationDef {
+    SoundEventRegister {
+        event: String,
+        variant_asset_ids: Vec<String>,
+        default_gain_db: f64,
+        bus_id: String,
+        variant_seed: u64,
+    },
     AudioBusSetRoute {
         bus_id: String,
         output_bus_id: String,
@@ -3355,6 +3387,14 @@ impl<'de> Deserialize<'de> for EditOperation {
             return Err(serde::de::Error::custom("repeater cannot be null"));
         }
         let allowed: Option<&[&str]> = match value["operation"].as_str() {
+            Some("sound_event_register") => Some(&[
+                "operation",
+                "event",
+                "variantAssetIds",
+                "defaultGainDb",
+                "busId",
+                "variantSeed",
+            ]),
             Some("audio_bus_set_route") => Some(&["operation", "busId", "outputBusId"]),
             Some("audio_track_route") => Some(&["operation", "scope", "trackId", "busId"]),
             Some("add_component_instance") => Some(&[
@@ -3656,6 +3696,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),

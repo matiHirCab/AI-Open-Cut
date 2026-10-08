@@ -28,6 +28,7 @@ pub(crate) struct DraftAssetOperations<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetReferenceKind {
     MediaItem,
+    SoundDefinition,
     CaptionSource,
     DraftOperation,
     TemplateSlot,
@@ -37,6 +38,7 @@ impl AssetReferenceKind {
     pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MediaItem => "media item",
+            Self::SoundDefinition => "sound definition",
             Self::CaptionSource => "caption source",
             Self::DraftOperation => "draft operation",
             Self::TemplateSlot => "template slot",
@@ -80,6 +82,18 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             | TimelineItem::ComponentInstance(_) => None,
         })
         .collect();
+    for definition in &project.sound_definitions {
+        references.extend(
+            definition
+                .variant_asset_ids
+                .iter()
+                .map(|asset_id| AssetReference {
+                    asset_id: asset_id.clone(),
+                    kind: AssetReferenceKind::SoundDefinition,
+                    owner_id: definition.event.clone(),
+                }),
+        );
+    }
     for component in &project.components {
         for value in component
             .slots
@@ -114,6 +128,9 @@ pub(crate) fn draft_asset_references(draft: DraftAssetOperations<'_>) -> Vec<Ass
     for operation in draft.operations {
         let mut ids = Vec::new();
         match operation {
+            EditOperation::SoundEventRegister {
+                variant_asset_ids, ..
+            } => ids.extend(variant_asset_ids.iter().cloned()),
             EditOperation::AddMedia { asset_id, .. } => ids.push(asset_id.clone()),
             EditOperation::ComponentCreate { tracks, slots, .. }
             | EditOperation::ComponentUpdate { tracks, slots, .. } => {
@@ -792,6 +809,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),

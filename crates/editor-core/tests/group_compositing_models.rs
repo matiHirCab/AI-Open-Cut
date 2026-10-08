@@ -462,10 +462,12 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(36);
     current.as_object_mut().unwrap().remove("audioBuses");
+    current.as_object_mut().unwrap().remove("soundDefinitions");
     for key in ["undo", "redo"] {
         for snapshot in history[key].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(36);
             snapshot.as_object_mut().unwrap().remove("audioBuses");
+            snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
     }
     std::fs::write(
@@ -500,6 +502,7 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
     );
     adopted["schemaVersion"] = json!(36);
     adopted.as_object_mut().unwrap().remove("audioBuses");
+    adopted.as_object_mut().unwrap().remove("soundDefinitions");
     assert_eq!(adopted, current);
     let mut adopted_history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
@@ -515,6 +518,7 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
             );
             snapshot["schemaVersion"] = json!(36);
             snapshot.as_object_mut().unwrap().remove("audioBuses");
+            snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
     }
     assert_eq!(adopted_history, history);
@@ -561,6 +565,7 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
                     let mut snapshot = current.clone();
                     snapshot["schemaVersion"] = json!(36);
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
+                    snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                     snapshots[location] = json!([snapshot]);
                     &mut snapshots[location][0]["tracks"][1]["items"][0]
                 }
@@ -575,6 +580,7 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
             if !["undo", "redo"].contains(&location) {
                 project["schemaVersion"] = json!(36);
                 project.as_object_mut().unwrap().remove("audioBuses");
+                project.as_object_mut().unwrap().remove("soundDefinitions");
             }
             std::fs::write(
                 dir.join("project.json"),

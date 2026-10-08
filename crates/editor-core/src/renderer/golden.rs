@@ -369,6 +369,7 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        sound_definitions: Vec::new(),
         audio_buses: Vec::new(),
         markers: Vec::new(),
         fonts: Default::default(),

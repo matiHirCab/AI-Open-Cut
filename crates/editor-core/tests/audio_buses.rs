@@ -63,6 +63,7 @@ fn legacy(mut value: Value, version: u32) -> Value {
     let object = value.as_object_mut().unwrap();
     object.insert("schemaVersion".into(), json!(version));
     object.remove("audioBuses");
+    object.remove("soundDefinitions");
     if version < 19 {
         object.remove("fonts");
     }
@@ -76,7 +77,11 @@ fn legacy(mut value: Value, version: u32) -> Value {
 fn canonical_defaults_fallback_and_maximal_route_are_core_owned() {
     let (_root, core, id, track_id) = setup();
     let mut project = core.get_project(&id).unwrap();
-    assert_eq!(project.schema_version, catalog()["projectSchemaVersion"]);
+    assert_eq!(catalog()["projectSchemaVersion"], 39);
+    assert_eq!(
+        project.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         serde_json::to_value(&project.audio_buses).unwrap(),
         catalog()["defaultBuses"]
@@ -421,7 +426,11 @@ fn genuine_mixed_legacy_history_adopts_defaults_once_without_other_changes() {
             .chain(history["redo"].as_array().unwrap()),
     ) {
         assert_eq!(target["audioBuses"], catalog()["defaultBuses"]);
-        assert_eq!(target["schemaVersion"], 39);
+        assert_eq!(
+            target["schemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
+        assert_eq!(target["soundDefinitions"], json!([]));
         for key in [
             "id",
             "revision",
@@ -558,7 +567,7 @@ fn premature_fields_malformed_retained_routes_and_failed_legacy_edits_never_publ
     assert!(core.get_project(&id).is_err());
     assert_eq!(inventory(root.path()), before);
     let mut future = old;
-    future["schemaVersion"] = json!(40);
+    future["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1);
     future["audioBuses"] = catalog()["defaultBuses"].clone();
     write_json(&dir.join("project.json"), &future);
     let before = inventory(root.path());

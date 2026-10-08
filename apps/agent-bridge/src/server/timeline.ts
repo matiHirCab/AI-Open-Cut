@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "sound_event_register",
+    {
+      annotations: WRITE,
+      description:
+        "Register or replace a named managed sound definition without timeline playback.",
+      inputSchema: schemas.soundEventRegister,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "sound_event_register",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "audio_bus_set_route",
     {
       annotations: WRITE,

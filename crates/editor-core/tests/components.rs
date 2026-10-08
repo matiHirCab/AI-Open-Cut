@@ -611,6 +611,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
             .is_some_and(|version| version < 39)
         {
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         clear_legacy_font_fields(&mut project);
         project.as_object_mut().unwrap().remove("components");
@@ -627,6 +628,7 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
                         .is_some_and(|version| version < 39)
                     {
                         s.as_object_mut().unwrap().remove("audioBuses");
+                        s.as_object_mut().unwrap().remove("soundDefinitions");
                     }
                     clear_legacy_font_fields(&mut s);
                     s
@@ -685,6 +687,7 @@ fn invalid_current_and_retained_components_never_rewrite() {
                 .is_some_and(|version| version < 39)
             {
                 bad.as_object_mut().unwrap().remove("audioBuses");
+                bad.as_object_mut().unwrap().remove("soundDefinitions");
             }
             clear_legacy_font_fields(&mut bad);
             if version == 12 {
@@ -822,6 +825,7 @@ fn canonical_component_item_validation_is_atomic_at_every_core_boundary() {
         bad["components"][0]["tracks"] = value["tracks"].clone();
         bad["schemaVersion"] = json!(18);
         bad.as_object_mut().unwrap().remove("audioBuses");
+        bad.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut bad);
         let project: Project = serde_json::from_value(bad.clone()).unwrap();
         let renderer = Renderer::new("missing-ffmpeg", "missing-ffprobe", None);

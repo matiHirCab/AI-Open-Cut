@@ -188,6 +188,7 @@ fn legacy(project: &mut Value, version: u32) {
         .is_some_and(|version| version < 39)
     {
         project.as_object_mut().unwrap().remove("audioBuses");
+        project.as_object_mut().unwrap().remove("soundDefinitions");
     }
     clear_legacy_font_fields(project);
     for track in project["tracks"].as_array_mut().unwrap() {
@@ -271,6 +272,7 @@ fn persisted_current_and_retained_documents_fail_closed() {
                 "old-document" => {
                     invalid["schemaVersion"] = json!(17);
                     invalid.as_object_mut().unwrap().remove("audioBuses");
+                    invalid.as_object_mut().unwrap().remove("soundDefinitions");
                 }
                 "missing-document" => {
                     invalid["tracks"][1]["items"][0]

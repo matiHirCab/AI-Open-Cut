@@ -17,6 +17,7 @@ import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
+import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -65,7 +66,7 @@ function assertRecipe(
   expect(p.settings).toEqual(catalog.settings);
   expect(p.name).toBe("Masked hero reveal v1");
   expect(catalog.projectSchemaVersion).toBe(38);
-  expect(p.schemaVersion).toBe(busCatalog.projectSchemaVersion);
+  expect(p.schemaVersion).toBe(soundCatalog.projectSchemaVersion);
   expect(p.audioBuses).toEqual(busCatalog.defaultBuses);
   expect(p.tracks.map((t) => t.items.length)).toEqual([0, 4, 1, 0]);
   for (const [index, role] of (
@@ -286,13 +287,16 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
     };
     try {
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(busCatalog.projectSchemaVersion);
+      expect(status.projectSchemaVersion).toBe(
+        soundCatalog.projectSchemaVersion
+      );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { tools } = await client.request({ method: "tools/list" });
       const addedTools = [
         "speech_markers_generate",
         "audio_bus_set_route",
         "audio_track_route",
+        soundCatalog.operation,
       ];
       expect(
         tools.filter((tool) => !addedTools.includes(tool.name))
@@ -548,7 +552,17 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         "draft_create",
         {
           expectedRevision: baseline.project.revision,
-          operations: [reorder],
+          operations: [
+            reorder,
+            {
+              busId: "sfx",
+              defaultGainDb: -24,
+              event: "impact",
+              operation: soundCatalog.operation,
+              variantAssetIds: [imported.changedIds[0]],
+              variantSeed: 1,
+            },
+          ],
           projectId,
         },
         editDraftSchema
@@ -673,6 +687,14 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
           expectedRevision: persisted.project.revision,
           operations: [
             {
+              busId: "sfx",
+              defaultGainDb: -120,
+              event: "impact",
+              operation: soundCatalog.operation,
+              variantAssetIds: [imported.changedIds[0]],
+              variantSeed: soundCatalog.maximumVariantSeed,
+            },
+            {
               busId: "music",
               operation: "audio_bus_set_route",
               outputBusId: "sfx",
@@ -689,6 +711,15 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         writeResultSchema
       );
       const busRouted = await read();
+      expect(busRouted.project.soundDefinitions).toEqual([
+        {
+          busId: "sfx",
+          defaultGainDb: -120,
+          event: "impact",
+          variantAssetIds: [imported.changedIds[0]],
+          variantSeed: soundCatalog.maximumVariantSeed,
+        },
+      ]);
       expect(busRouted.project.audioBuses[1]?.outputBusId).toBe("sfx");
       expect(
         busRouted.project.tracks.find((track) => track.id === audioTrack.id)
@@ -740,6 +771,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       >;
       legacy.schemaVersion = 38;
       Reflect.deleteProperty(legacy, "audioBuses");
+      Reflect.deleteProperty(legacy, "soundDefinitions");
       for (const track of legacy.tracks as Record<string, unknown>[]) {
         Reflect.deleteProperty(track, "audioBusId");
       }
@@ -747,8 +779,9 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       const adopted = await read();
       expect(adopted.project.revision).toBe(beforeLegacy.project.revision);
       expect(adopted.project.schemaVersion).toBe(
-        busCatalog.projectSchemaVersion
+        soundCatalog.projectSchemaVersion
       );
+      expect(adopted.project.soundDefinitions).toEqual([]);
       expect(adopted.project.audioBuses).toEqual(busCatalog.defaultBuses);
       const oldFields = structuredClone(adopted.project) as unknown as Record<
         string,
@@ -756,6 +789,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       >;
       oldFields.schemaVersion = 38;
       Reflect.deleteProperty(oldFields, "audioBuses");
+      Reflect.deleteProperty(oldFields, "soundDefinitions");
       expect(oldFields).toEqual(legacy);
       expect(await frame("reverse", 400)).toEqual(reversed);
       sameMovies(committed, await movies("reverse", "legacy-adopted"));

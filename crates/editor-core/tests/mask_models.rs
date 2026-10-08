@@ -269,6 +269,7 @@ fn invalid_later_batch_and_draft_edits_preserve_every_authoritative_and_resource
 fn source31(project: &mut Value) {
     project["schemaVersion"] = json!(31);
     project.as_object_mut().unwrap().remove("audioBuses");
+    project.as_object_mut().unwrap().remove("soundDefinitions");
     fn strip(value: &mut Value) {
         match value {
             Value::Object(map) => {

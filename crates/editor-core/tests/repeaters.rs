@@ -372,6 +372,7 @@ fn schema_16_current_and_history_migrate_atomically() {
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(16);
     state.as_object_mut().unwrap().remove("audioBuses");
+    state.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut state);
     std::fs::write(
         dir.join("project.json"),
@@ -433,6 +434,7 @@ fn pre_17_repeaters_and_future_versions_fail_without_rewrite() {
         let mut bad = state.clone();
         bad["schemaVersion"] = json!(16);
         bad.as_object_mut().unwrap().remove("audioBuses");
+        bad.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut bad);
         std::fs::write(
             dir.join("project.json"),
@@ -515,6 +517,7 @@ fn hidden_unused_component_repeaters_are_version_gated() {
     );
     state["schemaVersion"] = json!(16);
     state.as_object_mut().unwrap().remove("audioBuses");
+    state.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut state);
     std::fs::write(
         dir.join("project.json"),

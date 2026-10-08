@@ -400,11 +400,13 @@ fn review_schema26_legacy_drafts_validate_matching_retained_base() {
             if path.file_name().unwrap() == "project.json" {
                 value["schemaVersion"] = json!(26);
                 value.as_object_mut().unwrap().remove("audioBuses");
+                value.as_object_mut().unwrap().remove("soundDefinitions");
             } else if path.file_name().unwrap() == "history.json" {
                 for side in ["undo", "redo"] {
                     for snapshot in value[side].as_array_mut().unwrap() {
                         snapshot["schemaVersion"] = json!(26);
                         snapshot.as_object_mut().unwrap().remove("audioBuses");
+                        snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                     }
                 }
             } else if invalid {
@@ -604,6 +606,7 @@ fn malformed_retained_generations_and_future_versions_never_publish() {
             .is_some_and(|version| version < 39)
         {
             state.as_object_mut().unwrap().remove("audioBuses");
+            state.as_object_mut().unwrap().remove("soundDefinitions");
         }
         if version == 26 {
             state["tracks"][1]["items"][0]["effects"] = json!([]);
@@ -1191,6 +1194,7 @@ fn schema_27_migrates_current_history_and_drafts_and_reopen_does_not_rewrite() {
             let mut project: Value = serde_json::from_slice(&bytes).unwrap();
             project["schemaVersion"] = json!(26);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
             std::fs::write(path, serde_json::to_vec(&project).unwrap()).unwrap();
         } else if path.file_name().unwrap() == "history.json" {
             let mut history: Value = serde_json::from_slice(&bytes).unwrap();
@@ -1198,6 +1202,7 @@ fn schema_27_migrates_current_history_and_drafts_and_reopen_does_not_rewrite() {
                 for project in history[side].as_array_mut().unwrap() {
                     project["schemaVersion"] = json!(26);
                     project.as_object_mut().unwrap().remove("audioBuses");
+                    project.as_object_mut().unwrap().remove("soundDefinitions");
                 }
             }
             std::fs::write(path, serde_json::to_vec(&history).unwrap()).unwrap();
@@ -1246,6 +1251,7 @@ fn premature_extended_draft_fields_reject_migration_without_touching_any_authori
     let mut source: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     source["schemaVersion"] = json!(26);
     source.as_object_mut().unwrap().remove("audioBuses");
+    source.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(path, serde_json::to_vec(&source).unwrap()).unwrap();
     let before = authoritative_files(&core, &id);
     assert_eq!(

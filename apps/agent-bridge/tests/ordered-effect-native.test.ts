@@ -12,8 +12,8 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/extended-visual-animation-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -219,7 +219,9 @@ fn main() {
       await verifyOrderedEffectWorkflow(client, call);
       const f = catalog.orderedEffectCases;
       const status = await call("editor_get_status", {}, statusSchema);
-      expect(status.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+      expect(status.projectSchemaVersion).toBe(
+        soundEvents.projectSchemaVersion
+      );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { projectId } = await call(
         "project_create",

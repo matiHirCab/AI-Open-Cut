@@ -811,6 +811,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "speech_alignment_validation_v1",
         "speech_alignment_markers_v1",
         "project_audio_buses_v1",
+        "semantic_sound_event_definitions_v1",
     ]
 }
 

@@ -234,6 +234,7 @@ fn schema29_migrates_root_components_and_all_retained_history_atomically() {
     fn legacy(snapshot: &mut Value, component: &Value) {
         snapshot["schemaVersion"] = json!(29);
         snapshot.as_object_mut().unwrap().remove("audioBuses");
+        snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         snapshot["components"] = json!([component]);
         for track in snapshot["tracks"].as_array_mut().unwrap() {
             for item in track["items"].as_array_mut().unwrap() {
@@ -329,6 +330,7 @@ fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
                 "old30_clock" => {
                     target["schemaVersion"] = json!(30);
                     target.as_object_mut().unwrap().remove("audioBuses");
+                    target.as_object_mut().unwrap().remove("soundDefinitions");
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =
                         json!({"offsetMs":0,"sourceDurationMs":2400});
                 }
@@ -338,6 +340,7 @@ fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
                 "old_clock" => {
                     target["schemaVersion"] = json!(29);
                     target.as_object_mut().unwrap().remove("audioBuses");
+                    target.as_object_mut().unwrap().remove("soundDefinitions");
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =
                         json!({"offsetMs":0,"sourceDurationMs":2400});
                 }

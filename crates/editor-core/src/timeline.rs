@@ -44,7 +44,8 @@ pub(crate) fn validate_alias(alias: &str) -> Result<(), CoreError> {
 pub(crate) fn is_single_id_creator(edit: &EditOperation) -> bool {
     matches!(
         edit,
-        EditOperation::SpeechMarkersGenerate { .. }
+        EditOperation::SoundEventRegister { .. }
+            | EditOperation::SpeechMarkersGenerate { .. }
             | EditOperation::MarkerCreate { .. }
             | EditOperation::ComponentCreate { .. }
             | EditOperation::AddComponentInstance { .. }
@@ -84,6 +85,16 @@ pub(crate) fn resolve_operation_aliases(
     aliases: &BTreeMap<String, String>,
 ) -> Result<(), CoreError> {
     match edit {
+        EditOperation::SoundEventRegister {
+            event,
+            variant_asset_ids,
+            ..
+        } => {
+            resolve_alias(event, aliases)?;
+            for id in variant_asset_ids {
+                resolve_alias(id, aliases)?;
+            }
+        }
         EditOperation::AudioBusSetRoute { .. } => {}
         EditOperation::AudioTrackRoute {
             scope, track_id, ..
@@ -320,6 +331,22 @@ fn apply_operation_inner(
     operation: EditOperation,
 ) -> Result<(Vec<String>, &'static str), CoreError> {
     match operation {
+        EditOperation::SoundEventRegister {
+            event,
+            variant_asset_ids,
+            default_gain_db,
+            bus_id,
+            variant_seed,
+        } => {
+            project.register_sound_definition(crate::SoundEventDefinition {
+                event: event.clone(),
+                variant_asset_ids,
+                default_gain_db,
+                bus_id,
+                variant_seed,
+            })?;
+            Ok((vec![event], "Registered sound event"))
+        }
         EditOperation::AudioBusSetRoute {
             bus_id,
             output_bus_id,
@@ -2342,6 +2369,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),

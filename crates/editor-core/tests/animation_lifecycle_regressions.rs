@@ -170,12 +170,17 @@ fn lifecycle_schema26_missing_draft_base_preserves_draft_and_generation() {
         if name == "project.json" {
             value["schemaVersion"] = json!(26);
             value.as_object_mut().unwrap().remove("audioBuses");
+            value.as_object_mut().unwrap().remove("soundDefinitions");
         } else {
             // Both retained sides have an unrelated revision; the draft's valid base was evicted.
             for side in ["undo", "redo"] {
                 value[side] = json!([current]);
                 value[side][0]["schemaVersion"] = json!(26);
                 value[side][0].as_object_mut().unwrap().remove("audioBuses");
+                value[side][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("soundDefinitions");
                 value[side][0]["revision"] = json!(0);
             }
         }

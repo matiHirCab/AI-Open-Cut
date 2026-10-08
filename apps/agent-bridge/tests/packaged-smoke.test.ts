@@ -43,6 +43,7 @@ import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
+import { verifySoundEventWorkflow } from "./semantic-sound-events-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
 import { verifySpeechMarkerWorkflow } from "./speech-markers-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
@@ -643,4 +644,8 @@ it("authors scoped track mattes through actual MCP aliases, atomic DAG edits and
   await verifyTrackMatteWorkflow(client, call);
   await verifyBlendModeWorkflow(client, call);
   await verifyOrderedEffectWorkflow(client, call);
+});
+
+it("registers sound definitions with aliases, drafts, rollback, ownership and reopen", async () => {
+  await verifySoundEventWorkflow(client, call, directories.media);
 });

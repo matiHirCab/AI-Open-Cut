@@ -1,7 +1,7 @@
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import contract from "../../../contracts/track-mattes-v1.json";
 import {
   editDraftSchema,
@@ -17,7 +17,7 @@ type Call = <Output>(
 ) => Promise<Output>;
 export const verifyTrackMatteWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(soundEvents.projectSchemaVersion);
   expect(status.subsystems.editor.capabilities).toContain(
     contract.capabilities.editor
   );

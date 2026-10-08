@@ -38,7 +38,8 @@
     "group_compositing_models_v1",
     "group_compositing_v1",
     "speech_alignment_markers_v1",
-    "project_audio_buses_v1"
+    "project_audio_buses_v1",
+    "semantic_sound_event_definitions_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2442,7 +2443,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 39,
+            "const": 40,
             "type": "number"
           },
           "protocolVersion": {
@@ -11200,6 +11201,124 @@
         ],
         "type": "object"
       }
+    },
+    "sound_event_register": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "defaultGainDb": {
+            "maximum": 24,
+            "minimum": -120,
+            "type": "number"
+          },
+          "event": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "variantAssetIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
+          },
+          "variantSeed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "busId",
+          "defaultGainDb",
+          "event",
+          "variantAssetIds",
+          "variantSeed"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
     }
   },
   "tools": [
@@ -11242,6 +11361,7 @@
     "project_redo",
     "project_undo",
     "set_item_start_time",
+    "sound_event_register",
     "speech_commit_preview",
     "speech_discard_preview",
     "speech_estimate",
@@ -14241,6 +14361,58 @@
               "minLength": 1,
               "type": "string"
             },
+            "defaultGainDb": {
+              "maximum": 24,
+              "minimum": -120,
+              "type": "number"
+            },
+            "event": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "sound_event_register",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "variantAssetIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array"
+            },
+            "variantSeed": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "busId",
+            "defaultGainDb",
+            "event",
+            "variantAssetIds",
+            "variantSeed",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
             "operation": {
               "const": "audio_bus_set_route",
               "type": "string"
@@ -16339,6 +16511,58 @@
     },
     "DraftCreateOutputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "defaultGainDb": {
+              "maximum": 24,
+              "minimum": -120,
+              "type": "number"
+            },
+            "event": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "const": "sound_event_register",
+              "type": "string"
+            },
+            "resultAlias": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+              "type": "string"
+            },
+            "variantAssetIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array"
+            },
+            "variantSeed": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "busId",
+            "defaultGainDb",
+            "event",
+            "variantAssetIds",
+            "variantSeed",
+            "operation"
+          ],
+          "type": "object"
+        },
         {
           "additionalProperties": false,
           "properties": {
@@ -27344,6 +27568,7 @@
         "revision",
         "schemaVersion",
         "settings",
+        "soundDefinitions",
         "tracks",
         "updatedAtMs"
       ],
@@ -27477,7 +27702,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 39,
+        "const": 40,
         "type": "number"
       },
       "settings": {
@@ -27505,6 +27730,55 @@
           "width"
         ],
         "type": "object"
+      },
+      "soundDefinitions": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "defaultGainDb": {
+              "maximum": 24,
+              "minimum": -120,
+              "type": "number"
+            },
+            "event": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "variantAssetIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array"
+            },
+            "variantSeed": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "busId",
+            "defaultGainDb",
+            "event",
+            "variantAssetIds",
+            "variantSeed"
+          ],
+          "type": "object"
+        },
+        "maxItems": 512,
+        "type": "array"
       },
       "tracks": {
         "$ref": "#/$defs/ProjectPropertiesTracks"

@@ -212,6 +212,22 @@ fn fresh_default_headless_exact_standalone_alias_hero_native_lifecycle_and_rollb
                 }
             }
         }
+        let before_registration = wire.state(&id);
+        wire.edit(&id, json!({"operation":"sound_event_register","event":"impact","variantAssetIds":[imported["changedIds"][0]],"defaultGainDb":-120,"busId":"sfx","variantSeed":9007199254740991_u64}));
+        let registered = wire.state(&id);
+        assert_eq!(
+            registered["project"]["soundDefinitions"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        for field in ["tracks", "assets", "components", "audioBuses", "settings"] {
+            assert_eq!(
+                registered["project"][field],
+                before_registration["project"][field]
+            );
+        }
         let dir = wire.root.path().join("projects").join(id.as_str().unwrap());
         let baseline = wire.state(&id);
         assert_eq!(
@@ -298,7 +314,7 @@ fn fresh_default_headless_exact_standalone_alias_hero_native_lifecycle_and_rollb
         effects.as_array_mut().unwrap().swap(1, 2);
         let reorder = json!({"operation":"update_item","itemId":hero,"effects":effects});
         let stable = inventory(&dir);
-        let draft=wire.ok(json!({"operation":"create_draft","projectId":id,"expectedRevision":wire.rev(&id),"operations":[reorder],"label":"Reverse hero"}));
+        let draft=wire.ok(json!({"operation":"create_draft","projectId":id,"expectedRevision":wire.rev(&id),"operations":[reorder,{"operation":"sound_event_register","event":"impact","variantAssetIds":[imported["changedIds"][0]],"defaultGainDb":-24,"busId":"sfx","variantSeed":1}],"label":"Reverse hero"}));
         assert_eq!(wire.state(&id), baseline);
         for (path, bytes) in stable {
             if path.is_dir() {

@@ -4154,6 +4154,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -4665,9 +4666,13 @@ mod tests {
             item.visual_properties_mut().stack_order = u32::try_from(index).unwrap();
         }
         let bus_baseline = evaluate_project(&bus_fixture, 640, 360, 24).unwrap();
-        for generation in ["legacy", "default", "rerouted"] {
+        for generation in ["legacy", "default", "rerouted", "registered"] {
             let mut routed = bus_fixture.clone();
-            routed.schema_version = if generation == "legacy" { 38 } else { 39 };
+            routed.schema_version = match generation {
+                "legacy" => 38,
+                "registered" => crate::PROJECT_SCHEMA_VERSION,
+                _ => 39,
+            };
             routed.audio_buses = if generation == "legacy" {
                 vec![]
             } else {
@@ -4677,6 +4682,23 @@ mod tests {
                 routed.audio_buses[1].output_bus_id = Some("sfx".into());
                 routed.tracks[1].audio_bus_id = Some("music".into());
                 routed.tracks[2].audio_bus_id = Some("voiceover".into());
+            }
+            if generation == "registered" {
+                for (index, asset) in routed.assets.iter_mut().enumerate() {
+                    asset.content_hash = Some(crate::ContentHash {
+                        algorithm: "sha256".into(),
+                        digest: format!("{:064x}", index + 1),
+                    });
+                    asset.size_bytes = Some(4096);
+                }
+                routed.sound_definitions = vec![crate::SoundEventDefinition {
+                    event: "impact".into(),
+                    variant_asset_ids: vec!["voice-asset".into(), "music-asset".into()],
+                    default_gain_db: -120.0,
+                    bus_id: "sfx".into(),
+                    variant_seed: crate::MAX_SOUND_VARIANT_SEED,
+                }];
+                routed.resolve_sound_event_variant("impact", None).unwrap();
             }
             let scene = evaluate_project(&routed, 640, 360, 24).unwrap();
             assert!(scene.scene == bus_baseline.scene, "{generation}");

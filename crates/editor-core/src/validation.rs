@@ -100,6 +100,7 @@ pub(crate) fn validate_project_visual_properties_without_mattes(
     project: &Project,
 ) -> Result<(), CoreError> {
     audio_buses::validate_project(project)?;
+    project.validate_sound_definition_model()?;
     mask::validate_project(project)?;
     validate_project_visual_projection(project)
 }

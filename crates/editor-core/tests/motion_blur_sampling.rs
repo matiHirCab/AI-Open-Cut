@@ -737,10 +737,12 @@ fn migration_adopts_complete_history_and_rejects_premature_fields_atomically() {
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(27);
     current.as_object_mut().unwrap().remove("audioBuses");
+    current.as_object_mut().unwrap().remove("soundDefinitions");
     for key in ["undo", "redo"] {
         for snapshot in history[key].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(27);
             snapshot.as_object_mut().unwrap().remove("audioBuses");
+            snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
     }
     std::fs::write(
@@ -781,6 +783,10 @@ fn migration_adopts_complete_history_and_rejects_premature_fields_atomically() {
                 .as_object_mut()
                 .unwrap()
                 .remove("audioBuses");
+            invalid_history[stack][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("soundDefinitions");
         }
         let mut premature = current["tracks"][1]["items"][0].clone();
         premature["motionBlur"] = Value::Null;
@@ -1358,10 +1364,12 @@ fn legacy_draft_fields_fail_before_adoption_and_compatible_drafts_reopen_determi
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     project["schemaVersion"] = json!(27);
     project.as_object_mut().unwrap().remove("audioBuses");
+    project.as_object_mut().unwrap().remove("soundDefinitions");
     for stack in ["undo", "redo"] {
         for snapshot in history[stack].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(27);
             snapshot.as_object_mut().unwrap().remove("audioBuses");
+            snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
     }
     std::fs::write(

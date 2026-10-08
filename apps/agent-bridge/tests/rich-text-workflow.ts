@@ -4,8 +4,8 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import ADVANCED from "../../../contracts/advanced-text-layout-v1.json";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
 import CATALOG from "../../../contracts/rich-text-documents-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import STYLED from "../../../contracts/styled-text-layers-v1.json";
 import LAYOUT from "../../../contracts/text-layout-v2.json";
 import {
@@ -79,7 +79,7 @@ export async function verifyRichTextWorkflow(
   );
   const [itemId] = added.changedIds;
   const saved = await read();
-  expect(saved.project.schemaVersion).toBe(audioBuses.projectSchemaVersion);
+  expect(saved.project.schemaVersion).toBe(soundEvents.projectSchemaVersion);
   expect(Object.keys(saved.project.fonts)).toHaveLength(4);
   expect(Object.keys(saved.project.fonts).sort()).toEqual(
     [

@@ -683,6 +683,7 @@ mod tests {
         let mut source = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         source["schemaVersion"] = json!(30);
         source.as_object_mut().unwrap().remove("audioBuses");
+        source.as_object_mut().unwrap().remove("soundDefinitions");
         std::fs::write(&path, serde_json::to_vec(&source).unwrap()).unwrap();
         let original = core.get_project(&id).unwrap();
         let original_item = original.find_item(&item).unwrap();

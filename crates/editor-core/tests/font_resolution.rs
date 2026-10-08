@@ -47,6 +47,7 @@ fn historical_fields_and_native_missing_bindings_fail_without_rewrite() {
             0 => {
                 invalid["schemaVersion"] = json!(18);
                 invalid.as_object_mut().unwrap().remove("audioBuses");
+                invalid.as_object_mut().unwrap().remove("soundDefinitions");
             }
             1 => {
                 invalid["tracks"][1]["items"][0]
@@ -59,6 +60,7 @@ fn historical_fields_and_native_missing_bindings_fail_without_rewrite() {
             _ => {
                 invalid["schemaVersion"] = json!(18);
                 invalid.as_object_mut().unwrap().remove("audioBuses");
+                invalid.as_object_mut().unwrap().remove("soundDefinitions");
                 invalid["fonts"] = serde_json::Value::Null;
             }
         }
@@ -76,6 +78,7 @@ fn stale_legacy_edit_does_not_activate_fonts() {
     let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     legacy["schemaVersion"] = json!(18);
     legacy.as_object_mut().unwrap().remove("audioBuses");
+    legacy.as_object_mut().unwrap().remove("soundDefinitions");
     legacy.as_object_mut().unwrap().remove("fonts");
     let bytes = serde_json::to_vec(&legacy).unwrap();
     std::fs::write(dir.join("project.json"), &bytes).unwrap();
@@ -361,6 +364,7 @@ fn schema_18_migration_pins_current_and_retained_history() {
     fn legacy(value: &mut serde_json::Value) {
         value["schemaVersion"] = json!(18);
         value.as_object_mut().unwrap().remove("audioBuses");
+        value.as_object_mut().unwrap().remove("soundDefinitions");
         value.as_object_mut().unwrap().remove("fonts");
         for track in value["tracks"].as_array_mut().unwrap() {
             for item in track["items"].as_array_mut().unwrap() {

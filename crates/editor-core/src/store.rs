@@ -245,6 +245,7 @@ impl EditorCore {
             .map_err(|error| CoreError::io("cannot create project previews", error))?;
         let now = now_ms()?;
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -2860,7 +2861,8 @@ fn requires_composition_staging(
     Ok(operations.iter().any(|operation| {
         matches!(
             operation,
-            crate::EditOperation::AudioBusSetRoute { .. }
+            crate::EditOperation::SoundEventRegister { .. }
+                | crate::EditOperation::AudioBusSetRoute { .. }
                 | crate::EditOperation::AudioTrackRoute { .. }
                 | crate::EditOperation::ComponentCreate { .. }
                 | crate::EditOperation::ComponentUpdate { .. }
@@ -3297,6 +3299,7 @@ mod tests {
                 let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
                 legacy["schemaVersion"] = serde_json::json!(38);
                 legacy.as_object_mut().unwrap().remove("audioBuses");
+                legacy.as_object_mut().unwrap().remove("soundDefinitions");
                 std::fs::write(
                     project_path(&dir),
                     serde_json::to_vec_pretty(&legacy).unwrap(),
@@ -3362,6 +3365,123 @@ mod tests {
                 assert_eq!(
                     reopened.get_project(&id).unwrap().audio_buses,
                     current.audio_buses
+                );
+                let stable = project_file_bytes(&dir);
+                reopened.get_project(&id).unwrap();
+                assert_eq!(project_file_bytes(&dir), stable);
+            }
+        }
+    }
+
+    #[test]
+    fn sound_definitions_preserve_all_publication_fault_and_recovery_boundaries() {
+        for draft_commit in [false, true] {
+            for phase in [
+                PersistencePhase::BeforeFontPublish,
+                PersistencePhase::AfterFontPublish,
+                PersistencePhase::BeforeJournal,
+                PersistencePhase::AfterJournal,
+                PersistencePhase::AfterProject,
+                PersistencePhase::AfterHistory,
+                PersistencePhase::AfterDraftUpdates,
+                PersistencePhase::AfterDraftCleanup,
+                PersistencePhase::AfterJournalCleanup,
+            ] {
+                let (core, root) = core();
+                let id = core
+                    .create_project("Sound definition recovery", ProjectSettings::default())
+                    .unwrap()
+                    .project_id;
+                let asset_id = import_test_audio(&core, &root, &id, 0, "registered.wav");
+                let operation = crate::EditOperation::SoundEventRegister {
+                    event: "impact".into(),
+                    variant_asset_ids: vec![asset_id.clone()],
+                    default_gain_db: -3.0,
+                    bus_id: "sfx".into(),
+                    variant_seed: 42,
+                };
+                let draft = core
+                    .create_draft(&id, 1, vec![operation.clone()], None)
+                    .unwrap();
+                let dir = core.project_directory(&id).unwrap();
+                let mut legacy = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
+                legacy["schemaVersion"] = serde_json::json!(39);
+                legacy.as_object_mut().unwrap().remove("soundDefinitions");
+                std::fs::write(
+                    project_path(&dir),
+                    serde_json::to_vec_pretty(&legacy).unwrap(),
+                )
+                .unwrap();
+                let before = project_file_bytes(&dir);
+                let apply = || {
+                    if draft_commit {
+                        core.commit_draft(&id, &draft.id, 1)
+                    } else {
+                        core.edit(&id, 1, operation.clone())
+                    }
+                };
+                set_persistence_fault(&core, phase);
+                let result = apply();
+                if matches!(
+                    phase,
+                    PersistencePhase::BeforeFontPublish
+                        | PersistencePhase::AfterFontPublish
+                        | PersistencePhase::BeforeJournal
+                ) {
+                    assert_eq!(
+                        result.unwrap_err().code,
+                        ErrorCode::InternalError,
+                        "{phase:?}, draft={draft_commit}"
+                    );
+                    assert_eq!(
+                        project_file_bytes(&dir),
+                        before,
+                        "{phase:?}, draft={draft_commit}"
+                    );
+                    assert!(!transaction_path(&dir).exists());
+                    apply().unwrap();
+                } else {
+                    assert_eq!(
+                        result.unwrap().revision,
+                        2,
+                        "{phase:?}, draft={draft_commit}"
+                    );
+                }
+                let reopened = EditorCore::new(core.paths().clone());
+                let current = reopened.get_project(&id).unwrap();
+                assert_eq!(current.revision, 2);
+                assert_eq!(current.schema_version, PROJECT_SCHEMA_VERSION);
+                assert_eq!(current.audio_buses, crate::default_audio_buses());
+                assert_eq!(current.sound_definitions.len(), 1);
+                assert_eq!(
+                    current.sound_definitions[0].variant_asset_ids,
+                    vec![asset_id.clone()]
+                );
+                assert_eq!(
+                    current
+                        .resolve_sound_event_variant("impact", None)
+                        .unwrap()
+                        .asset
+                        .id,
+                    asset_id
+                );
+                assert!(!transaction_path(&dir).exists());
+                let history: History = read_json(&history_path(&dir)).unwrap();
+                assert_eq!(history.undo.len(), 2);
+                assert!(
+                    history
+                        .undo
+                        .iter()
+                        .chain(&history.redo)
+                        .all(|project| project.audio_buses.len() == 4
+                            && project.schema_version == PROJECT_SCHEMA_VERSION)
+                );
+                reopened.undo(&id, 2).unwrap();
+                assert_eq!(reopened.get_project(&id).unwrap().sound_definitions, vec![]);
+                reopened.redo(&id, 3).unwrap();
+                assert_eq!(
+                    reopened.get_project(&id).unwrap().sound_definitions,
+                    current.sound_definitions
                 );
                 let stable = project_file_bytes(&dir);
                 reopened.get_project(&id).unwrap();
@@ -3438,6 +3558,7 @@ mod tests {
         let mut legacy = serde_json::to_value(project).unwrap();
         legacy["schemaVersion"] = serde_json::json!(18);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         legacy["assets"] = serde_json::json!([{
             "id":"legacy-asset","mediaType":"image","fileName":"legacy.bin",
@@ -3446,6 +3567,7 @@ mod tests {
         let mut old_base = serde_json::to_value(base).unwrap();
         old_base["schemaVersion"] = serde_json::json!(18);
         old_base.as_object_mut().unwrap().remove("audioBuses");
+        old_base.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut old_base);
         write_json_atomic(&project_path(&dir), &legacy).unwrap();
         write_json_atomic(
@@ -3846,6 +3968,9 @@ mod tests {
                 if source_version < 39 {
                     legacy.as_object_mut().unwrap().remove("audioBuses");
                 }
+                if source_version < 40 {
+                    legacy.as_object_mut().unwrap().remove("soundDefinitions");
+                }
                 clear_legacy_font_fields(&mut legacy);
                 write_json_atomic(&project_path(&dir), &legacy).unwrap();
                 write_json_atomic(
@@ -4049,6 +4174,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&path).unwrap();
         legacy["schemaVersion"] = serde_json::json!(1);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         legacy["assets"] = serde_json::json!([{
             "id": "legacy-asset",
@@ -4117,6 +4243,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         legacy["assets"] = serde_json::json!([{
             "id": "caption-asset",
@@ -4184,6 +4311,7 @@ mod tests {
         let mut oldest = legacy.clone();
         oldest["schemaVersion"] = serde_json::json!(1);
         oldest.as_object_mut().unwrap().remove("audioBuses");
+        oldest.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut oldest);
         oldest["tracks"]
             .as_array_mut()
@@ -4254,6 +4382,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         add_legacy_asset(&mut legacy, &dir);
         let mut invalid_snapshot = legacy.clone();
@@ -4302,6 +4431,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(6);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         add_legacy_asset(&mut legacy, &dir);
         let mut invalid_snapshot = legacy.clone();
@@ -4524,6 +4654,7 @@ mod tests {
                             serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
                         source["schemaVersion"] = serde_json::json!(30);
                         source.as_object_mut().unwrap().remove("audioBuses");
+                        source.as_object_mut().unwrap().remove("soundDefinitions");
                         let mut local_track = source["tracks"][1].clone();
                         local_track["id"] = serde_json::json!("local-track");
                         source["components"] = serde_json::json!([{"id":"pack-source","name":"Pack source","width":1280,"height":720,"durationMs":1000,"tracks":[local_track],"slots":[],"markers":[]}]);
@@ -4581,6 +4712,7 @@ mod tests {
                             expected["schemaVersion"] = serde_json::json!(PROJECT_SCHEMA_VERSION);
                             expected["audioBuses"] =
                                 serde_json::json!(crate::default_audio_buses());
+                            expected["soundDefinitions"] = serde_json::json!([]);
                             assert_eq!(migrated, expected);
                             let history: serde_json::Value =
                                 read_json(&history_path(&dir)).unwrap();
@@ -4666,6 +4798,7 @@ mod tests {
             let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
             legacy["schemaVersion"] = serde_json::json!(6);
             legacy.as_object_mut().unwrap().remove("audioBuses");
+            legacy.as_object_mut().unwrap().remove("soundDefinitions");
             clear_legacy_font_fields(&mut legacy);
             add_legacy_asset(&mut legacy, &dir);
             let mut history = serde_json::json!({ "undo": [], "redo": [] });
@@ -4676,11 +4809,16 @@ mod tests {
                     .as_object_mut()
                     .unwrap()
                     .remove("audioBuses");
+                invalid_snapshot
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("soundDefinitions");
                 clear_legacy_font_fields(&mut invalid_snapshot);
                 history["undo"] = serde_json::json!([invalid_snapshot]);
             } else {
                 legacy["schemaVersion"] = serde_json::json!(0);
                 legacy.as_object_mut().unwrap().remove("audioBuses");
+                legacy.as_object_mut().unwrap().remove("soundDefinitions");
                 clear_legacy_font_fields(&mut legacy);
             }
             write_json_atomic(&project_file, &legacy).unwrap();
@@ -4773,6 +4911,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&path).unwrap();
         legacy["schemaVersion"] = serde_json::json!(4);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut legacy);
         legacy["tracks"]
             .as_array_mut()
@@ -6475,6 +6614,9 @@ mod tests {
             if version < 39 {
                 legacy.as_object_mut().unwrap().remove("audioBuses");
             }
+            if version < 40 {
+                legacy.as_object_mut().unwrap().remove("soundDefinitions");
+            }
             if version < 19 {
                 clear_legacy_font_fields(&mut legacy);
             }
@@ -6500,6 +6642,7 @@ mod tests {
             let mut oldest = legacy.clone();
             oldest["schemaVersion"] = serde_json::json!(1);
             oldest.as_object_mut().unwrap().remove("audioBuses");
+            oldest.as_object_mut().unwrap().remove("soundDefinitions");
             clear_legacy_font_fields(&mut oldest);
             oldest["components"] = serde_json::json!([]);
             write_json_atomic(&project_file, &legacy).unwrap();
@@ -6620,6 +6763,9 @@ mod tests {
             if version < 39 {
                 legacy.as_object_mut().unwrap().remove("audioBuses");
             }
+            if version < 40 {
+                legacy.as_object_mut().unwrap().remove("soundDefinitions");
+            }
             if version < 19 {
                 clear_legacy_font_fields(&mut legacy);
             }
@@ -6698,10 +6844,12 @@ mod tests {
         let mut history: serde_json::Value = read_json(&history_file).unwrap();
         source["schemaVersion"] = serde_json::json!(24);
         source.as_object_mut().unwrap().remove("audioBuses");
+        source.as_object_mut().unwrap().remove("soundDefinitions");
         for name in ["undo", "redo"] {
             for snapshot in history[name].as_array_mut().unwrap() {
                 snapshot["schemaVersion"] = serde_json::json!(24);
                 snapshot.as_object_mut().unwrap().remove("audioBuses");
+                snapshot.as_object_mut().unwrap().remove("soundDefinitions");
             }
         }
         assert!(history["undo"].as_array().unwrap().iter().any(|snapshot| {
@@ -6780,6 +6928,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(21);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         let mut invalid_snapshot = legacy.clone();
         invalid_snapshot["tracks"][1]["items"] = serde_json::json!([{
             "type":"rectangle", "id":"rect", "color":"#ffffff", "width":10,
@@ -6813,6 +6962,7 @@ mod tests {
         let mut legacy: serde_json::Value = read_json(&project_file).unwrap();
         legacy["schemaVersion"] = serde_json::json!(22);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         let mut invalid_snapshot = legacy.clone();
         invalid_snapshot["tracks"][1]["items"] = serde_json::json!([{
             "type":"rectangle", "id":"rect", "color":"#ffffff", "width":10,
@@ -7405,6 +7555,10 @@ mod tests {
                 .as_object_mut()
                 .unwrap()
                 .remove("audioBuses");
+            history["undo"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("soundDefinitions");
             std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
             let before = project_file_bytes(&dir);
             let error = match action {
@@ -7512,6 +7666,10 @@ mod tests {
                         .as_object_mut()
                         .unwrap()
                         .remove("audioBuses");
+                    history["undo"][0]
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("soundDefinitions");
                     std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap())
                         .unwrap();
                     let before = project_file_bytes(&dir);
@@ -7651,15 +7809,18 @@ mod tests {
         let mut legacy = serde_json::to_value(&expected).unwrap();
         legacy["schemaVersion"] = serde_json::json!(34);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         write_json_atomic(&project_path(&dir), &legacy).unwrap();
         let mut legacy_history = expected_history.clone();
         for project in legacy_history["undo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(34);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         for project in legacy_history["redo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(34);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         write_json_atomic(&history_path(&dir), &legacy_history).unwrap();
         let reopened = EditorCore::new(core.paths().clone());
@@ -7733,10 +7894,12 @@ mod tests {
                 let mut history: serde_json::Value = read_json(&history_path(&dir)).unwrap();
                 project["schemaVersion"] = serde_json::json!(34);
                 project.as_object_mut().unwrap().remove("audioBuses");
+                project.as_object_mut().unwrap().remove("soundDefinitions");
                 for key in ["undo", "redo"] {
                     for state in history[key].as_array_mut().unwrap() {
                         state["schemaVersion"] = serde_json::json!(34);
                         state.as_object_mut().unwrap().remove("audioBuses");
+                        state.as_object_mut().unwrap().remove("soundDefinitions");
                     }
                 }
                 let channel = serde_json::json!({"property":"effect.vignette_amount","target":{"kind":"effect","scope":"root","id":"missing"},"keyframes":[{"timeMs":0,"value":{"type":"scalar","value":0.5},"curve":"hold"}]});
@@ -7915,15 +8078,18 @@ mod tests {
         let mut legacy = serde_json::to_value(&expected).unwrap();
         legacy["schemaVersion"] = serde_json::json!(34);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         write_json_atomic(&project_path(&dir), &legacy).unwrap();
         let mut legacy_history = expected_history.clone();
         for project in legacy_history["undo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(34);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         for project in legacy_history["redo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(34);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         write_json_atomic(&history_path(&dir), &legacy_history).unwrap();
         let reopened = EditorCore::new(core.paths().clone());
@@ -8240,6 +8406,10 @@ mod tests {
                     .as_object_mut()
                     .unwrap()
                     .remove("audioBuses");
+                history["undo"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("soundDefinitions");
                 std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
                 let before = project_file_bytes(&dir);
                 set_persistence_fault(&core, phase);
@@ -8326,6 +8496,10 @@ mod tests {
                     .as_object_mut()
                     .unwrap()
                     .remove("audioBuses");
+                history["undo"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("soundDefinitions");
                 std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
                 let (_reference_root, reference, reference_dir) =
                     ordered_generation_reference(&core, &id, &dir);
@@ -8591,15 +8765,18 @@ mod tests {
         let mut legacy = serde_json::to_value(&expected).unwrap();
         legacy["schemaVersion"] = serde_json::json!(35);
         legacy.as_object_mut().unwrap().remove("audioBuses");
+        legacy.as_object_mut().unwrap().remove("soundDefinitions");
         write_json_atomic(&project_path(&dir), &legacy).unwrap();
         let mut legacy_history = expected_history.clone();
         for project in legacy_history["undo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(35);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         for project in legacy_history["redo"].as_array_mut().unwrap() {
             project["schemaVersion"] = serde_json::json!(35);
             project.as_object_mut().unwrap().remove("audioBuses");
+            project.as_object_mut().unwrap().remove("soundDefinitions");
         }
         write_json_atomic(&history_path(&dir), &legacy_history).unwrap();
         let reopened = EditorCore::new(core.paths().clone());
@@ -8678,6 +8855,7 @@ mod tests {
                         // matched-source draft attempts to introduce the new kind.
                         project["schemaVersion"] = serde_json::json!(35);
                         project.as_object_mut().unwrap().remove("audioBuses");
+                        project.as_object_mut().unwrap().remove("soundDefinitions");
                         for entry in project["tracks"][1]["items"].as_array_mut().unwrap() {
                             entry.as_object_mut().unwrap().remove("effects");
                         }
@@ -8697,6 +8875,7 @@ mod tests {
                     if invalid == "premature" {
                         state["schemaVersion"] = serde_json::json!(35);
                         state.as_object_mut().unwrap().remove("audioBuses");
+                        state.as_object_mut().unwrap().remove("soundDefinitions");
                     }
                     if invalid == "future" {
                         state["schemaVersion"] =
@@ -8766,6 +8945,7 @@ mod tests {
                         // matched-source draft attempts to introduce the new kind.
                         project["schemaVersion"] = serde_json::json!(36);
                         project.as_object_mut().unwrap().remove("audioBuses");
+                        project.as_object_mut().unwrap().remove("soundDefinitions");
                         for entry in project["tracks"][1]["items"].as_array_mut().unwrap() {
                             entry.as_object_mut().unwrap().remove("effects");
                         }
@@ -8785,6 +8965,7 @@ mod tests {
                     if invalid == "premature" {
                         state["schemaVersion"] = serde_json::json!(36);
                         state.as_object_mut().unwrap().remove("audioBuses");
+                        state.as_object_mut().unwrap().remove("soundDefinitions");
                     }
                     if invalid == "future" {
                         state["schemaVersion"] =
@@ -8853,6 +9034,7 @@ mod tests {
                 let base = history[side].as_array_mut().unwrap().last_mut().unwrap();
                 base["schemaVersion"] = serde_json::json!(35);
                 base.as_object_mut().unwrap().remove("audioBuses");
+                base.as_object_mut().unwrap().remove("soundDefinitions");
                 for tracks in ["tracks"] {
                     for track in base[tracks].as_array_mut().unwrap() {
                         for leaf in track["items"].as_array_mut().unwrap() {
@@ -8913,6 +9095,7 @@ mod tests {
                 let base = history[side].as_array_mut().unwrap().last_mut().unwrap();
                 base["schemaVersion"] = serde_json::json!(36);
                 base.as_object_mut().unwrap().remove("audioBuses");
+                base.as_object_mut().unwrap().remove("soundDefinitions");
                 for tracks in ["tracks"] {
                     for track in base[tracks].as_array_mut().unwrap() {
                         for leaf in track["items"].as_array_mut().unwrap() {
@@ -9187,6 +9370,10 @@ mod tests {
                     .as_object_mut()
                     .unwrap()
                     .remove("audioBuses");
+                history["undo"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("soundDefinitions");
                 std::fs::write(history_path(&dir), serde_json::to_vec(&history).unwrap()).unwrap();
                 let (_reference_root, reference, reference_dir) =
                     ordered_generation_reference(&core, &id, &dir);
@@ -9446,6 +9633,7 @@ mod tests {
         let mut raw: serde_json::Value = read_json(&project_path(&dir)).unwrap();
         raw["schemaVersion"] = serde_json::json!(37);
         raw.as_object_mut().unwrap().remove("audioBuses");
+        raw.as_object_mut().unwrap().remove("soundDefinitions");
         write_json_atomic(&project_path(&dir), &raw).unwrap();
         let before = project_file_bytes(&dir);
         let result = core.commit_generated_asset(CommitGeneratedAssetRequest {
@@ -9536,6 +9724,7 @@ mod tests {
                 let mut raw: serde_json::Value = read_json(&project_path(&dir)).unwrap();
                 raw["schemaVersion"] = serde_json::json!(37);
                 raw.as_object_mut().unwrap().remove("audioBuses");
+                raw.as_object_mut().unwrap().remove("soundDefinitions");
                 write_json_atomic(&project_path(&dir), &raw).unwrap();
                 std::fs::write(&source, b"new aligned speech").unwrap();
                 let GeneratedAssetOrigin::SpeechSynthesis(generation) = &mut request.origin;

@@ -4,6 +4,13 @@ import ownership from "./audio-buses-ownership-addition.json";
 import pin from "./audio-buses-predecessor-pins.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
+import {
+  removeSoundEventHeadlessAdditions,
+  removeSoundEventMcpAdditions,
+  removeSoundEventOwnershipAddition,
+  restoreSoundEventCatalogMarker,
+} from "./semantic-sound-events-projection";
+
 const at = (source: unknown, path: string[]): Record<string, unknown> => {
   let value = source;
   for (const key of path) {
@@ -19,7 +26,13 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 
 export const restoreAudioBusCatalogMarker = (source: unknown) => {
-  const value = at(source, []);
+  const original = at(source, []);
+  const value = at(
+    original.projectSchemaVersion === 40
+      ? restoreSoundEventCatalogMarker(original)
+      : original,
+    []
+  );
   if (value.projectSchemaVersion !== 39) {
     throw new Error("Incorrect approved audio-bus catalog marker");
   }
@@ -27,7 +40,12 @@ export const restoreAudioBusCatalogMarker = (source: unknown) => {
 };
 
 export const removeAudioBusMcpAdditions = (source: unknown) => {
-  const result = structuredClone(source);
+  const input = at(source, []);
+  const result = structuredClone(
+    "sound_event_register" in at(input, ["toolDefinitions"])
+      ? removeSoundEventMcpAdditions(source)
+      : source
+  );
   for (const change of additions.additions) {
     if (change.kind === "array") {
       const array = at(result, change.path) as unknown as unknown[];
@@ -73,7 +91,12 @@ export const projectAudioBusMcpPredecessor = (source: unknown) => {
 };
 
 export const removeAudioBusHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const input = at(source, ["requests"]);
+  const result = structuredClone(
+    "soundEventRegister" in input
+      ? removeSoundEventHeadlessAdditions(source)
+      : source
+  );
   const object = at(result, []);
   const requests = at(object, ["requests"]);
   const expected = {
@@ -117,7 +140,12 @@ export const removeAudioBusHeadlessAdditions = <T>(source: T): T => {
 };
 
 export const removeAudioBusOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const input = at(source, ["categories"]);
+  const result = structuredClone(
+    "semanticSoundEventDefinitions" in input
+      ? removeSoundEventOwnershipAddition(source)
+      : source
+  );
   const categories = at(result, ["categories"]);
   if (
     orderedEffectDigest(categories.audioBuses) !==

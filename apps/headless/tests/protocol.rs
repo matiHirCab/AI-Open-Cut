@@ -17,8 +17,9 @@ fn audio_bus_typed_routes_aliases_history_and_fresh_process_reopen_match_catalog
     assert_eq!(read()["project"]["audioBuses"], catalog["defaultBuses"]);
     assert_eq!(
         read()["project"]["schemaVersion"],
-        catalog["projectSchemaVersion"]
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
     );
+    assert_eq!(catalog["projectSchemaVersion"], 39);
     let created = result(&h.request(
         json!({"operation":"edit_batch","projectId":id,"expectedRevision":0,"operations":[
             {"operation":"create_track","name":"Routed","trackType":"audio","resultAlias":"audio"},
@@ -2421,11 +2422,13 @@ fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation
         if name == "project.json" {
             document["schemaVersion"] = json!(28);
             document.as_object_mut().unwrap().remove("audioBuses");
+            document.as_object_mut().unwrap().remove("soundDefinitions");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(28);
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
+                    snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                 }
             }
         }
@@ -2512,11 +2515,13 @@ fn motion_pack_raw_wire_errors_preserve_schema29_documents() {
         if name == "project.json" {
             document["schemaVersion"] = json!(29);
             document.as_object_mut().unwrap().remove("audioBuses");
+            document.as_object_mut().unwrap().remove("soundDefinitions");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(29);
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
+                    snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                 }
             }
         }
