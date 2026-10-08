@@ -19,15 +19,15 @@
 ## 4. Public conformance and native proof
 
 - [x] 4.1 Add typed headless/MCP tool/schema43/capability and exact independently pinned final66 projections, retaining every older frozen proof/negative/native oracle.
-- [ ] 4.2 Exercise actual source/headless/isolated packaged standalone/batch/draft/history/reopen/error workflows and authoritative Rust/Zod parity consumers.
+- [x] 4.2 Exercise actual source/headless/isolated packaged standalone/batch/draft/history/reopen/error workflows and authoritative Rust/Zod parity consumers.
 - [x] 4.3 Add mandatory independent native conformance with unchanged RGB/PCM/timing tolerances; retain all previous consumers and add omission/failure-masking policy negatives.
 - [x] 4.4 Document conservative clip activity, clocks/envelope/order/role composition/reference/limit/readiness/version semantics and ownership.
 
 ## 5. Verification
 
-- [ ] 5.1 Pass cargo fmt --check --all, cargo clippy --workspace --all-targets -- -D warnings, cargo test --workspace; bridge bun run typecheck/lint/test/contracts:check/test:integration/test:packaged; hermetic Python, full policy/original+new native/raster/rules gates. Preserve every original failure; no timeout/profile/coverage/oracle reduction.
-- [ ] 5.2 Pass strict OpenSpec/prearchive Moon, full scenario/design/ownership/conformance audit and substantive transparent separate same-agent CODEOWNER COMMENT; fix all mismatches.
-- [ ] 5.3 Sync/archive only this verified approved change preserving untouched specs/archives and original requirements, then pass protected Moon and strict-all.
+- [x] 5.1 Pass cargo fmt --check --all, cargo clippy --workspace --all-targets -- -D warnings, cargo test --workspace; bridge bun run typecheck/lint/test/contracts:check/test:integration/test:packaged; hermetic Python, full policy/original+new native/raster/rules gates. Preserve every original failure; no timeout/profile/coverage/oracle reduction.
+- [x] 5.2 Pass strict OpenSpec and prearchive Moon policy tests with only the expected active-change rejection, full scenario/design/ownership/conformance audit and substantive transparent separate same-agent CODEOWNER COMMENT; fix all mismatches.
+- [x] 5.3 Sync/archive only this verified approved change preserving untouched specs/archives and original requirements, then pass protected Moon and strict-all.
 
 ## External publication/completion
 
