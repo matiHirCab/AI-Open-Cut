@@ -1,16 +1,28 @@
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { TextDecoder } from "node:util";
 
 import type { BridgeConfig } from "../config";
 import { BridgeError } from "../headless";
-import type { Job } from "../schemas";
+import { audioAnalysisArtifactSchema, type Job } from "../schemas";
 import type { ServerDependencies } from "./shared";
 
 export const ARTIFACT_RESOURCES_CAPABILITY = "artifact_resources_v2";
 export const ARTIFACT_RESOURCE_TEMPLATE = "opencut://jobs/{jobId}/artifact";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-const RENDER_KINDS = new Set(["preview", "preview_range", "export"]);
+const RENDER_ARTIFACTS: Partial<
+  Record<
+    Job["kind"],
+    { mimeType: "image/png" | "video/mp4" | "application/json"; name: string }
+  >
+> = {
+  audio_analysis: { mimeType: "application/json", name: "Audio analysis" },
+  export: { mimeType: "video/mp4", name: "Video export" },
+  preview: { mimeType: "image/png", name: "Render preview" },
+  preview_range: { mimeType: "video/mp4", name: "Render preview" },
+};
+const ANALYSIS_JSON_BYTES = 4 * 1024 * 1024;
 const UNSAFE_PATH = /[\\:%]/u;
 const unavailable = () =>
   new BridgeError("VALIDATION_FAILED", "Job artifact is unavailable or unsafe");
@@ -41,10 +53,11 @@ export const jobWithArtifactResource = (job: Job): Job => {
   if (job.status !== "completed") {
     return job;
   }
-  let mimeType: "image/png" | "audio/wav" | "video/mp4";
+  let mimeType: "image/png" | "audio/wav" | "video/mp4" | "application/json";
   let name: string;
   let sizeBytes: number | undefined;
   let { expiresAtMs } = job;
+  const render = RENDER_ARTIFACTS[job.kind];
   if (job.kind === "speech_preview" && job.speechPreview) {
     mimeType = "audio/wav";
     name = "Speech preview";
@@ -52,20 +65,15 @@ export const jobWithArtifactResource = (job: Job): Job => {
       expiresAtMs ?? Number.POSITIVE_INFINITY,
       job.speechPreview.expiresAtMs
     );
-  } else if (job.artifact && RENDER_KINDS.has(job.kind)) {
+  } else if (job.artifact && render) {
     const path = safeRelativePath(job.artifact.relativePath);
     if (job.kind !== "export" && !path.startsWith("previews/")) {
       throw unavailable();
     }
-    const artifactMime = job.artifact.mimeType;
-    if (
-      (job.kind === "preview" && artifactMime !== "image/png") ||
-      (job.kind !== "preview" && artifactMime !== "video/mp4")
-    ) {
+    if (job.artifact.mimeType !== render.mimeType) {
       throw unavailable();
     }
-    mimeType = job.kind === "preview" ? "image/png" : "video/mp4";
-    name = job.kind === "export" ? "Video export" : "Render preview";
+    ({ mimeType, name } = render);
     ({ sizeBytes } = job.artifact);
   } else {
     return job;
@@ -83,7 +91,11 @@ export const jobWithArtifactResource = (job: Job): Job => {
 };
 
 // Resource I/O confinement only: project/media semantics remain core-owned.
-const readOwnedFile = async (root: string, path: string) => {
+const readOwnedFile = async (
+  root: string,
+  path: string,
+  byteLimit?: number
+) => {
   const base = resolve(root);
   const suffix = relative(base, resolve(path));
   if (!suffix || isAbsolute(suffix)) {
@@ -126,7 +138,25 @@ const readOwnedFile = async (root: string, path: string) => {
     ) {
       throw unavailable();
     }
-    return await file.readFile();
+    if (byteLimit === undefined) {
+      return await file.readFile();
+    }
+    // Bound the actual opened-handle read, including a byte that detects growth
+    // beyond admission after stat. No unbounded readFile fallback for JSON.
+    const bytes = Buffer.alloc(byteLimit + 1);
+    let count = 0;
+    while (count < bytes.length) {
+      // biome-ignore lint/performance/noAwaitInLoops: Stream one bounded opened handle without racing concurrent reads.
+      const chunk = await file.read(bytes, count, bytes.length - count, null);
+      if (chunk.bytesRead === 0) {
+        break;
+      }
+      count += chunk.bytesRead;
+    }
+    if (count > byteLimit) {
+      throw unavailable();
+    }
+    return bytes.subarray(0, count);
   } finally {
     await file.close();
   }
@@ -188,6 +218,22 @@ export const readJobArtifact = async (
       };
     }
     const location = renderLocation(dependencies.config, job);
+    if (job.kind === "audio_analysis") {
+      const data = await readOwnedFile(
+        location.root,
+        location.path,
+        ANALYSIS_JSON_BYTES
+      );
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(data);
+      const analysis = audioAnalysisArtifactSchema.parse(JSON.parse(text));
+      if (
+        !job.audioAnalysis ||
+        JSON.stringify(analysis.summary) !== JSON.stringify(job.audioAnalysis)
+      ) {
+        throw unavailable();
+      }
+      return { data, mimeType: resource.mimeType };
+    }
     return {
       data: await readOwnedFile(location.root, location.path),
       mimeType: resource.mimeType,

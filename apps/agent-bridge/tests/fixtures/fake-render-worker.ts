@@ -6,15 +6,15 @@ import { createInterface } from "node:readline";
 const prepareHang = (request: Record<string, unknown>, id: string) => {
   const projects = process.env.OPENCUT_PROJECTS_DIR;
   if (projects) {
+    let extension = request.operation === "render_review_range" ? "mp4" : "png";
+    if (request.operation === "analyze_audio") {
+      extension = "json";
+    }
     const dir = join(projects, String(request.projectId));
     mkdirSync(join(dir, "previews"), { recursive: true });
     mkdirSync(join(dir, `.opencut-work-${id}`), { recursive: true });
     writeFileSync(
-      join(
-        dir,
-        "previews",
-        `.opencut-${id}.${request.operation === "render_review_range" ? "mp4" : "png"}`
-      ),
+      join(dir, "previews", `.opencut-${id}.${extension}`),
       "partial"
     );
     if (request.testMode === "hang-tree") {

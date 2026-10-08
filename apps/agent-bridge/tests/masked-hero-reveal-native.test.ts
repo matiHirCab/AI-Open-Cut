@@ -15,6 +15,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
+import audioAnalysis from "../../../contracts/audio-analysis-v1.json";
 import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
@@ -301,6 +302,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         "timeline_add_audio_event",
         "audio_bus_set_dsp",
         audioBusDucking.operation,
+        audioAnalysis.tool,
       ];
       expect(
         tools.filter((tool) => !addedTools.includes(tool.name))

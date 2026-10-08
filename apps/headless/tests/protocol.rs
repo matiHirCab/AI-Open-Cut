@@ -8,6 +8,125 @@ fn headless_contract() -> Value {
 }
 
 #[test]
+fn audio_analysis_closed_transport_revision_precedence_and_reopen_are_immutable() {
+    let h = Harness::new();
+    let id=result(&h.request(json!({"operation":"create_project","name":"Analysis protocol"})))["projectId"].clone();
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = read()["project"]["tracks"][1]["id"].clone();
+    result(&h.request(json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{"operation":"add_solid_color","trackId":track,"startMs":0,"durationMs":1000,"color":"#112233","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}}})));
+    let before = read();
+    let files = h.project_files(id.as_str().unwrap());
+    let mut request = headless_contract()["requests"]["analyzeAudio"].clone();
+    request["projectId"] = id.clone();
+    request["expectedRevision"] = json!(1);
+    for (extra, code) in [
+        (
+            json!({"expectedRevision":0,"endMs":1001}),
+            "REVISION_CONFLICT",
+        ),
+        (json!({"endMs":1001}), "INVALID_ARGUMENT"),
+        (json!({"startMs":100,"endMs":100}), "INVALID_ARGUMENT"),
+        (json!({"waveformBins":0}), "INVALID_ARGUMENT"),
+        (json!({"privatePath":"/secret"}), "INVALID_ARGUMENT"),
+    ] {
+        let mut invalid = request.clone();
+        invalid
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let error = event(&h.request(invalid));
+        assert_eq!(error["error"]["code"], code, "{error}");
+        assert_eq!(read(), before);
+        assert_eq!(h.project_files(id.as_str().unwrap()), files);
+    }
+    for operation in ["edit_batch", "create_draft"] {
+        let error=event(&h.request(json!({"operation":operation,"projectId":id,"expectedRevision":1,"operations":[{"operation":"analyze_audio","startMs":0,"endMs":1000,"waveformBins":1}]})));
+        assert_eq!(error["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(read(), before);
+        assert_eq!(h.project_files(id.as_str().unwrap()), files);
+    }
+}
+
+#[test]
+fn audio_analysis_capability_requires_every_reviewed_filter() {
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/audio-analysis-v1.json")).unwrap();
+    let filters = catalog["requiredFilters"].as_array().unwrap();
+    for missing in filters.iter().map(Some).chain(std::iter::once(None)) {
+        let h = Harness::new();
+        let base = [
+            "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad",
+            "crop", "format",
+        ];
+        let names = base
+            .iter()
+            .copied()
+            .chain(filters.iter().map(|v| v.as_str().unwrap()))
+            .filter(|v| missing.is_none_or(|m| m.as_str() != Some(*v)))
+            .collect::<Vec<_>>();
+        let executable = h.root.path().join(if cfg!(windows) {
+            "analysis-filters.cmd"
+        } else {
+            "analysis-filters.sh"
+        });
+        let script = if cfg!(windows) {
+            format!(
+                "@echo off\r\n{}\r\n",
+                names
+                    .iter()
+                    .map(|n| format!("echo  {n} "))
+                    .collect::<Vec<_>>()
+                    .join("\r\n")
+            )
+        } else {
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' {}\n",
+                names
+                    .iter()
+                    .map(|n| format!("' {n} '"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        std::fs::write(&executable, script).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let mut child = Command::new(env!("CARGO_BIN_EXE_opencut-headless"))
+            .env("OPENCUT_PROJECTS_DIR", h.root.path().join("projects"))
+            .env("OPENCUT_ALLOWED_MEDIA_DIRS", h.root.path().join("media"))
+            .env("OPENCUT_EXPORTS_DIR", h.root.path().join("exports"))
+            .env("OPENCUT_FFMPEG_PATH", &executable)
+            .env("OPENCUT_FFPROBE_PATH", &executable)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::io::Write::write_all(
+            &mut child.stdin.take().unwrap(),
+            serde_json::to_string(&json!({"operation":"status"}))
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        let status = result(&child.wait_with_output().unwrap());
+        let capabilities = status["subsystems"]["rendering"]["capabilities"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            capabilities.contains(&json!("audio_analysis_v1")),
+            missing.is_none(),
+            "missing {missing:?}: {status}"
+        );
+        assert_eq!(status["projectSchemaVersion"], 43);
+        assert_eq!(status["protocolVersion"], 1);
+    }
+}
+
+#[test]
 fn audio_bus_dsp_typed_transactions_and_fresh_process_reopen_match_independent_catalog() {
     let h = Harness::new();
     let catalog: Value =
@@ -1778,6 +1897,10 @@ fn audio_bus_dsp_capability_requires_each_filter_without_disabling_base_renderin
             .unwrap()
             .iter()
             .filter(|capability| {
+                // These historical DSP/ducking probes omit analysis-only filters.
+                if **capability == json!("audio_analysis_v1") {
+                    return false;
+                }
                 if **capability == json!("audio_bus_dsp_v1") {
                     return missing.is_none();
                 }
@@ -1889,6 +2012,10 @@ fn audio_bus_ducking_capability_requires_each_filter_without_requiring_eq_compre
             .unwrap()
             .iter()
             .filter(|capability| {
+                // These historical DSP/ducking probes omit analysis-only filters.
+                if **capability == json!("audio_analysis_v1") {
+                    return false;
+                }
                 if **capability == json!("audio_bus_dsp_v1") {
                     return false;
                 }

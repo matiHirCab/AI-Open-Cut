@@ -12,6 +12,7 @@ import {
   headlessEditSchema,
   schemas,
 } from "../src/schemas";
+import { removeAudioAnalysisMcpAdditions } from "./fixtures/audio-analysis-projection";
 import pins from "./fixtures/audio-bus-ducking-predecessor-pins.json";
 import {
   audioBusDuckingDigest,
@@ -121,7 +122,9 @@ it("rejects addition tampering and leaves the current43 catalog immutable", () =
     mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
       .const
   ).toBe(43);
-  expect(audioBusDuckingDigest(expandMcpSurfaceCatalog(mcp))).toBe(
-    pins.manuallyReviewedCurrentExpandedSha256
-  );
+  expect(
+    audioBusDuckingDigest(
+      expandMcpSurfaceCatalog(removeAudioAnalysisMcpAdditions(mcp))
+    )
+  ).toBe(pins.manuallyReviewedCurrentExpandedSha256);
 });

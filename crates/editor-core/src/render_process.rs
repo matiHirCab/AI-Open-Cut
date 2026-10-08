@@ -1,5 +1,7 @@
 //! FFmpeg and FFprobe process execution owner.
 
+mod audio_analysis;
+
 use std::{
     fmt::Debug,
     io::{BufRead, BufReader, Read, Write},
@@ -544,6 +546,25 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn audio_analysis_readiness(&self, _ffmpeg_path: &Path) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio analysis is unavailable",
+        ))
+    }
+    fn analyze_audio(
+        &self,
+        _ffmpeg_path: &Path,
+        _plan: &crate::render_plan::audio_analysis::AudioAnalysisPlan,
+        _filter_path: &Path,
+        _pcm_path: &Path,
+        _on_progress: &mut dyn FnMut(RenderProgress),
+    ) -> Result<crate::render_plan::audio_analysis::AudioAnalysisDocument, CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio analysis execution is unavailable",
+        ))
+    }
     fn audio_bus_dsp_readiness(&self, _ffmpeg_path: &Path) -> Result<(), CoreError> {
         Err(CoreError::new(
             ErrorCode::DependencyUnavailable,
@@ -641,6 +662,19 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn audio_analysis_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
+        audio_analysis::readiness(ffmpeg_path)
+    }
+    fn analyze_audio(
+        &self,
+        ffmpeg_path: &Path,
+        plan: &crate::render_plan::audio_analysis::AudioAnalysisPlan,
+        filter_path: &Path,
+        pcm_path: &Path,
+        on_progress: &mut dyn FnMut(RenderProgress),
+    ) -> Result<crate::render_plan::audio_analysis::AudioAnalysisDocument, CoreError> {
+        audio_analysis::execute(ffmpeg_path, plan, filter_path, pcm_path, on_progress)
+    }
     fn audio_bus_dsp_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
         audio_bus_dsp_readiness(ffmpeg_path)
     }
@@ -1070,12 +1104,15 @@ pub(crate) fn build_render_command(
 }
 
 fn append_render_inputs(command: &mut Command, plan: &RenderPlan) {
+    append_render_inputs_mode(command, plan, true);
+}
+
+fn append_render_inputs_mode(command: &mut Command, plan: &RenderPlan, progress: bool) {
+    command.args(["-hide_banner", "-loglevel", "error"]);
+    if progress {
+        command.args(["-progress", "pipe:1"]);
+    }
     command.args([
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-progress",
-        "pipe:1",
         "-nostats",
         "-f",
         "lavfi",

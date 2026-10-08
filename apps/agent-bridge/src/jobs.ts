@@ -14,6 +14,7 @@ import {
 
 interface JobCompletion {
   artifact?: ReturnType<typeof artifactSchema.parse>;
+  audioAnalysis?: Job["audioAnalysis"];
   result?: ReturnType<typeof ttsResultSchema.parse>;
   speechPreview?: Job["speechPreview"];
   transcriptionPreview?: Job["transcriptionPreview"];

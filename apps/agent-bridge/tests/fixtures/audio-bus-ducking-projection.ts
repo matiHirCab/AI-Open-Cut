@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/audio-bus-ducking-v1.json";
+import {
+  removeAudioAnalysisHeadlessAdditions,
+  removeAudioAnalysisMcpAdditions,
+  removeAudioAnalysisOwnershipAddition,
+  restoreAudioAnalysisRaw,
+} from "./audio-analysis-projection";
 import additions from "./audio-bus-ducking-mcp-additions.json";
 import owners from "./audio-bus-ducking-ownership-addition.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
@@ -47,7 +53,7 @@ const removeAddition = (
   }
 };
 export const removeAudioBusDuckingMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioAnalysisMcpAdditions(source);
   const capabilities = at(result, []).capabilityIdentifiers;
   if (
     !(
@@ -63,7 +69,7 @@ export const removeAudioBusDuckingMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioBusDuckingHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioAnalysisHeadlessAdditions(source);
   const requests = at(result, ["requests"]);
   if (!Object.hasOwn(requests, "audioBusSetDucking")) {
     return result;
@@ -92,7 +98,7 @@ export const removeAudioBusDuckingHeadlessAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioBusDuckingOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeAudioAnalysisOwnershipAddition(source);
   const categories = at(result, ["categories"]);
   if (!Object.hasOwn(categories, "audioBusDucking")) {
     return result;
@@ -107,13 +113,14 @@ export const removeAudioBusDuckingOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const restoreAudioBusDuckingRawHeader = (source: string): string => {
-  if (!source.includes('"projectSchemaVersion": 43')) {
-    return source;
+  const prior = restoreAudioAnalysisRaw(source);
+  if (!prior.includes('"projectSchemaVersion": 43')) {
+    return prior;
   }
-  if (source.match(/"projectSchemaVersion": 43/g)?.length !== 1) {
+  if (prior.match(/"projectSchemaVersion": 43/g)?.length !== 1) {
     throw new Error("Incorrect ducking header");
   }
-  return source.replace(
+  return prior.replace(
     '"projectSchemaVersion": 43',
     '"projectSchemaVersion": 42'
   );

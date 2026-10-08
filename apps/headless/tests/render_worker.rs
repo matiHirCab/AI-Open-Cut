@@ -130,8 +130,30 @@ fn additive_review_fixture_preserves_legacy_request_positions() {
             "render_draft_preview",
             "export_video",
             "render_review_range",
+            "analyze_audio",
         ]
     );
+}
+
+#[test]
+fn audio_analysis_worker_retains_correlated_typed_errors_and_legacy_rendering() {
+    let root = tempfile::tempdir().unwrap();
+    let mut worker = Worker::start(root.path());
+    let contract = fixture();
+    let request = contract["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["request"]["operation"] == "analyze_audio")
+        .unwrap()["request"]
+        .clone();
+    for index in 0..2 {
+        let error = worker.request(&format!("analysis-{index}"), request.clone());
+        assert_eq!(error["type"], "error");
+        assert_eq!(error["error"]["code"], "PROJECT_NOT_FOUND");
+    }
+    let error = worker.request("legacy-render", contract["requests"][0]["request"].clone());
+    assert_eq!(error["error"]["code"], "PROJECT_NOT_FOUND");
 }
 
 #[test]

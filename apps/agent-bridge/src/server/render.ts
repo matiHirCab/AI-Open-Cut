@@ -1,5 +1,10 @@
 import { BridgeError } from "../headless";
-import { jobSchema, projectStateSchema, schemas } from "../schemas";
+import {
+  audioAnalysisResultSchema,
+  jobSchema,
+  projectStateSchema,
+  schemas,
+} from "../schemas";
 import {
   DESTRUCTIVE,
   failure,
@@ -13,6 +18,47 @@ export const registerRenderTools = (
   server: Server,
   { headless, jobs }: ServerDependencies
 ) => {
+  server.registerTool(
+    "audio_analyze_mix",
+    {
+      annotations: WRITE,
+      description:
+        "Queue original48kHz stereo waveform, sample peak, true peak and LUFS analysis of a committed root range. Processing retains full root clocks; polling returns a bounded summary and an explicit JSON waveform resource.",
+      inputSchema: schemas.audioAnalyzeMix,
+      outputSchema: jobSchema,
+    },
+    ({ projectId, expectedRevision, startMs, endMs, waveformBins }) => {
+      try {
+        return success(
+          jobs.startTask(
+            "audio_analysis",
+            projectId,
+            expectedRevision,
+            async ({ signal, onProgress }) => {
+              const result = await headless.call(
+                {
+                  endMs,
+                  expectedRevision,
+                  operation: "analyze_audio",
+                  projectId,
+                  startMs,
+                  waveformBins,
+                },
+                audioAnalysisResultSchema,
+                { onProgress, signal }
+              );
+              return {
+                artifact: result.artifact,
+                audioAnalysis: result.summary,
+              };
+            }
+          )
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
   server.registerTool(
     "preview_review_range",
     {

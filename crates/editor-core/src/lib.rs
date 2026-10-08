@@ -27,10 +27,14 @@ pub use validation::audio_buses::resolve_audio_bus_route;
 mod markers;
 pub use path_policy::PathPolicy;
 pub use render_artifact::RenderArtifact;
+pub use render_plan::audio_analysis::{
+    AudioAnalysisDocument, AudioAnalysisOptions, AudioAnalysisSummary, AudioChannelStatistics,
+    AudioWaveformBin,
+};
 pub use render_process::{ProbeResult, RenderProgress};
 pub use renderer::{
-    ExportOptions, PreviewDimensions, PreviewPreset, PreviewRangeOptions, PreviewResolution,
-    PreviewReviewOptions, Renderer,
+    AudioAnalysisResult, ExportOptions, PreviewDimensions, PreviewPreset, PreviewRangeOptions,
+    PreviewResolution, PreviewReviewOptions, Renderer,
 };
 pub use store::{
     CommitGeneratedAssetRequest, CommitGeneratedAssetResult, CommitTranscriptionRequest,

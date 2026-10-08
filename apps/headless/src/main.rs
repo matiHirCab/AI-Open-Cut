@@ -5,10 +5,11 @@ use std::{
 };
 
 use opencut_editor_core::{
-    BatchEditOperation, CaptionStyle, CommitGeneratedAssetRequest, CommitTranscriptionRequest,
-    CoreError, EditOperation, EditorCore, ExportOptions, GeneratedAssetOrigin, MediaProbeFacts,
-    MediaType, PathPolicy, PreviewRangeOptions, PreviewResolution, PreviewReviewOptions,
-    ProjectSettings, Renderer, ReplaceGeneratedAssetRequest, TranscriptionSegment,
+    AudioAnalysisOptions, BatchEditOperation, CaptionStyle, CommitGeneratedAssetRequest,
+    CommitTranscriptionRequest, CoreError, EditOperation, EditorCore, ExportOptions,
+    GeneratedAssetOrigin, MediaProbeFacts, MediaType, PathPolicy, PreviewRangeOptions,
+    PreviewResolution, PreviewReviewOptions, ProjectSettings, Renderer,
+    ReplaceGeneratedAssetRequest, TranscriptionSegment,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,13 @@ const HEADLESS_PROTOCOL_VERSION: u32 = 1;
 )]
 #[strum(serialize_all = "snake_case")]
 enum Request {
+    AnalyzeAudio {
+        project_id: String,
+        expected_revision: u64,
+        start_ms: u64,
+        end_ms: u64,
+        waveform_bins: u32,
+    },
     Status {
         #[serde(default)]
         protocol_version: Option<u32>,
@@ -596,6 +604,31 @@ fn dispatch(
             project_id,
             expected_revision,
         } => sink.value(core.redo(&project_id, expected_revision)?),
+        Request::AnalyzeAudio {
+            project_id,
+            expected_revision,
+            start_ms,
+            end_ms,
+            waveform_bins,
+        } => {
+            let project = core.validate_revision(&project_id, expected_revision)?;
+            let project_dir = core.paths().project_dir(&project_id)?;
+            let result = renderer.analyze_audio(
+                &project,
+                &project_dir,
+                AudioAnalysisOptions {
+                    start_ms,
+                    end_ms,
+                    waveform_bins,
+                },
+                |progress| {
+                    let _ = sink.event(Event::<serde_json::Value>::Progress {
+                        progress: progress.progress,
+                    });
+                },
+            )?;
+            sink.value(result)
+        }
         Request::RenderPreview {
             project_id,
             expected_revision,
@@ -869,6 +902,9 @@ fn status(renderer: &Renderer) -> Status {
                 if renderer.audio_bus_ducking_readiness().is_ok() {
                     capabilities.push("audio_bus_ducking_v1");
                 }
+                if renderer.audio_analysis_readiness().is_ok() {
+                    capabilities.push("audio_analysis_v1");
+                }
                 capabilities
             },
             error: None,
@@ -1036,6 +1072,7 @@ mod tests {
                 let mut capabilities = render_capabilities();
                 capabilities.push("audio_bus_dsp_v1");
                 capabilities.push("audio_bus_ducking_v1");
+                capabilities.push("audio_analysis_v1");
                 capabilities
             })
             .unwrap(),

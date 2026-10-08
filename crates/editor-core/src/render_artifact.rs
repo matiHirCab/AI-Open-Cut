@@ -1,5 +1,6 @@
 //! Render workspace and artifact publication owner.
 
+pub(crate) mod audio_analysis;
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;
@@ -581,29 +582,7 @@ pub(crate) fn prepare_media_resources(
 ) -> Result<PreparedMediaResources, CoreError> {
     let media_inputs = media_input_requests(evaluated)?;
     validate_font_resource_bindings(evaluated)?;
-    let binding_by_asset = evaluated
-        .resource_bindings
-        .media
-        .iter()
-        .map(|binding| {
-            (
-                binding.asset_id.as_str(),
-                binding.project_relative_path.as_str(),
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let mut media_paths = Vec::with_capacity(media_inputs.len());
-    for input in &media_inputs {
-        let relative = binding_by_asset
-            .get(input.asset_id.as_str())
-            .ok_or_else(|| {
-                CoreError::new(
-                    ErrorCode::InternalError,
-                    "evaluated media resource binding is missing",
-                )
-            })?;
-        media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
-    }
+    let media_paths = resolve_media_input_paths(io, evaluated, project_dir, &media_inputs)?;
     let mut font_faces = std::collections::BTreeMap::new();
     let font_limit = if evaluated.scene.composition_resources.is_some() {
         Some(
@@ -710,6 +689,38 @@ pub(crate) fn prepare_media_resources(
     })
 }
 
+fn resolve_media_input_paths(
+    io: &dyn ArtifactIo,
+    evaluated: &EvaluatedSceneResult,
+    project_dir: &Path,
+    media_inputs: &[MediaInputRequest],
+) -> Result<Vec<PathBuf>, CoreError> {
+    let binding_by_asset = evaluated
+        .resource_bindings
+        .media
+        .iter()
+        .map(|binding| {
+            (
+                binding.asset_id.as_str(),
+                binding.project_relative_path.as_str(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut media_paths = Vec::with_capacity(media_inputs.len());
+    for input in media_inputs {
+        let relative = binding_by_asset
+            .get(input.asset_id.as_str())
+            .ok_or_else(|| {
+                CoreError::new(
+                    ErrorCode::InternalError,
+                    "evaluated media resource binding is missing",
+                )
+            })?;
+        media_paths.push(resolve_project_asset(io, project_dir, Path::new(relative))?);
+    }
+    Ok(media_paths)
+}
+
 fn validate_font_resource_bindings(evaluated: &EvaluatedSceneResult) -> Result<(), CoreError> {
     let font_bindings = evaluated
         .resource_bindings
@@ -738,6 +749,13 @@ fn validate_font_resource_bindings(evaluated: &EvaluatedSceneResult) -> Result<(
 pub(crate) fn media_input_requests(
     evaluated: &EvaluatedSceneResult,
 ) -> Result<Vec<MediaInputRequest>, CoreError> {
+    media_input_requests_for(evaluated, false)
+}
+
+fn media_input_requests_for(
+    evaluated: &EvaluatedSceneResult,
+    audio_only: bool,
+) -> Result<Vec<MediaInputRequest>, CoreError> {
     let kind_by_asset = evaluated
         .scene
         .resources
@@ -748,6 +766,7 @@ pub(crate) fn media_input_requests(
         .scene
         .visual_layers
         .iter()
+        .filter(|_| !audio_only)
         .filter_map(|layer| match &layer.source {
             EvaluatedVisualSource::Media {
                 asset_id,

@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+pub(crate) mod audio_analysis;
 mod audio_bus_dsp;
 mod audio_bus_ducking;
 
