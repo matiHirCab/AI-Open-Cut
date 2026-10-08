@@ -73,18 +73,19 @@ pub(super) fn prepare(
     Ok(result)
 }
 
-// Choose a branch by an interior point and evaluate that same branch at the
-// endpoints. This retains instantaneous attacks/releases at segment boundaries.
-fn branch(time: f64, interior: f64, span: (f64, f64), settings: &AudioBusDucking) -> f64 {
+// Endpoint containment identifies one linear branch without constructing a
+// midpoint that can round to the half-open end for adjacent finite clocks.
+fn branch(time: f64, segment: (f64, f64), span: (f64, f64), settings: &AudioBusDucking) -> f64 {
     let (start, end) = span;
+    let (left, right) = segment;
     let attack = settings.attack_ms as f64;
     let release = settings.release_ms as f64;
     let gain = settings.gain;
-    if interior >= start && interior < end {
+    if left >= start && right <= end {
         gain
-    } else if attack > 0.0 && interior >= start - attack && interior < start {
+    } else if attack > 0.0 && left >= start - attack && right <= start {
         1.0 - (1.0 - gain) * ((time - (start - attack)) / attack)
-    } else if release > 0.0 && interior >= end && interior < end + release {
+    } else if release > 0.0 && left >= end && right <= end + release {
         gain + (1.0 - gain) * ((time - end) / release)
     } else {
         1.0
@@ -140,17 +141,20 @@ fn envelope(
     for pair in points.windows(2) {
         let start = pair[0];
         let end = pair[1];
-        let interior = start + (end - start) * 0.5;
+        let segment = (start, end);
+        // Every branch is linear throughout this disjoint segment. Average
+        // endpoint gains evaluate its mathematical interior even when no
+        // representable clock lies strictly between the endpoints.
+        let mean = |span| {
+            (branch(start, segment, span, settings) + branch(end, segment, span, settings)) * 0.5
+        };
         let source = merged
             .iter()
             .copied()
-            .min_by(|a, b| {
-                branch(interior, interior, *a, settings)
-                    .total_cmp(&branch(interior, interior, *b, settings))
-            })
+            .min_by(|a, b| mean(*a).total_cmp(&mean(*b)))
             .unwrap();
-        let start_gain = branch(start, interior, source, settings).clamp(0.0, 1.0);
-        let end_gain = branch(end, interior, source, settings).clamp(0.0, 1.0);
+        let start_gain = branch(start, segment, source, settings).clamp(0.0, 1.0);
+        let end_gain = branch(end, segment, source, settings).clamp(0.0, 1.0);
         if start_gain == 1.0 && end_gain == 1.0 {
             continue;
         }
@@ -227,6 +231,18 @@ mod tests {
         assert_eq!(at(&instantaneous, 49.999), 1.0);
         assert_eq!(at(&instantaneous, 50.0), 0.25);
         assert_eq!(at(&instantaneous, 100.0), 1.0);
+    }
+    #[test]
+    fn adjacent_finite_endpoints_preserve_positive_instantaneous_hold() {
+        let start = f64::from_bits(1.0_f64.to_bits() + 1);
+        let end = f64::from_bits(1.0_f64.to_bits() + 2);
+        assert!(start < end);
+        let segments = envelope(vec![(start, end)], &settings(0, 0), 2.0).unwrap();
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0].start_ms, start);
+        assert_eq!(segments[0].end_ms, end);
+        assert_eq!(at(&segments, start), 0.25);
+        assert_eq!(at(&segments, end), 1.0);
     }
     #[test]
     fn merged_interval_admission_preserves_the_boundary() {
