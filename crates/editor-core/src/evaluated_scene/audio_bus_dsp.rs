@@ -16,7 +16,7 @@ pub(crate) struct EvaluatedCompressor {
     pub(crate) release_ms: f64,
     pub(crate) makeup: f64,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedBus {
     pub(crate) index: usize,
     pub(crate) output: Option<usize>,
@@ -24,6 +24,23 @@ pub(crate) struct EvaluatedBus {
     pub(crate) balance: [f64; 2],
     pub(crate) eq: Vec<EvaluatedEqBand>,
     pub(crate) compressor: Option<EvaluatedCompressor>,
+    pub(crate) ducking: Option<Vec<super::audio_bus_ducking::EnvelopeSegment>>,
+}
+impl std::fmt::Debug for EvaluatedBus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut value = f.debug_struct("EvaluatedBus");
+        value
+            .field("index", &self.index)
+            .field("output", &self.output)
+            .field("linear_gain", &self.linear_gain)
+            .field("balance", &self.balance)
+            .field("eq", &self.eq)
+            .field("compressor", &self.compressor);
+        if let Some(ducking) = &self.ducking {
+            value.field("ducking", ducking);
+        }
+        value.finish()
+    }
 }
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EvaluatedBusGraph {
@@ -31,12 +48,26 @@ pub(crate) struct EvaluatedBusGraph {
     pub(crate) buses: Vec<EvaluatedBus>,
 }
 impl EvaluatedBusGraph {
+    pub(crate) fn requires_dsp(&self) -> bool {
+        self.buses.iter().any(|b| {
+            b.linear_gain != 1.0
+                || b.balance != [1.0, 1.0]
+                || !b.eq.is_empty()
+                || b.compressor.is_some()
+        })
+    }
     pub(crate) fn heap_bytes(&self) -> u64 {
         (self.buses.capacity() * std::mem::size_of::<EvaluatedBus>()
             + self
                 .buses
                 .iter()
-                .map(|b| b.eq.capacity() * std::mem::size_of::<EvaluatedEqBand>())
+                .map(|b| {
+                    b.eq.capacity() * std::mem::size_of::<EvaluatedEqBand>()
+                        + b.ducking.as_ref().map_or(0, |segments| {
+                            segments.capacity()
+                                * std::mem::size_of::<super::audio_bus_ducking::EnvelopeSegment>()
+                        })
+                })
                 .sum::<usize>()) as u64
     }
 }
@@ -45,7 +76,11 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
     // Omission retains the complete legacy direct-render path, including native
     // historical fixtures. Persistence validates routing independently; only
     // authored DSP introduces the DSP model/render guards here.
-    if project.audio_buses.iter().all(|bus| bus.dsp.is_none()) {
+    if project
+        .audio_buses
+        .iter()
+        .all(|bus| bus.dsp.is_none() && bus.ducking.is_none())
+    {
         return Ok(());
     }
     project.validate_audio_bus_model()?;
@@ -76,11 +111,13 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
             }
         }
     }
-    if !project
-        .audio_buses
-        .iter()
-        .enumerate()
-        .any(|(i, b)| audible_reachable[i] && b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
+    let mut ducking = super::audio_bus_ducking::prepare(project, scene, &audible_reachable)?;
+    if ducking.iter().all(Vec::is_empty)
+        && !project
+            .audio_buses
+            .iter()
+            .enumerate()
+            .any(|(i, b)| audible_reachable[i] && b.dsp.as_ref().is_some_and(|d| !d.is_identity()))
     {
         for audio in &mut scene.audio_layers {
             audio.bus_index = None;
@@ -131,6 +168,7 @@ pub(crate) fn finalize(project: &Project, scene: &mut EvaluatedScene) -> Result<
                     })
                     .collect()
             }),
+            ducking: (!ducking[index].is_empty()).then(|| std::mem::take(&mut ducking[index])),
             compressor: dsp
                 .and_then(|d| d.compressor.as_ref())
                 .map(|c| EvaluatedCompressor {

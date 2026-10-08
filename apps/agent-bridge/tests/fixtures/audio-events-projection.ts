@@ -26,6 +26,9 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 export const restoreAudioEventCatalogMarker = (source: unknown) => {
   const value = structuredClone(at(source, []));
+  if (value.projectSchemaVersion === 43) {
+    value.projectSchemaVersion = 42;
+  }
   if (value.projectSchemaVersion === 42) {
     value.projectSchemaVersion = 41;
   }

@@ -20,6 +20,7 @@ import {
   removeAudioBusDspOwnershipAddition,
   restoreAudioBusDspRawHeader,
 } from "./fixtures/audio-bus-dsp-projection";
+import { removeAudioBusDuckingMcpAdditions } from "./fixtures/audio-bus-ducking-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 
 const hash = (value: string | Uint8Array) =>
@@ -107,7 +108,7 @@ it("shares the manually reviewed closed finite bounded normalized DSP contract",
     expect(audioBusDspSchema.safeParse(invalid).success).toBe(false);
   }
 });
-it("rejects addition tampering and leaves the current42 catalog immutable", () => {
+it("rejects addition tampering and leaves the frozen42 catalog immutable", () => {
   const changed = structuredClone(mcp);
   changed.toolDefinitions.audio_bus_set_dsp.annotations.readOnlyHint = true;
   expect(() => removeAudioBusDspMcpAdditions(changed)).toThrow();
@@ -116,10 +117,12 @@ it("rejects addition tampering and leaves the current42 catalog immutable", () =
       .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
   ).toBe(41);
   expect(
-    mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
-      .const
+    removeAudioBusDuckingMcpAdditions(mcp).$defs
+      .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
   ).toBe(42);
-  expect(audioBusDspDigest(expandMcpSurfaceCatalog(mcp))).toBe(
-    pins.manuallyReviewedCurrentExpandedSha256
-  );
+  expect(
+    audioBusDspDigest(
+      expandMcpSurfaceCatalog(removeAudioBusDuckingMcpAdditions(mcp))
+    )
+  ).toBe(pins.manuallyReviewedCurrentExpandedSha256);
 });

@@ -1,0 +1,330 @@
+{
+  "additions": [
+    {
+      "path": [
+        "toolDefinitions",
+        "editor_get_status",
+        "outputSchema",
+        "properties",
+        "projectSchemaVersion"
+      ],
+      "kind": "replacement",
+      "value": {
+        "const": 43,
+        "type": "number"
+      },
+      "before": {
+        "const": 42,
+        "type": "number"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "schemaVersion"
+      ],
+      "kind": "replacement",
+      "value": {
+        "const": 43,
+        "type": "number"
+      },
+      "before": {
+        "const": 42,
+        "type": "number"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "audioBuses",
+        "items",
+        "properties",
+        "ducking"
+      ],
+      "kind": "property",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "attackMs": {
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "gain": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "releaseMs": {
+            "maximum": 9000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sourceBusId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["attackMs", "enabled", "gain", "releaseMs", "sourceBusId"],
+        "type": "object"
+      }
+    },
+    {
+      "path": ["$defs", "DraftCreateInputPropertiesOperationsItems", "oneOf"],
+      "kind": "array",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "ducking": {
+            "additionalProperties": false,
+            "properties": {
+              "attackMs": {
+                "maximum": 2000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "gain": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "releaseMs": {
+                "maximum": 9000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sourceBusId": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "attackMs",
+              "enabled",
+              "gain",
+              "releaseMs",
+              "sourceBusId"
+            ],
+            "type": "object"
+          },
+          "operation": {
+            "const": "audio_bus_set_ducking",
+            "type": "string"
+          }
+        },
+        "required": ["busId", "ducking", "operation"],
+        "type": "object"
+      },
+      "index": 0
+    },
+    {
+      "path": ["$defs", "DraftCreateOutputPropertiesOperationsItems", "oneOf"],
+      "kind": "array",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "busId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "ducking": {
+            "additionalProperties": false,
+            "properties": {
+              "attackMs": {
+                "maximum": 2000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "gain": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "releaseMs": {
+                "maximum": 9000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sourceBusId": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "attackMs",
+              "enabled",
+              "gain",
+              "releaseMs",
+              "sourceBusId"
+            ],
+            "type": "object"
+          },
+          "operation": {
+            "const": "audio_bus_set_ducking",
+            "type": "string"
+          }
+        },
+        "required": ["busId", "ducking", "operation"],
+        "type": "object"
+      },
+      "index": 0
+    },
+    {
+      "path": ["toolDefinitions", "audio_bus_set_ducking"],
+      "kind": "property",
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "busId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "ducking": {
+              "additionalProperties": false,
+              "properties": {
+                "attackMs": {
+                  "maximum": 2000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "gain": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "releaseMs": {
+                  "maximum": 9000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sourceBusId": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "attackMs",
+                "enabled",
+                "gain",
+                "releaseMs",
+                "sourceBusId"
+              ],
+              "type": "object"
+            },
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": ["expectedRevision", "projectId", "busId", "ducking"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "default": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "changedIds": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "aliases",
+            "changedIds",
+            "projectId",
+            "revision",
+            "summary",
+            "warnings"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["tools"],
+      "kind": "array",
+      "value": "audio_bus_set_ducking",
+      "index": 5
+    },
+    {
+      "path": ["capabilityIdentifiers"],
+      "kind": "array",
+      "value": "audio_bus_ducking_v1"
+    }
+  ],
+  "authorship": "manually authored approved issue67 normalized settings; no runtime producer expectations"
+}

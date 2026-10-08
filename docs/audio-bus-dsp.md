@@ -32,3 +32,5 @@ DSP editing remains available independently of render readiness. Status advertis
 are available. A render using active DSP checks those dependencies after canonical
 model/resource admission and before destination inspection or artifact creation.
 Missing dependencies return `DEPENDENCY_UNAVAILABLE` without partial artifacts.
+
+Schema43 additionally supports explicit narration clip-activity ducking after compression and before balance, as defined in [narration bus ducking](audio-bus-ducking.md). Existing per-item role controls stay unchanged; omitted/disabled/identity/inactive bus ducking preserves all schema42 DSP behavior.

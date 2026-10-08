@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "negotiation": {
+    "defaultVersion": 1,
+    "supportedVersions": [
+      1
+    ],
+    "unsupportedError": {
+      "code": "INVALID_ARGUMENT",
+      "retryable": false
+    }
+  },
+  "operations": [
+    "commit_draft",
+    "commit_generated_asset",
+    "commit_transcription",
+    "create_draft",
+    "create_project",
+    "delete_asset",
+    "discard_draft",
+    "edit",
+    "edit_batch",
+    "export_video",
+    "get_draft",
+    "get_draft_state",
+    "get_state",
+    "import_asset",
+    "list_projects",
+    "open_project",
+    "rebase_draft",
+    "redo",
+    "render_draft_preview",
+    "render_preview",
+    "render_preview_range",
+    "render_review_range",
+    "replace_generated_asset",
+    "resolve_asset_input",
+    "status",
+    "undo",
+    "update_draft",
+    "validate_speech_alignment"
+  ],
+  "requests": {
+    "statusStyledCurrent": {
+      "operation": "status",
+      "styledTextLayersVersion": 1
+    },
+    "statusStyledUnsupported": {
+      "operation": "status",
+      "styledTextLayersVersion": 2
+    },
+    "statusLayoutCurrent": {
+      "operation": "status",
+      "textLayoutVersion": 2
+    },
+    "statusLayoutUnsupported": {
+      "operation": "status",
+      "textLayoutVersion": 3
+    },
+    "statusDefault": {
+      "operation": "status"
+    },
+    "statusCurrent": {
+      "operation": "status",
+      "protocolVersion": 1
+    },
+    "statusUnsupported": {
+      "operation": "status",
+      "protocolVersion": 2
+    },
+    "statusUnknownField": {
+      "operation": "status",
+      "unexpected": true
+    },
+    "applyAnimationPreset": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "scalar_tween",
+        "presetVersion": 1,
+        "parameters": {
+          "property": "transform.opacity",
+          "startMs": 0,
+          "durationMs": 500,
+          "from": 0,
+          "to": 1
+        }
+      }
+    },
+    "applyMotion_impact_slam": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "impact_slam",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "impact_slam",
+          "startMs": 10,
+          "durationMs": 80,
+          "centerX": 100.0,
+          "centerY": 200.0,
+          "shakeAmplitudePx": 8.0,
+          "scaleFrom": 0.5,
+          "scaleOvershoot": 1.2,
+          "scaleTo": 1.0,
+          "opacityFrom": 0.0,
+          "opacityTo": 1.0,
+          "flashOpacity": 0.2,
+          "motionBlur": {
+            "shutterAngleDeg": 180.0,
+            "sampleCount": 3
+          }
+        }
+      }
+    },
+    "applyMotion_slide_left": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "slide_left",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "slide_left",
+          "startMs": 10,
+          "durationMs": 80,
+          "positionFromX": 20.0,
+          "positionToX": -20.0
+        }
+      }
+    },
+    "applyMotion_scan": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "scan",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "scan",
+          "startMs": 10,
+          "durationMs": 80,
+          "positionFromX": 20.0,
+          "positionToX": -20.0
+        }
+      }
+    },
+    "applyMotion_pulse": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "pulse",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "pulse",
+          "startMs": 10,
+          "durationMs": 80,
+          "scaleFrom": 0.5,
+          "scalePeak": 1.5
+        }
+      }
+    },
+    "applyMotion_radar_expand": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "apply_animation_preset",
+        "itemId": "rectangle-id",
+        "presetId": "radar_expand",
+        "presetVersion": 1,
+        "parameters": {
+          "kind": "radar_expand",
+          "startMs": 10,
+          "durationMs": 80,
+          "scaleFrom": 0.5,
+          "scaleTo": 2.0,
+          "opacityPeak": 1.0
+        }
+      }
+    },
+    "reviewRangeDefaults": {
+      "operation": "render_review_range",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "startMs": 0,
+      "endMs": 1000
+    },
+    "reviewRangeSilentCustom": {
+      "operation": "render_review_range",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "startMs": 0,
+      "endMs": 1000,
+      "resolution": {
+        "width": 320,
+        "height": 180
+      },
+      "includeAudio": false,
+      "fps": 10
+    },
+    "validateSpeechAlignment": {
+      "operation": "validate_speech_alignment",
+      "projectId": "project-1",
+      "assetId": "asset-1",
+      "knownText": "Hello world",
+      "expectedRevision": 1
+    },
+    "speechMarkersGenerate": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "speech_markers_generate",
+        "scope": "root",
+        "assetId": "asset-1",
+        "startMs": 1000,
+        "markerPolicy": {
+          "type": "selected_word",
+          "indices": [
+            2,
+            0
+          ]
+        },
+        "alignment": {
+          "sentences": [
+            {
+              "text": "EVERY. SINGLE. ONE.",
+              "startMs": 100,
+              "endMs": 900
+            }
+          ],
+          "words": [
+            {
+              "text": "EVERY.",
+              "startMs": 100,
+              "endMs": 300
+            },
+            {
+              "text": "SINGLE.",
+              "startMs": 400,
+              "endMs": 600
+            },
+            {
+              "text": "ONE.",
+              "startMs": 700,
+              "endMs": 900
+            }
+          ],
+          "phonemes": [],
+          "quality": "forced",
+          "providerId": "fixture-aligner",
+          "modelId": "fixture-model",
+          "modelVersion": null
+        }
+      }
+    },
+    "audioBusSetRoute": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "audio_bus_set_route",
+        "busId": "music",
+        "outputBusId": "sfx"
+      }
+    },
+    "audioTrackRoute": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "audio_track_route",
+        "scope": "root",
+        "trackId": "track-1",
+        "busId": "music"
+      }
+    },
+    "soundEventRegister": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "sound_event_register",
+        "event": "impact",
+        "variantAssetIds": [
+          "asset-1"
+        ],
+        "defaultGainDb": -3,
+        "busId": "sfx",
+        "variantSeed": 42
+      }
+    },
+    "timelineAddAudioEvent": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "timeline_add_audio_event",
+        "scope": "root",
+        "trackId": "audio",
+        "event": "impact",
+        "at": {
+          "type": "milliseconds",
+          "valueMs": 250
+        },
+        "durationMs": 300,
+        "gainDb": -3,
+        "variantSeed": 1
+      }
+    },
+    "audioBusSetDsp": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "audio_bus_set_dsp",
+        "busId": "music",
+        "dsp": {
+          "gainDb": -6.0,
+          "pan": -0.5,
+          "eq": [
+            {
+              "frequencyHz": 1000.0,
+              "q": 1.0,
+              "gainDb": 3.0
+            }
+          ],
+          "compressor": {
+            "thresholdDb": -12.0,
+            "ratio": 4.0,
+            "attackMs": 10.0,
+            "releaseMs": 100.0,
+            "makeupGainDb": 2.0
+          }
+        }
+      }
+    }
+  },
+  "events": [
+    "progress",
+    "result",
+    "error"
+  ],
+  "status": {
+    "requiredFields": [
+      "ready",
+      "version",
+      "protocolVersion",
+      "projectSchemaVersion",
+      "textLayoutVersion",
+      "capabilities",
+      "subsystems"
+    ],
+    "editorCapabilities": [
+      "marker_relative_timing",
+      "projects",
+      "assets",
+      "timeline",
+      "text",
+      "text_styling",
+      "solid_color",
+      "rectangle",
+      "keyframes",
+      "typed_animation_channels_v1",
+      "animation_presets_v1",
+      "initial_motion_preset_pack_v1",
+      "deterministic_animation_curves_v1",
+      "animation_loops_v1",
+      "inherited_animation_timing_v1",
+      "extended_visual_animation_v1",
+      "mask_models_v1",
+      "mask_animation_v1",
+      "matte_models_v1",
+      "motion_blur_sampling_v1",
+      "transitions",
+      "audio",
+      "audio_roles",
+      "audio_ducking",
+      "undo_redo",
+      "stacking",
+      "group_parenting",
+      "group_ungroup",
+      "component_definitions",
+      "component_instance_evaluation",
+      "typed_template_slots",
+      "component_lifecycle",
+      "shape_items",
+      "svg_items",
+      "grid_items",
+      "repeater_items",
+      "rich_text_documents",
+      "text_font_size_update_v1",
+      "content_addressed_text_layout_v2",
+      "styled_text_layers_v1",
+      "advanced_text_layout_v1",
+      "blend_models_v1",
+      "parameterized_effect_models_v1",
+      "group_compositing_models_v1",
+      "speech_alignment_validation_v1",
+      "speech_alignment_markers_v1",
+      "project_audio_buses_v1",
+      "semantic_sound_event_definitions_v1",
+      "timeline_audio_events_v1"
+    ],
+    "renderingCapabilities": [
+      "preview",
+      "preview_range",
+      "preview_review_presets_v1",
+      "mp4_export",
+      "evaluated_scene_rendering",
+      "linear_light_compositing_v1",
+      "mask_rendering_v1",
+      "track_mattes_v1",
+      "shape_rendering",
+      "svg_rendering",
+      "grid_rendering",
+      "repeater_rendering",
+      "transform2d",
+      "blend_modes_v1",
+      "parameterized_effects_v1",
+      "group_compositing_v1",
+      "audio_bus_dsp_v1"
+    ]
+  }
+}

@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod audio_bus_dsp;
+mod audio_bus_ducking;
 
 use crate::{
     CoreError, ErrorCode, MediaType,

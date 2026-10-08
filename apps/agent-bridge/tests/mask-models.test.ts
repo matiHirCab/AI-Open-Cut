@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import contract from "../../../contracts/mask-models-v1.json";
 import {
   headlessEditSchema,
@@ -28,7 +28,7 @@ describe("mask model structural contracts", () => {
     }
     expect(contract.status).toBe("authoring_with_active_rendering_contract");
     expect(contract.projectSchemaVersion).toBe(
-      audioBusDsp.projectSchemaVersion
+      audioBusDucking.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
       38

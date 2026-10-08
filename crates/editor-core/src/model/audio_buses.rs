@@ -15,6 +15,43 @@ pub struct AudioBus {
         skip_serializing_if = "Option::is_none"
     )]
     pub dsp: Option<AudioBusDsp>,
+    #[serde(
+        default,
+        deserialize_with = "super::deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ducking: Option<AudioBusDucking>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AudioBusDucking {
+    pub enabled: bool,
+    pub source_bus_id: String,
+    pub gain: f64,
+    pub attack_ms: u64,
+    pub release_ms: u64,
+}
+
+impl AudioBusDucking {
+    pub(crate) fn is_identity(&self) -> bool {
+        !self.enabled || self.gain == 1.0
+    }
+
+    fn validate(&self, target: &str) -> Result<(), CoreError> {
+        if !self.gain.is_finite()
+            || !(0.0..=1.0).contains(&self.gain)
+            || self.attack_ms > 2000
+            || self.release_ms > 9000
+            || self.source_bus_id == target
+            || !AUDIO_BUS_IDS.contains(&self.source_bus_id.as_str())
+        {
+            return Err(invalid(
+                "audio bus ducking settings or source reference are invalid",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -102,6 +139,7 @@ pub fn default_audio_buses() -> Vec<AudioBus> {
             id: id.to_owned(),
             output_bus_id: (id != "master").then(|| "master".to_owned()),
             dsp: None,
+            ducking: None,
         })
         .collect()
 }
@@ -134,6 +172,9 @@ fn validate_buses(buses: &[AudioBus]) -> Result<(), CoreError> {
         return Err(invalid("audio buses require four ordered built-in IDs"));
     }
     for bus in buses {
+        if let Some(ducking) = &bus.ducking {
+            ducking.validate(&bus.id)?;
+        }
         if let Some(dsp) = &bus.dsp {
             dsp.validate()?;
         }
@@ -170,6 +211,9 @@ fn route(buses: &[AudioBus], start: &str) -> Result<Vec<String>, CoreError> {
 }
 
 fn validate_project(project: &Project) -> Result<(), CoreError> {
+    if project.schema_version < 43 && project.audio_buses.iter().any(|bus| bus.ducking.is_some()) {
+        return Err(invalid("audio bus ducking requires schema 43"));
+    }
     if project.schema_version < 42 && project.audio_buses.iter().any(|bus| bus.dsp.is_some()) {
         return Err(invalid("audio bus DSP requires schema 42"));
     }

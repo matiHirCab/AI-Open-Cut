@@ -48,6 +48,7 @@ const SSIM_MINIMUM: f64 = 0.99;
 const PCM_RMS_MAXIMUM: f64 = 0.0001;
 
 mod audio_bus_dsp;
+mod audio_bus_ducking;
 mod grids;
 mod inherited_timing;
 mod linear;

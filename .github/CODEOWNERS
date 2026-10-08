@@ -413,3 +413,13 @@
 /apps/agent-bridge/tests/fixtures/audio-bus-dsp-* @matiHirCab
 /docs/audio-bus-dsp.md @matiHirCab
 /crates/editor-core/src/renderer/golden/audio_bus_dsp.rs @matiHirCab
+
+# Narration bus ducking contracts and conformance
+/contracts/audio-bus-ducking-v1.json @matiHirCab
+/crates/editor-core/tests/audio_bus_ducking.rs @matiHirCab
+/crates/editor-core/src/evaluated_scene/audio_bus_ducking.rs @matiHirCab
+/crates/editor-core/src/render_plan/audio_bus_ducking.rs @matiHirCab
+/crates/editor-core/src/renderer/golden/audio_bus_ducking.rs @matiHirCab
+/apps/agent-bridge/tests/audio-bus-ducking* @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-bus-ducking-* @matiHirCab
+/docs/audio-bus-ducking.md @matiHirCab

@@ -866,6 +866,9 @@ fn status(renderer: &Renderer) -> Status {
                 if renderer.audio_bus_dsp_readiness().is_ok() {
                     capabilities.push("audio_bus_dsp_v1");
                 }
+                if renderer.audio_bus_ducking_readiness().is_ok() {
+                    capabilities.push("audio_bus_ducking_v1");
+                }
                 capabilities
             },
             error: None,
@@ -1032,6 +1035,7 @@ mod tests {
             serde_json::to_value({
                 let mut capabilities = render_capabilities();
                 capabilities.push("audio_bus_dsp_v1");
+                capabilities.push("audio_bus_ducking_v1");
                 capabilities
             })
             .unwrap(),

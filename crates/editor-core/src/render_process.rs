@@ -132,6 +132,34 @@ fn audio_bus_dsp_readiness(ffmpeg_path: &Path) -> Result<(), CoreError> {
     Ok(())
 }
 
+fn audio_bus_ducking_readiness(ffmpeg_path: &Path) -> Result<(), CoreError> {
+    let output = Command::new(ffmpeg_path)
+        .args(["-hide_banner", "-filters"])
+        .output()
+        .map_err(|error| {
+            CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                format!("cannot start FFmpeg: {error}"),
+            )
+        })?;
+    if !output.status.success() {
+        return Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio bus ducking readiness check failed",
+        ));
+    }
+    let filters = String::from_utf8_lossy(&output.stdout);
+    for required in [" volume ", " aformat ", " pan "] {
+        if !filters.contains(required) {
+            return Err(CoreError::new(
+                ErrorCode::DependencyUnavailable,
+                format!("FFmpeg is missing the {} filter", required.trim()),
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn probe(ffprobe_path: &Path, path: &Path) -> Result<ProbeResult, CoreError> {
     let output = Command::new(ffprobe_path)
         .args([
@@ -522,6 +550,12 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
             "audio bus DSP filter readiness is unavailable",
         ))
     }
+    fn audio_bus_ducking_readiness(&self, _ffmpeg_path: &Path) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "audio bus ducking filter readiness is unavailable",
+        ))
+    }
     fn raster_source(
         &self,
         _ffmpeg: &Path,
@@ -609,6 +643,9 @@ pub(crate) struct SystemProcessExecutor;
 impl ProcessExecutor for SystemProcessExecutor {
     fn audio_bus_dsp_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
         audio_bus_dsp_readiness(ffmpeg_path)
+    }
+    fn audio_bus_ducking_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
+        audio_bus_ducking_readiness(ffmpeg_path)
     }
     fn raster_source(
         &self,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import contract from "../../../contracts/animation-channels-v1.json";
-import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import {
   animationChannelPropertySchema,
   animationChannelSchema,
@@ -18,7 +18,7 @@ const channel = (property: string, value: number) => ({
 describe("governed animation channels", () => {
   it("matches every canonical channel name and limit", () => {
     expect(contract.projectSchemaVersion).toBe(
-      audioBusDsp.projectSchemaVersion
+      audioBusDucking.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
       38

@@ -2,7 +2,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import CONTRACT from "../../../contracts/animation-channels-v1.json";
-import audioBusDsp from "../../../contracts/audio-bus-dsp-v1.json";
+import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -121,5 +121,7 @@ export const verifyAnimationEditWorkflow = async (
   expect(reopened.project.tracks[1]?.items).toEqual(
     duplicated.project.tracks[1]?.items
   );
-  expect(reopened.project.schemaVersion).toBe(audioBusDsp.projectSchemaVersion);
+  expect(reopened.project.schemaVersion).toBe(
+    audioBusDucking.projectSchemaVersion
+  );
 };

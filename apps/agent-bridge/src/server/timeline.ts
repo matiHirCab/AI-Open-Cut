@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "audio_bus_set_ducking",
+    {
+      annotations: WRITE,
+      description:
+        "Set conservative narration clip-activity ducking from an explicit source bus, with normalized gain, attack and release.",
+      inputSchema: schemas.audioBusSetDucking,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "audio_bus_set_ducking",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "audio_bus_set_dsp",
     {
       annotations: WRITE,

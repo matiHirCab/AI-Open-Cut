@@ -16,7 +16,7 @@ type Call = <T>(
 ) => Promise<T>;
 export const verifyAudioBusDspWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(42);
+  expect(status.projectSchemaVersion).toBe(43);
   const { tools } = await client.request({ method: "tools/list" });
   expect(tools.filter((t) => t.name === catalog.operation)).toHaveLength(1);
   const { projectId } = await call(
