@@ -40,6 +40,7 @@ import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
+import { verifySpeechMarkerWorkflow } from "./speech-markers-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
 
@@ -615,6 +616,10 @@ it("edits a project and persists fake speech provenance through MCP", async () =
 
 it("aligns known text and preserves caption retry, history and reopen through MCP", async () => {
   await verifyKnownTextWorkflow(client, call);
+});
+
+it("generates speech markers with atomic failure, history and reopen through MCP", async () => {
+  await verifySpeechMarkerWorkflow(client, call);
 });
 
 it("supports discoverable voices, preview, commit, discard, and in-place regeneration", async () => {

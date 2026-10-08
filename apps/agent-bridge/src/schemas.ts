@@ -939,6 +939,16 @@ export const speechTimedTextSchema = z
     text: z.string(),
   })
   .strict();
+export const speechMarkerPolicySchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("none") }),
+  z.strictObject({ type: z.literal("sentence") }),
+  z.strictObject({
+    indices: z.array(z.int().nonnegative()),
+    type: z.literal("selected_word"),
+  }),
+  z.strictObject({ type: z.literal("all_word") }),
+]);
+
 export const speechAlignmentSchema = z
   .object({
     modelId: z.string().nullable(),
@@ -1998,6 +2008,18 @@ export const jobSchema = z
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
   z.strictObject({
+    alignment: speechAlignmentSchema.optional(),
+    assetId: id,
+    markerPolicy: speechMarkerPolicySchema,
+    operation: z.literal("speech_markers_generate"),
+    resultAlias: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+      .optional(),
+    scope: markerScope,
+    startMs: safeMilliseconds,
+  }),
+  z.strictObject({
     kind: z.literal("cue"),
     name: markerIdentifier,
     operation: z.literal("marker_create"),
@@ -2562,6 +2584,7 @@ export const schemas = {
       placement: z.discriminatedUnion("type", [
         z
           .object({
+            markerPolicy: speechMarkerPolicySchema.optional(),
             startMs: milliseconds,
             trackId: id,
             type: z.literal("insert"),
@@ -2577,6 +2600,7 @@ export const schemas = {
   speechGenerateAndInsert: projectRevisionSchema
     .extend({
       language: z.string().min(1).optional(),
+      markerPolicy: speechMarkerPolicySchema.optional(),
       speed: finite.positive().optional(),
       startMs: milliseconds,
       text: z.string().trim().min(1).max(5000),
@@ -2587,6 +2611,15 @@ export const schemas = {
     .strict(),
   speechListVoices: z
     .object({ language: z.string().min(1).optional() })
+    .strict(),
+  speechMarkersGenerate: projectRevisionSchema
+    .extend({
+      alignment: speechAlignmentSchema.optional(),
+      assetId: id,
+      markerPolicy: speechMarkerPolicySchema,
+      scope: markerScope,
+      startMs: safeMilliseconds,
+    })
     .strict(),
   speechPreview: z.object({ source: speechSourceSchema }).strict(),
   speechRegenerate: projectRevisionSchema
@@ -2853,6 +2886,7 @@ export const schemas = {
   ttsGenerateAndInsert: projectRevisionSchema
     .extend({
       language: z.string().min(1).optional(),
+      markerPolicy: speechMarkerPolicySchema.optional(),
       speed: finite.positive().optional(),
       startMs: milliseconds,
       text: z.string().trim().min(1),

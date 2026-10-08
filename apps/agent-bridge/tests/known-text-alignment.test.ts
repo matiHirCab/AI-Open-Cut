@@ -311,6 +311,16 @@ it("preserves independently captured prior operation/provider/ownership catalogs
   );
   const protocol = structuredClone(headlessCatalog);
   expect(
+    protocol.status.editorCapabilities.filter(
+      (value) => value === "speech_alignment_markers_v1"
+    )
+  ).toHaveLength(1);
+  protocol.status.editorCapabilities =
+    protocol.status.editorCapabilities.filter(
+      (value) => value !== "speech_alignment_markers_v1"
+    );
+  Reflect.deleteProperty(protocol.requests, "speechMarkersGenerate");
+  expect(
     protocol.operations.filter((value) => value === contract.operation)
   ).toHaveLength(1);
   expect(
@@ -344,6 +354,10 @@ it("preserves independently captured prior operation/provider/ownership catalogs
   );
   expect(providerProjection).toEqual(priorProvider);
   const owners = structuredClone(ownership);
+  expect(owners.categories.speechAlignmentMarkers.canonical).toBe(
+    "contracts/speech-alignment-markers-v1.json"
+  );
+  Reflect.deleteProperty(owners.categories, "speechAlignmentMarkers");
   expect(owners.categories.knownTextAlignment.canonical).toBe(
     "contracts/known-text-alignment-v1.json"
   );

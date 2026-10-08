@@ -88,7 +88,12 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(status.projectSchemaVersion).toBe(catalog.projectSchemaVersion);
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
-    expect(tools.tools).toHaveLength(catalog.registeredToolCount);
+    expect(
+      tools.tools.filter((tool) => tool.name !== "speech_markers_generate")
+    ).toHaveLength(catalog.registeredToolCount);
+    expect(
+      tools.tools.filter((tool) => tool.name === "speech_markers_generate")
+    ).toHaveLength(1);
     expect(tools.tools.some((t) => t.name === catalog.mcpMutation)).toBe(true);
     const { projectId } = writeResultSchema.parse(
       await call("project_create", {

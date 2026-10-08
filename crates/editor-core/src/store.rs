@@ -122,6 +122,8 @@ pub struct ResolvedAssetInput {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CommitGeneratedAssetRequest {
+    #[serde(default)]
+    pub marker_policy: crate::SpeechMarkerPolicy,
     pub project_id: String,
     pub expected_revision: u64,
     pub path: PathBuf,
@@ -527,6 +529,16 @@ impl EditorCore {
                     audio: AudioSettings::default(),
                     keyframes: vec![],
                 }));
+            apply_operation(
+                &mut project,
+                EditOperation::SpeechMarkersGenerate {
+                    scope: "root".into(),
+                    asset_id: asset_id.clone(),
+                    start_ms: request.start_ms,
+                    marker_policy: request.marker_policy,
+                    alignment: None,
+                },
+            )?;
             normalize_stack_order(&mut project)?;
             crate::assets::fonts::prepare_fonts(
                 self.storage.as_ref(),
@@ -2187,10 +2199,17 @@ fn apply_edit_batch(
                 ));
             }
         }
+        let speech_markers = matches!(edit, EditOperation::SpeechMarkersGenerate { .. });
         let operation = edit;
         let (ids, operation_summary) =
             crate::timeline::apply_operation_in_batch(project, operation)?;
         if let Some(alias) = result_alias {
+            if speech_markers && ids.len() != 1 {
+                return Err(CoreError::new(
+                    ErrorCode::ValidationFailed,
+                    "speech marker resultAlias requires exactly one generated marker",
+                ));
+            }
             let id = ids.first().ok_or_else(|| {
                 CoreError::new(ErrorCode::InternalError, "aliased operation returned no ID")
             })?;
@@ -4962,6 +4981,7 @@ mod tests {
             .clone();
 
         let request = CommitGeneratedAssetRequest {
+            marker_policy: Default::default(),
             project_id: created.project_id.clone(),
             expected_revision: 0,
             path: speech,
@@ -5035,6 +5055,7 @@ mod tests {
             .clone();
         let inserted = core
             .commit_generated_asset(CommitGeneratedAssetRequest {
+                marker_policy: Default::default(),
                 project_id: created.project_id.clone(),
                 expected_revision: 0,
                 path: first,
@@ -5156,6 +5177,7 @@ mod tests {
             .clone();
         let inserted = core
             .commit_generated_asset(CommitGeneratedAssetRequest {
+                marker_policy: Default::default(),
                 project_id: created.project_id.clone(),
                 expected_revision: 0,
                 path: first,
@@ -5245,6 +5267,7 @@ mod tests {
             .clone();
         let inserted = core
             .commit_generated_asset(CommitGeneratedAssetRequest {
+                marker_policy: Default::default(),
                 project_id: created.project_id.clone(),
                 expected_revision: 0,
                 path: first,
@@ -5809,6 +5832,7 @@ mod tests {
             .id;
         assert_eq!(
             core.commit_generated_asset(CommitGeneratedAssetRequest {
+                marker_policy: Default::default(),
                 project_id: created.project_id.clone(),
                 expected_revision: 0,
                 path: speech,
@@ -9243,6 +9267,7 @@ mod tests {
         write_json_atomic(&project_path(&dir), &raw).unwrap();
         let before = project_file_bytes(&dir);
         let result = core.commit_generated_asset(CommitGeneratedAssetRequest {
+            marker_policy: Default::default(),
             project_id: id,
             expected_revision: 0,
             path: speech,
@@ -9262,7 +9287,7 @@ mod tests {
     }
     #[test]
     fn speech_aligned_generated_mutations_preserve_fault_generation_resources() {
-        for replace in [false, true] {
+        for (replace, generate_markers) in [(false, false), (true, false), (false, true)] {
             for phase in [
                 PersistencePhase::BeforeFontPublish,
                 PersistencePhase::AfterFontPublish,
@@ -9305,6 +9330,7 @@ mod tests {
                     .id
                     .clone();
                 let mut request = CommitGeneratedAssetRequest {
+                    marker_policy: Default::default(),
                     project_id: id.clone(),
                     expected_revision: 0,
                     path: source.clone(),
@@ -9334,6 +9360,9 @@ mod tests {
                     serde_json::json!({"sentences":[],"words":[{"text":"speech", "startMs":0,"endMs":1500}],
                         "phonemes":[],"quality":"forced","providerId":"independent-aligner",
                         "modelId":null,"modelVersion":null})).unwrap());
+                if generate_markers {
+                    request.marker_policy = crate::SpeechMarkerPolicy::AllWord {};
+                }
                 request.expected_revision = u64::from(replace);
                 let expected_origin = request.origin.clone();
                 let before = project_file_bytes(&dir);
@@ -9379,6 +9408,11 @@ mod tests {
                 let reopened = EditorCore::new(core.paths().clone());
                 let current = reopened.get_project(&id).unwrap();
                 assert_eq!(current.schema_version, crate::PROJECT_SCHEMA_VERSION);
+                assert_eq!(current.markers.len(), usize::from(generate_markers));
+                if generate_markers {
+                    assert_eq!(current.markers[0].name, "speech");
+                    assert_eq!(current.markers[0].time_ms, 0);
+                }
                 let asset = current
                     .assets
                     .iter()

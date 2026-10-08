@@ -285,9 +285,13 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(38);
       expect(status.subsystems.rendering.ready).toBe(true);
+      const { tools } = await client.request({ method: "tools/list" });
       expect(
-        (await client.request({ method: "tools/list" })).tools
+        tools.filter((tool) => tool.name !== "speech_markers_generate")
       ).toHaveLength(78);
+      expect(
+        tools.filter((tool) => tool.name === "speech_markers_generate")
+      ).toHaveLength(1);
 
       const created = await call(
           "project_create",

@@ -16,6 +16,7 @@ import {
   schemas,
   visualEffectSchema,
 } from "../src/schemas";
+import { projectSpeechMarkerMcpPredecessor } from "./fixtures/speech-markers-projection";
 import { stereoRms } from "./masked-hero-reveal-oracle";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -34,7 +35,9 @@ it("pins the complete approved hero recipe and immutable mathematical plates and
   ).toBe("a5756dd3ebf95255c2fe72e7711c7e713f0b5683f4f8c2eb2cfe41fb60079541");
   expect(catalog.projectSchemaVersion).toBe(38);
   expect(catalog.headlessProtocolVersion).toBe(1);
-  expect(surface.tools).toHaveLength(78);
+  expect(
+    (projectSpeechMarkerMcpPredecessor(surface) as typeof surface).tools
+  ).toHaveLength(78);
   expect(catalog.operationTranscript.aliasBatch).toHaveLength(14);
   for (const [name, hash] of Object.entries({
     "reference-audio-provenance.json":

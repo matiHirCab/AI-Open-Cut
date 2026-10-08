@@ -218,6 +218,55 @@
       "assetId": "asset-1",
       "knownText": "Hello world",
       "expectedRevision": 1
+    },
+    "speechMarkersGenerate": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 1,
+      "edit": {
+        "operation": "speech_markers_generate",
+        "scope": "root",
+        "assetId": "asset-1",
+        "startMs": 1000,
+        "markerPolicy": {
+          "type": "selected_word",
+          "indices": [
+            2,
+            0
+          ]
+        },
+        "alignment": {
+          "sentences": [
+            {
+              "text": "EVERY. SINGLE. ONE.",
+              "startMs": 100,
+              "endMs": 900
+            }
+          ],
+          "words": [
+            {
+              "text": "EVERY.",
+              "startMs": 100,
+              "endMs": 300
+            },
+            {
+              "text": "SINGLE.",
+              "startMs": 400,
+              "endMs": 600
+            },
+            {
+              "text": "ONE.",
+              "startMs": 700,
+              "endMs": 900
+            }
+          ],
+          "phonemes": [],
+          "quality": "forced",
+          "providerId": "fixture-aligner",
+          "modelId": "fixture-model",
+          "modelVersion": null
+        }
+      }
     }
   },
   "events": [
@@ -280,7 +329,8 @@
       "blend_models_v1",
       "parameterized_effect_models_v1",
       "group_compositing_models_v1",
-      "speech_alignment_validation_v1"
+      "speech_alignment_validation_v1",
+      "speech_alignment_markers_v1"
     ],
     "renderingCapabilities": [
       "preview",

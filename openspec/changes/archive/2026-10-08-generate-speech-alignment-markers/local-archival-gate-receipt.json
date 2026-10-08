@@ -1,0 +1,26 @@
+{
+  "predecessorVerifiedHead": "76b87baf27f9e1f8cf440370905dfb659372cd9b",
+  "reconciledMainMerge": "e22c34367e7dcdf1ab473222059e9a8a779eea42",
+  "reviewedImplementationHead": "6ae8bce3f1e091281e15760bc531c2a6290869e0",
+  "standardSourceAcceptance": {
+    "run": 37701149167,
+    "job": 113064630708,
+    "integrationPassed": 25,
+    "packagedPassed": 22,
+    "mergeTreeIdentical": true
+  },
+  "archivedChange": "openspec/changes/archive/2026-10-07-generate-speech-alignment-markers",
+  "unchangedReviewedSourceFiles": 41,
+  "localPostArchiveProtected": {
+    "exit": 0,
+    "controlsPassed": 461,
+    "specificationsPassed": 48,
+    "log": "/tmp/opencut-issue62-protected-final-first.log"
+  },
+  "localStrictSpecifications": {
+    "exit": 0,
+    "passed": 48,
+    "log": "/tmp/opencut-issue62-openspec-final-first.log"
+  },
+  "all11FinalHeadCi": "pending; require external exact-SHA receipt after publication before completion or issue65"
+}

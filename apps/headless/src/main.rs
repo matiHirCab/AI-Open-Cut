@@ -59,6 +59,8 @@ enum Request {
         asset_id: String,
     },
     CommitGeneratedAsset {
+        #[serde(default)]
+        marker_policy: opencut_editor_core::SpeechMarkerPolicy,
         project_id: String,
         expected_revision: u64,
         path: PathBuf,
@@ -389,6 +391,7 @@ fn dispatch(
             asset_id,
         } => sink.value(core.delete_asset(&project_id, expected_revision, &asset_id)?),
         Request::CommitGeneratedAsset {
+            marker_policy,
             project_id,
             expected_revision,
             path,
@@ -415,6 +418,7 @@ fn dispatch(
                     )
                 })?;
             sink.value(core.commit_generated_asset(CommitGeneratedAssetRequest {
+                marker_policy,
                 project_id,
                 expected_revision,
                 path: resolved,
@@ -805,6 +809,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "parameterized_effect_models_v1",
         "group_compositing_models_v1",
         "speech_alignment_validation_v1",
+        "speech_alignment_markers_v1",
     ]
 }
 

@@ -12,6 +12,7 @@ import {
   type schemas,
   speechAlignmentSchema,
   speechEstimateSchema,
+  speechMarkerPolicySchema,
   speechPreviewResultSchema,
   speechRegenerateResultSchema,
   type speechSourceSchema,
@@ -247,9 +248,7 @@ export class SpeechApplicationService {
     token: string,
     projectId: string,
     expectedRevision: number,
-    placement:
-      | { startMs: number; trackId: string; type: "insert" }
-      | { itemId: string; type: "replace" }
+    placement: z.infer<(typeof schemas)["speechCommitPreview"]>["placement"]
   ) {
     const artifact = this.#artifact(token);
     artifact.commit =
@@ -259,6 +258,13 @@ export class SpeechApplicationService {
               expectedRevision,
               projectId,
               startMs: placement.startMs,
+              ...(placement.markerPolicy === undefined
+                ? {}
+                : {
+                    markerPolicy: speechMarkerPolicySchema.parse(
+                      placement.markerPolicy
+                    ),
+                  }),
               text: artifact.generated.request.text,
               textOptions: artifact.generated.request.textOptions,
               trackId: placement.trackId,
@@ -325,10 +331,19 @@ export class SpeechApplicationService {
   }
 
   async generateAndInsert(
-    input: GenerateAndInsertInput,
+    submittedInput: GenerateAndInsertInput,
     context: JobTaskContext
   ) {
     this.#assertOpen();
+    const input =
+      submittedInput.markerPolicy === undefined
+        ? submittedInput
+        : {
+            ...submittedInput,
+            markerPolicy: speechMarkerPolicySchema.parse(
+              submittedInput.markerPolicy
+            ),
+          };
     const status = await this.status();
     if (!status.ready) {
       throw new BridgeError(
@@ -522,6 +537,9 @@ export class SpeechApplicationService {
       displayName: `speech-${request.voiceId}.wav`,
       expectedRevision: input.expectedRevision,
       operation: "commit_generated_asset",
+      ...(input.markerPolicy === undefined
+        ? {}
+        : { markerPolicy: input.markerPolicy }),
       origin: this.#origin(generated),
       path: generated.outputPath,
       projectId: input.projectId,

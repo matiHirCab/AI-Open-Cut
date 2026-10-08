@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "speech_markers_generate",
+    {
+      annotations: WRITE,
+      description:
+        "Generate scoped cue markers from validated speech alignment.",
+      inputSchema: schemas.speechMarkersGenerate,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, ...edit }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            operation: "speech_markers_generate",
+            ...edit,
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "marker_create",
     {
       annotations: WRITE,

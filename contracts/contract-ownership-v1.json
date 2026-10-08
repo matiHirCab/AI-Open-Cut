@@ -952,6 +952,40 @@
         "scripts/validate-ci-gates.test.ts",
         "docs/known-text-alignment.md"
       ]
+    },
+    "speechAlignmentMarkers": {
+      "canonical": "contracts/speech-alignment-markers-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/speech_alignment.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/markers.rs",
+        "crates/editor-core/src/markers/speech.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/tests/speech_markers.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/speech.ts",
+        "apps/agent-bridge/src/server/timeline.ts",
+        "apps/agent-bridge/tests/speech-markers.test.ts",
+        "apps/agent-bridge/tests/speech-markers-workflow.ts",
+        "apps/agent-bridge/tests/fixtures/speech-markers-projection.ts",
+        "apps/agent-bridge/tests/fixtures/speech-markers-mcp-additions.json",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/package.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "docs/speech-alignment-markers.md",
+        "apps/agent-bridge/tests/speech.test.ts",
+        "apps/agent-bridge/tests/desktop-compositing.test.ts",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal.test.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
+      ]
     }
   }
 }

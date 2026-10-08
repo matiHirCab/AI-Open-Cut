@@ -333,6 +333,7 @@ fn insert(
     provenance: GeneratedAssetOrigin,
 ) -> CommitGeneratedAssetRequest {
     CommitGeneratedAssetRequest {
+        marker_policy: Default::default(),
         project_id: id.into(),
         expected_revision: 0,
         path: source.to_owned(),

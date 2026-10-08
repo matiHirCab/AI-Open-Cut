@@ -1,0 +1,14 @@
+{
+  "head": "76b87baf27f9e1f8cf440370905dfb659372cd9b",
+  "mcpSemanticSha256": "8ce1873a2fd5068dd7879210d6cb97c452bd21888584e4ccf494948bb10b7ea7",
+  "catalogs": {
+    "headless-protocol-v1.json": {
+      "rawSha256": "79c2e660bf4eb465f0bc70f7c1b0278b70adf50288460e3e2d1366f536ca8909"
+    },
+    "contract-ownership-v1.json": {
+      "rawSha256": "807decde451983a07ee8db5bd7f532ab1a1ec848b1f3638024031e0c5dd510c1"
+    }
+  },
+  "mcpExpandedSha256": "a2d5c77f7ef91f2be31ca05443071bb14c2e7bff32a35171666401446beb4156",
+  "mcpRawSha256": "a573c9c09486d9f781ac7b0e1eb15a0de35e6e459dd4844d0c968b55c219ccba"
+}

@@ -19,6 +19,7 @@ import type {
   motionBlurSchema,
   richTextDocumentSchema,
   speechAlignmentSchema,
+  speechMarkerPolicySchema,
   templateSlotSchema,
   textStyleSchema,
   timeExpressionSchema,
@@ -61,6 +62,15 @@ interface Revisioned {
 }
 
 export type HeadlessEdit =
+  | {
+      operation: "speech_markers_generate";
+      scope: string;
+      assetId: string;
+      startMs: number;
+      markerPolicy: z.infer<typeof speechMarkerPolicySchema>;
+      alignment?: z.infer<typeof speechAlignmentSchema> | undefined;
+      resultAlias?: string | undefined;
+    }
   | {
       operation: "marker_create";
       scope: string;
@@ -349,6 +359,7 @@ export type HeadlessRequest =
   | (Revisioned & {
       displayName: string;
       operation: "commit_generated_asset";
+      markerPolicy?: z.infer<typeof speechMarkerPolicySchema> | undefined;
       origin: z.infer<typeof generatedAssetOriginSchema>;
       path: string;
       startMs: number;
