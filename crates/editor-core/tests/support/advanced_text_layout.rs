@@ -43,11 +43,13 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(20);
     old.as_object_mut().unwrap().remove("audioBuses");
+    old.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(dir.join("history.json"), serde_json::to_vec(&json!({"undo":[old],"redo":[old]})).unwrap()).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     old["audioBuses"] = serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+    old["soundDefinitions"] = json!([]);
     assert_eq!(migrated, old);
     let history: Value = serde_json::from_slice(&bytes(&core, &id).1).unwrap();
     assert_eq!(history, json!({"undo":[old],"redo":[old]}));
@@ -57,6 +59,7 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     assert_eq!(bytes(&core, &id), first);
     old["schemaVersion"] = json!(20);
     old.as_object_mut().unwrap().remove("audioBuses");
+    old.as_object_mut().unwrap().remove("soundDefinitions");
     old["tracks"][1]["items"][0]["style"]["layout"] = json!({});
     assert!(serde_json::from_value::<Project>(old).is_err());
 }
@@ -194,6 +197,7 @@ fn persisted_layout_classification_preserves_legacy_and_unrelated_errors() {
             _ => {
                 value["schemaVersion"] = json!(20);
                 value.as_object_mut().unwrap().remove("audioBuses");
+                value.as_object_mut().unwrap().remove("soundDefinitions");
                 let text = value["tracks"].as_array_mut().unwrap().iter_mut()
                     .flat_map(|track| track["items"].as_array_mut().unwrap()).find(|item| item["type"] == "text").unwrap();
                 text["style"]["layout"] = json!({});
@@ -235,6 +239,7 @@ fn write_legacy_layout_generation(path: &std::path::Path, version: u32) {
     let downgrade = |project: &mut Value| {
         project["schemaVersion"] = json!(version);
         project.as_object_mut().unwrap().remove("audioBuses");
+        project.as_object_mut().unwrap().remove("soundDefinitions");
     };
     if path.file_name().unwrap() == "project.json" {
         downgrade(&mut value);

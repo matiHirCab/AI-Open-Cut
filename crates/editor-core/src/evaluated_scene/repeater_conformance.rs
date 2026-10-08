@@ -75,6 +75,7 @@ fn signed_copy_offsets_shift_complete_component_source_clock() {
         );
         value["schemaVersion"] = json!(26);
         value.as_object_mut().unwrap().remove("audioBuses");
+        value.as_object_mut().unwrap().remove("soundDefinitions");
         value["components"][0]["markers"] = json!([]);
         value["fonts"] = json!({});
         value["markers"] = json!([]);
@@ -124,6 +125,7 @@ fn shifted_sources_can_enter_ancestor_clips_but_cannot_escape_them() {
         );
         value["schemaVersion"] = json!(26);
         value.as_object_mut().unwrap().remove("audioBuses");
+        value.as_object_mut().unwrap().remove("soundDefinitions");
         value["components"][0]["markers"] = json!([]);
         value["fonts"] = json!({});
         value["markers"] = json!([]);
@@ -460,6 +462,7 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
     let mut value = project_value(json!([group, first, last]), json!([]));
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
     value["audioBuses"] = json!(crate::default_audio_buses());
+    value["soundDefinitions"] = json!([]);
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     reject_inherited(
@@ -476,6 +479,7 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
     );
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
     value["audioBuses"] = json!(crate::default_audio_buses());
+    value["soundDefinitions"] = json!([]);
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     value["components"][0]["markers"] = json!([]);
@@ -507,6 +511,7 @@ fn staggered_controller_restores_short_source_with_fractional_signed_clocks() {
         let mut value = project_value(json!([root]), json!([definition("leaf", json!(children))]));
         value["schemaVersion"] = json!(26);
         value.as_object_mut().unwrap().remove("audioBuses");
+        value.as_object_mut().unwrap().remove("soundDefinitions");
         value["markers"] = json!([]);
         value["fonts"] = json!({});
         value["components"][0]["markers"] = json!([]);
@@ -568,6 +573,7 @@ fn nested_repeater_controller_shifts_source_stages_once_and_preserves_outside_cl
     );
     value["schemaVersion"] = json!(26);
     value.as_object_mut().unwrap().remove("audioBuses");
+    value.as_object_mut().unwrap().remove("soundDefinitions");
     value["markers"] = json!([]);
     value["fonts"] = json!({});
     for c in value["components"].as_array_mut().unwrap() {

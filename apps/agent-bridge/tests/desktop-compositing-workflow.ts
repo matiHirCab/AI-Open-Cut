@@ -13,6 +13,7 @@ import { expect, it } from "vitest";
 import { z } from "zod";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/desktop-compositing-controls-v1.json";
+import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import {
   projectStateSchema,
   publicErrorSchema,
@@ -87,13 +88,14 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
   try {
     const status = statusSchema.parse(await call("editor_get_status", {}));
     expect(catalog.projectSchemaVersion).toBe(38);
-    expect(status.projectSchemaVersion).toBe(busCatalog.projectSchemaVersion);
+    expect(status.projectSchemaVersion).toBe(soundCatalog.projectSchemaVersion);
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
     const addedTools = [
       "speech_markers_generate",
       "audio_bus_set_route",
       "audio_track_route",
+      soundCatalog.operation,
     ];
     expect(
       tools.tools.filter((tool) => !addedTools.includes(tool.name))
@@ -341,7 +343,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(
       statusSchema.parse(await call("editor_get_status", {}))
         .projectSchemaVersion
-    ).toBe(busCatalog.projectSchemaVersion);
+    ).toBe(soundCatalog.projectSchemaVersion);
   } finally {
     await client.close();
     rmSync(root, { force: true, recursive: true });

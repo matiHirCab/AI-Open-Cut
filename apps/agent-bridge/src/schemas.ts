@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(39).optional(),
+    projectSchemaVersion: z.literal(40).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1862,6 +1862,23 @@ export const projectSummarySchema = z
 
 export const projectListSchema = z.array(projectSummarySchema);
 
+const soundEventInputFields = {
+  busId: id,
+  defaultGainDb: finite.min(-120).max(24),
+  event: id,
+  variantAssetIds: z.array(id).min(1).max(32),
+  variantSeed: z.int().min(0).max(Number.MAX_SAFE_INTEGER),
+};
+
+export const soundEventDefinitionSchema = z.strictObject({
+  ...soundEventInputFields,
+  event: id.regex(/^[A-Za-z][A-Za-z0-9_-]{0,127}$/),
+  variantAssetIds: z
+    .array(id.regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/))
+    .min(1)
+    .max(32),
+});
+
 export const audioBusSchema = z.strictObject({
   id,
   outputBusId: id.nullable(),
@@ -1914,7 +1931,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(39),
+        schemaVersion: z.literal(40),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -1922,6 +1939,7 @@ export const projectStateSchema = z
             width: z.int().positive(),
           })
           .strict(),
+        soundDefinitions: z.array(soundEventDefinitionSchema).max(512),
         tracks: z.array(
           z
             .object({
@@ -2018,6 +2036,14 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    ...soundEventInputFields,
+    operation: z.literal("sound_event_register"),
+    resultAlias: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/)
+      .optional(),
+  }),
   z.strictObject({
     busId: id,
     operation: z.literal("audio_bus_set_route"),
@@ -2606,6 +2632,9 @@ export const schemas = {
       scope: markerScope,
       time: timeExpressionSchema,
     })
+    .strict(),
+  soundEventRegister: projectRevisionSchema
+    .extend(soundEventInputFields)
     .strict(),
   speechCommitPreview: projectRevisionSchema
     .extend({

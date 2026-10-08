@@ -63,6 +63,15 @@ interface Revisioned {
 
 export type HeadlessEdit =
   | {
+      operation: "sound_event_register";
+      event: string;
+      variantAssetIds: string[];
+      defaultGainDb: number;
+      busId: string;
+      variantSeed: number;
+      resultAlias?: string | undefined;
+    }
+  | {
       operation: "audio_bus_set_route";
       busId: string;
       outputBusId: string;

@@ -288,6 +288,21 @@
         "trackId": "track-1",
         "busId": "music"
       }
+    },
+    "soundEventRegister": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "sound_event_register",
+        "event": "impact",
+        "variantAssetIds": [
+          "asset-1"
+        ],
+        "defaultGainDb": -3,
+        "busId": "sfx",
+        "variantSeed": 42
+      }
     }
   },
   "events": [
@@ -352,7 +367,8 @@
       "group_compositing_models_v1",
       "speech_alignment_validation_v1",
       "speech_alignment_markers_v1",
-      "project_audio_buses_v1"
+      "project_audio_buses_v1",
+      "semantic_sound_event_definitions_v1"
     ],
     "renderingCapabilities": [
       "preview",

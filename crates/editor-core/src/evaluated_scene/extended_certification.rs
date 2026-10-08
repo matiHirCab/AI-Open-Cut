@@ -1033,7 +1033,7 @@ mod tests {
         };
         let project = |items: serde_json::Value| -> Project {
             serde_json::from_value(json!({
-            "schemaVersion":crate::PROJECT_SCHEMA_VERSION, "audioBuses":crate::default_audio_buses(),"id":"budget","revision":0,"name":"Budget","createdAtMs":1,"updatedAtMs":1,
+            "schemaVersion":crate::PROJECT_SCHEMA_VERSION, "audioBuses":crate::default_audio_buses(), "soundDefinitions":[],"id":"budget","revision":0,"name":"Budget","createdAtMs":1,"updatedAtMs":1,
             "settings":{"width":64,"height":64,"fps":10},"assets":[],"markers":[],"components":[],"fonts":{},
             "tracks":[{"id":"overlay","name":"Overlay","trackType":"overlay","items":items}]
         })).unwrap()

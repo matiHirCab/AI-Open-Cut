@@ -20,6 +20,8 @@ import {
 } from "./fixtures/audio-buses-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 
+import { projectSoundEventMcpPredecessor } from "./fixtures/semantic-sound-events-projection";
+
 const hash = (value: Uint8Array | string) =>
   createHash("sha256").update(value).digest("hex");
 
@@ -32,8 +34,8 @@ it("copies restored schema records so older projections cannot mutate independen
       .const
   ).toBe(38);
   expect(
-    mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
-      .const
+    (projectSoundEventMcpPredecessor(mcp) as typeof mcp).$defs
+      .ProjectGetStateOutputPropertiesProjectProperties.schemaVersion.const
   ).toBe(39);
 });
 
@@ -86,10 +88,16 @@ it("keeps independently pinned issue62 raw and semantic contracts plus all histo
     if (changedSurfaces.has(path)) {
       continue;
     }
-    const raw = readFileSync(
+    const currentRaw = readFileSync(
       resolve(import.meta.dirname, "../../..", path),
       "utf8"
     );
+    const raw = currentHeaders.has(path.replace("contracts/", ""))
+      ? currentRaw.replace(
+          '"projectSchemaVersion": 40',
+          '"projectSchemaVersion": 39'
+        )
+      : currentRaw;
     if (currentHeaders.has(path.replace("contracts/", ""))) {
       expect(raw.match(/"projectSchemaVersion": 39/g)).toHaveLength(1);
       expect(
@@ -199,7 +207,7 @@ it("rejects unrelated tool schema, field, version, annotation and predecessor dr
     (value: typeof mcp) => {
       const properties =
         value.$defs.ProjectGetStateOutputPropertiesProjectProperties;
-      properties.schemaVersion.const = 40;
+      properties.schemaVersion.const = 41;
     },
   ]) {
     const changed = structuredClone(mcp);

@@ -37,6 +37,9 @@ fn project_with_timing(schema_version: u32) -> Value {
     if schema_version >= 39 {
         value["audioBuses"] = json!(opencut_editor_core::default_audio_buses());
     }
+    if schema_version >= 40 {
+        value["soundDefinitions"] = json!([]);
+    }
     value
 }
 

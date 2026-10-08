@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import animation from "../../../contracts/animation-channels-v1.json";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
 import contract from "../../../contracts/extended-visual-animation-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import {
   animationChannelSchema,
   mediaCropSchema,
@@ -11,7 +11,9 @@ import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection"
 
 describe("extended visual contracts", () => {
   it("governs the activated properties and bounded core certification", () => {
-    expect(contract.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+    expect(contract.projectSchemaVersion).toBe(
+      soundEvents.projectSchemaVersion
+    );
     expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
       38
     );

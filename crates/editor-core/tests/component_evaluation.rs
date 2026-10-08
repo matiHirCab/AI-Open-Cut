@@ -157,6 +157,7 @@ fn old_schema_cannot_smuggle_root_instances() {
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
     value["schemaVersion"] = json!(12);
     value.as_object_mut().unwrap().remove("audioBuses");
+    value.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut value);
     assert!(serde_json::from_value::<Project>(value).is_err());
 }
@@ -578,6 +579,7 @@ fn migration_component_document(
         .is_some_and(|version| version < 39)
     {
         document.as_object_mut().unwrap().remove("audioBuses");
+        document.as_object_mut().unwrap().remove("soundDefinitions");
     }
     clear_legacy_font_fields(&mut document);
     document["components"] = json!([
@@ -667,12 +669,14 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
             expected["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+            expected["soundDefinitions"] = json!([]);
             expected["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected);
             expected["fonts"] = json!({});
             let mut older = expected.clone();
             older["schemaVersion"] = json!(11);
             older.as_object_mut().unwrap().remove("audioBuses");
+            older.as_object_mut().unwrap().remove("soundDefinitions");
             clear_legacy_font_fields(&mut older);
             older["components"][1]["tracks"][0]["items"][0]["transform"] =
                 json!({"positionX":0,"positionY":0,"scale":1,"opacity":1});
@@ -681,6 +685,7 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
             expected_older["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+            expected_older["soundDefinitions"] = json!([]);
             expected_older["markers"] = json!([]);
             clear_legacy_font_fields(&mut expected_older);
             expected_older["fonts"] = json!({});

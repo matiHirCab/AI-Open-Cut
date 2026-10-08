@@ -175,6 +175,7 @@ fn strict_matte_wire_and_source_schema_guards_preserve_old_defaults() {
     let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     value["schemaVersion"] = json!(33);
     value.as_object_mut().unwrap().remove("audioBuses");
+    value.as_object_mut().unwrap().remove("soundDefinitions");
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
     for (name, metadata) in [
         ("matte", Value::Null),
@@ -259,6 +260,7 @@ fn inventory(
 fn predecessor33(value: &mut Value) {
     value["schemaVersion"] = json!(33);
     value.as_object_mut().unwrap().remove("audioBuses");
+    value.as_object_mut().unwrap().remove("soundDefinitions");
     for track in value["tracks"].as_array_mut().unwrap() {
         for item in track["items"].as_array_mut().unwrap() {
             item.as_object_mut().unwrap().remove("matte");
@@ -321,6 +323,7 @@ fn genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_chang
     expected["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     expected["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+    expected["soundDefinitions"] = json!([]);
     assert_eq!(migrated, expected);
     let mut expected_history = history;
     for lane in ["undo", "redo"] {
@@ -328,6 +331,7 @@ fn genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_chang
             snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
             snapshot["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+            snapshot["soundDefinitions"] = json!([]);
         }
     }
     let actual_history: Value =
@@ -719,6 +723,7 @@ fn retained_component33_defaults_adopt_and_undo_redo_without_read_rewrites() {
     expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
     expected["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+    expected["soundDefinitions"] = json!([]);
     assert_eq!(
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
         expected

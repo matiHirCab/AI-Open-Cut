@@ -380,3 +380,12 @@
 /apps/agent-bridge/tests/audio-buses.test.ts @matiHirCab
 /apps/agent-bridge/tests/audio-buses-workflow.ts @matiHirCab
 /docs/project-audio-buses.md @matiHirCab
+
+# Issue63 semantic sound-event definition contract
+/contracts/semantic-sound-events-v1.json @matiHirCab
+/crates/editor-core/src/model/sound_events.rs @matiHirCab
+/crates/editor-core/src/assets.rs @matiHirCab
+/crates/editor-core/tests/sound_events.rs @matiHirCab
+/apps/agent-bridge/tests/semantic-sound-events* @matiHirCab
+/apps/agent-bridge/tests/fixtures/semantic-sound-events-* @matiHirCab
+/docs/semantic-sound-events.md @matiHirCab

@@ -1468,6 +1468,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -2758,6 +2759,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -2863,6 +2865,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -3076,6 +3079,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -3153,6 +3157,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -3234,6 +3239,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -3510,6 +3516,7 @@ mod tests {
             ],
         };
         let project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),
@@ -3821,6 +3828,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
             fonts: Default::default(),

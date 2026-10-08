@@ -19,7 +19,9 @@ export const restoreSpeechAlignmentCatalogMarker = (
 ): RecordValue => {
   const raw = object(source);
   const value =
-    raw.projectSchemaVersion === 39 ? restoreAudioBusCatalogMarker(raw) : raw;
+    raw.projectSchemaVersion === 39 || raw.projectSchemaVersion === 40
+      ? restoreAudioBusCatalogMarker(raw)
+      : raw;
   if (value.projectSchemaVersion !== 38) {
     throw new Error(
       "Incorrect approved speech alignment marker: Unrelated verified predecessor"

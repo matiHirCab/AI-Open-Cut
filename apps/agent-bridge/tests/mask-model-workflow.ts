@@ -1,8 +1,8 @@
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBuses from "../../../contracts/audio-buses-v1.json";
 import contract from "../../../contracts/mask-models-v1.json";
+import soundEvents from "../../../contracts/semantic-sound-events-v1.json";
 import {
   editDraftSchema,
   maskSchema,
@@ -19,7 +19,7 @@ type Call = <Output>(
 
 export const verifyMaskModelWorkflow = async (client: Client, call: Call) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(audioBuses.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(soundEvents.projectSchemaVersion);
   expect(status.subsystems.editor.capabilities).toContain(contract.capability);
   expect(status.subsystems.rendering.capabilities).not.toContain(
     contract.capability
@@ -31,7 +31,7 @@ export const verifyMaskModelWorkflow = async (client: Client, call: Call) => {
   );
   const read = () => call("project_open", { projectId }, projectStateSchema);
   const initial = await read();
-  expect(initial.project.schemaVersion).toBe(audioBuses.projectSchemaVersion);
+  expect(initial.project.schemaVersion).toBe(soundEvents.projectSchemaVersion);
   const trackId = initial.project.tracks[1]?.id;
   const masks = contract.stackCases[1]?.value?.map((value) =>
     maskSchema.parse(value)

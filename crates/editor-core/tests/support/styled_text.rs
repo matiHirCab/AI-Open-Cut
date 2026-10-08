@@ -62,6 +62,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(19);
     old.as_object_mut().unwrap().remove("audioBuses");
+    old.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(
         dir.join("history.json"),
@@ -73,6 +74,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
     old["audioBuses"] = serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
+    old["soundDefinitions"] = json!([]);
     assert_eq!(migrated, old);
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
@@ -98,6 +100,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
         let mut invalid = old.clone();
         invalid["schemaVersion"] = json!(19);
         invalid.as_object_mut().unwrap().remove("audioBuses");
+        invalid.as_object_mut().unwrap().remove("soundDefinitions");
         invalid["tracks"][1]["items"][0]["document"]["spans"] = json!([]);
         let current = if location == "current" {
             &invalid
@@ -130,6 +133,7 @@ fn malformed_retained_styled_draft_blocks_migration_without_publication() {
     let mut project = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     project["schemaVersion"] = json!(19);
     project.as_object_mut().unwrap().remove("audioBuses");
+    project.as_object_mut().unwrap().remove("soundDefinitions");
     let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));
     let mut malformed = serde_json::to_value(&draft).unwrap();
     malformed["operations"][0]

@@ -80,6 +80,9 @@ pub(crate) fn historical(mut value: Value, version: u32) -> Value {
     if version < 39 {
         value.as_object_mut().unwrap().remove("audioBuses");
     }
+    if version < 40 {
+        value.as_object_mut().unwrap().remove("soundDefinitions");
+    }
     value
 }
 pub(crate) fn slot_generation(mut p: Value, value: f64) -> Value {

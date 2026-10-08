@@ -410,6 +410,7 @@ fn grid_migration_current_history_and_future_rejection() {
             .is_some_and(|version| version < 39)
         {
             state.as_object_mut().unwrap().remove("audioBuses");
+            state.as_object_mut().unwrap().remove("soundDefinitions");
         }
         clear_legacy_font_fields(&mut state);
         std::fs::write(
@@ -450,6 +451,7 @@ fn grid_migration_current_history_and_future_rejection() {
                 .is_some_and(|version| version < 39)
             {
                 bad.as_object_mut().unwrap().remove("audioBuses");
+                bad.as_object_mut().unwrap().remove("soundDefinitions");
             }
             clear_legacy_font_fields(&mut bad);
             std::fs::write(
