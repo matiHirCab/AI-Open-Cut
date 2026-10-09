@@ -7,7 +7,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { z } from "zod/v4";
 
 import { type BridgeConfig, loadBridgeConfig } from "../src/config";
-import { HeadlessClient } from "../src/headless";
+import { callHeadless, HeadlessClient } from "../src/headless";
 import type { HeadlessRequest } from "../src/headless-contract";
 
 const fixtureRequest = (operation: string, extra = {}) =>
@@ -100,4 +100,23 @@ it("maps malformed output and cancellation to stable errors", async () => {
     code: "JOB_CANCELLED",
     retryable: true,
   });
+});
+
+it("refuses cleanup outside the configured root for malformed export paths", async () => {
+  const config = createConfig();
+  const { readFile, writeFile } = await import("node:fs/promises");
+  const victim = join(root, ".opencut-cleanup-safe.mp4");
+  await writeFile(victim, "preserve");
+  await expect(
+    callHeadless(
+      config,
+      fixtureRequest("export_video", {
+        projectId: "project",
+        relativePath: "../output.mp4",
+      }),
+      z.object({ ok: z.boolean() }),
+      { requestId: "cleanup-safe" }
+    )
+  ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+  expect((await readFile(victim)).toString()).toBe("preserve");
 });

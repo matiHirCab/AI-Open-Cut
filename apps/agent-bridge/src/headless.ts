@@ -16,6 +16,8 @@ import type { HeadlessRequest } from "./headless-contract";
 import { type Logger, NOOP_LOGGER } from "./logger";
 
 const NEWLINE_PATTERN = /\r?\n/;
+const CLEANUP_IDENTIFIER = /^[a-zA-Z0-9_-]{1,128}$/u;
+const CLEANUP_EXPORT_PATH = /^[a-zA-Z0-9._/-]+$/u;
 
 export interface HeadlessCallOptions {
   onProgress?: (progress: number) => void;
@@ -148,6 +150,11 @@ export const callHeadless = async <Output>(
     let result: Output | undefined;
     let reportedError: BridgeError | undefined;
     let settled = false;
+    const closed = new Promise<void>((resolve) => {
+      child.once("close", () => {
+        resolve();
+      });
+    });
 
     const cleanup = async () => {
       await Promise.all(
@@ -165,9 +172,28 @@ export const callHeadless = async <Output>(
       options.signal?.removeEventListener("abort", onAbort);
       cleanup().finally(() => rejectPromise(error));
     };
+    const cleanupAfterExit = async () => {
+      await closed;
+      await cleanup();
+    };
     const terminate = (error: BridgeError) => {
-      terminateProcessTree(child);
-      finishReject(error);
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+      const termination = terminateProcessTree(child).then(cleanupAfterExit);
+      let deadline: ReturnType<typeof setTimeout>;
+      const bounded = new Promise<void>((resolve) => {
+        deadline = setTimeout(resolve, 5000);
+      });
+      Promise.race([termination, bounded])
+        .then(() => {
+          clearTimeout(deadline);
+          rejectPromise(error);
+        })
+        .catch(() => rejectPromise(error));
     };
     const onAbort = () =>
       terminate(
@@ -280,6 +306,23 @@ const ownedTemporaryPaths = (
   request: HeadlessRequest,
   requestId: string
 ) => {
+  // Cleanup is an I/O ownership boundary, never an alternate domain validator.
+  if (
+    !CLEANUP_IDENTIFIER.test(requestId) ||
+    ("projectId" in request && !CLEANUP_IDENTIFIER.test(request.projectId))
+  ) {
+    return [];
+  }
+  if (
+    request.operation === "export_video" &&
+    (!CLEANUP_EXPORT_PATH.test(request.relativePath) ||
+      request.relativePath.startsWith("/") ||
+      request.relativePath
+        .split("/")
+        .some((part) => !part || part === "." || part === ".."))
+  ) {
+    return [];
+  }
   if (
     (request.operation === "render_preview" ||
       request.operation === "render_preview_range" ||
@@ -336,21 +379,28 @@ const ownedTemporaryPaths = (
   return [];
 };
 
-const terminateProcessTree = (child: ChildProcessWithoutNullStreams) => {
+const terminateProcessTree = async (child: ChildProcessWithoutNullStreams) => {
   if (!child.pid || child.killed) {
     return;
   }
   if (process.platform === "win32") {
-    const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
-      stdio: "ignore",
-      windowsHide: true,
+    await new Promise<void>((resolve) => {
+      const killer = spawn(
+        "taskkill",
+        ["/pid", String(child.pid), "/t", "/f"],
+        {
+          stdio: "ignore",
+          windowsHide: true,
+        }
+      );
+      killer.once("error", () => resolve());
+      killer.once("close", () => resolve());
     });
-    killer.unref();
   } else {
     try {
-      process.kill(-child.pid, "SIGTERM");
+      process.kill(-child.pid, "SIGKILL");
     } catch {
-      child.kill();
+      child.kill("SIGKILL");
     }
   }
 };

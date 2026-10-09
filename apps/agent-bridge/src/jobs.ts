@@ -31,13 +31,19 @@ interface JobEntry {
   cancellable: boolean;
   controller: AbortController;
   job: Job;
+  ownedPreview?: JobCompletion["artifact"];
   promise?: Promise<void>;
+  removing?: boolean;
+  settled: boolean;
 }
 
 interface JobRegistryOptions {
+  disposePreview?: (job: Job) => Promise<void>;
   headless?: HeadlessClient;
   logger?: Logger;
   maxCount?: number;
+  maxPreviewBytes?: number;
+  maxPreviewCount?: number;
   now?: () => number;
   ttlMs?: number;
 }
@@ -51,7 +57,15 @@ const isTerminal = (job: Job) =>
   job.status === "failed" ||
   job.status === "cancelled";
 
+const isPreview = (job: Job) =>
+  job.kind === "preview" || job.kind === "preview_range";
+
 export class JobRegistry {
+  readonly #disposePreview: ((job: Job) => Promise<void>) | undefined;
+  readonly #maxPreviewBytes: number;
+  readonly #maxPreviewCount: number;
+  #retention = Promise.resolve();
+  #closing: Promise<void> | undefined;
   readonly #headless: HeadlessClient | undefined;
   readonly #jobs = new Map<string, JobEntry>();
   readonly #maxCount: number;
@@ -61,6 +75,9 @@ export class JobRegistry {
   readonly #lifecycle = { closed: false };
 
   constructor(options: JobRegistryOptions = {}) {
+    this.#disposePreview = options.disposePreview;
+    this.#maxPreviewBytes = options.maxPreviewBytes ?? 67_108_864;
+    this.#maxPreviewCount = options.maxPreviewCount ?? 32;
     this.#headless = options.headless;
     this.#maxCount = options.maxCount ?? 1000;
     this.#logger = options.logger ?? NOOP_LOGGER;
@@ -120,6 +137,7 @@ export class JobRegistry {
         status: "queued",
         updatedAtMs: now,
       },
+      settled: false,
     };
     this.#jobs.set(jobId, entry);
     this.#logger.info("job.admitted", {
@@ -134,7 +152,7 @@ export class JobRegistry {
   get(jobId: string) {
     this.#cleanup();
     const entry = this.#jobs.get(jobId);
-    if (!entry) {
+    if (!entry || this.#expired(entry)) {
       throw new BridgeError("JOB_NOT_FOUND", "Job was not found");
     }
     return jobSchema.parse(entry.job);
@@ -143,7 +161,7 @@ export class JobRegistry {
   cancel(jobId: string) {
     this.#cleanup();
     const entry = this.#jobs.get(jobId);
-    if (!entry) {
+    if (!entry || this.#expired(entry)) {
       throw new BridgeError("JOB_NOT_FOUND", "Job was not found");
     }
     if (entry.job.status === "cancelled") {
@@ -160,7 +178,12 @@ export class JobRegistry {
     return jobSchema.parse(entry.job);
   }
 
-  async close() {
+  close() {
+    this.#closing ??= this.#close();
+    return this.#closing;
+  }
+
+  async #close() {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
     if (this.#isClosed()) {
       return;
@@ -177,6 +200,12 @@ export class JobRegistry {
         entry.promise ? [entry.promise] : []
       )
     );
+    for (const entry of this.#jobs.values()) {
+      if (entry.ownedPreview) {
+        this.#queueRemoval(entry);
+      }
+    }
+    await this.#retention;
   }
 
   async #run(
@@ -203,6 +232,11 @@ export class JobRegistry {
         onProgress: (progress) => this.#progress(entry, progress),
         signal: entry.controller.signal,
       });
+      if (completion.artifact && isPreview(entry.job) && this.#disposePreview) {
+        await this.#serialize(async () => {
+          await this.#retainPreview(entry, completion.artifact);
+        });
+      }
       if (entry.job.status !== "cancelled") {
         this.#finish(entry, {
           ...completion,
@@ -234,6 +268,8 @@ export class JobRegistry {
         operation: entry.job.kind,
         status: "failed",
       });
+    } finally {
+      entry.settled = true;
     }
   }
 
@@ -291,9 +327,19 @@ export class JobRegistry {
     this.#cleanup();
     while (this.#jobs.size >= this.#maxCount) {
       const [oldest] = [...this.#jobs.values()]
-        .filter((entry) => isTerminal(entry.job))
+        .filter(
+          (entry) => isTerminal(entry.job) && entry.settled && !entry.removing
+        )
         .sort((left, right) => left.job.updatedAtMs - right.job.updatedAtMs);
       if (!oldest) {
+        throw new BridgeError(
+          "JOB_REGISTRY_FULL",
+          "OpenCut job registry is full",
+          true
+        );
+      }
+      if (oldest.ownedPreview) {
+        this.#queueRemoval(oldest);
         throw new BridgeError(
           "JOB_REGISTRY_FULL",
           "OpenCut job registry is full",
@@ -304,12 +350,112 @@ export class JobRegistry {
     }
   }
 
+  #expired(entry: JobEntry) {
+    return (
+      entry.job.expiresAtMs !== null && entry.job.expiresAtMs <= this.#now()
+    );
+  }
+
   #cleanup() {
-    const now = this.#now();
-    for (const [jobId, entry] of this.#jobs) {
-      if (entry.job.expiresAtMs !== null && entry.job.expiresAtMs <= now) {
-        this.#jobs.delete(jobId);
+    for (const entry of this.#jobs.values()) {
+      if (entry.settled && this.#expired(entry)) {
+        if (entry.ownedPreview) {
+          this.#queueRemoval(entry);
+        } else {
+          this.#jobs.delete(entry.job.jobId);
+        }
       }
+    }
+  }
+
+  #serialize(action: () => Promise<void>) {
+    const pending = this.#retention.then(action);
+    this.#retention = pending.catch(() => undefined);
+    return pending;
+  }
+
+  #queueRemoval(entry: JobEntry) {
+    if (entry.removing) {
+      return;
+    }
+    entry.removing = true;
+    this.#serialize(async () => {
+      if (await this.#discardPreview(entry)) {
+        this.#jobs.delete(entry.job.jobId);
+      }
+      entry.removing = false;
+    }).catch(() => undefined);
+  }
+
+  async #discardPreview(entry: JobEntry) {
+    if (!entry.ownedPreview) {
+      return true;
+    }
+    try {
+      await this.#disposePreview?.({
+        ...entry.job,
+        artifact: entry.ownedPreview,
+      });
+      entry.ownedPreview = undefined;
+      return true;
+    } catch {
+      this.#logger.error("job.preview.disposal.failed", {
+        code: "VALIDATION_FAILED",
+        jobId: entry.job.jobId,
+      });
+      return false;
+    }
+  }
+
+  async #retainPreview(entry: JobEntry, artifact: JobCompletion["artifact"]) {
+    if (!artifact) {
+      return;
+    }
+    entry.ownedPreview = artifact;
+    const full = () =>
+      new BridgeError(
+        "JOB_REGISTRY_FULL",
+        "OpenCut preview artifact retention is full",
+        true
+      );
+    if (entry.controller.signal.aborted) {
+      await this.#discardPreview(entry);
+      return;
+    }
+    if (artifact.sizeBytes > this.#maxPreviewBytes) {
+      await this.#discardPreview(entry);
+      throw full();
+    }
+    const retained = () =>
+      [...this.#jobs.values()].filter(
+        (candidate) => candidate !== entry && candidate.ownedPreview
+      );
+    const overLimit = () => {
+      const entries = retained();
+      // Subtract from the budget so summation cannot overflow a safe integer.
+      let remaining = this.#maxPreviewBytes - artifact.sizeBytes;
+      for (const candidate of entries) {
+        remaining -= candidate.ownedPreview?.sizeBytes ?? 0;
+        if (remaining < 0) {
+          return true;
+        }
+      }
+      return entries.length >= this.#maxPreviewCount;
+    };
+    while (overLimit()) {
+      const [oldest] = retained()
+        .filter((candidate) => candidate.settled)
+        .sort((left, right) => left.job.updatedAtMs - right.job.updatedAtMs);
+      // biome-ignore lint/performance/noAwaitInLoops: Dispose each old output before releasing its budget.
+      if (!(oldest && (await this.#discardPreview(oldest)))) {
+        await this.#discardPreview(entry);
+        throw full();
+      }
+      this.#jobs.delete(oldest.job.jobId);
+    }
+    // Cancellation can arrive during filesystem eviction.
+    if (entry.controller.signal.aborted) {
+      await this.#discardPreview(entry);
     }
   }
 
