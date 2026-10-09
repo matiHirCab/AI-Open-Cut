@@ -49,6 +49,7 @@ use crate::{KeyframeProperty, KeyframeValue};
 
 #[derive(Clone, Debug)]
 pub struct Renderer {
+    preview_cache: Arc<crate::render_artifact::preview_cache::PreviewCache>,
     raster_cache: Arc<crate::render_artifact::raster_cache::RasterCache>,
     #[cfg(test)]
     text_glyph_limit: Option<usize>,
@@ -217,6 +218,17 @@ impl Renderer {
 
     /// Instrumented-build evidence only; never part of the rendering wire contract.
     #[cfg(feature = "raster-cache-test-hooks")]
+    pub fn preview_cache_test_counts(&self) -> (usize, usize, usize) {
+        let (hits, misses) = self.preview_cache.counts();
+        (
+            hits,
+            misses,
+            crate::render_process::final_render_test_executions(),
+        )
+    }
+
+    /// Instrumented-build raster evidence only.
+    #[cfg(feature = "raster-cache-test-hooks")]
     pub fn raster_cache_test_counts(&self) -> (usize, usize) {
         use std::sync::atomic::Ordering;
         (
@@ -231,6 +243,7 @@ impl Renderer {
         default_font_path: Option<PathBuf>,
     ) -> Self {
         Self {
+            preview_cache: Arc::default(),
             raster_cache: Arc::default(),
             #[cfg(test)]
             text_glyph_limit: None,
@@ -249,12 +262,14 @@ impl Renderer {
         process_executor: Arc<dyn ProcessExecutor>,
         artifact_io: Arc<dyn ArtifactIo>,
     ) -> Self {
+        self.preview_cache = Arc::default();
         self.process_executor = process_executor;
         self.artifact_io = artifact_io;
         self
     }
 
     pub fn with_font_roots(mut self, roots: impl IntoIterator<Item = PathBuf>) -> Self {
+        self.preview_cache = Arc::default();
         self.font_roots = roots.into_iter().collect();
         self
     }
@@ -291,6 +306,63 @@ impl Renderer {
         self.process_executor.probe(&self.ffprobe_path, path)
     }
 
+    fn preview_identity(
+        &self,
+        project: &Project,
+        preflight: &RenderPreflight,
+        intent: (&str, u64, u64, u32, u32, u32, bool),
+    ) -> Option<crate::render_artifact::preview_cache::Key> {
+        let backend = self
+            .process_executor
+            .preview_cache_identity(&self.ffmpeg_path, &self.ffprobe_path)?;
+        // Consume owner-produced resource bindings, never resolve a second scene.
+        let mut paths = preflight.media.media_paths.clone();
+        for text in preflight.measured.values() {
+            // Shaped text consumes the verified in-memory faces below. Legacy
+            // drawtext requires an explicit file rather than implicit platform fallback.
+            if text.shaped.is_none() {
+                paths.push(text.prepared.font_path.clone()?);
+            }
+            if let Some(runs) = &text.prepared.rich_runs {
+                for run in runs {
+                    paths.push(run.font_path.clone()?);
+                }
+            }
+        }
+        paths.extend(self.default_font_path.iter().cloned());
+        paths.sort();
+        paths.dedup();
+        let dependencies = paths
+            .iter()
+            .map(|path| self.artifact_io.media_digest(path))
+            .collect::<Result<Vec<_>, _>>()
+            .ok()?;
+        let faces = preflight
+            .media
+            .font_faces
+            .iter()
+            .map(|(id, bytes)| {
+                use sha2::{Digest, Sha256};
+                (id, <[u8; 32]>::from(Sha256::digest(bytes)))
+            })
+            .collect::<Vec<_>>();
+        crate::render_artifact::preview_cache::key(&(project, intent, backend, dependencies, faces))
+    }
+
+    fn retain_preview(
+        &self,
+        key: Option<crate::render_artifact::preview_cache::Key>,
+        output: &Path,
+    ) {
+        if let Some(key) = key
+            && let Ok(bytes) = self
+                .artifact_io
+                .read_preview_payload(output, self.preview_cache.payload_capacity())
+        {
+            self.preview_cache.insert(key, bytes);
+        }
+    }
+
     pub fn render_preview(
         &self,
         project: &Project,
@@ -318,6 +390,22 @@ impl Renderer {
             true,
         )?;
         self.admit_controlled_readiness(&mut preflight, project_dir)?;
+        let cache_key = self.preview_identity(
+            project,
+            &preflight,
+            (
+                "frame",
+                time_ms,
+                time_ms,
+                project.settings.width,
+                project.settings.height,
+                project.settings.fps,
+                false,
+            ),
+        );
+        if cache_key.is_some() {
+            self.readiness()?;
+        }
         let file_name = format!("preview-{}.png", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -330,18 +418,29 @@ impl Renderer {
             project_dir,
             RenderIntent::Frame { at_ms: time_ms },
         )?;
-        if let Err(error) = self.process_executor.execute(
-            &self.ffmpeg_path,
-            &built.plan,
-            &built.filter_path,
-            &temporary,
-            &mut |_| {},
-        ) {
-            let _ = self.artifact_io.remove(&temporary);
-            return Err(error);
+        if let Some(bytes) = cache_key.and_then(|key| self.preview_cache.get(key)) {
+            if self.artifact_io.write(&temporary, &bytes).is_err() {
+                let _ = self.artifact_io.remove(&temporary);
+                return Err(CoreError::render_failure(
+                    crate::render_artifact::PUBLISH_STAGE,
+                    None,
+                    None,
+                ));
+            }
+        } else {
+            if let Err(error) = self.process_executor.execute(
+                &self.ffmpeg_path,
+                &built.plan,
+                &built.filter_path,
+                &temporary,
+                &mut |_| {},
+            ) {
+                let _ = self.artifact_io.remove(&temporary);
+                return Err(error);
+            }
         }
         publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
-        artifact_with(
+        let artifact = artifact_with(
             self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
@@ -351,7 +450,9 @@ impl Renderer {
         .map(|mut artifact| {
             artifact.text_layouts = built.text_layouts.clone();
             artifact
-        })
+        })?;
+        self.retain_preview(cache_key, &output);
+        Ok(artifact)
     }
 
     pub fn export_video(
@@ -446,6 +547,22 @@ impl Renderer {
             false,
         )?;
         self.admit_controlled_readiness(&mut preflight, project_dir)?;
+        let cache_key = self.preview_identity(
+            project,
+            &preflight,
+            (
+                "range",
+                options.start_ms,
+                options.end_ms,
+                options.width,
+                options.height,
+                options.fps,
+                options.include_audio,
+            ),
+        );
+        if cache_key.is_some() {
+            self.readiness()?;
+        }
         let file_name = format!("preview-range-{}.mp4", Uuid::new_v4());
         let output = project_dir.join("previews").join(&file_name);
         let temporary = temporary_output(
@@ -463,18 +580,30 @@ impl Renderer {
             },
         )?;
         let mut on_progress = on_progress;
-        if let Err(error) = self.process_executor.execute(
-            &self.ffmpeg_path,
-            &built.plan,
-            &built.filter_path,
-            &temporary,
-            &mut on_progress,
-        ) {
-            let _ = self.artifact_io.remove(&temporary);
-            return Err(error);
+        if let Some(bytes) = cache_key.and_then(|key| self.preview_cache.get(key)) {
+            if self.artifact_io.write(&temporary, &bytes).is_err() {
+                let _ = self.artifact_io.remove(&temporary);
+                return Err(CoreError::render_failure(
+                    crate::render_artifact::PUBLISH_STAGE,
+                    None,
+                    None,
+                ));
+            }
+            on_progress(RenderProgress { progress: 1.0 });
+        } else {
+            if let Err(error) = self.process_executor.execute(
+                &self.ffmpeg_path,
+                &built.plan,
+                &built.filter_path,
+                &temporary,
+                &mut on_progress,
+            ) {
+                let _ = self.artifact_io.remove(&temporary);
+                return Err(error);
+            }
         }
         publish_output_with(self.artifact_io.as_ref(), &temporary, &output, false)?;
-        artifact_with(
+        let artifact = artifact_with(
             self.artifact_io.as_ref(),
             &output,
             format!("previews/{file_name}"),
@@ -484,7 +613,9 @@ impl Renderer {
         .map(|mut artifact| {
             artifact.text_layouts = built.text_layouts.clone();
             artifact
-        })
+        })?;
+        self.retain_preview(cache_key, &output);
+        Ok(artifact)
     }
 
     #[cfg(test)]
@@ -1102,6 +1233,7 @@ mod golden;
 
 #[cfg(test)]
 mod tests {
+    mod preview_caching;
     mod raster_caching;
     use super::*;
     use crate::{

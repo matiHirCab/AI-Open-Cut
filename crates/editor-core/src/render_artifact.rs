@@ -2,6 +2,7 @@
 
 pub(crate) mod audio_analysis;
 pub(crate) mod master_normalization;
+pub(crate) mod preview_cache;
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;
@@ -45,6 +46,13 @@ pub(crate) trait ArtifactIo: Debug + Send + Sync {
     fn create_dir(&self, path: &Path) -> std::io::Result<()>;
     fn remove_dir_all(&self, path: &Path) -> std::io::Result<()>;
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>>;
+    /// Optional capacity-admitted encoded preview read. Unsupported ports bypass caching.
+    fn read_preview_payload(&self, _path: &Path, _capacity: usize) -> std::io::Result<Vec<u8>> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "bounded preview read unavailable",
+        ))
+    }
     /// The admitted active-matte reader may allocate at most `capacity` bytes,
     /// once, with no moving growth. Alternate ports must explicitly own this
     /// contract; generic read/read_font is not a permitted fallback.
@@ -255,6 +263,30 @@ pub(crate) struct PreparedMediaResources {
 pub(crate) struct FileSystemArtifactIo;
 
 impl ArtifactIo for FileSystemArtifactIo {
+    fn read_preview_payload(&self, path: &Path, capacity: usize) -> std::io::Result<Vec<u8>> {
+        use std::io::Read;
+        let metadata = std::fs::symlink_metadata(path)?;
+        if !metadata.is_file() {
+            return Err(std::io::Error::other("preview is not a regular file"));
+        }
+        let size = usize::try_from(metadata.len())
+            .map_err(|_| std::io::Error::other("preview size overflow"))?;
+        if size == 0 || size > capacity {
+            return Err(std::io::Error::other("preview capacity exceeded"));
+        }
+        let mut file = std::fs::File::open(path)?;
+        if file.metadata()?.len() != metadata.len() {
+            return Err(std::io::Error::other("preview size changed"));
+        }
+        let mut bytes = vec![0; size];
+        file.read_exact(&mut bytes)?;
+        let mut extra = [0; 1];
+        if file.read(&mut extra)? != 0 {
+            return Err(std::io::Error::other("preview size changed"));
+        }
+        Ok(bytes)
+    }
+
     fn read_admitted_font(
         &self,
         path: &Path,

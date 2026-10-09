@@ -27,11 +27,11 @@ impl Drop for RetainedRoot {
 }
 
 #[derive(Debug, Default)]
-struct RecordingProcess {
+pub(super) struct RecordingProcess {
     pcm: Mutex<Vec<f32>>,
     original: Mutex<Vec<f32>>,
     prepared: Mutex<Option<PreparedMasterNormalization>>,
-    rendered_pcm: Mutex<Vec<f32>>,
+    pub(super) rendered_pcm: Mutex<Vec<f32>>,
 }
 impl ProcessExecutor for RecordingProcess {
     fn readiness(&self, f: &Path, p: &Path) -> Result<(), CoreError> {
@@ -128,7 +128,13 @@ impl ProcessExecutor for RecordingProcess {
     }
 }
 
-fn source(path: &Path, duration_ms: u64, amplitude: f64, dynamic: bool, high_frequency: bool) {
+pub(super) fn source(
+    path: &Path,
+    duration_ms: u64,
+    amplitude: f64,
+    dynamic: bool,
+    high_frequency: bool,
+) {
     let frames = duration_ms * 48;
     let size = u32::try_from(frames * 8).unwrap();
     let mut writer = std::io::BufWriter::new(fs::File::create(path).unwrap());
@@ -180,7 +186,7 @@ fn source(path: &Path, duration_ms: u64, amplitude: f64, dynamic: bool, high_fre
     writer.flush().unwrap();
 }
 
-fn independent_metrics(tools: &NativeTools, pcm: &[f32], path: &Path) -> (f64, f64) {
+pub(super) fn independent_metrics(tools: &NativeTools, pcm: &[f32], path: &Path) -> (f64, f64) {
     fs::write(
         path,
         pcm.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>(),
