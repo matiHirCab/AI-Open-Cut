@@ -1,6 +1,7 @@
 //! FFmpeg and FFprobe process execution owner.
 
 mod audio_analysis;
+mod master_normalization;
 
 use std::{
     fmt::Debug,
@@ -546,6 +547,27 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    fn master_normalization_readiness(&self, _ffmpeg: &Path) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "master normalization is unavailable",
+        ))
+    }
+    fn prepare_master_normalization(
+        &self,
+        _ffmpeg: &Path,
+        _plan: &crate::render_plan::audio_analysis::AudioAnalysisPlan,
+        _settings: &crate::MasterNormalization,
+        _filter_path: &Path,
+        _workspace: &Path,
+        _on_progress: &mut dyn FnMut(RenderProgress),
+    ) -> Result<crate::render_plan::master_normalization::PreparedMasterNormalization, CoreError>
+    {
+        Err(CoreError::new(
+            ErrorCode::DependencyUnavailable,
+            "master normalization preparation is unavailable",
+        ))
+    }
     fn audio_analysis_readiness(&self, _ffmpeg_path: &Path) -> Result<(), CoreError> {
         Err(CoreError::new(
             ErrorCode::DependencyUnavailable,
@@ -662,6 +684,21 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn master_normalization_readiness(&self, ffmpeg: &Path) -> Result<(), CoreError> {
+        master_normalization::readiness(ffmpeg)
+    }
+    fn prepare_master_normalization(
+        &self,
+        ffmpeg: &Path,
+        plan: &crate::render_plan::audio_analysis::AudioAnalysisPlan,
+        settings: &crate::MasterNormalization,
+        filter_path: &Path,
+        workspace: &Path,
+        on_progress: &mut dyn FnMut(RenderProgress),
+    ) -> Result<crate::render_plan::master_normalization::PreparedMasterNormalization, CoreError>
+    {
+        master_normalization::prepare(ffmpeg, plan, settings, filter_path, workspace, on_progress)
+    }
     fn audio_analysis_readiness(&self, ffmpeg_path: &Path) -> Result<(), CoreError> {
         audio_analysis::readiness(ffmpeg_path)
     }

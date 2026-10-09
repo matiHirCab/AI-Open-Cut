@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import additions from "./audio-buses-mcp-additions.json";
 import ownership from "./audio-buses-ownership-addition.json";
 import pin from "./audio-buses-predecessor-pins.json";
+import { restoreMasterNormalizationCatalogMarker } from "./master-normalization-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
 import {
@@ -26,7 +27,7 @@ const at = (source: unknown, path: string[]): Record<string, unknown> => {
 };
 
 export const restoreAudioBusCatalogMarker = (source: unknown) => {
-  const original = at(source, []);
+  const original = at(restoreMasterNormalizationCatalogMarker(source), []);
   const value = at(
     original.projectSchemaVersion === 40 ||
       original.projectSchemaVersion === 41 ||

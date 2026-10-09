@@ -4,6 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/audio-bus-ducking-v1.json";
+import current from "../../../contracts/master-normalization-v1.json";
 import {
   editDraftSchema,
   projectStateSchema,
@@ -22,7 +23,7 @@ export const verifyAudioBusDuckingWorkflow = async (
   call: Call
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(43);
+  expect(status.projectSchemaVersion).toBe(current.projectSchemaVersion);
   const { tools } = await client.request({ method: "tools/list" });
   expect(tools.filter((t) => t.name === catalog.operation)).toHaveLength(1);
   const { projectId } = await call(

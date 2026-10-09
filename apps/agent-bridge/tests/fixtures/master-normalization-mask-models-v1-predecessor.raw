@@ -1,0 +1,3403 @@
+{
+  "contract": "mask-models-v1",
+  "version": 1,
+  "projectSchemaVersion": 43,
+  "capability": "mask_models_v1",
+  "status": "authoring_with_active_rendering_contract",
+  "rendererStage": "contracts/mask-rendering-v1.json",
+  "fields": [
+    "id",
+    "source",
+    "channel",
+    "operation",
+    "inverted",
+    "transform",
+    "featherPx",
+    "expansionPx"
+  ],
+  "sourceTypes": [
+    "path"
+  ],
+  "channels": [
+    "alpha",
+    "luma"
+  ],
+  "operations": [
+    "add",
+    "subtract",
+    "intersect",
+    "exclude"
+  ],
+  "reusedContracts": {
+    "pathAndPaint": "contracts/vector-primitives-v1.json",
+    "transform": "contracts/transform2d-v1.json"
+  },
+  "limits": {
+    "maxIdBytes": 128,
+    "maxMasksPerItem": 16,
+    "maxMasksPerComposition": 4096,
+    "maxMasksPerProject": 16384,
+    "maxPathCommands": 4096,
+    "maxCommandsPerComposition": 65536,
+    "maxCommandsPerProject": 262144,
+    "maxGradientStops": 64,
+    "maxCoordinate": 1000000,
+    "maxFeatherPx": 128,
+    "minExpansionPx": -128,
+    "maxExpansionPx": 128
+  },
+  "eligibleItems": [
+    "image",
+    "video",
+    "text",
+    "solid_color",
+    "rectangle",
+    "shape",
+    "svg",
+    "grid"
+  ],
+  "semantics": {
+    "idScope": "owning_item",
+    "positionBasis": "post_crop_clip_pre_effect_owner_local_raster",
+    "anchorBasis": "untransformed_path_geometric_bounds",
+    "alpha": "painted_alpha",
+    "luma": "0.2126*R+0.7152*G+0.0722*B on premultiplied linear RGB",
+    "order": "geometric_fill, signed_expansion, original_coordinate_paint_channel, feather, mask_affine_opacity, inversion, ordered_combination",
+    "emptyStack": "identity1",
+    "firstSeed": {
+      "add": 0,
+      "exclude": 0,
+      "subtract": 1,
+      "intersect": 1
+    },
+    "combination": {
+      "add": "A+B-A*B",
+      "subtract": "A*(1-B)",
+      "intersect": "A*B",
+      "exclude": "A+B-2*A*B"
+    },
+    "feather": "local_Gaussian_sigma",
+    "expansion": "positive_growth_negative_contraction",
+    "timing": "static_and_mask_targeted_animation"
+  },
+  "editSemantics": {
+    "omitted": "preserve",
+    "array": "ordered_replace",
+    "emptyArray": "clear",
+    "null": "reject"
+  },
+  "cases": [
+    {
+      "name": "add",
+      "value": {
+        "id": "mask-0",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "subtract",
+      "value": {
+        "id": "mask-1",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "luma",
+        "operation": "subtract",
+        "inverted": true,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "intersect",
+      "value": {
+        "id": "mask-2",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "intersect",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "exclude",
+      "value": {
+        "id": "mask-3",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "luma",
+        "operation": "exclude",
+        "inverted": true,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "linearGradient",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "linearGradient",
+            "stops": [
+              {
+                "offset": 0,
+                "color": {
+                  "r": 1,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.5
+                }
+              },
+              {
+                "offset": 1,
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 20,
+              "y": 10
+            }
+          }
+        },
+        "channel": "luma",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "radialGradient",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "radialGradient",
+            "stops": [
+              {
+                "offset": 0,
+                "color": {
+                  "r": 1,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.5
+                }
+              },
+              {
+                "offset": 1,
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 1,
+                  "a": 1
+                }
+              }
+            ],
+            "center": {
+              "x": 10,
+              "y": 10
+            },
+            "radius": 10
+          }
+        },
+        "channel": "luma",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "maximum-parameters",
+      "value": {
+        "id": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 128,
+        "expansionPx": 128
+      },
+      "accepted": true
+    },
+    {
+      "name": "minimum-parameters",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 0,
+        "expansionPx": -128
+      },
+      "accepted": true
+    },
+    {
+      "name": "move-only-zero-coverage",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": true
+    },
+    {
+      "name": "missing-id",
+      "value": {
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-source",
+      "value": {
+        "id": "cutout",
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-channel",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-operation",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-inverted",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-transform",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-featherPx",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "missing-expansionPx",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-id-",
+      "value": {
+        "id": "",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-id-éééééééé",
+      "value": {
+        "id": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-channel-rgb",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "rgb",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-operation-max",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "max",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-inverted-1",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": 1,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-featherPx--1",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": -1,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-featherPx-129",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 129,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-expansionPx--129",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -129
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-expansionPx-129",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": 129
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-transform-None",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": null,
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "invalid-source-None",
+      "value": {
+        "id": "cutout",
+        "source": null,
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "null",
+      "value": null,
+      "accepted": false
+    },
+    {
+      "name": "positional",
+      "value": [
+        "cutout",
+        {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "alpha",
+        "add",
+        false,
+        {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        2,
+        -3
+      ],
+      "accepted": false
+    },
+    {
+      "name": "unknown-field",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3,
+        "backend": "overlay"
+      },
+      "accepted": false
+    },
+    {
+      "name": "layer-source",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "layer",
+          "layerId": "other"
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "unsafe-svg-source",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "svg",
+          "svg": "<svg/>"
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "fixture-only-command-rejected",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "move_to",
+                "x": 0,
+                "y": 0
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "paint-outside-unit-interval",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 2,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "path-outside-coordinate-bound",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 1000001,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 0.75
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    },
+    {
+      "name": "transform-opacity-outside-bound",
+      "value": {
+        "id": "cutout",
+        "source": {
+          "type": "path",
+          "path": {
+            "fillRule": "evenodd",
+            "commands": [
+              {
+                "type": "moveTo",
+                "to": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "type": "lineTo",
+                "to": {
+                  "x": 20,
+                  "y": 0
+                }
+              },
+              {
+                "type": "quadraticTo",
+                "control": {
+                  "x": 24,
+                  "y": 10
+                },
+                "to": {
+                  "x": 20,
+                  "y": 20
+                }
+              },
+              {
+                "type": "cubicTo",
+                "control1": {
+                  "x": 14,
+                  "y": 24
+                },
+                "control2": {
+                  "x": 6,
+                  "y": 24
+                },
+                "to": {
+                  "x": 0,
+                  "y": 20
+                }
+              },
+              {
+                "type": "close"
+              }
+            ]
+          },
+          "paint": {
+            "type": "solid",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 0.5
+            }
+          }
+        },
+        "channel": "alpha",
+        "operation": "add",
+        "inverted": false,
+        "transform": {
+          "position": {
+            "x": 2,
+            "y": -3,
+            "unit": "pixels"
+          },
+          "anchor": {
+            "x": 0.25,
+            "y": 0.75
+          },
+          "scaleX": 1.5,
+          "scaleY": 0.5,
+          "rotationDeg": 30,
+          "skewXDeg": 10,
+          "skewYDeg": -5,
+          "opacity": 2
+        },
+        "featherPx": 2,
+        "expansionPx": -3
+      },
+      "accepted": false
+    }
+  ],
+  "stackCases": [
+    {
+      "name": "empty",
+      "value": [],
+      "accepted": true
+    },
+    {
+      "name": "ordered-pair",
+      "value": [
+        {
+          "id": "mask-0",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "evenodd",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 0,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 20,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "quadraticTo",
+                  "control": {
+                    "x": 24,
+                    "y": 10
+                  },
+                  "to": {
+                    "x": 20,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "cubicTo",
+                  "control1": {
+                    "x": 14,
+                    "y": 24
+                  },
+                  "control2": {
+                    "x": 6,
+                    "y": 24
+                  },
+                  "to": {
+                    "x": 0,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            }
+          },
+          "channel": "alpha",
+          "operation": "add",
+          "inverted": false,
+          "transform": {
+            "position": {
+              "x": 2,
+              "y": -3,
+              "unit": "pixels"
+            },
+            "anchor": {
+              "x": 0.25,
+              "y": 0.75
+            },
+            "scaleX": 1.5,
+            "scaleY": 0.5,
+            "rotationDeg": 30,
+            "skewXDeg": 10,
+            "skewYDeg": -5,
+            "opacity": 0.75
+          },
+          "featherPx": 2,
+          "expansionPx": -3
+        },
+        {
+          "id": "mask-1",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "evenodd",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 0,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 20,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "quadraticTo",
+                  "control": {
+                    "x": 24,
+                    "y": 10
+                  },
+                  "to": {
+                    "x": 20,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "cubicTo",
+                  "control1": {
+                    "x": 14,
+                    "y": 24
+                  },
+                  "control2": {
+                    "x": 6,
+                    "y": 24
+                  },
+                  "to": {
+                    "x": 0,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            }
+          },
+          "channel": "luma",
+          "operation": "subtract",
+          "inverted": true,
+          "transform": {
+            "position": {
+              "x": 2,
+              "y": -3,
+              "unit": "pixels"
+            },
+            "anchor": {
+              "x": 0.25,
+              "y": 0.75
+            },
+            "scaleX": 1.5,
+            "scaleY": 0.5,
+            "rotationDeg": 30,
+            "skewXDeg": 10,
+            "skewYDeg": -5,
+            "opacity": 0.75
+          },
+          "featherPx": 2,
+          "expansionPx": -3
+        }
+      ],
+      "accepted": true
+    },
+    {
+      "name": "duplicate-local-id",
+      "value": [
+        {
+          "id": "cutout",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "evenodd",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 0,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 20,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "quadraticTo",
+                  "control": {
+                    "x": 24,
+                    "y": 10
+                  },
+                  "to": {
+                    "x": 20,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "cubicTo",
+                  "control1": {
+                    "x": 14,
+                    "y": 24
+                  },
+                  "control2": {
+                    "x": 6,
+                    "y": 24
+                  },
+                  "to": {
+                    "x": 0,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            }
+          },
+          "channel": "alpha",
+          "operation": "add",
+          "inverted": false,
+          "transform": {
+            "position": {
+              "x": 2,
+              "y": -3,
+              "unit": "pixels"
+            },
+            "anchor": {
+              "x": 0.25,
+              "y": 0.75
+            },
+            "scaleX": 1.5,
+            "scaleY": 0.5,
+            "rotationDeg": 30,
+            "skewXDeg": 10,
+            "skewYDeg": -5,
+            "opacity": 0.75
+          },
+          "featherPx": 2,
+          "expansionPx": -3
+        },
+        {
+          "id": "cutout",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "evenodd",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 0,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 20,
+                    "y": 0
+                  }
+                },
+                {
+                  "type": "quadraticTo",
+                  "control": {
+                    "x": 24,
+                    "y": 10
+                  },
+                  "to": {
+                    "x": 20,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "cubicTo",
+                  "control1": {
+                    "x": 14,
+                    "y": 24
+                  },
+                  "control2": {
+                    "x": 6,
+                    "y": 24
+                  },
+                  "to": {
+                    "x": 0,
+                    "y": 20
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            }
+          },
+          "channel": "alpha",
+          "operation": "add",
+          "inverted": false,
+          "transform": {
+            "position": {
+              "x": 2,
+              "y": -3,
+              "unit": "pixels"
+            },
+            "anchor": {
+              "x": 0.25,
+              "y": 0.75
+            },
+            "scaleX": 1.5,
+            "scaleY": 0.5,
+            "rotationDeg": 30,
+            "skewXDeg": 10,
+            "skewYDeg": -5,
+            "opacity": 0.75
+          },
+          "featherPx": 2,
+          "expansionPx": -3
+        }
+      ],
+      "accepted": false
+    }
+  ],
+  "rawRejectedCases": [
+    {
+      "name": "duplicate-id",
+      "json": "{\"id\": \"cutout\", \"id\": \"other\", \"source\": {\"type\": \"path\", \"path\": {\"fillRule\": \"evenodd\", \"commands\": [{\"type\": \"moveTo\", \"to\": {\"x\": 0, \"y\": 0}}, {\"type\": \"lineTo\", \"to\": {\"x\": 20, \"y\": 0}}, {\"type\": \"quadraticTo\", \"control\": {\"x\": 24, \"y\": 10}, \"to\": {\"x\": 20, \"y\": 20}}, {\"type\": \"cubicTo\", \"control1\": {\"x\": 14, \"y\": 24}, \"control2\": {\"x\": 6, \"y\": 24}, \"to\": {\"x\": 0, \"y\": 20}}, {\"type\": \"close\"}]}, \"paint\": {\"type\": \"solid\", \"color\": {\"r\": 1, \"g\": 0, \"b\": 0, \"a\": 0.5}}}, \"channel\": \"alpha\", \"operation\": \"add\", \"inverted\": false, \"transform\": {\"position\": {\"x\": 2, \"y\": -3, \"unit\": \"pixels\"}, \"anchor\": {\"x\": 0.25, \"y\": 0.75}, \"scaleX\": 1.5, \"scaleY\": 0.5, \"rotationDeg\": 30, \"skewXDeg\": 10, \"skewYDeg\": -5, \"opacity\": 0.75}, \"featherPx\": 2, \"expansionPx\": -3}"
+    },
+    {
+      "name": "duplicate-source-paint",
+      "json": "{\"id\": \"cutout\", \"source\": {\"type\": \"path\", \"path\": {\"fillRule\": \"evenodd\", \"commands\": [{\"type\": \"moveTo\", \"to\": {\"x\": 0, \"y\": 0}}, {\"type\": \"lineTo\", \"to\": {\"x\": 20, \"y\": 0}}, {\"type\": \"quadraticTo\", \"control\": {\"x\": 24, \"y\": 10}, \"to\": {\"x\": 20, \"y\": 20}}, {\"type\": \"cubicTo\", \"control1\": {\"x\": 14, \"y\": 24}, \"control2\": {\"x\": 6, \"y\": 24}, \"to\": {\"x\": 0, \"y\": 20}}, {\"type\": \"close\"}]}, \"paint\": {\"type\": \"solid\", \"color\": {\"r\": 1, \"g\": 0, \"b\": 0, \"a\": 0.5}}, \"paint\": {\"type\": \"solid\", \"color\": {\"r\": 1, \"g\": 0, \"b\": 0, \"a\": 0.5}}}, \"channel\": \"alpha\", \"operation\": \"add\", \"inverted\": false, \"transform\": {\"position\": {\"x\": 2, \"y\": -3, \"unit\": \"pixels\"}, \"anchor\": {\"x\": 0.25, \"y\": 0.75}, \"scaleX\": 1.5, \"scaleY\": 0.5, \"rotationDeg\": 30, \"skewXDeg\": 10, \"skewYDeg\": -5, \"opacity\": 0.75}, \"featherPx\": 2, \"expansionPx\": -3}"
+    }
+  ]
+}

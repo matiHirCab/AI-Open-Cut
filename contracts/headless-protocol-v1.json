@@ -373,6 +373,20 @@
       "startMs": 0,
       "endMs": 1000,
       "waveformBins": 4
+    },
+    "masterNormalizationSet": {
+      "operation": "edit",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "edit": {
+        "operation": "audio_master_set_normalization",
+        "normalization": {
+          "enabled": true,
+          "targetIntegratedLufs": -16.0,
+          "targetLoudnessRangeLu": 7.0,
+          "targetTruePeakDbtp": -1.0
+        }
+      }
     }
   },
   "events": [
@@ -460,7 +474,8 @@
       "group_compositing_v1",
       "audio_bus_dsp_v1",
       "audio_bus_ducking_v1",
-      "audio_analysis_v1"
+      "audio_analysis_v1",
+      "audio_master_normalization_v1"
     ]
   }
 }

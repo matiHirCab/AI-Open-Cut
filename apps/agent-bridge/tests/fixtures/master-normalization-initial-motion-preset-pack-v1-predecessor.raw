@@ -1,0 +1,1006 @@
+{
+  "version": 1,
+  "compilerVersion": 2,
+  "projectSchemaVersion": 43,
+  "capability": "initial_motion_preset_pack_v1",
+  "operation": "apply_animation_preset",
+  "tool": "timeline_apply_animation_preset",
+  "limits": {
+    "maxGeneratedChannels": 5,
+    "maxGeneratedKeyframes": 25,
+    "maxProvenancePerItem": 64,
+    "maxTimeMs": 9007199254740991
+  },
+  "presets": [
+    {
+      "id": "impact_slam",
+      "version": 1,
+      "minimumDurationMs": 8,
+      "parameters": {
+        "kind": "impact_slam",
+        "startMs": 10,
+        "durationMs": 80,
+        "centerX": 100.0,
+        "centerY": 200.0,
+        "shakeAmplitudePx": 8.0,
+        "scaleFrom": 0.5,
+        "scaleOvershoot": 1.2,
+        "scaleTo": 1.0,
+        "opacityFrom": 0.0,
+        "opacityTo": 1.0,
+        "flashOpacity": 0.2,
+        "motionBlur": {
+          "shutterAngleDeg": 180.0,
+          "sampleCount": 3
+        }
+      },
+      "expected": {
+        "channels": [
+          {
+            "property": "transform.position_x",
+            "times": [
+              10,
+              50,
+              60,
+              70,
+              80,
+              90
+            ],
+            "values": [
+              100.0,
+              100.0,
+              108.0,
+              96.0,
+              102.0,
+              100.0
+            ]
+          },
+          {
+            "property": "transform.position_y",
+            "times": [
+              10,
+              50,
+              60,
+              70,
+              80,
+              90
+            ],
+            "values": [
+              200.0,
+              200.0,
+              192.0,
+              204.0,
+              198.0,
+              200.0
+            ]
+          },
+          {
+            "property": "transform.scale_x",
+            "times": [
+              10,
+              50,
+              70,
+              90
+            ],
+            "values": [
+              0.5,
+              1.2,
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "property": "transform.scale_y",
+            "times": [
+              10,
+              50,
+              70,
+              90
+            ],
+            "values": [
+              0.5,
+              1.2,
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "property": "transform.opacity",
+            "times": [
+              10,
+              50,
+              60,
+              70,
+              90
+            ],
+            "values": [
+              0.0,
+              1.0,
+              0.2,
+              1.0,
+              1.0
+            ]
+          }
+        ],
+        "motionBlur": {
+          "shutterAngleDeg": 180.0,
+          "sampleCount": 3
+        },
+        "loop": null,
+        "samples": [
+          {
+            "timeMs": 55,
+            "positionX": 104.0,
+            "positionY": 196.0,
+            "scaleX": 1.15,
+            "opacity": 0.6
+          },
+          {
+            "timeMs": 65,
+            "positionX": 102.0,
+            "positionY": 198.0,
+            "scaleX": 1.05,
+            "opacity": 0.6
+          }
+        ]
+      },
+      "expectedProvenance": {
+        "transform.position_x": {
+          "presetId": "impact_slam",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "impact_slam",
+            "startMs": 10,
+            "durationMs": 80,
+            "centerX": 100.0,
+            "centerY": 200.0,
+            "shakeAmplitudePx": 8.0,
+            "scaleFrom": 0.5,
+            "scaleOvershoot": 1.2,
+            "scaleTo": 1.0,
+            "opacityFrom": 0.0,
+            "opacityTo": 1.0,
+            "flashOpacity": 0.2,
+            "motionBlur": {
+              "shutterAngleDeg": 180.0,
+              "sampleCount": 3
+            }
+          }
+        },
+        "transform.position_y": {
+          "presetId": "impact_slam",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "impact_slam",
+            "startMs": 10,
+            "durationMs": 80,
+            "centerX": 100.0,
+            "centerY": 200.0,
+            "shakeAmplitudePx": 8.0,
+            "scaleFrom": 0.5,
+            "scaleOvershoot": 1.2,
+            "scaleTo": 1.0,
+            "opacityFrom": 0.0,
+            "opacityTo": 1.0,
+            "flashOpacity": 0.2,
+            "motionBlur": {
+              "shutterAngleDeg": 180.0,
+              "sampleCount": 3
+            }
+          }
+        },
+        "transform.scale_x": {
+          "presetId": "impact_slam",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "impact_slam",
+            "startMs": 10,
+            "durationMs": 80,
+            "centerX": 100.0,
+            "centerY": 200.0,
+            "shakeAmplitudePx": 8.0,
+            "scaleFrom": 0.5,
+            "scaleOvershoot": 1.2,
+            "scaleTo": 1.0,
+            "opacityFrom": 0.0,
+            "opacityTo": 1.0,
+            "flashOpacity": 0.2,
+            "motionBlur": {
+              "shutterAngleDeg": 180.0,
+              "sampleCount": 3
+            }
+          }
+        },
+        "transform.scale_y": {
+          "presetId": "impact_slam",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "impact_slam",
+            "startMs": 10,
+            "durationMs": 80,
+            "centerX": 100.0,
+            "centerY": 200.0,
+            "shakeAmplitudePx": 8.0,
+            "scaleFrom": 0.5,
+            "scaleOvershoot": 1.2,
+            "scaleTo": 1.0,
+            "opacityFrom": 0.0,
+            "opacityTo": 1.0,
+            "flashOpacity": 0.2,
+            "motionBlur": {
+              "shutterAngleDeg": 180.0,
+              "sampleCount": 3
+            }
+          }
+        },
+        "transform.opacity": {
+          "presetId": "impact_slam",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "impact_slam",
+            "startMs": 10,
+            "durationMs": 80,
+            "centerX": 100.0,
+            "centerY": 200.0,
+            "shakeAmplitudePx": 8.0,
+            "scaleFrom": 0.5,
+            "scaleOvershoot": 1.2,
+            "scaleTo": 1.0,
+            "opacityFrom": 0.0,
+            "opacityTo": 1.0,
+            "flashOpacity": 0.2,
+            "motionBlur": {
+              "shutterAngleDeg": 180.0,
+              "sampleCount": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "slide_left",
+      "version": 1,
+      "minimumDurationMs": 1,
+      "parameters": {
+        "kind": "slide_left",
+        "startMs": 10,
+        "durationMs": 80,
+        "positionFromX": 20.0,
+        "positionToX": -20.0
+      },
+      "expected": {
+        "channels": [
+          {
+            "property": "transform.position_x",
+            "times": [
+              10,
+              90
+            ],
+            "values": [
+              20.0,
+              -20.0
+            ]
+          }
+        ],
+        "motionBlur": null,
+        "loop": null,
+        "samples": [
+          {
+            "timeMs": 50,
+            "positionX": 0.0
+          }
+        ]
+      },
+      "expectedProvenance": {
+        "transform.position_x": {
+          "presetId": "slide_left",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "slide_left",
+            "startMs": 10,
+            "durationMs": 80,
+            "positionFromX": 20.0,
+            "positionToX": -20.0
+          }
+        }
+      }
+    },
+    {
+      "id": "scan",
+      "version": 1,
+      "minimumDurationMs": 2,
+      "defaultIterations": "infinite",
+      "parameters": {
+        "kind": "scan",
+        "startMs": 10,
+        "durationMs": 80,
+        "positionFromX": 20.0,
+        "positionToX": -20.0
+      },
+      "effectiveParameters": {
+        "kind": "scan",
+        "startMs": 10,
+        "durationMs": 80,
+        "positionFromX": 20.0,
+        "positionToX": -20.0,
+        "iterations": "infinite"
+      },
+      "expected": {
+        "channels": [
+          {
+            "property": "transform.position_x",
+            "times": [
+              10,
+              50,
+              90
+            ],
+            "values": [
+              20.0,
+              -20.0,
+              20.0
+            ]
+          }
+        ],
+        "motionBlur": null,
+        "loop": {
+          "mode": "repeat",
+          "iterations": "infinite"
+        },
+        "samples": [
+          {
+            "timeMs": 30,
+            "positionX": 0.0
+          },
+          {
+            "timeMs": 70,
+            "positionX": 0.0
+          },
+          {
+            "timeMs": 90,
+            "positionX": 20.0
+          },
+          {
+            "timeMs": 110,
+            "positionX": 0.0
+          }
+        ]
+      },
+      "expectedProvenance": {
+        "transform.position_x": {
+          "presetId": "scan",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "scan",
+            "startMs": 10,
+            "durationMs": 80,
+            "positionFromX": 20.0,
+            "positionToX": -20.0,
+            "iterations": "infinite"
+          }
+        }
+      }
+    },
+    {
+      "id": "pulse",
+      "version": 1,
+      "minimumDurationMs": 2,
+      "defaultIterations": 1,
+      "parameters": {
+        "kind": "pulse",
+        "startMs": 10,
+        "durationMs": 80,
+        "scaleFrom": 0.5,
+        "scalePeak": 1.5
+      },
+      "effectiveParameters": {
+        "kind": "pulse",
+        "startMs": 10,
+        "durationMs": 80,
+        "scaleFrom": 0.5,
+        "scalePeak": 1.5,
+        "iterations": 1
+      },
+      "expected": {
+        "channels": [
+          {
+            "property": "transform.scale_x",
+            "times": [
+              10,
+              50,
+              90
+            ],
+            "values": [
+              0.5,
+              1.5,
+              0.5
+            ]
+          },
+          {
+            "property": "transform.scale_y",
+            "times": [
+              10,
+              50,
+              90
+            ],
+            "values": [
+              0.5,
+              1.5,
+              0.5
+            ]
+          }
+        ],
+        "motionBlur": null,
+        "loop": {
+          "mode": "repeat",
+          "iterations": 1
+        },
+        "samples": [
+          {
+            "timeMs": 30,
+            "scaleX": 1.0
+          },
+          {
+            "timeMs": 70,
+            "scaleX": 1.0
+          },
+          {
+            "timeMs": 110,
+            "scaleX": 0.5
+          }
+        ]
+      },
+      "expectedProvenance": {
+        "transform.scale_x": {
+          "presetId": "pulse",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "pulse",
+            "startMs": 10,
+            "durationMs": 80,
+            "scaleFrom": 0.5,
+            "scalePeak": 1.5,
+            "iterations": 1
+          }
+        },
+        "transform.scale_y": {
+          "presetId": "pulse",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "pulse",
+            "startMs": 10,
+            "durationMs": 80,
+            "scaleFrom": 0.5,
+            "scalePeak": 1.5,
+            "iterations": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "radar_expand",
+      "version": 1,
+      "minimumDurationMs": 4,
+      "defaultIterations": "infinite",
+      "parameters": {
+        "kind": "radar_expand",
+        "startMs": 10,
+        "durationMs": 80,
+        "scaleFrom": 0.5,
+        "scaleTo": 2.0,
+        "opacityPeak": 1.0
+      },
+      "effectiveParameters": {
+        "kind": "radar_expand",
+        "startMs": 10,
+        "durationMs": 80,
+        "scaleFrom": 0.5,
+        "scaleTo": 2.0,
+        "opacityPeak": 1.0,
+        "iterations": "infinite"
+      },
+      "expected": {
+        "channels": [
+          {
+            "property": "transform.scale_x",
+            "times": [
+              10,
+              70,
+              90
+            ],
+            "values": [
+              0.5,
+              2.0,
+              0.5
+            ]
+          },
+          {
+            "property": "transform.scale_y",
+            "times": [
+              10,
+              70,
+              90
+            ],
+            "values": [
+              0.5,
+              2.0,
+              0.5
+            ]
+          },
+          {
+            "property": "transform.opacity",
+            "times": [
+              10,
+              30,
+              70,
+              90
+            ],
+            "values": [
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "motionBlur": null,
+        "loop": {
+          "mode": "repeat",
+          "iterations": "infinite"
+        },
+        "samples": [
+          {
+            "timeMs": 20,
+            "scaleX": 0.75,
+            "opacity": 0.5
+          },
+          {
+            "timeMs": 50,
+            "scaleX": 1.5,
+            "opacity": 0.5
+          },
+          {
+            "timeMs": 80,
+            "scaleX": 1.25,
+            "opacity": 0.0
+          },
+          {
+            "timeMs": 90,
+            "scaleX": 0.5,
+            "opacity": 0.0
+          }
+        ]
+      },
+      "expectedProvenance": {
+        "transform.scale_x": {
+          "presetId": "radar_expand",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "radar_expand",
+            "startMs": 10,
+            "durationMs": 80,
+            "scaleFrom": 0.5,
+            "scaleTo": 2.0,
+            "opacityPeak": 1.0,
+            "iterations": "infinite"
+          }
+        },
+        "transform.scale_y": {
+          "presetId": "radar_expand",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "radar_expand",
+            "startMs": 10,
+            "durationMs": 80,
+            "scaleFrom": 0.5,
+            "scaleTo": 2.0,
+            "opacityPeak": 1.0,
+            "iterations": "infinite"
+          }
+        },
+        "transform.opacity": {
+          "presetId": "radar_expand",
+          "presetVersion": 1,
+          "compilerVersion": 2,
+          "parameters": {
+            "kind": "radar_expand",
+            "startMs": 10,
+            "durationMs": 80,
+            "scaleFrom": 0.5,
+            "scaleTo": 2.0,
+            "opacityPeak": 1.0,
+            "iterations": "infinite"
+          }
+        }
+      }
+    }
+  ],
+  "curves": {
+    "nonterminal": "linear",
+    "terminal": "hold"
+  },
+  "invalidApplications": [
+    {
+      "id": "impact_slam",
+      "field": "shakeAmplitudePx",
+      "value": 0
+    },
+    {
+      "id": "impact_slam",
+      "field": "scaleOvershoot",
+      "value": 1
+    },
+    {
+      "id": "impact_slam",
+      "field": "flashOpacity",
+      "value": 1
+    },
+    {
+      "id": "impact_slam",
+      "field": "centerX",
+      "value": 1000000
+    },
+    {
+      "id": "impact_slam",
+      "field": "motionBlur.shutterAngleDeg",
+      "value": 0
+    },
+    {
+      "id": "impact_slam",
+      "field": "motionBlur.sampleCount",
+      "value": 1
+    },
+    {
+      "id": "impact_slam",
+      "field": "motionBlur.sampleCount",
+      "value": 17
+    },
+    {
+      "id": "impact_slam",
+      "field": "durationMs",
+      "value": 7
+    },
+    {
+      "id": "slide_left",
+      "field": "positionToX",
+      "value": 20
+    },
+    {
+      "id": "scan",
+      "field": "positionToX",
+      "value": 20
+    },
+    {
+      "id": "pulse",
+      "field": "scalePeak",
+      "value": 0.5
+    },
+    {
+      "id": "radar_expand",
+      "field": "opacityPeak",
+      "value": 0
+    },
+    {
+      "id": "radar_expand",
+      "field": "durationMs",
+      "value": 3
+    },
+    {
+      "id": "scan",
+      "field": "iterations",
+      "value": 0
+    },
+    {
+      "id": "scan",
+      "field": "iterations",
+      "value": 10001
+    },
+    {
+      "id": "scan",
+      "field": "iterations",
+      "value": "forever"
+    },
+    {
+      "id": "pulse",
+      "field": "startMs",
+      "value": 9007199254740991
+    },
+    {
+      "id": "scan",
+      "field": "durationMs",
+      "value": 1
+    },
+    {
+      "id": "pulse",
+      "field": "durationMs",
+      "value": 1
+    },
+    {
+      "id": "slide_left",
+      "field": "durationMs",
+      "value": 0
+    }
+  ],
+  "collisionCases": [
+    {
+      "id": "partial_channel_default",
+      "accepted": false
+    },
+    {
+      "id": "disjoint_channel_default",
+      "accepted": false
+    },
+    {
+      "id": "disabled_blur_default",
+      "accepted": false
+    },
+    {
+      "id": "legacy_channel_replace",
+      "accepted": false
+    },
+    {
+      "id": "partial_channel_explicit_replace",
+      "accepted": true,
+      "order": "existing positions then missing compiler order"
+    }
+  ],
+  "provenance": {
+    "compilerVersion": 2,
+    "unknownPositiveVersions": "descriptive only",
+    "unknownIds": "descriptive only",
+    "propertyMembership": "shape-generated properties",
+    "requireAllSiblings": false,
+    "loopIterationsRequired": true,
+    "impactBlurShapeRequired": true,
+    "runtimeExpansionEqualityRequired": false
+  },
+  "lifecycle": {
+    "rawChannels": "clear all labels",
+    "blurChanged": "clear all impact-shaped labels including retired IDs",
+    "staticFields": "preserve",
+    "componentReplacement": "preserve only identical channel bytes and, for impact shape, identical blur bytes",
+    "duplicate": "exact copy",
+    "undoRedoReopen": "exact primitives and descriptive sources"
+  },
+  "migration": {
+    "from": 29,
+    "to": 30,
+    "preserve": "scalar sources/channels/revisions/timestamps/media/fonts; no label inference",
+    "scope": "current, components and every retained undo/redo snapshot",
+    "publication": "locked journal transaction",
+    "prematureTaggedShapes": "reject before writes",
+    "futureSchema": "reject before writes",
+    "rollback": "complete pre-migration backup"
+  },
+  "expectedMotionBlurSemantics": "null means no assignment; preserve preexisting blur for every non-impact preset",
+  "phaseCases": [
+    {
+      "id": "impact_slam",
+      "startMs": 10,
+      "durationMs": 8,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "transform.position_y": [
+          10,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "transform.scale_x": [
+          10,
+          14,
+          16,
+          18
+        ],
+        "transform.scale_y": [
+          10,
+          14,
+          16,
+          18
+        ],
+        "transform.opacity": [
+          10,
+          14,
+          15,
+          16,
+          18
+        ]
+      }
+    },
+    {
+      "id": "impact_slam",
+      "startMs": 10,
+      "durationMs": 81,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          50,
+          60,
+          70,
+          80,
+          91
+        ],
+        "transform.position_y": [
+          10,
+          50,
+          60,
+          70,
+          80,
+          91
+        ],
+        "transform.scale_x": [
+          10,
+          50,
+          70,
+          91
+        ],
+        "transform.scale_y": [
+          10,
+          50,
+          70,
+          91
+        ],
+        "transform.opacity": [
+          10,
+          50,
+          60,
+          70,
+          91
+        ]
+      }
+    },
+    {
+      "id": "slide_left",
+      "startMs": 10,
+      "durationMs": 1,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          11
+        ]
+      }
+    },
+    {
+      "id": "slide_left",
+      "startMs": 10,
+      "durationMs": 81,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          91
+        ]
+      }
+    },
+    {
+      "id": "scan",
+      "startMs": 10,
+      "durationMs": 2,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "scan",
+      "startMs": 10,
+      "durationMs": 81,
+      "timesByProperty": {
+        "transform.position_x": [
+          10,
+          50,
+          91
+        ]
+      }
+    },
+    {
+      "id": "pulse",
+      "startMs": 10,
+      "durationMs": 2,
+      "timesByProperty": {
+        "transform.scale_x": [
+          10,
+          11,
+          12
+        ],
+        "transform.scale_y": [
+          10,
+          11,
+          12
+        ]
+      }
+    },
+    {
+      "id": "pulse",
+      "startMs": 10,
+      "durationMs": 81,
+      "timesByProperty": {
+        "transform.scale_x": [
+          10,
+          50,
+          91
+        ],
+        "transform.scale_y": [
+          10,
+          50,
+          91
+        ]
+      }
+    },
+    {
+      "id": "radar_expand",
+      "startMs": 10,
+      "durationMs": 4,
+      "timesByProperty": {
+        "transform.scale_x": [
+          10,
+          13,
+          14
+        ],
+        "transform.scale_y": [
+          10,
+          13,
+          14
+        ],
+        "transform.opacity": [
+          10,
+          11,
+          13,
+          14
+        ]
+      }
+    },
+    {
+      "id": "radar_expand",
+      "startMs": 10,
+      "durationMs": 81,
+      "timesByProperty": {
+        "transform.scale_x": [
+          10,
+          70,
+          91
+        ],
+        "transform.scale_y": [
+          10,
+          70,
+          91
+        ],
+        "transform.opacity": [
+          10,
+          30,
+          70,
+          91
+        ]
+      }
+    }
+  ],
+  "invalidRawParameters": [
+    "{\"kind\":\"scan\",\"kind\":\"scan\",\"startMs\":10,\"durationMs\":80,\"positionFromX\":20,\"positionToX\":-20}",
+    "{\"kind\":\"scan\",\"startMs\":10,\"startMs\":10,\"durationMs\":80,\"positionFromX\":20,\"positionToX\":-20}",
+    "[\"slide_left\",10,80,20,-20]",
+    "{\"kind\":\"impact_slam\",\"startMs\":10,\"durationMs\":80,\"centerX\":100,\"centerY\":200,\"shakeAmplitudePx\":8,\"scaleFrom\":0.5,\"scaleOvershoot\":1.2,\"scaleTo\":1,\"opacityFrom\":0,\"opacityTo\":1,\"flashOpacity\":0.2,\"motionBlur\":[180,3]}",
+    "{\"kind\":\"impact_slam\",\"startMs\":10,\"durationMs\":80,\"centerX\":100,\"centerY\":200,\"shakeAmplitudePx\":8,\"scaleFrom\":0.5,\"scaleOvershoot\":1.2,\"scaleTo\":1,\"opacityFrom\":0,\"opacityTo\":1,\"flashOpacity\":0.2,\"motionBlur\":{\"shutterAngleDeg\":180,\"sampleCount\":3,\"sampleCount\":3}}",
+    "{\"kind\":\"impact_slam\",\"startMs\":10,\"durationMs\":80,\"centerX\":100,\"centerY\":200,\"shakeAmplitudePx\":8,\"scaleFrom\":0.5,\"scaleOvershoot\":1.2,\"scaleTo\":1,\"opacityFrom\":0,\"opacityTo\":1,\"flashOpacity\":0.2,\"motionBlur\":{\"shutterAngleDeg\":180,\"sampleCount\":3,\"enabled\":true}}"
+  ]
+}

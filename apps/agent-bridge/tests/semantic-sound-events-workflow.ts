@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import catalog from "../../../contracts/semantic-sound-events-v1.json";
 import {
   editDraftSchema,
@@ -26,7 +26,7 @@ export const verifySoundEventWorkflow = async (
   const status = await call("editor_get_status", {}, statusSchema);
   expect(catalog.projectSchemaVersion).toBe(40);
   expect(status.projectSchemaVersion).toBe(
-    audioBusDucking.projectSchemaVersion
+    masterNormalization.projectSchemaVersion
   );
   expect(status.subsystems.editor.capabilities).toContain(catalog.capability);
   expect(

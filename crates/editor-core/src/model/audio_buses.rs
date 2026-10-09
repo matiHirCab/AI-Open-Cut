@@ -274,6 +274,7 @@ fn resolve_audio_bus_route(project: &Project, track: &Track) -> Result<Vec<Strin
 
 impl Project {
     pub(crate) fn validate_audio_bus_model(&self) -> Result<(), CoreError> {
+        self.validate_master_normalization()?;
         validate_project(self)
     }
 

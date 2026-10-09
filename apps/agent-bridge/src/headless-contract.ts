@@ -17,6 +17,7 @@ import type {
   componentInstanceUpdateSchema,
   generatedAssetOriginSchema,
   maskSchema,
+  masterNormalizationSchema,
   mediaCropSchema,
   motionBlurSchema,
   richTextDocumentSchema,
@@ -101,6 +102,10 @@ export type HeadlessEdit =
       operation: "audio_bus_set_ducking";
       busId: string;
       ducking: z.infer<typeof audioBusDuckingSchema>;
+    }
+  | {
+      operation: "audio_master_set_normalization";
+      normalization: z.infer<typeof masterNormalizationSchema>;
     }
   | {
       operation: "audio_track_route";

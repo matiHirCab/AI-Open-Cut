@@ -5,6 +5,7 @@ import { expect, it } from "vitest";
 import catalog from "../../../contracts/audio-bus-ducking-v1.json";
 import ownership from "../../../contracts/contract-ownership-v1.json";
 import headless from "../../../contracts/headless-protocol-v1.json";
+import current from "../../../contracts/master-normalization-v1.json";
 import mcp from "../../../contracts/mcp-surface-v1.json";
 import {
   audioBusDuckingSchema,
@@ -110,7 +111,7 @@ it("shares the manually reviewed closed finite bounded normalized ducking contra
     expect(audioBusDuckingSchema.safeParse(invalid).success).toBe(false);
   }
 });
-it("rejects addition tampering and leaves the current43 catalog immutable", () => {
+it("rejects addition tampering and leaves the current catalog immutable", () => {
   const changed = structuredClone(mcp);
   changed.toolDefinitions.audio_bus_set_ducking.annotations.readOnlyHint = true;
   expect(() => removeAudioBusDuckingMcpAdditions(changed)).toThrow();
@@ -121,7 +122,7 @@ it("rejects addition tampering and leaves the current43 catalog immutable", () =
   expect(
     mcp.$defs.ProjectGetStateOutputPropertiesProjectProperties.schemaVersion
       .const
-  ).toBe(43);
+  ).toBe(current.projectSchemaVersion);
   expect(
     audioBusDuckingDigest(
       expandMcpSurfaceCatalog(removeAudioAnalysisMcpAdditions(mcp))

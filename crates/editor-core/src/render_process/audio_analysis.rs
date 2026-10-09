@@ -46,14 +46,14 @@ pub(crate) fn readiness(ffmpeg: &Path) -> Result<(), CoreError> {
 
 // Children inherit the headless request's process group so the existing bridge
 // descendant/group cancellation still owns both passes. Always reap on local failure.
-struct OwnedChild(Child);
+pub(super) struct OwnedChild(pub(super) Child);
 impl Drop for OwnedChild {
     fn drop(&mut self) {
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
 }
-fn spawn(command: &mut Command) -> Result<OwnedChild, CoreError> {
+pub(super) fn spawn(command: &mut Command) -> Result<OwnedChild, CoreError> {
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -64,7 +64,7 @@ fn spawn(command: &mut Command) -> Result<OwnedChild, CoreError> {
         .map_err(|_| CoreError::render_failure(SPAWN_STAGE, None, None))
 }
 
-fn stream_pcm(
+pub(super) fn stream_pcm(
     reader: impl Read,
     writer: &mut impl Write,
     accumulator: &mut PcmAccumulator,

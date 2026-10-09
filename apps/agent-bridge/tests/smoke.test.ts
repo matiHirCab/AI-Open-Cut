@@ -38,6 +38,7 @@ import { verifyKnownTextWorkflow } from "./known-text-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
+import { verifyMasterNormalizationWorkflow } from "./master-normalization-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -119,6 +120,7 @@ const transport = new StdioClientTransport({
     ),
     OPENCUT_PROJECTS_DIR: projects,
     OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
+    OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
     OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
     OPENCUT_TRANSCRIPTION_WORKER: resolve(
       import.meta.dirname,
@@ -1315,4 +1317,8 @@ it("runs narration bus ducking standalone, batch, draft and history transactions
 
 it("queues immutable original audio analysis with resources, overlap, cancel, failure and reopen", async () => {
   await verifyAudioAnalysisWorkflow(client, call);
+});
+
+it("runs master normalization standalone batch draft history and active render/analysis workflows", async () => {
+  await verifyMasterNormalizationWorkflow(client, call);
 });

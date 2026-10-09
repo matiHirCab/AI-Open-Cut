@@ -1,6 +1,7 @@
 //! Render workspace and artifact publication owner.
 
 pub(crate) mod audio_analysis;
+pub(crate) mod master_normalization;
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;

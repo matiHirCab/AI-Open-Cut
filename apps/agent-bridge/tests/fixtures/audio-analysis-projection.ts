@@ -6,6 +6,12 @@ import lifetime from "./audio-analysis-lifetime-additions.json";
 import additions from "./audio-analysis-mcp-additions.json";
 import owners from "./audio-analysis-ownership-addition.json";
 import pins from "./audio-analysis-predecessor-pins.json";
+import {
+  removeMasterNormalizationHeadlessAdditions,
+  removeMasterNormalizationMcpAdditions,
+  removeMasterNormalizationOwnershipAddition,
+  restoreMasterNormalizationRaw,
+} from "./master-normalization-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
 const record = (value: unknown): Record<string, unknown> => {
@@ -45,7 +51,7 @@ const removeProperty = (
 };
 
 export const removeAudioAnalysisMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeMasterNormalizationMcpAdditions(source);
   const capabilities = record(result).capabilityIdentifiers;
   if (
     !(Array.isArray(capabilities) && capabilities.includes(catalog.capability))
@@ -66,7 +72,7 @@ export const removeAudioAnalysisMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioAnalysisHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeMasterNormalizationHeadlessAdditions(source);
   const requests = record(at(result, ["requests"]));
   if (!Object.hasOwn(requests, "analyzeAudio")) {
     return result;
@@ -80,7 +86,7 @@ export const removeAudioAnalysisHeadlessAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeAudioAnalysisOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeMasterNormalizationOwnershipAddition(source);
   const categories = record(at(result, ["categories"]));
   if (Object.hasOwn(categories, "audioAnalysis")) {
     removeProperty(categories, "audioAnalysis", owners.category);
@@ -111,7 +117,8 @@ export const removeAudioAnalysisDeliveryAddition = <T>(source: T): T => {
 
 // Only independently captured changed catalogs have a byte-restoration path.
 // First require exact semantic rollback; a changed or missing addition fails.
-export const restoreAudioAnalysisRaw = (source: string): string => {
+export const restoreAudioAnalysisRaw = (current: string): string => {
+  const source = restoreMasterNormalizationRaw(current);
   const parsed: unknown = JSON.parse(source);
   const value = record(parsed);
   let name: string;

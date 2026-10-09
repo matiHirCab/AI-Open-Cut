@@ -363,12 +363,13 @@ fn cleanup_orphaned_transaction_temps(storage: &dyn Storage, dir: &Path) -> Resu
         .list(dir)
         .map_err(|error| recovery_error(format!("cannot inspect transaction files: {error}")))?;
     for path in entries {
+        if !path.file_name().is_some_and(is_transaction_temp_name) {
+            continue;
+        }
         let file_type = storage.entry_kind(&path).map_err(|error| {
             recovery_error(format!("cannot inspect transaction file type: {error}"))
         })?;
-        if file_type == StorageEntryKind::File
-            && path.file_name().is_some_and(is_transaction_temp_name)
-        {
+        if file_type == StorageEntryKind::File {
             remove_file_durable(storage, &path).map_err(as_recovery_error)?;
         }
     }
@@ -568,8 +569,10 @@ mod tests {
     use super::*;
     use crate::ErrorCode;
 
-    #[derive(Debug)]
-    struct FailingStorage;
+    #[derive(Debug, Default)]
+    struct FailingStorage {
+        listed_entries: Vec<PathBuf>,
+    }
 
     impl Storage for FailingStorage {
         fn lock_exclusive(&self, _dir: &Path) -> Result<Box<dyn StorageLock>, CoreError> {
@@ -588,7 +591,11 @@ mod tests {
         }
 
         fn list(&self, _path: &Path) -> std::io::Result<Vec<PathBuf>> {
-            Err(std::io::Error::other("injected list failure"))
+            if self.listed_entries.is_empty() {
+                Err(std::io::Error::other("injected list failure"))
+            } else {
+                Ok(self.listed_entries.clone())
+            }
         }
 
         fn create_dir_all(&self, _path: &Path) -> std::io::Result<()> {
@@ -631,11 +638,80 @@ mod tests {
     #[test]
     fn storage_failures_are_injectable_without_domain_changes() {
         let error =
-            read_json::<serde_json::Value>(&FailingStorage, Path::new("project.json")).unwrap_err();
+            read_json::<serde_json::Value>(&FailingStorage::default(), Path::new("project.json"))
+                .unwrap_err();
         assert_eq!(error.code, ErrorCode::InternalError);
         assert!(error.message.contains("cannot read persisted JSON"));
 
-        let error = write_json_atomic(&FailingStorage, Path::new("project.json"), &42).unwrap_err();
+        let error = write_json_atomic(&FailingStorage::default(), Path::new("project.json"), &42)
+            .unwrap_err();
         assert!(error.message.contains("cannot publish data"));
+    }
+
+    #[test]
+    fn recovery_does_not_inspect_disappearing_unrelated_entries() {
+        let storage = FailingStorage {
+            listed_entries: [
+                ".opencut-work-removed-by-cancellation",
+                "previews",
+                "project.json",
+                "history.json",
+                "project.tmp-invalid-uuid",
+                ".project-transaction.tmp-invalid-uuid",
+            ]
+            .into_iter()
+            .map(PathBuf::from)
+            .collect(),
+        };
+        // Every type inspection fails. Unrelated entries must never reach it.
+        cleanup_orphaned_transaction_temps(&storage, Path::new("project")).unwrap();
+        for prefix in ["project.tmp-", "history.tmp-", ".project-transaction.tmp-"] {
+            let storage = FailingStorage {
+                listed_entries: vec![PathBuf::from(format!("{prefix}{}", Uuid::new_v4()))],
+            };
+            let error =
+                cleanup_orphaned_transaction_temps(&storage, Path::new("project")).unwrap_err();
+            assert_eq!(error.code, ErrorCode::ProjectRecoveryFailed);
+            assert!(!error.retryable);
+            assert!(
+                error
+                    .message
+                    .contains("cannot inspect transaction file type")
+            );
+        }
+    }
+
+    #[test]
+    fn orphan_cleanup_removes_only_recognized_regular_files() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path();
+        let unrelated = dir.join("project.tmp-not-a-uuid");
+        std::fs::write(&unrelated, b"unrelated").unwrap();
+        let named_directory = dir.join(format!("history.tmp-{}", Uuid::new_v4()));
+        std::fs::create_dir(&named_directory).unwrap();
+        let ordinary: Vec<_> = ["project.tmp-", "history.tmp-", ".project-transaction.tmp-"]
+            .into_iter()
+            .map(|prefix| dir.join(format!("{prefix}{}", Uuid::new_v4())))
+            .collect();
+        for path in &ordinary {
+            std::fs::write(path, b"orphaned transaction bytes").unwrap();
+        }
+        #[cfg(unix)]
+        let link = {
+            let path = dir.join(format!("project.tmp-{}", Uuid::new_v4()));
+            std::os::unix::fs::symlink(&unrelated, &path).unwrap();
+            path
+        };
+        cleanup_orphaned_transaction_temps(&FileSystemStorage, dir).unwrap();
+        assert!(ordinary.iter().all(|path| !path.exists()));
+        assert_eq!(std::fs::read(&unrelated).unwrap(), b"unrelated");
+        assert!(named_directory.is_dir());
+        #[cfg(unix)]
+        assert!(
+            std::fs::symlink_metadata(link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
     }
 }

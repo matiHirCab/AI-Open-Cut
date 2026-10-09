@@ -1,0 +1,75 @@
+{
+  "settings": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "targetIntegratedLufs": {
+        "maximum": -5,
+        "minimum": -70,
+        "type": "number"
+      },
+      "targetLoudnessRangeLu": {
+        "maximum": 50,
+        "minimum": 1,
+        "type": "number"
+      },
+      "targetTruePeakDbtp": {
+        "maximum": 0,
+        "minimum": -9,
+        "type": "number"
+      }
+    },
+    "required": [
+      "enabled",
+      "targetIntegratedLufs",
+      "targetLoudnessRangeLu",
+      "targetTruePeakDbtp"
+    ],
+    "type": "object"
+  },
+  "edit": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "normalization": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "targetIntegratedLufs": {
+            "maximum": -5,
+            "minimum": -70,
+            "type": "number"
+          },
+          "targetLoudnessRangeLu": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "number"
+          },
+          "targetTruePeakDbtp": {
+            "maximum": 0,
+            "minimum": -9,
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "targetIntegratedLufs",
+          "targetLoudnessRangeLu",
+          "targetTruePeakDbtp"
+        ],
+        "type": "object"
+      },
+      "operation": {
+        "const": "audio_master_set_normalization",
+        "type": "string"
+      }
+    },
+    "required": ["normalization", "operation"],
+    "type": "object"
+  }
+}

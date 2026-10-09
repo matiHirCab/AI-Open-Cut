@@ -7,6 +7,7 @@ use std::{
 pub(crate) mod audio_analysis;
 mod audio_bus_dsp;
 mod audio_bus_ducking;
+pub(crate) mod master_normalization;
 
 use crate::{
     CoreError, ErrorCode, MediaType,
@@ -475,6 +476,9 @@ pub(crate) fn build_render_plan(
             audio_labels.join(""),
             audio_labels.len()
         ));
+    }
+    if let Some(stage) = master_normalization::finish_master(&mut filters, scene)? {
+        filters.push(stage);
     }
     Ok(RenderPlan {
         serial_bezier_filters: scene.visual_layers.iter().any(|layer| {
@@ -4162,6 +4166,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),

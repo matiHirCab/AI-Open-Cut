@@ -48,7 +48,10 @@ fn typed_bus_ducking_round_trips_closed_independent_catalog() {
 fn bus_ducking_edits_retain_identity_and_history() {
     let (_root, core, id) = setup();
     let initial = core.get_project(&id).unwrap();
-    assert_eq!(initial.schema_version, 43);
+    assert_eq!(
+        initial.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert!(
         serde_json::to_value(&initial).unwrap()["audioBuses"][0]
             .get("ducking")
@@ -164,12 +167,18 @@ fn schema43_adopts_all42_sources_and_retained_history_without_inventing_ducking(
     )
     .unwrap();
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 43);
+    assert_eq!(
+        migrated.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for list in ["undo", "redo"] {
         for (index, snapshot) in history[list].as_array().unwrap().iter().enumerate() {
-            assert_eq!(snapshot["schemaVersion"], 43);
+            assert_eq!(
+                snapshot["schemaVersion"],
+                opencut_editor_core::PROJECT_SCHEMA_VERSION
+            );
             assert_eq!(snapshot["assets"], sources[index]["assets"]);
             assert_eq!(snapshot["tracks"], sources[index]["tracks"]);
             assert!(
@@ -223,7 +232,9 @@ fn premature_null_malformed_retained_and_future_ducking_fail_without_any_rewrite
                 )
                 .unwrap();
             }
-            "future" => current["schemaVersion"] = json!(44),
+            "future" => {
+                current["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION + 1)
+            }
             _ => unreachable!(),
         }
         std::fs::write(
@@ -285,7 +296,10 @@ fn batch_alias_and_failed_legacy_draft_edits_preserve_every_source_byte() {
     assert!(core.get_draft(&id, &retained.id).is_ok());
     core.commit_draft(&id, &retained.id, 0).unwrap();
     let current = core.get_project(&id).unwrap();
-    assert_eq!(current.schema_version, 43);
+    assert_eq!(
+        current.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(current.revision, 1);
     assert_eq!(
         serde_json::to_value(&current.audio_buses[1].ducking).unwrap(),
@@ -350,7 +364,7 @@ fn schema42_existing_dsp_and_role_settings_migrate_byte_semantics_in_every_snaps
     )
     .unwrap();
     let mut expected = source.clone();
-    expected["schemaVersion"] = json!(43);
+    expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
     assert_eq!(
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
         expected

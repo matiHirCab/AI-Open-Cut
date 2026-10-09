@@ -4,6 +4,8 @@ mod sound_events;
 pub use sound_events::*;
 mod audio_buses;
 pub use audio_buses::*;
+mod master_normalization;
+pub use master_normalization::*;
 mod speech_alignment;
 pub use speech_alignment::*;
 mod animation_channels;
@@ -38,7 +40,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 43;
+pub const PROJECT_SCHEMA_VERSION: u32 = 44;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -82,6 +84,7 @@ where
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[serde(try_from = "ProjectDocument")]
 pub struct Project {
+    pub master_normalization: Option<MasterNormalization>,
     pub sound_definitions: Vec<SoundEventDefinition>,
     pub audio_buses: Vec<AudioBus>,
     pub fonts: std::collections::BTreeMap<String, FontRecord>,
@@ -103,7 +106,7 @@ impl Serialize for Project {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct(
             "Project",
-            if self.schema_version >= 40 {
+            (if self.schema_version >= 40 {
                 14
             } else if self.schema_version >= 39 {
                 13
@@ -113,7 +116,7 @@ impl Serialize for Project {
                 11
             } else {
                 10
-            },
+            }) + usize::from(self.master_normalization.is_some()),
         )?;
         if self.schema_version >= 40 {
             state.serialize_field("soundDefinitions", &self.sound_definitions)?;
@@ -137,6 +140,9 @@ impl Serialize for Project {
         if self.schema_version >= 24 {
             state.serialize_field("markers", &self.markers)?;
         }
+        if let Some(normalization) = &self.master_normalization {
+            state.serialize_field("masterNormalization", normalization)?;
+        }
         state.end()
     }
 }
@@ -145,6 +151,8 @@ impl Serialize for Project {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProjectDocument {
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    master_normalization: Option<Option<MasterNormalization>>,
     #[serde(default, deserialize_with = "deserialize_double_option")]
     sound_definitions: Option<Option<Vec<SoundEventDefinition>>>,
     #[serde(default, deserialize_with = "deserialize_double_option")]
@@ -170,6 +178,16 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.master_normalization.is_some() && value.schema_version < 44 {
+            return Err("master normalization requires schema44".into());
+        }
+        if let Some(normalization) = &value.master_normalization {
+            normalization
+                .as_ref()
+                .ok_or_else(|| "master normalization must not be null".to_owned())?
+                .validate()
+                .map_err(|error| error.message)?;
+        }
         if value.schema_version < 43
             && value
                 .audio_buses
@@ -489,6 +507,7 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         Ok(Self {
+            master_normalization: value.master_normalization.flatten(),
             sound_definitions: value.sound_definitions.flatten().unwrap_or_default(),
             audio_buses: value.audio_buses.flatten().unwrap_or_default(),
             fonts: value.fonts.flatten().unwrap_or_default(),
@@ -2486,6 +2505,9 @@ pub enum EditOperation {
         bus_id: String,
         ducking: AudioBusDucking,
     },
+    AudioMasterSetNormalization {
+        normalization: MasterNormalization,
+    },
     AudioTrackRoute {
         scope: String,
         track_id: String,
@@ -2966,6 +2988,9 @@ enum EditOperationDef {
     AudioBusSetDucking {
         bus_id: String,
         ducking: AudioBusDucking,
+    },
+    AudioMasterSetNormalization {
+        normalization: MasterNormalization,
     },
     AudioTrackRoute {
         scope: String,
@@ -3592,6 +3617,7 @@ impl<'de> Deserialize<'de> for EditOperation {
             Some("item_set_z_index") => Some(&["operation", "itemId", "zIndex"]),
             Some("item_reorder") => Some(&["operation", "itemId", "index"]),
             Some("track_reorder") => Some(&["operation", "trackId", "index"]),
+            Some("audio_master_set_normalization") => Some(&["operation", "normalization"]),
             Some("speech_markers_generate") => Some(&[
                 "operation",
                 "scope",
@@ -3639,6 +3665,7 @@ impl<'de> Deserialize<'de> for BatchEditOperation {
         if matches!(
             fields.edit,
             EditOperation::GroupUngroup { .. }
+                | EditOperation::AudioMasterSetNormalization { .. }
                 | EditOperation::ComponentInstanceUpdate { .. }
                 | EditOperation::ComponentUpdate { .. }
                 | EditOperation::ComponentDefineSlots { .. }
@@ -3786,6 +3813,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),

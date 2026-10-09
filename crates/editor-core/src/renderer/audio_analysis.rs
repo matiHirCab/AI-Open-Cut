@@ -30,7 +30,7 @@ impl Renderer {
         mut on_progress: impl FnMut(RenderProgress),
     ) -> Result<AudioAnalysisResult, CoreError> {
         options.admit(project.duration_ms())?;
-        let evaluated = evaluate_project(
+        let mut evaluated = evaluate_project(
             project,
             project.settings.width,
             project.settings.height,
@@ -39,12 +39,40 @@ impl Renderer {
         let media = prepare_audio_media(self.artifact_io.as_ref(), &evaluated, project_dir)?;
         let output_directory =
             AudioAnalysisOutputDirectory::admit(self.artifact_io.as_ref(), project_dir)?;
-        let plan = build_audio_analysis_plan(&evaluated.scene, media.inputs, media.paths, options)?;
+        let normalization_capture = if evaluated.scene.master_normalization.is_some() {
+            Some(super::master_normalization::capture_plan(
+                &evaluated.scene,
+                crate::render_artifact::audio_analysis::PreparedAudioMedia {
+                    inputs: media.inputs.clone(),
+                    paths: media.paths.clone(),
+                },
+            )?)
+        } else {
+            None
+        };
+        let mut bypass = evaluated.scene.clone();
+        bypass.master_normalization = None;
+        let base_plan =
+            build_audio_analysis_plan(&bypass, media.inputs.clone(), media.paths.clone(), options)?;
         // Complete semantic/resource/graph admission precedes dependency probes
         // and any request workspace, selected PCM, or published JSON work.
         self.audio_analysis_readiness()?;
         self.audio_bus_processing_readiness(&evaluated.scene)?;
+        if normalization_capture.is_some() {
+            self.master_normalization_readiness()?;
+        }
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
+        let plan = if let Some(capture) = normalization_capture {
+            self.prepare_master_normalization(
+                &mut evaluated.scene,
+                &capture,
+                &workspace,
+                &mut on_progress,
+            )?;
+            build_audio_analysis_plan(&evaluated.scene, media.inputs, media.paths, options)?
+        } else {
+            base_plan
+        };
         let filter_path = workspace.path().join("audio-analysis-filter.txt");
         write_filter_script(
             self.artifact_io.as_ref(),
