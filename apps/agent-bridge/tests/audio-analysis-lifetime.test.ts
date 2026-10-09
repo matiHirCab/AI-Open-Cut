@@ -79,7 +79,7 @@ it.each(["cancel", "deadline", "shutdown"])(
       await client.close();
     }
     await rejected;
-    expect(() => process.kill(pid, 0)).toThrow();
+    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
     expect(existsSync(join(root, "project/.opencut-work-analysis-owned"))).toBe(
       false
     );
