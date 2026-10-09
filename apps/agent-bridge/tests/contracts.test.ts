@@ -68,6 +68,10 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import {
+  alignAudioAnalysisRuntimeObjectOrder,
+  removeAudioAnalysisMcpAdditions,
+} from "./fixtures/audio-analysis-projection";
 import { removeAudioBusDspMcpAdditions } from "./fixtures/audio-bus-dsp-projection";
 import { removeAudioBusDuckingMcpAdditions } from "./fixtures/audio-bus-ducking-projection";
 import { restoreAudioBusCatalogMarker } from "./fixtures/audio-buses-projection";
@@ -313,17 +317,19 @@ const schemaJson = (schema: z.ZodType, io: "input" | "output") =>
   );
 
 const canonicalToolDefinitions = (harness: ContractHarness) =>
-  Object.fromEntries(
-    [...harness.toolDefinitions.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([name, definition]) => [
-        name,
-        {
-          annotations: normalizeJson(definition.annotations),
-          inputSchema: schemaJson(definition.inputSchema, "input"),
-          outputSchema: schemaJson(definition.outputSchema, "output"),
-        },
-      ])
+  alignAudioAnalysisRuntimeObjectOrder(
+    Object.fromEntries(
+      [...harness.toolDefinitions.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, definition]) => [
+          name,
+          {
+            annotations: normalizeJson(definition.annotations),
+            inputSchema: schemaJson(definition.inputSchema, "input"),
+            outputSchema: schemaJson(definition.outputSchema, "output"),
+          },
+        ])
+    )
   );
 
 const mismatchedToolDefinitions = (
@@ -456,7 +462,14 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(85);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(86);
+    expect(
+      Object.keys(
+        expandMcpSurfaceCatalog(
+          removeAudioAnalysisMcpAdditions(MCP_SURFACE_SOURCE)
+        ).toolDefinitions
+      )
+    ).toHaveLength(85);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -947,6 +960,7 @@ describe("canonical public contracts", () => {
 
   it("validates canonical status negotiation in TypeScript and Zod", () => {
     const operations = {
+      analyze_audio: true,
       commit_draft: true,
       commit_generated_asset: true,
       commit_transcription: true,
@@ -1062,6 +1076,7 @@ describe("canonical public contracts", () => {
       AUDIO_EVENTS.capability,
       "audio_bus_dsp_v1",
       "audio_bus_ducking_v1",
+      "audio_analysis_v1",
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)

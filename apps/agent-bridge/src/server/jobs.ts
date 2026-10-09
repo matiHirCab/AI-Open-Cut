@@ -34,6 +34,17 @@ export const registerJobTools = (
           dependencies,
           dependencies.jobs.get(jobId)
         );
+        if (artifact.mimeType === "application/json") {
+          return {
+            contents: [
+              {
+                mimeType: artifact.mimeType,
+                text: artifact.data.toString("utf8"),
+                uri: uri.href,
+              },
+            ],
+          };
+        }
         return {
           contents: [
             {

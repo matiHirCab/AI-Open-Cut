@@ -7,7 +7,7 @@ Define the typed automation boundary over editor-core, including MCP exposure, t
 ## Requirements
 
 ### Requirement: Typed headless boundary
-The bridge MUST invoke the typed headless boundary, delegating domain and persistence behavior to editor-core and exposing the supported public protocol version through status negotiation. Non-render requests MUST retain process-per-request execution. Frame preview, audiovisual range preview, materialized draft preview and export SHALL use one reusable render-only worker per bridge client when it is available; overlapping render requests MUST use independent one-shot processes without waiting for that worker. Existing single-request CLI input, structured progress/result/error events, health behavior and exit semantics MUST remain compatible.
+The bridge MUST invoke the typed headless boundary, delegating domain and persistence behavior to editor-core and exposing the supported public protocol version through status negotiation. Non-render requests MUST retain process-per-request execution. Frame preview, audiovisual range preview, materialized draft preview, export and audio analysis SHALL use one reusable render-work worker per bridge client when it is available; overlapping render-work requests MUST use independent one-shot processes without waiting for that worker. Audio analysis SHALL be classified as render-work under this boundary and SHALL use the same request-scoped cancellation, cleanup and protocol; other non-render requests remain process-per-request. Existing single-request CLI input, structured progress/result/error events, health behavior and exit semantics MUST remain compatible.
 
 #### Scenario: Execute a valid headless request
 - **WHEN** the bridge sends a supported typed request to the headless process
@@ -32,6 +32,11 @@ The bridge MUST invoke the typed headless boundary, delegating domain and persis
 #### Scenario: W2 Preserve legacy clients
 - **WHEN** a client uses the existing one-shot CLI or sends a non-render bridge operation
 - **THEN** existing request/event contracts and process-per-request behavior remain unchanged
+
+
+#### Scenario: Reuse isolated audio analysis work
+- **WHEN** sequential audio analysis and rendering use the reusable worker or overlap requires a one-shot process
+- **THEN** the compatible request/event boundary and all original worker scenarios remain valid, with request-isolated cancellation and temporary cleanup for both analysis passes
 
 ### Requirement: MCP capability exposure
 The bridge SHALL expose project, asset, timeline, draft, render, speech, transcription, and job workflows as validated MCP tools, with project context available through registered resources and reusable prompts, and SHALL expose public protocol-version negotiation through the editor status tool.

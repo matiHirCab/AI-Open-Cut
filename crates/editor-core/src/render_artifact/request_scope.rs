@@ -67,6 +67,9 @@ impl ArtifactIo for RequestScope {
     fn entry_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
         self.inner.entry_kind(path)
     }
+    fn audio_analysis_output_kind(&self, path: &Path) -> std::io::Result<ArtifactEntryKind> {
+        self.inner.audio_analysis_output_kind(path)
+    }
     fn canonicalize_artifact_path(&self, path: &Path) -> std::io::Result<PathBuf> {
         self.inner.canonicalize_artifact_path(path)
     }

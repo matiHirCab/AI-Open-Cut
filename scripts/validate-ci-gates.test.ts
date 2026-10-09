@@ -2273,3 +2273,25 @@ describe("audio-bus ducking native coverage", () => {
     });
   }
 });
+
+
+describe("audio analysis mandatory consumers", () => {
+  for (const consumer of [" --test audio_analysis", " tests/audio-analysis.test.ts", " tests/audio-analysis-resources.test.ts", " tests/audio-analysis-lifetime.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects analysis consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
+describe("audio analysis native coverage", () => {
+  const command = "cargo test -p opencut-editor-core --lib renderer::golden::audio_analysis::native_audio_analysis_original_pcm_statistics_loudness_warm_routes_components_and_resources -- --exact --nocapture";
+  for (const replacement of ["", `${command} || true`]) {
+    it(`rejects missing or masked analysis native evidence: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, command, replacement))).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+});

@@ -1,0 +1,186 @@
+{
+  "source": "manually authored against verified committed67 bytes before producer edits",
+  "additions": [
+    {
+      "path": ["$defs", "AudioAnalysisSummary"],
+      "kind": "property",
+      "value": {
+        "additionalProperties": false,
+        "properties": {
+          "startMs": {
+            "maximum": 600000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "endMs": {
+            "maximum": 600000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sampleRateHz": {
+            "const": 48000,
+            "type": "number"
+          },
+          "channels": {
+            "const": 2,
+            "type": "number"
+          },
+          "frameCount": {
+            "maximum": 28800000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "actualBinCount": {
+            "maximum": 4096,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "linearSamplePeak": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "samplePeakDbfs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "integratedLufs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truePeakDbtp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loudnessRangeLu": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "thresholdLufs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "startMs",
+          "endMs",
+          "sampleRateHz",
+          "channels",
+          "frameCount",
+          "actualBinCount",
+          "linearSamplePeak",
+          "samplePeakDbfs",
+          "integratedLufs",
+          "truePeakDbtp",
+          "loudnessRangeLu",
+          "thresholdLufs"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "path": ["$defs", "DraftPreviewFrameOutputProperties", "audioAnalysis"],
+      "kind": "property",
+      "value": {
+        "$ref": "#/$defs/AudioAnalysisSummary"
+      }
+    },
+    {
+      "path": ["$defs", "DraftPreviewFrameOutputProperties", "kind", "enum"],
+      "kind": "array",
+      "value": "audio_analysis"
+    },
+    {
+      "path": [
+        "$defs",
+        "DraftPreviewFrameOutputProperties",
+        "artifactResource",
+        "properties",
+        "mimeType",
+        "enum"
+      ],
+      "kind": "array",
+      "value": "application/json"
+    },
+    {
+      "path": ["toolDefinitions", "audio_analyze_mix"],
+      "kind": "property",
+      "value": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "endMs": {
+              "maximum": 600000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "expectedRevision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "projectId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "startMs": {
+              "maximum": 600000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "waveformBins": {
+              "maximum": 4096,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "expectedRevision",
+            "projectId",
+            "endMs",
+            "startMs",
+            "waveformBins"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$ref": "#/$defs/DraftPreviewFrameOutput"
+        }
+      }
+    },
+    {
+      "path": ["tools"],
+      "kind": "array",
+      "value": "audio_analyze_mix"
+    },
+    {
+      "path": ["capabilityIdentifiers"],
+      "kind": "array",
+      "value": "audio_analysis_v1"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve as resolvePath } from "node:path";
 import { afterEach, expect, it } from "vitest";
+import audioAnalysis from "../../../contracts/audio-analysis-v1.json";
 
 const fixture = resolvePath(
   import.meta.dirname,
@@ -40,6 +41,17 @@ const decoder = (size: string) => [
   "rawvideo",
   "pipe:1",
 ];
+
+it("adds every analysis-only filter explicitly while preserving the legacy default", () => {
+  const result = spawnSync(process.execPath, [fixture, "ffmpeg", "-filters"], {
+    env: { ...process.env, OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1" },
+  });
+  expect(result.status).toBe(0);
+  const filters = result.stdout.toString();
+  for (const name of audioAnalysis.requiredFilters) {
+    expect(filters).toContain(` ${name} `);
+  }
+});
 const raster = (source: string) => [
   "-v",
   "error",

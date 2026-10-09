@@ -102,6 +102,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
       "timeline_add_audio_event",
       "audio_bus_set_dsp",
       audioBusDucking.operation,
+      "audio_analyze_mix",
     ];
     expect(
       tools.tools.filter((tool) => !addedTools.includes(tool.name))

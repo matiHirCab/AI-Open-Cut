@@ -53,10 +53,11 @@ const complete = async (
   path = "previews/frame.png",
   projectId = randomUUID()
 ) => {
+  const legacyMime = kind === "preview" ? "image/png" : "video/mp4";
   const { jobId } = dependencies.jobs.startTask(kind, projectId, 7, () =>
     Promise.resolve({
       artifact: {
-        mimeType: kind === "preview" ? "image/png" : "video/mp4",
+        mimeType: kind === "audio_analysis" ? "application/json" : legacyMime,
         relativePath: path,
         sizeBytes: 3,
         warnings: [],

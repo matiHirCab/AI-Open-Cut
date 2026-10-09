@@ -6,6 +6,9 @@ use std::{
 
 use uuid::Uuid;
 
+mod audio_analysis;
+pub use audio_analysis::AudioAnalysisResult;
+
 use crate::{
     CoreError, ErrorCode, Project,
     evaluated_scene::{

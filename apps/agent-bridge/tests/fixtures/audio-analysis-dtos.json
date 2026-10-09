@@ -1,0 +1,468 @@
+{
+  "summary": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "startMs": {
+        "maximum": 600000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "endMs": {
+        "maximum": 600000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "sampleRateHz": {
+        "const": 48000,
+        "type": "number"
+      },
+      "channels": {
+        "const": 2,
+        "type": "number"
+      },
+      "frameCount": {
+        "maximum": 28800000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "actualBinCount": {
+        "maximum": 4096,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "linearSamplePeak": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "samplePeakDbfs": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "integratedLufs": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "truePeakDbtp": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "loudnessRangeLu": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "thresholdLufs": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "startMs",
+      "endMs",
+      "sampleRateHz",
+      "channels",
+      "frameCount",
+      "actualBinCount",
+      "linearSamplePeak",
+      "samplePeakDbfs",
+      "integratedLufs",
+      "truePeakDbtp",
+      "loudnessRangeLu",
+      "thresholdLufs"
+    ],
+    "type": "object"
+  },
+  "waveformBin": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "startFrame": {
+        "maximum": 28800000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "endFrame": {
+        "maximum": 28800000,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "left": {
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rms": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["min", "max", "rms"],
+        "type": "object"
+      },
+      "right": {
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "rms": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["min", "max", "rms"],
+        "type": "object"
+      }
+    },
+    "required": ["startFrame", "endFrame", "left", "right"],
+    "type": "object"
+  },
+  "artifact": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "version": {
+        "const": 1,
+        "type": "number"
+      },
+      "summary": {
+        "additionalProperties": false,
+        "properties": {
+          "startMs": {
+            "maximum": 600000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "endMs": {
+            "maximum": 600000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sampleRateHz": {
+            "const": 48000,
+            "type": "number"
+          },
+          "channels": {
+            "const": 2,
+            "type": "number"
+          },
+          "frameCount": {
+            "maximum": 28800000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "actualBinCount": {
+            "maximum": 4096,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "linearSamplePeak": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "samplePeakDbfs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "integratedLufs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truePeakDbtp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loudnessRangeLu": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "thresholdLufs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "startMs",
+          "endMs",
+          "sampleRateHz",
+          "channels",
+          "frameCount",
+          "actualBinCount",
+          "linearSamplePeak",
+          "samplePeakDbfs",
+          "integratedLufs",
+          "truePeakDbtp",
+          "loudnessRangeLu",
+          "thresholdLufs"
+        ],
+        "type": "object"
+      },
+      "bins": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "startFrame": {
+              "maximum": 28800000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "endFrame": {
+              "maximum": 28800000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "left": {
+              "additionalProperties": false,
+              "properties": {
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "rms": {
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": ["min", "max", "rms"],
+              "type": "object"
+            },
+            "right": {
+              "additionalProperties": false,
+              "properties": {
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                },
+                "rms": {
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": ["min", "max", "rms"],
+              "type": "object"
+            }
+          },
+          "required": ["startFrame", "endFrame", "left", "right"],
+          "type": "object"
+        },
+        "maxItems": 4096,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": ["version", "summary", "bins"],
+    "type": "object"
+  },
+  "result": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "mimeType": {
+            "type": "string"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "textLayouts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "contentHeightPx": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "contentWidthPx": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "itemId": {
+                  "type": "string"
+                },
+                "lineCount": {
+                  "maximum": 4096,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "overflowX": {
+                  "type": "boolean"
+                },
+                "overflowY": {
+                  "type": "boolean"
+                },
+                "resolvedFontSize": {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "contentHeightPx",
+                "contentWidthPx",
+                "itemId",
+                "lineCount",
+                "overflowX",
+                "overflowY",
+                "resolvedFontSize"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["mimeType", "relativePath", "sizeBytes", "warnings"],
+        "type": "object"
+      },
+      "summary": {
+        "additionalProperties": false,
+        "properties": {
+          "startMs": {
+            "maximum": 600000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "endMs": {
+            "maximum": 600000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sampleRateHz": {
+            "const": 48000,
+            "type": "number"
+          },
+          "channels": {
+            "const": 2,
+            "type": "number"
+          },
+          "frameCount": {
+            "maximum": 28800000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "actualBinCount": {
+            "maximum": 4096,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "linearSamplePeak": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "samplePeakDbfs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "integratedLufs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truePeakDbtp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loudnessRangeLu": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "thresholdLufs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "startMs",
+          "endMs",
+          "sampleRateHz",
+          "channels",
+          "frameCount",
+          "actualBinCount",
+          "linearSamplePeak",
+          "samplePeakDbfs",
+          "integratedLufs",
+          "truePeakDbtp",
+          "loudnessRangeLu",
+          "thresholdLufs"
+        ],
+        "type": "object"
+      }
+    },
+    "required": ["artifact", "summary"],
+    "type": "object"
+  }
+}

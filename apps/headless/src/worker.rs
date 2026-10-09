@@ -27,6 +27,7 @@ fn is_render(request: &Request) -> bool {
             | Request::RenderReviewRange { .. }
             | Request::RenderDraftPreview { .. }
             | Request::ExportVideo { .. }
+            | Request::AnalyzeAudio { .. }
     )
 }
 

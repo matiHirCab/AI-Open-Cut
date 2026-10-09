@@ -778,6 +778,45 @@ export const artifactSchema = z
   })
   .strict();
 
+// biome-ignore assist/source/useSortedKeys: Preserve independently reviewed required-field order and expanded contract digest.
+export const audioAnalysisSummarySchema = z.strictObject({
+  startMs: z.int().min(0).max(600_000),
+  endMs: z.int().min(1).max(600_000),
+  sampleRateHz: z.literal(48_000),
+  channels: z.literal(2),
+  frameCount: z.int().min(1).max(28_800_000),
+  actualBinCount: z.int().min(1).max(4096),
+  linearSamplePeak: finite.nonnegative(),
+  samplePeakDbfs: finite.nullable(),
+  integratedLufs: finite.nullable(),
+  truePeakDbtp: finite.nullable(),
+  loudnessRangeLu: finite.nonnegative(),
+  thresholdLufs: finite,
+});
+// biome-ignore assist/source/useSortedKeys: Preserve independently reviewed required-field order and expanded contract digest.
+const audioChannelStatisticsSchema = z.strictObject({
+  min: finite,
+  max: finite,
+  rms: finite.nonnegative(),
+});
+// biome-ignore assist/source/useSortedKeys: Preserve independently reviewed required-field order and expanded contract digest.
+export const audioWaveformBinSchema = z.strictObject({
+  startFrame: z.int().min(0).max(28_800_000),
+  endFrame: z.int().min(1).max(28_800_000),
+  left: audioChannelStatisticsSchema,
+  right: audioChannelStatisticsSchema,
+});
+// biome-ignore assist/source/useSortedKeys: Preserve independently reviewed required-field order and expanded contract digest.
+export const audioAnalysisArtifactSchema = z.strictObject({
+  version: z.literal(1),
+  summary: audioAnalysisSummarySchema,
+  bins: z.array(audioWaveformBinSchema).min(1).max(4096),
+});
+export const audioAnalysisResultSchema = z.strictObject({
+  artifact: artifactSchema,
+  summary: audioAnalysisSummarySchema,
+});
+
 export const speechVoiceIdSchema = id;
 
 export const speechVoiceSchema = z
@@ -2048,7 +2087,12 @@ export const speechSourceSchema = z.discriminatedUnion("type", [
 export const artifactResourceSchema = z
   .object({
     expiresAtMs: milliseconds.nullable(),
-    mimeType: z.enum(["image/png", "audio/wav", "video/mp4"]),
+    mimeType: z.enum([
+      "image/png",
+      "audio/wav",
+      "video/mp4",
+      "application/json",
+    ]),
     name: z.string().min(1),
     sizeBytes: z.int().positive().optional(),
     uri: z
@@ -2063,6 +2107,7 @@ export const jobSchema = z
   .object({
     artifact: artifactSchema.optional(),
     artifactResource: artifactResourceSchema.optional(),
+    audioAnalysis: audioAnalysisSummarySchema.optional(),
     createdAtMs: milliseconds,
     error: publicErrorSchema.optional(),
     expiresAtMs: milliseconds.nullable(),
@@ -2079,6 +2124,7 @@ export const jobSchema = z
       "speech_preview",
       "speech_regenerate",
       "transcription_preview",
+      "audio_analysis",
     ]),
     persistence: z.literal("process"),
     progress: finite.min(0).max(1),
@@ -2542,6 +2588,13 @@ export const schemas = {
     .extend({
       mediaType: z.enum(["image", "video", "audio"]),
       path: z.string().min(1),
+    })
+    .strict(),
+  audioAnalyzeMix: projectRevisionSchema
+    .extend({
+      endMs: z.int().min(1).max(600_000),
+      startMs: z.int().min(0).max(600_000),
+      waveformBins: z.int().min(1).max(4096),
     })
     .strict(),
   audioBusSetDsp: projectRevisionSchema

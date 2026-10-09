@@ -22,6 +22,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyAudioAnalysisWorkflow } from "./audio-analysis-workflow";
 import { verifyAudioBusDspWorkflow } from "./audio-bus-dsp-workflow";
 import { verifyAudioBusDuckingWorkflow } from "./audio-bus-ducking-workflow";
 import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
@@ -113,6 +114,7 @@ const transport = new StdioClientTransport({
       "fixtures/fake_tts_worker.py"
     ),
     OPENCUT_PROJECTS_DIR: directories.projects,
+    OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
     OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
     OPENCUT_TRANSCRIPTION_WORKER: resolve(
       import.meta.dirname,
@@ -663,4 +665,8 @@ it("runs normalized bus DSP standalone, batch, draft and history transactions", 
 
 it("runs narration bus ducking standalone, batch, draft and history transactions", async () => {
   await verifyAudioBusDuckingWorkflow(client, call);
+});
+
+it("queues immutable original audio analysis with resources, overlap, cancel, failure and reopen", async () => {
+  await verifyAudioAnalysisWorkflow(client, call);
 });

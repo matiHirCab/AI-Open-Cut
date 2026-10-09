@@ -423,3 +423,15 @@
 /apps/agent-bridge/tests/audio-bus-ducking* @matiHirCab
 /apps/agent-bridge/tests/fixtures/audio-bus-ducking-* @matiHirCab
 /docs/audio-bus-ducking.md @matiHirCab
+
+# Issue68 original audio-analysis contracts and existing-owner submodules.
+/contracts/audio-analysis-v1.json @matiHirCab
+/crates/editor-core/tests/audio_analysis.rs @matiHirCab
+/crates/editor-core/src/render_artifact/audio_analysis.rs @matiHirCab
+/crates/editor-core/src/render_plan/audio_analysis.rs @matiHirCab
+/crates/editor-core/src/render_process/audio_analysis.rs @matiHirCab
+/crates/editor-core/src/renderer/audio_analysis.rs @matiHirCab
+/crates/editor-core/src/renderer/golden/audio_analysis.rs @matiHirCab
+/apps/agent-bridge/tests/audio-analysis* @matiHirCab
+/apps/agent-bridge/tests/fixtures/audio-analysis-* @matiHirCab
+/docs/audio-analysis.md @matiHirCab

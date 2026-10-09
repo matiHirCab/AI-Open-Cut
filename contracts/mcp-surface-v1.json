@@ -42,7 +42,8 @@
     "semantic_sound_event_definitions_v1",
     "timeline_audio_events_v1",
     "audio_bus_dsp_v1",
-    "audio_bus_ducking_v1"
+    "audio_bus_ducking_v1",
+    "audio_analysis_v1"
   ],
   "prompts": [
     "add_narration",
@@ -11798,6 +11799,56 @@
         ],
         "type": "object"
       }
+    },
+    "audio_analyze_mix": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "endMs": {
+            "maximum": 600000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "startMs": {
+            "maximum": 600000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "waveformBins": {
+            "maximum": 4096,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "endMs",
+          "startMs",
+          "waveformBins"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$ref": "#/$defs/DraftPreviewFrameOutput"
+      }
     }
   },
   "tools": [
@@ -11805,6 +11856,7 @@
     "add_group",
     "asset_delete",
     "asset_import",
+    "audio_analyze_mix",
     "audio_bus_set_dsp",
     "audio_bus_set_ducking",
     "audio_bus_set_route",
@@ -19658,7 +19710,8 @@
             "enum": [
               "image/png",
               "audio/wav",
-              "video/mp4"
+              "video/mp4",
+              "application/json"
             ],
             "type": "string"
           },
@@ -19792,7 +19845,8 @@
           "tts",
           "speech_preview",
           "speech_regenerate",
-          "transcription_preview"
+          "transcription_preview",
+          "audio_analysis"
         ],
         "type": "string"
       },
@@ -20323,6 +20377,9 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "audioAnalysis": {
+        "$ref": "#/$defs/AudioAnalysisSummary"
       }
     },
     "GeometryOneOfPath": {
@@ -37424,6 +37481,95 @@
       "required": [
         "channel",
         "sourceId"
+      ],
+      "type": "object"
+    },
+    "AudioAnalysisSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "startMs": {
+          "maximum": 600000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "endMs": {
+          "maximum": 600000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sampleRateHz": {
+          "const": 48000,
+          "type": "number"
+        },
+        "channels": {
+          "const": 2,
+          "type": "number"
+        },
+        "frameCount": {
+          "maximum": 28800000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "actualBinCount": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "linearSamplePeak": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "samplePeakDbfs": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "integratedLufs": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "truePeakDbtp": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "loudnessRangeLu": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "thresholdLufs": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "startMs",
+        "endMs",
+        "sampleRateHz",
+        "channels",
+        "frameCount",
+        "actualBinCount",
+        "linearSamplePeak",
+        "samplePeakDbfs",
+        "integratedLufs",
+        "truePeakDbtp",
+        "loudnessRangeLu",
+        "thresholdLufs"
       ],
       "type": "object"
     }

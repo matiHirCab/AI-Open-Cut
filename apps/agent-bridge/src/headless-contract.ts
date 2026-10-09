@@ -43,6 +43,7 @@ export const BLEND_MODELS_CAPABILITY = "blend_models_v1" as const;
 export const BLEND_MODES_CAPABILITY = "blend_modes_v1" as const;
 export const TRACK_MATTES_CAPABILITY = "track_mattes_v1" as const;
 export type RenderingCapability =
+  | "audio_analysis_v1"
   | "shape_rendering"
   | "svg_rendering"
   | "grid_rendering"
@@ -376,6 +377,12 @@ export type HeadlessEdit =
   | { operation: "set_item_visibility"; hidden: boolean; itemId: string };
 
 export type HeadlessRequest =
+  | (Revisioned & {
+      operation: "analyze_audio";
+      startMs: number;
+      endMs: number;
+      waveformBins: number;
+    })
   | {
       operation: "status";
       protocolVersion?: 1 | undefined;

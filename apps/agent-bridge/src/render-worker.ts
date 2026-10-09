@@ -16,6 +16,7 @@ export const workerEventSchema = z
   .object({ event: eventSchema, requestId: z.string() })
   .strict();
 const RENDER_OPERATIONS = new Set([
+  "analyze_audio",
   "render_preview",
   "render_preview_range",
   "render_review_range",

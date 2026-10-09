@@ -1,0 +1,48 @@
+{
+  "workerRequest": {
+    "requestId": "analysis-1",
+    "request": {
+      "operation": "analyze_audio",
+      "projectId": "project-1",
+      "expectedRevision": 0,
+      "startMs": 0,
+      "endMs": 1000,
+      "waveformBins": 4
+    }
+  },
+  "workerEvent": {
+    "requestId": "analysis-1",
+    "event": {
+      "type": "result",
+      "result": {
+        "artifact": {
+          "relativePath": "previews/audio-analysis.json",
+          "mimeType": "application/json",
+          "sizeBytes": 1,
+          "warnings": []
+        },
+        "summary": {
+          "startMs": 0,
+          "endMs": 100,
+          "sampleRateHz": 48000,
+          "channels": 2,
+          "frameCount": 4800,
+          "actualBinCount": 1,
+          "linearSamplePeak": 0,
+          "samplePeakDbfs": null,
+          "integratedLufs": null,
+          "truePeakDbtp": null,
+          "loudnessRangeLu": 0,
+          "thresholdLufs": -70
+        }
+      }
+    }
+  },
+  "artifactFixture": {
+    "kind": "audio_analysis",
+    "mimeType": "application/json",
+    "relativePath": "previews/audio-analysis.json",
+    "name": "Audio analysis",
+    "inlineType": null
+  }
+}
