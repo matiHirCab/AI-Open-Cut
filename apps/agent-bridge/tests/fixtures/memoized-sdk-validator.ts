@@ -3,10 +3,14 @@ import type {
   JsonSchemaValidator,
   jsonSchemaValidator,
 } from "@modelcontextprotocol/client";
-import { AjvJsonSchemaValidator } from "@modelcontextprotocol/client/validators/ajv";
+import { CfWorkerJsonSchemaValidator } from "@modelcontextprotocol/client/validators/cf-worker";
 
+// Interpret the unchanged published schemas: generated AJV validators exhaust
+// memory on the large expanded draft output. Keep all errors and format checks.
 export const memoizedSdkValidator = (
-  provider: jsonSchemaValidator = new AjvJsonSchemaValidator()
+  provider: jsonSchemaValidator = new CfWorkerJsonSchemaValidator({
+    shortcircuit: false,
+  })
 ) => {
   const validators = new Map<string, JsonSchemaValidator<unknown>>();
   return {

@@ -12,6 +12,60 @@ const schema = {
   type: "object",
 };
 
+it("interprets published-style nested unions and formats without weakening validation", () => {
+  const nested = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    additionalProperties: false,
+    properties: {
+      email: { format: "email", type: "string" },
+      entries: {
+        items: {
+          oneOf: [
+            {
+              additionalProperties: false,
+              properties: { id: { format: "uuid", type: "string" } },
+              required: ["id"],
+              type: "object",
+            },
+            { maximum: 10, minimum: 0, type: "integer" },
+          ],
+        },
+        maxItems: 2,
+        minItems: 1,
+        type: "array",
+      },
+    },
+    required: ["email", "entries"],
+    type: "object",
+  };
+  const interpreted = memoizedSdkValidator().getValidator(nested);
+  const original = new AjvJsonSchemaValidator().getValidator(nested);
+  for (const value of [
+    {
+      email: "a@example.com",
+      entries: [0, { id: "123e4567-e89b-12d3-a456-426614174000" }],
+    },
+    {},
+    { email: "invalid", entries: [1] },
+    { email: "a@example.com", entries: [] },
+    { email: "a@example.com", entries: [1, 2, 3] },
+    { email: "a@example.com", entries: [-1] },
+    { email: "a@example.com", entries: [1.5] },
+    { email: "a@example.com", entries: [{ id: "invalid" }] },
+    {
+      email: "a@example.com",
+      entries: [{ extra: 1, id: "123e4567-e89b-12d3-a456-426614174000" }],
+    },
+    { email: "a@example.com", entries: [1], extra: 1 },
+  ]) {
+    expect(interpreted(value).valid).toBe(original(value).valid);
+  }
+  expect(interpreted({ email: "a@example.com", entries: [1] }).valid).toBe(
+    true
+  );
+  expect(interpreted({}).valid).toBe(false);
+});
+
 it("reuses only exact serialized successful default validators", () => {
   const provider = new AjvJsonSchemaValidator();
   const compile = vi.spyOn(provider, "getValidator");

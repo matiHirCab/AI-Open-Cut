@@ -485,3 +485,108 @@ it.each(["timeout", "cancel", "pre-cancel"])(
     }
   }
 );
+
+it.each(
+  ["align", "transcribe"].flatMap((mode) =>
+    ["cancel", "timeout"].flatMap((action) =>
+      [false, true].map((queued) => ({ action, mode, queued }))
+    )
+  )
+)(
+  "recovers immediate alignment and queued=$queued transcription after $mode $action",
+  async ({ action, mode, queued }) => {
+    const p = worker(500);
+    const dispatched = vi.spyOn(NOOP_LOGGER, "debug");
+    try {
+      await p.status();
+      const controller = new AbortController();
+      const first =
+        mode === "align"
+          ? p.align(
+              "provider-only.wav",
+              "__timeout_alignment__",
+              "en",
+              1000,
+              controller.signal
+            )
+          : p.transcribe(
+              "__timeout_transcription__.wav",
+              "en",
+              1000,
+              controller.signal
+            );
+      const failure = expect(first).rejects.toMatchObject({
+        code: action === "cancel" ? "JOB_CANCELLED" : "TRANSCRIPTION_TIMEOUT",
+        retryable: true,
+      });
+      await vi.waitFor(() =>
+        expect(dispatched).toHaveBeenCalledWith(
+          "transcription.worker.request",
+          { operation: mode }
+        )
+      );
+      const successor = queued
+        ? p.transcribe(
+            "provider-only.wav",
+            "en",
+            1000,
+            new AbortController().signal
+          )
+        : undefined;
+      const recovered = successor
+        ? expect(successor).resolves.toMatchObject({
+            segments: [{ text: "Packaged caption" }],
+          })
+        : Promise.resolve();
+      if (action === "cancel") {
+        controller.abort();
+      }
+      await failure;
+      // No sleep/retry: a second alignment queues immediately after rejection.
+      const immediate = p.align(
+        "provider-only.wav",
+        "healthy",
+        "en",
+        1000,
+        new AbortController().signal
+      );
+      await recovered;
+      expect((await immediate).alignment?.quality).toBe("forced");
+      expect(p.queueStatus()).toMatchObject({ active: 0, queued: 0 });
+    } finally {
+      await p.close();
+      dispatched.mockRestore();
+    }
+  }
+);
+
+it("gracefully drains active inference on direct provider close", async () => {
+  const p = worker();
+  await p.status();
+  const dispatched = vi.spyOn(NOOP_LOGGER, "debug");
+  const inference = p.align(
+    "provider-only.wav",
+    "__slow_alignment__",
+    "en",
+    1000,
+    new AbortController().signal
+  );
+  await Promise.resolve();
+  expect(dispatched).toHaveBeenCalledWith("transcription.worker.request", {
+    operation: "align",
+  });
+  const close = p.close();
+  await expect(
+    p.align(
+      "provider-only.wav",
+      "new",
+      "en",
+      1000,
+      new AbortController().signal
+    )
+  ).rejects.toMatchObject({ code: "TRANSCRIPTION_UNAVAILABLE" });
+  expect((await inference).alignment?.quality).toBe("forced");
+  await close;
+  dispatched.mockRestore();
+  expect(p.queueStatus()).toMatchObject({ active: 0, queued: 0 });
+});

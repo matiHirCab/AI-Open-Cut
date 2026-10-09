@@ -2317,3 +2317,13 @@ describe("master normalization native coverage", () => {
     });
   }
 });
+
+
+describe("integrated narration native coverage", () => {
+  const command = "cargo test -p opencut-editor-core --lib renderer::golden::narration_fixture::native_narration_cues_presets_events_ducking_and_normalized_preview_export -- --exact --nocapture";
+  for (const replacement of ["", `${command} || true`]) {
+    it(`rejects missing or masked integrated narration evidence: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, command, replacement))).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+});
