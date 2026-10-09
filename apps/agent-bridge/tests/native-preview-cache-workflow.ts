@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -265,7 +266,9 @@ export const verifyNativePreviewCacheMcp = async (packaged: boolean) => {
         path: join(directory, required(completed.artifact).relativePath),
       };
     };
+    const foreignPreview = join(directory, "previews", "unowned.txt");
     const frame = await render(false);
+    writeFileSync(foreignPreview, "preserve");
     const frameWarm = await render(false);
     const range = await render(true);
     const rangeWarm = await render(true);
@@ -421,7 +424,22 @@ export const verifyNativePreviewCacheMcp = async (packaged: boolean) => {
     const restored = await render(false, 5);
     expect(restored.bytes).toEqual(frame.bytes);
     await call("project_open", { projectId }, projectStateSchema);
+    const unchangedBeforeClose = owned(directory);
+    // Output keeps its requested revision after edits and history transitions.
+    const oldStatus = await call(
+      "job_get_status",
+      { jobId: frame.completed.jobId },
+      jobSchema
+    );
+    expect(oldStatus.revision).toBe(3);
     await client.close();
+    await vi.waitFor(() => {
+      for (const output of [frame, frameWarm, range, rangeWarm, restored]) {
+        expect(existsSync(output.path)).toBe(false);
+      }
+    });
+    expect(readFileSync(foreignPreview, "utf8")).toBe("preserve");
+    expect(owned(directory)).toEqual(unchangedBeforeClose);
     client = await connect();
     const fresh = await render(false, 5);
     expect(fresh.bytes).toEqual(frame.bytes);

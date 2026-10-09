@@ -25,6 +25,18 @@ const prepareHang = (request: Record<string, unknown>, id: string) => {
         { stdio: "ignore", windowsHide: true }
       );
       writeFileSync(join(dir, "descendant.pid"), String(descendant.pid));
+      // Reproduce a producer recreating temporary files after premature cleanup.
+      // Forced tree termination must prevent this graceful-signal callback.
+      process.once("SIGTERM", () => {
+        setTimeout(() => {
+          mkdirSync(join(dir, `.opencut-work-${id}`), { recursive: true });
+          writeFileSync(
+            join(dir, "previews", `.opencut-${id}.${extension}`),
+            "late partial"
+          );
+          process.exit(0);
+        }, 50);
+      });
     }
   }
 };

@@ -1,14 +1,13 @@
 import { spawn } from "node:child_process";
-
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import type { z } from "zod/v4";
-
 import { type BridgeConfig, loadBridgeConfig } from "./config";
 import { runDoctor } from "./doctor";
 import { BridgeError, errorBody, HeadlessClient } from "./headless";
 import { serveHttp } from "./http";
 import { JobRegistry } from "./jobs";
 import { JsonLineLogger, type Logger } from "./logger";
+import { previewDisposer } from "./preview-disposal";
 import { headlessStatusSchema, type statusSchema } from "./schemas";
 import { createServer } from "./server";
 import { SpeechApplicationService, type SpeechSynthesizer } from "./speech";
@@ -175,6 +174,7 @@ const run = async () => {
     logger
   );
   const jobs = new JobRegistry({
+    disposePreview: previewDisposer(config.projectsDirectory),
     headless,
     logger,
     maxCount: config.jobMaxCount,

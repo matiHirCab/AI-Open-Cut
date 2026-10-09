@@ -221,3 +221,51 @@ it("closes an active worker without a replacement reservation", async () => {
     code: "BRIDGE_SHUTTING_DOWN",
   });
 });
+
+it("cancels a real overflow process tree before cleaning its temporary outputs", async () => {
+  const { client, root } = create();
+  const active = client.call(request("slow"), resultSchema);
+  // Keep teardown rejection observed even when a negative control fails early.
+  active.catch(() => undefined);
+  const controller = new AbortController();
+  const overflow = client.call(
+    request("hang-tree", "render_review_range"),
+    resultSchema,
+    {
+      requestId: "overflow-cancelled",
+      signal: controller.signal,
+    }
+  );
+  const rejected = expect(overflow).rejects.toMatchObject({
+    code: "JOB_CANCELLED",
+    retryable: true,
+  });
+  const descendantPath = join(root, "project", "descendant.pid");
+  await vi.waitFor(() => expect(existsSync(descendantPath)).toBe(true));
+  const descendant = Number(readFileSync(descendantPath, "utf8"));
+  controller.abort();
+  await rejected;
+  await vi.waitFor(() => expect(() => process.kill(descendant, 0)).toThrow());
+  expect(
+    existsSync(join(root, "project", ".opencut-work-overflow-cancelled"))
+  ).toBe(false);
+  expect(
+    existsSync(
+      join(root, "project", "previews", ".opencut-overflow-cancelled.mp4")
+    )
+  ).toBe(false);
+  expect(
+    readFileSync(join(root, "project", "previews", "published.png"), "utf8")
+  ).toBe("published");
+  expect((await active).worker).toBe(true);
+  // The independent slow request outlasts the fixture's 50ms late-write callback.
+  expect(
+    existsSync(join(root, "project", ".opencut-work-overflow-cancelled"))
+  ).toBe(false);
+  expect(
+    existsSync(
+      join(root, "project", "previews", ".opencut-overflow-cancelled.mp4")
+    )
+  ).toBe(false);
+  expect((await client.call(request(), resultSchema)).worker).toBe(true);
+});
