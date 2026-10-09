@@ -12,8 +12,8 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import catalog from "../../../contracts/extended-visual-animation-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -220,7 +220,7 @@ fn main() {
       const f = catalog.orderedEffectCases;
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        audioBusDucking.projectSchemaVersion
+        masterNormalization.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { projectId } = await call(

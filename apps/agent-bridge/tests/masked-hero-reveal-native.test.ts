@@ -19,6 +19,7 @@ import audioAnalysis from "../../../contracts/audio-analysis-v1.json";
 import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import {
   editDraftSchema,
@@ -68,7 +69,7 @@ function assertRecipe(
   expect(p.settings).toEqual(catalog.settings);
   expect(p.name).toBe("Masked hero reveal v1");
   expect(catalog.projectSchemaVersion).toBe(38);
-  expect(p.schemaVersion).toBe(audioBusDucking.projectSchemaVersion);
+  expect(p.schemaVersion).toBe(masterNormalization.projectSchemaVersion);
   expect(p.audioBuses).toEqual(busCatalog.defaultBuses);
   expect(p.tracks.map((t) => t.items.length)).toEqual([0, 4, 1, 0]);
   for (const [index, role] of (
@@ -290,7 +291,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
     try {
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        audioBusDucking.projectSchemaVersion
+        masterNormalization.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { tools } = await client.request({ method: "tools/list" });
@@ -302,6 +303,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         "timeline_add_audio_event",
         "audio_bus_set_dsp",
         audioBusDucking.operation,
+        masterNormalization.tool,
         audioAnalysis.tool,
       ];
       expect(
@@ -785,7 +787,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       const adopted = await read();
       expect(adopted.project.revision).toBe(beforeLegacy.project.revision);
       expect(adopted.project.schemaVersion).toBe(
-        audioBusDucking.projectSchemaVersion
+        masterNormalization.projectSchemaVersion
       );
       expect(adopted.project.soundDefinitions).toEqual([]);
       expect(adopted.project.audioBuses).toEqual(busCatalog.defaultBuses);

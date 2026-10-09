@@ -43,7 +43,8 @@
     "timeline_audio_events_v1",
     "audio_bus_dsp_v1",
     "audio_bus_ducking_v1",
-    "audio_analysis_v1"
+    "audio_analysis_v1",
+    "audio_master_normalization_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2447,7 +2448,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 43,
+            "const": 44,
             "type": "number"
           },
           "protocolVersion": {
@@ -11849,6 +11850,120 @@
       "outputSchema": {
         "$ref": "#/$defs/DraftPreviewFrameOutput"
       }
+    },
+    "audio_master_set_normalization": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "normalization": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "targetIntegratedLufs": {
+                "maximum": -5,
+                "minimum": -70,
+                "type": "number"
+              },
+              "targetLoudnessRangeLu": {
+                "maximum": 50,
+                "minimum": 1,
+                "type": "number"
+              },
+              "targetTruePeakDbtp": {
+                "maximum": 0,
+                "minimum": -9,
+                "type": "number"
+              }
+            },
+            "required": [
+              "enabled",
+              "targetIntegratedLufs",
+              "targetLoudnessRangeLu",
+              "targetTruePeakDbtp"
+            ],
+            "type": "object"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "projectId",
+          "normalization"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "changedIds": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "projectId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "aliases",
+          "changedIds",
+          "projectId",
+          "revision",
+          "summary",
+          "warnings"
+        ],
+        "type": "object"
+      }
     }
   },
   "tools": [
@@ -11860,6 +11975,7 @@
     "audio_bus_set_dsp",
     "audio_bus_set_ducking",
     "audio_bus_set_route",
+    "audio_master_set_normalization",
     "audio_track_route",
     "component_create",
     "component_define_slots",
@@ -14890,6 +15006,50 @@
         {
           "additionalProperties": false,
           "properties": {
+            "normalization": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "targetIntegratedLufs": {
+                  "maximum": -5,
+                  "minimum": -70,
+                  "type": "number"
+                },
+                "targetLoudnessRangeLu": {
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "targetTruePeakDbtp": {
+                  "maximum": 0,
+                  "minimum": -9,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "enabled",
+                "targetIntegratedLufs",
+                "targetLoudnessRangeLu",
+                "targetTruePeakDbtp"
+              ],
+              "type": "object"
+            },
+            "operation": {
+              "const": "audio_master_set_normalization",
+              "type": "string"
+            }
+          },
+          "required": [
+            "normalization",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
             "busId": {
               "maxLength": 128,
               "minLength": 1,
@@ -17325,6 +17485,50 @@
     },
     "DraftCreateOutputPropertiesOperationsItems": {
       "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "normalization": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "targetIntegratedLufs": {
+                  "maximum": -5,
+                  "minimum": -70,
+                  "type": "number"
+                },
+                "targetLoudnessRangeLu": {
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "number"
+                },
+                "targetTruePeakDbtp": {
+                  "maximum": 0,
+                  "minimum": -9,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "enabled",
+                "targetIntegratedLufs",
+                "targetLoudnessRangeLu",
+                "targetTruePeakDbtp"
+              ],
+              "type": "object"
+            },
+            "operation": {
+              "const": "audio_master_set_normalization",
+              "type": "string"
+            }
+          },
+          "required": [
+            "normalization",
+            "operation"
+          ],
+          "type": "object"
+        },
         {
           "additionalProperties": false,
           "properties": {
@@ -28992,7 +29196,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 43,
+        "const": 44,
         "type": "number"
       },
       "settings": {
@@ -29077,6 +29281,36 @@
         "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
+      },
+      "masterNormalization": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "targetIntegratedLufs": {
+            "maximum": -5,
+            "minimum": -70,
+            "type": "number"
+          },
+          "targetLoudnessRangeLu": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "number"
+          },
+          "targetTruePeakDbtp": {
+            "maximum": 0,
+            "minimum": -9,
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "targetIntegratedLufs",
+          "targetLoudnessRangeLu",
+          "targetTruePeakDbtp"
+        ],
+        "type": "object"
       }
     },
     "ProjectPropertiesAssets": {

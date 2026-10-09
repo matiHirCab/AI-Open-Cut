@@ -10,6 +10,28 @@ const fixture = resolvePath(
   "fixtures/fake-media-tool.mjs"
 );
 const roots: string[] = [];
+
+it("appends normalization readiness filters only when explicitly requested and preserves the legacy listing", () => {
+  const inspect = (normalization: string) =>
+    spawnSync(process.execPath, [fixture, "ffmpeg", "-filters"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
+        OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: normalization,
+      },
+    });
+  const legacy = inspect("");
+  const active = inspect("1");
+  expect(legacy.status).toBe(0);
+  expect(active.status).toBe(0);
+  expect(legacy.stdout).not.toContain(" ebur128 ");
+  expect(legacy.stdout).not.toContain(" ametadata ");
+  expect(active.stdout).toBe(
+    `${legacy.stdout} ... ebur128 ... ametadata ... \n`
+  );
+  expect(active.stderr).toBe(legacy.stderr);
+});
 afterEach(() => {
   for (const root of roots.splice(0)) {
     rmSync(root, { force: true, recursive: true });

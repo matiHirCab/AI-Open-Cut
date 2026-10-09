@@ -1,10 +1,18 @@
 # Original audio mix analysis
 
-`audio_analyze_mix` queues an `audio_analysis` job for a committed revision. Supply `projectId`, `expectedRevision`, integer `startMs`/`endMs`, and `waveformBins`. The matching headless operation is `analyze_audio`. Protocol1/project43 are unchanged. Analysis creates an artifact without editing project state, history or drafts and is unavailable as a batch/draft mutation. Stale revisions fail with existing retryable `REVISION_CONFLICT` before semantic option/resource work.
+Schema 44 additionally supports authored [master normalization](master-normalization.md).
+With active controls, the selected original analysis PCM is the final authored
+mix including that root processing. Analysis adds no normalization of its own.
+The fixed loudnorm **input** meter below remains unchanged and can differ from
+the independent EBU integrated metric used to verify configured root targets.
+All omitted/disabled normalization statistics and reference tolerances remain
+unchanged; selected crops are not required to equal the complete-root target.
+
+`audio_analyze_mix` queues an `audio_analysis` job for a committed revision. Supply `projectId`, `expectedRevision`, integer `startMs`/`endMs`, and `waveformBins`. The matching headless operation is `analyze_audio`. Protocol1 remains unchanged; current projects report schema44, while the version1 analysis feature catalog retains its frozen schema43 reference. Analysis creates an artifact without editing project state, history or drafts and is unavailable as a batch/draft mutation. Stale revisions fail with existing retryable `REVISION_CONFLICT` before semantic option/resource work.
 
 The complete root timeline must be at most600000ms,0<=startMs<endMs<=project duration, and waveformBins1..4096. Core evaluates complete canonical root audio, including source/component/event clocks, explicit/role ducking and routed bus DSP, before cropping the processed48kHz stereo PCM at exact sample indices. A later range retains compressor state and root clocks; no cold seek is substituted. Core validates the full model but resolves only evaluated selected audio bindings. Unrelated visual/font files are not opened or rasterized.
 
-The summary reports the range,48000Hz,2channels,frameCount=(endMs-startMs)*48,actualBinCount,linearSamplePeak,nullable samplePeakDbfs/integratedLufs/truePeakDbtp, and finite loudnessRangeLu/thresholdLufs. Version1 JSON contains the same summary and stereo bins with min/max/RMS and half-open startFrame/endFrame. For N frames and B=min(requested,N), bin k spans floor(k*N/B)..floor((k+1)*N/B). Nonempty contiguous bins cover every original sample exactly once. Values describe finite original PCM, without clipping/normalization; samples above1 remain above1.
+The summary reports the range,48000Hz,2channels,frameCount=(endMs-startMs)*48,actualBinCount,linearSamplePeak,nullable samplePeakDbfs/integratedLufs/truePeakDbtp, and finite loudnessRangeLu/thresholdLufs. Version1 JSON contains the same summary and stereo bins with min/max/RMS and half-open startFrame/endFrame. For N frames and B=min(requested,N), bin k spans floor(k*N/B)..floor((k+1)*N/B). Nonempty contiguous bins cover every original sample exactly once. Values describe finite selected authored PCM; analysis adds no clipping or normalization itself. With omitted/disabled master controls, samples above1 remain above1.
 
 Sample peak is maximum absolute original sample; dBFS is20log10(peak), or null for zero. Loudness/true peak use loudnorm's **input** measurement on that original PCM, with fixed I=-24,TP=-2,LRA=7 targets and normalized output discarded. Negative-infinite input metrics become null. Short audible ranges may have nullI with finite true peak; nullI does not prove silence. Silence has zero statistics/null peaks/nullI and finite LRA/threshold. Report resolution is0.01dB; native comparisons allow at most0.05dB/LU. Existing PCM RMS0.0001/SSIM0.99/timing oracles are preserved.
 

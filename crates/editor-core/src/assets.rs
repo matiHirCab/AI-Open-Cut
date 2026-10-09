@@ -839,6 +839,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),

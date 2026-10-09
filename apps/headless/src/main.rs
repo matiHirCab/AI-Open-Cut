@@ -905,6 +905,9 @@ fn status(renderer: &Renderer) -> Status {
                 if renderer.audio_analysis_readiness().is_ok() {
                     capabilities.push("audio_analysis_v1");
                 }
+                if renderer.master_normalization_readiness().is_ok() {
+                    capabilities.push("audio_master_normalization_v1");
+                }
                 capabilities
             },
             error: None,
@@ -1073,6 +1076,7 @@ mod tests {
                 capabilities.push("audio_bus_dsp_v1");
                 capabilities.push("audio_bus_ducking_v1");
                 capabilities.push("audio_analysis_v1");
+                capabilities.push("audio_master_normalization_v1");
                 capabilities
             })
             .unwrap(),

@@ -51,6 +51,9 @@ pub(crate) fn build_audio_analysis_plan(
             labels.len()
         ));
     }
+    if let Some(stage) = super::master_normalization::finish_master(&mut filters, scene)? {
+        filters.push(stage);
+    }
     filters.push(format!("[audio]aformat=sample_fmts=flt:sample_rates=48000:channel_layouts=stereo,aresample=48000,atrim=start_sample={}:end_sample={},asetpts=PTS-STARTPTS[analysis]",options.start_ms*48,options.end_ms*48));
     Ok(AudioAnalysisPlan {
         expected_frames,

@@ -28,6 +28,7 @@ import {
   removeAudioAnalysisWorkerAdditions,
   restoreAudioAnalysisRaw,
 } from "./fixtures/audio-analysis-projection";
+import { removeMasterNormalizationMcpAdditions } from "./fixtures/master-normalization-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 
 const hash = (value: string | Uint8Array) =>
@@ -75,14 +76,22 @@ it("preserves all51 independently committed catalogs and exact85→86 expanded c
       expandMcpSurfaceCatalog(removeAudioAnalysisMcpAdditions(mcp))
     )
   ).toBe(pins.mcpExpandedSha256);
-  expect(audioAnalysisDigest(expandMcpSurfaceCatalog(mcp))).toBe(
-    pins.manuallyReviewedCurrentExpandedSha256
-  );
-  expect(expandMcpSurfaceCatalog(mcp).tools).toHaveLength(86);
+  expect(
+    audioAnalysisDigest(
+      expandMcpSurfaceCatalog(removeMasterNormalizationMcpAdditions(mcp))
+    )
+  ).toBe(pins.manuallyReviewedCurrentExpandedSha256);
+  expect(
+    expandMcpSurfaceCatalog(removeMasterNormalizationMcpAdditions(mcp)).tools
+  ).toHaveLength(86);
   // Canonical object ordering must preserve every key/scalar/array and all pins.
   expect(
-    alignAudioAnalysisRuntimeObjectOrder(expandMcpSurfaceCatalog(mcp))
-  ).toEqual(expandMcpSurfaceCatalog(mcp));
+    alignAudioAnalysisRuntimeObjectOrder(
+      expandMcpSurfaceCatalog(removeMasterNormalizationMcpAdditions(mcp))
+    )
+  ).toEqual(
+    expandMcpSurfaceCatalog(removeMasterNormalizationMcpAdditions(mcp))
+  );
 });
 it("matches independently authored closed bounded DTO schemas", () => {
   for (const [schema, expected] of [

@@ -7,7 +7,6 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
-import AUDIO_BUS_DUCKING from "../../../contracts/audio-bus-ducking-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -19,6 +18,7 @@ import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import INHERITED_TIMING from "../../../contracts/inherited-animation-timing-v1.json";
 import INITIAL_PRESET_PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
 import MASK_MODELS from "../../../contracts/mask-models-v1.json";
+import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.json";
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
@@ -90,6 +90,11 @@ import {
   projectMaskRenderingCatalogPredecessor as projectMaskRenderingCatalogPredecessor51,
   projectMaskRenderingMcpPredecessor as projectMaskRenderingMcpPredecessor51,
 } from "./fixtures/mask-rendering-projection";
+import {
+  alignMasterNormalizationRuntimeObjectOrder,
+  removeMasterNormalizationMcpAdditions,
+  restoreMasterNormalizationCatalogMarker,
+} from "./fixtures/master-normalization-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 import {
   assertMalformedPayloadRegressions,
@@ -112,7 +117,10 @@ const projectMaskRenderingCatalogPredecessor = (
     name,
     projectTrackMatteCatalogPredecessor(
       name,
-      projectBlendCatalogPredecessor(name, source)
+      projectBlendCatalogPredecessor(
+        name,
+        restoreMasterNormalizationCatalogMarker(source)
+      )
     )
   );
 const projectMaskRenderingMcpPredecessor = (source: unknown) =>
@@ -317,18 +325,20 @@ const schemaJson = (schema: z.ZodType, io: "input" | "output") =>
   );
 
 const canonicalToolDefinitions = (harness: ContractHarness) =>
-  alignAudioAnalysisRuntimeObjectOrder(
-    Object.fromEntries(
-      [...harness.toolDefinitions.entries()]
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([name, definition]) => [
-          name,
-          {
-            annotations: normalizeJson(definition.annotations),
-            inputSchema: schemaJson(definition.inputSchema, "input"),
-            outputSchema: schemaJson(definition.outputSchema, "output"),
-          },
-        ])
+  alignMasterNormalizationRuntimeObjectOrder(
+    alignAudioAnalysisRuntimeObjectOrder(
+      Object.fromEntries(
+        [...harness.toolDefinitions.entries()]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([name, definition]) => [
+            name,
+            {
+              annotations: normalizeJson(definition.annotations),
+              inputSchema: schemaJson(definition.inputSchema, "input"),
+              outputSchema: schemaJson(definition.outputSchema, "output"),
+            },
+          ])
+      )
     )
   );
 
@@ -391,7 +401,7 @@ describe("canonical public contracts", () => {
     });
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      AUDIO_BUS_DUCKING.projectSchemaVersion
+      MASTER_NORMALIZATION.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
@@ -408,7 +418,7 @@ describe("canonical public contracts", () => {
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
       expect(catalog.projectSchemaVersion, name).toBe(
-        AUDIO_BUS_DUCKING.projectSchemaVersion
+        MASTER_NORMALIZATION.projectSchemaVersion
       );
       expect(
         restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
@@ -462,7 +472,14 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(86);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(87);
+    expect(
+      Object.keys(
+        expandMcpSurfaceCatalog(
+          removeMasterNormalizationMcpAdditions(MCP_SURFACE_SOURCE)
+        ).toolDefinitions
+      )
+    ).toHaveLength(86);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -1010,7 +1027,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: AUDIO_BUS_DUCKING.projectSchemaVersion,
+      projectSchemaVersion: MASTER_NORMALIZATION.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1077,6 +1094,7 @@ describe("canonical public contracts", () => {
       "audio_bus_dsp_v1",
       "audio_bus_ducking_v1",
       "audio_analysis_v1",
+      MASTER_NORMALIZATION.capability,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -1101,7 +1119,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: AUDIO_BUS_DUCKING.projectSchemaVersion,
+        projectSchemaVersion: MASTER_NORMALIZATION.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 44,
+  "headlessProtocolVersion": 1,
+  "operation": "audio_master_set_normalization",
+  "tool": "audio_master_set_normalization",
+  "capability": "audio_master_normalization_v1",
+  "bounds": {
+    "targetIntegratedLufs": [
+      -70,
+      -5
+    ],
+    "targetLoudnessRangeLu": [
+      1,
+      50
+    ],
+    "targetTruePeakDbtp": [
+      -9,
+      0
+    ]
+  },
+  "settingsExample": {
+    "enabled": true,
+    "targetIntegratedLufs": -16.0,
+    "targetLoudnessRangeLu": 7.0,
+    "targetTruePeakDbtp": -1.0
+  },
+  "disabledExample": {
+    "enabled": false,
+    "targetIntegratedLufs": -16.0,
+    "targetLoudnessRangeLu": 7.0,
+    "targetTruePeakDbtp": -1.0
+  },
+  "input": {
+    "operation": "audio_master_set_normalization",
+    "normalization": {
+      "enabled": true,
+      "targetIntegratedLufs": -16.0,
+      "targetLoudnessRangeLu": 7.0,
+      "targetTruePeakDbtp": -1.0
+    }
+  },
+  "changedIds": [
+    "master"
+  ],
+  "maximumProjectDurationMs": 600000,
+  "sampleRateHz": 48000,
+  "channels": 2,
+  "maximumFrames": 28800000,
+  "maximumPcmBytesPerFile": 230400000,
+  "maximumOwnedPcmFiles": 3,
+  "maximumCorrections": 1,
+  "requiredAdditionalFilters": [
+    "ebur128",
+    "ametadata"
+  ],
+  "targetIntegratedToleranceLu": 0.1,
+  "integratedMetadataResolutionLu": 0.001,
+  "truePeakReportResolutionDb": 0.01,
+  "originalNativeRmsTolerance": 0.0001,
+  "originalNativeSsimTolerance": 0.99,
+  "order": [
+    "canonical_source_item_component_event_clocks",
+    "routed_sum_gain_eq_compression_ducking_stereo_balance",
+    "complete_root_measured_master_normalization",
+    "exact_selected_sample_crop",
+    "codec"
+  ],
+  "integratedVerification": "actual complete-root precodec48kHzstereo ebur128 final lavfi.r128.I metadata; legacy fixed loudnorm inputI is not interchangeable",
+  "truePeakVerification": "actual complete-root precodecPCM fine fixed loudnorm inputTP; rounded linear EBU metadata is not a tight dB oracle",
+  "pregainDb": "min(0,-12-originalSamplePeakDbfs), identical first/second input attenuation, precision=double",
+  "silence": "exact original peak0 is identity",
+  "unmeasurableIntegrated": "short or very quiet with finite true peak: limiting-only gain<=1; no fabricated integrated target attainment",
+  "correction": "at most one finite EBU-derived constant correction admitted against actual fine true-peak headroom and followed by final full verification",
+  "infeasible": "FFMPEG_FAILED with no final artifact",
+  "nativeCases": [
+    "stereo_tone",
+    "silence",
+    "short_audible",
+    "very_quiet",
+    "above_full_scale",
+    "peak_limiting",
+    "dynamic_warm_root_ranges",
+    "routed_dsp_ducking",
+    "component_event_clocks",
+    "draft_frame_range_export_analysis",
+    "bounded_target_correction",
+    "infeasible_target_failure",
+    "selected_audio_resources",
+    "readiness_and_owned_failure_cleanup"
+  ],
+  "errors": {
+    "invalidModel": "INVALID_ARGUMENT",
+    "staleRevision": "REVISION_CONFLICT",
+    "missingProject": "PROJECT_NOT_FOUND",
+    "invalidAlias": "VALIDATION_FAILED",
+    "unavailable": "DEPENDENCY_UNAVAILABLE",
+    "processing": "FFMPEG_FAILED"
+  }
+}

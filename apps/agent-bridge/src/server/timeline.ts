@@ -41,6 +41,30 @@ export const registerTimelineTools = (
   { headless }: ServerDependencies
 ) => {
   server.registerTool(
+    "audio_master_set_normalization",
+    {
+      annotations: WRITE,
+      description:
+        "Set complete-root measured master loudness normalization and true-peak limiting shared by preview, export and analysis.",
+      inputSchema: schemas.audioMasterSetNormalization,
+      outputSchema: writeResultSchema,
+    },
+    async ({ projectId, expectedRevision, normalization }) => {
+      try {
+        return await invoke(
+          headless,
+          editRequest(projectId, expectedRevision, {
+            normalization,
+            operation: "audio_master_set_normalization",
+          }),
+          writeResultSchema
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
     "audio_bus_set_ducking",
     {
       annotations: WRITE,

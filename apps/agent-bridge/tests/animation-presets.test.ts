@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import type { HeadlessEdit } from "../src/headless-contract";
 import {
   animationPresetParametersSchema,
@@ -27,11 +27,11 @@ describe("canonical versioned animation presets", () => {
     ]);
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      audioBusDucking.projectSchemaVersion
+      masterNormalization.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PACK.projectSchemaVersion).toBe(
-      audioBusDucking.projectSchemaVersion
+      masterNormalization.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PACK).projectSchemaVersion).toBe(38);
   });

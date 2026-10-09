@@ -53,6 +53,7 @@ mod audio_bus_ducking;
 mod grids;
 mod inherited_timing;
 mod linear;
+mod master_normalization;
 mod raster_caching;
 mod repeaters;
 mod rich_text;
@@ -372,6 +373,7 @@ impl Drop for GoldenFixtureLock {
 
 pub(super) fn fixture_project() -> Project {
     let mut project = Project {
+        master_normalization: None,
         sound_definitions: Vec::new(),
         audio_buses: Vec::new(),
         markers: Vec::new(),

@@ -12,8 +12,8 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import catalog from "../../../contracts/group-compositing-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -234,7 +234,7 @@ fn main() {
         bStack = [particles, flash, blur];
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        audioBusDucking.projectSchemaVersion
+        masterNormalization.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       expect(status.capabilities).toContain("group_compositing_models_v1");

@@ -13,6 +13,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect, vi } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/audio-analysis-v1.json";
+import current from "../../../contracts/master-normalization-v1.json";
 import {
   audioAnalysisArtifactSchema,
   editDraftSchema,
@@ -32,7 +33,7 @@ export const verifyAudioAnalysisWorkflow = async (
   call: Call
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(43);
+  expect(status.projectSchemaVersion).toBe(current.projectSchemaVersion);
   expect(status.protocolVersion).toBe(1);
   expect(status.subsystems.rendering.capabilities).toContain(
     catalog.capability

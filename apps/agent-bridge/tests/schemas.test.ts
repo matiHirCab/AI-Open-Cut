@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import audioBuses from "../../../contracts/audio-buses-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import {
   normalizeProviderErrorCode,
   publicDescriptionFor,
@@ -36,7 +36,7 @@ describe("MCP contracts", () => {
         markers: [],
         name: "Visual properties",
         revision: 0,
-        schemaVersion: audioBusDucking.projectSchemaVersion,
+        schemaVersion: masterNormalization.projectSchemaVersion,
         settings: { fps: 30, height: 1080, width: 1920 },
         soundDefinitions: [],
         tracks: [

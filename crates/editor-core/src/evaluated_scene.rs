@@ -12,6 +12,7 @@ pub(crate) mod extended_certification;
 pub(crate) mod extended_visual;
 pub(crate) mod group_compositing;
 pub(crate) mod masks;
+pub(crate) mod master_normalization;
 pub(crate) mod mattes;
 #[cfg(test)]
 pub(crate) mod repeater_conformance;
@@ -109,6 +110,7 @@ pub(crate) fn evaluate_project(
     shapes::preflight_svg_documents(project)?;
     let mut result = evaluate_project_inner(project, width, height, fps, true, false)?;
     audio_bus_dsp::finalize(project, &mut result.scene)?;
+    master_normalization::finalize(project, &mut result.scene);
     if let Some(graph) = &mut result.scene.composition_resources {
         // Admit index, sidecar geometric capacity and temporary clone overlaps
         // before cloning any asset identity/hash/path strings.
@@ -518,6 +520,7 @@ fn evaluate_project_inner(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            master_normalization: None,
             audio_bus_graph: None,
             aggregates: None,
             composed_input: None,
@@ -603,6 +606,7 @@ fn evaluate_project_inner(
                 project_id: project.id.clone(),
                 revision: project.revision,
                 scene: EvaluatedScene {
+                    master_normalization: None,
                     audio_bus_graph: None,
                     aggregates: result.scene.aggregates.as_ref().map(|_| Default::default()),
                     composed_input: None,
@@ -1642,6 +1646,7 @@ impl InstanceTraversal<'_> {
             .as_ref()
             .map_or(0, |graph| graph.nodes.len());
         let mut local = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: self.project.audio_buses.clone(),
             markers: Vec::new(),
@@ -2471,6 +2476,9 @@ impl std::fmt::Debug for EvaluatedScene {
         value.field("resources", &self.resources);
         value.field("visual_layers", &self.visual_layers);
         value.field("audio_layers", &self.audio_layers);
+        if let Some(normalization) = &self.master_normalization {
+            value.field("master_normalization", normalization);
+        }
         if let Some(graph) = &self.audio_bus_graph {
             value.field("audio_bus_graph", graph);
         }
@@ -2483,6 +2491,7 @@ impl std::fmt::Debug for EvaluatedScene {
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct EvaluatedScene {
+    pub(crate) master_normalization: Option<master_normalization::EvaluatedMasterNormalization>,
     pub(crate) audio_bus_graph: Option<audio_bus_dsp::EvaluatedBusGraph>,
     pub(crate) aggregates: Option<group_compositing::AggregateGraph>,
     pub(crate) composed_input: Option<(String, u64)>,
@@ -3398,6 +3407,7 @@ fn evaluate_flat_project(
         project_id: project.id.clone(),
         revision: project.revision,
         scene: EvaluatedScene {
+            master_normalization: None,
             audio_bus_graph: None,
             aggregates: None,
             composed_input: None,
@@ -4554,6 +4564,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),

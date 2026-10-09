@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(43).optional(),
+    projectSchemaVersion: z.literal(44).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1950,6 +1950,13 @@ export const audioBusDuckingSchema = z.strictObject({
   sourceBusId: id,
 });
 
+export const masterNormalizationSchema = z.strictObject({
+  enabled: z.boolean(),
+  targetIntegratedLufs: finite.min(-70).max(-5),
+  targetLoudnessRangeLu: finite.min(1).max(50),
+  targetTruePeakDbtp: finite.min(-9).max(0),
+});
+
 export const audioBusDspSchema = z.strictObject({
   compressor: z
     .strictObject({
@@ -2027,7 +2034,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(43),
+        schemaVersion: z.literal(44),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2054,6 +2061,7 @@ export const projectStateSchema = z
         ),
         updatedAtMs: milliseconds,
       })
+      .extend({ masterNormalization: masterNormalizationSchema.optional() })
       .strict(),
   })
   .strict();
@@ -2139,6 +2147,10 @@ export const jobSchema = z
   .strict();
 
 export const headlessEditSchema = z.discriminatedUnion("operation", [
+  z.strictObject({
+    normalization: masterNormalizationSchema,
+    operation: z.literal("audio_master_set_normalization"),
+  }),
   z.strictObject({
     busId: id,
     ducking: audioBusDuckingSchema,
@@ -2605,6 +2617,9 @@ export const schemas = {
     .strict(),
   audioBusSetRoute: projectRevisionSchema
     .extend({ busId: id, outputBusId: id })
+    .strict(),
+  audioMasterSetNormalization: projectRevisionSchema
+    .extend({ normalization: masterNormalizationSchema })
     .strict(),
   audioTrackRoute: projectRevisionSchema
     .extend({ busId: id.nullable(), scope: audioBusScope, trackId: id })

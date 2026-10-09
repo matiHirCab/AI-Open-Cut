@@ -107,6 +107,7 @@ pub(crate) fn resolve_operation_aliases(
             }
         }
         EditOperation::AudioBusSetRoute { .. }
+        | EditOperation::AudioMasterSetNormalization { .. }
         | EditOperation::AudioBusSetDsp { .. }
         | EditOperation::AudioBusSetDucking { .. } => {}
         EditOperation::AudioTrackRoute {
@@ -472,6 +473,11 @@ fn apply_operation_inner(
                 variant_seed,
             })?;
             Ok((vec![event], "Registered sound event"))
+        }
+        EditOperation::AudioMasterSetNormalization { normalization } => {
+            normalization.validate()?;
+            project.master_normalization = Some(normalization);
+            Ok((vec!["master".into()], "Updated master normalization"))
         }
         EditOperation::AudioBusSetDucking { bus_id, ducking } => {
             let bus = project
@@ -2525,6 +2531,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),
             markers: Vec::new(),

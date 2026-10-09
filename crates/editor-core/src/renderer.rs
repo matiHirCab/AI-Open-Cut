@@ -7,6 +7,7 @@ use std::{
 use uuid::Uuid;
 
 mod audio_analysis;
+mod master_normalization;
 pub use audio_analysis::AudioAnalysisResult;
 
 use crate::{
@@ -956,7 +957,19 @@ impl Renderer {
         if finalized.audio_bus_graph.is_some() && !audio_bus_dsp_readiness_completed {
             self.audio_bus_processing_readiness(&finalized)?;
         }
+        let normalization_capture = if finalized.master_normalization.is_some() {
+            let audio =
+                crate::render_artifact::master_normalization::select_audio(&finalized, &media);
+            let plan = master_normalization::capture_plan(&finalized, audio)?;
+            self.master_normalization_readiness()?;
+            Some(plan)
+        } else {
+            None
+        };
         let workspace = RenderWorkspace::create(self.artifact_io.clone(), project_dir)?;
+        if let Some(plan) = normalization_capture {
+            self.prepare_master_normalization(&mut finalized, &plan, &workspace, &mut |_| {})?;
+        }
         let mut resources = prepare_render_resources(
             self.artifact_io.as_ref(),
             media,
@@ -1199,6 +1212,91 @@ mod tests {
         probe_error: bool,
         run_failure: Option<FakeRunFailure>,
         executions: Mutex<Vec<RenderIntent>>,
+    }
+
+    #[test]
+    fn unsupported_normalization_adapter_cannot_fabricate_preparation_or_create_work() {
+        let root = tempfile::tempdir().unwrap();
+        let core = crate::EditorCore::new(
+            crate::PathPolicy::new(
+                root.path().join("projects"),
+                [root.path()],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project(
+                "Unsupported normalization",
+                crate::ProjectSettings {
+                    width: 32,
+                    height: 32,
+                    fps: 24,
+                },
+            )
+            .unwrap()
+            .project_id;
+        let project = core.get_project(&id).unwrap();
+        core.edit(&id, 0, serde_json::from_value(serde_json::json!({"operation":"add_solid_color","trackId":project.tracks[1].id,"startMs":0,"durationMs":1000,"color":"#112233","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap()).unwrap();
+        let project = core.get_project(&id).unwrap();
+        let scene = crate::evaluated_scene::evaluate_project(&project, 32, 32, 24)
+            .unwrap()
+            .scene;
+        let plan = crate::render_plan::audio_analysis::build_audio_analysis_plan(
+            &scene,
+            vec![],
+            vec![],
+            crate::AudioAnalysisOptions {
+                start_ms: 0,
+                end_ms: 1000,
+                waveform_bins: 1,
+            },
+        )
+        .unwrap();
+        let settings: crate::MasterNormalization = serde_json::from_value(
+            serde_json::from_str::<serde_json::Value>(include_str!(
+                "../../../contracts/master-normalization-v1.json"
+            ))
+            .unwrap()["settingsExample"]
+                .clone(),
+        )
+        .unwrap();
+        let process = FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        };
+        let missing_backend = root.path().join("absent-backend");
+        process
+            .readiness(&missing_backend, &missing_backend)
+            .unwrap();
+        assert_eq!(
+            process
+                .master_normalization_readiness(&missing_backend)
+                .unwrap_err()
+                .code,
+            ErrorCode::DependencyUnavailable
+        );
+        let filter = root.path().join("uncreated-filter");
+        let workspace = root.path().join("uncreated-workspace");
+        assert_eq!(
+            process
+                .prepare_master_normalization(
+                    &missing_backend,
+                    &plan,
+                    &settings,
+                    &filter,
+                    &workspace,
+                    &mut |_| panic!("unsupported adapter must not publish progress")
+                )
+                .unwrap_err()
+                .code,
+            ErrorCode::DependencyUnavailable
+        );
+        assert!(!filter.exists());
+        assert!(!workspace.exists());
+        assert!(process.executions.lock().unwrap().is_empty());
     }
 
     impl ProcessExecutor for FakeProcess {
@@ -1504,6 +1602,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -2923,6 +3022,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3029,6 +3129,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3243,6 +3344,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3321,6 +3423,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3403,6 +3506,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3681,6 +3785,7 @@ mod tests {
             ],
         };
         let project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),
@@ -3993,6 +4098,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
             markers: Vec::new(),

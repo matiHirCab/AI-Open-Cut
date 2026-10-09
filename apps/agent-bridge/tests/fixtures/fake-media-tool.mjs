@@ -68,6 +68,9 @@ if (mode === "ffprobe") {
       ? `${legacy}aformat ... aresample ... atrim ... asetpts ... loudnorm ... volume ... afade ... atempo ... adelay ... anullsrc ... color ... nullsink ... `
       : legacy
   );
+  if (process.env.OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS === "1") {
+    console.log(" ... ebur128 ... ametadata ... ");
+  }
 } else if (args.at(-1) === "pipe:1" && args.includes("f32le")) {
   await hangAnalysisPass("pcm");
   // Deterministic silence backend for transport/lifetime tests. Native PCM and

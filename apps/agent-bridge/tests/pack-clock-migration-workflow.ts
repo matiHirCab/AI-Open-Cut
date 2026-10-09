@@ -3,8 +3,8 @@ import { join } from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -129,7 +129,7 @@ export const verifyPackClockMigrationWorkflow = async (
   writeFileSync(historyPath, JSON.stringify(oldHistory));
   const migrated = await read();
   expect(migrated.project.schemaVersion).toBe(
-    audioBusDucking.projectSchemaVersion
+    masterNormalization.projectSchemaVersion
   );
   expect(JSON.parse(readFileSync(projectPath, "utf8"))).toEqual(
     originalProject
@@ -222,7 +222,7 @@ export const verifyPackClockMigrationWorkflow = async (
   expect(
     [...retained.undo, ...retained.redo].every(
       (snapshot) =>
-        snapshot.schemaVersion === audioBusDucking.projectSchemaVersion
+        snapshot.schemaVersion === masterNormalization.projectSchemaVersion
     )
   ).toBe(true);
 };

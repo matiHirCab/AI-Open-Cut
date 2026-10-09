@@ -2,7 +2,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import CONTRACT from "../../../contracts/animation-channels-v1.json";
-import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -122,6 +122,6 @@ export const verifyAnimationEditWorkflow = async (
     duplicated.project.tracks[1]?.items
   );
   expect(reopened.project.schemaVersion).toBe(
-    audioBusDucking.projectSchemaVersion
+    masterNormalization.projectSchemaVersion
   );
 };

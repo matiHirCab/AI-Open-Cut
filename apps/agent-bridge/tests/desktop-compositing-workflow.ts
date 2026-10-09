@@ -14,6 +14,7 @@ import { z } from "zod";
 import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/desktop-compositing-controls-v1.json";
+import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import {
   projectStateSchema,
@@ -90,7 +91,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     const status = statusSchema.parse(await call("editor_get_status", {}));
     expect(catalog.projectSchemaVersion).toBe(38);
     expect(status.projectSchemaVersion).toBe(
-      audioBusDucking.projectSchemaVersion
+      masterNormalization.projectSchemaVersion
     );
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
@@ -102,6 +103,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
       "timeline_add_audio_event",
       "audio_bus_set_dsp",
       audioBusDucking.operation,
+      masterNormalization.tool,
       "audio_analyze_mix",
     ];
     expect(
@@ -350,7 +352,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(
       statusSchema.parse(await call("editor_get_status", {}))
         .projectSchemaVersion
-    ).toBe(audioBusDucking.projectSchemaVersion);
+    ).toBe(masterNormalization.projectSchemaVersion);
   } finally {
     await client.close();
     rmSync(root, { force: true, recursive: true });

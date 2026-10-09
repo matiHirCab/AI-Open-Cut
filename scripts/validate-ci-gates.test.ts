@@ -2295,3 +2295,25 @@ describe("audio analysis native coverage", () => {
     });
   }
 });
+
+describe("master normalization mandatory consumers", () => {
+  for (const consumer of [" --test master_normalization", " tests/master-normalization.test.ts", " tests/master-normalization-lifetime.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects normalization consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
+
+describe("master normalization native coverage", () => {
+  const command = "cargo test -p opencut-editor-core --lib renderer::golden::master_normalization::native_two_pass_master_normalization_targets_ranges_drafts_and_failure_conformance -- --exact --nocapture";
+  for (const replacement of ["", `${command} || true`]) {
+    it(`rejects missing or masked normalization native evidence: ${replacement}`, () => {
+      expect(() => validateCiGates(replaceRequired(workflow, command, replacement))).toThrow("render-parity native step must use the exact fail-closed command body");
+    });
+  }
+});

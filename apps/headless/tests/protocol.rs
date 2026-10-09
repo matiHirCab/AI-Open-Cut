@@ -8,6 +8,67 @@ fn headless_contract() -> Value {
 }
 
 #[test]
+fn master_normalization_typed_transport_is_backend_independent_closed_and_atomic() {
+    let h = Harness::new();
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/master-normalization-v1.json"
+    ))
+    .unwrap();
+    let id = result(&h.request(json!({"operation":"create_project","name":"Master controls"})))["projectId"].clone();
+    let mut request = headless_contract()["requests"]["masterNormalizationSet"].clone();
+    request["projectId"] = id.clone();
+    request["expectedRevision"] = json!(0);
+    let written = result(&h.request(request.clone()));
+    assert_eq!(written["revision"], 1);
+    assert_eq!(written["changedIds"], json!(["master"]));
+    let read = || result(&h.request(json!({"operation":"get_state","projectId":id})));
+    assert_eq!(
+        read()["project"]["masterNormalization"],
+        catalog["settingsExample"]
+    );
+    let before = h.project_files(id.as_str().unwrap());
+    assert_eq!(
+        event(&h.request(request.clone()))["error"]["code"],
+        "REVISION_CONFLICT"
+    );
+    request["expectedRevision"] = json!(1);
+    for invalid in [
+        Value::Null,
+        json!({"enabled":false}),
+        json!({"enabled":false,"targetIntegratedLufs":-16,"targetLoudnessRangeLu":7,"targetTruePeakDbtp":-1,"rawFilter":"injected"}),
+    ] {
+        request["edit"]["normalization"] = invalid;
+        assert_eq!(
+            event(&h.request(request.clone()))["error"]["code"],
+            "INVALID_ARGUMENT"
+        );
+        assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    }
+    let mut disabled = catalog["input"].clone();
+    disabled["normalization"] = catalog["disabledExample"].clone();
+    let draft = result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[disabled]})));
+    assert_eq!(
+        read()["project"]["masterNormalization"],
+        catalog["settingsExample"]
+    );
+    result(&h.request(json!({"operation":"commit_draft","projectId":id,"draftId":draft["id"],"expectedRevision":1})));
+    assert_eq!(
+        read()["project"]["masterNormalization"],
+        catalog["disabledExample"]
+    );
+    result(&h.request(json!({"operation":"undo","projectId":id,"expectedRevision":2})));
+    assert_eq!(
+        read()["project"]["masterNormalization"],
+        catalog["settingsExample"]
+    );
+    result(&h.request(json!({"operation":"redo","projectId":id,"expectedRevision":3})));
+    assert_eq!(
+        result(&h.request(json!({"operation":"open_project","projectId":id})))["project"],
+        read()["project"]
+    );
+}
+
+#[test]
 fn audio_analysis_closed_transport_revision_precedence_and_reopen_are_immutable() {
     let h = Harness::new();
     let id=result(&h.request(json!({"operation":"create_project","name":"Analysis protocol"})))["projectId"].clone();
@@ -121,7 +182,10 @@ fn audio_analysis_capability_requires_every_reviewed_filter() {
             missing.is_none(),
             "missing {missing:?}: {status}"
         );
-        assert_eq!(status["projectSchemaVersion"], 43);
+        assert_eq!(
+            status["projectSchemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
         assert_eq!(status["protocolVersion"], 1);
     }
 }
@@ -1897,8 +1961,10 @@ fn audio_bus_dsp_capability_requires_each_filter_without_disabling_base_renderin
             .unwrap()
             .iter()
             .filter(|capability| {
-                // These historical DSP/ducking probes omit analysis-only filters.
-                if **capability == json!("audio_analysis_v1") {
+                // These historical probes omit analysis/normalization-only filters.
+                if **capability == json!("audio_analysis_v1")
+                    || **capability == json!("audio_master_normalization_v1")
+                {
                     return false;
                 }
                 if **capability == json!("audio_bus_dsp_v1") {
@@ -2012,8 +2078,10 @@ fn audio_bus_ducking_capability_requires_each_filter_without_requiring_eq_compre
             .unwrap()
             .iter()
             .filter(|capability| {
-                // These historical DSP/ducking probes omit analysis-only filters.
-                if **capability == json!("audio_analysis_v1") {
+                // These historical probes omit analysis/normalization-only filters.
+                if **capability == json!("audio_analysis_v1")
+                    || **capability == json!("audio_master_normalization_v1")
+                {
                     return false;
                 }
                 if **capability == json!("audio_bus_dsp_v1") {
@@ -4117,4 +4185,96 @@ fn timeline_audio_events_typed_marker_alias_draft_rollback_history_and_fresh_pro
     let reopened = result(&h.request(json!({"operation":"open_project","projectId":id})));
     assert_eq!(reopened["project"], read()["project"]);
     assert_eq!(reopened["project"]["revision"], 5);
+}
+
+#[test]
+fn master_normalization_capability_requires_every_reviewed_filter() {
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/master-normalization-v1.json"
+    ))
+    .unwrap();
+    let legacy: Value =
+        serde_json::from_str(include_str!("../../../contracts/audio-analysis-v1.json")).unwrap();
+    let filters: Vec<Value> = legacy["requiredFilters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(catalog["requiredAdditionalFilters"].as_array().unwrap())
+        .cloned()
+        .collect();
+    for missing in filters.iter().map(Some).chain(std::iter::once(None)) {
+        let h = Harness::new();
+        let base = [
+            "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad",
+            "crop", "format",
+        ];
+        let names = base
+            .iter()
+            .copied()
+            .chain(filters.iter().map(|v| v.as_str().unwrap()))
+            .filter(|v| missing.is_none_or(|m| m.as_str() != Some(*v)))
+            .collect::<Vec<_>>();
+        let executable = h.root.path().join(if cfg!(windows) {
+            "normalization-filters.cmd"
+        } else {
+            "normalization-filters.sh"
+        });
+        let script = if cfg!(windows) {
+            format!(
+                "@echo off\r\n{}\r\n",
+                names
+                    .iter()
+                    .map(|n| format!("echo  {n} "))
+                    .collect::<Vec<_>>()
+                    .join("\r\n")
+            )
+        } else {
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' {}\n",
+                names
+                    .iter()
+                    .map(|n| format!("' {n} '"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        std::fs::write(&executable, script).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let mut child = Command::new(env!("CARGO_BIN_EXE_opencut-headless"))
+            .env("OPENCUT_PROJECTS_DIR", h.root.path().join("projects"))
+            .env("OPENCUT_ALLOWED_MEDIA_DIRS", h.root.path().join("media"))
+            .env("OPENCUT_EXPORTS_DIR", h.root.path().join("exports"))
+            .env("OPENCUT_FFMPEG_PATH", &executable)
+            .env("OPENCUT_FFPROBE_PATH", &executable)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::io::Write::write_all(
+            &mut child.stdin.take().unwrap(),
+            serde_json::to_string(&json!({"operation":"status"}))
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        let status = result(&child.wait_with_output().unwrap());
+        let capabilities = status["subsystems"]["rendering"]["capabilities"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            capabilities.contains(&json!("audio_master_normalization_v1")),
+            missing.is_none(),
+            "missing {missing:?}: {status}"
+        );
+        assert_eq!(
+            status["projectSchemaVersion"],
+            opencut_editor_core::PROJECT_SCHEMA_VERSION
+        );
+        assert_eq!(status["protocolVersion"], 1);
+    }
 }
