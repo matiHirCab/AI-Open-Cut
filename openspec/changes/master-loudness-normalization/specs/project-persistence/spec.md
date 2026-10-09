@@ -23,4 +23,3 @@ The editor core MUST recover a valid interrupted transaction deterministically u
 #### Scenario: Preserve actual transaction failures and entry ownership
 - **WHEN** a recognized UUID-suffixed transaction temporary entry cannot be inspected or removed, or is a directory or symlink
 - **THEN** inspection/removal errors remain non-retryable PROJECT_RECOVERY_FAILED while directories/symlinks remain untouched and ordinary recognized files are durably removed
-
