@@ -51,3 +51,9 @@ Final prearchive strict validation56/56pass (/tmp/opencut-spec-all-prearchive-v2
 Final implementation conformance verified via openspec-verify-change: all7requirements/12scenarios covered; no behavior/design/coverage mismatch. Default headless restoration83pass (/tmp/opencut-headless-default-final.log). Archival/postarchive local validation now passes; remote-CI/publication remain pending and are not inferred complete from local test success.
 
 Both delta capabilities synchronized and change archived2026-10-09. Postarchive Moon gate and pinned strict-all57/57pass (/tmp/opencut-openspec-postarchive-final.log, /tmp/opencut-spec-all-postarchive-final.log). Task5.5 remains unchecked only for remote exact-head required CI acceptance; task6.1 is publication-pending.
+
+## CI repair follow-up (2026-10-09)
+
+- [x] Diagnose exact original-head correctness logs on all three operating systems. Strict Clippy rejects the constant-size PCM chunk iterator before unit tests; this is distinct from the historical main Windows readiness failure.
+- [x] Preserve N6/N7 byte decoding, alignment assertion, independent references and thresholds with `as_chunks::<4>()` on pinned Rust 1.97.0; no warning suppression or public behavior change.
+- [ ] Verify and push the repaired exact head, then record required remote CI acceptance. Draft PR #165 already exists; no duplicate PR, merge or deployment is authorized.

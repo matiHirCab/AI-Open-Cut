@@ -124,8 +124,10 @@ fn decoded_pcm(tools: &NativeTools, path: &Path) -> Vec<f32> {
     assert_eq!(output.stdout.len() % 4, 0);
     output
         .stdout
-        .chunks_exact(4)
-        .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|v| f32::from_le_bytes(*v))
         .collect()
 }
 fn encoded_reference(tools: &NativeTools, root: &Path) -> Vec<f32> {

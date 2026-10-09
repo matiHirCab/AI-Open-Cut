@@ -191,3 +191,11 @@ All local required checks pass. Remote exact-head CI and draft-PR publication
 remain acceptance blockers; task5.5's remote-CI portion and task6.1 remain unchecked.
 The approved task/design lifecycle authorizes archiving verified behavior before
 external publication; no pending external result is fabricated as completed.
+
+## CI repair follow-up (2026-10-09)
+
+Original head `124a73533a5feaed406985c7ecd16d733a18b157`, CI run `37958536586`: Linux job `113915152790`, Windows `113915152942` and macOS `113915153009` all fail `chunks_exact_to_as_chunks` at `renderer/golden/narration_fixture.rs:127`. Their Rust tests are skipped after Clippy, so these logs do not establish a readiness-test regression. The synthetic merge checkout pairs this head with main `c0031b6011a9000ba698bb105ecd0a122d29a625`.
+
+The approved N6/N7 test helper now reads complete `[u8; 4]` chunks and decodes each with the same `f32::from_le_bytes`. The existing length-divisibility assertion remains. Complete-chunk iteration and any trailing-byte exclusion remain equivalent. Rust's array chunk methods are stable since 1.88, below pinned 1.97. No fixture, oracle, threshold, test selection, timeout or warning policy changes.
+
+Repair conformance review follows `openspec-verify-change`: scope is the archived approved native-evidence tasks, N6/N7 requirements and design decision 4. Completeness of external CI acceptance remains pending; correctness and coherence have no repair-specific mismatch. This is agent review, not independent human approval. Full logs are uncommitted under `/tmp/opencut-ci-logs/`; final committed-head validation and remote results will be reported separately.
