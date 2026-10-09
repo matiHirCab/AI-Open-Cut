@@ -442,14 +442,15 @@ fn native_worker_reuses_rasters_across_requests_and_restarts_cold() {
 #[cfg(windows)]
 #[test]
 fn crashed_worker_terminates_renderer_descendants() {
-    exercise_windows_crash_fixture(false);
+    exercise_windows_crash_fixture("native");
     if std::env::var("OPENCUT_WINDOWS_STARTUP_COMPARISON").as_deref() == Ok("1") {
-        exercise_windows_crash_fixture(true);
+        exercise_windows_crash_fixture("original");
+        exercise_windows_crash_fixture("instrumented");
     }
 }
 
 #[cfg(windows)]
-fn exercise_windows_crash_fixture(instrumented: bool) {
+fn exercise_windows_crash_fixture(fixture: &str) {
     use opencut_editor_core::{EditorCore, PathPolicy, ProjectSettings};
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::{
@@ -463,13 +464,26 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
     let pid_file = root.path().join("renderer.pid");
     let tool = root.path().join("fake-ffmpeg.cmd");
     let shell_entry = root.path().join("fixture-shell-entry.log");
-    let powershell_stderr = root.path().join("fixture-powershell.stderr");
-    let script = if instrumented {
+    let renderer_stderr = root.path().join(if fixture == "native" {
+        "fixture-native.stderr"
+    } else {
+        "fixture-powershell.stderr"
+    });
+    let script = if fixture == "native" {
+        let executable = render_worker_startup::compile_native_renderer(root.path());
+        format!(
+            "@echo off\r\necho shell-entered>> \"{}\"\r\nif \"%1\"==\"-version\" (echo ffmpeg version 7.1.1 & exit /b 0)\r\n\"{}\" \"{}\" 2>\"{}\"\r\n",
+            shell_entry.display(),
+            executable.display(),
+            pid_file.display(),
+            renderer_stderr.display()
+        )
+    } else if fixture == "instrumented" {
         format!(
             "@echo off\r\necho shell-entered>> \"{}\"\r\nif \"%1\"==\"-version\" (echo ffmpeg version 7.1.1 & exit /b 0)\r\npowershell.exe -NoProfile -NonInteractive -Command \"$PID | Set-Content -LiteralPath '{}'; Start-Sleep -Seconds 120\" 2>\"{}\"\r\n",
             shell_entry.display(),
             pid_file.display(),
-            powershell_stderr.display()
+            renderer_stderr.display()
         )
     } else {
         // Keep the exact original fixture body for a controlled native comparison.
@@ -519,11 +533,11 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
             }
             assert!(
                 !failed,
-                "worker terminated or mismatched the renderer request before PID observation; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+                "worker terminated or mismatched the renderer request before PID observation; fixture={fixture}; elapsed={:?}; {}; {}; PID record: {}",
                 started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
-                    &powershell_stderr,
+                    &renderer_stderr,
                     &events,
                     events_truncated,
                     &worker.diagnostics.lock().unwrap()
@@ -541,11 +555,11 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
                     std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
                 ) || error.raw_os_error() == Some(32) => {}
             Err(error) => panic!(
-                "{error}; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+                "{error}; fixture={fixture}; elapsed={:?}; {}; {}; PID record: {}",
                 started.elapsed(),
                 render_worker_startup::evidence(
                     &shell_entry,
-                    &powershell_stderr,
+                    &renderer_stderr,
                     &events,
                     events_truncated,
                     &worker.diagnostics.lock().unwrap()
@@ -556,11 +570,11 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "renderer PID record never became readable; instrumented={instrumented}; elapsed={:?}; {}; {}; PID record: {}",
+            "renderer PID record never became readable; fixture={fixture}; elapsed={:?}; {}; {}; PID record: {}",
             started.elapsed(),
             render_worker_startup::evidence(
                 &shell_entry,
-                &powershell_stderr,
+                &renderer_stderr,
                 &events,
                 events_truncated,
                 &worker.diagnostics.lock().unwrap()
@@ -576,7 +590,7 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
         .parse()
         .unwrap();
     eprintln!(
-        "native startup observation: instrumented={instrumented}; elapsed={:?}; renderer PID={pid}; {}",
+        "native startup observation: fixture={fixture}; elapsed={:?}; renderer PID={pid}; {}",
         started.elapsed(),
         render_worker_startup::process_evidence(worker.child.id())
     );

@@ -51,8 +51,9 @@ time. Component times are definition-local, not inferred root instance times.
 Bus summaries report authored settings; they do not claim measured effective DSP
 output. All four currently supported buses fit within the 16-summary bound.
 Refresh, item selection, undo/redo and reopening clear narration cursor state.
-The desktop preview remains the existing placeholder; native media verification
-uses the renderer, not this placeholder.
+Use the Cues and Audio inspector tabs and core-backed frame/range controls in
+[Desktop review](../desktop-review.md). The independent native audiovisual
+oracle and this synthetic recipe remain unchanged.
 
 ## Independent verification
 

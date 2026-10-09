@@ -13,6 +13,31 @@ pub struct ProcessRecord {
     pub name: String,
 }
 
+#[cfg(any(windows, test))]
+pub fn compile_native_renderer(root: &Path) -> std::path::PathBuf {
+    let source = root.join("native-renderer-fixture.rs");
+    let executable = root.join(if cfg!(windows) {
+        "native-renderer-fixture.exe"
+    } else {
+        "native-renderer-fixture"
+    });
+    std::fs::write(&source, include_str!("native_renderer_fixture.rs")).unwrap();
+    let output =
+        std::process::Command::new(std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into()))
+            .arg("--edition=2024")
+            .arg(&source)
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .expect("compile test-owned native renderer with the pinned toolchain");
+    assert!(
+        output.status.success(),
+        "native fixture compilation failed: {}",
+        bounded(&output.stderr)
+    );
+    executable
+}
+
 fn descendants(root: u32, records: &[ProcessRecord]) -> (Vec<ProcessRecord>, bool) {
     let mut owned = std::collections::BTreeSet::from([root]);
     let mut result = Vec::new();
@@ -131,15 +156,15 @@ fn file_evidence(path: &Path) -> String {
 
 pub fn evidence(
     shell_entry: &Path,
-    powershell_stderr: &Path,
+    renderer_stderr: &Path,
     events: &[Value],
     events_truncated: bool,
     worker_stderr: &str,
 ) -> String {
     let mut result = format!(
-        "fixture shell entry: {}; fixture PowerShell stderr: {}; worker stderr: {}; worker events:",
+        "fixture shell entry: {}; fixture renderer stderr: {}; worker stderr: {}; worker events:",
         file_evidence(shell_entry),
-        file_evidence(powershell_stderr),
+        file_evidence(renderer_stderr),
         bounded(worker_stderr.as_bytes())
     );
     for event in events.iter().take(EVENT_LIMIT) {
@@ -160,6 +185,44 @@ pub fn pid_evidence(path: &Path) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn native_renderer_publishes_own_live_pid_and_rejects_extra_arguments() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = compile_native_renderer(root.path());
+        let pid_file = root.path().join("native.pid");
+        let mut child = std::process::Command::new(&executable)
+            .arg(&pid_file)
+            .spawn()
+            .unwrap();
+        let started = std::time::Instant::now();
+        let observed = loop {
+            if let Ok(record) = std::fs::read_to_string(&pid_file) {
+                break Some(record);
+            }
+            if started.elapsed() >= std::time::Duration::from_secs(10) {
+                break None;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        let alive = child.try_wait().unwrap().is_none();
+        child.kill().unwrap();
+        child.wait().unwrap();
+        assert_eq!(
+            observed.as_deref(),
+            Some(format!("{}\n", child.id()).as_str())
+        );
+        assert!(alive, "fixture must remain alive until owned cleanup");
+        let invalid_pid = root.path().join("invalid.pid");
+        let invalid = std::process::Command::new(&executable)
+            .arg(&invalid_pid)
+            .arg("unexpected")
+            .output()
+            .unwrap();
+        assert!(!invalid.status.success());
+        assert!(!invalid_pid.exists());
+        assert!(!invalid_pid.with_extension("pending").exists());
+    }
 
     #[test]
     fn typed_failure_preserves_owned_startup_and_worker_evidence() {
@@ -188,7 +251,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let output = evidence(&root.path().join("missing"), root.path(), &[], false, "");
         assert!(output.contains("fixture shell entry: missing"));
-        assert!(output.contains("fixture PowerShell stderr: unreadable"));
+        assert!(output.contains("fixture renderer stderr: unreadable"));
     }
 
     #[test]

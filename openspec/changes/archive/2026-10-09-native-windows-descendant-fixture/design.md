@@ -1,0 +1,5 @@
+## Decision
+Compile a tiny checked-in test fixture with the pinned Rust compiler into the owned temporary directory before worker startup. The batch wrapper retains the worker -> cmd -> renderer descendant chain and version probe. The native child atomically publishes a newline-terminated decimal own PID then sleeps120 seconds, eliminating PowerShell interpreter initialization from the standard containment test. A portable fixture test checks live own-PID publication and invalid-argument failure, always killing/waiting owned children. Compilation/publication failures are fatal, not skips.
+
+## Evidence limits
+The original PowerShell failure occurs before publication; its specific interpreter/environment cause remains unresolved. The focused flag runs native, exact original and instrumented controls sequentially; each retains startup/cleanup assertions and bounded diagnostics. Linux fixture protocol proof is not Windows Job Object proof. Preserve old CI failure evidence, and require unchanged full Windows correctness/foundation plus focused checks on the repaired head.
