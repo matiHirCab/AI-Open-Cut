@@ -103,7 +103,7 @@ fn native_preview_cache_preserves_frozen_av_references_dependencies_and_metadata
     // when authored binding paths and the immutable Project are identical.
     let media = root.path().join("assets/tone.wav");
     let mut samples = fs::read(&media).unwrap();
-    for sample in samples[44..].chunks_exact_mut(2) {
+    for sample in samples[44..].as_chunks_mut::<2>().0 {
         let value = i16::from_le_bytes([sample[0], sample[1]]) / 2;
         sample.copy_from_slice(&value.to_le_bytes());
     }

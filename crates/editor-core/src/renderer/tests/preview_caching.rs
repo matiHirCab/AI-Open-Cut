@@ -431,7 +431,7 @@ fn preview_cache_native_avoids_final_execution_and_keeps_export_uncached() {
     };
     let cold_pixels = decode(&frame);
     assert_eq!(decode(&warm), cold_pixels);
-    for pixel in cold_pixels.chunks_exact(3) {
+    for pixel in cold_pixels.as_chunks::<3>().0 {
         for (actual, expected) in pixel.iter().zip([17i16, 34, 51]) {
             assert!((*actual as i16 - expected).abs() <= 1);
         }

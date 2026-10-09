@@ -21,3 +21,10 @@
 - [ ] 3.5 Commit/push verified branch and open a draft PR targeting main; report publication/CI blockers; do not merge or deploy.
 
 Local implementation, required checks, sync/archive and protected postarchive are complete. Task3.5 stays unchecked until draft publication exists; GitHub API/remote CI is blocked by the environment policy. No merge or deployment is authorized.
+
+## CI repair and predecessor reconciliation (2026-10-09)
+
+- [x] Diagnose exact original-head Linux/macOS/Windows logs: strict Clippy rejects constant-size sample/pixel chunk iterators before unit tests.
+- [x] Preserve P2/P7 independent PCM mutations and RGB assertions using pinned-toolchain array chunks, without weakening any reference or threshold.
+- [ ] Merge the verified repaired #165 predecessor while retaining both original heads and targeting main; validate and push the combined exact head to existing draft PR #166.
+- [ ] Record exact-head required remote CI acceptance. No duplicate PR, merge to main or deployment is authorized.

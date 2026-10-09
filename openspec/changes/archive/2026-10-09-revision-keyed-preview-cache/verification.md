@@ -71,3 +71,11 @@ The final completeness/correctness/coherence review traces every normative scena
 Verified behavior is synchronized into `openspec/specs/preview-artifact-caching/spec.md` and archived here. Protected postarchive `/tmp/opencut-issue72-protected-postarchive.log` and pinned strict-all `/tmp/opencut-issue72-spec-postarchive.log` pass56/56. All503 protected policy tests pass. Commit/push and exact committed-head protected validation follow; draft creation and remote exact-head CI remain unconfirmed while the API is denied.
 
 GitHub API remains denied: runtime revision7 still excludes api.github.com. Git pushes are available. Draft creation and exact-head live CI cannot be claimed until permitted API access is active. This report is agent conformance review, not independent human/CODEOWNER approval.
+
+## CI repair follow-up (2026-10-09)
+
+Original head `ea7c84c009ca9afa65dd553e2ff1c88c40d00d94`, CI run `37958555135`: Linux job `113915215184`, macOS `113915215152` and Windows `113915215237` fail `chunks_exact_to_as_chunks` at `renderer/golden/preview_caching.rs:106` and `renderer/tests/preview_caching.rs:434`. Rust tests are skipped after strict Clippy. The synthetic merge pairs this head with main `c0031b6011a9000ba698bb105ecd0a122d29a625`.
+
+The approved P2/P7 helpers now iterate complete mutable `[u8; 2]` PCM samples and immutable `[u8; 3]` RGB pixels. Sample halving, byte order, frozen references, RGB assertions, all thresholds and all required test selections remain unchanged. Partial trailing chunks remain excluded, matching the original exact-chunk iterator. Array chunk methods are stable since Rust 1.88 and supported by the pinned Rust 1.97 toolchain. No warning suppression, configuration or public contract change.
+
+Repair conformance review follows `openspec-verify-change`: archived tasks 2.1/2.5 and P2/P7 cover these helpers; design decisions 2/6 and independent reference requirements remain coherent. External CI acceptance remains incomplete and this report is agent review, not independent human approval. Full uncommitted repair logs are under `/tmp/opencut-ci-logs/`; combined final-head validation and CI results will be reported separately.
