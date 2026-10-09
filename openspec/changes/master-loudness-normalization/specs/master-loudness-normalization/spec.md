@@ -136,6 +136,10 @@ Every original-capture/measurement/measured-processing/verification/optional-cor
 - **WHEN** a lifecycle case first completes one real cold normalization request and then arms each owned phase for cancellation, deadline or shutdown
 - **THEN** the cold request proves successful finite frame completion without changing current/history, controlled work proves actual backend/descendant entry and exact PID absence under the unchanged1500ms phase wait and2000ms deadline, and the previously completed analysis JSON plus unrelated outputs remain byte-identical with all original nine-phase and twenty-seven-mode cases retained
 
+#### Scenario: Separately bound cold preparation and controlled lifecycle execution
+- **WHEN** each of the twenty-seven lifecycle cases creates its fresh project and proves cold completion before exercising its owned phase
+- **THEN** preparation has its own explicit5000ms hook limit and any setup failure fails the corresponding case, while controlled execution retains the original5000ms test limit,1500ms entry wait,2000ms deadline, exact PID absence, immutable prior outputs, actual overlap and successful reuse without retries or shared fixtures
+
 ### Requirement: Independently governed additive normalization contracts
 Unique audio_master_set_normalization/tool/capability audio_master_normalization_v1 and schema44 reporting SHALL agree across manually authored canonical contracts and all governed Rust/headless/TS/Zod/MCP consumers; protocol1 and every previous operation remain valid. Final all11-verified68 committed raw catalogs/pure expanded86tools MUST be captured before producers; manually reviewed87tool additions and rollback SHALL preserve all prior raw/digest/count/numeric oracles. Complete unchanged implementation/native/source/release-package/policy omission/failure-masking checks, transparent substantive CODEOWNER-role COMMENT, guarded owning-delta archive/protected Moon/strict validation and final all11 exact-head/startup/tree/full-log evidence MUST precede completion or70 implementation. Each draft PR SHALL target main and cumulative successor lineage/merge order remain explicit.
 

@@ -10,7 +10,7 @@ import {
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import catalog from "../../../contracts/master-normalization-v1.json";
 import { loadBridgeConfig } from "../src/config";
 import { HeadlessClient } from "../src/headless";
@@ -149,17 +149,16 @@ afterEach(async (context) => {
   );
 });
 
-it.each(
-  phases.flatMap((phase) =>
-    ["cancel", "deadline", "shutdown"].map((mode) => ({ mode, phase }))
-  )
-)(
-  "reaps actual normalization $phase backend and descendants for $mode",
-  async ({ phase, mode }) => {
-    const { dir, client, request, persisted } = await create();
+describe("controlled normalization phase lifetime", () => {
+  let prepared: Awaited<ReturnType<typeof create>> & {
+    before: Buffer[];
+    completedOutputs: Record<string, Buffer>;
+  };
+  beforeEach(async () => {
+    const fixture = await create();
+    const { dir, client, request, persisted } = fixture;
     const before = persisted();
-    // Prove the cold request before arming a specific owned phase. Keep the
-    // phase-entry/deadline limits unchanged and preserve its real output.
+    // Bound cold setup separately; the controlled operation keeps all limits.
     const cold = await client.call(request, audioAnalysisResultSchema);
     expect(cold.summary.frameCount).toBe(48_000);
     expect(persisted()).toEqual(before);
@@ -173,75 +172,89 @@ it.each(
     expect(completedOutputs["published.png"]?.toString()).toBe(
       "published unrelated file"
     );
-    const control = join(dir, ".normalization-test-phase");
-    writeFileSync(control, phase);
-    const controller = new AbortController();
-    const pending = client.call(request, audioAnalysisResultSchema, {
-      requestId: "normalization-owned",
-      signal: controller.signal,
-      ...(mode === "deadline" ? { timeoutMs: 2000 } : {}),
-    });
-    const outcome = pending.then(
-      () => ({ code: "UNEXPECTED_SUCCESS" }),
-      (error: unknown) => error
-    );
-    const pidFile = join(dir, `.normalization-test-${phase}.pid`);
-    await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), {
-      timeout: 1500,
-    });
-    const pids = JSON.parse(readFileSync(pidFile, "utf8")) as {
-      backend: number;
-      descendant: number;
-    };
-    const overlap =
-      mode === "shutdown"
-        ? null
-        : client
-            .call(
-              { operation: "get_state", projectId: request.projectId },
-              projectStateSchema
-            )
-            .then(
-              (state) => ({ error: null, state }),
-              (error: unknown) => ({ error, state: null })
-            );
-    if (mode === "cancel") {
-      controller.abort();
-    } else if (mode === "shutdown") {
-      await client.close();
-    }
-    expect(await outcome).toMatchObject({
-      code: mode === "deadline" ? "HEADLESS_TIMEOUT" : "JOB_CANCELLED",
-    });
-    await vi.waitFor(() => {
-      expect(() => process.kill(pids.backend, 0)).toThrow();
-      expect(() => process.kill(pids.descendant, 0)).toThrow();
-    });
-    expect(
-      readdirSync(dir).filter((name) => name.startsWith(".opencut-work-"))
-    ).toEqual([]);
-    expect(readFileSync(join(dir, "previews/published.png"), "utf8")).toBe(
-      "published unrelated file"
-    );
-    expect(
-      Object.fromEntries(
-        readdirSync(previews)
-          .sort()
-          .map((name) => [name, readFileSync(join(previews, name))])
-      )
-    ).toEqual(completedOutputs);
-    expect(persisted()).toEqual(before);
-    if (overlap) {
-      const overlappingResult = await overlap;
-      expect(overlappingResult.error).toBeNull();
-      expect(overlappingResult.state?.project.revision).toBe(1);
-      writeFileSync(control, "");
-      const recovered = await client.call(request, audioAnalysisResultSchema);
-      expect(recovered.summary.frameCount).toBe(48_000);
+    prepared = { ...fixture, before, completedOutputs };
+  }, 5000);
+
+  it.each(
+    phases.flatMap((phase) =>
+      ["cancel", "deadline", "shutdown"].map((mode) => ({ mode, phase }))
+    )
+  )(
+    "reaps actual normalization $phase backend and descendants for $mode",
+    async ({ phase, mode }) => {
+      const { dir, client, request, persisted, before, completedOutputs } =
+        prepared;
+      const previews = join(dir, "previews");
+      const control = join(dir, ".normalization-test-phase");
+      writeFileSync(control, phase);
+      const controller = new AbortController();
+      const pending = client.call(request, audioAnalysisResultSchema, {
+        requestId: "normalization-owned",
+        signal: controller.signal,
+        ...(mode === "deadline" ? { timeoutMs: 2000 } : {}),
+      });
+      const outcome = pending.then(
+        () => ({ code: "UNEXPECTED_SUCCESS" }),
+        (error: unknown) => error
+      );
+      const pidFile = join(dir, `.normalization-test-${phase}.pid`);
+      await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), {
+        timeout: 1500,
+      });
+      const pids = JSON.parse(readFileSync(pidFile, "utf8")) as {
+        backend: number;
+        descendant: number;
+      };
+      const overlap =
+        mode === "shutdown"
+          ? null
+          : client
+              .call(
+                { operation: "get_state", projectId: request.projectId },
+                projectStateSchema
+              )
+              .then(
+                (state) => ({ error: null, state }),
+                (error: unknown) => ({ error, state: null })
+              );
+      if (mode === "cancel") {
+        controller.abort();
+      } else if (mode === "shutdown") {
+        await client.close();
+      }
+      expect(await outcome).toMatchObject({
+        code: mode === "deadline" ? "HEADLESS_TIMEOUT" : "JOB_CANCELLED",
+      });
+      await vi.waitFor(() => {
+        expect(() => process.kill(pids.backend, 0)).toThrow();
+        expect(() => process.kill(pids.descendant, 0)).toThrow();
+      });
+      expect(
+        readdirSync(dir).filter((name) => name.startsWith(".opencut-work-"))
+      ).toEqual([]);
+      expect(readFileSync(join(dir, "previews/published.png"), "utf8")).toBe(
+        "published unrelated file"
+      );
+      expect(
+        Object.fromEntries(
+          readdirSync(previews)
+            .sort()
+            .map((name) => [name, readFileSync(join(previews, name))])
+        )
+      ).toEqual(completedOutputs);
       expect(persisted()).toEqual(before);
+      if (overlap) {
+        const overlappingResult = await overlap;
+        expect(overlappingResult.error).toBeNull();
+        expect(overlappingResult.state?.project.revision).toBe(1);
+        writeFileSync(control, "");
+        const recovered = await client.call(request, audioAnalysisResultSchema);
+        expect(recovered.summary.frameCount).toBe(48_000);
+        expect(persisted()).toEqual(before);
+      }
     }
-  }
-);
+  );
+});
 
 it("runs every measured/correction phase and reuses real request workers without persistent coefficients", async () => {
   const { dir, client, request, persisted } = await create();
