@@ -1,0 +1,5 @@
+# Design
+
+Use Bun build --compile for the already-written probe fixture, producing headless.exe on Windows and headless elsewhere. Direct child_process.spawn remains unchanged, avoiding shell quoting and Windows batch-launch assumptions. Capture at most the last 16KiB of bridge stderr before connection; report structured job status and that tail when readiness fails, retaining the original not-failed and PID assertions. Keep signal, 3s disposal deadline, 10s inference deadline and all existing cleanup assertions unchanged. Compile failure is fatal, not a skip. This change addresses pre-signal evidence only; remote Windows results must resolve any later lifecycle failure.
+
+Windows Node process.kill(SIGTERM) unconditionally terminates its target (https://nodejs.org/api/process.html), so it cannot exercise the bridge handler. Preserve the POSIX SIGTERM regression and exercise the existing stdin-end shutdown entry on all platforms, including Linux, with the identical active-inference, 3s cleanup and 10s inference assertions. Own the child streams in the test and use the SDK public generic JSON-RPC stream transport, without private SDK access or product changes.

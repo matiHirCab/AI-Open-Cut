@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 
@@ -20,6 +21,8 @@ for line in sys.stdin:
                                    "sentence": False, "supported": True, "word": True},
         }
     elif request.get("operation") == "transcribe":
+        if request.get("path") == "__timeout_transcription__.wav":
+            time.sleep(2)
         result = {
             "language": request.get("language") or "en",
             "durationMs": 1000,
@@ -31,6 +34,10 @@ for line in sys.stdin:
             }],
         }
     elif request.get("operation") == "align":
+        if request.get("knownText") == "__shutdown_alignment__":
+            with open(os.environ["OPENCUT_TEST_TRANSCRIPTION_PID_PATH"], "w") as pid_file:
+                pid_file.write(str(os.getpid()))
+            time.sleep(60)
         if request.get("knownText") == "__slow_alignment__":
             time.sleep(0.2)
         if request.get("knownText") == "__timeout_alignment__":

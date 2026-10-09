@@ -82,7 +82,11 @@ Run `powershell -ExecutionPolicy Bypass -File .\apps\faster-whisper\setup.ps1` f
 
 `transcription_preview` is a cancellable job that returns segments and an expiring token without editing. `transcription_commit_preview` atomically creates caption items—and a caption track if needed—while preserving recognized text and provider/model/language provenance. Revision conflicts retain the token. `transcription_get_status`, `transcription_estimate`, and `transcription_discard_preview` cover readiness, zero-cost estimates, and cleanup.
 
+Alignment and transcription share one bounded FIFO. Cancellation and timeout retire and reap the affected worker before queued or immediate successor inference starts; callers do not need a retry delay. Direct provider `close()` intentionally drains active inference, rejects new work, and then reaps the worker. Bridge signal shutdown first cancels cancellable jobs, so it interrupts active inference before invoking graceful provider disposal.
+
 The default `bun run test`/`moon run agent-bridge:test` suite is hermetic: it does not use `dist`, a release headless binary, FFmpeg, network access, Kokoro weights, or the real model environment. `test-integration` runs the source bridge against an explicitly built debug headless binary and the fake speech provider. `test-smoke` always builds release headless and a compiled bridge into a new temporary directory before exercising them, so stale or locked canonical `dist` artifacts cannot be selected. `test-tts-real` is opt-in and outside CI.
+
+Source and packaged conformance clients use the SDK's bundled JSON Schema interpreter with all-error reporting and exact-schema memoization. This keeps full published output validation, formats and workflow assertions while avoiding generated-validator compiler allocation on the large expanded draft schema. It changes test-client validation only; production tool schemas and services are unchanged.
 
 ## Connect ChatGPT desktop
 

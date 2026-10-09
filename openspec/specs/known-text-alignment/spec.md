@@ -50,3 +50,40 @@ The local provider SHALL align caller-known text tokens against encoded local au
 #### Scenario: Preserve queue lifecycle
 - **WHEN** alignment and transcription compete, overflow, timeout, cancel or close
 - **THEN** existing FIFO, concurrency-one, bounded overload, cancellation, timeout and shutdown semantics apply to both modes
+
+### Requirement: Isolated inference worker recovery
+The provider MUST retire cancelled or timed-out workers before dispatching queued or immediate successor inference, preserving concurrency-one FIFO and existing JOB_CANCELLED or TRANSCRIPTION_TIMEOUT codes/retryability. Output and lifecycle callbacks from a retired worker MUST NOT reject or corrupt another worker's requests. Alignment and ordinary transcription MUST retain their existing compatible output contracts.
+
+#### Scenario: Cancel and reuse inference
+- **WHEN** active alignment or transcription is cancelled with a valid successor already queued or immediately submitted after rejection
+- **THEN** cancellation remains typed and the successor completes on a healthy worker without a caller delay or overlapping inference
+
+#### Scenario: Time out and reuse inference
+- **WHEN** active inference exceeds its deadline with a valid queued or immediate successor
+- **THEN** only expired work fails with TRANSCRIPTION_TIMEOUT and the successor succeeds after terminated-worker cleanup
+
+### Requirement: Graceful direct provider disposal
+Direct provider close SHALL reject new work and gracefully drain active inference before terminating/reaping its worker. Bridge signal shutdown MUST cancel cancellable jobs before disposing the provider, retaining existing application shutdown order and typed cancellation.
+
+#### Scenario: Close an active provider directly
+- **WHEN** direct close begins during finite active inference
+- **THEN** the active operation completes, new work is unavailable, and close waits for worker cleanup
+
+#### Scenario: Shut down the bridge during inference
+- **WHEN** the bridge receives its supported shutdown signal during cancellable inference
+- **THEN** jobs are aborted before graceful provider disposal and the bridge and provider worker terminate without waiting for the inference deadline
+
+### Requirement: Portable bridge shutdown conformance fixture
+The bridge shutdown conformance fixture MUST launch its headless probe through a host-native executable without relying on shell or batch execution. It MUST retain readiness, shutdown ordering and worker cleanup assertions, and expose failed job details plus bounded bridge diagnostics instead of masking pre-shutdown failures.
+
+#### Scenario: Launch a native fixture before shutdown
+- **WHEN** the shutdown regression runs on a supported host
+- **THEN** the probe executes through the production direct executable boundary and alignment is proven active before shutdown is requested
+
+#### Scenario: Diagnose pre-shutdown readiness failure
+- **WHEN** the fixture job fails before shutdown
+- **THEN** the unchanged readiness assertion fails with structured job and bounded bridge stderr evidence, rather than claiming a disposal failure
+
+#### Scenario: Exercise a supported shutdown entry on each platform
+- **WHEN** Node runs the regression on Windows or POSIX
+- **THEN** stdin EOF exercises the existing graceful shutdown entry on both platforms, POSIX additionally retains real SIGTERM coverage, and active worker plus bridge cleanup meet the unchanged deadline

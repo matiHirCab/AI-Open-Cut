@@ -70,12 +70,20 @@ interface RetainedPreview
   timer: ReturnType<typeof setTimeout>;
 }
 
+interface TranscriptionWorker {
+  buffer: string;
+  child: ChildProcessWithoutNullStreams;
+  closed: Promise<void>;
+  retiring?: Promise<void>;
+}
+
 interface PendingWorkerRequest {
   abort: () => void;
   reject: (error: unknown) => void;
   resolve: (value: unknown) => void;
   signal: AbortSignal | undefined;
   timer: ReturnType<typeof setTimeout>;
+  worker: TranscriptionWorker;
 }
 
 const DEFAULT_STYLE = {
@@ -87,8 +95,8 @@ const DEFAULT_STYLE = {
 
 export class FasterWhisperTranscriber implements Transcriber {
   #active = 0;
-  #buffer = "";
-  #child: ChildProcessWithoutNullStreams | undefined;
+  #workerState: TranscriptionWorker | undefined;
+  #retiring: Promise<void> | undefined;
   #closed = false;
   #queued = 0;
   readonly #pending = new Map<string, PendingWorkerRequest>();
@@ -235,11 +243,15 @@ export class FasterWhisperTranscriber implements Transcriber {
       }
       return resultSchema.parse(result);
     } finally {
+      if (this.#retiring) {
+        await this.#retiring;
+      }
       this.#active = 0;
       release();
     }
   }
 
+  // Direct disposal drains active inference; bridge shutdown aborts jobs first.
   async close() {
     this.#closed = true;
     await this.#tail;
@@ -249,15 +261,22 @@ export class FasterWhisperTranscriber implements Transcriber {
         "Transcription provider is closed"
       )
     );
-    this.#child?.kill();
-    this.#child = undefined;
+    if (this.#workerState) {
+      await this.#retire(this.#workerState);
+    }
+    if (this.#retiring) {
+      await this.#retiring;
+    }
   }
 
-  #request(
+  async #request(
     request: Record<string, unknown>,
     timeoutMs: number,
     signal?: AbortSignal
   ): Promise<unknown> {
+    if (this.#retiring) {
+      await this.#retiring;
+    }
     return new Promise((resolve, reject) => {
       // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
       if (this.#closed) {
@@ -270,15 +289,23 @@ export class FasterWhisperTranscriber implements Transcriber {
         return;
       }
       const id = randomUUID();
-      const child = this.#worker();
+      if (signal?.aborted) {
+        reject(
+          new BridgeError("JOB_CANCELLED", "Transcription was cancelled", true)
+        );
+        return;
+      }
+      const worker = this.#worker();
+      const { child } = worker;
       const abort = () => {
+        this.#retire(worker);
         this.#settle(
           id,
           new BridgeError("JOB_CANCELLED", "Transcription was cancelled", true)
         );
-        child.kill();
       };
       const timer = setTimeout(() => {
+        this.#retire(worker);
         this.#settle(
           id,
           new BridgeError(
@@ -287,10 +314,9 @@ export class FasterWhisperTranscriber implements Transcriber {
             true
           )
         );
-        child.kill();
       }, timeoutMs);
       signal?.addEventListener("abort", abort, { once: true });
-      this.#pending.set(id, { abort, reject, resolve, signal, timer });
+      this.#pending.set(id, { abort, reject, resolve, signal, timer, worker });
       child.stdin.write(`${JSON.stringify({ ...request, id })}\n`);
       this.#logger.debug("transcription.worker.request", {
         operation: String(request.operation),
@@ -299,8 +325,8 @@ export class FasterWhisperTranscriber implements Transcriber {
   }
 
   #worker() {
-    if (this.#child) {
-      return this.#child;
+    if (this.#workerState) {
+      return this.#workerState;
     }
     const child = spawn(
       this.#config.transcriptionPythonPath,
@@ -313,26 +339,45 @@ export class FasterWhisperTranscriber implements Transcriber {
       ],
       { stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
     );
-    this.#child = child;
+    const worker: TranscriptionWorker = {
+      buffer: "",
+      child,
+      closed: new Promise<void>((resolve) => child.once("close", resolve)),
+    };
+    this.#workerState = worker;
     child.stderr.resume();
     child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => this.#consume(chunk));
-    child.once("error", (error) =>
-      this.#rejectAll(
+    child.stdout.on("data", (chunk: string) => this.#consume(worker, chunk));
+    child.stdin.on("error", () => {
+      this.#retire(worker);
+      this.#rejectWorker(
+        worker,
+        new BridgeError(
+          "TRANSCRIPTION_WORKER_TERMINATED",
+          "Transcription worker input closed",
+          true
+        )
+      );
+    });
+    child.once("error", (error) => {
+      this.#retire(worker);
+      this.#rejectWorker(
+        worker,
         new BridgeError(
           "TRANSCRIPTION_UNAVAILABLE",
           "Transcription worker could not start",
           false,
           { cause: error }
         )
-      )
-    );
+      );
+    });
     child.once("exit", () => {
-      if (this.#child === child) {
-        this.#child = undefined;
+      if (this.#workerState === worker) {
+        this.#workerState = undefined;
       }
-      this.#buffer = "";
-      this.#rejectAll(
+      worker.buffer = "";
+      this.#rejectWorker(
+        worker,
         new BridgeError(
           "TRANSCRIPTION_WORKER_TERMINATED",
           "Transcription worker terminated",
@@ -340,18 +385,53 @@ export class FasterWhisperTranscriber implements Transcriber {
         )
       );
     });
-    return child;
+    return worker;
   }
 
-  #consume(chunk: string) {
-    this.#buffer += chunk;
+  #retire(worker: TranscriptionWorker) {
+    if (worker.retiring) {
+      return worker.retiring;
+    }
+    if (this.#workerState === worker) {
+      this.#workerState = undefined;
+    }
+    worker.retiring = worker.closed;
+    const retirement = Promise.all([this.#retiring, worker.closed]).then(
+      () => undefined
+    );
+    this.#retiring = retirement;
+    retirement.then(() => {
+      if (this.#retiring === retirement) {
+        this.#retiring = undefined;
+      }
+    });
+    const force = setTimeout(() => worker.child.kill("SIGKILL"), 1000);
+    force.unref();
+    worker.closed.then(() => clearTimeout(force));
+    worker.child.kill();
+    return worker.closed;
+  }
+
+  #rejectWorker(worker: TranscriptionWorker, error: unknown) {
+    for (const [id, pending] of this.#pending) {
+      if (pending.worker === worker) {
+        this.#settle(id, error);
+      }
+    }
+  }
+
+  #consume(worker: TranscriptionWorker, chunk: string) {
+    if (worker.retiring) {
+      return;
+    }
+    worker.buffer += chunk;
     for (
-      let newline = this.#buffer.indexOf("\n");
+      let newline = worker.buffer.indexOf("\n");
       newline >= 0;
-      newline = this.#buffer.indexOf("\n")
+      newline = worker.buffer.indexOf("\n")
     ) {
-      const line = this.#buffer.slice(0, newline);
-      this.#buffer = this.#buffer.slice(newline + 1);
+      const line = worker.buffer.slice(0, newline);
+      worker.buffer = worker.buffer.slice(newline + 1);
       try {
         const response = z
           .object({
@@ -366,6 +446,9 @@ export class FasterWhisperTranscriber implements Transcriber {
             result: z.unknown().optional(),
           })
           .parse(JSON.parse(line));
+        if (this.#pending.get(response.id)?.worker !== worker) {
+          continue;
+        }
         this.#settle(
           response.id,
           response.ok
@@ -378,7 +461,9 @@ export class FasterWhisperTranscriber implements Transcriber {
           response.result
         );
       } catch (error) {
-        this.#rejectAll(
+        this.#retire(worker);
+        this.#rejectWorker(
+          worker,
           new BridgeError(
             "TRANSCRIPTION_INVALID_OUTPUT",
             "Transcription worker returned invalid JSON",
@@ -386,7 +471,6 @@ export class FasterWhisperTranscriber implements Transcriber {
             { cause: error }
           )
         );
-        this.#child?.kill();
       }
     }
   }

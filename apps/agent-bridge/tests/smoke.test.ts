@@ -32,6 +32,7 @@ import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
+import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyKnownTextWorkflow } from "./known-text-workflow";
@@ -86,7 +87,11 @@ const toolWrapper = (mode: "ffmpeg" | "ffprobe") => {
 const fakeFfmpeg = toolWrapper("ffmpeg");
 const fakeFfprobe = toolWrapper("ffprobe");
 
-const client = new Client({ name: "opencut-smoke", version: "0.1.0" });
+const validator = memoizedSdkValidator();
+const client = new Client(
+  { name: "opencut-smoke", version: "0.1.0" },
+  { jsonSchemaValidator: validator }
+);
 const bridgeExecutable = process.env.OPENCUT_TEST_BRIDGE_PATH ?? "bun";
 const transport = new StdioClientTransport({
   args: process.env.OPENCUT_TEST_BRIDGE_PATH
@@ -296,8 +301,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await client.close();
-  rmSync(root, { force: true, recursive: true });
+  try {
+    await client.close();
+  } finally {
+    validator.clear();
+    rmSync(root, { force: true, recursive: true });
+  }
 });
 
 it("negotiates the public protocol version through MCP", async () => {
