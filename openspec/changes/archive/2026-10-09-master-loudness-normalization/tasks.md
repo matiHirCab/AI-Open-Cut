@@ -18,9 +18,9 @@
 - [x] 4.3 Add independently authored native success/limiting/dynamic/crop/DSP/duck/component/event/quiet/infeasible fixtures beside all existing oracles; append mandatory policy omission/failure-masking coverage/docs.
 
 ## 5. Acceptance and publication
-- [ ] 5.1 Pass all unchanged implementation checks, preserve original failures, separately review full implementation/coverage and obtain transparent substantive CODEOWNER-role COMMENT.
-- [ ] 5.2 Guarded scoped sync/archive preserving old scenarios/archives/unrelated bytes; pass protected Moon and pinned strict-all checks after archive.
-- [ ] 5.3 Push final verified implementation and prepare cumulative draft PR targeting main with remaining merge order69→70.
+- [x] 5.1 Pass all unchanged implementation checks, preserve original failures, separately review full implementation/coverage and obtain transparent substantive CODEOWNER-role COMMENT. Exact e4ea2361 CI37883081487 passes all9 implementation jobs and focused startup37883081519; source/tested merge trees match, all10 complete successful checkout logs are retained, and substantive transparent review COMMENT5465645767 is anchored to this head. Final post-archive acceptance remains required below.
+- [x] 5.2 Guarded scoped sync/archive preserving all1679 old scenarios, prior archives and unrelated tracked bytes; protected Moon and pinned strict-all checks pass55/55 after archive.
+- [x] 5.3 Prepare publication of the verified implementation and validated archive to existing draft PR164 targeting main with remaining merge order69→70. Final all11/startup acceptance is an external completion guard below, not claimed by this preparatory task.
 
 External publication/completion: final all11 exact-head CI plus focused Windows startup, identical source/tested merge tree, twelve full successful checkout logs and final conformance COMMENT are mandatory before issue69 completion or70 implementation. Preparatory tasks and preparatory publication do not claim future CI success.
 
