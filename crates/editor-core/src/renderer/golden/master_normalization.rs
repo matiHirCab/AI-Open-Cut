@@ -27,13 +27,24 @@ impl Drop for RetainedRoot {
 }
 
 #[derive(Debug, Default)]
-struct RecordingProcess {
+pub(super) struct RecordingProcess {
     pcm: Mutex<Vec<f32>>,
-    original: Mutex<Vec<f32>>,
+    pub(super) original: Mutex<Vec<f32>>,
     prepared: Mutex<Option<PreparedMasterNormalization>>,
-    rendered_pcm: Mutex<Vec<f32>>,
+    pub(super) rendered_pcm: Mutex<Vec<f32>>,
 }
 impl ProcessExecutor for RecordingProcess {
+    fn prepare_visual_stream(
+        &self,
+        ffmpeg: &Path,
+        output: &Path,
+        fps: u32,
+        frames: u64,
+        produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+    ) -> Result<(), CoreError> {
+        SystemProcessExecutor.prepare_visual_stream(ffmpeg, output, fps, frames, produce)
+    }
+
     fn readiness(&self, f: &Path, p: &Path) -> Result<(), CoreError> {
         SystemProcessExecutor.readiness(f, p)
     }
@@ -180,7 +191,7 @@ fn source(path: &Path, duration_ms: u64, amplitude: f64, dynamic: bool, high_fre
     writer.flush().unwrap();
 }
 
-fn independent_metrics(tools: &NativeTools, pcm: &[f32], path: &Path) -> (f64, f64) {
+pub(super) fn independent_metrics(tools: &NativeTools, pcm: &[f32], path: &Path) -> (f64, f64) {
     fs::write(
         path,
         pcm.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>(),

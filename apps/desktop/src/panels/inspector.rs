@@ -2,6 +2,7 @@ use crate::{
     animation_inspector,
     compositing_inspector::{self, Action, EFFECT_TYPES, Eligibility},
     hierarchy::{editable, kind},
+    narration_inspector,
     shell::{Shell, button},
     theme::ActiveTheme,
 };
@@ -13,13 +14,16 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
     let mut panel = div()
         .id("inspector")
         .w_1_3()
+        .flex_shrink_0()
+        .min_w_0()
         .h_full()
         .overflow_y_scroll()
         .p_2()
         .border_l_1()
         .border_color(colors.border)
         .bg(colors.card)
-        .child(div().text_lg().child("Inspector"));
+        .child(div().text_lg().child("Inspector"))
+        .child(super::narration::render(shell, cx));
     let Some((project, selection, track, item)) = shell.session.project.as_ref().and_then(|p| {
         let s = shell.session.selected.as_ref()?;
         let (t, i) = s.resolve(p)?;
@@ -27,6 +31,31 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
     }) else {
         return panel.child("Select a layer.");
     };
+    for text in narration_inspector::descriptions(project, track, item, &shell.narration_cursor) {
+        panel = panel.child(
+            div()
+                .w_full()
+                .whitespace_normal()
+                .text_xs()
+                .py_1()
+                .child(text),
+        );
+    }
+    if narration_inspector::alignment(project, item).is_some() {
+        for (axis, label) in [(2, "granularity"), (3, "segment")] {
+            for (next, prefix) in [(false, "Previous"), (true, "Next")] {
+                panel = panel.child(
+                    button(
+                        ("alignment-nav", axis * 2 + usize::from(next)),
+                        format!("{prefix} {label}"),
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.navigate_narration(axis as u8, next, cx)
+                    })),
+                );
+            }
+        }
+    }
     let parent = item
         .visual_properties()
         .parent
@@ -168,7 +197,14 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
             .child("Compositing · authored values"),
     );
     for text in compositing_inspector::descriptions(item, &shell.compositing_cursor) {
-        panel = panel.child(div().text_xs().py_1().child(text));
+        panel = panel.child(
+            div()
+                .w_full()
+                .whitespace_normal()
+                .text_xs()
+                .py_1()
+                .child(text),
+        );
     }
     if !animation_inspector::editable(selection) {
         return panel.child("Component-local content · read-only");

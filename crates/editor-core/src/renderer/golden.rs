@@ -54,6 +54,7 @@ mod grids;
 mod inherited_timing;
 mod linear;
 mod master_normalization;
+mod narration_fixture;
 mod raster_caching;
 mod repeaters;
 mod rich_text;
