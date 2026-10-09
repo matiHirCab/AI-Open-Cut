@@ -7,7 +7,7 @@ use gpui::{Context, Window, div, prelude::*, px};
 
 pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) -> impl IntoElement {
     let colors = window.theme().colors;
-    let mut panel = div().id("hierarchy").w_1_3().h_full().overflow_y_scroll().p_2().bg(colors.card)
+    let mut panel = div().id("hierarchy").w_1_3().min_w_0().h_full().overflow_y_scroll().p_2().bg(colors.card)
         .child(div().text_lg().child("Hierarchy"))
         .child(div().text_xs().child("Tree = parentage. Paint order: track, z-index, item order. Each instance is one stacking block."));
     let Some(project) = &shell.session.project else {

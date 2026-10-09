@@ -1,4 +1,6 @@
 mod animation;
+#[cfg(test)]
+extern crate self as opencut_editor_core;
 mod assets;
 mod drafts;
 mod error;

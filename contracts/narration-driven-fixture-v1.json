@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 44,
+  "name": "Narration-driven fixture v1",
+  "durationMs": 6000,
+  "settings": {"width":64,"height":64,"fps":10},
+  "alignment": {
+    "sentences": [
+      {"text":"EVERY","startMs":500,"endMs":900},
+      {"text":"SINGLE","startMs":1000,"endMs":1400},
+      {"text":"ONE","startMs":1500,"endMs":1900},
+      {"text":"rules","startMs":2400,"endMs":2900},
+      {"text":"Starting with","startMs":3200,"endMs":3900},
+      {"text":"Venusaur","startMs":4300,"endMs":5000}
+    ],
+    "words": [
+      {"text":"EVERY","startMs":500,"endMs":900},
+      {"text":"SINGLE","startMs":1000,"endMs":1400},
+      {"text":"ONE","startMs":1500,"endMs":1900},
+      {"text":"rules","startMs":2400,"endMs":2900},
+      {"text":"Starting","startMs":3200,"endMs":3500},
+      {"text":"with","startMs":3600,"endMs":3900},
+      {"text":"Venusaur","startMs":4300,"endMs":5000}
+    ],
+    "phonemes": [],
+    "quality": "estimated",
+    "providerId": "synthetic-narration-fixture",
+    "modelId": null,
+    "modelVersion": null
+  },
+  "cues": [
+    {"name":"EVERY","timeMs":500,"color":"#ff0000"},
+    {"name":"SINGLE","timeMs":1000,"color":"#00ff00"},
+    {"name":"ONE","timeMs":1500,"color":"#0000ff"},
+    {"name":"rules","timeMs":2400,"color":"#ffff00"},
+    {"name":"Starting_with","timeMs":3200,"color":"#00ffff"},
+    {"name":"Venusaur","timeMs":4300,"color":"#ff00ff"}
+  ],
+  "visual": {"durationMs":400,"width":64,"height":64,"presetId":"scalar_tween","presetVersion":1,"parameters":{"property":"transform.opacity","startMs":0,"durationMs":200,"from":0,"to":1,"curve":"linear"}},
+  "event": {"event":"narration_accent","durationMs":300,"defaultGainDb":-6,"gainDb":-3,"busId":"sfx","variantSeed":1,"variantIndex":1},
+  "ducking": {"enabled":true,"sourceBusId":"voiceover","gain":0.25,"attackMs":0,"releaseMs":0},
+  "normalization": {"enabled":true,"targetIntegratedLufs":-24.0,"targetLoudnessRangeLu":7.0,"targetTruePeakDbtp":-2.0},
+  "sources": {"sampleRateHz":48000,"channels":2,"voiceFrequencyHz":437,"musicFrequencyHz":211,"variantFrequenciesHz":[659,877],"voiceAmplitude":0.1,"musicAmplitude":0.08,"eventAmplitude":0.1},
+  "reference": {"ssimMinimum":0.99,"alignedPcmRmsMaximum":0.0001,"maximumTimingFrames":1,"description":"Synthetic timing literals and independently generated samples; no real speech inference or measured alignment accuracy claim."}
+}
