@@ -40,6 +40,7 @@ import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
 import { verifyMasterNormalizationWorkflow } from "./master-normalization-workflow";
+import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
@@ -1335,4 +1336,8 @@ it("queues immutable original audio analysis with resources, overlap, cancel, fa
 
 it("runs master normalization standalone batch draft history and active render/analysis workflows", async () => {
   await verifyMasterNormalizationWorkflow(client, call);
+});
+
+it("discovers and retrieves the complete motion graphics prompt through MCP", async () => {
+  await verifyMotionWorkflowPrompt(client);
 });

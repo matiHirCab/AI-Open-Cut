@@ -50,6 +50,7 @@
     "add_narration",
     "assemble_clips",
     "create_intro_video",
+    "create_motion_graphics",
     "transcribe_and_caption"
   ],
   "resources": [

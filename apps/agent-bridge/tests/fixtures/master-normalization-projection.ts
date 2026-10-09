@@ -6,6 +6,7 @@ import headless from "./master-normalization-headless-additions.json";
 import additions from "./master-normalization-mcp-additions.json";
 import ownership from "./master-normalization-ownership-addition.json";
 import pins from "./master-normalization-predecessor-pins.json";
+import { removeMotionWorkflowPrompt } from "./motion-workflow-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
 const record = (value: unknown): Record<string, unknown> => {
@@ -50,7 +51,7 @@ const removeProperty = (
 };
 
 export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeMotionWorkflowPrompt(source);
   const tools = record(at(result, ["toolDefinitions"]));
   const capabilities = at(result, ["capabilityIdentifiers"]);
   if (

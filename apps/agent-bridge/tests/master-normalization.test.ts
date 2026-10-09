@@ -18,6 +18,7 @@ import {
   restoreMasterNormalizationRaw,
 } from "./fixtures/master-normalization-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
+import { removeMotionWorkflowPrompt } from "./fixtures/motion-workflow-projection";
 
 it("matches independently authored closed finite normalization DTOs and operation without aliases", () => {
   expect(z.toJSONSchema(masterNormalizationSchema)).toEqual(dtos.settings);
@@ -96,9 +97,11 @@ it("preserves the exact independently captured final68 86-tool expansion and all
   expect(expanded.tools).toHaveLength(86);
   expect(masterNormalizationDigest(expanded)).toBe(pins.mcpExpandedSha256);
   expect(expandMcpSurfaceCatalog(mcp).tools).toHaveLength(87);
-  expect(masterNormalizationDigest(expandMcpSurfaceCatalog(mcp))).toBe(
-    pins.manuallyReviewedCurrentExpandedSha256
-  );
+  expect(
+    masterNormalizationDigest(
+      expandMcpSurfaceCatalog(removeMotionWorkflowPrompt(mcp))
+    )
+  ).toBe(pins.manuallyReviewedCurrentExpandedSha256);
   const tampered = structuredClone(mcp);
   tampered.toolDefinitions.audio_master_set_normalization.annotations.readOnlyHint = true;
   expect(() => removeMasterNormalizationMcpAdditions(tampered)).toThrow();
