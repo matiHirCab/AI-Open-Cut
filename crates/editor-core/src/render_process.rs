@@ -3,6 +3,8 @@
 mod audio_analysis;
 mod master_normalization;
 
+mod preview_identity;
+
 use std::{
     fmt::Debug,
     io::{BufRead, BufReader, Read, Write},
@@ -547,6 +549,11 @@ fn stream_u32(streams: &[serde_json::Value], kind: &str, field: &str) -> Option<
 }
 
 pub(crate) trait ProcessExecutor: Debug + Send + Sync {
+    /// Optional identity for disposable preview reuse; alternate adapters bypass by default.
+    fn preview_cache_identity(&self, _ffmpeg: &Path, _ffprobe: &Path) -> Option<[u8; 32]> {
+        None
+    }
+
     fn master_normalization_readiness(&self, _ffmpeg: &Path) -> Result<(), CoreError> {
         Err(CoreError::new(
             ErrorCode::DependencyUnavailable,
@@ -680,10 +687,22 @@ pub(crate) trait ProcessExecutor: Debug + Send + Sync {
     ) -> Result<(), CoreError>;
 }
 
+#[cfg(feature = "raster-cache-test-hooks")]
+static FINAL_RENDER_EXECUTIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+#[cfg(feature = "raster-cache-test-hooks")]
+pub(crate) fn final_render_test_executions() -> usize {
+    FINAL_RENDER_EXECUTIONS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct SystemProcessExecutor;
 
 impl ProcessExecutor for SystemProcessExecutor {
+    fn preview_cache_identity(&self, ffmpeg: &Path, ffprobe: &Path) -> Option<[u8; 32]> {
+        preview_identity::identity(ffmpeg, ffprobe)
+    }
+
     fn master_normalization_readiness(&self, ffmpeg: &Path) -> Result<(), CoreError> {
         master_normalization::readiness(ffmpeg)
     }
@@ -1038,6 +1057,8 @@ impl ProcessExecutor for SystemProcessExecutor {
         output: &Path,
         on_progress: &mut dyn FnMut(RenderProgress),
     ) -> Result<(), CoreError> {
+        #[cfg(feature = "raster-cache-test-hooks")]
+        FINAL_RENDER_EXECUTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut command = build_render_command(ffmpeg_path, plan, filter_path, output);
         let progress_duration = match plan.intent {
             RenderIntent::Range {

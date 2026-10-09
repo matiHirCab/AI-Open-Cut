@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import { z } from "zod/v4";
 import { loadBridgeConfig } from "../src/config";
 import { HeadlessClient } from "../src/headless";
+import { verifyNativePreviewCacheMcp } from "./native-preview-cache-workflow";
 
 const observed = vi.hoisted(() => ({
   workers: [] as { pid: number | undefined; stderr: string }[],
@@ -148,6 +149,29 @@ it.skipIf(process.env.OPENCUT_RASTER_CACHE_TESTS_REQUIRED !== "1")(
       expect(
         required(stats[1]).find((s) => s.requestId === "native-fresh")
       ).toMatchObject({ hits: 0, misses: 1 });
+      const previews = observed.workers.map((worker) =>
+        worker.stderr
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => JSON.parse(line).previewCacheTest)
+          .filter(Boolean)
+      );
+      expect(
+        required(previews[0]).find((entry) => entry.requestId === "native-cold")
+      ).toMatchObject({ finalExecutions: 1, hits: 0, misses: 1 });
+      expect(
+        required(previews[0]).find((entry) => entry.requestId === "native-warm")
+      ).toMatchObject({ finalExecutions: 1, hits: 1, misses: 1 });
+      expect(
+        required(previews[0]).find(
+          (entry) => entry.requestId === "native-after-error"
+        )
+      ).toMatchObject({ finalExecutions: 1, hits: 2, misses: 1 });
+      expect(
+        required(previews[1]).find(
+          (entry) => entry.requestId === "native-fresh"
+        )
+      ).toMatchObject({ finalExecutions: 1, hits: 0, misses: 1 });
       expect(required(observed.workers[1]).pid).not.toBe(
         required(observed.workers[0]).pid
       );
@@ -158,3 +182,11 @@ it.skipIf(process.env.OPENCUT_RASTER_CACHE_TESTS_REQUIRED !== "1")(
   },
   30_000
 );
+
+for (const packaged of [false, true]) {
+  it.skipIf(process.env.OPENCUT_RASTER_CACHE_TESTS_REQUIRED !== "1")(
+    `preserves cached native AV media through ${packaged ? "packaged" : "source"} MCP and restarts cold`,
+    async () => await verifyNativePreviewCacheMcp(packaged),
+    120_000
+  );
+}

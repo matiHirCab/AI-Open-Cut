@@ -14,6 +14,8 @@ struct Worker {
     diagnostics: Arc<Mutex<String>>,
     #[cfg(feature = "raster-cache-test-hooks")]
     stats: mpsc::Receiver<Value>,
+    #[cfg(feature = "raster-cache-test-hooks")]
+    preview_stats: mpsc::Receiver<Value>,
 }
 impl Worker {
     fn start(root: &std::path::Path) -> Self {
@@ -59,6 +61,8 @@ impl Worker {
         let captured = diagnostics.clone();
         #[cfg(feature = "raster-cache-test-hooks")]
         let (stats_send, stats) = mpsc::channel();
+        #[cfg(feature = "raster-cache-test-hooks")]
+        let (preview_send, preview_stats) = mpsc::channel();
         std::thread::spawn(move || {
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                 #[cfg(feature = "raster-cache-test-hooks")]
@@ -66,6 +70,12 @@ impl Worker {
                     && let Some(stat) = value.get("rasterCacheTest")
                 {
                     let _ = stats_send.send(stat.clone());
+                }
+                #[cfg(feature = "raster-cache-test-hooks")]
+                if let Ok(value) = serde_json::from_str::<Value>(&line)
+                    && let Some(stat) = value.get("previewCacheTest")
+                {
+                    let _ = preview_send.send(stat.clone());
                 }
                 let mut capture = captured.lock().unwrap();
                 capture.push_str(&line);
@@ -78,6 +88,8 @@ impl Worker {
             diagnostics,
             #[cfg(feature = "raster-cache-test-hooks")]
             stats,
+            #[cfg(feature = "raster-cache-test-hooks")]
+            preview_stats,
         };
         assert_eq!(result.receive(), fixture()["ready"]);
         result
@@ -591,5 +603,170 @@ fn exercise_windows_crash_fixture(instrumented: bool) {
     assert_eq!(
         result, WAIT_OBJECT_0,
         "renderer child survived an abrupt worker crash"
+    );
+}
+
+#[cfg(feature = "raster-cache-test-hooks")]
+#[test]
+fn native_worker_reuses_encoded_previews_and_preserves_drafts_errors_restart() {
+    use opencut_editor_core::{EditorCore, PathPolicy, ProjectSettings};
+    if std::env::var_os("OPENCUT_FFMPEG_PATH").is_none() {
+        assert_ne!(
+            std::env::var("OPENCUT_RASTER_CACHE_TESTS_REQUIRED").as_deref(),
+            Ok("1"),
+            "required native backend missing"
+        );
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let core = EditorCore::new(
+        PathPolicy::new(
+            root.path().join("projects"),
+            [root.path()],
+            root.path().join("exports"),
+        )
+        .unwrap(),
+    );
+    let id = core
+        .create_project(
+            "Encoded preview",
+            ProjectSettings {
+                width: 32,
+                height: 32,
+                fps: 10,
+            },
+        )
+        .unwrap()
+        .project_id;
+    let state = core.get_project(&id).unwrap();
+    let write = core.edit(&id, 0, serde_json::from_value(json!({"operation":"add_solid_color","trackId":state.tracks[1].id,"startMs":0,"durationMs":1000,"color":"#112233","transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}})).unwrap()).unwrap();
+    let item = write.changed_ids[0].clone();
+    let revision = write.revision;
+    let dir = core.project_directory(&id).unwrap();
+    let request =
+        json!({"operation":"render_preview","projectId":id,"expectedRevision":revision,"timeMs":0});
+    let mut worker = Worker::start(root.path());
+    let cold = worker.request("encoded-cold", request.clone());
+    let warm = worker.request("encoded-warm", request.clone());
+    assert_eq!(cold["type"], "result", "{cold}");
+    assert_eq!(warm["type"], "result", "{warm}");
+    let read = |result: &Value| {
+        std::fs::read(dir.join(result["result"]["relativePath"].as_str().unwrap())).unwrap()
+    };
+    assert_ne!(
+        cold["result"]["relativePath"],
+        warm["result"]["relativePath"]
+    );
+    assert_eq!(read(&cold), read(&warm));
+    let cold_stat = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    let warm_stat = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(
+        (
+            cold_stat["hits"].as_u64(),
+            cold_stat["misses"].as_u64(),
+            cold_stat["finalExecutions"].as_u64()
+        ),
+        (Some(0), Some(1), Some(1))
+    );
+    assert_eq!(
+        (
+            warm_stat["hits"].as_u64(),
+            warm_stat["misses"].as_u64(),
+            warm_stat["finalExecutions"].as_u64()
+        ),
+        (Some(1), Some(1), Some(1))
+    );
+    let range = json!({"operation":"render_preview_range","projectId":id,"expectedRevision":revision,"startMs":0,"endMs":1000,"width":32,"height":32,"fps":10,"includeAudio":true});
+    let first = worker.request("encoded-range", range.clone());
+    let repeat = worker.request("encoded-range-warm", range);
+    assert_eq!(first["type"], "result", "{first}");
+    assert_eq!(repeat["type"], "result", "{repeat}");
+    assert_eq!(read(&first), read(&repeat));
+    let _ = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    let stat = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(
+        (
+            stat["hits"].as_u64(),
+            stat["misses"].as_u64(),
+            stat["finalExecutions"].as_u64()
+        ),
+        (Some(2), Some(2), Some(2))
+    );
+    let before = std::fs::read(dir.join("project.json")).unwrap();
+    let draft = core
+        .create_draft(
+            &id,
+            revision,
+            vec![
+                serde_json::from_value(
+                    json!({"operation":"update_item","itemId":item,"color":"#abcdef"}),
+                )
+                .unwrap(),
+            ],
+            None,
+        )
+        .unwrap();
+    let draft_request =
+        json!({"operation":"render_draft_preview","projectId":id,"draftId":draft.id,"timeMs":0});
+    let changed = worker.request("encoded-draft", draft_request.clone());
+    let changed_warm = worker.request("encoded-draft-warm", draft_request);
+    assert_eq!(changed["type"], "result", "{changed}");
+    assert_eq!(changed_warm["type"], "result", "{changed_warm}");
+    assert_ne!(read(&changed), read(&cold));
+    assert_eq!(read(&changed), read(&changed_warm));
+    let _ = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    let stat = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(
+        (
+            stat["hits"].as_u64(),
+            stat["misses"].as_u64(),
+            stat["finalExecutions"].as_u64()
+        ),
+        (Some(3), Some(3), Some(3))
+    );
+    assert_eq!(std::fs::read(dir.join("project.json")).unwrap(), before);
+    let mut stale = request.clone();
+    stale["expectedRevision"] = json!(0);
+    assert_eq!(
+        worker.request("encoded-stale", stale)["error"]["code"],
+        "REVISION_CONFLICT"
+    );
+    let stat = worker
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(stat["finalExecutions"], 3);
+    let mut fresh = Worker::start(root.path());
+    let reopened = fresh.request("encoded-fresh", request);
+    assert_eq!(read(&reopened), read(&cold));
+    let stat = fresh
+        .preview_stats
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(
+        (
+            stat["hits"].as_u64(),
+            stat["misses"].as_u64(),
+            stat["finalExecutions"].as_u64()
+        ),
+        (Some(0), Some(1), Some(1))
     );
 }

@@ -139,7 +139,13 @@ impl ProcessExecutor for RecordingProcess {
     }
 }
 
-fn source(path: &Path, duration_ms: u64, amplitude: f64, dynamic: bool, high_frequency: bool) {
+pub(super) fn source(
+    path: &Path,
+    duration_ms: u64,
+    amplitude: f64,
+    dynamic: bool,
+    high_frequency: bool,
+) {
     let frames = duration_ms * 48;
     let size = u32::try_from(frames * 8).unwrap();
     let mut writer = std::io::BufWriter::new(fs::File::create(path).unwrap());

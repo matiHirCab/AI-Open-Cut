@@ -148,6 +148,12 @@ fn serve(
         }
         #[cfg(feature = "raster-cache-test-hooks")]
         {
+            let (preview_hits, preview_misses, final_executions) =
+                renderer.preview_cache_test_counts();
+            eprintln!(
+                "{}",
+                serde_json::json!({"previewCacheTest":{"requestId":envelope.request_id,"hits":preview_hits,"misses":preview_misses,"finalExecutions":final_executions}})
+            );
             let (hits, misses) = renderer.raster_cache_test_counts();
             eprintln!(
                 "{}",

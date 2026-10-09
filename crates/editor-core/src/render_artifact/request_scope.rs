@@ -36,6 +36,9 @@ impl ArtifactIo for RequestScope {
     fn read(&self, path: &Path) -> std::io::Result<Vec<u8>> {
         self.inner.read(path)
     }
+    fn read_preview_payload(&self, path: &Path, capacity: usize) -> std::io::Result<Vec<u8>> {
+        self.inner.read_preview_payload(path, capacity)
+    }
     fn read_admitted_font(
         &self,
         path: &Path,
