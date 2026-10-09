@@ -10,6 +10,7 @@ mod hierarchy;
 mod inspector_edit;
 mod narration_inspector;
 mod panels;
+mod review;
 mod session;
 mod shell;
 mod theme;
@@ -20,6 +21,8 @@ mod compositing_predecessor;
 mod compositing_tests;
 #[cfg(test)]
 mod narration_tests;
+#[cfg(test)]
+mod review_tests;
 #[cfg(test)]
 mod tests;
 
@@ -61,14 +64,28 @@ fn main() {
                 ..Default::default()
             },
             |window, cx| {
-                cx.new(|cx| {
+                let shell = cx.new(|cx| {
                     cx.observe_window_appearance(window, |_, window, _| {
                         window.refresh();
                     })
                     .detach();
 
                     Shell::new(startup.clone(), cx)
-                })
+                });
+                let closing = shell.clone();
+                window.on_window_should_close(cx, move |_, cx| {
+                    closing.update(cx, |shell, cx| {
+                        if shell.session.busy {
+                            shell.review.feedback =
+                                Some("Wait for active work to finish before closing.".into());
+                            cx.notify();
+                            false
+                        } else {
+                            true
+                        }
+                    })
+                });
+                shell
             },
         )
         .expect("failed to open the main window");

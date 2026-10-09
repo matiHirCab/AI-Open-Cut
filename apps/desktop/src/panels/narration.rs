@@ -69,6 +69,54 @@ pub(crate) fn render(shell: &Shell, cx: &mut Context<Shell>) -> impl IntoElement
     if markers.is_empty() {
         panel = panel.child("No cues in this scope.");
     }
+    panel
+}
+
+pub(crate) fn audio(shell: &Shell, cx: &mut Context<Shell>) -> impl IntoElement {
+    let mut panel = div().child(
+        div()
+            .text_sm()
+            .py_2()
+            .child("Audio · authored settings · read-only"),
+    );
+    let Some(project) = &shell.session.project else {
+        return panel;
+    };
+    if let Some((track, item)) = shell
+        .session
+        .selected
+        .as_ref()
+        .and_then(|s| s.resolve(project))
+    {
+        for text in narration_inspector::descriptions(project, track, item, &shell.narration_cursor)
+        {
+            panel = panel.child(
+                div()
+                    .w_full()
+                    .whitespace_normal()
+                    .text_xs()
+                    .py_1()
+                    .child(text),
+            );
+        }
+        if narration_inspector::alignment(project, item).is_some() {
+            for (axis, label) in [(2, "granularity"), (3, "segment")] {
+                for (next, prefix) in [(false, "Previous"), (true, "Next")] {
+                    panel = panel.child(
+                        button(
+                            ("alignment-nav", axis * 2 + usize::from(next)),
+                            format!("{prefix} {label}"),
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.navigate_narration(axis as u8, next, cx)
+                        })),
+                    );
+                }
+            }
+        }
+    } else {
+        panel = panel.child("Select a media layer to inspect its alignment and audio controls.");
+    }
     for text in narration_inspector::bus_descriptions(project) {
         panel = panel.child(
             div()

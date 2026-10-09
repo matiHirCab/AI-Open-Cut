@@ -1,4 +1,4 @@
-use gpui::{Context, Entity, FocusHandle, KeyDownEvent, Window, div, prelude::*};
+use gpui::{Context, FocusHandle, KeyDownEvent, Window, div, prelude::*};
 use opencut_editor_core::{EditOperation, ParentReference};
 
 use crate::{
@@ -6,8 +6,8 @@ use crate::{
     compositing_inspector::{self, Action, Cursor as CompositingCursor},
     hierarchy::{Selection, editable},
     inspector_edit::{self, Field},
-    narration_inspector,
-    panels::{self, Preview},
+    narration_inspector, panels,
+    review::{self, InspectorTab, Review},
     session::{Command, Session, Startup, parse_z_index},
     theme::ActiveTheme,
 };
@@ -70,7 +70,10 @@ pub(crate) struct Shell {
     pub compositing_cursor: CompositingCursor,
     pub narration_cursor: narration_inspector::Cursor,
     interaction_epoch: u64,
-    preview: Entity<Preview>,
+    pub inspector_tab: InspectorTab,
+    pub review: Review,
+    pub review_focus: FocusHandle,
+    review_renderer: opencut_editor_core::Renderer,
 }
 
 impl Shell {
@@ -88,7 +91,10 @@ impl Shell {
             compositing_cursor: CompositingCursor::default(),
             narration_cursor: narration_inspector::Cursor::default(),
             interaction_epoch: 0,
-            preview: cx.new(|_| Preview),
+            inspector_tab: InspectorTab::default(),
+            review: Review::default(),
+            review_focus: cx.focus_handle(),
+            review_renderer: review::configured_renderer(),
         };
         shell.dispatch(Command::Refresh, cx);
         shell
@@ -167,6 +173,93 @@ impl Shell {
             });
         })
         .detach();
+        cx.notify();
+    }
+
+    pub fn change_inspector_tab(&mut self, tab: InspectorTab, cx: &mut Context<Self>) {
+        self.reset_inspector();
+        self.reset_z_text();
+        self.inspector_tab = tab;
+        cx.notify();
+    }
+
+    pub fn request_review(&mut self, range: bool, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        let Some(startup) = self.startup.clone() else {
+            return;
+        };
+        let Some(revision) = self.session.project.as_ref().map(|p| p.revision) else {
+            return;
+        };
+        let request = match self.review.request(range) {
+            Ok(request) => request,
+            Err(message) => {
+                self.review.feedback = Some(message);
+                cx.notify();
+                return;
+            }
+        };
+        let Some(generation) = self.session.begin() else {
+            return;
+        };
+        self.reset_inspector();
+        self.review.field = None;
+        self.review.feedback = None;
+        let renderer = self.review_renderer.clone();
+        let work = cx
+            .background_executor()
+            .spawn(async move { review::execute(&startup, &renderer, revision, request) });
+        cx.spawn(async move |this, cx| {
+            let result = work.await;
+            let _ = this.update(cx, |this, cx| {
+                let (artifact, status) = match result {
+                    Ok(artifact) => (Some(artifact), Ok(())),
+                    Err(error) => (None, Err(error)),
+                };
+                if this.session.finish_review(generation, status) {
+                    this.review.feedback = None;
+                    if let Some(artifact) = artifact {
+                        this.review.publish(artifact);
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    pub fn review_key(
+        &mut self,
+        event: &KeyDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        let Some(field) = self.review.field else {
+            return;
+        };
+        match event.keystroke.key.as_str() {
+            "enter" => self.request_review(field != 0, cx),
+            "escape" => self.review.field = None,
+            "backspace" => {
+                self.review.values[field].pop();
+            }
+            "a" if event.keystroke.modifiers.control || event.keystroke.modifiers.platform => {
+                self.review.values[field].clear();
+            }
+            _ => {
+                if let Some(text) = &event.keystroke.key_char
+                    && self.review.values[field].len() + text.len() <= 32
+                {
+                    self.review.values[field].push_str(text);
+                }
+            }
+        }
         cx.notify();
     }
 
@@ -603,7 +696,7 @@ impl Render for Shell {
                 .border_b_1()
                 .border_color(colors.border)
                 .child(panels::browser::render(self, window, cx))
-                .child(self.preview.clone())
+                .child(panels::preview::render(self, window, cx))
                 .child(panels::inspector::render(self, window, cx)),
         )
         .child(panels::timeline::render(self, window, cx))

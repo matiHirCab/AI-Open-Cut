@@ -126,6 +126,29 @@ impl Session {
             }
         }
     }
+
+    pub fn finish_review(&mut self, generation: u64, result: Result<(), CoreError>) -> bool {
+        if generation != self.generation {
+            return false;
+        }
+        self.busy = false;
+        match result {
+            Ok(()) => self.error = None,
+            Err(error) => {
+                if error.code == opencut_editor_core::ErrorCode::RevisionConflict {
+                    self.needs_refresh = true;
+                }
+                let code = serde_json::to_value(error.code).expect("serialize error code");
+                self.error = Some(format!(
+                    "{}: {} (retryable: {}). Refresh to read current state.",
+                    code.as_str().unwrap_or("UNKNOWN"),
+                    error.message,
+                    error.retryable
+                ));
+            }
+        }
+        true
+    }
 }
 
 pub(crate) fn parse_z_index(text: &str) -> Result<i32, String> {

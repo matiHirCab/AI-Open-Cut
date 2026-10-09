@@ -1,5 +1,5 @@
 #[path = "../../../crates/editor-core/tests/support/narration_fixture.rs"]
-mod fixture;
+pub(crate) mod fixture;
 use crate::narration_inspector::{self, Cursor};
 use opencut_editor_core::{GeneratedAssetOrigin, Marker, MarkerKind, SpeechTimedText};
 use serde_json::json;

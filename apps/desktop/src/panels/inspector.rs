@@ -2,7 +2,7 @@ use crate::{
     animation_inspector,
     compositing_inspector::{self, Action, EFFECT_TYPES, Eligibility},
     hierarchy::{editable, kind},
-    narration_inspector,
+    review::InspectorTab,
     shell::{Shell, button},
     theme::ActiveTheme,
 };
@@ -22,8 +22,34 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
         .border_l_1()
         .border_color(colors.border)
         .bg(colors.card)
-        .child(div().text_lg().child("Inspector"))
-        .child(super::narration::render(shell, cx));
+        .child(div().text_lg().child("Inspector"));
+    let mut tabs = div().flex().gap_1().py_2();
+    for (index, (tab, name)) in [
+        (InspectorTab::Layer, "Layer"),
+        (InspectorTab::Cues, "Cues"),
+        (InspectorTab::Audio, "Audio"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        tabs = tabs.child(
+            button(
+                ("review-tab", index),
+                if shell.inspector_tab == tab {
+                    format!("[{name}]")
+                } else {
+                    name.into()
+                },
+            )
+            .on_click(cx.listener(move |this, _, _, cx| this.change_inspector_tab(tab, cx))),
+        );
+    }
+    panel = panel.child(tabs);
+    match shell.inspector_tab {
+        InspectorTab::Cues => return panel.child(super::narration::render(shell, cx)),
+        InspectorTab::Audio => return panel.child(super::narration::audio(shell, cx)),
+        InspectorTab::Layer => {}
+    }
     let Some((project, selection, track, item)) = shell.session.project.as_ref().and_then(|p| {
         let s = shell.session.selected.as_ref()?;
         let (t, i) = s.resolve(p)?;
@@ -31,31 +57,6 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
     }) else {
         return panel.child("Select a layer.");
     };
-    for text in narration_inspector::descriptions(project, track, item, &shell.narration_cursor) {
-        panel = panel.child(
-            div()
-                .w_full()
-                .whitespace_normal()
-                .text_xs()
-                .py_1()
-                .child(text),
-        );
-    }
-    if narration_inspector::alignment(project, item).is_some() {
-        for (axis, label) in [(2, "granularity"), (3, "segment")] {
-            for (next, prefix) in [(false, "Previous"), (true, "Next")] {
-                panel = panel.child(
-                    button(
-                        ("alignment-nav", axis * 2 + usize::from(next)),
-                        format!("{prefix} {label}"),
-                    )
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.navigate_narration(axis as u8, next, cx)
-                    })),
-                );
-            }
-        }
-    }
     let parent = item
         .visual_properties()
         .parent
