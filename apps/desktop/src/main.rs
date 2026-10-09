@@ -8,6 +8,7 @@ mod components;
 mod compositing_inspector;
 mod hierarchy;
 mod inspector_edit;
+mod narration_inspector;
 mod panels;
 mod session;
 mod shell;
@@ -17,6 +18,8 @@ mod theme;
 mod compositing_predecessor;
 #[cfg(test)]
 mod compositing_tests;
+#[cfg(test)]
+mod narration_tests;
 #[cfg(test)]
 mod tests;
 

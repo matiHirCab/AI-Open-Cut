@@ -11,6 +11,8 @@ impl Render for Preview {
         div()
             .flex()
             .w_1_2()
+            .min_w_0()
+            .whitespace_normal()
             .h_full()
             .items_center()
             .justify_center()

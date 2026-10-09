@@ -6,6 +6,7 @@ use crate::{
     compositing_inspector::{self, Action, Cursor as CompositingCursor},
     hierarchy::{Selection, editable},
     inspector_edit::{self, Field},
+    narration_inspector,
     panels::{self, Preview},
     session::{Command, Session, Startup, parse_z_index},
     theme::ActiveTheme,
@@ -67,6 +68,7 @@ pub(crate) struct Shell {
     inspector_source: Option<InspectorDraft>,
     pub animation_cursor: Cursor,
     pub compositing_cursor: CompositingCursor,
+    pub narration_cursor: narration_inspector::Cursor,
     interaction_epoch: u64,
     preview: Entity<Preview>,
 }
@@ -84,6 +86,7 @@ impl Shell {
             inspector_source: None,
             animation_cursor: Cursor::default(),
             compositing_cursor: CompositingCursor::default(),
+            narration_cursor: narration_inspector::Cursor::default(),
             interaction_epoch: 0,
             preview: cx.new(|_| Preview),
         };
@@ -146,6 +149,9 @@ impl Shell {
                         )
                     });
                 this.session.finish(generation, result);
+                if succeeded {
+                    this.narration_cursor.reset();
+                }
                 if succeeded
                     && same_context
                     && let Some(next) = next
@@ -165,6 +171,7 @@ impl Shell {
     }
 
     pub fn select(&mut self, selection: Selection, cx: &mut Context<Self>) {
+        self.narration_cursor.reset();
         self.session.selected = Some(selection);
         self.animation_cursor = Cursor::default();
         self.compositing_cursor = CompositingCursor::default();
@@ -172,6 +179,19 @@ impl Shell {
         self.reset_z_text();
         self.reset_inspector();
         cx.notify();
+    }
+
+    pub fn navigate_narration(&mut self, axis: u8, next: bool, cx: &mut Context<Self>) {
+        if let Some(project) = &self.session.project {
+            let item = self
+                .session
+                .selected
+                .as_ref()
+                .and_then(|selection| selection.resolve(project))
+                .map(|(_, item)| item);
+            self.narration_cursor.navigate(project, item, axis, next);
+            cx.notify();
+        }
     }
 
     fn reset_z_text(&mut self) {

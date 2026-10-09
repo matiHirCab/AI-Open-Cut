@@ -39,6 +39,7 @@ import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
 import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
 import { verifyMasterNormalizationWorkflow } from "./master-normalization-workflow";
+import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -629,6 +630,10 @@ it("aligns known text and preserves caption retry, history and reopen through MC
 
 it("generates speech markers with atomic failure, history and reopen through MCP", async () => {
   await verifySpeechMarkerWorkflow(client, call);
+});
+
+it("binds all six narration cues to presets and semantic events through MCP", async () => {
+  await verifyNarrationFixtureWorkflow(client, call);
 });
 
 it("routes project buses with atomic aliases, drafts, failures, history and reopen through MCP", async () => {

@@ -4,3 +4,4 @@ mod preview;
 pub(crate) mod timeline;
 
 pub(crate) use preview::Preview;
+mod narration;

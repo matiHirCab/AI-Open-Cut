@@ -29,11 +29,22 @@ impl Drop for RetainedRoot {
 #[derive(Debug, Default)]
 pub(super) struct RecordingProcess {
     pcm: Mutex<Vec<f32>>,
-    original: Mutex<Vec<f32>>,
+    pub(super) original: Mutex<Vec<f32>>,
     prepared: Mutex<Option<PreparedMasterNormalization>>,
     pub(super) rendered_pcm: Mutex<Vec<f32>>,
 }
 impl ProcessExecutor for RecordingProcess {
+    fn prepare_visual_stream(
+        &self,
+        ffmpeg: &Path,
+        output: &Path,
+        fps: u32,
+        frames: u64,
+        produce: &mut dyn FnMut(u64) -> Result<Vec<u8>, CoreError>,
+    ) -> Result<(), CoreError> {
+        SystemProcessExecutor.prepare_visual_stream(ffmpeg, output, fps, frames, produce)
+    }
+
     fn readiness(&self, f: &Path, p: &Path) -> Result<(), CoreError> {
         SystemProcessExecutor.readiness(f, p)
     }
