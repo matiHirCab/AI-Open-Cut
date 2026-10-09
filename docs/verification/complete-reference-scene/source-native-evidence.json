@@ -1,0 +1,835 @@
+{
+  "records": [
+    {
+      "artifact": {
+        "mimeType": "image/png",
+        "relativePath": "previews/preview-82d9f487-a8cc-41a8-b6c9-b5d1b9d632d3.png",
+        "sizeBytes": 11400,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "timeMs": 650
+      },
+      "name": "preview_render_frame",
+      "revision": 5
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "previews/preview-range-61cb5677-2dee-419f-b796-163afc2e00d0.mp4",
+        "sizeBytes": 198778,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "endMs": 6000,
+        "resolution": "project",
+        "startMs": 0
+      },
+      "name": "preview_review_range",
+      "revision": 5
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "previews/preview-range-7f11895c-93f5-447c-849f-5311c64554ae.mp4",
+        "sizeBytes": 45471,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "endMs": 1000,
+        "resolution": "540p",
+        "startMs": 0
+      },
+      "name": "preview_review_range",
+      "revision": 5
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "previews/preview-range-14dffcc8-c034-4e95-ae5a-24a863a99a28.mp4",
+        "sizeBytes": 45471,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "endMs": 1000,
+        "resolution": "540p",
+        "startMs": 0
+      },
+      "name": "preview_review_range",
+      "revision": 5
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "previews/preview-range-1aee91fd-bf45-4eec-a2b7-b2d56c5362a4.mp4",
+        "sizeBytes": 45639,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "endMs": 1000,
+        "resolution": "720p",
+        "startMs": 0
+      },
+      "name": "preview_review_range",
+      "revision": 5
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "previews/preview-range-8d89023f-91e1-4789-b6f4-459bc7868a0b.mp4",
+        "sizeBytes": 45639,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "endMs": 1000,
+        "resolution": "720p",
+        "startMs": 0
+      },
+      "name": "preview_review_range",
+      "revision": 5
+    },
+    {
+      "cacheStats": [
+        {
+          "finalExecutions": 1,
+          "hits": 0,
+          "misses": 1,
+          "requestId": "4c149c35-ca0a-4510-b24c-81e8e4bf5459"
+        },
+        {
+          "finalExecutions": 2,
+          "hits": 0,
+          "misses": 2,
+          "requestId": "1c8bf3a2-c167-4c1a-aa0f-88d4f088f005"
+        },
+        {
+          "finalExecutions": 3,
+          "hits": 0,
+          "misses": 3,
+          "requestId": "f7d5e37e-8939-4aa5-85d5-9feca5458eb9"
+        },
+        {
+          "finalExecutions": 3,
+          "hits": 1,
+          "misses": 3,
+          "requestId": "65bc9186-fa27-44e3-96e8-23108ad6a3cf"
+        },
+        {
+          "finalExecutions": 4,
+          "hits": 1,
+          "misses": 4,
+          "requestId": "ea7d1e88-c7df-43ee-98bc-42391c3d161b"
+        },
+        {
+          "finalExecutions": 4,
+          "hits": 2,
+          "misses": 4,
+          "requestId": "c5a8d46f-a388-4f67-abc5-9c6f113a812d"
+        }
+      ]
+    },
+    {
+      "artifact": {
+        "mimeType": "video/mp4",
+        "relativePath": "reference.mp4",
+        "sizeBytes": 198778,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "format": "mp4",
+        "overwrite": false,
+        "relativePath": "reference.mp4",
+        "resolution": "project"
+      },
+      "name": "project_export_video",
+      "revision": 5
+    },
+    {
+      "alignmentOffsetSamples": 0,
+      "independentAudioWitness": "six literal oscillator voice windows and silent gaps",
+      "pcmRms": 0
+    },
+    {
+      "independentWitness": "opaque gold ellipse at 127,89",
+      "rgb": [
+        255,
+        203,
+        0
+      ]
+    },
+    {
+      "exportProbe": {
+        "streams": [
+          {
+            "index": 0,
+            "codec_name": "h264",
+            "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+            "profile": "High",
+            "codec_type": "video",
+            "codec_tag_string": "avc1",
+            "codec_tag": "0x31637661",
+            "width": 192,
+            "height": 108,
+            "coded_width": 192,
+            "coded_height": 108,
+            "closed_captions": 0,
+            "film_grain": 0,
+            "has_b_frames": 2,
+            "sample_aspect_ratio": "1:1",
+            "display_aspect_ratio": "16:9",
+            "pix_fmt": "yuv420p",
+            "level": 10,
+            "chroma_location": "left",
+            "field_order": "progressive",
+            "refs": 1,
+            "is_avc": "true",
+            "nal_length_size": "4",
+            "id": "0x1",
+            "r_frame_rate": "10/1",
+            "avg_frame_rate": "10/1",
+            "time_base": "1/10240",
+            "start_pts": 0,
+            "start_time": "0.000000",
+            "duration_ts": 61440,
+            "duration": "6.000000",
+            "bit_rate": "131793",
+            "bits_per_raw_sample": "8",
+            "nb_frames": "60",
+            "extradata_size": 46,
+            "disposition": {
+              "default": 1,
+              "dub": 0,
+              "original": 0,
+              "comment": 0,
+              "lyrics": 0,
+              "karaoke": 0,
+              "forced": 0,
+              "hearing_impaired": 0,
+              "visual_impaired": 0,
+              "clean_effects": 0,
+              "attached_pic": 0,
+              "timed_thumbnails": 0,
+              "non_diegetic": 0,
+              "captions": 0,
+              "descriptions": 0,
+              "metadata": 0,
+              "dependent": 0,
+              "still_image": 0,
+              "multilayer": 0
+            },
+            "tags": {
+              "language": "und",
+              "handler_name": "VideoHandler",
+              "vendor_id": "[0][0][0][0]",
+              "encoder": "Lavc61.19.101 libx264"
+            }
+          },
+          {
+            "index": 1,
+            "codec_name": "aac",
+            "codec_long_name": "AAC (Advanced Audio Coding)",
+            "profile": "LC",
+            "codec_type": "audio",
+            "codec_tag_string": "mp4a",
+            "codec_tag": "0x6134706d",
+            "sample_fmt": "fltp",
+            "sample_rate": "48000",
+            "channels": 2,
+            "channel_layout": "stereo",
+            "bits_per_sample": 0,
+            "initial_padding": 0,
+            "id": "0x2",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/48000",
+            "start_pts": 0,
+            "start_time": "0.000000",
+            "duration_ts": 288000,
+            "duration": "6.000000",
+            "bit_rate": "127187",
+            "nb_frames": "283",
+            "extradata_size": 5,
+            "disposition": {
+              "default": 1,
+              "dub": 0,
+              "original": 0,
+              "comment": 0,
+              "lyrics": 0,
+              "karaoke": 0,
+              "forced": 0,
+              "hearing_impaired": 0,
+              "visual_impaired": 0,
+              "clean_effects": 0,
+              "attached_pic": 0,
+              "timed_thumbnails": 0,
+              "non_diegetic": 0,
+              "captions": 0,
+              "descriptions": 0,
+              "metadata": 0,
+              "dependent": 0,
+              "still_image": 0,
+              "multilayer": 0
+            },
+            "tags": {
+              "language": "und",
+              "handler_name": "SoundHandler",
+              "vendor_id": "[0][0][0][0]"
+            }
+          }
+        ],
+        "format": {
+          "filename": "/tmp/opencut-reference-bWb5mF/exports/reference.mp4",
+          "nb_streams": 2,
+          "nb_programs": 0,
+          "nb_stream_groups": 0,
+          "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+          "format_long_name": "QuickTime / MOV",
+          "start_time": "0.000000",
+          "duration": "6.000000",
+          "size": "198778",
+          "bit_rate": "265037",
+          "probe_score": 100,
+          "tags": {
+            "major_brand": "isom",
+            "minor_version": "512",
+            "compatible_brands": "isomiso2avc1mp41",
+            "encoder": "Lavf61.7.103"
+          }
+        }
+      },
+      "rangeProbe": {
+        "streams": [
+          {
+            "index": 0,
+            "codec_name": "h264",
+            "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+            "profile": "High",
+            "codec_type": "video",
+            "codec_tag_string": "avc1",
+            "codec_tag": "0x31637661",
+            "width": 192,
+            "height": 108,
+            "coded_width": 192,
+            "coded_height": 108,
+            "closed_captions": 0,
+            "film_grain": 0,
+            "has_b_frames": 2,
+            "sample_aspect_ratio": "1:1",
+            "display_aspect_ratio": "16:9",
+            "pix_fmt": "yuv420p",
+            "level": 10,
+            "chroma_location": "left",
+            "field_order": "progressive",
+            "refs": 1,
+            "is_avc": "true",
+            "nal_length_size": "4",
+            "id": "0x1",
+            "r_frame_rate": "10/1",
+            "avg_frame_rate": "10/1",
+            "time_base": "1/10240",
+            "start_pts": 0,
+            "start_time": "0.000000",
+            "duration_ts": 61440,
+            "duration": "6.000000",
+            "bit_rate": "131793",
+            "bits_per_raw_sample": "8",
+            "nb_frames": "60",
+            "extradata_size": 46,
+            "disposition": {
+              "default": 1,
+              "dub": 0,
+              "original": 0,
+              "comment": 0,
+              "lyrics": 0,
+              "karaoke": 0,
+              "forced": 0,
+              "hearing_impaired": 0,
+              "visual_impaired": 0,
+              "clean_effects": 0,
+              "attached_pic": 0,
+              "timed_thumbnails": 0,
+              "non_diegetic": 0,
+              "captions": 0,
+              "descriptions": 0,
+              "metadata": 0,
+              "dependent": 0,
+              "still_image": 0,
+              "multilayer": 0
+            },
+            "tags": {
+              "language": "und",
+              "handler_name": "VideoHandler",
+              "vendor_id": "[0][0][0][0]",
+              "encoder": "Lavc61.19.101 libx264"
+            }
+          },
+          {
+            "index": 1,
+            "codec_name": "aac",
+            "codec_long_name": "AAC (Advanced Audio Coding)",
+            "profile": "LC",
+            "codec_type": "audio",
+            "codec_tag_string": "mp4a",
+            "codec_tag": "0x6134706d",
+            "sample_fmt": "fltp",
+            "sample_rate": "48000",
+            "channels": 2,
+            "channel_layout": "stereo",
+            "bits_per_sample": 0,
+            "initial_padding": 0,
+            "id": "0x2",
+            "r_frame_rate": "0/0",
+            "avg_frame_rate": "0/0",
+            "time_base": "1/48000",
+            "start_pts": 0,
+            "start_time": "0.000000",
+            "duration_ts": 288000,
+            "duration": "6.000000",
+            "bit_rate": "127187",
+            "nb_frames": "283",
+            "extradata_size": 5,
+            "disposition": {
+              "default": 1,
+              "dub": 0,
+              "original": 0,
+              "comment": 0,
+              "lyrics": 0,
+              "karaoke": 0,
+              "forced": 0,
+              "hearing_impaired": 0,
+              "visual_impaired": 0,
+              "clean_effects": 0,
+              "attached_pic": 0,
+              "timed_thumbnails": 0,
+              "non_diegetic": 0,
+              "captions": 0,
+              "descriptions": 0,
+              "metadata": 0,
+              "dependent": 0,
+              "still_image": 0,
+              "multilayer": 0
+            },
+            "tags": {
+              "language": "und",
+              "handler_name": "SoundHandler",
+              "vendor_id": "[0][0][0][0]"
+            }
+          }
+        ],
+        "format": {
+          "filename": "/tmp/opencut-reference-bWb5mF/projects/6f55f5fb-cc6b-40f6-86fd-2d4a38f1fba6/previews/preview-range-61cb5677-2dee-419f-b796-163afc2e00d0.mp4",
+          "nb_streams": 2,
+          "nb_programs": 0,
+          "nb_stream_groups": 0,
+          "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+          "format_long_name": "QuickTime / MOV",
+          "start_time": "0.000000",
+          "duration": "6.000000",
+          "size": "198778",
+          "bit_rate": "265037",
+          "probe_score": 100,
+          "tags": {
+            "major_brand": "isom",
+            "minor_version": "512",
+            "compatible_brands": "isomiso2avc1mp41",
+            "encoder": "Lavf61.7.103"
+          }
+        }
+      },
+      "ssimScore": 1
+    },
+    {
+      "analysis": {
+        "startMs": 0,
+        "endMs": 6000,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "frameCount": 288000,
+        "actualBinCount": 64,
+        "linearSamplePeak": 0.12051640450954437,
+        "samplePeakDbfs": -18.37907667123105,
+        "integratedLufs": -23.99,
+        "truePeakDbtp": -18.38,
+        "loudnessRangeLu": 1.5,
+        "thresholdLufs": -35.14
+      }
+    },
+    {
+      "artifact": {
+        "mimeType": "image/png",
+        "relativePath": "previews/preview-576108b8-5386-49bb-a3ec-88cae3b75a9a.png",
+        "sizeBytes": 11462,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "timeMs": 650
+      },
+      "name": "preview_render_frame",
+      "revision": 6
+    },
+    {
+      "artifact": {
+        "mimeType": "image/png",
+        "relativePath": "previews/preview-0ae4d22a-eadd-4e9e-ae69-de2dce1f5d85.png",
+        "sizeBytes": 11400,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "timeMs": 650
+      },
+      "name": "preview_render_frame",
+      "revision": 7
+    },
+    {
+      "artifact": {
+        "mimeType": "image/png",
+        "relativePath": "previews/preview-c818c13e-2bcd-4643-9ff3-20e544693dfc.png",
+        "sizeBytes": 11462,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "timeMs": 650
+      },
+      "name": "preview_render_frame",
+      "revision": 8
+    },
+    {
+      "artifact": {
+        "mimeType": "image/png",
+        "relativePath": "previews/preview-11bc45fa-2556-4225-9d5c-201fc88b6023.png",
+        "sizeBytes": 11462,
+        "textLayouts": [
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 70.791015625,
+            "itemId": "1-5",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 83.103515625,
+            "itemId": "1-6",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          },
+          {
+            "contentHeightPx": 20.953125,
+            "contentWidthPx": 51,
+            "itemId": "1-7",
+            "lineCount": 1,
+            "overflowX": false,
+            "overflowY": false,
+            "resolvedFontSize": 18
+          }
+        ],
+        "warnings": []
+      },
+      "input": {
+        "timeMs": 650
+      },
+      "name": "preview_render_frame",
+      "revision": 8
+    }
+  ],
+  "revision": 5,
+  "settings": {
+    "width": 192,
+    "height": 108,
+    "fps": 10
+  }
+}

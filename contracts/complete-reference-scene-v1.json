@@ -1,0 +1,1865 @@
+{
+  "version": 1,
+  "fixtureId": "complete-reference-scene-v1",
+  "projectSchemaVersion": 44,
+  "headlessProtocolVersion": 1,
+  "settings": {
+    "width": 192,
+    "height": 108,
+    "fps": 10
+  },
+  "durationMs": 6000,
+  "name": "Complete ten-capability reference",
+  "alignment": {
+    "sentences": [
+      {
+        "text": "EVERY",
+        "startMs": 500,
+        "endMs": 900
+      },
+      {
+        "text": "SINGLE",
+        "startMs": 1000,
+        "endMs": 1400
+      },
+      {
+        "text": "ONE",
+        "startMs": 1500,
+        "endMs": 1900
+      },
+      {
+        "text": "rules",
+        "startMs": 2400,
+        "endMs": 2900
+      },
+      {
+        "text": "Starting with",
+        "startMs": 3200,
+        "endMs": 3900
+      },
+      {
+        "text": "Venusaur",
+        "startMs": 4300,
+        "endMs": 5000
+      }
+    ],
+    "words": [
+      {
+        "text": "EVERY",
+        "startMs": 500,
+        "endMs": 900
+      },
+      {
+        "text": "SINGLE",
+        "startMs": 1000,
+        "endMs": 1400
+      },
+      {
+        "text": "ONE",
+        "startMs": 1500,
+        "endMs": 1900
+      },
+      {
+        "text": "rules",
+        "startMs": 2400,
+        "endMs": 2900
+      },
+      {
+        "text": "Starting",
+        "startMs": 3200,
+        "endMs": 3500
+      },
+      {
+        "text": "with",
+        "startMs": 3600,
+        "endMs": 3900
+      },
+      {
+        "text": "Venusaur",
+        "startMs": 4300,
+        "endMs": 5000
+      }
+    ],
+    "phonemes": [],
+    "quality": "estimated",
+    "providerId": "synthetic-narration-fixture",
+    "modelId": null,
+    "modelVersion": null
+  },
+  "sources": {
+    "sampleRateHz": 48000,
+    "channels": 2,
+    "voiceFrequencyHz": 437,
+    "musicFrequencyHz": 211,
+    "variantFrequenciesHz": [
+      659,
+      877
+    ],
+    "voiceAmplitude": 0.1,
+    "musicAmplitude": 0.08,
+    "eventAmplitude": 0.1
+  },
+  "cues": [
+    {
+      "name": "EVERY",
+      "timeMs": 500,
+      "color": "#ff0000"
+    },
+    {
+      "name": "SINGLE",
+      "timeMs": 1000,
+      "color": "#00ff00"
+    },
+    {
+      "name": "ONE",
+      "timeMs": 1500,
+      "color": "#0000ff"
+    },
+    {
+      "name": "rules",
+      "timeMs": 2400,
+      "color": "#ffff00"
+    },
+    {
+      "name": "Starting_with",
+      "timeMs": 3200,
+      "color": "#00ffff"
+    },
+    {
+      "name": "Venusaur",
+      "timeMs": 4300,
+      "color": "#ff00ff"
+    }
+  ],
+  "operations": [
+    {
+      "operation": "audio_track_route",
+      "scope": "root",
+      "trackId": "$audio",
+      "busId": "voiceover"
+    },
+    {
+      "operation": "create_track",
+      "name": "Music",
+      "trackType": "audio",
+      "resultAlias": "music"
+    },
+    {
+      "operation": "audio_track_route",
+      "scope": "root",
+      "trackId": "@music",
+      "busId": "music"
+    },
+    {
+      "operation": "add_media",
+      "trackId": "@music",
+      "assetId": "$music",
+      "startMs": 0,
+      "durationMs": 6000,
+      "sourceInMs": 0
+    },
+    {
+      "operation": "create_track",
+      "name": "Designed events",
+      "trackType": "audio",
+      "resultAlias": "events"
+    },
+    {
+      "operation": "sound_event_register",
+      "event": "narration_accent",
+      "variantAssetIds": [
+        "$event0",
+        "$event1"
+      ],
+      "defaultGainDb": -6,
+      "busId": "sfx",
+      "variantSeed": 1
+    },
+    {
+      "operation": "speech_markers_generate",
+      "scope": "root",
+      "assetId": "$voice",
+      "startMs": 0,
+      "markerPolicy": {
+        "type": "sentence"
+      },
+      "alignment": {
+        "sentences": [
+          {
+            "text": "EVERY",
+            "startMs": 500,
+            "endMs": 900
+          },
+          {
+            "text": "SINGLE",
+            "startMs": 1000,
+            "endMs": 1400
+          },
+          {
+            "text": "ONE",
+            "startMs": 1500,
+            "endMs": 1900
+          },
+          {
+            "text": "rules",
+            "startMs": 2400,
+            "endMs": 2900
+          },
+          {
+            "text": "Starting with",
+            "startMs": 3200,
+            "endMs": 3900
+          },
+          {
+            "text": "Venusaur",
+            "startMs": 4300,
+            "endMs": 5000
+          }
+        ],
+        "words": [
+          {
+            "text": "EVERY",
+            "startMs": 500,
+            "endMs": 900
+          },
+          {
+            "text": "SINGLE",
+            "startMs": 1000,
+            "endMs": 1400
+          },
+          {
+            "text": "ONE",
+            "startMs": 1500,
+            "endMs": 1900
+          },
+          {
+            "text": "rules",
+            "startMs": 2400,
+            "endMs": 2900
+          },
+          {
+            "text": "Starting",
+            "startMs": 3200,
+            "endMs": 3500
+          },
+          {
+            "text": "with",
+            "startMs": 3600,
+            "endMs": 3900
+          },
+          {
+            "text": "Venusaur",
+            "startMs": 4300,
+            "endMs": 5000
+          }
+        ],
+        "phonemes": [],
+        "quality": "estimated",
+        "providerId": "synthetic-narration-fixture",
+        "modelId": null,
+        "modelVersion": null
+      }
+    },
+    {
+      "operation": "audio_bus_set_ducking",
+      "busId": "music",
+      "ducking": {
+        "enabled": true,
+        "sourceBusId": "voiceover",
+        "gain": 0.25,
+        "attackMs": 0,
+        "releaseMs": 0
+      }
+    },
+    {
+      "operation": "audio_bus_set_dsp",
+      "busId": "master",
+      "dsp": {
+        "gainDb": -1,
+        "pan": 0,
+        "eq": [],
+        "compressor": {
+          "thresholdDb": -18,
+          "ratio": 2,
+          "attackMs": 5,
+          "releaseMs": 50,
+          "makeupGainDb": 0
+        }
+      }
+    },
+    {
+      "operation": "audio_master_set_normalization",
+      "normalization": {
+        "enabled": true,
+        "targetIntegratedLufs": -24.0,
+        "targetLoudnessRangeLu": 7.0,
+        "targetTruePeakDbtp": -2.0
+      }
+    },
+    {
+      "operation": "add_grid",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 6000,
+      "grid": {
+        "width": 192,
+        "height": 108,
+        "pattern": {
+          "type": "diagonal",
+          "spacing": 12,
+          "stroke": {
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 0,
+                "b": 0,
+                "a": 0.5
+              }
+            },
+            "width": 1,
+            "dash": [],
+            "dashOffset": 0,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "miterLimit": 4
+          }
+        }
+      },
+      "resultAlias": "grid"
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "@grid",
+      "zIndex": -10
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@grid",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@grid",
+      "presetId": "scan",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "scan",
+        "startMs": 0,
+        "durationMs": 1000,
+        "positionFromX": 0,
+        "positionToX": 6,
+        "iterations": "infinite"
+      }
+    },
+    {
+      "operation": "component_create",
+      "name": "Rule card",
+      "width": 58,
+      "height": 62,
+      "durationMs": 6000,
+      "tracks": [
+        {
+          "id": "card",
+          "name": "Card layers",
+          "trackType": "overlay",
+          "items": [
+            {
+              "id": "background",
+              "stackOrder": 0,
+              "startMs": 0,
+              "durationMs": 6000,
+              "transform2d": {
+                "position": {
+                  "x": 0,
+                  "y": 0,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              },
+              "keyframes": [],
+              "type": "rectangle",
+              "width": 58,
+              "height": 62,
+              "color": "#203040"
+            },
+            {
+              "id": "accent",
+              "stackOrder": 1,
+              "startMs": 0,
+              "durationMs": 6000,
+              "transform2d": {
+                "position": {
+                  "x": 0,
+                  "y": 0,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              },
+              "keyframes": [],
+              "type": "rectangle",
+              "width": 4,
+              "height": 62,
+              "color": "#28b4aa"
+            },
+            {
+              "id": "number",
+              "stackOrder": 2,
+              "startMs": 0,
+              "durationMs": 6000,
+              "transform2d": {
+                "position": {
+                  "x": 8,
+                  "y": 5,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              },
+              "keyframes": [],
+              "type": "text",
+              "text": "0",
+              "fontSize": 8,
+              "color": "#ffffff",
+              "document": {
+                "runs": [
+                  {
+                    "text": "0"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "title",
+              "stackOrder": 3,
+              "startMs": 0,
+              "durationMs": 6000,
+              "transform2d": {
+                "position": {
+                  "x": 8,
+                  "y": 18,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              },
+              "keyframes": [],
+              "type": "text",
+              "text": "Rule",
+              "fontSize": 8,
+              "color": "#ffffff",
+              "document": {
+                "runs": [
+                  {
+                    "text": "Rule"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "body",
+              "stackOrder": 4,
+              "startMs": 0,
+              "durationMs": 6000,
+              "transform2d": {
+                "position": {
+                  "x": 8,
+                  "y": 32,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              },
+              "keyframes": [],
+              "type": "text",
+              "text": "Base",
+              "fontSize": 8,
+              "color": "#ffffff",
+              "document": {
+                "runs": [
+                  {
+                    "text": "Base"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "shape",
+              "id": "icon",
+              "stackOrder": 5,
+              "zIndex": 0,
+              "startMs": 0,
+              "durationMs": 6000,
+              "geometry": {
+                "type": "ellipse",
+                "width": 8,
+                "height": 8
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 1,
+                  "g": 0.8,
+                  "b": 0,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "keyframes": [],
+              "transform2d": {
+                "position": {
+                  "x": 8,
+                  "y": 48,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            }
+          ]
+        }
+      ],
+      "resultAlias": "card"
+    },
+    {
+      "operation": "component_define_slots",
+      "componentId": "@card",
+      "slots": [
+        {
+          "id": "number",
+          "name": "number",
+          "kind": "text",
+          "required": false,
+          "defaultValue": {
+            "type": "text",
+            "value": "0"
+          },
+          "binding": {
+            "targetLayerId": "number",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        {
+          "id": "title",
+          "name": "title",
+          "kind": "text",
+          "required": false,
+          "defaultValue": {
+            "type": "text",
+            "value": "Rule"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        {
+          "id": "body",
+          "name": "body",
+          "kind": "text",
+          "required": false,
+          "defaultValue": {
+            "type": "text",
+            "value": "Base"
+          },
+          "binding": {
+            "targetLayerId": "body",
+            "property": "text.document"
+          },
+          "constraints": {}
+        },
+        {
+          "id": "opacity",
+          "name": "opacity",
+          "kind": "number",
+          "required": false,
+          "defaultValue": {
+            "type": "number",
+            "value": 1
+          },
+          "binding": {
+            "targetLayerId": "background",
+            "property": "visual.opacity"
+          },
+          "constraints": {
+            "min": 0,
+            "max": 1
+          }
+        }
+      ]
+    },
+    {
+      "operation": "add_group",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 6000,
+      "staggerMs": 100,
+      "transform2d": {
+        "position": {
+          "x": 4,
+          "y": 8,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "resultAlias": "parent"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$visual",
+      "componentId": "@card",
+      "startMs": 0,
+      "trimStartMs": 0,
+      "durationMs": 5500,
+      "timeScale": 1,
+      "parent": {
+        "scope": "root",
+        "id": "@parent"
+      },
+      "slotValues": {
+        "number": {
+          "type": "text",
+          "value": "1"
+        },
+        "title": {
+          "type": "text",
+          "value": "Plan"
+        },
+        "body": {
+          "type": "text",
+          "value": "Scope"
+        },
+        "opacity": {
+          "type": "number",
+          "value": 1
+        }
+      },
+      "resultAlias": "card0",
+      "transform": {
+        "positionX": 0,
+        "positionY": 0,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@card0",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@card0",
+      "presetId": "slide_left",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "slide_left",
+        "startMs": 0,
+        "durationMs": 200,
+        "positionFromX": 6,
+        "positionToX": 0
+      }
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$visual",
+      "componentId": "@card",
+      "startMs": 0,
+      "trimStartMs": 0,
+      "durationMs": 5500,
+      "timeScale": 1,
+      "parent": {
+        "scope": "root",
+        "id": "@parent"
+      },
+      "slotValues": {
+        "number": {
+          "type": "text",
+          "value": "2"
+        },
+        "title": {
+          "type": "text",
+          "value": "Build"
+        },
+        "body": {
+          "type": "text",
+          "value": "Create"
+        },
+        "opacity": {
+          "type": "number",
+          "value": 1
+        }
+      },
+      "resultAlias": "card1",
+      "transform": {
+        "positionX": 56,
+        "positionY": 0,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@card1",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@card1",
+      "presetId": "slide_left",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "slide_left",
+        "startMs": 0,
+        "durationMs": 200,
+        "positionFromX": 62,
+        "positionToX": 56
+      }
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$visual",
+      "componentId": "@card",
+      "startMs": 0,
+      "trimStartMs": 0,
+      "durationMs": 5500,
+      "timeScale": 1,
+      "parent": {
+        "scope": "root",
+        "id": "@parent"
+      },
+      "slotValues": {
+        "number": {
+          "type": "text",
+          "value": "3"
+        },
+        "title": {
+          "type": "text",
+          "value": "Check"
+        },
+        "body": {
+          "type": "text",
+          "value": "Review"
+        },
+        "opacity": {
+          "type": "number",
+          "value": 1
+        }
+      },
+      "resultAlias": "card2",
+      "transform": {
+        "positionX": 112,
+        "positionY": 0,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@card2",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@card2",
+      "presetId": "slide_left",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "slide_left",
+        "startMs": 0,
+        "durationMs": 200,
+        "positionFromX": 118,
+        "positionToX": 112
+      }
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 400,
+      "document": {
+        "runs": [
+          {
+            "text": "EVERY.",
+            "bold": true,
+            "color": "#ff0000"
+          }
+        ]
+      },
+      "fontSize": 18,
+      "color": "#ffffff",
+      "style": {
+        "outlineColor": "#101820",
+        "outlineWidthPx": 1,
+        "layout": {
+          "trackingPx": 0.5
+        }
+      },
+      "transform": {
+        "positionX": 12,
+        "positionY": 76,
+        "scale": 1,
+        "opacity": 1
+      },
+      "resultAlias": "word0"
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@word0",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@word0",
+      "presetId": "impact_slam",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "impact_slam",
+        "startMs": 0,
+        "durationMs": 200,
+        "centerX": 12,
+        "centerY": 76,
+        "shakeAmplitudePx": 2,
+        "scaleFrom": 0.8,
+        "scaleOvershoot": 1.1,
+        "scaleTo": 1,
+        "opacityFrom": 0,
+        "opacityTo": 1,
+        "flashOpacity": 0.2,
+        "motionBlur": {
+          "shutterAngleDeg": 90,
+          "sampleCount": 2
+        }
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@word0",
+      "time": {
+        "type": "marker",
+        "markerName": "EVERY",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "EVERY",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event0"
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 400,
+      "document": {
+        "runs": [
+          {
+            "text": "SINGLE.",
+            "bold": true,
+            "color": "#00ff00"
+          }
+        ]
+      },
+      "fontSize": 18,
+      "color": "#ffffff",
+      "style": {
+        "outlineColor": "#101820",
+        "outlineWidthPx": 1,
+        "layout": {
+          "trackingPx": 0.5
+        }
+      },
+      "transform": {
+        "positionX": 12,
+        "positionY": 76,
+        "scale": 1,
+        "opacity": 1
+      },
+      "resultAlias": "word1"
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@word1",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@word1",
+      "presetId": "impact_slam",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "impact_slam",
+        "startMs": 0,
+        "durationMs": 200,
+        "centerX": 12,
+        "centerY": 76,
+        "shakeAmplitudePx": 2,
+        "scaleFrom": 0.8,
+        "scaleOvershoot": 1.1,
+        "scaleTo": 1,
+        "opacityFrom": 0,
+        "opacityTo": 1,
+        "flashOpacity": 0.2,
+        "motionBlur": {
+          "shutterAngleDeg": 90,
+          "sampleCount": 2
+        }
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@word1",
+      "time": {
+        "type": "marker",
+        "markerName": "SINGLE",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "SINGLE",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event1"
+    },
+    {
+      "operation": "add_text",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 400,
+      "document": {
+        "runs": [
+          {
+            "text": "ONE.",
+            "bold": true,
+            "color": "#0000ff"
+          }
+        ]
+      },
+      "fontSize": 18,
+      "color": "#ffffff",
+      "style": {
+        "outlineColor": "#101820",
+        "outlineWidthPx": 1,
+        "layout": {
+          "trackingPx": 0.5
+        }
+      },
+      "transform": {
+        "positionX": 12,
+        "positionY": 76,
+        "scale": 1,
+        "opacity": 1
+      },
+      "resultAlias": "word2"
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@word2",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@word2",
+      "presetId": "impact_slam",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "impact_slam",
+        "startMs": 0,
+        "durationMs": 200,
+        "centerX": 12,
+        "centerY": 76,
+        "shakeAmplitudePx": 2,
+        "scaleFrom": 0.8,
+        "scaleOvershoot": 1.1,
+        "scaleTo": 1,
+        "opacityFrom": 0,
+        "opacityTo": 1,
+        "flashOpacity": 0.2,
+        "motionBlur": {
+          "shutterAngleDeg": 90,
+          "sampleCount": 2
+        }
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@word2",
+      "time": {
+        "type": "marker",
+        "markerName": "ONE",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "ONE",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event2"
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "rules",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event3"
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "Starting_with",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event4"
+    },
+    {
+      "operation": "timeline_add_audio_event",
+      "scope": "root",
+      "trackId": "@events",
+      "event": "narration_accent",
+      "at": {
+        "type": "marker",
+        "markerName": "Venusaur",
+        "offsetMs": 0
+      },
+      "durationMs": 300,
+      "gainDb": -3,
+      "resultAlias": "event5"
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 6000,
+      "geometry": {
+        "type": "ellipse",
+        "width": 4,
+        "height": 4
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 0.8,
+          "b": 0,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 125,
+          "y": 87,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "resultAlias": "decoration"
+    },
+    {
+      "operation": "add_repeater",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 6000,
+      "repeater": {
+        "source": {
+          "scope": "root",
+          "id": "@decoration"
+        },
+        "copies": 3,
+        "transformOffset": {
+          "position": {
+            "x": 12,
+            "y": 0,
+            "unit": "pixels"
+          },
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotationDeg": 0,
+          "skewXDeg": 0,
+          "skewYDeg": 0
+        },
+        "opacityOffset": -0.1
+      },
+      "resultAlias": "decorative-copies"
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$visual",
+      "startMs": 0,
+      "durationMs": 6000,
+      "geometry": {
+        "type": "ellipse",
+        "width": 10,
+        "height": 10
+      },
+      "fill": null,
+      "stroke": {
+        "paint": {
+          "type": "solid",
+          "color": {
+            "r": 0,
+            "g": 1,
+            "b": 1,
+            "a": 1
+          }
+        },
+        "width": 1,
+        "lineCap": "round",
+        "lineJoin": "round",
+        "miterLimit": 4,
+        "dashOffset": 0,
+        "dash": []
+      },
+      "resultAlias": "radar"
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@radar",
+      "transform": {
+        "positionX": 85,
+        "positionY": 78,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@radar",
+      "transform2d": null
+    },
+    {
+      "operation": "apply_animation_preset",
+      "itemId": "@radar",
+      "presetId": "radar_expand",
+      "presetVersion": 1,
+      "parameters": {
+        "kind": "radar_expand",
+        "startMs": 0,
+        "durationMs": 800,
+        "scaleFrom": 0.5,
+        "scaleTo": 2,
+        "opacityPeak": 0.7,
+        "iterations": "infinite"
+      }
+    },
+    {
+      "operation": "add_group",
+      "trackId": "$visual",
+      "startMs": 4300,
+      "durationMs": 800,
+      "resultAlias": "hero-owner",
+      "transform2d": {
+        "position": {
+          "x": 110,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@hero-owner",
+      "clip": {
+        "type": "composition_bounds"
+      },
+      "effects": [
+        {
+          "id": "hero-flash",
+          "type": "screen_flash",
+          "startMs": 300,
+          "durationMs": 300,
+          "intensity": 0.65,
+          "color": {
+            "r": 0.8,
+            "g": 0.65,
+            "b": 0.9,
+            "a": 1
+          }
+        },
+        {
+          "id": "hero-particles",
+          "type": "particle_overlay",
+          "count": 8,
+          "seed": 1,
+          "radiusPx": 2,
+          "speedPxPerSecond": 12,
+          "lifetimeMs": 700,
+          "color": {
+            "r": 0.95,
+            "g": 0.8,
+            "b": 0.2,
+            "a": 0.75
+          }
+        }
+      ]
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "@hero-owner",
+      "zIndex": 0
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$visual",
+      "startMs": 4300,
+      "durationMs": 800,
+      "resultAlias": "hero-provider",
+      "geometry": {
+        "type": "rectangle",
+        "width": 44,
+        "height": 48
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 1,
+          "g": 1,
+          "b": 1,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 4,
+          "y": 8,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@hero-provider",
+      "effects": [],
+      "masks": [],
+      "matteOnly": true
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "@hero-provider",
+      "zIndex": -1
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$visual",
+      "startMs": 4300,
+      "durationMs": 800,
+      "resultAlias": "hero-probe",
+      "geometry": {
+        "type": "rectangle",
+        "width": 12,
+        "height": 8
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.75,
+          "g": 0.125,
+          "b": 0.25,
+          "a": 0.75
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": -6,
+          "y": 20,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "parent": {
+        "scope": "root",
+        "id": "@hero-owner"
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@hero-probe",
+      "effects": [],
+      "masks": []
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "@hero-probe",
+      "zIndex": 0
+    },
+    {
+      "operation": "add_shape",
+      "trackId": "$visual",
+      "startMs": 4300,
+      "durationMs": 800,
+      "resultAlias": "hero-hero",
+      "geometry": {
+        "type": "rectangle",
+        "width": 48,
+        "height": 40
+      },
+      "fill": {
+        "type": "solid",
+        "color": {
+          "r": 0.2,
+          "g": 0.55,
+          "b": 0.85,
+          "a": 1
+        }
+      },
+      "stroke": null,
+      "transform2d": {
+        "position": {
+          "x": 8,
+          "y": 12,
+          "unit": "pixels"
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1,
+        "anchor": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "parent": {
+        "scope": "root",
+        "id": "@hero-owner"
+      }
+    },
+    {
+      "operation": "update_item",
+      "itemId": "@hero-hero",
+      "effects": [
+        {
+          "id": "hero-blur",
+          "type": "gaussian_blur",
+          "radiusPx": 1
+        },
+        {
+          "id": "hero-glow",
+          "type": "glow",
+          "radiusPx": 1,
+          "intensity": 0.6,
+          "color": {
+            "r": 0.9,
+            "g": 0.25,
+            "b": 0.1,
+            "a": 0.8
+          }
+        },
+        {
+          "id": "hero-tint",
+          "type": "color_tint",
+          "color": {
+            "r": 0.15,
+            "g": 0.8,
+            "b": 0.3,
+            "a": 0.45
+          }
+        }
+      ],
+      "masks": [
+        {
+          "id": "hero-wipe",
+          "source": {
+            "type": "path",
+            "path": {
+              "fillRule": "nonzero",
+              "commands": [
+                {
+                  "type": "moveTo",
+                  "to": {
+                    "x": 1,
+                    "y": 1
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 1
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 41
+                  }
+                },
+                {
+                  "type": "lineTo",
+                  "to": {
+                    "x": 1,
+                    "y": 41
+                  }
+                },
+                {
+                  "type": "close"
+                }
+              ]
+            },
+            "paint": {
+              "type": "solid",
+              "color": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            }
+          },
+          "channel": "alpha",
+          "operation": "add",
+          "inverted": false,
+          "featherPx": 0,
+          "expansionPx": 0,
+          "transform": {
+            "position": {
+              "x": 1,
+              "y": 1,
+              "unit": "pixels"
+            },
+            "scaleX": 1,
+            "scaleY": 1,
+            "rotationDeg": 0,
+            "skewXDeg": 0,
+            "skewYDeg": 0,
+            "opacity": 1,
+            "anchor": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        }
+      ],
+      "matte": {
+        "sourceId": "@hero-provider",
+        "channel": "alpha"
+      },
+      "matteOnly": false,
+      "blendMode": "screen"
+    },
+    {
+      "operation": "item_set_z_index",
+      "itemId": "@hero-hero",
+      "zIndex": 1
+    },
+    {
+      "operation": "set_animation_channels",
+      "itemId": "@hero-hero",
+      "animationChannels": [
+        {
+          "property": "mask.path_points",
+          "target": {
+            "kind": "mask",
+            "scope": "root",
+            "id": "hero-wipe"
+          },
+          "keyframes": [
+            {
+              "timeMs": 0,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 200,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 17,
+                    "y": 1
+                  },
+                  {
+                    "x": 17,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 400,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 33,
+                    "y": 1
+                  },
+                  {
+                    "x": 33,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 600,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 799,
+              "value": {
+                "type": "path_points",
+                "points": [
+                  {
+                    "x": 1,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 1
+                  },
+                  {
+                    "x": 49,
+                    "y": 41
+                  },
+                  {
+                    "x": 1,
+                    "y": 41
+                  }
+                ]
+              },
+              "curve": "linear"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@hero-owner",
+      "time": {
+        "type": "marker",
+        "markerName": "Venusaur",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@hero-provider",
+      "time": {
+        "type": "marker",
+        "markerName": "Venusaur",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@hero-probe",
+      "time": {
+        "type": "marker",
+        "markerName": "Venusaur",
+        "offsetMs": 0
+      }
+    },
+    {
+      "operation": "set_item_start_time",
+      "scope": "root",
+      "itemId": "@hero-hero",
+      "time": {
+        "type": "marker",
+        "markerName": "Venusaur",
+        "offsetMs": 0
+      }
+    }
+  ],
+  "capabilityGroups": [
+    {
+      "id": "compositions",
+      "witnessAliases": [
+        "card",
+        "parent",
+        "card0",
+        "card1",
+        "card2"
+      ]
+    },
+    {
+      "id": "vectors",
+      "witnessAliases": [
+        "grid",
+        "decoration",
+        "decorative-copies"
+      ]
+    },
+    {
+      "id": "typography",
+      "witnessAliases": [
+        "word0",
+        "word1",
+        "word2"
+      ]
+    },
+    {
+      "id": "animation",
+      "witnessAliases": [
+        "grid",
+        "card0",
+        "radar",
+        "word0"
+      ]
+    },
+    {
+      "id": "compositing",
+      "witnessAliases": [
+        "hero-owner",
+        "hero-provider",
+        "hero-hero"
+      ]
+    },
+    {
+      "id": "stacking",
+      "witnessAliases": [
+        "grid",
+        "parent",
+        "word0"
+      ]
+    },
+    {
+      "id": "atomic",
+      "witnessAliases": [
+        "card",
+        "parent",
+        "card0"
+      ]
+    },
+    {
+      "id": "narration",
+      "witnessAliases": [
+        "word0",
+        "word1",
+        "word2"
+      ]
+    },
+    {
+      "id": "audio",
+      "witnessAliases": [
+        "music",
+        "events",
+        "event0",
+        "event5"
+      ]
+    },
+    {
+      "id": "review",
+      "witnessAliases": []
+    }
+  ],
+  "reference": {
+    "ssimMinimum": 0.99,
+    "alignedPcmRmsMaximum": 0.0001,
+    "maximumTimingFrames": 1,
+    "sampleTimesMs": [
+      650,
+      1200,
+      1700,
+      4500
+    ],
+    "description": "Independent authored/timing/witness checks supplement full-scene cross-intent equivalence; original independent pixel/audio fixtures unchanged."
+  }
+}

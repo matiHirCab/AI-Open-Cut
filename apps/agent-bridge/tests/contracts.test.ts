@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
+import COMPLETE_REFERENCE from "../../../contracts/complete-reference-scene-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
 import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.json";
@@ -53,6 +54,7 @@ import {
   timeExpressionSchema,
   ttsStatusSchema,
 } from "../src/schemas";
+
 import { ARTIFACT_RESOURCES_CAPABILITY } from "../src/server/artifacts";
 import {
   MCP_RESOURCE_URIS,
@@ -109,6 +111,39 @@ import {
 } from "./fixtures/track-matte-projection";
 
 // Keep earlier transition checks intact after the exact current34→33 projection.
+it("accepts the complete reference recipe through the unchanged typed batch contract", () => {
+  expect(COMPLETE_REFERENCE.projectSchemaVersion).toBe(44);
+  expect(COMPLETE_REFERENCE.headlessProtocolVersion).toBe(1);
+  expect(COMPLETE_REFERENCE.settings).toEqual({
+    fps: 10,
+    height: 108,
+    width: 192,
+  });
+  expect(COMPLETE_REFERENCE.durationMs).toBe(6000);
+  expect(
+    schemas.timelineBatchEdit.safeParse({
+      expectedRevision: 4,
+      operations: COMPLETE_REFERENCE.operations,
+      projectId: "reference-project",
+    }).success
+  ).toBe(true);
+  expect(COMPLETE_REFERENCE.capabilityGroups.map(({ id }) => id)).toEqual([
+    "compositions",
+    "vectors",
+    "typography",
+    "animation",
+    "compositing",
+    "stacking",
+    "atomic",
+    "narration",
+    "audio",
+    "review",
+  ]);
+  expect(COMPLETE_REFERENCE.cues.map(({ timeMs }) => timeMs)).toEqual([
+    500, 1000, 1500, 2400, 3200, 4300,
+  ]);
+});
+
 const projectMaskRenderingCatalogPredecessor = (
   name: string,
   source: unknown

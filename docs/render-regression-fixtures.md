@@ -1,5 +1,7 @@
 # Render regression fixtures
 
+The separate [complete ten-group reference scene](complete-reference-scene.md) combines editable compositions, vectors, typography, animation, compositing, stacking, atomic authoring, synthetic cues, designed audio and native review/export. Its authored negative controls and cross-intent equivalence checks supplement the frozen references below; it does not replace or regenerate them.
+
 ## Static rules-screen evidence
 
 Issue #37 adds a separate rules-screen recipe under `crates/editor-core/tests/fixtures/rules-screen`. `bun run scripts/generate-rules-screen-recipe.ts` deterministically regenerates its metadata and 20 typed batch operations. The recipe records a canonical 1920×1080 canvas at 10 fps, one-second duration, sample times 0, 500 and 900 ms, reviewed font hash and synthetic audio provenance. Eighteen native visual layers contain a full-frame dark shape, diagonal grid, three outlined rounded cards, three accent bars, one structured path containing four two-segment corner brackets per card, three concentric circles and two layers each of literal `EVERY.`, `SINGLE.` and `ONE.` text. A synthetic 48 kHz mono 440 Hz tone is the only imported asset; no graphic panel is imported. The batch updates a created text alias to exercise same-transaction ID resolution.
