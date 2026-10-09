@@ -43,3 +43,7 @@ Approve before edit the additionally discovered owning Rust speech_alignment.rs 
 ## Verification count correction
 
 The separate review mechanically counted the approved five delta files: 18 requirements and 58 scenarios (normalization30, analysis16, rendering5, recovery5, bridge2). Correct the earlier clerical55-scenario total; the55-item strict validation result is a different count. No requirement/scenario body or approved implementation scope changes.
+
+## Scoped Windows lifecycle coverage approval before test edits
+
+Under explicit user-delegated issue-scoped approval, approve the complete new lifetime scenario/design refinement before editing the already-governed master-normalization-lifetime.test.ts. The original complete Windows job113646817809 is retained in /tmp/opencut-issue69-implementation-windows-job-113646817809-original-failure.json. Approve a successful cold normalization precondition and immutable snapshot of its real completed analysis JSON before the existing controlled27-phase/mode cases. Do not extend1500ms/2000ms waits, retry failures, skip cases, accept zombies, alter production or replace actual native metrics. Approved delta count is now18 requirements/59 scenarios. New-head standard all9 implementation plus startup/exact-tree acceptance remains mandatory before archival; final all11/startup/full-log acceptance remains mandatory before70.

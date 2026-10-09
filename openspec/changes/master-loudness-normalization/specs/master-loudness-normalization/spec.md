@@ -132,6 +132,10 @@ Every original-capture/measurement/measured-processing/verification/optional-cor
 - **WHEN** injected workspace/filter/PCM/metric/exit/metadata/publication faults occur
 - **THEN** the existing safe error boundary publishes no partial final result and retains every unrelated byte and canonical transaction
 
+#### Scenario: Preserve cold completion and actual completed outputs during controlled lifecycle faults
+- **WHEN** a lifecycle case first completes one real cold normalization request and then arms each owned phase for cancellation, deadline or shutdown
+- **THEN** the cold request proves successful finite frame completion without changing current/history, controlled work proves actual backend/descendant entry and exact PID absence under the unchanged1500ms phase wait and2000ms deadline, and the previously completed analysis JSON plus unrelated outputs remain byte-identical with all original nine-phase and twenty-seven-mode cases retained
+
 ### Requirement: Independently governed additive normalization contracts
 Unique audio_master_set_normalization/tool/capability audio_master_normalization_v1 and schema44 reporting SHALL agree across manually authored canonical contracts and all governed Rust/headless/TS/Zod/MCP consumers; protocol1 and every previous operation remain valid. Final all11-verified68 committed raw catalogs/pure expanded86tools MUST be captured before producers; manually reviewed87tool additions and rollback SHALL preserve all prior raw/digest/count/numeric oracles. Complete unchanged implementation/native/source/release-package/policy omission/failure-masking checks, transparent substantive CODEOWNER-role COMMENT, guarded owning-delta archive/protected Moon/strict validation and final all11 exact-head/startup/tree/full-log evidence MUST precede completion or70 implementation. Each draft PR SHALL target main and cumulative successor lineage/merge order remain explicit.
 

@@ -158,6 +158,21 @@ it.each(
   async ({ phase, mode }) => {
     const { dir, client, request, persisted } = await create();
     const before = persisted();
+    // Prove the cold request before arming a specific owned phase. Keep the
+    // phase-entry/deadline limits unchanged and preserve its real output.
+    const cold = await client.call(request, audioAnalysisResultSchema);
+    expect(cold.summary.frameCount).toBe(48_000);
+    expect(persisted()).toEqual(before);
+    const previews = join(dir, "previews");
+    const completedOutputs = Object.fromEntries(
+      readdirSync(previews)
+        .sort()
+        .map((name) => [name, readFileSync(join(previews, name))])
+    );
+    expect(Object.keys(completedOutputs)).toHaveLength(2);
+    expect(completedOutputs["published.png"]?.toString()).toBe(
+      "published unrelated file"
+    );
     const control = join(dir, ".normalization-test-phase");
     writeFileSync(control, phase);
     const controller = new AbortController();
@@ -208,7 +223,13 @@ it.each(
     expect(readFileSync(join(dir, "previews/published.png"), "utf8")).toBe(
       "published unrelated file"
     );
-    expect(readdirSync(join(dir, "previews"))).toEqual(["published.png"]);
+    expect(
+      Object.fromEntries(
+        readdirSync(previews)
+          .sort()
+          .map((name) => [name, readFileSync(join(previews, name))])
+      )
+    ).toEqual(completedOutputs);
     expect(persisted()).toEqual(before);
     if (overlap) {
       const overlappingResult = await overlap;
