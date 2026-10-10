@@ -333,9 +333,9 @@ fn default_native_release_scene() {
         );
         let mut energy = 0.0;
         let mut squared = 0.0;
-        for (left, right) in left.chunks_exact(4).zip(right.chunks_exact(4)) {
-            let left = f64::from(f32::from_le_bytes(left.try_into().unwrap()));
-            let right = f64::from(f32::from_le_bytes(right.try_into().unwrap()));
+        for (left, right) in left.as_chunks::<4>().0.iter().zip(right.as_chunks::<4>().0) {
+            let left = f64::from(f32::from_le_bytes(*left));
+            let right = f64::from(f32::from_le_bytes(*right));
             assert!(left.is_finite() && right.is_finite());
             energy += left * left;
             squared += (left - right).powi(2);
