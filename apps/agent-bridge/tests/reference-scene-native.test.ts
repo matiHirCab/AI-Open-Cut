@@ -17,6 +17,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ZodType } from "zod/v4";
 import recipe from "../../../contracts/complete-reference-scene-v1.json";
+import { requireCompleteReferenceCacheTrace } from "../scripts/motion-native-cache-trace";
 import {
   jobSchema,
   projectStateSchema,
@@ -501,20 +502,7 @@ for (const mode of ["source", "compiled"] as const) {
             });
         await vi.waitFor(() => expect(readStats()).toHaveLength(6));
         const stats = readStats();
-        expect(
-          stats.map((entry) => [
-            entry.hits,
-            entry.misses,
-            entry.finalExecutions,
-          ])
-        ).toEqual([
-          [0, 1, 1],
-          [0, 2, 2],
-          [0, 3, 3],
-          [1, 3, 3],
-          [1, 4, 4],
-          [2, 4, 4],
-        ]);
+        requireCompleteReferenceCacheTrace(process.platform, stats);
         records.push({ cacheStats: stats });
         const exported = await render("project_export_video", {
           format: "mp4",

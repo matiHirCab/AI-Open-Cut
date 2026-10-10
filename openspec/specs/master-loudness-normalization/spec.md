@@ -145,6 +145,10 @@ Every original-capture/measurement/measured-processing/verification/optional-cor
 - **WHEN** each of the twenty-seven lifecycle cases creates its fresh project and proves cold completion before exercising its owned phase
 - **THEN** preparation has its own explicit5000ms hook limit and any setup failure fails the corresponding case, while controlled execution retains the original5000ms test limit,1500ms entry wait,2000ms deadline, exact PID absence, immutable prior outputs, actual overlap and successful reuse without retries or shared fixtures
 
+#### Scenario: Direct native lifecycle fixture preserves bounded proof
+- **WHEN** mandatory lifecycle verification prepares its private compiled backend and executes controlled normalization phases
+- **THEN** actual directly invoked backend and native descendant PIDs are alive before cancellation, all original54 success/lifetime/fault cases and existing1500ms/2000ms/5000ms bounds remain required, compilation failure refuses setup without skips/fallback, and readiness failure retains actual phase/outcome diagnostics without converting failure to success or claiming native media correctness
+
 ### Requirement: Independently governed additive normalization contracts
 Unique audio_master_set_normalization/tool/capability audio_master_normalization_v1 and schema44 reporting SHALL agree across manually authored canonical contracts and all governed Rust/headless/TS/Zod/MCP consumers; protocol1 and every previous operation remain valid. Final all11-verified68 committed raw catalogs/pure expanded86tools MUST be captured before producers; manually reviewed87tool additions and rollback SHALL preserve all prior raw/digest/count/numeric oracles. Complete unchanged implementation/native/source/release-package/policy omission/failure-masking checks, transparent substantive CODEOWNER-role COMMENT, guarded owning-delta archive/protected Moon/strict validation and final all11 exact-head/startup/tree/full-log evidence MUST precede completion or70 implementation. Each draft PR SHALL target main and cumulative successor lineage/merge order remain explicit.
 

@@ -1,0 +1,71 @@
+name: Motion release gates
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+concurrency:
+  group: motion-release-gates-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  release:
+    name: Complete motion release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 135
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      OPENCUT_MOTION_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      OPENCUT_MOTION_EVIDENCE_DIR: ${{ github.workspace }}/target/motion-release-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+          moon-version: 2.3.3
+      - name: Linux FFmpeg
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: macOS FFmpeg
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg@7
+          echo "$(brew --prefix ffmpeg@7)/bin" >> "$GITHUB_PATH"
+      - name: Windows FFmpeg
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress --version=7.1.1
+      - name: Direct backend setup failure controls
+        run: python scripts/test_setup_motion_release_backends.py
+      - name: Select direct installed Windows backends
+        if: runner.os == 'Windows'
+        run: python scripts/setup-motion-release-backends.py
+      - name: Hermetic actual dependency setup controls
+        run: python scripts/test_setup_platform_renderer.py
+      - name: Fixed fonts and actual dependency versions
+        run: python scripts/setup-platform-renderer.py
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Required workflow and owned-descendant failure controls
+        run: bun --config=bunfig.toml --no-env-file test scripts/motion-release-policy.test.ts scripts/motion-release-process.test.ts scripts/motion-release-preflight.test.ts
+      - name: Closed execution and measurement report negative controls
+        working-directory: apps/agent-bridge
+        run: bun x --no-install vitest run --config vitest.unit.config.ts tests/motion-release-cases.test.ts tests/motion-release-report.test.ts tests/motion-mcp-report.test.ts tests/motion-native-cache-trace.test.ts
+      - name: Actual canonical default native and separate instrumented MCP release
+        run: bun run apps/agent-bridge/scripts/run-motion-release.ts
+      - name: Upload actual release evidence and failed diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-release-${{ matrix.os }}
+          path: target/motion-release-evidence
+          if-no-files-found: error
