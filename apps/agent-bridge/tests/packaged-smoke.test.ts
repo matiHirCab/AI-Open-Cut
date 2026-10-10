@@ -47,6 +47,7 @@ import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
+import { verifyReleaseDocumentationWorkflow } from "./release-documentation-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
@@ -685,4 +686,8 @@ it("runs master normalization standalone batch draft history and active render/a
 
 it("discovers and retrieves the complete motion graphics prompt through MCP", async () => {
   await verifyMotionWorkflowPrompt(client);
+});
+
+it("executes the current release documentation corpus through actual MCP", async () => {
+  await verifyReleaseDocumentationWorkflow(client, call, directories.projects);
 });

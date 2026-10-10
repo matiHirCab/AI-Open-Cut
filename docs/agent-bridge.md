@@ -1,5 +1,7 @@
 # OpenCut Agent Bridge
 
+See the [current motion graphics release guide](motion-graphics-release.md) for runtime versions, executable examples, migration and readiness guidance.
+
 The typed marker CRUD and marker-relative item-start workflow is documented in [Marker-relative timing](marker-relative-timing.md).
 
 ## Architecture status and decision
