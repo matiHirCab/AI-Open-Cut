@@ -5,6 +5,53 @@ use crate::{
 };
 use std::collections::BTreeSet;
 
+#[cfg(test)]
+mod release_limit_tests {
+    use super::*;
+
+    #[test]
+    fn particle_parameters_accept_inclusive_limits_and_reject_excess_or_non_finite() {
+        let effect =
+            |count, radius_px, speed_px_per_second, lifetime_ms| VisualEffect::ParticleOverlay {
+                id: "release-particle-boundary".into(),
+                count,
+                seed: u32::MAX,
+                radius_px,
+                speed_px_per_second,
+                lifetime_ms,
+                color: crate::VectorColor {
+                    r: 1.0,
+                    g: 0.5,
+                    b: 0.0,
+                    a: 1.0,
+                },
+            };
+        for value in [effect(0, 0.0, 0.0, 1), effect(256, 16.0, 1024.0, 60_000)] {
+            validate_effect(&value).unwrap();
+        }
+        let mut invalid = vec![
+            effect(257, 1.0, 1.0, 1),
+            effect(u16::MAX, 1.0, 1.0, 1),
+            effect(1, 16.0001, 1.0, 1),
+            effect(1, -0.0001, 1.0, 1),
+            effect(1, 1.0, 1024.0001, 1),
+            effect(1, 1.0, -0.0001, 1),
+            effect(1, 1.0, 1.0, 0),
+            effect(1, 1.0, 1.0, 60_001),
+        ];
+        for non_finite in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            invalid.push(effect(1, non_finite, 1.0, 1));
+            invalid.push(effect(1, 1.0, non_finite, 1));
+        }
+        for value in invalid {
+            assert_eq!(
+                validate_effect(&value).unwrap_err().code,
+                ErrorCode::InvalidArgument
+            );
+        }
+    }
+}
+
 fn invalid(message: &str) -> CoreError {
     CoreError::new(ErrorCode::InvalidArgument, message)
 }
