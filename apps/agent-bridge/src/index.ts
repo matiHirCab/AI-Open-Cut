@@ -174,7 +174,7 @@ const run = async () => {
     logger
   );
   const jobs = new JobRegistry({
-    disposePreview: previewDisposer(config.projectsDirectory),
+    disposePreview: previewDisposer(config),
     headless,
     logger,
     maxCount: config.jobMaxCount,
@@ -224,21 +224,26 @@ const run = async () => {
   const shutdown = () => {
     shutdownPromise ??= (async () => {
       await jobs.close();
-      headless.close();
+      await headless.close();
       await speech.close();
       await transcription.close();
       await handle.close();
-    })();
+    })().catch((error: unknown) => {
+      shutdownPromise = undefined;
+      throw error;
+    });
     return shutdownPromise;
   };
   const requestShutdown = () => {
     shutdown()
       .then(() => {
+        process.exitCode = 0;
         if (config.transport === "http") {
           process.exit(0);
         }
       })
       .catch((error: unknown) => {
+        process.exitCode = 1;
         const message =
           error instanceof Error ? error.message : "shutdown failed";
         process.stderr.write(`${message}\n`);

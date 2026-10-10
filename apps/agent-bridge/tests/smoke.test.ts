@@ -45,6 +45,7 @@ import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
+import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyReleaseDocumentationWorkflow } from "./release-documentation-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
@@ -1345,4 +1346,17 @@ it("discovers and retrieves the complete motion graphics prompt through MCP", as
 
 it("executes the current release documentation corpus through actual MCP", async () => {
   await verifyReleaseDocumentationWorkflow(client, call, projects);
+});
+
+it("executes confined native preview cleanup", async () => {
+  await verifyPreviewDisposal(
+    process.env.OPENCUT_TEST_HEADLESS_PATH ??
+      resolve(
+        import.meta.dirname,
+        "../../../target/debug",
+        process.platform === "win32"
+          ? "opencut-headless.exe"
+          : "opencut-headless"
+      )
+  );
 });

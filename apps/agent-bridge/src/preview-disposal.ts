@@ -1,5 +1,5 @@
-import { lstat, realpath, unlink } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { spawn } from "node:child_process";
+import type { BridgeConfig } from "./config";
 
 import { BridgeError } from "./headless-events";
 import type { Job } from "./schemas";
@@ -31,43 +31,64 @@ const validateOutput = (job: Job) => {
   return artifact;
 };
 
-// Disposable job outputs only. Never recursively remove project/media inventory.
-export const previewDisposer =
-  (projectsDirectory: string | undefined) => async (job: Job) => {
-    const artifact = validateOutput(job);
-    if (!projectsDirectory) {
-      throw unsafe();
-    }
-    try {
-      const root = resolve(projectsDirectory);
-      const rootStat = await lstat(root);
-      if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
-        throw unsafe();
+// Private bounded native adapter. It is outside the public headless/MCP protocol.
+export const previewDisposer = (config: BridgeConfig) => async (job: Job) => {
+  const artifact = validateOutput(job);
+  if (!config.projectsDirectory) {
+    throw unsafe();
+  }
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      config.headlessPath,
+      [...config.headlessArguments, "--dispose-owned-preview"],
+      {
+        env: {
+          ...config.environment,
+          OPENCUT_PROJECTS_DIR: config.projectsDirectory,
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
       }
-      const canonicalRoot = await realpath(root);
-      const project = join(canonicalRoot, job.projectId);
-      const previews = join(project, "previews");
-      for (const directory of [project, previews]) {
-        // biome-ignore lint/performance/noAwaitInLoops: Validate ancestors before descending.
-        const stat = await lstat(directory);
-        if (!stat.isDirectory() || stat.isSymbolicLink()) {
-          throw unsafe();
-        }
-      }
-      const path = join(project, artifact.relativePath);
-      const stat = await lstat(path);
-      if (
-        !stat.isFile() ||
-        stat.isSymbolicLink() ||
-        (await realpath(path)) !== path
-      ) {
-        throw unsafe();
-      }
-      await unlink(path);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    );
+    let output = "";
+    let failed = false;
+    const fail = () => {
+      failed = true;
+      child.kill("SIGKILL");
+    };
+    const timer = setTimeout(
+      fail,
+      Math.min(config.headlessRequestTimeoutMs, 10_000)
+    );
+    child.on("error", () => {
+      failed = true;
+    });
+    child.stdin.on("error", fail);
+    child.stdout.on("data", (chunk: Buffer) => {
+      if (output.length + chunk.length > 1024) {
+        fail();
         return;
       }
-      throw unsafe();
-    }
-  };
+      output += chunk.toString();
+    });
+    child.stderr.on("data", fail);
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      if (
+        failed ||
+        code !== 0 ||
+        output.trim() !== '{"type":"result","result":{"disposed":true}}'
+      ) {
+        reject(unsafe());
+      } else {
+        resolve();
+      }
+    });
+    child.stdin.end(
+      JSON.stringify({
+        projectId: job.projectId,
+        relativePath: artifact.relativePath,
+      })
+    );
+  });
+};

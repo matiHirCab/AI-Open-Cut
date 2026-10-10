@@ -3,6 +3,7 @@
 pub(crate) mod audio_analysis;
 pub(crate) mod master_normalization;
 pub(crate) mod preview_cache;
+pub(crate) mod preview_disposal;
 pub(crate) mod raster_cache;
 mod request_scope;
 pub(crate) use request_scope::with_request_id;

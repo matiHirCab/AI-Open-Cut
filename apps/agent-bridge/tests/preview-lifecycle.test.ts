@@ -1,17 +1,7 @@
 import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { expect, it } from "vitest";
 import { JobRegistry } from "../src/jobs";
-import { previewDisposer } from "../src/preview-disposal";
+
 import type { Job } from "../src/schemas";
 
 const artifact = (sizeBytes = 4) => ({
@@ -176,66 +166,6 @@ it("expires previews without deleting exports or extending TTL on polling", asyn
   expect(removed).toHaveLength(1);
 });
 
-it("confines actual deletion and rejects foreign names, traversal and symlinks", async () => {
-  const root = await mkdtemp(join(tmpdir(), "opencut-preview-disposal-"));
-  try {
-    const projectId = randomUUID();
-    const projects = join(root, "projects");
-    const previews = join(projects, projectId, "previews");
-    await mkdir(previews, { recursive: true });
-    const output = artifact();
-    const path = join(projects, projectId, output.relativePath);
-    await writeFile(path, "safe");
-    const job: Job = {
-      artifact: output,
-      createdAtMs: 0,
-      expiresAtMs: 10,
-      jobId: randomUUID(),
-      kind: "preview",
-      persistence: "process",
-      progress: 1,
-      projectId,
-      revision: 1,
-      status: "completed",
-      updatedAtMs: 0,
-    };
-    const dispose = previewDisposer(projects);
-    await dispose(job);
-    await expect(readFile(path)).rejects.toMatchObject({ code: "ENOENT" });
-    await dispose(job);
-    const foreign = join(root, "foreign.png");
-    await writeFile(foreign, "preserve");
-    for (const relativePath of [
-      "../../foreign.png",
-      "/foreign.png",
-      "previews/foreign.png",
-      "previews/preview-a.png",
-    ]) {
-      // biome-ignore lint/performance/noAwaitInLoops: Check each independent attack.
-      await expect(
-        dispose({ ...job, artifact: { ...output, relativePath } })
-      ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
-    }
-    await symlink(foreign, path);
-    await expect(dispose(job)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
-    });
-    expect((await readFile(foreign)).toString()).toBe("preserve");
-    await rm(path);
-    await rm(previews, { recursive: true });
-    await symlink(
-      root,
-      previews,
-      process.platform === "win32" ? "junction" : "dir"
-    );
-    await expect(dispose(job)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
-    });
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-});
-
 it.each([
   { maxPreviewBytes: 8, maxPreviewCount: 1 },
   { maxPreviewBytes: 4, maxPreviewCount: 2 },
@@ -286,5 +216,109 @@ it("waits for preview disposal before reclaiming job capacity", async () => {
   await tick();
   const next = jobs.startTask("preview", "project", 2, async () => ({}));
   await done(jobs, next.jobId);
+  await jobs.close();
+});
+
+it.each([
+  { maxPreviewBytes: 8, maxPreviewCount: 1 },
+  { maxPreviewBytes: 4, maxPreviewCount: 2 },
+])(
+  "blocks persistent cleanup debt before dispatch and retries close safely %j",
+  async (limits) => {
+    const state = { fail: true, produced: 0 };
+    const jobs = new JobRegistry({
+      disposePreview: () =>
+        // biome-ignore lint/suspicious/noUnnecessaryConditions: Fault state changes for retry.
+        state.fail ? Promise.reject(new Error("secret")) : Promise.resolve(),
+      ...limits,
+    });
+    const produce = () => {
+      state.produced += 1;
+      return Promise.resolve({ artifact: artifact() });
+    };
+    const first = jobs.startTask("preview", "project", 1, produce);
+    await done(jobs, first.jobId);
+    for (let n = 0; n < 4; n += 1) {
+      const replacement = jobs.startTask("preview", "project", 1, produce);
+      // biome-ignore lint/performance/noAwaitInLoops: Exercise sequential fault retries.
+      expect((await done(jobs, replacement.jobId)).error?.code).toBe(
+        "JOB_REGISTRY_FULL"
+      );
+    }
+    expect(state.produced).toBe(1);
+    const other = jobs.startTask("export", "project", 1, async () => ({}));
+    expect((await done(jobs, other.jobId)).status).toBe("completed");
+    await expect(jobs.close()).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+    expect(() => jobs.startTask("preview", "project", 1, produce)).toThrowError(
+      expect.objectContaining({ code: "BRIDGE_SHUTTING_DOWN" })
+    );
+    state.fail = false;
+    await jobs.close();
+  }
+);
+
+it("keeps cancelled unsettled producer slots charged until actual completion", async () => {
+  let release!: (completion: { artifact: ReturnType<typeof artifact> }) => void;
+  let produced = 0;
+  const jobs = new JobRegistry({
+    disposePreview: () => Promise.resolve(),
+    maxPreviewCount: 1,
+  });
+  const first = jobs.startTask("preview", "project", 1, () => {
+    produced += 1;
+    return new Promise((resolve) => {
+      release = resolve;
+    });
+  });
+  jobs.cancel(first.jobId);
+  const second = jobs.startTask("preview", "project", 1, () => {
+    produced += 1;
+    return Promise.resolve({ artifact: artifact() });
+  });
+  expect((await done(jobs, second.jobId)).error?.code).toBe(
+    "JOB_REGISTRY_FULL"
+  );
+  expect(produced).toBe(1);
+  release({ artifact: artifact() });
+  await tick();
+  const third = jobs.startTask("preview", "project", 1, () => {
+    produced += 1;
+    return Promise.resolve({ artifact: artifact() });
+  });
+  expect((await done(jobs, third.jobId)).status).toBe("completed");
+  expect(produced).toBe(2);
+  await jobs.close();
+});
+
+it("retains oversized output debt and recovers before the next producer", async () => {
+  const state = { fail: true, produced: 0 };
+  const jobs = new JobRegistry({
+    disposePreview: () => {
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: Inject failure then allow recovery.
+      return state.fail
+        ? Promise.reject(new Error("private"))
+        : Promise.resolve();
+    },
+    maxPreviewBytes: 4,
+  });
+  const first = jobs.startTask("preview", "project", 1, async () => ({
+    artifact: artifact(5),
+  }));
+  expect((await done(jobs, first.jobId)).error?.code).toBe("JOB_REGISTRY_FULL");
+  const produce = () => {
+    state.produced += 1;
+    return Promise.resolve({ artifact: artifact() });
+  };
+  const second = jobs.startTask("preview", "project", 1, produce);
+  expect((await done(jobs, second.jobId)).error?.code).toBe(
+    "JOB_REGISTRY_FULL"
+  );
+  expect(state.produced).toBe(0);
+  state.fail = false;
+  const third = jobs.startTask("preview", "project", 1, produce);
+  expect((await done(jobs, third.jobId)).status).toBe("completed");
+  expect(state.produced).toBe(1);
   await jobs.close();
 });

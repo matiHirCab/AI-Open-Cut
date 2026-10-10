@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
+import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 
 const roots = new Set<string>();
 const SSIM = /All:([0-9.]+)/u;
@@ -145,6 +146,11 @@ for (const mode of ["source", "packaged"] as const) {
       const runtime = required("OPENCUT_PLATFORM_PACKAGE");
       await verifyRuntimePackage(runtime);
       const suffix = process.platform === "win32" ? ".exe" : "";
+      await verifyPreviewDisposal(
+        mode === "packaged"
+          ? join(runtime, `opencut-headless${suffix}`)
+          : required("OPENCUT_PLATFORM_SOURCE_HEADLESS")
+      );
       const environment = {
         ...Object.fromEntries(
           Object.entries(process.env).filter(

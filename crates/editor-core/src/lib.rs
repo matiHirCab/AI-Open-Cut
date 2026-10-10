@@ -29,6 +29,7 @@ pub use validation::audio_buses::resolve_audio_bus_route;
 mod markers;
 pub use path_policy::PathPolicy;
 pub use render_artifact::RenderArtifact;
+pub use render_artifact::preview_disposal::dispose_owned_preview;
 pub use render_plan::audio_analysis::{
     AudioAnalysisDocument, AudioAnalysisOptions, AudioAnalysisSummary, AudioChannelStatistics,
     AudioWaveformBin,

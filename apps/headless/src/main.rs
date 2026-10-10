@@ -264,6 +264,9 @@ fn main() {
 }
 
 fn run() -> Result<(), CoreError> {
+    if env::args().any(|argument| argument == "--dispose-owned-preview") {
+        return dispose_preview_input();
+    }
     let (core, renderer) = configured_services()?;
     if env::args().any(|argument| argument == "--render-worker") {
         return worker::run(&core, &renderer);
@@ -284,6 +287,40 @@ fn run() -> Result<(), CoreError> {
     })?;
     let request = parse_request(input.trim())?;
     dispatch(&core, &renderer, request, &mut EventSink(&mut emit))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OwnedPreviewInput {
+    project_id: String,
+    relative_path: String,
+}
+
+fn dispose_preview_input() -> Result<(), CoreError> {
+    let unsafe_input = || {
+        CoreError::new(
+            opencut_editor_core::ErrorCode::ValidationFailed,
+            "Preview artifact disposal is unavailable or unsafe",
+        )
+    };
+    let mut input = Vec::new();
+    io::stdin()
+        .take(1025)
+        .read_to_end(&mut input)
+        .map_err(|_| unsafe_input())?;
+    if input.len() > 1024 {
+        return Err(unsafe_input());
+    }
+    let input: OwnedPreviewInput = serde_json::from_slice(&input).map_err(|_| unsafe_input())?;
+    let root = env::var_os("OPENCUT_PROJECTS_DIR").ok_or_else(unsafe_input)?;
+    opencut_editor_core::dispose_owned_preview(
+        Path::new(&root),
+        &input.project_id,
+        &input.relative_path,
+    )?;
+    emit(Event::Result {
+        result: serde_json::json!({"disposed": true}),
+    })
 }
 
 struct EventSink<'a>(&'a mut dyn FnMut(serde_json::Value) -> Result<(), CoreError>);
