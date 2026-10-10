@@ -1,0 +1,303 @@
+{
+  "exampleVersion": 1,
+  "protocolVersion": 1,
+  "projectSchemaVersion": 44,
+  "requiredEditorCapabilities": [
+    "component_definitions",
+    "component_instance_evaluation",
+    "typed_template_slots",
+    "component_lifecycle"
+  ],
+  "projectCreate": {
+    "name": "Release documentation examples",
+    "width": 64,
+    "height": 64,
+    "fps": 10
+  },
+  "standalone": {
+    "tool": "component_create",
+    "arguments": {
+      "name": "Standalone card",
+      "width": 64,
+      "height": 64,
+      "durationMs": 1000,
+      "tracks": [
+        {
+          "id": "card-overlay",
+          "name": "Card",
+          "trackType": "overlay",
+          "items": [
+            {
+              "id": "card-rectangle",
+              "type": "rectangle",
+              "color": "#0E7490",
+              "width": 32,
+              "height": 16,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": []
+            }
+          ]
+        }
+      ],
+      "projectId": "$runtime:projectId",
+      "expectedRevision": 0
+    }
+  },
+  "batch": {
+    "tool": "timeline_batch_edit",
+    "arguments": {
+      "projectId": "$runtime:projectId",
+      "expectedRevision": 1,
+      "operations": [
+        {
+          "name": "Aliased card",
+          "width": 64,
+          "height": 64,
+          "durationMs": 1000,
+          "tracks": [
+            {
+              "id": "card-overlay",
+              "name": "Card",
+              "trackType": "overlay",
+              "items": [
+                {
+                  "id": "card-rectangle",
+                  "type": "rectangle",
+                  "color": "#0E7490",
+                  "width": 32,
+                  "height": 16,
+                  "startMs": 0,
+                  "durationMs": 1000,
+                  "keyframes": []
+                }
+              ]
+            }
+          ],
+          "operation": "component_create",
+          "resultAlias": "definition"
+        },
+        {
+          "operation": "component_define_slots",
+          "componentId": "@definition",
+          "slots": [
+            {
+              "id": "opacity",
+              "name": "Opacity",
+              "kind": "number",
+              "required": false,
+              "defaultValue": {
+                "type": "number",
+                "value": 1
+              },
+              "constraints": {
+                "min": 0,
+                "max": 1
+              },
+              "binding": {
+                "targetLayerId": "card-rectangle",
+                "property": "visual.opacity"
+              }
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "resultAlias": "instance",
+          "trackId": "$runtime:overlayTrackId",
+          "componentId": "@definition",
+          "startMs": 0,
+          "trimStartMs": 0,
+          "durationMs": 500,
+          "timeScale": 1,
+          "slotValues": {
+            "opacity": {
+              "type": "number",
+              "value": 0.6
+            }
+          }
+        },
+        {
+          "operation": "component_instance_update",
+          "itemId": "@instance",
+          "componentId": "@definition",
+          "startMs": 250,
+          "trimStartMs": 0,
+          "durationMs": 500,
+          "timeScale": 1
+        }
+      ]
+    }
+  },
+  "failures": [
+    {
+      "id": "definition_cycle",
+      "tool": "component_update",
+      "arguments": {
+        "name": "Standalone card",
+        "width": 64,
+        "height": 64,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "audioRole": "unassigned",
+            "ducking": null,
+            "hidden": false,
+            "id": "local",
+            "items": [
+              {
+                "componentId": "$runtime:standaloneComponentId",
+                "durationMs": 1000,
+                "hidden": false,
+                "id": "nested",
+                "stackOrder": 0,
+                "startMs": 0,
+                "timeScale": 1,
+                "transform": {
+                  "opacity": 1,
+                  "positionX": 0,
+                  "positionY": 0,
+                  "scale": 1
+                },
+                "trimStartMs": 0,
+                "type": "component_instance",
+                "zIndex": 0
+              }
+            ],
+            "locked": false,
+            "muted": false,
+            "name": "Local",
+            "trackType": "overlay"
+          }
+        ],
+        "projectId": "$runtime:projectId",
+        "expectedRevision": 2,
+        "componentId": "$runtime:standaloneComponentId"
+      },
+      "expectedError": {
+        "code": "INVALID_ARGUMENT",
+        "retryable": false
+      }
+    },
+    {
+      "id": "missing_definition",
+      "tool": "component_delete",
+      "arguments": {
+        "projectId": "$runtime:projectId",
+        "expectedRevision": 2,
+        "componentId": "missing-definition"
+      },
+      "expectedError": {
+        "code": "ITEM_NOT_FOUND",
+        "retryable": false
+      }
+    },
+    {
+      "id": "stale_revision",
+      "tool": "component_delete",
+      "arguments": {
+        "projectId": "$runtime:projectId",
+        "expectedRevision": 1,
+        "componentId": "$runtime:standaloneComponentId"
+      },
+      "expectedError": {
+        "code": "REVISION_CONFLICT",
+        "retryable": true
+      }
+    },
+    {
+      "id": "late_batch_rollback",
+      "tool": "timeline_batch_edit",
+      "arguments": {
+        "projectId": "$runtime:projectId",
+        "expectedRevision": 2,
+        "operations": [
+          {
+            "name": "Aliased card",
+            "width": 64,
+            "height": 64,
+            "durationMs": 1000,
+            "tracks": [
+              {
+                "id": "card-overlay",
+                "name": "Card",
+                "trackType": "overlay",
+                "items": [
+                  {
+                    "id": "card-rectangle",
+                    "type": "rectangle",
+                    "color": "#0E7490",
+                    "width": 32,
+                    "height": 16,
+                    "startMs": 0,
+                    "durationMs": 1000,
+                    "keyframes": []
+                  }
+                ]
+              }
+            ],
+            "operation": "component_create",
+            "resultAlias": "definition"
+          },
+          {
+            "operation": "component_define_slots",
+            "componentId": "@definition",
+            "slots": [
+              {
+                "id": "opacity",
+                "name": "Opacity",
+                "kind": "number",
+                "required": false,
+                "defaultValue": {
+                  "type": "number",
+                  "value": 1
+                },
+                "constraints": {
+                  "min": 0,
+                  "max": 1
+                },
+                "binding": {
+                  "targetLayerId": "card-rectangle",
+                  "property": "visual.opacity"
+                }
+              }
+            ]
+          },
+          {
+            "operation": "add_component_instance",
+            "resultAlias": "instance",
+            "trackId": "$runtime:overlayTrackId",
+            "componentId": "@definition",
+            "startMs": 0,
+            "trimStartMs": 0,
+            "durationMs": 500,
+            "timeScale": 1,
+            "slotValues": {
+              "opacity": {
+                "type": "number",
+                "value": 0.6
+              }
+            }
+          },
+          {
+            "operation": "component_instance_update",
+            "itemId": "@instance",
+            "componentId": "@definition",
+            "startMs": 250,
+            "trimStartMs": 0,
+            "durationMs": 500,
+            "timeScale": 1
+          },
+          {
+            "operation": "component_delete",
+            "componentId": "missing-definition"
+          }
+        ]
+      },
+      "expectedError": {
+        "code": "ITEM_NOT_FOUND",
+        "retryable": false
+      }
+    }
+  ]
+}

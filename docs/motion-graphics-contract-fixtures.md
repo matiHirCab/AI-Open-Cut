@@ -1,5 +1,7 @@
 # Motion-graphics contract fixtures
 
+The activation descriptions below record historical increments, including schema 13. The [current release guide](motion-graphics-release.md) identifies schema 44 and the separate runtime owners. The preparatory `motion-graphics-v1` catalog remains fixture-only; historical activation statements do not turn it into a runtime API.
+
 The additive [component lifecycle](component-lifecycle.md) contract in `contracts/component-lifecycle-v1.json` governs `component_instance_duplicate`, creation aliases and override replacement. It retains protocol 1 and schema 13, with native, headless, Zod, source integration and packaged smoke evidence.
 
 `contracts/motion-graphics-v1.json` is the canonical, versioned vocabulary for the motion-graphics initiative. It defines lower-camel-case fields, lower-snake-case tagged variants, identifier catalogs, observable semantics, explicit safety limits, and deterministic valid and invalid examples shared by Rust and TypeScript consumers.

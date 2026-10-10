@@ -63,7 +63,7 @@ moon run desktop:dev   # see apps/desktop/README.md
 
 ### Local agent bridge
 
-The experimental OpenCut Agent Bridge exposes the canonical project/timeline core to MCP clients without an OpenAI API key. It supports typed batch edits, durable drafts, revisioned resources and workflow prompts, local Kokoro speech, local faster-whisper captions, and STDIO or authenticated trusted-LAN Streamable HTTP. See [`docs/agent-bridge.md`](docs/agent-bridge.md) for setup and safety details.
+The experimental OpenCut Agent Bridge exposes the canonical project/timeline core to MCP clients without an OpenAI API key. It supports typed batch edits, durable drafts, revisioned resources and workflow prompts, local Kokoro speech, local faster-whisper captions, and STDIO or authenticated trusted-LAN Streamable HTTP. See [`docs/agent-bridge.md`](docs/agent-bridge.md) for setup and safety details. See the [current motion graphics release guide](docs/motion-graphics-release.md) for versions, examples and verification evidence.
 
 ### Spec-driven development
 
