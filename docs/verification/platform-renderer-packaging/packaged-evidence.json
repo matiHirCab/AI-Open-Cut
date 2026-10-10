@@ -1,0 +1,1889 @@
+{
+  "mode": "packaged",
+  "platform": "linux",
+  "records": [
+    {
+      "kind": "healthy",
+      "status": {
+        "activeProjectId": null,
+        "capabilities": [
+          "marker_relative_timing",
+          "projects",
+          "assets",
+          "timeline",
+          "text",
+          "text_styling",
+          "solid_color",
+          "rectangle",
+          "keyframes",
+          "typed_animation_channels_v1",
+          "animation_presets_v1",
+          "initial_motion_preset_pack_v1",
+          "deterministic_animation_curves_v1",
+          "animation_loops_v1",
+          "inherited_animation_timing_v1",
+          "extended_visual_animation_v1",
+          "mask_models_v1",
+          "mask_animation_v1",
+          "matte_models_v1",
+          "motion_blur_sampling_v1",
+          "transitions",
+          "audio",
+          "audio_roles",
+          "audio_ducking",
+          "undo_redo",
+          "stacking",
+          "group_parenting",
+          "group_ungroup",
+          "component_definitions",
+          "component_instance_evaluation",
+          "typed_template_slots",
+          "component_lifecycle",
+          "shape_items",
+          "svg_items",
+          "grid_items",
+          "repeater_items",
+          "rich_text_documents",
+          "text_font_size_update_v1",
+          "content_addressed_text_layout_v2",
+          "styled_text_layers_v1",
+          "advanced_text_layout_v1",
+          "blend_models_v1",
+          "parameterized_effect_models_v1",
+          "group_compositing_models_v1",
+          "speech_alignment_validation_v1",
+          "speech_alignment_markers_v1",
+          "project_audio_buses_v1",
+          "semantic_sound_event_definitions_v1",
+          "timeline_audio_events_v1",
+          "preview",
+          "preview_range",
+          "preview_review_presets_v1",
+          "mp4_export",
+          "evaluated_scene_rendering",
+          "linear_light_compositing_v1",
+          "mask_rendering_v1",
+          "track_mattes_v1",
+          "shape_rendering",
+          "svg_rendering",
+          "grid_rendering",
+          "repeater_rendering",
+          "transform2d",
+          "blend_modes_v1",
+          "parameterized_effects_v1",
+          "group_compositing_v1",
+          "audio_bus_dsp_v1",
+          "audio_bus_ducking_v1",
+          "audio_analysis_v1",
+          "audio_master_normalization_v1",
+          "artifact_resources_v2"
+        ],
+        "paths": {
+          "allowedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/media",
+              "writable": true
+            }
+          ],
+          "exportsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/exports",
+            "writable": true
+          },
+          "ffmpeg": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffmpeg",
+            "writable": false
+          },
+          "ffprobe": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffprobe",
+            "writable": false
+          },
+          "generatedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            }
+          ],
+          "kokoro": {
+            "modelDirectory": {
+              "error": "Directory is missing or inaccessible",
+              "executable": false,
+              "exists": false,
+              "readable": false,
+              "ready": false,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/absent-model",
+              "writable": false
+            },
+            "python": {
+              "error": null,
+              "executable": true,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+              "writable": false
+            },
+            "workDirectory": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            },
+            "worker": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/runtime/kokoro-tts/worker.py",
+              "writable": false
+            }
+          },
+          "projectsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/projects",
+            "writable": true
+          }
+        },
+        "projectSchemaVersion": 44,
+        "protocolVersion": 1,
+        "ready": true,
+        "subsystems": {
+          "editor": {
+            "capabilities": [
+              "marker_relative_timing",
+              "projects",
+              "assets",
+              "timeline",
+              "text",
+              "text_styling",
+              "solid_color",
+              "rectangle",
+              "keyframes",
+              "typed_animation_channels_v1",
+              "animation_presets_v1",
+              "initial_motion_preset_pack_v1",
+              "deterministic_animation_curves_v1",
+              "animation_loops_v1",
+              "inherited_animation_timing_v1",
+              "extended_visual_animation_v1",
+              "mask_models_v1",
+              "mask_animation_v1",
+              "matte_models_v1",
+              "motion_blur_sampling_v1",
+              "transitions",
+              "audio",
+              "audio_roles",
+              "audio_ducking",
+              "undo_redo",
+              "stacking",
+              "group_parenting",
+              "group_ungroup",
+              "component_definitions",
+              "component_instance_evaluation",
+              "typed_template_slots",
+              "component_lifecycle",
+              "shape_items",
+              "svg_items",
+              "grid_items",
+              "repeater_items",
+              "rich_text_documents",
+              "text_font_size_update_v1",
+              "content_addressed_text_layout_v2",
+              "styled_text_layers_v1",
+              "advanced_text_layout_v1",
+              "blend_models_v1",
+              "parameterized_effect_models_v1",
+              "group_compositing_models_v1",
+              "speech_alignment_validation_v1",
+              "speech_alignment_markers_v1",
+              "project_audio_buses_v1",
+              "semantic_sound_event_definitions_v1",
+              "timeline_audio_events_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "rendering": {
+            "capabilities": [
+              "preview",
+              "preview_range",
+              "preview_review_presets_v1",
+              "mp4_export",
+              "evaluated_scene_rendering",
+              "linear_light_compositing_v1",
+              "mask_rendering_v1",
+              "track_mattes_v1",
+              "shape_rendering",
+              "svg_rendering",
+              "grid_rendering",
+              "repeater_rendering",
+              "transform2d",
+              "blend_modes_v1",
+              "parameterized_effects_v1",
+              "group_compositing_v1",
+              "audio_bus_dsp_v1",
+              "audio_bus_ducking_v1",
+              "audio_analysis_v1",
+              "audio_master_normalization_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "speech": {
+            "capabilities": [],
+            "error": {
+              "code": "TTS_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "Configured Kokoro model directory is missing",
+              "retryable": false
+            },
+            "modelId": "hexgrad/Kokoro-82M",
+            "providerId": "kokoro",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 8,
+              "queued": 0
+            },
+            "ready": false
+          },
+          "transcription": {
+            "capabilities": [],
+            "error": null,
+            "modelId": "small",
+            "providerId": "faster-whisper",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 4,
+              "queued": 0
+            },
+            "ready": false
+          }
+        },
+        "textLayoutVersion": 2,
+        "version": "0.1.0"
+      }
+    },
+    {
+      "input": {
+        "timeMs": 500
+      },
+      "job": {
+        "artifact": {
+          "mimeType": "image/png",
+          "relativePath": "previews/preview-6db13137-c1f4-4bb2-b5cc-7250ed9a38e6.png",
+          "sizeBytes": 1962,
+          "warnings": []
+        },
+        "artifactResource": {
+          "expiresAtMs": 1791595316610,
+          "mimeType": "image/png",
+          "name": "Render preview",
+          "sizeBytes": 1962,
+          "uri": "opencut://jobs/d1120a82-fd76-47ce-b270-9b1a81774a3f/artifact"
+        },
+        "createdAtMs": 1791591716261,
+        "expiresAtMs": 1791595316610,
+        "jobId": "d1120a82-fd76-47ce-b270-9b1a81774a3f",
+        "kind": "preview",
+        "persistence": "process",
+        "progress": 1,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 4,
+        "status": "completed",
+        "updatedAtMs": 1791591716610
+      },
+      "name": "preview_render_frame"
+    },
+    {
+      "input": {
+        "endMs": 1000,
+        "resolution": "project",
+        "startMs": 0
+      },
+      "job": {
+        "artifact": {
+          "mimeType": "video/mp4",
+          "relativePath": "previews/preview-range-b818aa2b-309c-494a-ae55-3e6b05376356.mp4",
+          "sizeBytes": 19376,
+          "warnings": []
+        },
+        "artifactResource": {
+          "expiresAtMs": 1791595317286,
+          "mimeType": "video/mp4",
+          "name": "Render preview",
+          "sizeBytes": 19376,
+          "uri": "opencut://jobs/04e7d88f-1af0-4851-8397-1bd040f0ef96/artifact"
+        },
+        "createdAtMs": 1791591716770,
+        "expiresAtMs": 1791595317286,
+        "jobId": "04e7d88f-1af0-4851-8397-1bd040f0ef96",
+        "kind": "preview_range",
+        "persistence": "process",
+        "progress": 1,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 4,
+        "status": "completed",
+        "updatedAtMs": 1791591717286
+      },
+      "name": "preview_review_range"
+    },
+    {
+      "input": {
+        "format": "mp4",
+        "overwrite": false,
+        "relativePath": "portable.mp4",
+        "resolution": "project"
+      },
+      "job": {
+        "artifact": {
+          "mimeType": "video/mp4",
+          "relativePath": "portable.mp4",
+          "sizeBytes": 19604,
+          "warnings": []
+        },
+        "artifactResource": {
+          "expiresAtMs": 1791595317790,
+          "mimeType": "video/mp4",
+          "name": "Video export",
+          "sizeBytes": 19604,
+          "uri": "opencut://jobs/c640482e-89ba-49fa-85e8-de27e8f27053/artifact"
+        },
+        "createdAtMs": 1791591717397,
+        "expiresAtMs": 1791595317790,
+        "jobId": "c640482e-89ba-49fa-85e8-de27e8f27053",
+        "kind": "export",
+        "persistence": "process",
+        "progress": 1,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 4,
+        "status": "completed",
+        "updatedAtMs": 1791591717790
+      },
+      "name": "project_export_video"
+    },
+    {
+      "kind": "media",
+      "pcmRms": 0,
+      "probes": [
+        {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High",
+              "codec_type": "video",
+              "codec_tag_string": "avc1",
+              "codec_tag": "0x31637661",
+              "width": 192,
+              "height": 108,
+              "coded_width": 192,
+              "coded_height": 108,
+              "closed_captions": 0,
+              "film_grain": 0,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "1:1",
+              "display_aspect_ratio": "16:9",
+              "pix_fmt": "yuv420p",
+              "level": 10,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 1,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "id": "0x1",
+              "r_frame_rate": "10/1",
+              "avg_frame_rate": "10/1",
+              "time_base": "1/10240",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 10240,
+              "duration": "1.000000",
+              "bit_rate": "9936",
+              "bits_per_raw_sample": "8",
+              "nb_frames": "10",
+              "extradata_size": 44,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "VideoHandler",
+                "vendor_id": "[0][0][0][0]",
+                "encoder": "Lavc61.19.101 libx264"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "mp4a",
+              "codec_tag": "0x6134706d",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 0,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 48000,
+              "duration": "1.000000",
+              "bit_rate": "127245",
+              "nb_frames": "48",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "SoundHandler",
+                "vendor_id": "[0][0][0][0]"
+              }
+            }
+          ],
+          "format": {
+            "filename": "/tmp/opencut-platform-evidence-aMCQuN/projects/b04adde2-345f-47c4-a24b-89b71df12805/previews/preview-range-b818aa2b-309c-494a-ae55-3e6b05376356.mp4",
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "1.000000",
+            "size": "19376",
+            "bit_rate": "155008",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "isom",
+              "minor_version": "512",
+              "compatible_brands": "isomiso2avc1mp41",
+              "encoder": "Lavf61.7.103"
+            }
+          }
+        },
+        {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High",
+              "codec_type": "video",
+              "codec_tag_string": "avc1",
+              "codec_tag": "0x31637661",
+              "width": 192,
+              "height": 108,
+              "coded_width": 192,
+              "coded_height": 108,
+              "closed_captions": 0,
+              "film_grain": 0,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "1:1",
+              "display_aspect_ratio": "16:9",
+              "pix_fmt": "yuv420p",
+              "level": 10,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 1,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "id": "0x1",
+              "r_frame_rate": "10/1",
+              "avg_frame_rate": "10/1",
+              "time_base": "1/10240",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 10240,
+              "duration": "1.000000",
+              "bit_rate": "11744",
+              "bits_per_raw_sample": "8",
+              "nb_frames": "10",
+              "extradata_size": 46,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "VideoHandler",
+                "vendor_id": "[0][0][0][0]",
+                "encoder": "Lavc61.19.101 libx264"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "mp4a",
+              "codec_tag": "0x6134706d",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 0,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 48000,
+              "duration": "1.000000",
+              "bit_rate": "127245",
+              "nb_frames": "48",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "SoundHandler",
+                "vendor_id": "[0][0][0][0]"
+              }
+            }
+          ],
+          "format": {
+            "filename": "/tmp/opencut-platform-evidence-aMCQuN/exports/portable.mp4",
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "1.000000",
+            "size": "19604",
+            "bit_rate": "156832",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "isom",
+              "minor_version": "512",
+              "compatible_brands": "isomiso2avc1mp41",
+              "encoder": "Lavf61.7.103"
+            }
+          }
+        }
+      ],
+      "ssim": 0.998298
+    },
+    {
+      "input": {
+        "timeMs": 500
+      },
+      "job": {
+        "artifact": {
+          "mimeType": "image/png",
+          "relativePath": "previews/preview-bce3facf-dca5-456f-ab51-7b5e8c4f6215.png",
+          "sizeBytes": 1962,
+          "warnings": []
+        },
+        "artifactResource": {
+          "expiresAtMs": 1791595320114,
+          "mimeType": "image/png",
+          "name": "Render preview",
+          "sizeBytes": 1962,
+          "uri": "opencut://jobs/e026ca4c-3e0d-49b5-acea-97be4fa2b05a/artifact"
+        },
+        "createdAtMs": 1791591719691,
+        "expiresAtMs": 1791595320114,
+        "jobId": "e026ca4c-3e0d-49b5-acea-97be4fa2b05a",
+        "kind": "preview",
+        "persistence": "process",
+        "progress": 1,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 6,
+        "status": "completed",
+        "updatedAtMs": 1791591720114
+      },
+      "name": "preview_render_frame"
+    },
+    {
+      "failure": "ffmpeg-missing",
+      "job": {
+        "createdAtMs": 1791591721886,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "failedStage": null,
+          "ffmpegExitCode": null,
+          "ffmpegStderrExcerpt": null,
+          "message": "cannot start FFmpeg: No such file or directory (os error 2)",
+          "retryable": false
+        },
+        "expiresAtMs": 1791595321902,
+        "jobId": "f5b9ca82-b7dc-42e5-add8-5f19fa36b7e5",
+        "kind": "preview_range",
+        "persistence": "process",
+        "progress": 0,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 8,
+        "status": "failed",
+        "updatedAtMs": 1791591721902
+      },
+      "status": {
+        "activeProjectId": null,
+        "capabilities": [
+          "marker_relative_timing",
+          "projects",
+          "assets",
+          "timeline",
+          "text",
+          "text_styling",
+          "solid_color",
+          "rectangle",
+          "keyframes",
+          "typed_animation_channels_v1",
+          "animation_presets_v1",
+          "initial_motion_preset_pack_v1",
+          "deterministic_animation_curves_v1",
+          "animation_loops_v1",
+          "inherited_animation_timing_v1",
+          "extended_visual_animation_v1",
+          "mask_models_v1",
+          "mask_animation_v1",
+          "matte_models_v1",
+          "motion_blur_sampling_v1",
+          "transitions",
+          "audio",
+          "audio_roles",
+          "audio_ducking",
+          "undo_redo",
+          "stacking",
+          "group_parenting",
+          "group_ungroup",
+          "component_definitions",
+          "component_instance_evaluation",
+          "typed_template_slots",
+          "component_lifecycle",
+          "shape_items",
+          "svg_items",
+          "grid_items",
+          "repeater_items",
+          "rich_text_documents",
+          "text_font_size_update_v1",
+          "content_addressed_text_layout_v2",
+          "styled_text_layers_v1",
+          "advanced_text_layout_v1",
+          "blend_models_v1",
+          "parameterized_effect_models_v1",
+          "group_compositing_models_v1",
+          "speech_alignment_validation_v1",
+          "speech_alignment_markers_v1",
+          "project_audio_buses_v1",
+          "semantic_sound_event_definitions_v1",
+          "timeline_audio_events_v1",
+          "artifact_resources_v2"
+        ],
+        "paths": {
+          "allowedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/media",
+              "writable": true
+            }
+          ],
+          "exportsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/exports",
+            "writable": true
+          },
+          "ffmpeg": {
+            "error": "File is missing or inaccessible",
+            "executable": false,
+            "exists": false,
+            "readable": false,
+            "ready": false,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/missing-ffmpeg",
+            "writable": false
+          },
+          "ffprobe": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffprobe",
+            "writable": false
+          },
+          "generatedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            }
+          ],
+          "kokoro": {
+            "modelDirectory": {
+              "error": "Directory is missing or inaccessible",
+              "executable": false,
+              "exists": false,
+              "readable": false,
+              "ready": false,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/absent-model",
+              "writable": false
+            },
+            "python": {
+              "error": null,
+              "executable": true,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+              "writable": false
+            },
+            "workDirectory": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            },
+            "worker": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/runtime/kokoro-tts/worker.py",
+              "writable": false
+            }
+          },
+          "projectsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/projects",
+            "writable": true
+          }
+        },
+        "projectSchemaVersion": 44,
+        "protocolVersion": 1,
+        "ready": true,
+        "subsystems": {
+          "editor": {
+            "capabilities": [
+              "marker_relative_timing",
+              "projects",
+              "assets",
+              "timeline",
+              "text",
+              "text_styling",
+              "solid_color",
+              "rectangle",
+              "keyframes",
+              "typed_animation_channels_v1",
+              "animation_presets_v1",
+              "initial_motion_preset_pack_v1",
+              "deterministic_animation_curves_v1",
+              "animation_loops_v1",
+              "inherited_animation_timing_v1",
+              "extended_visual_animation_v1",
+              "mask_models_v1",
+              "mask_animation_v1",
+              "matte_models_v1",
+              "motion_blur_sampling_v1",
+              "transitions",
+              "audio",
+              "audio_roles",
+              "audio_ducking",
+              "undo_redo",
+              "stacking",
+              "group_parenting",
+              "group_ungroup",
+              "component_definitions",
+              "component_instance_evaluation",
+              "typed_template_slots",
+              "component_lifecycle",
+              "shape_items",
+              "svg_items",
+              "grid_items",
+              "repeater_items",
+              "rich_text_documents",
+              "text_font_size_update_v1",
+              "content_addressed_text_layout_v2",
+              "styled_text_layers_v1",
+              "advanced_text_layout_v1",
+              "blend_models_v1",
+              "parameterized_effect_models_v1",
+              "group_compositing_models_v1",
+              "speech_alignment_validation_v1",
+              "speech_alignment_markers_v1",
+              "project_audio_buses_v1",
+              "semantic_sound_event_definitions_v1",
+              "timeline_audio_events_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "rendering": {
+            "capabilities": [],
+            "error": {
+              "code": "DEPENDENCY_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "cannot start FFmpeg: No such file or directory (os error 2)",
+              "retryable": false
+            },
+            "ready": false
+          },
+          "speech": {
+            "capabilities": [],
+            "error": {
+              "code": "TTS_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "Configured Kokoro model directory is missing",
+              "retryable": false
+            },
+            "modelId": "hexgrad/Kokoro-82M",
+            "providerId": "kokoro",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 8,
+              "queued": 0
+            },
+            "ready": false
+          },
+          "transcription": {
+            "capabilities": [],
+            "error": null,
+            "modelId": "small",
+            "providerId": "faster-whisper",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 4,
+              "queued": 0
+            },
+            "ready": false
+          }
+        },
+        "textLayoutVersion": 2,
+        "version": "0.1.0"
+      }
+    },
+    {
+      "failure": "ffprobe-missing",
+      "job": {
+        "createdAtMs": 1791591723485,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "failedStage": null,
+          "ffmpegExitCode": null,
+          "ffmpegStderrExcerpt": null,
+          "message": "cannot start FFprobe: No such file or directory (os error 2)",
+          "retryable": false
+        },
+        "expiresAtMs": 1791595323575,
+        "jobId": "5e15953a-74a1-40d5-baa5-89e02fc0cc4d",
+        "kind": "preview_range",
+        "persistence": "process",
+        "progress": 0,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 10,
+        "status": "failed",
+        "updatedAtMs": 1791591723575
+      },
+      "status": {
+        "activeProjectId": null,
+        "capabilities": [
+          "marker_relative_timing",
+          "projects",
+          "assets",
+          "timeline",
+          "text",
+          "text_styling",
+          "solid_color",
+          "rectangle",
+          "keyframes",
+          "typed_animation_channels_v1",
+          "animation_presets_v1",
+          "initial_motion_preset_pack_v1",
+          "deterministic_animation_curves_v1",
+          "animation_loops_v1",
+          "inherited_animation_timing_v1",
+          "extended_visual_animation_v1",
+          "mask_models_v1",
+          "mask_animation_v1",
+          "matte_models_v1",
+          "motion_blur_sampling_v1",
+          "transitions",
+          "audio",
+          "audio_roles",
+          "audio_ducking",
+          "undo_redo",
+          "stacking",
+          "group_parenting",
+          "group_ungroup",
+          "component_definitions",
+          "component_instance_evaluation",
+          "typed_template_slots",
+          "component_lifecycle",
+          "shape_items",
+          "svg_items",
+          "grid_items",
+          "repeater_items",
+          "rich_text_documents",
+          "text_font_size_update_v1",
+          "content_addressed_text_layout_v2",
+          "styled_text_layers_v1",
+          "advanced_text_layout_v1",
+          "blend_models_v1",
+          "parameterized_effect_models_v1",
+          "group_compositing_models_v1",
+          "speech_alignment_validation_v1",
+          "speech_alignment_markers_v1",
+          "project_audio_buses_v1",
+          "semantic_sound_event_definitions_v1",
+          "timeline_audio_events_v1",
+          "artifact_resources_v2"
+        ],
+        "paths": {
+          "allowedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/media",
+              "writable": true
+            }
+          ],
+          "exportsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/exports",
+            "writable": true
+          },
+          "ffmpeg": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffmpeg",
+            "writable": false
+          },
+          "ffprobe": {
+            "error": "File is missing or inaccessible",
+            "executable": false,
+            "exists": false,
+            "readable": false,
+            "ready": false,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/missing-ffprobe",
+            "writable": false
+          },
+          "generatedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            }
+          ],
+          "kokoro": {
+            "modelDirectory": {
+              "error": "Directory is missing or inaccessible",
+              "executable": false,
+              "exists": false,
+              "readable": false,
+              "ready": false,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/absent-model",
+              "writable": false
+            },
+            "python": {
+              "error": null,
+              "executable": true,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+              "writable": false
+            },
+            "workDirectory": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            },
+            "worker": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/runtime/kokoro-tts/worker.py",
+              "writable": false
+            }
+          },
+          "projectsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/projects",
+            "writable": true
+          }
+        },
+        "projectSchemaVersion": 44,
+        "protocolVersion": 1,
+        "ready": true,
+        "subsystems": {
+          "editor": {
+            "capabilities": [
+              "marker_relative_timing",
+              "projects",
+              "assets",
+              "timeline",
+              "text",
+              "text_styling",
+              "solid_color",
+              "rectangle",
+              "keyframes",
+              "typed_animation_channels_v1",
+              "animation_presets_v1",
+              "initial_motion_preset_pack_v1",
+              "deterministic_animation_curves_v1",
+              "animation_loops_v1",
+              "inherited_animation_timing_v1",
+              "extended_visual_animation_v1",
+              "mask_models_v1",
+              "mask_animation_v1",
+              "matte_models_v1",
+              "motion_blur_sampling_v1",
+              "transitions",
+              "audio",
+              "audio_roles",
+              "audio_ducking",
+              "undo_redo",
+              "stacking",
+              "group_parenting",
+              "group_ungroup",
+              "component_definitions",
+              "component_instance_evaluation",
+              "typed_template_slots",
+              "component_lifecycle",
+              "shape_items",
+              "svg_items",
+              "grid_items",
+              "repeater_items",
+              "rich_text_documents",
+              "text_font_size_update_v1",
+              "content_addressed_text_layout_v2",
+              "styled_text_layers_v1",
+              "advanced_text_layout_v1",
+              "blend_models_v1",
+              "parameterized_effect_models_v1",
+              "group_compositing_models_v1",
+              "speech_alignment_validation_v1",
+              "speech_alignment_markers_v1",
+              "project_audio_buses_v1",
+              "semantic_sound_event_definitions_v1",
+              "timeline_audio_events_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "rendering": {
+            "capabilities": [],
+            "error": {
+              "code": "DEPENDENCY_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "cannot start FFprobe: No such file or directory (os error 2)",
+              "retryable": false
+            },
+            "ready": false
+          },
+          "speech": {
+            "capabilities": [],
+            "error": {
+              "code": "TTS_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "Configured Kokoro model directory is missing",
+              "retryable": false
+            },
+            "modelId": "hexgrad/Kokoro-82M",
+            "providerId": "kokoro",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 8,
+              "queued": 0
+            },
+            "ready": false
+          },
+          "transcription": {
+            "capabilities": [],
+            "error": null,
+            "modelId": "small",
+            "providerId": "faster-whisper",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 4,
+              "queued": 0
+            },
+            "ready": false
+          }
+        },
+        "textLayoutVersion": 2,
+        "version": "0.1.0"
+      }
+    },
+    {
+      "failure": "base-missing",
+      "job": {
+        "createdAtMs": 1791591724602,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "failedStage": null,
+          "ffmpegExitCode": null,
+          "ffmpegStderrExcerpt": null,
+          "message": "FFmpeg is missing the drawtext filter",
+          "retryable": false
+        },
+        "expiresAtMs": 1791595324616,
+        "jobId": "5d9144a4-2361-4359-9f70-9f40998bc4a6",
+        "kind": "preview_range",
+        "persistence": "process",
+        "progress": 0,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 12,
+        "status": "failed",
+        "updatedAtMs": 1791591724616
+      },
+      "status": {
+        "activeProjectId": null,
+        "capabilities": [
+          "marker_relative_timing",
+          "projects",
+          "assets",
+          "timeline",
+          "text",
+          "text_styling",
+          "solid_color",
+          "rectangle",
+          "keyframes",
+          "typed_animation_channels_v1",
+          "animation_presets_v1",
+          "initial_motion_preset_pack_v1",
+          "deterministic_animation_curves_v1",
+          "animation_loops_v1",
+          "inherited_animation_timing_v1",
+          "extended_visual_animation_v1",
+          "mask_models_v1",
+          "mask_animation_v1",
+          "matte_models_v1",
+          "motion_blur_sampling_v1",
+          "transitions",
+          "audio",
+          "audio_roles",
+          "audio_ducking",
+          "undo_redo",
+          "stacking",
+          "group_parenting",
+          "group_ungroup",
+          "component_definitions",
+          "component_instance_evaluation",
+          "typed_template_slots",
+          "component_lifecycle",
+          "shape_items",
+          "svg_items",
+          "grid_items",
+          "repeater_items",
+          "rich_text_documents",
+          "text_font_size_update_v1",
+          "content_addressed_text_layout_v2",
+          "styled_text_layers_v1",
+          "advanced_text_layout_v1",
+          "blend_models_v1",
+          "parameterized_effect_models_v1",
+          "group_compositing_models_v1",
+          "speech_alignment_validation_v1",
+          "speech_alignment_markers_v1",
+          "project_audio_buses_v1",
+          "semantic_sound_event_definitions_v1",
+          "timeline_audio_events_v1",
+          "artifact_resources_v2"
+        ],
+        "paths": {
+          "allowedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/media",
+              "writable": true
+            }
+          ],
+          "exportsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/exports",
+            "writable": true
+          },
+          "ffmpeg": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/filter-inventory",
+            "writable": false
+          },
+          "ffprobe": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffprobe",
+            "writable": false
+          },
+          "generatedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            }
+          ],
+          "kokoro": {
+            "modelDirectory": {
+              "error": "Directory is missing or inaccessible",
+              "executable": false,
+              "exists": false,
+              "readable": false,
+              "ready": false,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/absent-model",
+              "writable": false
+            },
+            "python": {
+              "error": null,
+              "executable": true,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+              "writable": false
+            },
+            "workDirectory": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            },
+            "worker": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/runtime/kokoro-tts/worker.py",
+              "writable": false
+            }
+          },
+          "projectsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/projects",
+            "writable": true
+          }
+        },
+        "projectSchemaVersion": 44,
+        "protocolVersion": 1,
+        "ready": true,
+        "subsystems": {
+          "editor": {
+            "capabilities": [
+              "marker_relative_timing",
+              "projects",
+              "assets",
+              "timeline",
+              "text",
+              "text_styling",
+              "solid_color",
+              "rectangle",
+              "keyframes",
+              "typed_animation_channels_v1",
+              "animation_presets_v1",
+              "initial_motion_preset_pack_v1",
+              "deterministic_animation_curves_v1",
+              "animation_loops_v1",
+              "inherited_animation_timing_v1",
+              "extended_visual_animation_v1",
+              "mask_models_v1",
+              "mask_animation_v1",
+              "matte_models_v1",
+              "motion_blur_sampling_v1",
+              "transitions",
+              "audio",
+              "audio_roles",
+              "audio_ducking",
+              "undo_redo",
+              "stacking",
+              "group_parenting",
+              "group_ungroup",
+              "component_definitions",
+              "component_instance_evaluation",
+              "typed_template_slots",
+              "component_lifecycle",
+              "shape_items",
+              "svg_items",
+              "grid_items",
+              "repeater_items",
+              "rich_text_documents",
+              "text_font_size_update_v1",
+              "content_addressed_text_layout_v2",
+              "styled_text_layers_v1",
+              "advanced_text_layout_v1",
+              "blend_models_v1",
+              "parameterized_effect_models_v1",
+              "group_compositing_models_v1",
+              "speech_alignment_validation_v1",
+              "speech_alignment_markers_v1",
+              "project_audio_buses_v1",
+              "semantic_sound_event_definitions_v1",
+              "timeline_audio_events_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "rendering": {
+            "capabilities": [],
+            "error": {
+              "code": "DEPENDENCY_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "FFmpeg is missing the drawtext filter",
+              "retryable": false
+            },
+            "ready": false
+          },
+          "speech": {
+            "capabilities": [],
+            "error": {
+              "code": "TTS_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "Configured Kokoro model directory is missing",
+              "retryable": false
+            },
+            "modelId": "hexgrad/Kokoro-82M",
+            "providerId": "kokoro",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 8,
+              "queued": 0
+            },
+            "ready": false
+          },
+          "transcription": {
+            "capabilities": [],
+            "error": null,
+            "modelId": "small",
+            "providerId": "faster-whisper",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 4,
+              "queued": 0
+            },
+            "ready": false
+          }
+        },
+        "textLayoutVersion": 2,
+        "version": "0.1.0"
+      }
+    },
+    {
+      "failure": "optional-missing",
+      "job": {
+        "createdAtMs": 1791591726100,
+        "error": {
+          "code": "DEPENDENCY_UNAVAILABLE",
+          "failedStage": null,
+          "ffmpegExitCode": null,
+          "ffmpegStderrExcerpt": null,
+          "message": "FFmpeg is missing the volume filter",
+          "retryable": false
+        },
+        "expiresAtMs": 1791595326235,
+        "jobId": "873db847-3a8b-4d8e-b62f-1c4824226989",
+        "kind": "preview_range",
+        "persistence": "process",
+        "progress": 0,
+        "projectId": "b04adde2-345f-47c4-a24b-89b71df12805",
+        "revision": 15,
+        "status": "failed",
+        "updatedAtMs": 1791591726235
+      },
+      "status": {
+        "activeProjectId": null,
+        "capabilities": [
+          "marker_relative_timing",
+          "projects",
+          "assets",
+          "timeline",
+          "text",
+          "text_styling",
+          "solid_color",
+          "rectangle",
+          "keyframes",
+          "typed_animation_channels_v1",
+          "animation_presets_v1",
+          "initial_motion_preset_pack_v1",
+          "deterministic_animation_curves_v1",
+          "animation_loops_v1",
+          "inherited_animation_timing_v1",
+          "extended_visual_animation_v1",
+          "mask_models_v1",
+          "mask_animation_v1",
+          "matte_models_v1",
+          "motion_blur_sampling_v1",
+          "transitions",
+          "audio",
+          "audio_roles",
+          "audio_ducking",
+          "undo_redo",
+          "stacking",
+          "group_parenting",
+          "group_ungroup",
+          "component_definitions",
+          "component_instance_evaluation",
+          "typed_template_slots",
+          "component_lifecycle",
+          "shape_items",
+          "svg_items",
+          "grid_items",
+          "repeater_items",
+          "rich_text_documents",
+          "text_font_size_update_v1",
+          "content_addressed_text_layout_v2",
+          "styled_text_layers_v1",
+          "advanced_text_layout_v1",
+          "blend_models_v1",
+          "parameterized_effect_models_v1",
+          "group_compositing_models_v1",
+          "speech_alignment_validation_v1",
+          "speech_alignment_markers_v1",
+          "project_audio_buses_v1",
+          "semantic_sound_event_definitions_v1",
+          "timeline_audio_events_v1",
+          "preview",
+          "preview_range",
+          "preview_review_presets_v1",
+          "mp4_export",
+          "evaluated_scene_rendering",
+          "linear_light_compositing_v1",
+          "mask_rendering_v1",
+          "track_mattes_v1",
+          "shape_rendering",
+          "svg_rendering",
+          "grid_rendering",
+          "repeater_rendering",
+          "transform2d",
+          "blend_modes_v1",
+          "parameterized_effects_v1",
+          "group_compositing_v1",
+          "artifact_resources_v2"
+        ],
+        "paths": {
+          "allowedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/media",
+              "writable": true
+            }
+          ],
+          "exportsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/exports",
+            "writable": true
+          },
+          "ffmpeg": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/filter-inventory",
+            "writable": false
+          },
+          "ffprobe": {
+            "error": null,
+            "executable": true,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/usr/bin/ffprobe",
+            "writable": false
+          },
+          "generatedMediaDirectories": [
+            {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            }
+          ],
+          "kokoro": {
+            "modelDirectory": {
+              "error": "Directory is missing or inaccessible",
+              "executable": false,
+              "exists": false,
+              "readable": false,
+              "ready": false,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/absent-model",
+              "writable": false
+            },
+            "python": {
+              "error": null,
+              "executable": true,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+              "writable": false
+            },
+            "workDirectory": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/work",
+              "writable": true
+            },
+            "worker": {
+              "error": null,
+              "executable": false,
+              "exists": true,
+              "readable": true,
+              "ready": true,
+              "resolvedPath": "/tmp/opencut-platform-runtime-S4XHtS/runtime/kokoro-tts/worker.py",
+              "writable": false
+            }
+          },
+          "projectsDirectory": {
+            "error": null,
+            "executable": false,
+            "exists": true,
+            "readable": true,
+            "ready": true,
+            "resolvedPath": "/tmp/opencut-platform-evidence-aMCQuN/projects",
+            "writable": true
+          }
+        },
+        "projectSchemaVersion": 44,
+        "protocolVersion": 1,
+        "ready": true,
+        "subsystems": {
+          "editor": {
+            "capabilities": [
+              "marker_relative_timing",
+              "projects",
+              "assets",
+              "timeline",
+              "text",
+              "text_styling",
+              "solid_color",
+              "rectangle",
+              "keyframes",
+              "typed_animation_channels_v1",
+              "animation_presets_v1",
+              "initial_motion_preset_pack_v1",
+              "deterministic_animation_curves_v1",
+              "animation_loops_v1",
+              "inherited_animation_timing_v1",
+              "extended_visual_animation_v1",
+              "mask_models_v1",
+              "mask_animation_v1",
+              "matte_models_v1",
+              "motion_blur_sampling_v1",
+              "transitions",
+              "audio",
+              "audio_roles",
+              "audio_ducking",
+              "undo_redo",
+              "stacking",
+              "group_parenting",
+              "group_ungroup",
+              "component_definitions",
+              "component_instance_evaluation",
+              "typed_template_slots",
+              "component_lifecycle",
+              "shape_items",
+              "svg_items",
+              "grid_items",
+              "repeater_items",
+              "rich_text_documents",
+              "text_font_size_update_v1",
+              "content_addressed_text_layout_v2",
+              "styled_text_layers_v1",
+              "advanced_text_layout_v1",
+              "blend_models_v1",
+              "parameterized_effect_models_v1",
+              "group_compositing_models_v1",
+              "speech_alignment_validation_v1",
+              "speech_alignment_markers_v1",
+              "project_audio_buses_v1",
+              "semantic_sound_event_definitions_v1",
+              "timeline_audio_events_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "rendering": {
+            "capabilities": [
+              "preview",
+              "preview_range",
+              "preview_review_presets_v1",
+              "mp4_export",
+              "evaluated_scene_rendering",
+              "linear_light_compositing_v1",
+              "mask_rendering_v1",
+              "track_mattes_v1",
+              "shape_rendering",
+              "svg_rendering",
+              "grid_rendering",
+              "repeater_rendering",
+              "transform2d",
+              "blend_modes_v1",
+              "parameterized_effects_v1",
+              "group_compositing_v1"
+            ],
+            "error": null,
+            "ready": true
+          },
+          "speech": {
+            "capabilities": [],
+            "error": {
+              "code": "TTS_UNAVAILABLE",
+              "failedStage": null,
+              "ffmpegExitCode": null,
+              "ffmpegStderrExcerpt": null,
+              "message": "Configured Kokoro model directory is missing",
+              "retryable": false
+            },
+            "modelId": "hexgrad/Kokoro-82M",
+            "providerId": "kokoro",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 8,
+              "queued": 0
+            },
+            "ready": false
+          },
+          "transcription": {
+            "capabilities": [],
+            "error": null,
+            "modelId": "small",
+            "providerId": "faster-whisper",
+            "queue": {
+              "active": 0,
+              "concurrency": 1,
+              "fairness": "fifo",
+              "maxQueued": 4,
+              "queued": 0
+            },
+            "ready": false
+          }
+        },
+        "textLayoutVersion": 2,
+        "version": "0.1.0"
+      }
+    }
+  ],
+  "versions": {
+    "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with gcc 14 (Debian 14.2.0-19)\nconfiguration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\nlibavutil      59. 39.100 / 59. 39.100\nlibavcodec     61. 19.101 / 61. 19.101\nlibavformat    61.  7.103 / 61.  7.103\nlibavdevice    61.  3.100 / 61.  3.100\nlibavfilter    10.  5.100 / 10.  5.100\nlibswscale      8.  3.100 /  8.  3.100\nlibswresample   5.  3.100 /  5.  3.100\nlibpostproc    58.  3.100 / 58.  3.100\n",
+    "ffprobe": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers\nbuilt with gcc 14 (Debian 14.2.0-19)\nconfiguration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\nlibavutil      59. 39.100 / 59. 39.100\nlibavcodec     61. 19.101 / 61. 19.101\nlibavformat    61.  7.103 / 61.  7.103\nlibavdevice    61.  3.100 / 61.  3.100\nlibavfilter    10.  5.100 / 10.  5.100\nlibswscale      8.  3.100 /  8.  3.100\nlibswresample   5.  3.100 /  5.  3.100\nlibpostproc    58.  3.100 / 58.  3.100\n"
+  }
+}

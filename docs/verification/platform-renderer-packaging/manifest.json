@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "path": "opencut-agent-bridge",
+      "sha256": "9d7823ae54048b891c697a3ad80ce9568b0124e71892530f7014456b275b3656",
+      "sizeBytes": 84034760
+    },
+    {
+      "path": "opencut-headless",
+      "sha256": "bdeddeeb701d3e93489337746202d82b0de7babe6c284c39fd7ab399aa2a8c9e",
+      "sizeBytes": 16952416
+    },
+    {
+      "path": "kokoro-tts/worker.py",
+      "sha256": "050fef391d9ad52c88fb736310d2f935d7e731e4829d7e7740bcb5ceb184ee4d",
+      "sizeBytes": 14267
+    },
+    {
+      "path": "faster-whisper/worker.py",
+      "sha256": "404f4a20dd8e9195f105edf1d5cf79e3df673e313e0900bb6dd908203b7c861e",
+      "sizeBytes": 9235
+    }
+  ],
+  "version": 1
+}
