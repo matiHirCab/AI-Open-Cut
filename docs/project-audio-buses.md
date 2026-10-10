@@ -12,4 +12,10 @@ Opening genuine schema1–38 projects migrates current and retained history toge
 
 `project_audio_buses_v1` advertises the persisted routing model. This issue preserves the existing evaluated scenes, semantic plans, normalized filter graphs, pixels and decoded audio, including role-based ducking. Bus DSP and explicit bus side-chain ducking belong to subsequent roadmap issues.
 
+The reviewed ordinary audio timing repair corrects the inherited timestamp-only
+mixing path. Audio clips preserve their authored start, source trim, overlap and
+gaps with default or explicit routing, independently of DSP settings. This narrow
+correction supersedes legacy graph/audio equivalence for incorrectly placed clips;
+it changes no saved project or public request shape.
+
 Issue65 starts from issue62's verified implementation. Its draft PR targets `main`; while PR157 is unmerged it contains both implementations and requires PR157 first. Subsequent issues branch from the preceding implementation only after all11 exact-head CI checks pass. User merges are reconciled without discarding verified work.

@@ -116,8 +116,8 @@ fn audio_analysis_capability_requires_every_reviewed_filter() {
     for missing in filters.iter().map(Some).chain(std::iter::once(None)) {
         let h = Harness::new();
         let base = [
-            "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad",
-            "crop", "format",
+            "overlay", "drawtext", "amix", "adelay", "geq", "remap", "blend", "nullsrc", "split",
+            "pad", "crop", "format",
         ];
         let names = base
             .iter()
@@ -1883,8 +1883,8 @@ fn ready_renderer_advertises_canonical_linear_composition_in_protocol_v1() {
 fn audio_bus_dsp_capability_requires_each_filter_without_disabling_base_rendering() {
     let contract = headless_contract();
     let base = [
-        "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad", "crop",
-        "format",
+        "overlay", "drawtext", "amix", "adelay", "geq", "remap", "blend", "nullsrc", "split",
+        "pad", "crop", "format",
     ];
     let dsp = ["volume", "aformat", "pan", "equalizer", "acompressor"];
     for missing in dsp.iter().copied().map(Some).chain(std::iter::once(None)) {
@@ -2000,8 +2000,8 @@ fn audio_bus_ducking_capability_requires_each_filter_without_requiring_eq_compre
  {
     let contract = headless_contract();
     let base = [
-        "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad", "crop",
-        "format",
+        "overlay", "drawtext", "amix", "adelay", "geq", "remap", "blend", "nullsrc", "split",
+        "pad", "crop", "format",
     ];
     let dsp = ["volume", "aformat", "pan"];
     for missing in dsp.iter().copied().map(Some).chain(std::iter::once(None)) {
@@ -4205,8 +4205,8 @@ fn master_normalization_capability_requires_every_reviewed_filter() {
     for missing in filters.iter().map(Some).chain(std::iter::once(None)) {
         let h = Harness::new();
         let base = [
-            "overlay", "drawtext", "amix", "geq", "remap", "blend", "nullsrc", "split", "pad",
-            "crop", "format",
+            "overlay", "drawtext", "amix", "adelay", "geq", "remap", "blend", "nullsrc", "split",
+            "pad", "crop", "format",
         ];
         let names = base
             .iter()

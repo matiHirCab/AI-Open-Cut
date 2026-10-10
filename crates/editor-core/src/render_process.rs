@@ -67,6 +67,7 @@ pub(crate) fn readiness(ffmpeg_path: &Path, ffprobe_path: &Path) -> Result<(), C
         " overlay ",
         " drawtext ",
         " amix ",
+        " adelay ",
         " geq ",
         " remap ",
         " blend ",
