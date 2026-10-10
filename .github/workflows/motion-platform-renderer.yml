@@ -1,0 +1,60 @@
+name: Motion platform renderer
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+concurrency:
+  group: motion-platform-renderer-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: Native default renderer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 135
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Setup pinned toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+          auto-setup: true
+          moon-version: 2.3.3
+      - name: Linux FFmpeg
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: macOS FFmpeg
+        if: runner.os == 'macOS'
+        run: |
+          brew install ffmpeg@7
+          echo "$(brew --prefix ffmpeg@7)/bin" >> "$GITHUB_PATH"
+      - name: Windows FFmpeg
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress --version=7.1.1
+      - name: Hermetic dependency setup failure tests
+        run: python scripts/test_setup_platform_renderer.py
+      - name: Fixed fonts and actual dependency versions
+        run: python scripts/setup-platform-renderer.py
+      - name: Install JavaScript dependencies
+        working-directory: apps/agent-bridge
+        run: bun install --frozen-lockfile
+      - name: Enforce platform workflow policy
+        run: bun --config=bunfig.toml --no-env-file test scripts/platform-renderer-policy.test.ts
+      - name: Portable manifest negative paths
+        working-directory: apps/agent-bridge
+        run: bun x --no-install vitest run --config vitest.unit.config.ts tests/package-runtime.test.ts
+      - name: Actual source and default packaged native renderer
+        run: bun run apps/agent-bridge/scripts/run-platform-renderer.ts
+      - name: Upload native evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-renderer-${{ matrix.os }}
+          path: target/platform-renderer-evidence
+          if-no-files-found: error
