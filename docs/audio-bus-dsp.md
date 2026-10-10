@@ -23,7 +23,11 @@ stereo balance before its output bus. Master runs once. Active DSP uses48kHz
 planar float stereo with standard FFmpeg channel conversion; negative pan
 attenuates the right channel by1+pan and positive pan attenuates the left by1−pan.
 Center leaves both channels unchanged. Neutral or unreachable DSP retains the
-legacy scene, plan, graph and audio output exactly. A zero item gain stays silent
+legacy scene, plan, graph and audio output exactly, except for the reviewed correction
+of ordinary audio clip placement: clips now retain their authored start and gaps
+with absent, identity or active DSP. DSP is unnecessary for correct timing. Base
+render readiness requires FFmpeg's `adelay` filter; missing support returns
+`DEPENDENCY_UNAVAILABLE` before publication. A zero item gain stays silent
 even with automation and cannot activate DSP. An audible upstream route through
 that bus can activate DSP; all selected streams remain connected.
 

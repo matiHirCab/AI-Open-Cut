@@ -235,7 +235,7 @@ it("preserves version, probe geometry/audio selection and filter capabilities", 
   );
   expect(selected.streams).toEqual([probe.streams[0]]);
   expect(run(["-filters"]).stdout.toString()).toBe(
-    " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... \n"
+    " ... overlay ... drawtext ... amix ... adelay ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... \n"
   );
 });
 

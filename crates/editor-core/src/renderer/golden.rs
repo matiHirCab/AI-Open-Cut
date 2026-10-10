@@ -55,6 +55,7 @@ mod inherited_timing;
 mod linear;
 mod master_normalization;
 mod narration_fixture;
+mod ordinary_audio_timing;
 mod preview_caching;
 mod raster_caching;
 mod repeaters;

@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
+import { verifyOrdinaryAudioTiming } from "./ordinary-audio-timing-workflow";
 import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 
 const roots = new Set<string>();
@@ -500,6 +501,15 @@ for (const mode of ["source", "packaged"] as const) {
         mkdirSync(evidence, { recursive: true });
         copyFileSync(frame, join(evidence, `${mode}-frame.png`));
         copyFileSync(exported, join(evidence, `${mode}-export.mp4`));
+        const timingEvidence = await verifyOrdinaryAudioTiming(
+          client,
+          ffmpeg,
+          audio,
+          exports,
+          evidence,
+          mode
+        );
+        records.push(timingEvidence);
         await call(
           "project_undo",
           { expectedRevision: saved.project.revision, projectId },
@@ -521,6 +531,13 @@ for (const mode of ["source", "packaged"] as const) {
         validator.clear();
         client = await connect();
         expect(
+          await call(
+            "project_open",
+            { projectId: timingEvidence.projectId },
+            projectStateSchema
+          )
+        ).toEqual(timingEvidence.state);
+        expect(
           await call("project_open", { projectId }, projectStateSchema)
         ).toEqual(saved);
         const reopened = await render("preview_render_frame", { timeMs: 500 });
@@ -530,6 +547,7 @@ for (const mode of ["source", "packaged"] as const) {
             "ffmpeg-missing",
             "ffprobe-missing",
             "base-missing",
+            "delay-missing",
             "optional-missing",
           ] as const,
           async (failure) => {
@@ -558,7 +576,11 @@ for (const mode of ["source", "packaged"] as const) {
             expect(unavailable.subsystems.editor.capabilities).toEqual(
               status.subsystems.editor.capabilities
             );
-            if (["base-missing", "optional-missing"].includes(failure)) {
+            if (
+              ["base-missing", "delay-missing", "optional-missing"].includes(
+                failure
+              )
+            ) {
               expect(unavailable.paths.ffmpeg.ready).toBe(true);
             }
             const created = await call(

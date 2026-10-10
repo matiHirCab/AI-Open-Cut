@@ -55,6 +55,7 @@ fn native_audio_bus_dsp_gain_balance_eq_overlap_compression_and_nested_master_co
     let Some(tools) = configured_native_tools() else {
         return;
     };
+    super::ordinary_audio_timing::verify_native(&tools);
     for case in [
         "gain",
         "role_fallback",

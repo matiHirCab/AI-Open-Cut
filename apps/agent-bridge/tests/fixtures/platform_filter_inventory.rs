@@ -9,8 +9,10 @@ fn main() {
     if args.iter().any(|arg| arg == "-filters") {
         let mode = env::var("OPENCUT_PLATFORM_FILTER_MODE").expect("owned fixture mode");
         let filters = if mode == "base-missing" {
-            "overlay amix geq remap blend nullsrc split pad crop format"
+            "overlay amix adelay geq remap blend nullsrc split pad crop format"
         } else if mode == "optional-missing" {
+            "overlay drawtext amix adelay geq remap blend nullsrc split pad crop format"
+        } else if mode == "delay-missing" {
             "overlay drawtext amix geq remap blend nullsrc split pad crop format"
         } else {
             panic!("unexpected owned fixture mode");

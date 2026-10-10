@@ -640,7 +640,8 @@ fn append_audio_layer(
             precise_seconds(clock.end_ms),
             clock.start_ms
         ));
-    } else if audio.retained_timeline_delay || audio.bus_index.is_some() {
+    } else if audio.retained_timeline_delay || audio.bus_index.is_some() || audio.span.start_ms > 0
+    {
         // amix consumes sequential samples, so a timestamp shift alone cannot
         // place edited clips. Physical silence also establishes the global
         // clock for ducking after local source animation has been sampled.

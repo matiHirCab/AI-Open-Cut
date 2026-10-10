@@ -62,7 +62,7 @@ if (mode === "ffprobe") {
   }
 } else if (args.includes("-filters")) {
   const legacy =
-    " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... ";
+    " ... overlay ... drawtext ... amix ... adelay ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... ";
   console.log(
     process.env.OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS === "1"
       ? `${legacy}aformat ... aresample ... atrim ... asetpts ... loudnorm ... volume ... afade ... atempo ... adelay ... anullsrc ... color ... nullsink ... `
