@@ -1,7 +1,15 @@
 #![cfg(windows)]
 use opencut_editor_core::dispose_owned_preview;
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 fn junction(link: &Path, target: &Path) {
+    // cmd's built-in mklink treats forward slashes as switches. Rebuild from
+    // native components without changing the filesystem target or losing Unicode.
+    let link: PathBuf = link.components().collect();
+    let target: PathBuf = target.components().collect();
     assert!(
         Command::new("cmd")
             .args(["/C", "mklink", "/J"])
