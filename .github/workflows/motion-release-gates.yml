@@ -43,6 +43,11 @@ jobs:
       - name: Windows FFmpeg
         if: runner.os == 'Windows'
         run: choco install ffmpeg --yes --no-progress --version=7.1.1
+      - name: Direct backend setup failure controls
+        run: python scripts/test_setup_motion_release_backends.py
+      - name: Select direct installed Windows backends
+        if: runner.os == 'Windows'
+        run: python scripts/setup-motion-release-backends.py
       - name: Hermetic actual dependency setup controls
         run: python scripts/test_setup_platform_renderer.py
       - name: Fixed fonts and actual dependency versions

@@ -30,7 +30,7 @@ const validate = (text: string) => {
   expect(steps.find((step) => step.uses === "actions/setup-python@v5")?.with["python-version"]).toBe("3.11");
   expect(steps.find((step) => step.uses === "moonrepo/setup-toolchain@v0")?.with).toEqual({ "auto-install": true, "auto-setup": true, "moon-version": "2.3.3" });
   for (const command of [
-    "python scripts/test_setup_platform_renderer.py", "python scripts/setup-platform-renderer.py", "bun install --frozen-lockfile",
+    "python scripts/test_setup_motion_release_backends.py", "python scripts/test_setup_platform_renderer.py", "python scripts/setup-platform-renderer.py", "bun install --frozen-lockfile",
     "bun --config=bunfig.toml --no-env-file test scripts/motion-release-policy.test.ts scripts/motion-release-process.test.ts scripts/motion-release-preflight.test.ts",
     "bun x --no-install vitest run --config vitest.unit.config.ts tests/motion-release-cases.test.ts tests/motion-release-report.test.ts tests/motion-mcp-report.test.ts tests/motion-native-cache-trace.test.ts",
     "bun run apps/agent-bridge/scripts/run-motion-release.ts",
@@ -39,6 +39,11 @@ const validate = (text: string) => {
     expect(matches).toHaveLength(1);
     expect(matches[0].if).toBeUndefined();
   }
+  const direct = steps.filter((step) => step.run === "python scripts/setup-motion-release-backends.py");
+  expect(direct).toHaveLength(1);
+  expect(direct[0].if).toBe("runner.os == 'Windows'");
+  expect(steps.indexOf(direct[0])).toBeGreaterThan(steps.findIndex((step) => step.name === "Windows FFmpeg"));
+  expect(steps.indexOf(direct[0])).toBeLessThan(steps.findIndex((step) => step.run === "python scripts/setup-platform-renderer.py"));
   expect(steps.find((step) => step.name === "Windows FFmpeg")?.run).toBe("choco install ffmpeg --yes --no-progress --version=7.1.1");
   expect(steps.find((step) => step.name === "macOS FFmpeg")?.run).toContain("brew install ffmpeg@7");
   expect(steps.find((step) => step.name === "Linux FFmpeg")?.run).toContain("apt-get install -y ffmpeg");
@@ -48,6 +53,9 @@ const validate = (text: string) => {
 };
 it("requires actual complete scene release on all three platforms", () => validate(workflow));
 for (const [before, after] of [
+  ["run: python scripts/setup-motion-release-backends.py", "run: python scripts/setup-platform-renderer.py"],
+  ["run: python scripts/test_setup_motion_release_backends.py", "run: python scripts/test_setup_platform_renderer.py"],
+  ["name: Select direct installed Windows backends\n        if: runner.os == 'Windows'", "name: Select direct installed Windows backends\n        if: runner.os == 'Linux'"],
   ["ubuntu-latest, windows-latest, macos-latest", "ubuntu-latest, macos-latest"],
   ["fail-fast: false", "fail-fast: true"], ["timeout-minutes: 135", "timeout-minutes: 1"],
   ['python-version: "3.11"', 'python-version: "3.12"'], ["moon-version: 2.3.3", "moon-version: 2.0.0"],
@@ -110,3 +118,12 @@ for (const [name, hash] of FROZEN) {
     expect(digest(changed)).not.toBe(hash);
   });
 }
+
+it("rejects direct backend selection after inherited dependency resolution", () => {
+  const parsed = Bun.YAML.parse(workflow) as any;
+  const steps = parsed.jobs.release.steps as any[];
+  const direct = steps.findIndex((step) => step.run === "python scripts/setup-motion-release-backends.py");
+  const setup = steps.findIndex((step) => step.run === "python scripts/setup-platform-renderer.py");
+  [steps[direct], steps[setup]] = [steps[setup], steps[direct]];
+  expect(() => validate(Bun.YAML.stringify(parsed))).toThrow();
+});
