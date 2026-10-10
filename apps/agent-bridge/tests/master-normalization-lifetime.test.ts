@@ -1,5 +1,6 @@
+import { spawnSync } from "node:child_process";
 import {
-  chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -10,7 +11,16 @@ import {
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import catalog from "../../../contracts/master-normalization-v1.json";
 import { loadBridgeConfig } from "../src/config";
 import { HeadlessClient } from "../src/headless";
@@ -19,6 +29,40 @@ import {
   projectStateSchema,
   writeResultSchema,
 } from "../src/schemas";
+
+const nativeRoot = mkdtempSync(join(tmpdir(), "normalization-native-backend-"));
+const nativeBinary = join(
+  nativeRoot,
+  process.platform === "win32"
+    ? "normalization-lifetime.exe"
+    : "normalization-lifetime"
+);
+beforeAll(() => {
+  const built = spawnSync(
+    "rustc",
+    [
+      "--edition=2024",
+      "-D",
+      "warnings",
+      "-C",
+      "opt-level=1",
+      resolve(import.meta.dirname, "fixtures/normalization-lifetime-native.rs"),
+      "-o",
+      nativeBinary,
+    ],
+    { encoding: "utf8", timeout: 20_000, windowsHide: true }
+  );
+  expect(built.error, built.stderr).toBeUndefined();
+  expect(built.status, built.stderr).toBe(0);
+}, 30_000);
+afterAll(async () => {
+  await rm(nativeRoot, {
+    force: true,
+    maxRetries: 10,
+    recursive: true,
+    retryDelay: 50,
+  });
+});
 
 const resources: { root: string; client: HeadlessClient }[] = [];
 const phases = [
@@ -36,24 +80,12 @@ const create = async () => {
   const root = mkdtempSync(join(tmpdir(), "master-normalization-lifetime-"));
   const media = join(root, "media");
   mkdirSync(media);
-  const script = resolve(
-    import.meta.dirname,
-    "fixtures/master-normalization-process.mjs"
-  );
   const wrapper = (mode: "ffmpeg" | "ffprobe") => {
     const path = join(
       root,
-      `${mode}${process.platform === "win32" ? ".cmd" : ""}`
+      `${mode}${process.platform === "win32" ? ".exe" : ""}`
     );
-    writeFileSync(
-      path,
-      process.platform === "win32"
-        ? `@bun "${script}" ${mode} %*\r\n`
-        : `#!/bin/sh\nexec bun "${script}" ${mode} "$@"\n`
-    );
-    if (process.platform !== "win32") {
-      chmodSync(path, 0o755);
-    }
+    copyFileSync(nativeBinary, path);
     return path;
   };
   const client = new HeadlessClient(
@@ -149,6 +181,40 @@ afterEach(async (context) => {
   );
 });
 
+const requirePhaseEntry = async (
+  dir: string,
+  phase: string,
+  mode: string,
+  controller: AbortController,
+  outcome: Promise<unknown>
+) => {
+  const pidFile = join(dir, `.normalization-test-${phase}.pid`);
+  try {
+    await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), {
+      timeout: 1500,
+    });
+  } catch (error) {
+    // Settle only this failed request and rethrow the original assertion.
+    controller.abort();
+    const settled = await outcome;
+    const eventsPath = join(dir, ".normalization-phase-events.jsonl");
+    console.warn("normalization readiness failure", {
+      events: existsSync(eventsPath) ? readFileSync(eventsPath, "utf8") : "",
+      mode,
+      outcome:
+        settled && typeof settled === "object" && "code" in settled
+          ? settled.code
+          : "UNRECOGNIZED",
+      phase,
+    });
+    throw error;
+  }
+  return JSON.parse(readFileSync(pidFile, "utf8")) as {
+    backend: number;
+    descendant: number;
+  };
+};
+
 describe("controlled normalization phase lifetime", () => {
   let prepared: Awaited<ReturnType<typeof create>> & {
     before: Buffer[];
@@ -197,14 +263,15 @@ describe("controlled normalization phase lifetime", () => {
         () => ({ code: "UNEXPECTED_SUCCESS" }),
         (error: unknown) => error
       );
-      const pidFile = join(dir, `.normalization-test-${phase}.pid`);
-      await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), {
-        timeout: 1500,
-      });
-      const pids = JSON.parse(readFileSync(pidFile, "utf8")) as {
-        backend: number;
-        descendant: number;
-      };
+      const pids = await requirePhaseEntry(
+        dir,
+        phase,
+        mode,
+        controller,
+        outcome
+      );
+      expect(() => process.kill(pids.backend, 0)).not.toThrow();
+      expect(() => process.kill(pids.descendant, 0)).not.toThrow();
       const overlap =
         mode === "shutdown"
           ? null
@@ -313,3 +380,85 @@ it.each([
     expect(persisted()).toEqual(before);
   }
 );
+
+it("requires a direct native lifetime fixture and rejects unsupported arguments", () => {
+  const bytes = readFileSync(nativeBinary);
+  const formats: Record<string, string> = {
+    darwin: "cffaedfe",
+    linux: "7f454c46",
+    win32: "4d5a",
+  };
+  const magic = formats[process.platform];
+  if (!magic) {
+    throw new Error("unsupported native fixture platform");
+  }
+  expect(bytes.subarray(0, magic.length / 2).toString("hex")).toBe(magic);
+  const version = spawnSync(nativeBinary, ["-version"], {
+    encoding: "utf8",
+    timeout: 1000,
+  });
+  expect(version.error).toBeUndefined();
+  expect(version.status).toBe(0);
+  expect(version.stdout.trim()).toBe("ffmpeg fake 1.0");
+  const invalid = spawnSync(nativeBinary, ["--fixture-invalid"], {
+    encoding: "utf8",
+    timeout: 1000,
+  });
+  expect(invalid.error).toBeUndefined();
+  expect(invalid.status).toBe(2);
+  expect(invalid.stdout).toBe("");
+});
+
+it("refuses missing native phase entry with actual phase/outcome diagnostics", async () => {
+  const { dir, client, request, persisted } = await create();
+  const before = persisted();
+  writeFileSync(
+    join(dir, ".normalization-test-phase"),
+    "unreachable_fixture_phase"
+  );
+  const controller = new AbortController();
+  const outcome = client
+    .call(request, audioAnalysisResultSchema, { signal: controller.signal })
+    .then(
+      () => ({ code: "UNEXPECTED_SUCCESS" }),
+      (error: unknown) => error
+    );
+  const diagnostic = vi
+    .spyOn(console, "warn")
+    .mockImplementation(() => undefined);
+  try {
+    await expect(
+      requirePhaseEntry(
+        dir,
+        "unreachable_fixture_phase",
+        "fixture_refusal",
+        controller,
+        outcome
+      )
+    ).rejects.toThrow("expected false to be true");
+    expect(diagnostic).toHaveBeenCalledOnce();
+    expect(diagnostic).toHaveBeenCalledWith("normalization readiness failure", {
+      events: expect.any(String),
+      mode: "fixture_refusal",
+      outcome: "UNEXPECTED_SUCCESS",
+      phase: "unreachable_fixture_phase",
+    });
+    const events = readFileSync(
+      join(dir, ".normalization-phase-events.jsonl"),
+      "utf8"
+    )
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { phase: string });
+    expect(events.map((event) => event.phase)).toEqual(phases);
+    expect(persisted()).toEqual(before);
+    expect(
+      readdirSync(dir).filter((name) => name.startsWith(".opencut-work-"))
+    ).toEqual([]);
+    expect(readFileSync(join(dir, "previews/published.png"), "utf8")).toBe(
+      "published unrelated file"
+    );
+  } finally {
+    diagnostic.mockRestore();
+  }
+});
