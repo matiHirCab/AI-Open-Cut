@@ -65,11 +65,13 @@ class DirectBackendTests(unittest.TestCase):
         (self.directory / "ffprobe.exe").mkdir()
         self.refuse("direct installed native")
         unsafe = self.installation / "lib/ffmpeg/tools/unsafe\npath"
-        unsafe.mkdir()
-        for name in ("ffmpeg.exe", "ffprobe.exe"):
-            (unsafe / name).write_bytes(b"MZ%s version ")
-        (self.directory / "ffmpeg.exe").unlink()
-        self.refuse("Unsafe")
+        # Windows cannot create newline filenames. Exercise actual early refusal
+        # through discovered input without creating an unsupported filename.
+        with patch.object(Path, "rglob", return_value=[unsafe / "ffmpeg.exe"]):
+            self.refuse("Unsafe")
+        with self.assertRaisesRegex(RuntimeError, "Unsafe"):
+            MODULE.publish(self.installation / "unsafe\rpath", self.output)
+        self.assertEqual(self.output.read_text(), "prior-path\n")
 
     def test_candidate_cannot_escape_installed_package(self):
         outside = self.installation / "outside.exe"

@@ -17,9 +17,15 @@ def direct_cli(path):
     return False
 
 
+def require_safe_directory(directory):
+    if "\n" in str(directory) or "\r" in str(directory):
+        raise RuntimeError("Unsafe release backend directory")
+
+
 def backend_directory(installation):
     if not installation.is_absolute():
         raise RuntimeError("Required absolute Chocolatey installation")
+    require_safe_directory(installation)
     root = (installation / "lib/ffmpeg/tools").resolve(strict=True)
     if not root.is_relative_to(installation.resolve(strict=True)) or not root.is_dir():
         raise RuntimeError("Required installed FFmpeg tools directory")
@@ -27,13 +33,13 @@ def backend_directory(installation):
     if len(candidates) != 1:
         raise RuntimeError("Required unique direct installed FFmpeg pair")
     directory = candidates[0].parent
+    require_safe_directory(directory)
     for name in ("ffmpeg.exe", "ffprobe.exe"):
         path = (directory / name).resolve(strict=True)
         if not path.is_relative_to(root) or not path.is_file() or not direct_cli(path):
             raise RuntimeError(f"Required direct installed native backend: {name}")
     directory = directory.resolve(strict=True)
-    if "\n" in str(directory) or "\r" in str(directory):
-        raise RuntimeError("Unsafe release backend directory")
+    require_safe_directory(directory)
     return directory
 
 
