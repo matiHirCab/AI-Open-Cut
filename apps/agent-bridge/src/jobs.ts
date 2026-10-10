@@ -30,8 +30,10 @@ export interface JobTaskContext {
 interface JobEntry {
   cancellable: boolean;
   controller: AbortController;
+  disposalDebt?: boolean;
   job: Job;
   ownedPreview?: JobCompletion["artifact"];
+  previewReserved?: boolean;
   promise?: Promise<void>;
   removing?: boolean;
   settled: boolean;
@@ -179,15 +181,14 @@ export class JobRegistry {
   }
 
   close() {
-    this.#closing ??= this.#close();
+    this.#closing ??= this.#close().catch((error: unknown) => {
+      this.#closing = undefined;
+      throw error;
+    });
     return this.#closing;
   }
 
   async #close() {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
-    if (this.#isClosed()) {
-      return;
-    }
     this.#lifecycle.closed = true;
     for (const entry of this.#jobs.values()) {
       if (!isTerminal(entry.job) && entry.cancellable) {
@@ -206,15 +207,18 @@ export class JobRegistry {
       }
     }
     await this.#retention;
+    if ([...this.#jobs.values()].some((entry) => entry.ownedPreview)) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Preview artifact cleanup failed"
+      );
+    }
   }
 
   async #run(
     entry: JobEntry,
     task: (context: JobTaskContext) => Promise<JobCompletion>
   ) {
-    if (entry.controller.signal.aborted) {
-      return;
-    }
     this.#update(entry, { status: "running" });
     const startedAt = this.#now();
     this.#logger.info("job.started", {
@@ -224,6 +228,15 @@ export class JobRegistry {
       status: "running",
     });
     try {
+      if (isPreview(entry.job) && this.#disposePreview) {
+        const admission = this.#reservePreview(entry);
+        if (admission) {
+          await admission;
+        }
+      }
+      if (entry.controller.signal.aborted) {
+        return;
+      }
       const completion = await task({
         jobId: entry.job.jobId,
         markNonCancellable: () => {
@@ -269,6 +282,7 @@ export class JobRegistry {
         status: "failed",
       });
     } finally {
+      entry.previewReserved = false;
       entry.settled = true;
     }
   }
@@ -397,14 +411,69 @@ export class JobRegistry {
         artifact: entry.ownedPreview,
       });
       entry.ownedPreview = undefined;
+      entry.disposalDebt = false;
       return true;
     } catch {
+      entry.disposalDebt = true;
       this.#logger.error("job.preview.disposal.failed", {
         code: "VALIDATION_FAILED",
         jobId: entry.job.jobId,
       });
       return false;
     }
+  }
+
+  #previewFull() {
+    return new BridgeError(
+      "JOB_REGISTRY_FULL",
+      "OpenCut preview artifact retention is full",
+      true
+    );
+  }
+
+  #previewPressure() {
+    let count = 0;
+    let remaining = this.#maxPreviewBytes;
+    for (const candidate of this.#jobs.values()) {
+      if (candidate.previewReserved || candidate.ownedPreview) {
+        count += 1;
+      }
+      remaining -= candidate.ownedPreview?.sizeBytes ?? 0;
+      if (candidate.disposalDebt || remaining <= 0) {
+        return true;
+      }
+    }
+    return count >= this.#maxPreviewCount;
+  }
+
+  #reservePreview(entry: JobEntry): Promise<void> | undefined {
+    if (!this.#previewPressure()) {
+      entry.previewReserved = true;
+      return;
+    }
+    return this.#serialize(async () => {
+      // Recover debt first. Only actual disposal releases ownership and charge.
+      for (const candidate of this.#jobs.values()) {
+        if (candidate.disposalDebt) {
+          // biome-ignore lint/performance/noAwaitInLoops: Serialized owned debt recovery.
+          if (!(await this.#discardPreview(candidate))) {
+            throw this.#previewFull();
+          }
+          this.#jobs.delete(candidate.job.jobId);
+        }
+      }
+      while (this.#previewPressure()) {
+        const [oldest] = [...this.#jobs.values()]
+          .filter((candidate) => candidate.settled && candidate.ownedPreview)
+          .sort((left, right) => left.job.updatedAtMs - right.job.updatedAtMs);
+        // biome-ignore lint/performance/noAwaitInLoops: Settle eviction before replacement dispatch.
+        if (!(oldest && (await this.#discardPreview(oldest)))) {
+          throw this.#previewFull();
+        }
+        this.#jobs.delete(oldest.job.jobId);
+      }
+      entry.previewReserved = true;
+    });
   }
 
   async #retainPreview(entry: JobEntry, artifact: JobCompletion["artifact"]) {
