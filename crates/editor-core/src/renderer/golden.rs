@@ -51,6 +51,7 @@ mod audio_analysis;
 mod audio_bus_dsp;
 mod audio_bus_ducking;
 mod grids;
+mod illustrated_scene;
 mod inherited_timing;
 mod linear;
 mod master_normalization;
@@ -2428,6 +2429,7 @@ fn native_golden_render_conformance() {
         ("grids", grids::conformance),
         ("repeaters", repeaters::conformance),
         ("rich_text", rich_text::conformance),
+        ("illustrated_scene", illustrated_scene::conformance),
     ];
     for (name, run) in suites {
         let started = Instant::now();

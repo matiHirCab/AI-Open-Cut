@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "fixtureId": "illustrated-hero-card-v1",
+  "provenance": "Original synthetic geometry and two-color artwork authored for issue 181; no private or third-party inputs.",
+  "canvas": {"width": 1920, "height": 1080, "fps": 30},
+  "durationMs": 1000,
+  "sampleTimesMs": [0, 500, 966],
+  "rangeMs": [0, 100],
+  "caps": {"visualLeaves": 16, "instances": 1, "textScalars": 64, "artworkCount": 1, "artworkDimension": 64, "pathCommands": 128, "animatedChannels": 0},
+  "inputs": {"text": "NATIVE HERO", "artwork": "original-64x64-left-white-right-red-ppm", "artworkRepresentation": "managed image; internal pixels editable as media, not native child shapes", "palette": "authored solid paints, no per-instance graphic color slots"},
+  "roles": [
+    {"id": "background", "kind": "shape", "box": [0, 0, 1920, 1080], "rgb": [24, 38, 61]},
+    {"id": "device_frame", "kind": "shape", "box": [260, 180, 880, 680], "rgb": [238, 238, 238]},
+    {"id": "screen_panel", "kind": "shape", "box": [300, 220, 800, 520], "rgb": [22, 32, 51]},
+    {"id": "label_panel", "kind": "shape", "box": [1200, 260, 500, 360], "rgb": [48, 73, 104]},
+    {"id": "accent", "kind": "shape", "box": [300, 770, 220, 32], "rgb": [255, 204, 51]},
+    {"id": "artwork", "kind": "image", "box": [620, 360, 256, 256], "rgb": [255, 255, 255]},
+    {"id": "label", "kind": "text", "box": [1230, 330, 440, 100], "rgb": [255, 255, 255]}
+  ],
+  "independentSamples": [
+    {"point": [100, 100], "rgb": [24, 38, 61], "reason": "background outside hero and label panel"},
+    {"point": [280, 200], "rgb": [238, 238, 238], "reason": "device frame interior outside screen"},
+    {"point": [350, 250], "rgb": [22, 32, 51], "reason": "screen interior outside artwork"},
+    {"point": [1250, 570], "rgb": [48, 73, 104], "reason": "label panel below text"},
+    {"point": [400, 785], "rgb": [255, 204, 51], "reason": "accent interior"},
+    {"point": [650, 400], "rgb": [255, 255, 255], "reason": "original artwork left half"},
+    {"point": [840, 400], "rgb": [255, 0, 0], "reason": "original artwork right half"},
+    {"point": [1145, 500], "rgb": [24, 38, 61], "reason": "just outside device frame"}
+  ],
+  "targets": [
+    {"id": "illustrated_device_intro", "implemented": false, "durationMs": 3000, "roles": ["device_frame", "screen_panel", "artwork", "label", "accent", "backdrop"], "layout": "device x260..1140/y180..860; artwork x620..876/y360..616; labels x1200..1700/y260..620", "caps": {"visualLeaves": 24, "instances": 1, "textScalars": 128, "artworkCount": 1, "artworkDimension": 1024, "pathCommands": 256, "animatedChannels": 8}},
+    {"id": "sticker_motif_intro", "implemented": false, "durationMs": 3000, "roles": ["authored_sticker_contour", "artwork", "dot_backdrop", "sun_rays", "speed_lines", "label"], "layout": "sticker in x560..1360/y140..940; rays around x960/y540; label x560..1360/y900..1020", "caps": {"visualLeaves": 48, "instances": 2, "textScalars": 128, "artworkCount": 1, "artworkDimension": 1024, "pathCommands": 1024, "animatedChannels": 16}},
+    {"id": "role_badge_team_intro", "implemented": false, "durationMs": 3000, "roles": ["team_parent", "role_badges", "member_artwork", "member_labels", "team_title", "backdrop"], "layout": "three badge columns x160..640/x720..1200/x1280..1760; artwork y260..660; labels y700..820; title y80..200", "caps": {"visualLeaves": 96, "instances": 6, "textScalars": 512, "artworkCount": 6, "artworkDimension": 1024, "pathCommands": 2048, "animatedChannels": 32}}
+  ]
+}

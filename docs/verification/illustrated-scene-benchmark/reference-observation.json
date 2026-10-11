@@ -1,0 +1,88 @@
+{
+  "canvas": {
+    "fps": 30,
+    "height": 1080,
+    "width": 1920
+  },
+  "durationMs": 1000,
+  "environment": {
+    "architecture": "x86_64",
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "cpuMax": "400000 100000",
+    "debugAssertions": false,
+    "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers",
+    "fontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+    "logicalCpus": 5,
+    "memoryMax": "17179869184",
+    "os": "linux",
+    "osVersion": "Linux (Debian GNU/Linux 13)",
+    "totalMemoryBytes": 18882699264
+  },
+  "fixtureId": "illustrated-hero-card-v1",
+  "frameMs": 500,
+  "freshSamples": 3,
+  "guards": {
+    "compositionBytes": 1073741824,
+    "outcome": "all fixed workloads admitted; existing guards unchanged",
+    "sampledOutputFramePixelWork": 268435456,
+    "surfacePixels": 16777216
+  },
+  "observations": [
+    {
+      "freshRendererMs": [
+        2356.4137020000003,
+        2231.8001050000003,
+        2149.60607
+      ],
+      "intent": "frame",
+      "repeatedRequestMs": [
+        1258.356832,
+        1095.7738610000001,
+        1111.033843
+      ],
+      "warmupMs": 1537.284548
+    },
+    {
+      "freshRendererMs": [
+        3700.231963,
+        3715.137728,
+        3625.2489849999997
+      ],
+      "intent": "range",
+      "repeatedRequestMs": [
+        2645.553909,
+        2823.407779,
+        2965.530953
+      ],
+      "warmupMs": 2944.012741
+    }
+  ],
+  "outputEvidence": {
+    "frameSha256": "5e626df266ca7b8b1cbb0bfe2191eaa83331164523a2bc010ff435e90f05da13",
+    "independentColorSamplesPerFrame": 8,
+    "rangeFrameCount": 3,
+    "rangeSha256": "c340ce8f1c0d480b9f72168b97cc84f97461e6a5a88d8d25e2fe5bbf487a5b9a",
+    "visibleLabelMinimumWhitePixels": 100
+  },
+  "rangeMs": [
+    0,
+    100
+  ],
+  "repeatedSamples": 3,
+  "schemaVersion": 1,
+  "semantics": {
+    "fresh": "new Renderer; OS filesystem caches not flushed",
+    "portableTiming": "report-only; no universal CI threshold",
+    "repeated": "same Renderer, same immutable request; raster and encoded-preview caches eligible",
+    "timer": "facade request through returned artifact; independent decode excluded"
+  },
+  "source": {
+    "driverSha256": "0ee5c72d9bffc47e84d79b0c3c4380ad5f20141567a09fe681f01bac4714db17",
+    "gitRevision": "431a5e38bba964d780cfdbe0fe4ddf287ea21c58",
+    "recipeSha256": "ed89ba33c72f3582b7e20fa7e884a62987061320567ec3dd6be247eed08ecf58",
+    "testBinarySha256": "e09e66858060cce00b495298eaec346962dd9723399bc3dc60842b51845efd59",
+    "trackedDiffSha256": "50891b1e7379bec2b500c55a3aaeea05fd211a86e46094e5f658242aef532f43"
+  },
+  "warmupSamples": 1
+}
