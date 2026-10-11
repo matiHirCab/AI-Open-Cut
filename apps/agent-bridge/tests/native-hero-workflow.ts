@@ -81,7 +81,9 @@ export const verifyHeroPixels = (
           (pixels[(y * WIDTH + x) * 3 + c] ?? -100) - (expected[c] ?? 0)
         ) > tolerance
       ) {
-        throw new Error(`Independent hero pixel mismatch at ${x},${y}`);
+        throw new Error(
+          `Independent hero pixel mismatch at ${x},${y}: actual RGB ${pixels.subarray((y * WIDTH + x) * 3, (y * WIDTH + x) * 3 + 3).join(",")}, expected ${expected.join(",")}, tolerance ${tolerance}, hidden ${hidden}`
+        );
       }
     }
   }
@@ -271,7 +273,8 @@ const verifyNativeHeroArtifacts = (
       "pipe:1",
     ]);
     if (i === 0) {
-      verifyHeroPixels(pixels, false, 2);
+      // Match the existing platform goldPixel three-level YUV/RGB rounding bound.
+      verifyHeroPixels(pixels, false, 3);
     } else {
       expect(pixels.length).toBe(FRAME_BYTES * 6);
       verifyHeroPixels(pixels.subarray(0, FRAME_BYTES), true, 8);

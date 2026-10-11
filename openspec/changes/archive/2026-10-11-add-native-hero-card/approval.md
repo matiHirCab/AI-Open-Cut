@@ -1,3 +1,5 @@
 # Scoped approval
 
 Approved before executable changes under the user's explicit standing authorization delegated from source thread 01a12727-1bdc-7427-87da-ad01f63b603b: continue issue #182 once #181 has landed, approve issue-scoped specifications, implement/verify/commit/push/draft PR and exact-head CI, without repeated approval. Approval covers this proposal, design, H1–H8 requirements and tasks; it is delegated scoped approval, not a claim of a GitHub CODEOWNER review. No public structural contract changes or migration are authorized by this slice; any discovered need requires updating scoped artifacts before implementation. No merge/deployment/desktop work or separate doctor fix is included.
+
+Continuation approval before executable correction: delegated standing issue-scoped authorization covers the above H7/H8 diagnostic and existing-platform-tolerance alignment after the first published-head macOS failure. Scope and product behavior remain unchanged; no protected assertion, codec policy, renderer, palette, deadline or public schema change is approved.

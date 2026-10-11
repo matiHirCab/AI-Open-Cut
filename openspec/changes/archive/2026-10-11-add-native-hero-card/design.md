@@ -24,3 +24,7 @@ No migration or deployment. Removing the recipe guidance restores prior prompt c
 ## Open Questions
 
 None blocking this slice. Later palettes, packs, renderer strategy and desktop controls belong to their own issues.
+
+## Published-head platform correction
+
+The first published-head macOS native source and package checks rejected the new gold-accent PNG sample at (250,662). The protected existing platform goldPixel oracle documents a three-level RGB bound for FFmpeg YUV/RGB rounding; the new helper used two levels. Align this new PNG verifier with that existing three-level bound, preserve the range bound of eight and all protected assertions/commands/deadlines, and include actual/expected RGB in sample failures for attribution. This is a test-evidence correction within H7/H8, not a renderer or recipe palette change. Exact subsequent-head macOS evidence must confirm the correction; increasing bounds beyond existing policy is not authorized.

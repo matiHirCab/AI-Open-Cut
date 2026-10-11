@@ -90,7 +90,7 @@ it("retrieves a versioned native hero through unchanged read-only MCP discovery"
 
 it("rejects blank and incorrect native hero evidence independently", () => {
   const blank = Buffer.alloc(1920 * 1080 * 3);
-  expect(() => verifyHeroPixels(blank, false, 2)).toThrow();
+  expect(() => verifyHeroPixels(blank, false, 3)).toThrow();
   expect(() => verifyHeroPixels(blank, true, 8)).toThrow();
-  expect(() => verifyHeroPixels(blank.subarray(0, 100), false, 2)).toThrow();
+  expect(() => verifyHeroPixels(blank.subarray(0, 100), false, 3)).toThrow();
 });
