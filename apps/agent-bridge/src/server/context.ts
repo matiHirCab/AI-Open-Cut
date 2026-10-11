@@ -1,5 +1,6 @@
 import { type McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
+import nativeHeroCard from "../recipes/native-hero-card-v1.json";
 
 import {
   editDraftSchema,
@@ -164,7 +165,7 @@ export const registerWorkflowPrompts = (server: McpServer) => {
         .object({ projectId: z.string().min(1), request: z.string().min(1) })
         .strict(),
       description:
-        "Construct and review motion graphics with atomic batches, templates and markers.",
+        "Construct and review motion graphics, including native-hero-card-v1, with atomic batches, templates and markers.",
     },
     ({ projectId, request }) =>
       promptMessage(
@@ -176,6 +177,8 @@ export const registerWorkflowPrompts = (server: McpServer) => {
           "4. Validate closed input shapes and resolve missing references before submission. On invalid input or a failed operation, inspect the typed error and re-read state to verify atomic rollback with unchanged content and revision. On REVISION_CONFLICT, refresh project_get_state and replan against the new revision; never blindly retry a stale batch. Preserve stable error codes and core undo/redo semantics.",
           "5. Re-read state after commit, then call preview_review_range with that expectedRevision, a relevant startMs/endMs range and a supported resolution (540p, 720p, project or custom). Keep includeAudio=true unless silent review was explicitly requested. Poll job_get_status until terminal; read artifactResource.uri and present the returned video and audio for review. Inspect the artifact's immutable revision and refresh/review if the project has changed; failed, cancelled or expired jobs are not approvals.",
           "6. Revise through another fresh revision-checked atomic batch and repeat range review. When requested, verify project_undo and project_redo restore the intended content, then project_open and project_get_state confirm persisted reopen behavior. Only offer project_export_video after preview approval; never enable overwrite without explicit permission. Preview and export use the same evaluated scene; prompt retrieval itself does not execute edits or guarantee creative quality.",
+          "Versioned native-hero-card-v1 example: inspect current canvas/revision and resolve $overlay to an existing root overlay track and $artwork to an already imported safe managed image in this project. The reference is 1920x1080 at 30fps with two native cards; adjust placement using existing operations when needed, without silently changing project settings. Import approved original artwork separately before recipe submission when necessary; this recipe itself creates no asset resources. Replace only exact literal placeholders in the JSON data, then submit its operations in one timeline_batch_edit with current expectedRevision. The title and artwork existing typed slots customize one instance through component_instance_update; shared native children and fixed paints remain unchanged. Inspect tool schemas for full required update timing fields, preserve transforms and motion, and verify undo/redo/reopen and preview. Asset pixels are media, while the card geometry and text stay native. Artwork uses existing intrinsic sizing/transform, not automatic fitting. This is read-only example data, never an executing renderer recipe.",
+          `native-hero-card-v1 recipe JSON:\n${JSON.stringify(nativeHeroCard, null, 2)}`,
         ].join("\n\n")
       )
   );

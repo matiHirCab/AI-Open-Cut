@@ -1,0 +1,444 @@
+{
+  "recipeId": "native-hero-card-v1",
+  "version": 1,
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "durationMs": 1000,
+  "frameMs": 500,
+  "rangeMs": [0, 200],
+  "caps": {
+    "instances": 2,
+    "expandedVisualLeaves": 14,
+    "titleScalars": 24,
+    "referenceArtworkDimension": 64,
+    "animationChannels": 1
+  },
+  "placeholders": {
+    "$overlay": "Existing root overlay track ID",
+    "$artwork": "Existing safe managed image asset ID in this project"
+  },
+  "roles": [
+    "background",
+    "device_frame",
+    "screen_panel",
+    "label_panel",
+    "accent",
+    "artwork",
+    "title"
+  ],
+  "operations": [
+    {
+      "operation": "component_create",
+      "name": "Native hero card v1",
+      "width": 800,
+      "height": 600,
+      "durationMs": 1000,
+      "tracks": [
+        {
+          "id": "hero_layers",
+          "name": "Native hero layers",
+          "trackType": "overlay",
+          "items": [
+            {
+              "id": "background",
+              "stackOrder": 0,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "shape",
+              "geometry": {
+                "type": "rectangle",
+                "width": 800,
+                "height": 600
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 0.09411764705882353,
+                  "g": 0.14901960784313725,
+                  "b": 0.23921568627450981,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "transform2d": {
+                "position": {
+                  "x": 0,
+                  "y": 0,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "device_frame",
+              "stackOrder": 1,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "shape",
+              "geometry": {
+                "type": "rectangle",
+                "width": 720,
+                "height": 420
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 0.9333333333333333,
+                  "g": 0.9333333333333333,
+                  "b": 0.9333333333333333,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "transform2d": {
+                "position": {
+                  "x": 40,
+                  "y": 40,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "screen_panel",
+              "stackOrder": 2,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "shape",
+              "geometry": {
+                "type": "rectangle",
+                "width": 680,
+                "height": 380
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 0.08627450980392157,
+                  "g": 0.12549019607843137,
+                  "b": 0.2,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "transform2d": {
+                "position": {
+                  "x": 60,
+                  "y": 60,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "label_panel",
+              "stackOrder": 3,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "shape",
+              "geometry": {
+                "type": "rectangle",
+                "width": 720,
+                "height": 90
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 0.18823529411764706,
+                  "g": 0.28627450980392155,
+                  "b": 0.40784313725490196,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "transform2d": {
+                "position": {
+                  "x": 40,
+                  "y": 480,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "accent",
+              "stackOrder": 4,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "shape",
+              "geometry": {
+                "type": "rectangle",
+                "width": 180,
+                "height": 15
+              },
+              "fill": {
+                "type": "solid",
+                "color": {
+                  "r": 1.0,
+                  "g": 0.8,
+                  "b": 0.2,
+                  "a": 1
+                }
+              },
+              "stroke": null,
+              "transform2d": {
+                "position": {
+                  "x": 60,
+                  "y": 435,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "artwork",
+              "stackOrder": 5,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "media",
+              "assetId": "$artwork",
+              "sourceInMs": 0,
+              "audio": {
+                "volume": 1,
+                "muted": true,
+                "fadeInMs": 0,
+                "fadeOutMs": 0
+              },
+              "transform2d": {
+                "position": {
+                  "x": 272,
+                  "y": 118,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 4,
+                "scaleY": 4,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            },
+            {
+              "id": "title",
+              "stackOrder": 6,
+              "startMs": 0,
+              "durationMs": 1000,
+              "keyframes": [],
+              "type": "text",
+              "text": "NATIVE HERO",
+              "fontSize": 36,
+              "color": "#ffffff",
+              "style": {
+                "layout": {
+                  "bounds": {
+                    "widthPx": 670,
+                    "heightPx": 68
+                  },
+                  "wrap": "none"
+                }
+              },
+              "transform2d": {
+                "position": {
+                  "x": 64,
+                  "y": 497,
+                  "unit": "pixels"
+                },
+                "anchor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotationDeg": 0,
+                "skewXDeg": 0,
+                "skewYDeg": 0,
+                "opacity": 1
+              }
+            }
+          ]
+        }
+      ],
+      "slots": [
+        {
+          "id": "title",
+          "name": "Title",
+          "kind": "text",
+          "required": true,
+          "defaultValue": {
+            "type": "text",
+            "value": "NATIVE HERO"
+          },
+          "binding": {
+            "targetLayerId": "title",
+            "property": "text.document"
+          },
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 24
+          }
+        },
+        {
+          "id": "artwork",
+          "name": "Artwork",
+          "kind": "asset",
+          "required": true,
+          "defaultValue": {
+            "type": "asset",
+            "value": {
+              "kind": "asset",
+              "scope": "project",
+              "id": "$artwork"
+            }
+          },
+          "binding": {
+            "targetLayerId": "artwork",
+            "property": "media.asset"
+          },
+          "constraints": {
+            "assetKinds": ["image"]
+          }
+        }
+      ],
+      "resultAlias": "hero"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "@hero",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "slotValues": {
+        "title": {
+          "type": "text",
+          "value": "NATIVE HERO"
+        }
+      },
+      "resultAlias": "left",
+      "transform": {
+        "positionX": 120,
+        "positionY": 220,
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "@hero",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1000,
+          "y": 220,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "title": {
+          "type": "text",
+          "value": "NATIVE HERO"
+        }
+      },
+      "resultAlias": "right"
+    },
+    {
+      "operation": "set_animation_channels",
+      "itemId": "@left",
+      "animationChannels": [
+        {
+          "property": "transform.opacity",
+          "keyframes": [
+            {
+              "timeMs": 0,
+              "value": {
+                "type": "scalar",
+                "value": 0
+              },
+              "curve": "linear"
+            },
+            {
+              "timeMs": 100,
+              "value": {
+                "type": "scalar",
+                "value": 1
+              },
+              "curve": "hold"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -44,6 +44,7 @@ import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
 import { verifyMasterNormalizationWorkflow } from "./master-normalization-workflow";
 import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
+import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -1263,6 +1264,10 @@ it("persists explicit stacking through standalone and alias batch tools", async 
 
 it("ungroups through standalone and alias MCP edits with atomic failures and history", async () => {
   await verifyGroupWorkflow(client, call);
+});
+
+it("creates and customizes native hero cards through discovered recipe data", async () => {
+  await verifyNativeHeroCardWorkflow(client, call, media, projects);
 });
 
 it("preserves component, instance, rule card and slot workflows through MCP", async () => {
