@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
+import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyOrdinaryAudioTiming } from "./ordinary-audio-timing-workflow";
 import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 
@@ -510,6 +511,12 @@ for (const mode of ["source", "packaged"] as const) {
           mode
         );
         records.push(timingEvidence);
+        await verifyNativeHeroCardWorkflow(client, call, media, projects, {
+          evidence,
+          ffmpeg,
+          ffprobe,
+          mode,
+        });
         await call(
           "project_undo",
           { expectedRevision: saved.project.revision, projectId },
