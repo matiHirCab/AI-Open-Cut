@@ -419,10 +419,6 @@ export class SpeechApplicationService {
   }
 
   async close() {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
-    if (this.#isClosed()) {
-      return;
-    }
     this.#closed = true;
     await Promise.allSettled(
       [...this.#artifacts].map(async ([token, artifact]) =>

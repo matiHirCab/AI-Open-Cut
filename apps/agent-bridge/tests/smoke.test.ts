@@ -13,6 +13,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { type ZodType, z } from "zod/v4";
+import RESTART from "../../../contracts/job-restart-v1.json";
 import {
   jobSchema,
   projectStateSchema,
@@ -35,6 +36,7 @@ import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
+import { verifyJobRestartWorkflow } from "./job-restart-workflow";
 import { verifyKnownTextWorkflow } from "./known-text-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
@@ -96,49 +98,51 @@ const client = new Client(
   { jsonSchemaValidator: validator }
 );
 const bridgeExecutable = process.env.OPENCUT_TEST_BRIDGE_PATH ?? "bun";
-const transport = new StdioClientTransport({
-  args: process.env.OPENCUT_TEST_BRIDGE_PATH
-    ? []
-    : ["run", resolve(import.meta.dirname, "../src/index.ts")],
-  command: bridgeExecutable,
-  cwd: resolve(import.meta.dirname, ".."),
-  env: {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(
-        (entry): entry is [string, string] => entry[1] !== undefined
-      )
-    ),
-    OPENCUT_ALLOWED_MEDIA_DIRS: media,
-    OPENCUT_EXPORTS_DIR: exportsDirectory,
-    OPENCUT_FFMPEG_PATH: fakeFfmpeg,
-    OPENCUT_FFPROBE_PATH: fakeFfprobe,
-    OPENCUT_HEADLESS_PATH:
-      process.env.OPENCUT_TEST_HEADLESS_PATH ??
-      resolve(
-        import.meta.dirname,
-        "../../../target/debug",
-        process.platform === "win32"
-          ? "opencut-headless.exe"
-          : "opencut-headless"
+const bridgeParameters: ConstructorParameters<typeof StdioClientTransport>[0] =
+  {
+    args: process.env.OPENCUT_TEST_BRIDGE_PATH
+      ? []
+      : ["run", resolve(import.meta.dirname, "../src/index.ts")],
+    command: bridgeExecutable,
+    cwd: resolve(import.meta.dirname, ".."),
+    env: {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined
+        )
       ),
-    OPENCUT_KOKORO_MODEL_DIR: ttsModel,
-    OPENCUT_KOKORO_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
-    OPENCUT_KOKORO_WORKER: resolve(
-      import.meta.dirname,
-      "fixtures/fake_tts_worker.py"
-    ),
-    OPENCUT_PROJECTS_DIR: projects,
-    OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
-    OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
-    OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
-    OPENCUT_TRANSCRIPTION_WORKER: resolve(
-      import.meta.dirname,
-      "fixtures/fake_transcription_worker.py"
-    ),
-    OPENCUT_TTS_WORK_DIR: ttsWork,
-  },
-  stderr: "inherit",
-});
+      OPENCUT_ALLOWED_MEDIA_DIRS: media,
+      OPENCUT_EXPORTS_DIR: exportsDirectory,
+      OPENCUT_FFMPEG_PATH: fakeFfmpeg,
+      OPENCUT_FFPROBE_PATH: fakeFfprobe,
+      OPENCUT_HEADLESS_PATH:
+        process.env.OPENCUT_TEST_HEADLESS_PATH ??
+        resolve(
+          import.meta.dirname,
+          "../../../target/debug",
+          process.platform === "win32"
+            ? "opencut-headless.exe"
+            : "opencut-headless"
+        ),
+      OPENCUT_KOKORO_MODEL_DIR: ttsModel,
+      OPENCUT_KOKORO_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
+      OPENCUT_KOKORO_WORKER: resolve(
+        import.meta.dirname,
+        "fixtures/fake_tts_worker.py"
+      ),
+      OPENCUT_PROJECTS_DIR: projects,
+      OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
+      OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
+      OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
+      OPENCUT_TRANSCRIPTION_WORKER: resolve(
+        import.meta.dirname,
+        "fixtures/fake_transcription_worker.py"
+      ),
+      OPENCUT_TTS_WORK_DIR: ttsWork,
+    },
+    stderr: "inherit",
+  };
+const transport = new StdioClientTransport(bridgeParameters);
 
 const call = async <Output>(
   name: string,
@@ -336,6 +340,7 @@ it("negotiates the public protocol version through MCP", async () => {
 it("edits a project and persists fake speech provenance through MCP", async () => {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.ready).toBe(true);
+  expect(status.capabilities).toContain(RESTART.capability);
   expect(status.subsystems).toMatchObject({
     editor: { ready: true },
     rendering: { ready: true },
@@ -633,7 +638,7 @@ it("edits a project and persists fake speech provenance through MCP", async () =
   );
   expect(state.project.tracks.flatMap((track) => track.items)).toHaveLength(3);
 
-  expect(readdirSync(ttsWork)).toHaveLength(0);
+  expect(readdirSync(ttsWork)).toEqual([RESTART.marker]);
 }, 60_000);
 
 it("aligns known text and preserves caption retry, history and reopen through MCP", async () => {
@@ -758,7 +763,7 @@ it("supports discoverable voices, preview, commit, discard, and in-place regener
     ttsResultSchema
   );
   expect(committed.durationMs).toBe(450);
-  expect(readdirSync(ttsWork)).toHaveLength(0);
+  expect(readdirSync(ttsWork)).toEqual([RESTART.marker]);
 
   await expect(client.readResource({ uri: artifactUri })).rejects.toThrow(
     "GENERATED_ARTIFACT_NOT_FOUND"
@@ -820,7 +825,7 @@ it("supports discoverable voices, preview, commit, discard, and in-place regener
     { token: discardDone.speechPreview?.token },
     z.object({ discarded: z.literal(true), token: z.string() }).strict()
   );
-  expect(readdirSync(ttsWork)).toHaveLength(0);
+  expect(readdirSync(ttsWork)).toEqual([RESTART.marker]);
 }, 60_000);
 
 it("reuses completed speech after a revision conflict", async () => {
@@ -889,7 +894,7 @@ it("reuses completed speech after a revision conflict", async () => {
     ttsResultSchema
   );
   expect(committed.revision).toBe(concurrentEdit.revision + 1);
-  expect(readdirSync(ttsWork)).toHaveLength(0);
+  expect(readdirSync(ttsWork)).toEqual([RESTART.marker]);
 }, 30_000);
 
 it("cancels fake speech through the MCP job contract", async () => {
@@ -1359,4 +1364,8 @@ it("executes confined native preview cleanup", async () => {
           : "opencut-headless"
       )
   );
+});
+
+it("reconciles a committed job after actual bridge death and blocks orphan accumulation", async () => {
+  await verifyJobRestartWorkflow(client, transport, bridgeParameters);
 });

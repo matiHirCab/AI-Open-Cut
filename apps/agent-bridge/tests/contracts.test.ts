@@ -18,6 +18,7 @@ import GROUPS from "../../../contracts/group-parent-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import INHERITED_TIMING from "../../../contracts/inherited-animation-timing-v1.json";
 import INITIAL_PRESET_PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
+import JOB_RESTART from "../../../contracts/job-restart-v1.json";
 import MASK_MODELS from "../../../contracts/mask-models-v1.json";
 import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.json";
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
@@ -39,6 +40,7 @@ import {
   MATTE_MODELS_CAPABILITY,
   TRACK_MATTES_CAPABILITY,
 } from "../src/headless-contract";
+import { EPHEMERAL_JOBS_CAPABILITY } from "../src/job-runtime";
 import {
   closedSlotRecord,
   componentDefinitionSchema,
@@ -980,6 +982,15 @@ describe("canonical public contracts", () => {
       ).toBe(false);
     }
   });
+  it("pins the additive bridge-only restart capability", () => {
+    expect(JOB_RESTART.capability).toBe(EPHEMERAL_JOBS_CAPABILITY);
+    expect(HEADLESS_CONTRACT.status.editorCapabilities).not.toContain(
+      EPHEMERAL_JOBS_CAPABILITY
+    );
+    expect(HEADLESS_CONTRACT.status.renderingCapabilities).not.toContain(
+      EPHEMERAL_JOBS_CAPABILITY
+    );
+  });
   it("keeps every canonical owner and governed consumer checked in", () => {
     const repositoryRoot = resolve(import.meta.dirname, "../../..");
     expect(OWNERSHIP.strategy).toBe("fixture-governed-manual-synchronization");
@@ -1130,6 +1141,7 @@ describe("canonical public contracts", () => {
       "audio_bus_ducking_v1",
       "audio_analysis_v1",
       MASTER_NORMALIZATION.capability,
+      EPHEMERAL_JOBS_CAPABILITY,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -1220,6 +1232,7 @@ describe("canonical public contracts", () => {
       expect(reported.capabilities).toEqual([
         ...status.capabilities,
         ARTIFACT_RESOURCES_CAPABILITY,
+        EPHEMERAL_JOBS_CAPABILITY,
       ]);
       for (const capabilities of [
         reported.capabilities,

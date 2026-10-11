@@ -71,6 +71,8 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
   readonly #logger: Logger;
   readonly #ownedPaths = new Set<string>();
   readonly #pending = new Map<string, Pending>();
+  readonly #retirements = new Set<Promise<void>>();
+  #retirementFailed = false;
   readonly #queue: QueuedGeneration[] = [];
   #stderr = "";
   #stdout = "";
@@ -359,10 +361,6 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
   }
 
   async close() {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across calls.
-    if (this.#isClosed()) {
-      return;
-    }
     this.#closed = true;
     const error = new BridgeError(
       "BRIDGE_SHUTTING_DOWN",
@@ -373,9 +371,23 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
       queued.reject(error);
     }
     this.#terminate(error);
+    await Promise.all(this.#retirements);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Worker retirement callbacks can set this failure flag.
+    if (this.#retirementFailed) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Speech worker shutdown is unconfirmed"
+      );
+    }
     await Promise.allSettled(
       [...this.#ownedPaths].map(async (path) => await this.cleanup(path))
     );
+    if (this.#ownedPaths.size > 0) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Speech artifact cleanup failed"
+      );
+    }
   }
 
   #start(queued: QueuedGeneration) {
@@ -468,6 +480,16 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
       }
       return { ...result, outputPath, request: queued.request };
     } catch (error) {
+      // A cancelled worker can still finish writing while ignoring graceful termination.
+      // Keep ownership until retirement settles, then remove its final output.
+      await Promise.all(this.#retirements);
+      if (this.#retirementFailed) {
+        // biome-ignore lint/style/useErrorCause: Keep private provider diagnostics out of lifecycle errors.
+        throw new BridgeError(
+          "VALIDATION_FAILED",
+          "Speech worker shutdown is unconfirmed"
+        );
+      }
       await this.cleanup(outputPath);
       throw error;
     }
@@ -501,7 +523,7 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
     timeoutMs: number,
     timeoutCode = "TTS_TIMEOUT"
   ) {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: lifecycle state mutates across requests.
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Shutdown can occur between asynchronous provider requests.
     if (this.#isClosed()) {
       throw new BridgeError(
         "BRIDGE_SHUTTING_DOWN",
@@ -605,9 +627,39 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
 
   #terminate(terminationError?: BridgeError) {
     if (this.#child) {
-      this.#child.removeAllListeners();
-      this.#child.kill();
+      const child = this.#child;
+      child.removeAllListeners();
       this.#child = undefined;
+      const retirement = new Promise<void>((resolve) => {
+        if (
+          !child.pid ||
+          child.exitCode !== null ||
+          child.signalCode !== null
+        ) {
+          resolve();
+          return;
+        }
+        const force = setTimeout(() => child.kill("SIGKILL"), 1000);
+        const deadline = setTimeout(() => {
+          this.#retirementFailed = true;
+          clearTimeout(force);
+          resolve();
+        }, 2000);
+        child.once("error", () => {
+          this.#retirementFailed = true;
+          clearTimeout(force);
+          clearTimeout(deadline);
+          resolve();
+        });
+        child.once("close", () => {
+          clearTimeout(force);
+          clearTimeout(deadline);
+          resolve();
+        });
+        child.kill();
+      });
+      this.#retirements.add(retirement);
+      retirement.then(() => this.#retirements.delete(retirement));
     }
     const error =
       terminationError ??

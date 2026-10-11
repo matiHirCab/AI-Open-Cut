@@ -40,6 +40,7 @@ interface JobEntry {
 }
 
 interface JobRegistryOptions {
+  beforeStart?: () => void;
   disposePreview?: (job: Job) => Promise<void>;
   headless?: HeadlessClient;
   logger?: Logger;
@@ -63,6 +64,7 @@ const isPreview = (job: Job) =>
   job.kind === "preview" || job.kind === "preview_range";
 
 export class JobRegistry {
+  readonly #beforeStart: (() => void) | undefined;
   readonly #disposePreview: ((job: Job) => Promise<void>) | undefined;
   readonly #maxPreviewBytes: number;
   readonly #maxPreviewCount: number;
@@ -77,6 +79,7 @@ export class JobRegistry {
   readonly #lifecycle = { closed: false };
 
   constructor(options: JobRegistryOptions = {}) {
+    this.#beforeStart = options.beforeStart;
     this.#disposePreview = options.disposePreview;
     this.#maxPreviewBytes = options.maxPreviewBytes ?? 67_108_864;
     this.#maxPreviewCount = options.maxPreviewCount ?? 32;
@@ -122,6 +125,7 @@ export class JobRegistry {
     task: (context: JobTaskContext) => Promise<JobCompletion>
   ) {
     this.#ensureAdmission();
+    this.#beforeStart?.();
     const jobId = randomUUID();
     const now = this.#now();
     const entry: JobEntry = {

@@ -194,7 +194,7 @@ Run `codex mcp list`, then use `/mcp` and `editor_get_status`. Agents should rea
 - TTS jobs are serialized per bridge process and use CPU inference only in V1.
 - HTTP is for localhost or authenticated trusted-LAN use, not public internet deployment. There is no remote URL import, scripting tool, OpenAI API, or generative video dependency.
 - Export is MP4/H.264/AAC at project, 1080p, or 720p resolution. The renderer supports the MVP transform, fade/crossfade, text, and audio controls; it is not yet a full nonlinear compositor.
-- The recommended next milestone is GPUI integration with the shared core and durable render-job recovery.
+- Job restart semantics are explicitly ephemeral; see [ADR0005](adr/0005-ephemeral-job-restart-semantics.md) before considering future durable recovery.
 
 Runtime template slots are documented in [typed template slots](template-slots.md). Protocol 1 exposes `component_define_slots` standalone and in batches and advertises `typed_template_slots`; schema 12 stores typed definitions and overrides. The separate `contracts/template-slots-v1.json` catalog governs all eight kinds; preparatory motion-graphics-v1 records retain their fixture-only status.
 
@@ -206,10 +206,14 @@ Completed frame/draft-frame and audiovisual range preview jobs retain their requ
 
 The bridge retains at most 32 completed preview files and 64MiB of their declared encoded bytes, accepting the exact bounds. Oldest settled preview jobs are evicted before replacement; their resources then return `JOB_NOT_FOUND`. An individually oversized output is disposed and fails with retryable `JOB_REGISTRY_FULL`. Job TTL is unchanged and metadata polling never extends it. Expiry cleanup runs on registry access/admission; graceful close disposes retained previews. Admission can temporarily return `JOB_REGISTRY_FULL` while asynchronous cleanup settles. Failed deletion stays charged and can block further retention; in-flight render output and failed disposal debt are not a disk quota.
 
-Disposal only unlinks renderer-generated PNG/MP4 files beneath their originating project previews directory, refusing unsafe paths and symbolic links. It preserves exports, project/media/history, foreign preview files and predecessor-process artifacts. This disposable file budget is independent of editor-core's immutable encoded preview cache. A fresh bridge starts cold; restart durability and crash-orphan cleanup remain a separate concern. No public schema, capability version or migration changes.
+Disposal only unlinks renderer-generated PNG/MP4 files beneath their originating project previews directory, refusing unsafe paths and symbolic links. It preserves exports, project/media/history, foreign preview files and predecessor-process artifacts. This disposable file budget is independent of editor-core's immutable encoded preview cache. A fresh bridge starts cold. The additive `ephemeral_jobs_v1` capability and exclusive runtime admission marker define [restart and operator crash reconciliation](job-restart.md); no predecessor output is automatically adopted or deleted. Project/headless schemas and migrations remain unchanged.
 
 ### Complete motion graphics prompt
 
 Discover `create_motion_graphics` through `prompts/list`, then use `prompts/get` with nonempty string `projectId` and `request` arguments. Retrieval supplies reusable guidance and performs no edits or provider calls. It connects capability and current-state inspection, typed component templates and slot values, marker-relative integer-millisecond placement, one revision-checked batch with creation aliases, supported animation presets and audio routing, and audio-enabled range preview with artifact revision review. Batch entries use core edit operation identifiers; standalone MCP wrapper names can differ.
 
 The guidance requires missing-reference resolution before editing, atomic rollback inspection after failure, and refresh/replanning after `REVISION_CONFLICT`. Repeated preview review precedes approved export; overwrite requires explicit permission. Undo/redo and reopen verification use existing project tools. Canonical bounds, default precedence, component scope and renderer fallback remain in the existing typed contracts and their linked documentation. This additive prompt keeps protocol1/schema44 and existing prompts compatible; it is a workflow guide, not an executing agent or a creative-quality guarantee.
+
+### Job restart contract
+
+The bridge advertises `ephemeral_jobs_v1`. Jobs/results/tokens are process-local; `JOB_NOT_FOUND` after restart does not prove an atomic project commit or export failed. New producer admission fails closed after a crash until operator reconciliation of the exclusive TTS-work-root marker. Read [job restart and reconciliation](job-restart.md) for safe client retries, runtime ownership and conservative crash recovery.

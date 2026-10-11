@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "capability": "ephemeral_jobs_v1",
+  "persistence": "process",
+  "restartStates": ["queued", "running", "completed", "failed", "cancelled"],
+  "coldLookupError": "JOB_NOT_FOUND",
+  "admissionError": "JOB_REGISTRY_FULL",
+  "marker": ".opencut-job-runtime-v1",
+  "ownership": "bridge-runtime",
+  "revisionBinding": "originating-project-and-requested-revision",
+  "defaultTerminalTtlMs": 3600000,
+  "defaultMaxJobs": 1000,
+  "maxPreviewCount": 32,
+  "maxPreviewBytes": 67108864,
+  "resume": false,
+  "automaticReplay": false,
+  "automaticOrphanAdoption": false,
+  "crashAdmission": "blocked-until-operator-reconciliation",
+  "sharedHttpAccess": "same-authorized-runtime",
+  "retryGuidance": "Re-read authoritative project state/history and inspect approved export output before retrying a side effect; missing jobs do not prove failure."
+}

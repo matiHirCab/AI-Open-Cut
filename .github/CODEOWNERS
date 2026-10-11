@@ -435,3 +435,13 @@
 /apps/agent-bridge/tests/audio-analysis* @matiHirCab
 /apps/agent-bridge/tests/fixtures/audio-analysis-* @matiHirCab
 /docs/audio-analysis.md @matiHirCab
+
+# Issue 85 ephemeral job restart and crash admission contract.
+/apps/agent-bridge/src/job-runtime.ts @matiHirCab
+/apps/agent-bridge/src/index.ts @matiHirCab
+/apps/agent-bridge/tests/job-restart.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/job-crash-process.ts @matiHirCab
+/docs/job-restart.md @matiHirCab
+/docs/adr/0005-ephemeral-job-restart-semantics.md @matiHirCab
+/apps/agent-bridge/tests/job-restart-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/job-restart-* @matiHirCab

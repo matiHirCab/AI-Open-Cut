@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,6 +8,7 @@ import { loadBridgeConfig } from "../src/config";
 import { type DoctorPlatform, runDoctor } from "../src/doctor";
 import type { HeadlessClient } from "../src/headless";
 import type { SpeechApplicationService } from "../src/speech";
+import type { TranscriptionApplicationService } from "../src/transcription";
 
 let temporary = "";
 
@@ -168,4 +169,37 @@ it("reports Python, disk, and permission diagnostics deterministically", async (
   expect(lowDisk.checks).toContainEqual(
     expect.objectContaining({ id: "disk", status: "warning" })
   );
+});
+
+it("refuses successful doctor cleanup when a generated fixture cannot be deleted", async () => {
+  temporary = await mkdtemp(join(tmpdir(), "opencut-doctor-cleanup-"));
+  const config = loadBridgeConfig({
+    OPENCUT_CONFIG_ROOT: temporary,
+    OPENCUT_KOKORO_PYTHON: process.execPath,
+  });
+  const transcription = {
+    doctorTranscribe: () => Promise.resolve(),
+    status: () =>
+      Promise.resolve({ modelCached: true, modelLoaded: true, ready: true }),
+  } as unknown as TranscriptionApplicationService;
+  const diagnosis = runDoctor(
+    config,
+    headless(),
+    speech(),
+    platform({
+      capture: async (_command, args) => {
+        const output = args.at(-1);
+        if (output?.endsWith(".wav")) {
+          await mkdir(output);
+        }
+        return { code: 0, stderr: "", stdout: "Python 3.11" };
+      },
+    }),
+    transcription
+  );
+  await expect(diagnosis).rejects.toMatchObject({
+    code: "VALIDATION_FAILED",
+    message: "Doctor artifact cleanup failed",
+    retryable: false,
+  });
 });
