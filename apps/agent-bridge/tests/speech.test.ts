@@ -757,3 +757,16 @@ it("regeneration preserves the item and sends newly supplied independent provena
     await service.close();
   }
 });
+
+it("retries provider shutdown after failed cleanup so crash admission can remain guarded", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  const service = new SpeechApplicationService(provider, {
+    call: unusedCommit(),
+  } as unknown as HeadlessClient);
+  provider.failedCleanupPaths.push("owned.wav");
+  provider.cleanupFailure = new Error("private filesystem failure");
+  await expect(service.close()).rejects.toThrow();
+  provider.cleanupFailure = undefined;
+  await expect(service.close()).resolves.toBeUndefined();
+  expect(provider.failedCleanupPaths).toEqual([]);
+});

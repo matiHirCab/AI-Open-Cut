@@ -5,6 +5,7 @@ import { type BridgeConfig, loadBridgeConfig } from "./config";
 import { runDoctor } from "./doctor";
 import { BridgeError, errorBody, HeadlessClient } from "./headless";
 import { serveHttp } from "./http";
+import { EPHEMERAL_JOBS_CAPABILITY, JobRuntimeGuard } from "./job-runtime";
 import { JobRegistry } from "./jobs";
 import { JsonLineLogger, type Logger } from "./logger";
 import { previewDisposer } from "./preview-disposal";
@@ -35,6 +36,7 @@ const run = async () => {
   const config = loadBridgeConfig();
   const logger = new JsonLineLogger(config.logLevel);
   const headless = new HeadlessClient(config, logger);
+  const jobRuntime = new JobRuntimeGuard(config.ttsWorkDirectory);
   if (process.argv.includes("--doctor")) {
     const speech = new SpeechApplicationService(
       createSpeechProvider(config, logger),
@@ -48,7 +50,9 @@ const run = async () => {
       headless,
       config.generatedArtifactTtlMs
     );
+    let doctorClean = false;
     try {
+      jobRuntime.acquire();
       const report = await runDoctor(
         config,
         headless,
@@ -56,14 +60,16 @@ const run = async () => {
         undefined,
         transcription
       );
+      doctorClean = report.ready;
       process.stdout.write(`${JSON.stringify(report)}\n`);
       if (!report.ready) {
         process.exitCode = 1;
       }
     } finally {
-      headless.close();
+      await headless.close();
       await speech.close();
       await transcription.close();
+      jobRuntime.release(doctorClean);
     }
     return;
   }
@@ -141,6 +147,7 @@ const run = async () => {
         activeProjectId: null,
         capabilities: [
           ...status.capabilities,
+          EPHEMERAL_JOBS_CAPABILITY,
           ...(speechSubsystem.ready ? ["tts"] : []),
           ...(transcriptionSubsystem.ready
             ? ["transcription", "captions"]
@@ -174,6 +181,7 @@ const run = async () => {
     logger
   );
   const jobs = new JobRegistry({
+    beforeStart: () => jobRuntime.acquire(),
     disposePreview: previewDisposer(config),
     headless,
     logger,
@@ -228,6 +236,7 @@ const run = async () => {
       await speech.close();
       await transcription.close();
       await handle.close();
+      jobRuntime.release();
     })().catch((error: unknown) => {
       shutdownPromise = undefined;
       throw error;

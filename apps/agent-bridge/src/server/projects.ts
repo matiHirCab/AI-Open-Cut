@@ -1,6 +1,7 @@
 import type { z } from "zod/v4";
 import { runtimePathDiagnostics } from "../diagnostics";
 import { errorBody } from "../headless";
+import { EPHEMERAL_JOBS_CAPABILITY } from "../job-runtime";
 import {
   headlessStatusSchema,
   projectStateSchema,
@@ -48,6 +49,7 @@ export const registerProjectTools = (
         let capabilities = [
           ...status.capabilities,
           ARTIFACT_RESOURCES_CAPABILITY,
+          EPHEMERAL_JOBS_CAPABILITY,
         ];
         let speechSubsystem: z.infer<
           typeof statusSchema

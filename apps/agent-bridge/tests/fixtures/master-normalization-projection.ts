@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import catalog from "../../../../contracts/master-normalization-v1.json";
+import {
+  removeJobRestartOwnershipAddition,
+  restoreJobRestartRaw,
+} from "./job-restart-projection";
 import headless from "./master-normalization-headless-additions.json";
 import additions from "./master-normalization-mcp-additions.json";
 import ownership from "./master-normalization-ownership-addition.json";
@@ -95,7 +99,7 @@ export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeMasterNormalizationOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeJobRestartOwnershipAddition(source);
   const categories = record(at(result, ["categories"]));
   if (Object.hasOwn(categories, "masterNormalization")) {
     removeProperty(categories, "masterNormalization", ownership.category);
@@ -162,7 +166,8 @@ export const alignMasterNormalizationRuntimeObjectOrder = <T>(source: T): T => {
 
 // Restore only the ten explicitly captured changed catalogs. Semantic rollback
 // must agree before any captured bytes may replace formatting or key order.
-export const restoreMasterNormalizationRaw = (source: string): string => {
+export const restoreMasterNormalizationRaw = (current: string): string => {
+  const source = restoreJobRestartRaw(current);
   const value = record(JSON.parse(source));
   let name: string | undefined;
   let projected: unknown;

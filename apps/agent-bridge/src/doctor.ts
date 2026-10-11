@@ -4,7 +4,7 @@ import { mkdir, rm, statfs, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { BridgeConfig } from "./config";
-import { errorBody, type HeadlessClient } from "./headless";
+import { BridgeError, errorBody, type HeadlessClient } from "./headless";
 import { headlessStatusSchema } from "./schemas";
 import type { SpeechApplicationService } from "./speech";
 import type { TranscriptionApplicationService } from "./transcription";
@@ -125,7 +125,12 @@ const checkTranscription = async (
       status: "error",
     };
   } finally {
-    await rm(fixture, { force: true }).catch(() => undefined);
+    await rm(fixture, { force: true }).catch(() => {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Doctor artifact cleanup failed"
+      );
+    });
   }
 };
 

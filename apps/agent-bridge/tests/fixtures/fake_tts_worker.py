@@ -1,8 +1,13 @@
 import json
 import os
+import signal
 import sys
 import time
 import wave
+
+
+if os.environ.get("OPENCUT_TEST_IGNORE_TERM") == "1":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 
 
 VOICES = [
@@ -52,6 +57,9 @@ for line in sys.stdin:
     elif request.get("operation") == "list_voices":
         result = VOICES
     elif request.get("operation") == "generate":
+        if os.environ.get("OPENCUT_TEST_IGNORE_TERM") == "1":
+            with open(os.path.join(os.environ["OPENCUT_TTS_WORK_DIR"], "synthesis-started"), "w") as started:
+                started.write("started")
         if request["text"] == "hang":
             while True:
                 time.sleep(1)

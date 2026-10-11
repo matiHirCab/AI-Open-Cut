@@ -1,0 +1,35 @@
+{
+  "category": {
+    "canonical": "contracts/job-restart-v1.json",
+    "consumers": [
+      "apps/agent-bridge/src/job-runtime.ts",
+      "apps/agent-bridge/src/jobs.ts",
+      "apps/agent-bridge/src/index.ts",
+      "apps/agent-bridge/src/server/projects.ts",
+      "apps/agent-bridge/tests/job-restart.test.ts",
+      "apps/agent-bridge/tests/fixtures/job-crash-process.ts",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/tests/smoke.test.ts",
+      "apps/agent-bridge/tests/packaged-smoke.test.ts",
+      "docs/job-restart.md",
+      "docs/adr/0005-ephemeral-job-restart-semantics.md",
+      "contracts/mcp-surface-v1.json",
+      "apps/agent-bridge/tests/job-restart-workflow.ts",
+      "apps/agent-bridge/tests/fixtures/job-restart-projection.ts",
+      "apps/agent-bridge/tests/fixtures/job-restart-ownership-addition.json",
+      "apps/agent-bridge/tests/fixtures/master-normalization-projection.ts",
+      "apps/agent-bridge/tests/fixtures/motion-workflow-projection.ts",
+      "apps/agent-bridge/tests/architecture.test.ts",
+      "apps/agent-bridge/src/speech.ts",
+      "apps/agent-bridge/src/tts.ts",
+      "apps/agent-bridge/tests/speech.test.ts",
+      "apps/agent-bridge/tests/tts.test.ts",
+      "apps/agent-bridge/tests/motion-workflow-prompt.test.ts",
+      "apps/agent-bridge/tests/fixtures/fake_tts_worker.py",
+      "apps/agent-bridge/src/doctor.ts",
+      "apps/agent-bridge/tests/doctor.test.ts"
+    ]
+  },
+  "predecessorSha256": "312487e1b3e1de34bfca674047b557acf3279a883c2f8c1f887326c5643ee23f",
+  "mcpPredecessorSha256": "169bbd3947a9113c1cf9e4c9c3e4a1fb398953d9ad5e4a12ce7010762ca83807"
+}

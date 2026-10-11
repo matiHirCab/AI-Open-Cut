@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EPHEMERAL_JOBS_CAPABILITY } from "../src/job-runtime";
 
 import { registerJobTools } from "../src/server/jobs";
 import { registerProjectTools } from "../src/server/projects";
@@ -147,6 +148,7 @@ describe("capability registrar architecture", () => {
       "projects",
       "timeline",
       "artifact_resources_v2",
+      EPHEMERAL_JOBS_CAPABILITY,
     ]);
     expect(structured.subsystems).toMatchObject({
       rendering: { ready: false },

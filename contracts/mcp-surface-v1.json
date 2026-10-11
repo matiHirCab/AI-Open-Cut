@@ -44,7 +44,8 @@
     "audio_bus_dsp_v1",
     "audio_bus_ducking_v1",
     "audio_analysis_v1",
-    "audio_master_normalization_v1"
+    "audio_master_normalization_v1",
+    "ephemeral_jobs_v1"
   ],
   "prompts": [
     "add_narration",

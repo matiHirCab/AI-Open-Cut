@@ -3,10 +3,16 @@ import { readFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
 import { expect, it } from "vitest";
-import catalog from "../../../contracts/mcp-surface-v1.json";
+import currentCatalog from "../../../contracts/mcp-surface-v1.json";
 import { registerWorkflowPrompts } from "../src/server/context";
+import {
+  removeJobRestartMcpAddition,
+  restoreJobRestartRaw,
+} from "./fixtures/job-restart-projection";
 import { removeMotionWorkflowPrompt } from "./fixtures/motion-workflow-projection";
 import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
+
+const catalog = removeJobRestartMcpAddition(currentCatalog);
 
 it("discovers and validates deterministic read-only motion workflow guidance over MCP", async () => {
   // No editor/provider dependencies are passed: retrieving guidance cannot edit.
@@ -51,9 +57,11 @@ it("removes exactly the additive prompt and preserves independently captured pre
     "transcribe_and_caption",
   ]);
   expect({ ...previous, prompts: catalog.prompts }).toEqual(catalog);
-  const raw = readFileSync(
-    new URL("../../../contracts/mcp-surface-v1.json", import.meta.url),
-    "utf8"
+  const raw = restoreJobRestartRaw(
+    readFileSync(
+      new URL("../../../contracts/mcp-surface-v1.json", import.meta.url),
+      "utf8"
+    )
   );
   const predecessor = raw.replace('    "create_motion_graphics",\n', "");
   expect(JSON.parse(predecessor)).toEqual(previous);

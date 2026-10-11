@@ -2,13 +2,14 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   realpathSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import { loadBridgeConfig } from "../src/config";
@@ -334,6 +335,74 @@ it(
     await expect(second).resolves.toMatchObject({
       request: { text: "after-failure" },
     });
+  },
+  workerTestTimeoutMs
+);
+
+it(
+  "reports owned cleanup debt on close and retries it without reopening admission",
+  async () => {
+    if (!provider) {
+      throw new Error("Missing fixture provider");
+    }
+    const generated = await provider.synthesize({
+      language: "en-US",
+      speed: 1,
+      text: "Cleanup debt",
+      voiceId: "test_voice",
+    });
+    rmSync(generated.outputPath);
+    mkdirSync(generated.outputPath);
+    await expect(provider.close()).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      message: "Speech artifact cleanup failed",
+    });
+    expect(existsSync(generated.outputPath)).toBe(true);
+    await expect(
+      provider.synthesize({
+        language: "en-US",
+        speed: 1,
+        text: "closed",
+        voiceId: "test_voice",
+      })
+    ).rejects.toMatchObject({ code: "BRIDGE_SHUTTING_DOWN" });
+    rmSync(generated.outputPath, { recursive: true });
+    await expect(provider.close()).resolves.toBeUndefined();
+  },
+  workerTestTimeoutMs
+);
+
+// Windows terminates the process for SIGTERM; this exercises Unix signal refusal.
+it.runIf(process.platform !== "win32")(
+  "settles a signal-refusing worker before forgetting cancelled output ownership",
+  async () => {
+    await provider?.close();
+    provider = new KokoroSpeechSynthesizer(
+      loadBridgeConfig({
+        ...process.env,
+        OPENCUT_TEST_IGNORE_TERM: "1",
+      })
+    );
+    await provider.status();
+    const controller = new AbortController();
+    const pending = provider.synthesize(
+      {
+        language: "en-US",
+        speed: 1,
+        text: "delay",
+        voiceId: "test_voice",
+      },
+      controller.signal
+    );
+    pending.catch(() => undefined);
+    const work = join(root, "work");
+    await vi.waitFor(() =>
+      expect(existsSync(join(work, "synthesis-started"))).toBe(true)
+    );
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: "JOB_CANCELLED" });
+    await provider.close();
+    expect(readdirSync(work)).toEqual(["synthesis-started"]);
   },
   workerTestTimeoutMs
 );

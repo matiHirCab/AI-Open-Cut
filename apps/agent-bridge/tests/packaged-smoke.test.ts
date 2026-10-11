@@ -12,6 +12,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
+import RESTART from "../../../contracts/job-restart-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -36,6 +37,7 @@ import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
 import { verifyInstanceWorkflow } from "./instance-workflow";
+import { verifyJobRestartWorkflow } from "./job-restart-workflow";
 import { verifyKnownTextWorkflow } from "./known-text-workflow";
 import { verifyMarkerWorkflow } from "./marker-workflow";
 import { verifyMaskModelWorkflow } from "./mask-model-workflow";
@@ -99,37 +101,39 @@ const client = new Client(
   { name: "packaged-smoke", version: "0.1.0" },
   { jsonSchemaValidator: validator }
 );
-const transport = new StdioClientTransport({
-  command: bridge,
-  env: {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(
-        (entry): entry is [string, string] => entry[1] !== undefined
-      )
-    ),
-    OPENCUT_ALLOWED_MEDIA_DIRS: directories.media,
-    OPENCUT_EXPORTS_DIR: directories.exports,
-    OPENCUT_FFMPEG_PATH: fakeFfmpeg,
-    OPENCUT_FFPROBE_PATH: fakeFfprobe,
-    OPENCUT_HEADLESS_PATH: headless,
-    OPENCUT_KOKORO_MODEL_DIR: directories.model,
-    OPENCUT_KOKORO_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
-    OPENCUT_KOKORO_WORKER: resolve(
-      import.meta.dirname,
-      "fixtures/fake_tts_worker.py"
-    ),
-    OPENCUT_PROJECTS_DIR: directories.projects,
-    OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
-    OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
-    OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
-    OPENCUT_TRANSCRIPTION_WORKER: resolve(
-      import.meta.dirname,
-      "fixtures/fake_transcription_worker.py"
-    ),
-    OPENCUT_TTS_WORK_DIR: directories.work,
-  },
-  stderr: "inherit",
-});
+const bridgeParameters: ConstructorParameters<typeof StdioClientTransport>[0] =
+  {
+    command: bridge,
+    env: {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined
+        )
+      ),
+      OPENCUT_ALLOWED_MEDIA_DIRS: directories.media,
+      OPENCUT_EXPORTS_DIR: directories.exports,
+      OPENCUT_FFMPEG_PATH: fakeFfmpeg,
+      OPENCUT_FFPROBE_PATH: fakeFfprobe,
+      OPENCUT_HEADLESS_PATH: headless,
+      OPENCUT_KOKORO_MODEL_DIR: directories.model,
+      OPENCUT_KOKORO_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
+      OPENCUT_KOKORO_WORKER: resolve(
+        import.meta.dirname,
+        "fixtures/fake_tts_worker.py"
+      ),
+      OPENCUT_PROJECTS_DIR: directories.projects,
+      OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
+      OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
+      OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
+      OPENCUT_TRANSCRIPTION_WORKER: resolve(
+        import.meta.dirname,
+        "fixtures/fake_transcription_worker.py"
+      ),
+      OPENCUT_TTS_WORK_DIR: directories.work,
+    },
+    stderr: "inherit",
+  };
+const transport = new StdioClientTransport(bridgeParameters);
 
 const call = async <Output>(
   name: string,
@@ -154,9 +158,9 @@ afterAll(async () => {
 });
 
 it("completes packaged editing, draft, speech, and transcription flows", async () => {
-  await expect(
-    call("editor_get_status", {}, statusSchema)
-  ).resolves.toMatchObject({ ready: true });
+  const status = await call("editor_get_status", {}, statusSchema);
+  expect(status.ready).toBe(true);
+  expect(status.capabilities).toContain(RESTART.capability);
   await expect(
     call("tts_get_status", {}, ttsStatusSchema)
   ).resolves.toMatchObject({ providerId: "fake-speech", ready: true });
@@ -253,7 +257,7 @@ it("completes packaged editing, draft, speech, and transcription flows", async (
     },
     status: "completed",
   });
-  expect(readdirSync(directories.work)).toEqual([]);
+  expect(readdirSync(directories.work)).toEqual([RESTART.marker]);
   if (!(terminal.result && "assetId" in terminal.result)) {
     throw new Error("speech result missing");
   }
@@ -695,4 +699,8 @@ it("executes the current release documentation corpus through actual MCP", async
 
 it("executes confined native preview cleanup", async () => {
   await verifyPreviewDisposal(headless);
+});
+
+it("reconciles a committed job after actual bridge death and blocks orphan accumulation", async () => {
+  await verifyJobRestartWorkflow(client, transport, bridgeParameters);
 });
