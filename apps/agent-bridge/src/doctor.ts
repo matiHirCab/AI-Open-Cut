@@ -30,6 +30,18 @@ export interface DoctorPlatform {
 
 const FIVE_GIB = 5 * 1024 * 1024 * 1024;
 
+class DoctorArtifactCleanupError extends BridgeError {
+  constructor() {
+    super("VALIDATION_FAILED", "Doctor artifact cleanup failed");
+  }
+}
+
+const removeDoctorArtifact = async (path: string) => {
+  await rm(path, { force: true }).catch(() => {
+    throw new DoctorArtifactCleanupError();
+  });
+};
+
 const capture = (command: string, arguments_: string[]) =>
   new Promise<{ code: number | null; stderr: string; stdout: string }>(
     (resolvePromise) => {
@@ -55,8 +67,11 @@ const capture = (command: string, arguments_: string[]) =>
 const writableCheck = async (directory: string) => {
   await mkdir(directory, { recursive: true });
   const path = join(directory, `.opencut-doctor-${randomUUID()}.tmp`);
-  await writeFile(path, "doctor");
-  await rm(path);
+  try {
+    await writeFile(path, "doctor");
+  } finally {
+    await removeDoctorArtifact(path);
+  }
 };
 
 const DEFAULT_PLATFORM: DoctorPlatform = {
@@ -66,6 +81,37 @@ const DEFAULT_PLATFORM: DoctorPlatform = {
     return Number(facts.bavail) * Number(facts.bsize);
   },
   writable: writableCheck,
+};
+
+const checkWriteability = async (
+  directories: string[],
+  platform: DoctorPlatform
+): Promise<DoctorCheck> => {
+  const distinct = [...new Set(directories)];
+  const results = await Promise.allSettled(
+    distinct.map(async (directory) => await platform.writable(directory))
+  );
+  for (const result of results) {
+    if (
+      result.status === "rejected" &&
+      result.reason instanceof DoctorArtifactCleanupError
+    ) {
+      throw result.reason;
+    }
+  }
+  if (results.some((result) => result.status === "rejected")) {
+    return {
+      id: "writeability",
+      message: "A required runtime directory is not writable",
+      status: "error",
+    };
+  }
+  return {
+    details: { directories: distinct.length },
+    id: "writeability",
+    message: "Project, export, and generated-media directories are writable",
+    status: "ok",
+  };
 };
 
 const checkTranscription = async (
@@ -125,12 +171,7 @@ const checkTranscription = async (
       status: "error",
     };
   } finally {
-    await rm(fixture, { force: true }).catch(() => {
-      throw new BridgeError(
-        "VALIDATION_FAILED",
-        "Doctor artifact cleanup failed"
-      );
-    });
+    await removeDoctorArtifact(fixture);
   }
 };
 
@@ -179,21 +220,7 @@ export const runDoctor = async (
     config.exportsDirectory ?? join(config.configRoot, "local-data", "exports"),
     ...config.generatedMediaDirectories,
   ];
-  try {
-    await Promise.all([...new Set(writableDirectories)].map(platform.writable));
-    checks.push({
-      details: { directories: new Set(writableDirectories).size },
-      id: "writeability",
-      message: "Project, export, and generated-media directories are writable",
-      status: "ok",
-    });
-  } catch {
-    checks.push({
-      id: "writeability",
-      message: "A required runtime directory is not writable",
-      status: "error",
-    });
-  }
+  checks.push(await checkWriteability(writableDirectories, platform));
 
   try {
     const status = await headless.call(

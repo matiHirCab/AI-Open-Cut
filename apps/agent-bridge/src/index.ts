@@ -50,7 +50,7 @@ const run = async () => {
       headless,
       config.generatedArtifactTtlMs
     );
-    let doctorClean = false;
+    let doctorCompleted = false;
     try {
       jobRuntime.acquire();
       const report = await runDoctor(
@@ -60,7 +60,8 @@ const run = async () => {
         undefined,
         transcription
       );
-      doctorClean = report.ready;
+      // Diagnostic readiness is independent of successful owned cleanup below.
+      doctorCompleted = true;
       process.stdout.write(`${JSON.stringify(report)}\n`);
       if (!report.ready) {
         process.exitCode = 1;
@@ -69,7 +70,7 @@ const run = async () => {
       await headless.close();
       await speech.close();
       await transcription.close();
-      jobRuntime.release(doctorClean);
+      jobRuntime.release(doctorCompleted);
     }
     return;
   }

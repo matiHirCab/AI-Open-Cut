@@ -22,6 +22,8 @@ No automatic resumption, side-effect replay or exactly-once guarantee is provide
 
 Before the first job producer (or doctor synthesis), the bridge exclusively creates `.opencut-job-runtime-v1` in `OPENCUT_TTS_WORK_DIR`. It contains only an opaque nonce. If another live runtime or a predecessor owns that marker, new jobs fail with safe retryable `JOB_REGISTRY_FULL` before production. Status and ordinary project reads remain available. A successful graceful shutdown settles producers, cleans owned preview/provider outputs and removes only its own unchanged marker. A failed cleanup or unconfirmed provider termination preserves the guard and reports a safe shutdown failure. Owned provider cleanup can be retried while admission stays closed. Do not run doctor while another runtime owns this root.
 
+An unsuccessful doctor report caused by unavailable subsystems or optional models retains its unsuccessful exit code, but releases its own guard after diagnostics return and all runtime cleanup succeeds. A thrown doctor cleanup failure or failed service shutdown retains the guard for reconciliation. Diagnostic readiness alone is not evidence of a crash or leftover output.
+
 After an abrupt exit:
 
 1. Stop all bridge, headless/render, FFmpeg and provider descendants sharing the configured work/project roots. Verify no owner remains; a PID or file age alone is insufficient.
