@@ -18,6 +18,11 @@ import pins from "./master-normalization-predecessor-pins.json";
 import { removeMotionWorkflowPrompt } from "./motion-workflow-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import {
+  removeRenderBudgetHeadlessAddition,
+  removeRenderBudgetMcpAddition,
+  removeRenderBudgetOwnershipAddition,
+} from "./render-budget-projection";
+import {
   removeSolidGraphicHeadlessAddition,
   restoreSolidGraphicCatalogMarker,
 } from "./solid-graphic-color-slots-projection";
@@ -65,8 +70,7 @@ const removeProperty = (
 
 export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
   const result = removeFfmpegSpawnMcpAddition(
-    removeMotionWorkflowPrompt(source),
-    false
+    removeRenderBudgetMcpAddition(removeMotionWorkflowPrompt(source), false)
   );
   const tools = record(at(result, ["toolDefinitions"]));
   const capabilities = at(result, ["capabilityIdentifiers"]);
@@ -99,7 +103,9 @@ export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
 };
 export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
   const result = removeFfmpegSpawnHeadlessAddition(
-    removeSolidGraphicHeadlessAddition(source)
+    removeRenderBudgetHeadlessAddition(
+      removeSolidGraphicHeadlessAddition(source)
+    )
   );
   const requests = record(at(result, ["requests"]));
   if (!Object.hasOwn(requests, "masterNormalizationSet")) {
@@ -114,7 +120,9 @@ export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
 };
 export const removeMasterNormalizationOwnershipAddition = <T>(source: T): T => {
   const result = removeJobRestartOwnershipAddition(
-    removeFfmpegSpawnOwnershipAddition(source)
+    removeFfmpegSpawnOwnershipAddition(
+      removeRenderBudgetOwnershipAddition(source)
+    )
   );
   const categories = record(at(result, ["categories"]));
   if (Object.hasOwn(categories, "masterNormalization")) {

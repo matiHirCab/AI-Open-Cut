@@ -25,6 +25,7 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
+import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import STACKING from "../../../contracts/stacking-v1.json";
@@ -49,6 +50,7 @@ import {
 } from "../src/headless-contract";
 import { eventSchema } from "../src/headless-events";
 import { EPHEMERAL_JOBS_CAPABILITY } from "../src/job-runtime";
+import { RENDER_BUDGETS, renderBudgetSchema } from "../src/render-budget";
 import {
   closedSlotRecord,
   componentDefinitionSchema,
@@ -438,6 +440,22 @@ const dependencies = {
 } as unknown as ServerDependencies;
 
 describe("canonical public contracts", () => {
+  it("governs native admission diagnostic identifiers, fixtures and headless examples", () => {
+    expect(RENDER_BUDGETS).toEqual(RENDER_BUDGET.budgets);
+    for (const fixture of RENDER_BUDGET.fixtures) {
+      expect(
+        renderBudgetSchema.safeParse(fixture.value).success,
+        fixture.name
+      ).toBe(fixture.valid);
+    }
+    expect(eventSchema.parse(HEADLESS_CONTRACT.renderBudgetError)).toEqual(
+      HEADLESS_CONTRACT.renderBudgetError
+    );
+    expect(OWNERSHIP.categories.nativeRenderBudgetDiagnostics.canonical).toBe(
+      "contracts/render-budget-diagnostics-v1.json"
+    );
+  });
+
   it("governs safe final FFmpeg startup metadata and its headless producer example", () => {
     expect(FFMPEG_SPAWN_KINDS).toEqual(FFMPEG_SPAWN.kinds);
     expect(FFMPEG_SPAWN_PLATFORMS).toEqual(FFMPEG_SPAWN.platforms);

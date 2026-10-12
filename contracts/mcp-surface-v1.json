@@ -2526,6 +2526,9 @@
                           "message": {
                             "type": "string"
                           },
+                          "renderBudget": {
+                            "$ref": "#/$defs/RenderBudgetDiagnostic"
+                          },
                           "retryable": {
                             "type": "boolean"
                           }
@@ -2614,6 +2617,9 @@
                           "message": {
                             "type": "string"
                           },
+                          "renderBudget": {
+                            "$ref": "#/$defs/RenderBudgetDiagnostic"
+                          },
                           "retryable": {
                             "type": "boolean"
                           }
@@ -2701,6 +2707,9 @@
                           },
                           "message": {
                             "type": "string"
+                          },
+                          "renderBudget": {
+                            "$ref": "#/$defs/RenderBudgetDiagnostic"
                           },
                           "retryable": {
                             "type": "boolean"
@@ -2859,6 +2868,9 @@
                           },
                           "message": {
                             "type": "string"
+                          },
+                          "renderBudget": {
+                            "$ref": "#/$defs/RenderBudgetDiagnostic"
                           },
                           "retryable": {
                             "type": "boolean"
@@ -11143,6 +11155,9 @@
                   },
                   "message": {
                     "type": "string"
+                  },
+                  "renderBudget": {
+                    "$ref": "#/$defs/RenderBudgetDiagnostic"
                   },
                   "retryable": {
                     "type": "boolean"
@@ -20013,6 +20028,9 @@
           },
           "message": {
             "type": "string"
+          },
+          "renderBudget": {
+            "$ref": "#/$defs/RenderBudgetDiagnostic"
           },
           "retryable": {
             "type": "boolean"
@@ -37828,6 +37846,97 @@
         "truePeakDbtp",
         "loudnessRangeLu",
         "thresholdLufs"
+      ],
+      "type": "object"
+    },
+    "RenderBudgetDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "budget": {
+          "enum": [
+            "shape_segments",
+            "scene_shape_segments",
+            "scene_shape_raster_bytes",
+            "candidate_analysis_nodes",
+            "effect_pixel_passes",
+            "motion_blur_pixel_work",
+            "composition_pixel_work",
+            "composition_bytes"
+          ],
+          "type": "string"
+        },
+        "contributors": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "effect",
+                  "grid",
+                  "motion_blur",
+                  "shape",
+                  "svg"
+                ],
+                "type": "string"
+              },
+              "work": {
+                "pattern": "^(0|[1-9][0-9]{0,19})$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "work"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "limit": {
+          "pattern": "^(0|[1-9][0-9]{0,19})$",
+          "type": "string"
+        },
+        "measurement": {
+          "enum": [
+            "charged",
+            "conservative"
+          ],
+          "type": "string"
+        },
+        "overflow": {
+          "type": "boolean"
+        },
+        "units": {
+          "enum": [
+            "segments",
+            "bytes",
+            "nodes",
+            "pixel_passes",
+            "pixel_samples"
+          ],
+          "type": "string"
+        },
+        "work": {
+          "anyOf": [
+            {
+              "pattern": "^(0|[1-9][0-9]{0,19})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "budget",
+        "contributors",
+        "limit",
+        "measurement",
+        "overflow",
+        "units",
+        "work"
       ],
       "type": "object"
     },

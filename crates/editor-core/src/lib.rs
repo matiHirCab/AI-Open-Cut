@@ -25,6 +25,7 @@ pub use assets::fonts::FontConfig;
 pub use drafts::EditDraft;
 pub use error::{
     CoreError, ErrorCode, FfmpegSpawnDiagnostic, FfmpegSpawnKind, FfmpegSpawnPlatform,
+    RenderBudget, RenderBudgetContributor, RenderBudgetDiagnostic, RenderContributorKind,
 };
 pub use model::*;
 pub use validation::audio_buses::resolve_audio_bus_route;

@@ -28,13 +28,13 @@ These remain mandatory after the verified pre-archive task handoff and must not 
 
 ## 5. Windows native-code witness correction
 - [x] 5.1 Use an absolute missing-executable witness with non-null native code and unchanged privacy/failure assertions; preserve bare-name raw-code capture and no-progress controls.
-- [ ] 5.2 Refresh affected checks, independent exact-head union review and conformance, then prepare the archive/final-gate publication handoff.
+- [x] 5.2 Refresh affected checks, independent exact-head union review and conformance, then prepare the archive/final-gate publication handoff.
 
 ## 6. Current-main integration
 - [x] 6.1 Normally merge actual main, preserve all approved upstream domains and both owner proofs, and keep pending budget code excluded.
-- [ ] 6.2 Verify affected/current-main checks and exact-head overlap, obtain independent specification and implementation review, then prepare verified archive/publication handoff.
+- [x] 6.2 Verify affected/current-main checks and exact-head overlap, obtain independent specification and implementation review, then prepare verified archive/publication handoff.
 
 ## 7. User-merged budget domain on actual main
 
-- [ ] 7.1 Normally reconcile actual main2a733383 while preserving corrected FFmpeg witnesses, merged budget/color/schema45/observer behavior and strict combined owner proofs.
-- [ ] 7.2 Refresh affected required checks and independent specification/implementation resolution at the actual combined source, then prepare the verified archive/final-gate handoff.
+- [x] 7.1 Normally reconcile actual main2a733383 while preserving corrected FFmpeg witnesses, merged budget/color/schema45/observer behavior and strict combined owner proofs.
+- [x] 7.2 Refresh affected required checks and independent specification/implementation resolution at the actual combined source, then prepare the verified archive/final-gate handoff.

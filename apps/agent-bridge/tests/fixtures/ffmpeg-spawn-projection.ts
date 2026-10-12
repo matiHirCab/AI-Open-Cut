@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import catalog from "../../../../contracts/ffmpeg-spawn-diagnostics-v1.json";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
 import ownership from "./ffmpeg-spawn-ownership-addition.json";
 import pins from "./ffmpeg-spawn-predecessor-pins.json";
@@ -101,6 +102,13 @@ export const removeFfmpegSpawnHeadlessAddition = <T>(source: T): T => {
 
 export const restoreFfmpegSpawnRaw = (source: string): string => {
   const value = JSON.parse(source);
+  if (
+    value.$defs?.RenderBudgetDiagnostic ||
+    value.categories?.nativeRenderBudgetDiagnostics ||
+    value.renderBudgetError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   if (
     value.capabilityIdentifiers?.includes("solid_graphic_color_slots_v1") ||
     value.categories?.solidGraphicColorSlots ||

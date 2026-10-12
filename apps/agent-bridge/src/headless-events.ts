@@ -1,6 +1,10 @@
 import { z } from "zod/v4";
 import { retryableFor } from "./errors";
 import { type FfmpegSpawnDiagnostic, ffmpegSpawnSchema } from "./ffmpeg-spawn";
+import {
+  type RenderBudgetDiagnostic,
+  renderBudgetSchema,
+} from "./render-budget";
 
 const errorSchema = z
   .object({
@@ -10,6 +14,7 @@ const errorSchema = z
     ffmpegSpawn: ffmpegSpawnSchema.optional(),
     ffmpegStderrExcerpt: z.string().nullable().default(null),
     message: z.string(),
+    renderBudget: renderBudgetSchema.optional(),
     retryable: z.boolean(),
   })
   .strict();
@@ -27,6 +32,7 @@ export class BridgeError extends Error {
   readonly ffmpegExitCode: number | null;
   readonly ffmpegSpawn: FfmpegSpawnDiagnostic | undefined;
   readonly ffmpegStderrExcerpt: string | null;
+  readonly renderBudget: RenderBudgetDiagnostic | undefined;
 
   constructor(
     code: string,
@@ -38,6 +44,7 @@ export class BridgeError extends Error {
       ffmpegExitCode?: number | null;
       ffmpegSpawn?: FfmpegSpawnDiagnostic | undefined;
       ffmpegStderrExcerpt?: string | null;
+      renderBudget?: RenderBudgetDiagnostic | undefined;
     } = {}
   ) {
     super(message, options);
@@ -48,5 +55,6 @@ export class BridgeError extends Error {
     this.ffmpegExitCode = details.ffmpegExitCode ?? null;
     this.ffmpegSpawn = details.ffmpegSpawn;
     this.ffmpegStderrExcerpt = details.ffmpegStderrExcerpt ?? null;
+    this.renderBudget = details.renderBudget;
   }
 }

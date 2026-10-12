@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
@@ -90,6 +91,13 @@ export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
 };
 export const restoreSolidGraphicRaw = (source: string): string => {
   const value = record(JSON.parse(source));
+  if (
+    at(value, ["$defs", "RenderBudgetDiagnostic"]) ||
+    at(value, ["categories", "nativeRenderBudgetDiagnostics"]) ||
+    value.renderBudgetError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   if (
     at(value, ["$defs", "FfmpegSpawnDiagnostic"]) ||
     at(value, ["categories", "ffmpegSpawnDiagnostics"]) ||

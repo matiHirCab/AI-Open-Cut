@@ -28,6 +28,7 @@ import {
   restoreJobRestartRaw,
 } from "./fixtures/job-restart-projection";
 
+import { removeRenderBudgetMcpAddition } from "./fixtures/render-budget-projection";
 import { removeSolidGraphicMcpAdditions } from "./fixtures/solid-graphic-color-slots-projection";
 
 const roots: string[] = [];
@@ -282,7 +283,9 @@ it("preserves all prior MCP schemas and capabilities except the single additive 
   const restored = JSON.parse(
     restoreJobRestartRaw(source)
   ) as typeof MCP_SURFACE;
-  const predecessor = removeFfmpegSpawnMcpAddition(previous);
+  const predecessor = removeFfmpegSpawnMcpAddition(
+    removeRenderBudgetMcpAddition(previous)
+  );
   expect(restored.toolDefinitions).toEqual(predecessor.toolDefinitions);
   expect(restored.capabilityIdentifiers).not.toContain(RESTART.capability);
   expect(restored.capabilityIdentifiers.length + 1).toBe(

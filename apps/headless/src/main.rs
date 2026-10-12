@@ -221,6 +221,8 @@ struct ErrorBody {
     ffmpeg_stderr_excerpt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ffmpeg_spawn: Option<Box<opencut_editor_core::FfmpegSpawnDiagnostic>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    render_budget: Option<Box<opencut_editor_core::RenderBudgetDiagnostic>>,
 }
 
 impl From<CoreError> for ErrorBody {
@@ -233,6 +235,7 @@ impl From<CoreError> for ErrorBody {
             ffmpeg_exit_code: error.ffmpeg_exit_code,
             ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
             ffmpeg_spawn: error.ffmpeg_spawn,
+            render_budget: error.render_budget,
         }
     }
 }

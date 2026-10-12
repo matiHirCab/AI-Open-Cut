@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 import { BLEND_MODES } from "./blend-modes";
 import { ffmpegSpawnSchema } from "./ffmpeg-spawn";
 import { gridDescriptorSchema } from "./procedural-grids";
+import { renderBudgetSchema } from "./render-budget";
 import {
   repeaterDescriptorSchema,
   repeaterEditDescriptorSchema,
@@ -132,6 +133,7 @@ export const publicErrorSchema = z
     ffmpegSpawn: ffmpegSpawnSchema.optional(),
     ffmpegStderrExcerpt: z.string().nullable().default(null),
     message: z.string(),
+    renderBudget: renderBudgetSchema.optional(),
     retryable: z.boolean(),
   })
   .strict();

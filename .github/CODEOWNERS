@@ -446,6 +446,21 @@
 /apps/agent-bridge/tests/job-restart-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/job-restart-* @matiHirCab
 
+# Issue 186 native render admission diagnostics.
+/apps/agent-bridge/src/render-budget.ts @matiHirCab
+/apps/agent-bridge/src/headless-events.ts @matiHirCab
+/apps/headless/src/worker.rs @matiHirCab
+/apps/agent-bridge/tests/render-budget* @matiHirCab
+/apps/agent-bridge/tests/fixtures/render-budget-* @matiHirCab
+/docs/native-render-budget-diagnostics.md @matiHirCab
+
+/apps/headless/tests/support/budget_readiness_fixture.rs @matiHirCab
+# Issue183 solid graphic color slot contract and conformance.
+/contracts/solid-graphic-color-slots-v1.json @matiHirCab
+/crates/editor-core/tests/solid_graphic_color_slots.rs @matiHirCab
+/apps/agent-bridge/tests/solid-graphic-color-slots* @matiHirCab
+/apps/agent-bridge/tests/fixtures/solid-graphic-color-slots* @matiHirCab
+/docs/solid-graphic-color-slots.md @matiHirCab
 # Issue178 sanitized final process startup diagnostics
 /contracts/ffmpeg-spawn-diagnostics-v1.json @matiHirCab
 /apps/agent-bridge/src/ffmpeg-spawn.ts @matiHirCab
@@ -453,10 +468,3 @@
 /apps/agent-bridge/tests/fixtures/ffmpeg-spawn-* @matiHirCab
 
 /apps/agent-bridge/tests/ffmpeg-spawn-workflow.ts @matiHirCab
-
-# Issue183 solid graphic color slot contract and conformance.
-/contracts/solid-graphic-color-slots-v1.json @matiHirCab
-/crates/editor-core/tests/solid_graphic_color_slots.rs @matiHirCab
-/apps/agent-bridge/tests/solid-graphic-color-slots* @matiHirCab
-/apps/agent-bridge/tests/fixtures/solid-graphic-color-slots* @matiHirCab
-/docs/solid-graphic-color-slots.md @matiHirCab

@@ -53,6 +53,7 @@ import { verifyPresetWorkflow } from "./preset-workflow";
 import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyReleaseDocumentationWorkflow } from "./release-documentation-workflow";
+import { verifyRenderBudgetWorkflow } from "./render-budget-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
@@ -127,6 +128,7 @@ const bridgeParameters: ConstructorParameters<typeof StdioClientTransport>[0] =
       OPENCUT_PROJECTS_DIR: directories.projects,
       OPENCUT_TEST_AUDIO_ANALYSIS_FILTERS: "1",
       OPENCUT_TEST_AUDIO_NORMALIZATION_FILTERS: "1",
+      OPENCUT_TEST_RENDER_MARKER: join(root, "native-budget-render-marker"),
       OPENCUT_TRANSCRIPTION_PYTHON: process.env.OPENCUT_TEST_PYTHON ?? "python",
       OPENCUT_TRANSCRIPTION_WORKER: resolve(
         import.meta.dirname,
@@ -719,6 +721,16 @@ it("executes the current release documentation corpus through actual MCP", async
 
 it("executes confined native preview cleanup", async () => {
   await verifyPreviewDisposal(headless);
+});
+
+it("preserves native budget diagnostics and failure atomicity through packaged MCP jobs", async () => {
+  await verifyRenderBudgetWorkflow(
+    call,
+    bridgeParameters.env ?? {},
+    directories.projects,
+    directories.exports,
+    join(root, "native-budget-render-marker")
+  );
 });
 
 it("reconciles a committed job after actual bridge death and blocks orphan accumulation", async () => {
