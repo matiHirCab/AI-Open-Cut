@@ -679,7 +679,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(44).optional(),
+    projectSchemaVersion: z.literal(45).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1663,6 +1663,9 @@ export const templateSlotSchema = closedSlotObject({
       "text.alignment",
       "item.durationMs",
       "media.asset",
+      "shape.fill.color",
+      "shape.stroke.color",
+      "grid.dot.paint.color",
     ]),
     targetLayerId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
   }),
@@ -2034,7 +2037,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(44),
+        schemaVersion: z.literal(45),
         settings: z
           .object({
             fps: z.int().positive(),

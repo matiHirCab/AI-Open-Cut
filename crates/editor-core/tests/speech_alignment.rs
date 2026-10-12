@@ -587,6 +587,26 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
                 | "mask-models-v1.json"
                 | "motion-blur-sampling-v1.json"
         ) {
+            let graphic_pins: Value = serde_json::from_str(include_str!(
+                "../../../apps/agent-bridge/tests/fixtures/solid-graphic-color-slots-predecessor-pins.json"
+            )).unwrap();
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 45").count(),
+                1,
+                "{name}"
+            );
+            let current = current.replacen(
+                "\"projectSchemaVersion\": 45",
+                "\"projectSchemaVersion\": 44",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(current.as_bytes())),
+                graphic_pins["rawSha256"][format!("contracts/{name}")]
+                    .as_str()
+                    .unwrap(),
+                "{name}"
+            );
             let normalization_pins: Value = serde_json::from_str(include_str!(
                 "../../../apps/agent-bridge/tests/fixtures/master-normalization-predecessor-pins.json"
             )).unwrap();

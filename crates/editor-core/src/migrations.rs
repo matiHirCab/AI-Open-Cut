@@ -24,6 +24,7 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    project.validate_graphic_slot_schema()?;
     if project.schema_version <= PROJECT_SCHEMA_VERSION {
         project.validate_audio_bus_model()?;
         project.validate_sound_definition_model()?;
@@ -392,7 +393,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=43 => {
+        9..=44 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
