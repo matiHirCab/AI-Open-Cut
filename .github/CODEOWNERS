@@ -445,3 +445,10 @@
 /docs/adr/0005-ephemeral-job-restart-semantics.md @matiHirCab
 /apps/agent-bridge/tests/job-restart-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/job-restart-* @matiHirCab
+
+# Issue183 solid graphic color slot contract and conformance.
+/contracts/solid-graphic-color-slots-v1.json @matiHirCab
+/crates/editor-core/tests/solid_graphic_color_slots.rs @matiHirCab
+/apps/agent-bridge/tests/solid-graphic-color-slots* @matiHirCab
+/apps/agent-bridge/tests/fixtures/solid-graphic-color-slots* @matiHirCab
+/docs/solid-graphic-color-slots.md @matiHirCab

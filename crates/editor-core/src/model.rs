@@ -40,7 +40,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 44;
+pub const PROJECT_SCHEMA_VERSION: u32 = 45;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -506,7 +506,7 @@ impl TryFrom<ProjectDocument> for Project {
                 }
             }
         }
-        Ok(Self {
+        let project = Self {
             master_normalization: value.master_normalization.flatten(),
             sound_definitions: value.sound_definitions.flatten().unwrap_or_default(),
             audio_buses: value.audio_buses.flatten().unwrap_or_default(),
@@ -526,7 +526,11 @@ impl TryFrom<ProjectDocument> for Project {
             assets,
             markers: value.markers.unwrap_or_default(),
             tracks: value.tracks.decode().map_err(|error| error.to_string())?,
-        })
+        };
+        project
+            .validate_graphic_slot_schema()
+            .map_err(|error| error.message)?;
+        Ok(project)
     }
 }
 
@@ -1206,6 +1210,29 @@ fn prepare_text_documents(tracks: &mut serde_json::Value, version: u32) -> Resul
 }
 
 impl Project {
+    pub(crate) fn validate_graphic_slot_schema(&self) -> Result<(), CoreError> {
+        if self.schema_version < 45
+            && self
+                .components
+                .iter()
+                .flat_map(|component| &component.slots)
+                .any(|slot| {
+                    matches!(
+                        slot.binding.property,
+                        SlotProperty::ShapeFillColor
+                            | SlotProperty::ShapeStrokeColor
+                            | SlotProperty::GridDotPaintColor
+                    )
+                })
+        {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "solid graphic color slots require schema45",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn duration_ms(&self) -> u64 {
         self.tracks
             .iter()
@@ -1805,6 +1832,12 @@ pub enum SlotProperty {
     ItemDuration,
     #[serde(rename = "media.asset")]
     MediaAsset,
+    #[serde(rename = "shape.fill.color")]
+    ShapeFillColor,
+    #[serde(rename = "shape.stroke.color")]
+    ShapeStrokeColor,
+    #[serde(rename = "grid.dot.paint.color")]
+    GridDotPaintColor,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]

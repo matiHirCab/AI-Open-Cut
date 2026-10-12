@@ -35,9 +35,7 @@ impl Sampler {
                 system.refresh_processes_specifics(
                     ProcessesToUpdate::All,
                     true,
-                    ProcessRefreshKind::nothing()
-                        .with_memory()
-                        .with_cmd(UpdateKind::OnlyIfNotSet),
+                    ProcessRefreshKind::nothing().with_memory(),
                 );
                 let mut members = BTreeSet::from([root]);
                 loop {
@@ -55,6 +53,15 @@ impl Sampler {
                         break;
                     }
                 }
+                // A forked member can exec under the same PID. Cached nonempty
+                // pre-exec arguments/name must not hide its current native command.
+                // Refresh arguments only for this owned tree, not unrelated peers.
+                let owned = members.iter().copied().collect::<Vec<_>>();
+                system.refresh_processes_specifics(
+                    ProcessesToUpdate::Some(&owned),
+                    false,
+                    ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
+                );
                 let mut bytes = 0_u64;
                 let mut native_members = 0_u64;
                 for pid in &members {
@@ -65,7 +72,12 @@ impl Sampler {
                         bytes = bytes
                             .checked_add(process.memory())
                             .expect("resident byte sum overflow");
-                        let name = process.name().to_string_lossy();
+                        let name = process
+                            .cmd()
+                            .first()
+                            .and_then(|command| std::path::Path::new(command).file_name())
+                            .unwrap_or(process.name())
+                            .to_string_lossy();
                         if *pid != root
                             && (name.starts_with("ffmpeg") || name.starts_with("ffprobe"))
                         {
@@ -265,5 +277,70 @@ mod tests {
                 .unwrap_err()
                 .contains("exited")
         );
+        #[cfg(unix)]
+        observe_exec_transition();
+    }
+
+    #[cfg(unix)]
+    fn observe_exec_transition() {
+        let root = tempfile::tempdir().unwrap();
+        let launcher = root.path().join("release-observer-launcher");
+        let native = root.path().join("ffmpeg-release-observer-control");
+        let compiled = Command::new("rustc")
+            .args(["--edition=2024", "-D", "warnings"])
+            .arg(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/fixtures/release_exec_observer.rs"
+            ))
+            .arg("-o")
+            .arg(&launcher)
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        fs::copy(&launcher, &native).unwrap();
+        let sampler = Sampler::start();
+        let baseline = sampler.final_calls();
+        let mut child = OwnedChild(
+            Command::new(&launcher)
+                .arg("launch")
+                .arg(&native)
+                .arg(root.path())
+                .spawn()
+                .unwrap(),
+        );
+        let wait = |name: &str| {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !root.path().join(name).exists() {
+                assert!(
+                    Instant::now() < deadline,
+                    "owned exec control readiness stalled"
+                );
+                thread::sleep(Duration::from_millis(5));
+            }
+        };
+        wait("before");
+        // Complete scans of the launcher's nonempty pre-exec metadata first.
+        assert_eq!(sampler.final_calls(), baseline);
+        fs::write(root.path().join("exec"), []).unwrap();
+        wait("after");
+        assert_eq!(
+            fs::read(root.path().join("before")).unwrap(),
+            fs::read(root.path().join("after")).unwrap()
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while sampler.final_calls() == baseline {
+            assert!(
+                Instant::now() < deadline,
+                "owned same-PID exec final command was not observed"
+            );
+        }
+        assert_eq!(sampler.final_calls(), baseline + 1);
+        fs::write(root.path().join("release"), []).unwrap();
+        assert!(child.0.wait().unwrap().success());
+        sampler.finish();
     }
 }

@@ -132,7 +132,7 @@ export const requireMotionCoreReport = (
     platform: identity.platform,
     runNonce: identity.nonce,
     sampleIntervalMs: 5,
-    schemaVersion: 44,
+    schemaVersion: 45,
     timingScope: "direct_whole_capture_including_preparation_and_oracles",
     version: 1,
     warmupCaptures: 1,

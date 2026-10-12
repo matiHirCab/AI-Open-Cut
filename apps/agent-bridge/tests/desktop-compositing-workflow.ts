@@ -16,6 +16,7 @@ import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/desktop-compositing-controls-v1.json";
 import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   projectStateSchema,
   publicErrorSchema,
@@ -91,7 +92,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     const status = statusSchema.parse(await call("editor_get_status", {}));
     expect(catalog.projectSchemaVersion).toBe(38);
     expect(status.projectSchemaVersion).toBe(
-      masterNormalization.projectSchemaVersion
+      solidGraphicSlots.projectSchemaVersion
     );
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
@@ -352,7 +353,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(
       statusSchema.parse(await call("editor_get_status", {}))
         .projectSchemaVersion
-    ).toBe(masterNormalization.projectSchemaVersion);
+    ).toBe(solidGraphicSlots.projectSchemaVersion);
   } finally {
     await client.close();
     rmSync(root, { force: true, recursive: true });

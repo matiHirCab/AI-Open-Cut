@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "contract": "solid-graphic-color-slots-v1",
+  "projectSchemaVersion": 45,
+  "capability": "solid_graphic_color_slots_v1",
+  "properties": [
+    "shape.fill.color",
+    "shape.stroke.color",
+    "grid.dot.paint.color"
+  ],
+  "colorSemantics": {
+    "encoding": "hex6_unassociated_srgb",
+    "alpha": "preserve_existing_paint_alpha"
+  },
+  "definition": {
+    "operation": "component_create",
+    "name": "Solid graphic palette",
+    "width": 160,
+    "height": 120,
+    "durationMs": 1000,
+    "tracks": [
+      {
+        "id": "local",
+        "name": "Local",
+        "trackType": "overlay",
+        "locked": false,
+        "hidden": false,
+        "muted": false,
+        "items": [
+          {
+            "type": "shape",
+            "id": "shape",
+            "startMs": 0,
+            "durationMs": 1000,
+            "zIndex": 0,
+            "stackOrder": 0,
+            "hidden": false,
+            "transform2d": {
+              "position": {
+                "x": 10,
+                "y": 10,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "geometry": {
+              "type": "rectangle",
+              "width": 40,
+              "height": 40
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 0.25,
+                "g": 0.5,
+                "b": 0.75,
+                "a": 0.5
+              }
+            },
+            "stroke": {
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "r": 0.25,
+                  "g": 0.5,
+                  "b": 0.75,
+                  "a": 1
+                }
+              },
+              "width": 12,
+              "dash": [],
+              "dashOffset": 2,
+              "lineCap": "round",
+              "lineJoin": "bevel",
+              "miterLimit": 5
+            },
+            "keyframes": []
+          },
+          {
+            "type": "grid",
+            "id": "dots",
+            "startMs": 0,
+            "durationMs": 1000,
+            "zIndex": 0,
+            "stackOrder": 1,
+            "hidden": false,
+            "transform2d": {
+              "position": {
+                "x": 80,
+                "y": 10,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "grid": {
+              "width": 60,
+              "height": 60,
+              "pattern": {
+                "type": "dot",
+                "spacingX": 20,
+                "spacingY": 20,
+                "radius": 8,
+                "paint": {
+                  "type": "solid",
+                  "color": {
+                    "r": 0.25,
+                    "g": 0.5,
+                    "b": 0.75,
+                    "a": 0.25
+                  }
+                }
+              }
+            },
+            "keyframes": []
+          }
+        ]
+      }
+    ],
+    "slots": [
+      {
+        "id": "fill",
+        "name": "fill",
+        "kind": "color",
+        "required": true,
+        "defaultValue": {
+          "type": "color",
+          "value": "#ff0000"
+        },
+        "binding": {
+          "targetLayerId": "shape",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "stroke",
+        "name": "stroke",
+        "kind": "color",
+        "required": true,
+        "defaultValue": {
+          "type": "color",
+          "value": "#00ff00"
+        },
+        "binding": {
+          "targetLayerId": "shape",
+          "property": "shape.stroke.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "dots",
+        "name": "dots",
+        "kind": "color",
+        "required": true,
+        "defaultValue": {
+          "type": "color",
+          "value": "#ffffff"
+        },
+        "binding": {
+          "targetLayerId": "dots",
+          "property": "grid.dot.paint.color"
+        },
+        "constraints": {}
+      }
+    ]
+  },
+  "overrides": {
+    "fill": {
+      "type": "color",
+      "value": "#0000ff"
+    },
+    "stroke": {
+      "type": "color",
+      "value": "#ffcc00"
+    },
+    "dots": {
+      "type": "color",
+      "value": "#00ffff"
+    }
+  },
+  "invalidValues": [
+    null,
+    {
+      "type": "color",
+      "value": "#ff000080"
+    },
+    {
+      "type": "color",
+      "value": {
+        "r": 1,
+        "g": 0,
+        "b": 0,
+        "a": 1
+      }
+    },
+    {
+      "type": "number",
+      "value": 1
+    },
+    {
+      "type": "color",
+      "value": "red"
+    },
+    {
+      "type": "color",
+      "value": "#zz0000"
+    },
+    {
+      "type": "color",
+      "value": "#ff0000",
+      "extra": true
+    }
+  ],
+  "alphaValues": [
+    0,
+    0.5,
+    1
+  ]
+}

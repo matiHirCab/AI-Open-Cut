@@ -8,7 +8,10 @@ fn assert_authored(f: &fixture::Fixture) {
     let project = f.project();
     let c = recipe();
     assert_eq!(project.duration_ms(), 6000);
-    assert_eq!(project.schema_version, 44);
+    assert_eq!(
+        project.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(project.name, "Narration-driven fixture v1");
     assert_eq!(project.markers.len(), 6);
     for (index, cue) in c["cues"].as_array().unwrap().iter().enumerate() {

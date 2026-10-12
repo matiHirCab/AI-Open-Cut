@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import contract from "../../../contracts/mask-models-v1.json";
-import masterNormalization from "../../../contracts/master-normalization-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   headlessEditSchema,
   maskSchema,
@@ -28,7 +28,7 @@ describe("mask model structural contracts", () => {
     }
     expect(contract.status).toBe("authoring_with_active_rendering_contract");
     expect(contract.projectSchemaVersion).toBe(
-      masterNormalization.projectSchemaVersion
+      solidGraphicSlots.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(contract).projectSchemaVersion).toBe(
       38

@@ -13,7 +13,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect, vi } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/audio-analysis-v1.json";
-import current from "../../../contracts/master-normalization-v1.json";
+import current from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   audioAnalysisArtifactSchema,
   editDraftSchema,

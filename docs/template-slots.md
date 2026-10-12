@@ -24,7 +24,7 @@ An instance override is `slotValues: {"heading": {"type": "text", "value": "Intr
 | --- | --- | --- |
 | text | Unicode string; optional scalar-count minLength/maxLength | text.document on text |
 | rich_text | `{runs:[{text,bold?,italic?,color?}]}`; optional scalar-count minLength/maxLength | text.document on text |
-| color | Six-digit `#RRGGBB`; empty constraints | text.color on text |
+| color | Six-digit `#RRGGBB`; empty constraints | text.color on text; shape.fill.color, shape.stroke.color and grid.dot.paint.color on their existing solid native paints |
 | number | Finite JSON number; optional inclusive min/max | visual.opacity, value in [0,1] |
 | boolean | JSON true/false; empty constraints | visual.hidden |
 | enum | String in required unique choices; alignment choices restricted to left/center/right | text.alignment on text |
@@ -40,6 +40,8 @@ Limits: 128 slots per definition, 4096 slots per project snapshot, 128 overrides
 Successful batches commit one revision and one undo step. Missing components, targets and override slot IDs return ITEM_NOT_FOUND; a missing safe managed asset returns ASSET_NOT_FOUND. Invalid types, constraints, bindings and resource forms return non-retryable INVALID_ARGUMENT. Changed slots targeting locked tracks return TRACK_LOCKED; unchanged slots remain legal. Stale revisions retain retryable REVISION_CONFLICT. Failures preserve the entire prior project and history generation. Undo, redo, drafts and deterministic reopen retain exact slot data.
 
 Supported schemas 1–11 migrate current state and all retained undo/redo snapshots atomically under the project lock, adding empty slot fields while preserving other values, media, revisions and output. Schema 12 requires its fields; malformed current/history data and unknown future schemas fail closed without publication. Older binaries cannot read schema 12; no downgrade is supplied. Managed assets referenced only by defaults or overrides remain protected in current state, history and durable drafts, even when a default is overridden.
+
+Schema45 adds the three [solid graphic color bindings](solid-graphic-color-slots.md). They replace only unassociated sRGB channels and preserve native paint alpha, geometry and metrics; supported current and retained history adopt schema45 atomically.
 
 The runtime catalog is `contracts/template-slots-v1.json`. `motion-graphics-v1.json` remains preparatory fixture-only vocabulary. Canonical Rust/TypeScript tests distinguish structural rejection from core semantic validation; transport schemas do not duplicate core binding resolution.
 

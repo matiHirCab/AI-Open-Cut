@@ -12,6 +12,10 @@ import ownership from "./master-normalization-ownership-addition.json";
 import pins from "./master-normalization-predecessor-pins.json";
 import { removeMotionWorkflowPrompt } from "./motion-workflow-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
+import {
+  removeSolidGraphicHeadlessAddition,
+  restoreSolidGraphicCatalogMarker,
+} from "./solid-graphic-color-slots-projection";
 
 const record = (value: unknown): Record<string, unknown> => {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -86,7 +90,7 @@ export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeSolidGraphicHeadlessAddition(source);
   const requests = record(at(result, ["requests"]));
   if (!Object.hasOwn(requests, "masterNormalizationSet")) {
     return result;
@@ -107,7 +111,7 @@ export const removeMasterNormalizationOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const restoreMasterNormalizationCatalogMarker = (source: unknown) => {
-  const result = structuredClone(record(source));
+  const result = record(restoreSolidGraphicCatalogMarker(source));
   if (result.projectSchemaVersion === catalog.projectSchemaVersion) {
     result.projectSchemaVersion = 43;
   }
