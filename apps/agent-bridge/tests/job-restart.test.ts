@@ -22,6 +22,7 @@ import {
 } from "../src/job-runtime";
 import { JobRegistry } from "../src/jobs";
 import { jobSchema } from "../src/schemas";
+import { removeFfmpegSpawnMcpAddition } from "./fixtures/ffmpeg-spawn-projection";
 import {
   removeJobRestartOwnershipAddition,
   restoreJobRestartRaw,
@@ -278,7 +279,8 @@ it("preserves all prior MCP schemas and capabilities except the single additive 
   const restored = JSON.parse(
     restoreJobRestartRaw(source)
   ) as typeof MCP_SURFACE;
-  expect(restored.toolDefinitions).toEqual(MCP_SURFACE.toolDefinitions);
+  const predecessor = removeFfmpegSpawnMcpAddition(MCP_SURFACE);
+  expect(restored.toolDefinitions).toEqual(predecessor.toolDefinitions);
   expect(restored.capabilityIdentifiers).not.toContain(RESTART.capability);
   expect(restored.capabilityIdentifiers.length + 1).toBe(
     MCP_SURFACE.capabilityIdentifiers.length

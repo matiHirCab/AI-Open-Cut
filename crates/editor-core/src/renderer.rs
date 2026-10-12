@@ -1507,7 +1507,10 @@ mod tests {
             self.executions.lock().unwrap().push(plan.intent);
             match self.run_failure {
                 Some(FakeRunFailure::Spawn) => {
-                    return Err(CoreError::render_failure(SPAWN_STAGE, None, None));
+                    return Err(CoreError::ffmpeg_spawn_failure(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "private executable --argument ENV=private",
+                    )));
                 }
                 Some(FakeRunFailure::Exit) => {
                     return Err(CoreError::render_failure(
@@ -2651,6 +2654,10 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert_eq!(
+            error.ffmpeg_spawn.as_ref().unwrap().kind,
+            crate::FfmpegSpawnKind::PermissionDenied
+        );
         assert_eq!(failing_process.executions.lock().unwrap().len(), 1);
         assert_eq!(artifact_io.removed.lock().unwrap().len(), 1);
 
@@ -2681,6 +2688,178 @@ mod tests {
             error.ffmpeg_stderr_excerpt.as_deref(),
             Some("injected diagnostic")
         );
+    }
+
+    #[test]
+    fn final_spawn_diagnostics_preserve_all_intent_cleanup_state_drafts_and_precedence() {
+        fn snapshot(root: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+            fn visit(root: &Path, files: &mut std::collections::BTreeMap<PathBuf, Vec<u8>>) {
+                for entry in std::fs::read_dir(root).unwrap() {
+                    let path = entry.unwrap().path();
+                    if path.is_dir() {
+                        visit(&path, files);
+                    } else if path.file_name().unwrap() != ".lock" {
+                        files.insert(path.clone(), std::fs::read(&path).unwrap());
+                    }
+                }
+            }
+            let mut files = std::collections::BTreeMap::new();
+            visit(root, &mut files);
+            files
+        }
+        // This adapter positive control proves execution recording, not native media output.
+        let control_root = tempdir().unwrap();
+        std::fs::create_dir(control_root.path().join("previews")).unwrap();
+        let healthy = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: None,
+            executions: Mutex::new(vec![]),
+        });
+        let control = Renderer::new("unused", "unused", None)
+            .with_adapters(healthy.clone(), Arc::new(LifecycleArtifactIo::default()));
+        let artifact = control
+            .render_preview(&visual_project(), control_root.path(), 0)
+            .unwrap();
+        assert_eq!(healthy.executions.lock().unwrap().len(), 1);
+        assert_eq!(
+            std::fs::read(control_root.path().join(artifact.relative_path)).unwrap(),
+            b"rendered"
+        );
+
+        let root = tempdir().unwrap();
+        let core = crate::EditorCore::new(
+            crate::PathPolicy::new(
+                root.path().join("projects"),
+                [root.path()],
+                root.path().join("exports"),
+            )
+            .unwrap(),
+        );
+        let id = core
+            .create_project(
+                "Private project",
+                crate::ProjectSettings {
+                    width: 32,
+                    height: 32,
+                    fps: 24,
+                },
+            )
+            .unwrap()
+            .project_id;
+        let original = core.get_project(&id).unwrap();
+        let operation = serde_json::json!({
+            "operation":"add_solid_color", "trackId":original.tracks[1].id,
+            "startMs":0,"durationMs":1000,"color":"#112233",
+            "transform":{"positionX":0,"positionY":0,"scale":1,"opacity":1}
+        });
+        core.edit(&id, 0, serde_json::from_value(operation.clone()).unwrap())
+            .unwrap();
+        let draft = core
+            .create_draft(
+                &id,
+                1,
+                vec![serde_json::from_value(operation).unwrap()],
+                Some("retained draft".into()),
+            )
+            .unwrap();
+        let project = core.validate_revision(&id, 1).unwrap();
+        let draft_state = core.get_draft_state(&id, &draft.id).unwrap();
+        let project_dir = core.project_directory(&id).unwrap();
+        let destination = root.path().join("exports/existing.mp4");
+        std::fs::write(&destination, b"existing destination").unwrap();
+        let before = snapshot(root.path());
+        let process = Arc::new(FakeProcess {
+            readiness_error: false,
+            probe_error: false,
+            run_failure: Some(FakeRunFailure::Spawn),
+            executions: Mutex::new(vec![]),
+        });
+        let io = Arc::new(LifecycleArtifactIo::default());
+        let renderer =
+            Renderer::new("unused", "unused", None).with_adapters(process.clone(), io.clone());
+        let mut progress = Vec::new();
+        let errors = [
+            renderer
+                .render_preview(&project, &project_dir, 0)
+                .unwrap_err(),
+            renderer
+                .render_preview_range(
+                    &project,
+                    &project_dir,
+                    PreviewRangeOptions {
+                        start_ms: 0,
+                        end_ms: 100,
+                        width: 32,
+                        height: 32,
+                        fps: 24,
+                        include_audio: false,
+                    },
+                    |value| progress.push(value.progress),
+                )
+                .unwrap_err(),
+            renderer
+                .export_video(
+                    &project,
+                    &project_dir,
+                    ExportOptions {
+                        output: &destination,
+                        width: 32,
+                        height: 32,
+                        overwrite: true,
+                    },
+                    |value| progress.push(value.progress),
+                )
+                .unwrap_err(),
+            renderer
+                .render_preview(&draft_state.project, &project_dir, 0)
+                .unwrap_err(),
+        ];
+        for error in errors {
+            assert_eq!(error.code, ErrorCode::FfmpegFailed);
+            assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+            assert!(!error.retryable);
+            assert_eq!(
+                error.ffmpeg_spawn.as_ref().unwrap().kind,
+                crate::FfmpegSpawnKind::PermissionDenied
+            );
+            assert!(error.ffmpeg_exit_code.is_none());
+            assert!(error.ffmpeg_stderr_excerpt.is_none());
+        }
+        assert!(progress.is_empty());
+        assert_eq!(process.executions.lock().unwrap().len(), 4);
+        assert_eq!(snapshot(root.path()), before);
+        let events = io.events.lock().unwrap().clone();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|value| **value == "remove_dir_all")
+                .count(),
+            4
+        );
+        assert!(!events.contains(&"rename"));
+        let stale = core.validate_revision(&id, 0).unwrap_err();
+        assert_eq!(stale.code, ErrorCode::RevisionConflict);
+        assert!(stale.ffmpeg_spawn.is_none());
+        let invalid = renderer
+            .render_preview_range(
+                &project,
+                &project_dir,
+                PreviewRangeOptions {
+                    start_ms: 0,
+                    end_ms: 100,
+                    width: 0,
+                    height: 32,
+                    fps: 24,
+                    include_audio: false,
+                },
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(invalid.code, ErrorCode::ValidationFailed);
+        assert!(invalid.ffmpeg_spawn.is_none());
+        assert_eq!(process.executions.lock().unwrap().len(), 4);
+        assert_eq!(snapshot(root.path()), before);
     }
 
     #[test]
@@ -3447,6 +3626,10 @@ mod tests {
         assert_eq!(spawn_error.failed_stage.as_deref(), Some(SPAWN_STAGE));
         assert_eq!(spawn_error.ffmpeg_exit_code, None);
         assert_eq!(spawn_error.ffmpeg_stderr_excerpt, None);
+        let diagnostic = spawn_error.ffmpeg_spawn.unwrap();
+        assert_eq!(diagnostic.kind, crate::FfmpegSpawnKind::NotFound);
+        assert_eq!(diagnostic.platform, crate::FfmpegSpawnPlatform::current());
+        assert!(diagnostic.native_code.is_some());
 
         #[cfg(windows)]
         let mut failing = {
@@ -3464,12 +3647,39 @@ mod tests {
         assert_eq!(render_error.code, ErrorCode::FfmpegFailed);
         assert_eq!(render_error.failed_stage.as_deref(), Some(RENDER_STAGE));
         assert_eq!(render_error.ffmpeg_exit_code, Some(7));
+        assert!(render_error.ffmpeg_spawn.is_none());
         assert!(
             render_error
                 .ffmpeg_stderr_excerpt
                 .as_deref()
                 .is_some_and(|excerpt| excerpt.contains("final diagnostic"))
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn actual_nonexecutable_startup_preserves_access_denied_without_paths_or_progress() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempdir().unwrap();
+        let executable = root.path().join("private-project-command");
+        std::fs::write(&executable, b"#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let mut progress = Vec::new();
+        let error = run_to_completion(&mut Command::new(&executable), 1_000, |value| {
+            progress.push(value.progress);
+        })
+        .unwrap_err();
+        assert!(progress.is_empty());
+        assert_eq!(error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert!(error.ffmpeg_exit_code.is_none());
+        assert!(error.ffmpeg_stderr_excerpt.is_none());
+        let diagnostic = error.ffmpeg_spawn.as_ref().unwrap();
+        assert_eq!(diagnostic.kind, crate::FfmpegSpawnKind::PermissionDenied);
+        assert!(diagnostic.native_code.is_some());
+        assert!(!format!("{error:?}").contains("private-project-command"));
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+        std::fs::remove_file(executable).unwrap();
     }
 
     #[test]

@@ -445,3 +445,11 @@
 /docs/adr/0005-ephemeral-job-restart-semantics.md @matiHirCab
 /apps/agent-bridge/tests/job-restart-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/job-restart-* @matiHirCab
+
+# Issue178 sanitized final process startup diagnostics
+/contracts/ffmpeg-spawn-diagnostics-v1.json @matiHirCab
+/apps/agent-bridge/src/ffmpeg-spawn.ts @matiHirCab
+/apps/agent-bridge/tests/ffmpeg-spawn.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/ffmpeg-spawn-* @matiHirCab
+
+/apps/agent-bridge/tests/ffmpeg-spawn-workflow.ts @matiHirCab

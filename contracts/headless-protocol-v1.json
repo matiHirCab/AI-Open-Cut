@@ -477,5 +477,21 @@
       "audio_analysis_v1",
       "audio_master_normalization_v1"
     ]
+  },
+  "ffmpegSpawnError": {
+    "type": "error",
+    "error": {
+      "code": "FFMPEG_FAILED",
+      "message": "FFmpeg render failed",
+      "retryable": false,
+      "failedStage": "spawn",
+      "ffmpegExitCode": null,
+      "ffmpegStderrExcerpt": null,
+      "ffmpegSpawn": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    }
   }
 }

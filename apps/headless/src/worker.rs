@@ -138,11 +138,7 @@ fn serve(
             write_event(
                 writer,
                 serde_json::json!({"requestId":envelope.request_id,"event":{
-                    "type":"error","error":ErrorBody {
-                        code:error.code,message:error.message,retryable:error.retryable,
-                        failed_stage:error.failed_stage,ffmpeg_exit_code:error.ffmpeg_exit_code,
-                        ffmpeg_stderr_excerpt:error.ffmpeg_stderr_excerpt
-                    }
+                    "type":"error","error":ErrorBody::from(error)
                 }}),
             )?;
         }

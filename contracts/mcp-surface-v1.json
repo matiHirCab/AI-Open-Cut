@@ -2508,6 +2508,9 @@
                             ],
                             "default": null
                           },
+                          "ffmpegSpawn": {
+                            "$ref": "#/$defs/FfmpegSpawnDiagnostic"
+                          },
                           "ffmpegStderrExcerpt": {
                             "anyOf": [
                               {
@@ -2593,6 +2596,9 @@
                             ],
                             "default": null
                           },
+                          "ffmpegSpawn": {
+                            "$ref": "#/$defs/FfmpegSpawnDiagnostic"
+                          },
                           "ffmpegStderrExcerpt": {
                             "anyOf": [
                               {
@@ -2677,6 +2683,9 @@
                               }
                             ],
                             "default": null
+                          },
+                          "ffmpegSpawn": {
+                            "$ref": "#/$defs/FfmpegSpawnDiagnostic"
                           },
                           "ffmpegStderrExcerpt": {
                             "anyOf": [
@@ -2832,6 +2841,9 @@
                               }
                             ],
                             "default": null
+                          },
+                          "ffmpegSpawn": {
+                            "$ref": "#/$defs/FfmpegSpawnDiagnostic"
                           },
                           "ffmpegStderrExcerpt": {
                             "anyOf": [
@@ -11113,6 +11125,9 @@
                       }
                     ],
                     "default": null
+                  },
+                  "ffmpegSpawn": {
+                    "$ref": "#/$defs/FfmpegSpawnDiagnostic"
                   },
                   "ffmpegStderrExcerpt": {
                     "anyOf": [
@@ -19977,6 +19992,9 @@
               }
             ],
             "default": null
+          },
+          "ffmpegSpawn": {
+            "$ref": "#/$defs/FfmpegSpawnDiagnostic"
           },
           "ffmpegStderrExcerpt": {
             "anyOf": [
@@ -37806,6 +37824,51 @@
         "truePeakDbtp",
         "loudnessRangeLu",
         "thresholdLufs"
+      ],
+      "type": "object"
+    },
+    "FfmpegSpawnDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "not_found",
+            "permission_denied",
+            "invalid_input",
+            "invalid_filename",
+            "argument_list_too_long",
+            "resource_busy",
+            "out_of_memory",
+            "other"
+          ],
+          "type": "string"
+        },
+        "nativeCode": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": -2147483648,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform": {
+          "enum": [
+            "linux",
+            "macos",
+            "windows",
+            "other"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "nativeCode",
+        "platform"
       ],
       "type": "object"
     }

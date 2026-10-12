@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { BLEND_MODES } from "./blend-modes";
+import { ffmpegSpawnSchema } from "./ffmpeg-spawn";
 import { gridDescriptorSchema } from "./procedural-grids";
 import {
   repeaterDescriptorSchema,
@@ -128,6 +129,7 @@ export const publicErrorSchema = z
     code: z.string(),
     failedStage: z.string().nullable().default(null),
     ffmpegExitCode: z.int().nullable().default(null),
+    ffmpegSpawn: ffmpegSpawnSchema.optional(),
     ffmpegStderrExcerpt: z.string().nullable().default(null),
     message: z.string(),
     retryable: z.boolean(),

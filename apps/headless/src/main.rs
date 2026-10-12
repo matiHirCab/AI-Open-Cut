@@ -219,6 +219,22 @@ struct ErrorBody {
     failed_stage: Option<String>,
     ffmpeg_exit_code: Option<i32>,
     ffmpeg_stderr_excerpt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ffmpeg_spawn: Option<Box<opencut_editor_core::FfmpegSpawnDiagnostic>>,
+}
+
+impl From<CoreError> for ErrorBody {
+    fn from(error: CoreError) -> Self {
+        Self {
+            code: error.code,
+            message: error.message,
+            retryable: error.retryable,
+            failed_stage: error.failed_stage,
+            ffmpeg_exit_code: error.ffmpeg_exit_code,
+            ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
+            ffmpeg_spawn: error.ffmpeg_spawn,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -250,14 +266,7 @@ struct Status {
 fn main() {
     if let Err(error) = run() {
         let _ = emit(Event::<serde_json::Value>::Error {
-            error: ErrorBody {
-                code: error.code,
-                message: error.message,
-                retryable: error.retryable,
-                failed_stage: error.failed_stage,
-                ffmpeg_exit_code: error.ffmpeg_exit_code,
-                ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
-            },
+            error: error.into(),
         });
         std::process::exit(1);
     }
@@ -952,14 +961,7 @@ fn status(renderer: &Renderer) -> Status {
         Err(error) => SubsystemStatus {
             ready: false,
             capabilities: vec![],
-            error: Some(ErrorBody {
-                code: error.code,
-                message: error.message,
-                retryable: error.retryable,
-                failed_stage: error.failed_stage,
-                ffmpeg_exit_code: error.ffmpeg_exit_code,
-                ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
-            }),
+            error: Some(error.into()),
         },
     };
     let mut capabilities = editor_capabilities();
@@ -1016,6 +1018,32 @@ mod tests {
     use super::*;
     use serde::de::DeserializeOwned;
     use strum::VariantNames;
+
+    #[test]
+    fn canonical_final_spawn_diagnostics_use_the_actual_typed_error_serializer() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/ffmpeg-spawn-diagnostics-v1.json"
+        ))
+        .unwrap();
+        let platform =
+            serde_json::to_value(opencut_editor_core::FfmpegSpawnPlatform::current()).unwrap();
+        let error = CoreError::ffmpeg_spawn_failure(std::io::Error::from_raw_os_error(2));
+        let actual = serde_json::to_value(Event::<serde_json::Value>::Error {
+            error: error.into(),
+        })
+        .unwrap();
+        let mut expected = fixture["headlessErrorExample"].clone();
+        expected["error"]["ffmpegSpawn"]["platform"] = platform;
+        assert_eq!(actual, expected);
+        let old = serde_json::to_value(ErrorBody::from(CoreError::render_failure(
+            "render",
+            Some(7),
+            None,
+        )))
+        .unwrap();
+        assert!(old.get("ffmpegSpawn").is_none());
+        assert_eq!(old["ffmpegExitCode"], 7);
+    }
 
     const UNKNOWN_OPERATION_PROBE: &str = "__opencut_unknown_contract_operation__";
 

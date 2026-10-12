@@ -411,6 +411,7 @@ export const errorBody = (error: unknown) => {
       code: error.code,
       failedStage: error.failedStage,
       ffmpegExitCode: error.ffmpegExitCode,
+      ...(error.ffmpegSpawn ? { ffmpegSpawn: error.ffmpegSpawn } : {}),
       ffmpegStderrExcerpt: error.ffmpegStderrExcerpt
         ? redactPaths(error.ffmpegStderrExcerpt, 4096, true)
         : null,

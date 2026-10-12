@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  removeFfmpegSpawnMcpAddition,
+  removeFfmpegSpawnOwnershipAddition,
+  restoreFfmpegSpawnRaw,
+} from "./ffmpeg-spawn-projection";
 import addition from "./job-restart-ownership-addition.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 
@@ -9,7 +14,7 @@ const record = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeFfmpegSpawnOwnershipAddition(source);
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "jobRestart")) {
     if (
@@ -23,7 +28,7 @@ export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const removeJobRestartMcpAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeFfmpegSpawnMcpAddition(source);
   const capabilities = record(result).capabilityIdentifiers;
   if (!Array.isArray(capabilities)) {
     throw new Error("Malformed restart capability projection");
@@ -41,7 +46,8 @@ export const removeJobRestartMcpAddition = <T>(source: T): T => {
 };
 // Reconstruct only the reviewed additive rollback, then require its exact
 // independently captured pre-change raw digest before older projections run.
-export const restoreJobRestartRaw = (source: string): string => {
+export const restoreJobRestartRaw = (current: string): string => {
+  const source = restoreFfmpegSpawnRaw(current);
   const value = record(JSON.parse(source));
   let projected: unknown;
   let expected: string;
