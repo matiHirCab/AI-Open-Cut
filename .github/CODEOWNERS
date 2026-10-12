@@ -453,3 +453,5 @@
 /apps/agent-bridge/tests/render-budget* @matiHirCab
 /apps/agent-bridge/tests/fixtures/render-budget-* @matiHirCab
 /docs/native-render-budget-diagnostics.md @matiHirCab
+
+/apps/headless/tests/support/budget_readiness_fixture.rs @matiHirCab

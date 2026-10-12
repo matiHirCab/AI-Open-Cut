@@ -33,3 +33,6 @@ The full workspace architecture gate identified the new direct private `evaluate
 ## Open Questions
 
 None blocking. Designated reviewer is @matiHirCab; the authenticated author cannot request self-review (GitHub 422 already established). Human owner review remains separate from automated verification.
+
+## Approved hermetic canonical verification refinement
+The first published3761617d contract job114670390933 reported DEPENDENCY_UNAVAILABLE before the new budget assertion because that canonical environment intentionally has no FFmpeg. The actual-native jobs are separate and green. The headless admission test SHALL compile an owned readiness-only executable: only exact filter/version inspection is accepted; any attempted rendering records an owned marker and fails. Only this test overrides its tools, then asserts no execution marker or publication. No production readiness behavior, native dependency requirement, decoder/renderer simulation, budget or timeout is changed. This fixture establishes actual core accounting/serialization in a hermetic transport process, not rendered-video evidence.

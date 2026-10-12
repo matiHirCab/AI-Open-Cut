@@ -1,6 +1,7 @@
 #[test]
 fn native_render_budget_rejection_preserves_destination_project_history_and_draft() {
     let h = Harness::new();
+    let tools = h.budget_readiness_control();
     let id = result(
         &h.request(json!({"operation":"create_project","name":"Private /source/path --command"})),
     )["projectId"]
@@ -21,9 +22,10 @@ fn native_render_budget_rejection_preserves_destination_project_history_and_draf
     let before = h.project_files(id.as_str().unwrap());
     let destination = h.root.path().join("exports/existing.mp4");
     std::fs::write(&destination, b"existing destination").unwrap();
-    let error = event(&h.request(
+    let error = event(&h.request_with_budget_tools(
         json!({"operation":"export_video","projectId":id,"expectedRevision":1,
         "relativePath":"existing.mp4","width":4096,"height":4096,"overwrite":false}),
+        &tools,
     ))["error"]
         .clone();
     // The mandatory canonical command executes this actual producer case.
@@ -68,12 +70,14 @@ fn native_render_budget_rejection_preserves_destination_project_history_and_draf
             .count(),
         1
     );
-    let stale = event(&h.request(
+    let stale = event(&h.request_with_budget_tools(
         json!({"operation":"render_preview","projectId":id,"expectedRevision":0,"timeMs":0}),
+        &tools,
     ))["error"]
         .clone();
     assert_eq!(stale["code"], "REVISION_CONFLICT");
     assert!(stale.get("renderBudget").is_none());
+    assert!(!h.root.path().join("budget-unexpected-execution").exists());
 }
 
 use std::process::{Command, Output, Stdio};
@@ -1106,6 +1110,50 @@ impl Harness {
     }
 
     fn request_raw(&self, request: &str) -> Output {
+        self.request_raw_with_budget_tools(request, None)
+    }
+
+    fn request_with_budget_tools(&self, request: Value, tools: &std::path::Path) -> Output {
+        self.request_raw_with_budget_tools(&serde_json::to_string(&request).unwrap(), Some(tools))
+    }
+
+    fn budget_readiness_control(&self) -> std::path::PathBuf {
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/support/budget_readiness_fixture.rs");
+        let tools = self.root.path().join(if cfg!(windows) {
+            "budget-readiness.exe"
+        } else {
+            "budget-readiness"
+        });
+        let compiled = Command::new("rustc")
+            .args(["--edition=2024"])
+            .arg(source)
+            .arg("-o")
+            .arg(&tools)
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "cannot compile owned readiness control: {}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        let marker = self.root.path().join("budget-execution-positive-control");
+        let control = Command::new(&tools)
+            .arg("--unexpected-render")
+            .env("OPENCUT_TEST_BUDGET_EXECUTION_MARKER", &marker)
+            .output()
+            .unwrap();
+        assert_eq!(control.status.code(), Some(91));
+        assert_eq!(std::fs::read(&marker).unwrap(), b"unexpected execution");
+        std::fs::remove_file(marker).unwrap();
+        tools
+    }
+
+    fn request_raw_with_budget_tools(
+        &self,
+        request: &str,
+        tools: Option<&std::path::Path>,
+    ) -> Output {
         let projects = self.root.path().join("projects");
         let media = self.root.path().join("media");
         let exports = self.root.path().join("exports");
@@ -1124,6 +1172,15 @@ impl Harness {
             if let Some(value) = std::env::var_os(name) {
                 command.env(name, value);
             }
+        }
+        if let Some(tools) = tools {
+            command
+                .env("OPENCUT_FFMPEG_PATH", tools)
+                .env("OPENCUT_FFPROBE_PATH", tools)
+                .env(
+                    "OPENCUT_TEST_BUDGET_EXECUTION_MARKER",
+                    self.root.path().join("budget-unexpected-execution"),
+                );
         }
         // Text defaults are embedded; ambient font configuration must not be
         // required by headless or packaged workflows.

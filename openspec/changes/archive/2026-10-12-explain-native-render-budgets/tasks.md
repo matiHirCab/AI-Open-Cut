@@ -13,5 +13,8 @@
 - [x] 3.2 Inspect the pre-archive protected gate and verify requirement/scenario/design conformance with openspec-verify-change; prepare the approved synchronization/archive handoff.
 - [x] 3.3 Refresh current main/issue and prepare the concrete scoped draft PR description, publication/CI checklist and designated human review limitation.
 
+## 4. Published-head canonical correction
+- [x] 4.1 Make only the budget headless fixture hermetic, prove it passes with missing ambient executables and rejects attempted execution, refresh affected checks, verify/archive/final gates before publishing a correction.
+
 ## Mandatory post-archive milestones
 These follow the implementation checklist and remain completion gates: synchronize/archive only this verified change, pass final protected/strict spec gates, commit/push the verified scope, open a draft PR, require exact-head required platform CI, address scoped failures, and report commit/PR/check evidence plus dependency-ready candidates to the parent. Track actual results in verification/publication receipts and the PR; do not mark these future milestones complete during pre-archive verification. No merge/auto-merge/deploy is authorized.
