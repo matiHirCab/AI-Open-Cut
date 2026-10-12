@@ -478,5 +478,30 @@
       "audio_analysis_v1",
       "audio_master_normalization_v1"
     ]
+  },
+  "renderBudgetError": {
+    "type": "error",
+    "error": {
+      "code": "INVALID_ARGUMENT",
+      "message": "scene shape segment limit exceeded",
+      "retryable": false,
+      "failedStage": null,
+      "ffmpegExitCode": null,
+      "ffmpegStderrExcerpt": null,
+      "renderBudget": {
+        "budget": "scene_shape_segments",
+        "limit": "1048576",
+        "work": "1048577",
+        "units": "segments",
+        "measurement": "charged",
+        "overflow": false,
+        "contributors": [
+          {
+            "kind": "shape",
+            "work": "1"
+          }
+        ]
+      }
+    }
   }
 }

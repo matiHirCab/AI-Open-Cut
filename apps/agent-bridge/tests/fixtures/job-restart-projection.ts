@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import addition from "./job-restart-ownership-addition.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import {
+  removeRenderBudgetMcpAddition,
+  removeRenderBudgetOwnershipAddition,
+} from "./render-budget-projection";
+import {
   removeSolidGraphicMcpAdditions,
   removeSolidGraphicOwnershipAddition,
   restoreSolidGraphicRaw,
@@ -14,7 +18,9 @@ const record = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
-  const result = removeSolidGraphicOwnershipAddition(source);
+  const result = removeRenderBudgetOwnershipAddition(
+    removeSolidGraphicOwnershipAddition(source)
+  );
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "jobRestart")) {
     if (
@@ -28,7 +34,9 @@ export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const removeJobRestartMcpAddition = <T>(source: T): T => {
-  const result = removeSolidGraphicMcpAdditions(source);
+  const result = removeRenderBudgetMcpAddition(
+    removeSolidGraphicMcpAdditions(source)
+  );
   const capabilities = record(result).capabilityIdentifiers;
   if (!Array.isArray(capabilities)) {
     throw new Error("Malformed restart capability projection");

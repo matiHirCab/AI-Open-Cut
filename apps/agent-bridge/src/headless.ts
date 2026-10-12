@@ -409,6 +409,7 @@ export const errorBody = (error: unknown) => {
   if (error instanceof BridgeError) {
     return {
       code: error.code,
+      ...(error.renderBudget ? { renderBudget: error.renderBudget } : {}),
       failedStage: error.failedStage,
       ffmpegExitCode: error.ffmpegExitCode,
       ffmpegStderrExcerpt: error.ffmpegStderrExcerpt

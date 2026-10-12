@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -9,6 +10,15 @@ import {
 import { dirname, join } from "node:path";
 
 const [mode, ...args] = process.argv.slice(2);
+// Opt-in owned test marker records execution only, without source paths/arguments.
+if (
+  mode === "ffmpeg" &&
+  process.env.OPENCUT_TEST_RENDER_MARKER &&
+  args.includes("-i")
+) {
+  appendFileSync(process.env.OPENCUT_TEST_RENDER_MARKER, "render\n");
+}
+
 const hangAnalysisPass = async (phase) => {
   const input =
     phase === "pcm"

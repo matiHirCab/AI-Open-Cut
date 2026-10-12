@@ -1640,6 +1640,33 @@
         "crates/editor-core/tests/narration_fixture.rs",
         "crates/editor-core/tests/reference_scene.rs"
       ]
+    },
+    "nativeRenderBudgetDiagnostics": {
+      "canonical": "contracts/render-budget-diagnostics-v1.json",
+      "consumers": [
+        "crates/editor-core/src/error.rs",
+        "crates/editor-core/src/evaluated_scene/shapes.rs",
+        "crates/editor-core/src/evaluated_scene.rs",
+        "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+        "crates/editor-core/src/evaluated_scene/extended_visual.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/src/worker.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/render-budget.ts",
+        "apps/agent-bridge/src/headless-events.ts",
+        "apps/agent-bridge/src/headless.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/render-budget.test.ts",
+        "docs/native-render-budget-diagnostics.md",
+        "apps/agent-bridge/src/render-worker.ts",
+        "apps/agent-bridge/src/jobs.ts",
+        "apps/agent-bridge/tests/render-budget-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/headless/tests/support/budget_readiness_fixture.rs",
+        "apps/agent-bridge/tests/fixtures/render-budget-graphic-projection.ts"
+      ]
     }
   }
 }

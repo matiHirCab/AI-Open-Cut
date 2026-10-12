@@ -1,5 +1,9 @@
 import { z } from "zod/v4";
 import { retryableFor } from "./errors";
+import {
+  type RenderBudgetDiagnostic,
+  renderBudgetSchema,
+} from "./render-budget";
 
 const errorSchema = z
   .object({
@@ -8,6 +12,7 @@ const errorSchema = z
     ffmpegExitCode: z.number().int().nullable().default(null),
     ffmpegStderrExcerpt: z.string().nullable().default(null),
     message: z.string(),
+    renderBudget: renderBudgetSchema.optional(),
     retryable: z.boolean(),
   })
   .strict();
@@ -24,6 +29,7 @@ export class BridgeError extends Error {
   readonly failedStage: string | null;
   readonly ffmpegExitCode: number | null;
   readonly ffmpegStderrExcerpt: string | null;
+  readonly renderBudget: RenderBudgetDiagnostic | undefined;
 
   constructor(
     code: string,
@@ -34,6 +40,7 @@ export class BridgeError extends Error {
       failedStage?: string | null;
       ffmpegExitCode?: number | null;
       ffmpegStderrExcerpt?: string | null;
+      renderBudget?: RenderBudgetDiagnostic | undefined;
     } = {}
   ) {
     super(message, options);
@@ -43,5 +50,6 @@ export class BridgeError extends Error {
     this.failedStage = details.failedStage ?? null;
     this.ffmpegExitCode = details.ffmpegExitCode ?? null;
     this.ffmpegStderrExcerpt = details.ffmpegStderrExcerpt ?? null;
+    this.renderBudget = details.renderBudget;
   }
 }

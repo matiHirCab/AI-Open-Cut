@@ -29,7 +29,7 @@ store facade ─> assets ─> persistence
      ├─────────> timeline ─> animation/markers/validation
      └─────────> validation ─> markers
 
-renderer facade ─> evaluated_scene ─> animation/validation/markers
+renderer facade ─> evaluated_scene ─> animation/validation/markers/error
         ├────────> validation (review output settings)
         ├────────> render_artifact ─> evaluated_scene
         │                  └───────> render_plan ─> evaluated_scene/animation
@@ -44,7 +44,7 @@ Root facade re-exports provide model and error types without adding an outward o
 | `animation` | none |
 | `assets` | `persistence`, `fonts` |
 | `drafts` | `persistence` |
-| `evaluated_scene` | `animation`, `validation`, `fonts`, `markers` |
+| `evaluated_scene` | `animation`, `validation`, `fonts`, `markers`, `error` |
 | `error` | none |
 | `fonts` | none |
 | `markers` | none |
@@ -60,6 +60,8 @@ Root facade re-exports provide model and error types without adding an outward o
 | `timeline` | `animation`, `markers`, `validation` |
 | `validation` | `markers` |
 | `vector` | none |
+
+Native render admission diagnostics add the inward `evaluated_scene -> error` primitive-helper edge. The error owner supplies typed diagnostic metadata, bounded anonymous numeric contribution retention and checked-charge error construction, with no scene or rendering dependencies. Geometry/accounting inputs, guard limits, traversal and admission policy remain in evaluated_scene; no outer layer estimates native resource cost. The existing architecture checks register this edge explicitly and retain every other forbidden dependency.
 
 Animation channel DTOs are nested under `model`; channel compatibility, bounds, target, and legacy-collision rules are nested under `validation`. Timeline edits call that validation owner, and scene evaluation consumes the model types. The architecture test compares the complete top-level private module inventory with this matrix, so an unlisted owner cannot bypass dependency review.
 

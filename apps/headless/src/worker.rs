@@ -141,7 +141,7 @@ fn serve(
                     "type":"error","error":ErrorBody {
                         code:error.code,message:error.message,retryable:error.retryable,
                         failed_stage:error.failed_stage,ffmpeg_exit_code:error.ffmpeg_exit_code,
-                        ffmpeg_stderr_excerpt:error.ffmpeg_stderr_excerpt
+                        ffmpeg_stderr_excerpt:error.ffmpeg_stderr_excerpt,render_budget:error.render_budget
                     }
                 }}),
             )?;

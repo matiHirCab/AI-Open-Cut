@@ -1870,18 +1870,27 @@ impl InstanceTraversal<'_> {
                 .visual_layers
                 .retain(|l| l.instance.is_some_and(|c| c.start_ms < c.end_ms));
         }
-        let shape_segments: usize = result
+        let mut shape_segments = 0;
+        let mut shape_contributors = crate::error::BudgetContributions::default();
+        for layer in result
             .scene
             .visual_layers
             .iter()
             .chain(&evaluated.scene.visual_layers)
-            .filter_map(|layer| match &layer.source {
-                EvaluatedVisualSource::Shape(shape) => Some(shape.segments()),
-                _ => None,
-            })
-            .sum();
+        {
+            if let EvaluatedVisualSource::Shape(shape) = &layer.source {
+                shape_segments += shape.segments();
+                shape_contributors.add(shape.diagnostic_kind(), shape.segments() as u64);
+            }
+        }
         if shape_segments > shapes::MAX_SCENE_SEGMENTS {
-            return Err(invalid("scene shape segment limit exceeded"));
+            return Err(CoreError::budget(
+                "scene shape segment limit exceeded",
+                crate::RenderBudget::SceneShapeSegments,
+                shapes::MAX_SCENE_SEGMENTS as u64,
+                Some(shape_segments as u64),
+                shape_contributors.values(),
+            ));
         }
         result.scene.voiceover_activity_range_count +=
             evaluated.scene.voiceover_activity_range_count;
@@ -3561,6 +3570,7 @@ fn preflight_project<'a>(
     let mut audio_layer_count = 0_usize;
     let mut voiceover_activity_range_count = 0_usize;
     let mut shape_segments = 0_usize;
+    let mut shape_contributors = crate::error::BudgetContributions::default();
 
     for track in project
         .tracks
@@ -3646,15 +3656,23 @@ fn preflight_project<'a>(
                     visual_item_ids.insert(rectangle.id.as_str());
                 }
                 TimelineItem::Shape(rectangle) => {
-                    shape_segments += shapes::EvaluatedShape::new(
+                    let charge = shapes::EvaluatedShape::new(
                         rectangle.geometry.clone(),
                         rectangle.fill.clone(),
                         rectangle.stroke.clone(),
                         1.0,
                     )?
                     .segments();
+                    shape_segments += charge;
+                    shape_contributors.add(crate::RenderContributorKind::Shape, charge as u64);
                     if shape_segments > shape_budget {
-                        return Err(invalid("scene shape segment limit exceeded"));
+                        return Err(CoreError::budget(
+                            "scene shape segment limit exceeded",
+                            crate::RenderBudget::SceneShapeSegments,
+                            shape_budget as u64,
+                            Some(shape_segments as u64),
+                            shape_contributors.values(),
+                        ));
                     }
                     validate_keyframe_limit(&rectangle.keyframes)?;
                     increment_bounded(
