@@ -1,10 +1,12 @@
 //! Process-local sampled visual facts; no paths, processes or persisted mutation.
 use super::*;
 pub(crate) use crate::animation::SampleTime;
+use crate::error::charge_render_work;
 use crate::{
     AnimationChannel, AnimationChannelProperty as P, AnimationChannelValue as V,
     AnimationTargetKind as K, MediaCrop, VisualEffect,
 };
+use crate::{RenderBudget, RenderContributorKind};
 
 #[cfg(test)]
 mod review_regressions;
@@ -443,17 +445,19 @@ pub(crate) fn preflight_samples(
                     },
                 )?;
             {
-                pixel_work = pixel_work
-                    .checked_add(
-                        u64::from(canvas.0)
-                            .checked_mul(u64::from(canvas.1))
-                            .and_then(|v| v.checked_mul(times.len() as u64))
-                            .ok_or_else(|| invalid("motion blur pixel work overflow"))?,
-                    )
-                    .filter(|v| *v <= 268_435_456)
-                    .ok_or_else(|| {
-                        invalid("linear composition output-frame pixel work exceeds limits")
-                    })?;
+                charge_render_work(
+                    &mut pixel_work,
+                    u64::from(canvas.0)
+                        .checked_mul(u64::from(canvas.1))
+                        .and_then(|v| v.checked_mul(times.len() as u64)),
+                    RenderBudget::CompositionPixelWork,
+                    268_435_456,
+                    (
+                        "motion blur pixel work overflow",
+                        "linear composition output-frame pixel work exceeds limits",
+                    ),
+                    RenderContributorKind::MotionBlur,
+                )?;
             }
             for time in times {
                 if !layer.visible_at(time) {
@@ -522,13 +526,20 @@ pub(crate) fn preflight_samples(
                         let mask_clones = super::masks::authored_mask_bytes(&masks)?
                             .checked_mul(3)
                             .ok_or_else(|| invalid("sampled mask memory overflow"))?;
-                        base_memory
+                        let attempted_memory = base_memory
                             .checked_add(scene_program_bytes)
                             .and_then(|v| v.checked_add(mask_clones))
-                            .and_then(|v| v.checked_add(facts.additional_live_bytes().ok()?))
+                            .and_then(|v| v.checked_add(facts.additional_live_bytes().ok()?));
+                        attempted_memory
                             .filter(|v| *v <= MAX_COMPOSITION_BYTES)
                             .ok_or_else(|| {
-                                invalid("mask composition live memory exceeds limits")
+                                CoreError::budget(
+                                    "mask composition live memory exceeds limits",
+                                    RenderBudget::CompositionBytes,
+                                    MAX_COMPOSITION_BYTES,
+                                    attempted_memory,
+                                    vec![],
+                                )
                             })?;
                     }
                     if first_occurrence {
@@ -673,10 +684,20 @@ impl SampledFrameBudget {
             if first {
                 self.segments.insert(at, segments);
             }
-            base.checked_add(self.program_bytes)
-                .and_then(|n| n.checked_add(additional))
+            let attempted_memory = base
+                .checked_add(self.program_bytes)
+                .and_then(|n| n.checked_add(additional));
+            attempted_memory
                 .filter(|n| *n <= MAX_COMPOSITION_BYTES)
-                .ok_or_else(|| invalid("mask composition live memory exceeds limits"))?;
+                .ok_or_else(|| {
+                    CoreError::budget(
+                        "mask composition live memory exceeds limits",
+                        RenderBudget::CompositionBytes,
+                        MAX_COMPOSITION_BYTES,
+                        attempted_memory,
+                        vec![],
+                    )
+                })?;
         }
         let affine = sample_transform(&mut sampled, at, size, canvas)?;
         if let Some(query) = query_map {
@@ -767,14 +788,22 @@ pub(crate) fn certify_composition_memory(
                 .checked_add(pad)
                 .and_then(|h| w.checked_mul(h))
         })
-        .ok_or_else(|| invalid("composition memory overflow"))?;
+        .ok_or_else(|| {
+            CoreError::budget(
+                "composition memory overflow",
+                RenderBudget::CompositionBytes,
+                MAX_COMPOSITION_BYTES,
+                None,
+                vec![],
+            )
+        })?;
     // Empty effects return the existing raster without allocating padding or
     // convolution scratch. Reserve one f32 expanded raster in that case; active
     // effects reserve three f32 rasters plus serialization/coverage scratch.
     // 48/source pixel separately bounds source/crop rasters, decoder buffers
     // and SVG rasterization, including their simultaneous allocation phases.
     let expanded_bytes_per_pixel = if effects.is_empty() { 16 } else { 64 };
-    let bytes = pixels(canvas)
+    let attempted_bytes = pixels(canvas)
         .and_then(|p| p.checked_mul(3 * 16 + 2 * 4))
         .and_then(|b| {
             expanded
@@ -786,9 +815,18 @@ pub(crate) fn certify_composition_memory(
                 .and_then(|p| p.checked_mul(48))
                 .and_then(|v| b.checked_add(v))
         })
-        .and_then(|b| b.checked_add(CACHE_RESERVATION_BYTES + 1_048_576))
+        .and_then(|b| b.checked_add(CACHE_RESERVATION_BYTES + 1_048_576));
+    let bytes = attempted_bytes
         .filter(|b| *b <= MAX_COMPOSITION_BYTES)
-        .ok_or_else(|| invalid("linear composition live memory exceeds limits"))?;
+        .ok_or_else(|| {
+            CoreError::budget(
+                "linear composition live memory exceeds limits",
+                RenderBudget::CompositionBytes,
+                MAX_COMPOSITION_BYTES,
+                attempted_bytes,
+                vec![],
+            )
+        })?;
     Ok(bytes)
 }
 
@@ -1185,4 +1223,33 @@ pub(crate) fn certified_destination_visits(
     u64::from(right - left)
         .checked_mul(u64::from(bottom - top))
         .ok_or_else(|| invalid("blend destination footprint overflow"))
+}
+
+#[cfg(test)]
+mod budget_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn composition_reservation_keeps_exact_boundary_and_reports_existing_bound() {
+        assert_eq!(
+            certify_composition_memory((4096, 4096), (1024, 1008), &[], 1.0).unwrap(),
+            MAX_COMPOSITION_BYTES
+        );
+        let details = certify_composition_memory((4096, 4096), (1024, 1009), &[], 1.0)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert_eq!(details.budget, RenderBudget::CompositionBytes);
+        assert_eq!(details.limit, "1073741824");
+        assert_eq!(details.work.as_deref(), Some("1073807360"));
+        assert_eq!(details.measurement, "conservative");
+        assert!(!details.overflow);
+        assert!(details.contributors.is_empty());
+        let details = certify_composition_memory((u32::MAX, u32::MAX), (1, 1), &[], 1.0)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert!(details.overflow);
+        assert!(details.work.is_none());
+    }
 }

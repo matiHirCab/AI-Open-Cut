@@ -1,0 +1,9 @@
+# Issue-scoped approval
+
+On 2026-10-12, before any executable edits for issue #186, the implementing agent approved this proposal, design, five requirements/ten scenarios and task plan using the user's standing explicit authorization to approve issue-scoped specifications and implement/verify dependency-ready issues. The parent explicitly selected #186 after #183 completed. Base is current main `84da152fac0378396099d8f01fc3b7339690361f`; #181 is closed/merged; #186 has no comments.
+
+Authorization covers only the bounded optional core-origin diagnostic and governed transports described here, unchanged guard thresholds and publication rules, checks, commit/push and draft PR. No merge, auto-merge, deployment, credentials, desktop/video task or renderer redesign is authorized. Scope discovered beyond this design requires an approved artifact amendment before implementation.
+
+Before editing ADR 0003 or architecture-test allowlists, the agent approves the design's architecture refinement under the same standing authorization: register only `evaluated_scene -> error` for primitive bounded diagnostic helpers, preserve dependency-free error ownership and all other forbidden edges. This addresses the three reported architecture failures from the first full workspace attempt without bypassing the ownership checks. It introduces no resource estimator, persisted behavior or external operation.
+
+The agent approves a tracking-only refinement before verification/archive: implementation checklist tasks end at a verified, concrete publication handoff. Synchronization/archive, final protected gates, commit/push/draft PR and exact-head CI are explicitly mandatory post-archive milestones. This removes the circular claim of completing post-archive actions before archival; it does not waive or weaken any repository gate or the user's end-to-end completion requirement.

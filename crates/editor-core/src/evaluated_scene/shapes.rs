@@ -6,7 +6,9 @@ use super::{
     EvaluatedVisualLayer, EvaluatedVisualSource, IDENTITY_MATRIX, affine_from_matrices,
     multiply_matrix, transform_matrices,
 };
+use crate::error::{BudgetContributions, budget_contributor};
 use crate::{CoreError, FillRule, Paint, PathCommand, ShapeGeometry, Stroke, VectorPoint};
+use crate::{RenderBudget, RenderContributorKind};
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 pub(crate) const MAX_SEGMENTS: usize = 65536;
@@ -128,7 +130,16 @@ impl Compiler {
     }
     fn push(&mut self, p: VectorPoint) -> Result<(), CoreError> {
         if self.count == self.limit {
-            return Err(invalid("shape segment limit exceeded"));
+            let attempted = (self.count as u64).checked_add(1);
+            return Err(CoreError::budget(
+                "shape segment limit exceeded",
+                RenderBudget::ShapeSegments,
+                self.limit as u64,
+                attempted,
+                attempted.map_or_else(Vec::new, |work| {
+                    budget_contributor(RenderContributorKind::Shape, work)
+                }),
+            ));
         }
         self.count += 1;
         self.contours.last_mut().unwrap().points.push(p);
@@ -764,6 +775,10 @@ impl EvaluatedShape {
             size: (w.max(1.0) as u32, h.max(1.0) as u32),
         })
     }
+    pub(super) fn diagnostic_kind(&self) -> RenderContributorKind {
+        contributor_kind(self)
+    }
+
     pub fn segments(&self) -> usize {
         self.svg_children
             .as_ref()
@@ -977,15 +992,49 @@ fn magnification(m: [f64; 6]) -> f64 {
     n * ((a + d).hypot(b - c) + (a - d).hypot(b + c)) * 0.5
 }
 
+fn raster_charge(shape: &EvaluatedShape) -> Option<u64> {
+    u64::from(shape.size.0)
+        .checked_mul(u64::from(shape.size.1))?
+        .checked_mul(if shape.svg_children.is_some() { 44 } else { 12 })
+}
+
+fn contributor_kind(shape: &EvaluatedShape) -> RenderContributorKind {
+    if shape.svg_children.is_some() {
+        RenderContributorKind::Svg
+    } else if shape.grid_descriptor.is_some() {
+        RenderContributorKind::Grid
+    } else {
+        RenderContributorKind::Shape
+    }
+}
+
+const MAX_SCENE_RASTER_BYTES: u64 = 16_777_216 * 12 * super::MAX_EVALUATED_VISUAL_LAYERS as u64;
+
 fn add_raster_bytes(total: u64, shape: &EvaluatedShape) -> Result<u64, CoreError> {
-    let bytes = u64::from(shape.size.0)
-        * u64::from(shape.size.1)
-        * if shape.svg_children.is_some() { 44 } else { 12 };
-    let total = total
-        .checked_add(bytes)
-        .ok_or_else(|| invalid("scene shape raster allocation overflow"))?;
-    if total > 16_777_216 * 12 * super::MAX_EVALUATED_VISUAL_LAYERS as u64 {
-        return Err(invalid("scene shape raster allocation limit exceeded"));
+    let bytes = raster_charge(shape);
+    let attempted = bytes.and_then(|bytes| total.checked_add(bytes));
+    let contributors = || {
+        bytes.map_or_else(Vec::new, |bytes| {
+            budget_contributor(contributor_kind(shape), bytes)
+        })
+    };
+    let total = attempted.ok_or_else(|| {
+        CoreError::budget(
+            "scene shape raster allocation overflow",
+            RenderBudget::SceneShapeRasterBytes,
+            MAX_SCENE_RASTER_BYTES,
+            None,
+            contributors(),
+        )
+    })?;
+    if total > MAX_SCENE_RASTER_BYTES {
+        return Err(CoreError::budget(
+            "scene shape raster allocation limit exceeded",
+            RenderBudget::SceneShapeRasterBytes,
+            MAX_SCENE_RASTER_BYTES,
+            Some(total),
+            contributors(),
+        ));
     }
     Ok(total)
 }
@@ -994,6 +1043,8 @@ fn add_raster_bytes(total: u64, shape: &EvaluatedShape) -> Result<u64, CoreError
 struct SceneShapeBudget {
     segments: usize,
     raster_bytes: u64,
+    segment_contributors: BudgetContributions,
+    raster_contributors: BudgetContributions,
 }
 
 impl SceneShapeBudget {
@@ -1002,12 +1053,29 @@ impl SceneShapeBudget {
     }
 
     fn add(&mut self, shape: &EvaluatedShape) -> Result<(), CoreError> {
-        self.segments = self
-            .segments
-            .checked_add(shape.segments())
+        let kind = contributor_kind(shape);
+        self.segment_contributors.add(kind, shape.segments() as u64);
+        let attempted = self.segments.checked_add(shape.segments());
+        self.segments = attempted
             .filter(|segments| *segments <= MAX_SCENE_SEGMENTS)
-            .ok_or_else(|| invalid("scene shape segment limit exceeded"))?;
-        self.raster_bytes = add_raster_bytes(self.raster_bytes, shape)?;
+            .ok_or_else(|| {
+                CoreError::budget(
+                    "scene shape segment limit exceeded",
+                    RenderBudget::SceneShapeSegments,
+                    MAX_SCENE_SEGMENTS as u64,
+                    attempted.map(|value| value as u64),
+                    self.segment_contributors.values(),
+                )
+            })?;
+        if let Some(bytes) = raster_charge(shape) {
+            self.raster_contributors.add(kind, bytes);
+        }
+        self.raster_bytes = add_raster_bytes(self.raster_bytes, shape).map_err(|mut error| {
+            if let Some(details) = &mut error.render_budget {
+                details.contributors = self.raster_contributors.values();
+            }
+            error
+        })?;
         Ok(())
     }
 }
@@ -1030,8 +1098,7 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
     }
     struct Budget {
         occurrences: usize,
-        segments: usize,
-        bytes: u64,
+        shapes: SceneShapeBudget,
     }
     fn matrix(node: &crate::TimelineItem) -> Result<[f64; 6], CoreError> {
         if let Some(mut t) = node.visual_properties().transform2d {
@@ -1095,19 +1162,17 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
                     let shape = EvaluatedShape::svg_with_budget(
                         svg.document.clone(),
                         magnification(composed),
-                        MAX_SCENE_SEGMENTS - budget.segments,
+                        budget.shapes.remaining_segments(),
                     )?;
-                    budget.segments += shape.segments();
-                    budget.bytes = add_raster_bytes(budget.bytes, &shape)?;
+                    budget.shapes.add(&shape)?;
                 }
                 crate::TimelineItem::Grid(svg) => {
                     let shape = EvaluatedShape::grid_with_budget(
                         svg.grid.clone(),
                         magnification(composed),
-                        MAX_SCENE_SEGMENTS - budget.segments,
+                        budget.shapes.remaining_segments(),
                     )?;
-                    budget.segments += shape.segments();
-                    budget.bytes = add_raster_bytes(budget.bytes, &shape)?;
+                    budget.shapes.add(&shape)?;
                 }
                 crate::TimelineItem::ComponentInstance(instance) => {
                     let id = instance.component_id.as_str();
@@ -1142,8 +1207,7 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
     let mut reached = HashSet::new();
     let mut budget = Budget {
         occurrences: 0,
-        segments: 0,
-        bytes: 0,
+        shapes: SceneShapeBudget::default(),
     };
     walk(
         &project.tracks,
@@ -1165,8 +1229,7 @@ pub(super) fn preflight_svg_documents(project: &crate::Project) -> Result<(), Co
                 &mut HashSet::new(),
                 &mut Budget {
                     occurrences: 0,
-                    segments: 0,
-                    bytes: 0,
+                    shapes: SceneShapeBudget::default(),
                 },
             )?;
         }
@@ -1430,7 +1493,12 @@ mod tests {
         segment_budget.add(&exact_segments).unwrap();
         let mut one_segment = exact_segments.clone();
         one_segment.work_segments = 1;
-        assert!(segment_budget.add(&one_segment).is_err());
+        let error = segment_budget.add(&one_segment).unwrap_err();
+        let details = error.render_budget.unwrap();
+        assert_eq!(details.budget, RenderBudget::SceneShapeSegments);
+        assert_eq!(details.work.as_deref(), Some("1048577"));
+        assert_eq!(details.limit, "1048576");
+        assert_eq!(details.contributors.len(), 2);
 
         let mut full_surface = compile(json!({"type":"rectangle","width":1,"height":1}));
         full_surface.work_segments = 0;
@@ -1445,11 +1513,28 @@ mod tests {
         let mut one_byte_over = SceneShapeBudget {
             segments: 0,
             raster_bytes: cap - 11,
+            ..Default::default()
         };
-        assert!(one_byte_over.add(&full_surface).is_err());
+        let details = one_byte_over
+            .add(&full_surface)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert_eq!(
+            details.work.as_deref(),
+            Some((cap + 1).to_string().as_str())
+        );
+        assert_eq!(details.measurement, "conservative");
+        let details = add_raster_bytes(u64::MAX, &full_surface)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert!(details.overflow);
+        assert!(details.work.is_none());
         let mut exact_bytes = SceneShapeBudget {
             segments: 0,
             raster_bytes: cap - 12,
+            ..Default::default()
         };
         exact_bytes.add(&full_surface).unwrap();
         assert_eq!(exact_bytes.raster_bytes, cap);

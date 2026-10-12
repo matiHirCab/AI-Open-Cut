@@ -1,9 +1,11 @@
 //! Bounded, deterministic certification of newly supported coupled channels.
 //! Bounds are conservative; unresolved intervals subdivide left before right.
 use super::*;
+use crate::error::charge_render_work;
 use crate::{
     AnimationChannel, AnimationChannelProperty as P, AnimationChannelValue as V, VisualEffect,
 };
+use crate::{RenderBudget, RenderContributorKind};
 
 const MAX_NODES: usize = 65_536;
 pub(crate) const MAX_EFFECT_PASSES: u64 = 268_435_456;
@@ -106,8 +108,12 @@ pub(super) fn transform_magnification(
 
 pub(super) fn charge(nodes: &mut usize) -> Result<(), CoreError> {
     if *nodes == MAX_NODES {
-        return Err(invalid(
+        return Err(CoreError::budget(
             "maxCandidateAnalysisNodes exhausted with unresolved extended safety",
+            RenderBudget::CandidateAnalysisNodes,
+            MAX_NODES as u64,
+            (*nodes as u64).checked_add(1),
+            vec![],
         ));
     }
     *nodes += 1;
@@ -183,21 +189,24 @@ pub(crate) fn effect_budget(
             let visits = side
                 .checked_mul(side)
                 .and_then(|v| v.checked_mul(20))
-                .and_then(|v| v.checked_mul(u64::from(*count)))
-                .ok_or_else(|| invalid("particle work overflow"))?;
-            *budget = budget
-                .checked_add(visits)
-                .filter(|v| *v <= MAX_EFFECT_PASSES)
-                .ok_or_else(|| invalid("particle work exceeds limits"))?;
+                .and_then(|v| v.checked_mul(u64::from(*count)));
+            charge_render_work(
+                budget,
+                visits,
+                RenderBudget::EffectPixelPasses,
+                MAX_EFFECT_PASSES,
+                ("particle work overflow", "particle work exceeds limits"),
+                RenderContributorKind::Effect,
+            )?;
         }
-        *budget = budget
-            .checked_add(
-                pixels
-                    .checked_mul(passes)
-                    .ok_or_else(|| invalid("effect work overflow"))?,
-            )
-            .filter(|v| *v <= MAX_EFFECT_PASSES)
-            .ok_or_else(|| invalid("maxPixelPassesPerSample exceeded"))?;
+        charge_render_work(
+            budget,
+            pixels.checked_mul(passes),
+            RenderBudget::EffectPixelPasses,
+            MAX_EFFECT_PASSES,
+            ("effect work overflow", "maxPixelPassesPerSample exceeded"),
+            RenderContributorKind::Effect,
+        )?;
     }
     Ok(())
 }
@@ -321,15 +330,19 @@ pub(crate) fn certify_scene(
             .and_then(|v| v.motion_blur)
             .filter(|v| v.enabled())
             .map_or(1, |v| v.sample_count);
-        pixel_work = pixel_work
-            .checked_add(
-                u64::from(scene.canvas.width)
-                    .checked_mul(u64::from(scene.canvas.height))
-                    .and_then(|v| v.checked_mul(u64::from(count)))
-                    .ok_or_else(|| invalid("motion blur pixel work overflow"))?,
-            )
-            .filter(|v| *v <= crate::MotionBlur::MAX_PIXEL_WORK)
-            .ok_or_else(|| invalid("motion blur scene pixel work exceeds limits"))?;
+        charge_render_work(
+            &mut pixel_work,
+            u64::from(scene.canvas.width)
+                .checked_mul(u64::from(scene.canvas.height))
+                .and_then(|v| v.checked_mul(u64::from(count))),
+            RenderBudget::MotionBlurPixelWork,
+            crate::MotionBlur::MAX_PIXEL_WORK,
+            (
+                "motion blur pixel work overflow",
+                "motion blur scene pixel work exceeds limits",
+            ),
+            RenderContributorKind::MotionBlur,
+        )?;
     }
     let mut mask_work = super::masks::MaskFrameBudget::default();
     let scene_program_bytes = super::masks::scene_program_bytes(scene)?;
@@ -572,7 +585,7 @@ pub(crate) fn certify_scene(
             mask_retained = mask_retained
                 .checked_add(current_retained)
                 .ok_or_else(|| invalid("mask retained scene facts overflow"))?;
-            let memory = super::extended_visual::certify_composition_memory(
+            let attempted_memory = super::extended_visual::certify_composition_memory(
                 (scene.canvas.width, scene.canvas.height),
                 size,
                 &effects,
@@ -588,9 +601,18 @@ pub(crate) fn certify_scene(
                         .ok()?
                         .checked_mul(3)?,
                 )
-            })
-            .filter(|v| *v <= super::extended_visual::MAX_COMPOSITION_BYTES)
-            .ok_or_else(|| invalid("continuous mask composition memory exceeds limits"))?;
+            });
+            let memory = attempted_memory
+                .filter(|v| *v <= super::extended_visual::MAX_COMPOSITION_BYTES)
+                .ok_or_else(|| {
+                    CoreError::budget(
+                        "continuous mask composition memory exceeds limits",
+                        RenderBudget::CompositionBytes,
+                        super::extended_visual::MAX_COMPOSITION_BYTES,
+                        attempted_memory,
+                        vec![],
+                    )
+                })?;
             peak_source_memory = peak_source_memory.max(memory);
         }
         // A rotation changes direction, never the operator norm. Bounding each
@@ -648,14 +670,17 @@ pub(crate) fn certify_scene(
             let mut masks = super::masks::MaskFrameBudget::default();
             let mut ordinary_segments = 0_u64;
             for (count, (effect, mask, geometry)) in visits.iter().zip(&continuous_costs) {
-                effects = effects
-                    .checked_add(
-                        effect
-                            .checked_mul(*count)
-                            .ok_or_else(|| invalid("continuous effect work overflow"))?,
-                    )
-                    .filter(|v| *v <= MAX_EFFECT_PASSES)
-                    .ok_or_else(|| invalid("maxPixelPassesPerSample exceeded"))?;
+                charge_render_work(
+                    &mut effects,
+                    effect.checked_mul(*count),
+                    RenderBudget::EffectPixelPasses,
+                    MAX_EFFECT_PASSES,
+                    (
+                        "continuous effect work overflow",
+                        "maxPixelPassesPerSample exceeded",
+                    ),
+                    RenderContributorKind::Effect,
+                )?;
                 masks.charge(
                     mask.checked_mul(*count)
                         .ok_or_else(|| invalid("continuous mask work overflow"))?,
@@ -1163,5 +1188,42 @@ mod tests {
                 .code,
             ErrorCode::InvalidArgument
         );
+    }
+    #[test]
+    fn budget_diagnostics_report_candidate_and_effect_attempts_without_changing_counters() {
+        let mut nodes = MAX_NODES;
+        let error = charge(&mut nodes).unwrap_err();
+        let details = error.render_budget.unwrap();
+        assert_eq!(nodes, MAX_NODES);
+        assert_eq!(details.budget, RenderBudget::CandidateAnalysisNodes);
+        assert_eq!(details.limit, "65536");
+        assert_eq!(details.work.as_deref(), Some("65537"));
+        assert_eq!(details.units, "nodes");
+        assert!(details.contributors.is_empty());
+        let effect = VisualEffect::ColorAdjustment {
+            id: "/private/path --command".into(),
+            exposure_stops: 0.0,
+            contrast: 1.0,
+            saturation: 1.0,
+        };
+        let mut work = MAX_EFFECT_PASSES - 2;
+        let details = effect_budget((1, 1), std::slice::from_ref(&effect), 1.0, &mut work)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert_eq!(work, MAX_EFFECT_PASSES - 2);
+        assert_eq!(details.budget, RenderBudget::EffectPixelPasses);
+        assert_eq!(details.work.as_deref(), Some("268435457"));
+        assert_eq!(details.measurement, "conservative");
+        assert_eq!(details.contributors[0].work, "3");
+        assert!(!serde_json::to_string(&details).unwrap().contains("private"));
+        let mut work = u64::MAX;
+        let details = effect_budget((1, 1), &[effect], 1.0, &mut work)
+            .unwrap_err()
+            .render_budget
+            .unwrap();
+        assert!(details.overflow);
+        assert!(details.work.is_none());
+        assert_eq!(work, u64::MAX);
     }
 }

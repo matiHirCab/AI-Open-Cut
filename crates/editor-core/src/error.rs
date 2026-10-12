@@ -44,6 +44,124 @@ impl ErrorCode {
     }
 }
 
+/// Closed native accounting identifiers. Values describe admission work, not RSS.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RenderBudget {
+    ShapeSegments,
+    SceneShapeSegments,
+    SceneShapeRasterBytes,
+    CandidateAnalysisNodes,
+    EffectPixelPasses,
+    MotionBlurPixelWork,
+    CompositionPixelWork,
+    CompositionBytes,
+}
+
+impl RenderBudget {
+    const fn units(self) -> &'static str {
+        match self {
+            Self::ShapeSegments | Self::SceneShapeSegments => "segments",
+            Self::SceneShapeRasterBytes | Self::CompositionBytes => "bytes",
+            Self::CandidateAnalysisNodes => "nodes",
+            Self::EffectPixelPasses => "pixel_passes",
+            Self::MotionBlurPixelWork | Self::CompositionPixelWork => "pixel_samples",
+        }
+    }
+
+    const fn measurement(self) -> &'static str {
+        match self {
+            Self::SceneShapeRasterBytes | Self::EffectPixelPasses | Self::CompositionBytes => {
+                "conservative"
+            }
+            _ => "charged",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderBudgetDiagnostic {
+    pub budget: RenderBudget,
+    pub limit: String,
+    pub work: Option<String>,
+    pub units: &'static str,
+    pub measurement: &'static str,
+    pub overflow: bool,
+    pub contributors: Vec<RenderBudgetContributor>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RenderContributorKind {
+    Effect,
+    Grid,
+    MotionBlur,
+    Shape,
+    Svg,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct RenderBudgetContributor {
+    pub kind: RenderContributorKind,
+    pub work: String,
+}
+
+/// Retains only the largest eight owner-computed charges, never source identities.
+#[derive(Default)]
+pub(crate) struct BudgetContributions(Vec<(RenderContributorKind, u64)>);
+
+impl BudgetContributions {
+    pub(crate) fn add(&mut self, kind: RenderContributorKind, work: u64) {
+        self.0.push((kind, work));
+        self.0.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        self.0.truncate(8);
+    }
+
+    pub(crate) fn values(&self) -> Vec<RenderBudgetContributor> {
+        self.0
+            .iter()
+            .map(|&(kind, work)| RenderBudgetContributor {
+                kind,
+                work: work.to_string(),
+            })
+            .collect()
+    }
+}
+
+pub(crate) fn budget_contributor(
+    kind: RenderContributorKind,
+    work: u64,
+) -> Vec<RenderBudgetContributor> {
+    vec![RenderBudgetContributor {
+        kind,
+        work: work.to_string(),
+    }]
+}
+
+/// Report the same checked owner charge while preserving its original messages.
+pub(crate) fn charge_render_work(
+    total: &mut u64,
+    charge: Option<u64>,
+    budget: RenderBudget,
+    limit: u64,
+    messages: (&'static str, &'static str),
+    kind: RenderContributorKind,
+) -> Result<(), CoreError> {
+    let attempted = charge.and_then(|value| total.checked_add(value));
+    let message = if charge.is_none() {
+        messages.0
+    } else {
+        messages.1
+    };
+    let value = attempted.filter(|value| *value <= limit).ok_or_else(|| {
+        let contributors = charge.map_or_else(Vec::new, |value| budget_contributor(kind, value));
+        CoreError::budget(message, budget, limit, attempted, contributors)
+    })?;
+    *total = value;
+    Ok(())
+}
+
 #[derive(Debug, Error)]
 #[error("{message}")]
 pub struct CoreError {
@@ -53,6 +171,7 @@ pub struct CoreError {
     pub failed_stage: Option<String>,
     pub ffmpeg_exit_code: Option<i32>,
     pub ffmpeg_stderr_excerpt: Option<String>,
+    pub render_budget: Option<Box<RenderBudgetDiagnostic>>,
 }
 
 impl CoreError {
@@ -64,6 +183,7 @@ impl CoreError {
             failed_stage: None,
             ffmpeg_exit_code: None,
             ffmpeg_stderr_excerpt: None,
+            render_budget: None,
         }
     }
 
@@ -75,7 +195,28 @@ impl CoreError {
             failed_stage: Some(stage.into()),
             ffmpeg_exit_code: exit_code,
             ffmpeg_stderr_excerpt: stderr,
+            render_budget: None,
         }
+    }
+
+    pub(crate) fn budget(
+        message: &'static str,
+        budget: RenderBudget,
+        limit: u64,
+        work: Option<u64>,
+        contributors: Vec<RenderBudgetContributor>,
+    ) -> Self {
+        let mut error = Self::new(ErrorCode::InvalidArgument, message);
+        error.render_budget = Some(Box::new(RenderBudgetDiagnostic {
+            budget,
+            limit: limit.to_string(),
+            work: work.map(|value| value.to_string()),
+            units: budget.units(),
+            measurement: budget.measurement(),
+            overflow: work.is_none(),
+            contributors,
+        }));
+        error
     }
 
     pub(crate) fn io(context: &str, error: std::io::Error) -> Self {
@@ -132,6 +273,119 @@ impl From<serde_json::Error> for CoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_budget_catalog_matches_typed_identifiers_and_lossless_error_payload() {
+        let catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/render-budget-diagnostics-v1.json"
+        ))
+        .unwrap();
+        for budget in [
+            RenderBudget::ShapeSegments,
+            RenderBudget::SceneShapeSegments,
+            RenderBudget::SceneShapeRasterBytes,
+            RenderBudget::CandidateAnalysisNodes,
+            RenderBudget::EffectPixelPasses,
+            RenderBudget::MotionBlurPixelWork,
+            RenderBudget::CompositionPixelWork,
+            RenderBudget::CompositionBytes,
+        ] {
+            let name = serde_json::to_value(budget).unwrap();
+            assert_eq!(
+                catalog["budgets"][name.as_str().unwrap()],
+                serde_json::json!([budget.units(), budget.measurement()])
+            );
+        }
+        let error = CoreError::budget(
+            "scene shape segment limit exceeded",
+            RenderBudget::SceneShapeSegments,
+            1_048_576,
+            Some(1_048_577),
+            budget_contributor(RenderContributorKind::Shape, 1),
+        );
+        assert_eq!(error.code, ErrorCode::InvalidArgument);
+        assert!(!error.retryable);
+        assert!(error.failed_stage.is_none());
+        assert_eq!(
+            serde_json::to_value(error.render_budget).unwrap(),
+            catalog["fixtures"][0]["value"]
+        );
+        let large = CoreError::budget(
+            "bound",
+            RenderBudget::SceneShapeSegments,
+            u64::MAX,
+            Some(u64::MAX),
+            vec![],
+        );
+        assert_eq!(
+            large.render_budget.unwrap().work.as_deref(),
+            Some("18446744073709551615")
+        );
+        assert!(
+            CoreError::new(ErrorCode::RevisionConflict, "stale revision")
+                .render_budget
+                .is_none()
+        );
+        assert!(
+            CoreError::render_failure("render", None, None)
+                .render_budget
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn native_budget_charges_preserve_exact_boundary_overflow_and_contributor_bounds() {
+        let mut total = 9;
+        charge_render_work(
+            &mut total,
+            Some(1),
+            RenderBudget::MotionBlurPixelWork,
+            10,
+            ("overflow", "limit"),
+            RenderContributorKind::MotionBlur,
+        )
+        .unwrap();
+        let error = charge_render_work(
+            &mut total,
+            Some(1),
+            RenderBudget::MotionBlurPixelWork,
+            10,
+            ("overflow", "limit"),
+            RenderContributorKind::MotionBlur,
+        )
+        .unwrap_err();
+        assert_eq!(total, 10);
+        let details = error.render_budget.unwrap();
+        assert_eq!(details.work.as_deref(), Some("11"));
+        assert_eq!(details.limit, "10");
+        assert!(!details.overflow);
+        total = u64::MAX;
+        let error = charge_render_work(
+            &mut total,
+            Some(1),
+            RenderBudget::MotionBlurPixelWork,
+            10,
+            ("overflow", "limit"),
+            RenderContributorKind::MotionBlur,
+        )
+        .unwrap_err();
+        let details = error.render_budget.unwrap();
+        assert!(details.overflow);
+        assert!(details.work.is_none());
+        assert_eq!(total, u64::MAX);
+        let mut contributions = BudgetContributions::default();
+        for value in 0..24 {
+            contributions.add(RenderContributorKind::Shape, value);
+            contributions.add(RenderContributorKind::Grid, value);
+        }
+        let values = contributions.values();
+        assert_eq!(values.len(), 8);
+        assert_eq!(values[0].kind, RenderContributorKind::Grid);
+        assert_eq!(values[0].work, "23");
+        assert_eq!(values[1].kind, RenderContributorKind::Shape);
+        assert_eq!(values[7].work, "20");
+        assert!(!serde_json::to_string(&values).unwrap().contains("/"));
+    }
 
     #[test]
     fn color_decode_classification_requires_the_exact_anchored_marker() {

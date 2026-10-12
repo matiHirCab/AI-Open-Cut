@@ -1,3 +1,81 @@
+#[test]
+fn native_render_budget_rejection_preserves_destination_project_history_and_draft() {
+    let h = Harness::new();
+    let id = result(
+        &h.request(json!({"operation":"create_project","name":"Private /source/path --command"})),
+    )["projectId"]
+        .clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let track = state["project"]["tracks"][1]["id"].clone();
+    let written = result(&h.request(
+        json!({"operation":"edit","projectId":id,"expectedRevision":0,"edit":{
+            "operation":"add_shape","trackId":track,"startMs":0,"durationMs":1000,
+            "geometry":{"type":"rectangle","width":1024,"height":1024},
+            "fill":{"type":"solid","color":{"r":1,"g":0,"b":0,"a":1}},"stroke":null
+        }}),
+    ));
+    let item = written["changedIds"][0].clone();
+    result(&h.request(json!({"operation":"create_draft","projectId":id,"expectedRevision":1,"operations":[{
+        "operation":"update_item","itemId":item,"transform":{"positionX":0,"positionY":0,"scale":1,"opacity":0.5}
+    }]})));
+    let before = h.project_files(id.as_str().unwrap());
+    let destination = h.root.path().join("exports/existing.mp4");
+    std::fs::write(&destination, b"existing destination").unwrap();
+    let error = event(&h.request(
+        json!({"operation":"export_video","projectId":id,"expectedRevision":1,
+        "relativePath":"existing.mp4","width":4096,"height":4096,"overwrite":false}),
+    ))["error"]
+        .clone();
+    // The mandatory canonical command executes this actual producer case.
+    let catalog: Value = serde_json::from_str(include_str!(
+        "../../../contracts/render-budget-diagnostics-v1.json"
+    ))
+    .unwrap();
+    assert_eq!(error["code"], catalog["error"]["code"]);
+    assert_eq!(error["retryable"], catalog["error"]["retryable"]);
+    assert_eq!(
+        json!([
+            error["renderBudget"]["units"],
+            error["renderBudget"]["measurement"]
+        ]),
+        catalog["budgets"]["composition_bytes"]
+    );
+    assert_eq!(error["code"], "INVALID_ARGUMENT");
+    assert_eq!(error["retryable"], false);
+    assert!(error["failedStage"].is_null());
+    assert_eq!(error["renderBudget"]["budget"], "composition_bytes");
+    assert_eq!(error["renderBudget"]["limit"], "1073741824");
+    assert_eq!(error["renderBudget"]["measurement"], "conservative");
+    assert_eq!(error["renderBudget"]["units"], "bytes");
+    assert_eq!(error["renderBudget"]["overflow"], false);
+    assert!(
+        error["renderBudget"]["work"]
+            .as_str()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 1_073_741_824
+    );
+    let serialized = serde_json::to_string(&error["renderBudget"]).unwrap();
+    assert!(!serialized.contains("Private"));
+    assert!(!serialized.contains("/source"));
+    assert!(!serialized.contains("command"));
+    assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    assert_eq!(std::fs::read(destination).unwrap(), b"existing destination");
+    assert_eq!(
+        std::fs::read_dir(h.root.path().join("exports"))
+            .unwrap()
+            .count(),
+        1
+    );
+    let stale = event(&h.request(
+        json!({"operation":"render_preview","projectId":id,"expectedRevision":0,"timeMs":0}),
+    ))["error"]
+        .clone();
+    assert_eq!(stale["code"], "REVISION_CONFLICT");
+    assert!(stale.get("renderBudget").is_none());
+}
+
 use std::process::{Command, Output, Stdio};
 
 use serde_json::{Value, json};

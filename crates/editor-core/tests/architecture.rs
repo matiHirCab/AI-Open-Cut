@@ -16,7 +16,7 @@ const OWNER_MATRIX: &[(&str, &[&str])] = &[
     ("drafts", &["persistence"]),
     (
         "evaluated_scene",
-        &["animation", "validation", "fonts", "markers"],
+        &["animation", "validation", "fonts", "markers", "error"],
     ),
     ("error", &[]),
     ("fonts", &[]),
@@ -1526,7 +1526,7 @@ fn evaluated_scene_excludes_persistence_and_renderer_details() {
     let analysis = analyze_owner("evaluated_scene").unwrap();
     validate_owner_analysis(
         "evaluated_scene",
-        &["animation", "validation", "fonts", "markers"],
+        &["animation", "validation", "fonts", "markers", "error"],
         &analysis,
     )
     .unwrap();

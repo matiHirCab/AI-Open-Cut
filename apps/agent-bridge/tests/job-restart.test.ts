@@ -27,6 +27,8 @@ import {
   restoreJobRestartRaw,
 } from "./fixtures/job-restart-projection";
 
+import { removeRenderBudgetMcpAddition } from "./fixtures/render-budget-projection";
+
 const roots: string[] = [];
 const root = () => {
   const directory = mkdtempSync(join(tmpdir(), "opencut-job-restart-"));
@@ -278,7 +280,8 @@ it("preserves all prior MCP schemas and capabilities except the single additive 
   const restored = JSON.parse(
     restoreJobRestartRaw(source)
   ) as typeof MCP_SURFACE;
-  expect(restored.toolDefinitions).toEqual(MCP_SURFACE.toolDefinitions);
+  const predecessor = removeRenderBudgetMcpAddition(MCP_SURFACE);
+  expect(restored.toolDefinitions).toEqual(predecessor.toolDefinitions);
   expect(restored.capabilityIdentifiers).not.toContain(RESTART.capability);
   expect(restored.capabilityIdentifiers.length + 1).toBe(
     MCP_SURFACE.capabilityIdentifiers.length

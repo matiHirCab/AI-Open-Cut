@@ -219,6 +219,8 @@ struct ErrorBody {
     failed_stage: Option<String>,
     ffmpeg_exit_code: Option<i32>,
     ffmpeg_stderr_excerpt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    render_budget: Option<Box<opencut_editor_core::RenderBudgetDiagnostic>>,
 }
 
 #[derive(Serialize)]
@@ -257,6 +259,7 @@ fn main() {
                 failed_stage: error.failed_stage,
                 ffmpeg_exit_code: error.ffmpeg_exit_code,
                 ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
+                render_budget: error.render_budget,
             },
         });
         std::process::exit(1);
@@ -959,6 +962,7 @@ fn status(renderer: &Renderer) -> Status {
                 failed_stage: error.failed_stage,
                 ffmpeg_exit_code: error.ffmpeg_exit_code,
                 ffmpeg_stderr_excerpt: error.ffmpeg_stderr_excerpt,
+                render_budget: error.render_budget,
             }),
         },
     };

@@ -445,3 +445,11 @@
 /docs/adr/0005-ephemeral-job-restart-semantics.md @matiHirCab
 /apps/agent-bridge/tests/job-restart-workflow.ts @matiHirCab
 /apps/agent-bridge/tests/fixtures/job-restart-* @matiHirCab
+
+# Issue 186 native render admission diagnostics.
+/apps/agent-bridge/src/render-budget.ts @matiHirCab
+/apps/agent-bridge/src/headless-events.ts @matiHirCab
+/apps/headless/src/worker.rs @matiHirCab
+/apps/agent-bridge/tests/render-budget* @matiHirCab
+/apps/agent-bridge/tests/fixtures/render-budget-* @matiHirCab
+/docs/native-render-budget-diagnostics.md @matiHirCab
