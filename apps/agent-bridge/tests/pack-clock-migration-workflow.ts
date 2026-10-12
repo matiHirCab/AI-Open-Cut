@@ -4,7 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import PACK from "../../../contracts/initial-motion-preset-pack-v1.json";
-import masterNormalization from "../../../contracts/master-normalization-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import { projectStateSchema, writeResultSchema } from "../src/schemas";
 
 type Call = <Output>(
@@ -129,7 +129,7 @@ export const verifyPackClockMigrationWorkflow = async (
   writeFileSync(historyPath, JSON.stringify(oldHistory));
   const migrated = await read();
   expect(migrated.project.schemaVersion).toBe(
-    masterNormalization.projectSchemaVersion
+    solidGraphicSlots.projectSchemaVersion
   );
   expect(JSON.parse(readFileSync(projectPath, "utf8"))).toEqual(
     originalProject
@@ -222,7 +222,7 @@ export const verifyPackClockMigrationWorkflow = async (
   expect(
     [...retained.undo, ...retained.redo].every(
       (snapshot) =>
-        snapshot.schemaVersion === masterNormalization.projectSchemaVersion
+        snapshot.schemaVersion === solidGraphicSlots.projectSchemaVersion
     )
   ).toBe(true);
 };

@@ -24,7 +24,8 @@ export const restoreSpeechAlignmentCatalogMarker = (
     raw.projectSchemaVersion === 41 ||
     raw.projectSchemaVersion === 42 ||
     raw.projectSchemaVersion === 43 ||
-    raw.projectSchemaVersion === 44
+    raw.projectSchemaVersion === 44 ||
+    raw.projectSchemaVersion === 45
       ? restoreAudioBusCatalogMarker(raw)
       : raw;
   if (value.projectSchemaVersion !== 38) {

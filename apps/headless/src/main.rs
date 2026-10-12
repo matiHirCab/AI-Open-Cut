@@ -886,6 +886,7 @@ fn editor_capabilities() -> Vec<&'static str> {
         "project_audio_buses_v1",
         "semantic_sound_event_definitions_v1",
         "timeline_audio_events_v1",
+        "solid_graphic_color_slots_v1",
     ]
 }
 

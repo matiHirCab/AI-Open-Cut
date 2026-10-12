@@ -455,3 +455,9 @@
 /docs/native-render-budget-diagnostics.md @matiHirCab
 
 /apps/headless/tests/support/budget_readiness_fixture.rs @matiHirCab
+# Issue183 solid graphic color slot contract and conformance.
+/contracts/solid-graphic-color-slots-v1.json @matiHirCab
+/crates/editor-core/tests/solid_graphic_color_slots.rs @matiHirCab
+/apps/agent-bridge/tests/solid-graphic-color-slots* @matiHirCab
+/apps/agent-bridge/tests/fixtures/solid-graphic-color-slots* @matiHirCab
+/docs/solid-graphic-color-slots.md @matiHirCab

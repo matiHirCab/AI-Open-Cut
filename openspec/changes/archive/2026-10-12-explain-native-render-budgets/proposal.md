@@ -27,3 +27,6 @@ No budget increase, independent estimator, renderer redesign, quality reduction,
 
 ## Independent-review verification correction
 Reopen only this change to address the independently reproduced P2: reject a retained RenderBudgetDiagnostic definition when all six governed MCP error properties are missing. Preserve historical inputs with neither fields nor definition, all predecessor pins, canonical catalogs and production behavior. This is verification-only and introduces no protocol or dependency change.
+
+## Reconcile merged solid color slots
+Main advanced to aefef426dfd63d56a12b29310b5ea1f6e119d792 when the user merged PR196. Reconcile this branch through an ordinary merge, preserving schema45, solid color capability/fixtures/registrations/ownership and approved native process observer. Compose exact owned addition removers so budget and color proofs both retain every historical pin and unrelated-drift rejection. Production budget behavior is unchanged.

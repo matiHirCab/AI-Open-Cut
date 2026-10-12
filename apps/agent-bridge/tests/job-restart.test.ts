@@ -28,6 +28,7 @@ import {
 } from "./fixtures/job-restart-projection";
 
 import { removeRenderBudgetMcpAddition } from "./fixtures/render-budget-projection";
+import { removeSolidGraphicMcpAdditions } from "./fixtures/solid-graphic-color-slots-projection";
 
 const roots: string[] = [];
 const root = () => {
@@ -276,15 +277,16 @@ it("restores only the reviewed ownership addition and refuses changed predecesso
 });
 
 it("preserves all prior MCP schemas and capabilities except the single additive identifier", () => {
-  const source = JSON.stringify(MCP_SURFACE);
+  const previous = removeSolidGraphicMcpAdditions(MCP_SURFACE);
+  const source = JSON.stringify(previous);
   const restored = JSON.parse(
     restoreJobRestartRaw(source)
   ) as typeof MCP_SURFACE;
-  const predecessor = removeRenderBudgetMcpAddition(MCP_SURFACE);
+  const predecessor = removeRenderBudgetMcpAddition(previous);
   expect(restored.toolDefinitions).toEqual(predecessor.toolDefinitions);
   expect(restored.capabilityIdentifiers).not.toContain(RESTART.capability);
   expect(restored.capabilityIdentifiers.length + 1).toBe(
-    MCP_SURFACE.capabilityIdentifiers.length
+    previous.capabilityIdentifiers.length
   );
   const changed = structuredClone(MCP_SURFACE);
   changed.version = 2;

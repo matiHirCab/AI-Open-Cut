@@ -62,3 +62,7 @@ Budget diagnostics MUST preserve rejection before artifact/output preparation an
 #### Scenario: Historical catalog without budget metadata
 - **WHEN** an input has neither budget fields nor a budget definition
 - **THEN** rollback MUST preserve the historical input and all recorded predecessor pins unchanged
+
+#### Scenario: Preserve merged solid color contract during reconciliation
+- **WHEN** latest main contains the reviewed solid graphic color capability and project schema45
+- **THEN** budget diagnostic integration MUST preserve both owners' declarations, registrations, fixtures and every predecessor pin, reject missing diagnostic fields and unrelated drift, and receive independent exact-head resolution review

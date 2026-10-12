@@ -217,7 +217,10 @@ fn default_native_release_scene() {
     assert!(!work.exists());
     let fixture = fixture::seed(&work, true);
     let project = fixture.project();
-    assert_eq!(project.schema_version, 44);
+    assert_eq!(
+        project.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(
         (
             project.settings.width,
@@ -526,7 +529,7 @@ fn default_native_release_scene() {
             .unwrap()
             .to_owned()
     };
-    let report = json!({"version":1,"runNonce":nonce,"fixtureSha256":RECIPE_SHA,"schemaVersion":44,"platform":env::consts::OS,"architecture":env::consts::ARCH,"buildProfile":"release","instrumented":false,"cacheMode":if cfg!(target_os="macos"){"native_identity_bypass"}else{"native_reuse"},"fonts":fonts,"tools":{"ffmpeg":version(&ffmpeg),"ffprobe":version(&ffprobe)},"warmupCaptures":1,"measuredCaptures":3,"sampleIntervalMs":5,"memoryScope":"isolated_test_process_tree","memoryAggregation":"maximum_sampled_resident","timingScope":"direct_whole_capture_including_preparation_and_oracles","captures":captures,"witnesses":{"groups":10,"operations":67,"cueTimesMs":times,"goldNegative":true,"voiceNegative":true,"stateFailures":true,"historyReopen":true}});
+    let report = json!({"version":1,"runNonce":nonce,"fixtureSha256":RECIPE_SHA,"schemaVersion":opencut_editor_core::PROJECT_SCHEMA_VERSION,"platform":env::consts::OS,"architecture":env::consts::ARCH,"buildProfile":"release","instrumented":false,"cacheMode":if cfg!(target_os="macos"){"native_identity_bypass"}else{"native_reuse"},"fonts":fonts,"tools":{"ffmpeg":version(&ffmpeg),"ffprobe":version(&ffprobe)},"warmupCaptures":1,"measuredCaptures":3,"sampleIntervalMs":5,"memoryScope":"isolated_test_process_tree","memoryAggregation":"maximum_sampled_resident","timingScope":"direct_whole_capture_including_preparation_and_oracles","captures":captures,"witnesses":{"groups":10,"operations":67,"cueTimesMs":times,"goldNegative":true,"voiceNegative":true,"stateFailures":true,"historyReopen":true}});
     fs::write(
         output.join("core-report.json"),
         serde_json::to_vec_pretty(&report).unwrap(),

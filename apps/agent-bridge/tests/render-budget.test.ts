@@ -6,11 +6,13 @@ import { errorBody } from "../src/headless";
 import { BridgeError, eventSchema } from "../src/headless-events";
 import { RENDER_BUDGETS, renderBudgetSchema } from "../src/render-budget";
 import { publicErrorSchema } from "../src/schemas";
+import { restoreRenderBudgetGraphicRaw } from "./fixtures/render-budget-graphic-projection";
 import pins from "./fixtures/render-budget-predecessor-pins.json";
 import {
   removeRenderBudgetMcpAddition,
   restoreRenderBudgetRaw,
 } from "./fixtures/render-budget-projection";
+import { restoreSolidGraphicRaw } from "./fixtures/solid-graphic-color-slots-projection";
 
 it("preserves governed native charges through headless and public bridge errors", () => {
   expect(RENDER_BUDGETS).toEqual(CATALOG.budgets);
@@ -115,6 +117,12 @@ it("rejects all missing budget fields with a retained definition and preserves h
   expect(() => restoreRenderBudgetRaw(JSON.stringify(incomplete))).toThrow(
     "Missing native budget schema addition"
   );
+  expect(() =>
+    restoreRenderBudgetGraphicRaw(JSON.stringify(incomplete))
+  ).toThrow("Missing native budget schema addition");
+  expect(() => restoreSolidGraphicRaw(JSON.stringify(incomplete))).toThrow(
+    "Missing native budget schema addition"
+  );
   const historicalRaw = restoreRenderBudgetRaw(JSON.stringify(source));
   const historical = JSON.parse(historicalRaw);
   expect(historical.$defs?.RenderBudgetDiagnostic).toBeUndefined();
@@ -123,4 +131,26 @@ it("rejects all missing budget fields with a retained definition and preserves h
   expect(createHash("sha256").update(historicalRaw).digest("hex")).toBe(
     pins.rawSha256["mcp-surface-v1"]
   );
+});
+
+it("retains both merged owner proofs and rejects unrelated catalog drift", () => {
+  for (const [name, hash] of Object.entries(pins.rawSha256)) {
+    const source = readFileSync(
+      new URL(`../../../contracts/${name}.json`, import.meta.url),
+      "utf8"
+    );
+    for (const restore of [
+      restoreRenderBudgetRaw,
+      restoreSolidGraphicRaw,
+      restoreRenderBudgetGraphicRaw,
+    ]) {
+      const historical = restore(source);
+      expect(createHash("sha256").update(historical).digest("hex")).toBe(hash);
+      expect(restore(historical)).toBe(historical);
+      const drift = { ...JSON.parse(source), unauthorized: "private drift" };
+      expect(() => restore(JSON.stringify(drift))).toThrow(
+        "predecessor contract drift"
+      );
+    }
+  }
 });

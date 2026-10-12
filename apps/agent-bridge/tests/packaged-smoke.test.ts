@@ -58,6 +58,7 @@ import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
 import { verifySoundEventWorkflow } from "./semantic-sound-events-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
+import { verifySolidGraphicSlots } from "./solid-graphic-color-slots-workflow";
 import { verifySpeechMarkerWorkflow } from "./speech-markers-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
@@ -541,6 +542,10 @@ it("completes the packaged instance workflow", async () => {
 
 it("completes the packaged component definition workflow", async () => {
   await verifyComponentDefinitionWorkflow(client, call, directories.media);
+});
+
+it("completes the packaged solid graphic color slot and draft workflow", async () => {
+  await verifySolidGraphicSlots(client, call, directories.projects);
 });
 
 it("completes the packaged slot regression workflow", async () => {

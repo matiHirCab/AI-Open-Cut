@@ -1,5 +1,6 @@
 use opencut_editor_core::{
-    BatchEditOperation, EditOperation, EditorCore, ErrorCode, PathPolicy, ProjectSettings,
+    BatchEditOperation, EditOperation, EditorCore, ErrorCode, PROJECT_SCHEMA_VERSION, PathPolicy,
+    ProjectSettings,
 };
 use serde_json::{Value, json};
 
@@ -82,7 +83,7 @@ fn closed_master_settings_and_operations_match_independent_catalog() {
 fn empty_root_authoring_is_backend_independent_and_survives_history_and_reopen() {
     let (_root, core, id) = setup();
     let initial = core.get_project(&id).unwrap();
-    assert_eq!(initial.schema_version, 44);
+    assert_eq!(initial.schema_version, PROJECT_SCHEMA_VERSION);
     assert!(
         serde_json::to_value(&initial)
             .unwrap()
@@ -285,7 +286,7 @@ fn all43_sources_and_retained_history_migrate_without_inventing_controls() {
         )
         .unwrap();
         let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-        assert_eq!(migrated["schemaVersion"], 44);
+        assert_eq!(migrated["schemaVersion"], PROJECT_SCHEMA_VERSION);
         assert!(migrated.get("masterNormalization").is_none());
         for field in ["assets", "tracks", "createdAtMs", "updatedAtMs"] {
             assert_eq!(migrated[field], source[field]);
@@ -301,12 +302,15 @@ fn all43_sources_and_retained_history_migrate_without_inventing_controls() {
         serde_json::to_vec_pretty(&json!({"undo":sources,"redo":sources})).unwrap(),
     )
     .unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 44);
+    assert_eq!(
+        core.get_project(&id).unwrap().schema_version,
+        PROJECT_SCHEMA_VERSION
+    );
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for list in ["undo", "redo"] {
         for (index, snapshot) in history[list].as_array().unwrap().iter().enumerate() {
-            assert_eq!(snapshot["schemaVersion"], 44);
+            assert_eq!(snapshot["schemaVersion"], PROJECT_SCHEMA_VERSION);
             assert!(snapshot.get("masterNormalization").is_none());
             for field in ["assets", "tracks", "createdAtMs", "updatedAtMs"] {
                 assert_eq!(snapshot[field], sources[index][field]);
@@ -323,7 +327,10 @@ fn premature_null_invalid_and_future_current_or_history_are_rejected_without_rew
             (43, catalog()["disabledExample"].clone()),
             (44, json!(null)),
             (44, json!({"enabled":false})),
-            (45, catalog()["settingsExample"].clone()),
+            (
+                PROJECT_SCHEMA_VERSION + 1,
+                catalog()["settingsExample"].clone(),
+            ),
         ] {
             let (root, core, id) = setup();
             let dir = root.path().join("projects").join(&id);
@@ -408,7 +415,7 @@ fn schema43_managed_speech_provenance_and_history_survive_normalization_adoption
     .unwrap();
     let managed_before = inventory(&dir.join("assets"));
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
-    assert_eq!(migrated["schemaVersion"], 44);
+    assert_eq!(migrated["schemaVersion"], PROJECT_SCHEMA_VERSION);
     for field in ["assets", "tracks", "fonts", "createdAtMs", "updatedAtMs"] {
         assert_eq!(migrated[field], predecessor[field]);
     }
@@ -417,7 +424,7 @@ fn schema43_managed_speech_provenance_and_history_survive_normalization_adoption
     for list in ["undo", "redo"] {
         assert_eq!(history[list][0]["assets"], predecessor["assets"]);
         assert_eq!(history[list][0]["tracks"], predecessor["tracks"]);
-        assert_eq!(history[list][0]["schemaVersion"], 44);
+        assert_eq!(history[list][0]["schemaVersion"], PROJECT_SCHEMA_VERSION);
         assert!(history[list][0].get("masterNormalization").is_none());
     }
     let write = core

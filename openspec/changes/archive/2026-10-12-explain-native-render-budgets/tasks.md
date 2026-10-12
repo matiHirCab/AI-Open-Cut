@@ -22,3 +22,8 @@ These follow the implementation checklist and remain completion gates: synchroni
 ## 5. Independent rollback completeness correction
 - [x] 5.1 Add definition-aware budget completeness guard and all-six-missing direct/raw negative controls; preserve historical inputs and all pins.
 - [x] 5.2 Refresh affected checks, verify conformance and prepare the rearchive/final-gate publication handoff.
+
+## 6. Merged-main reconciliation
+- [x] 6.1 Merge exact latest main normally; preserve all upstream declarations/fixtures/registrations, compose exact color/budget rollback proofs and retain completeness/pin/unrelated-drift controls.
+- [x] 6.2 Verify affected checks and exact-head disposable pending-lane union; obtain independent specification/implementation resolution review.
+- [x] 6.3 Verify conformance and prepare the archive/final-gate/new-head CI publication handoff.
