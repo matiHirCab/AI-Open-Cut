@@ -24,3 +24,6 @@ Core error and evaluated-scene accounting, headless error serialization, bridge 
 ## Non-goals
 
 No budget increase, independent estimator, renderer redesign, quality reduction, progress (#179), decoder/spawn diagnostics (#177/#178), provider diagnostics or desktop change. Coverage is explicitly limited to existing shape segment/raster allocation accounting, candidate analysis nodes, effect pixel passes, motion blur pixel work, linear composition output-frame work and composition memory accounting. Other guards keep their existing error envelopes until their owning accounting can support reviewed diagnostics.
+
+## Independent-review verification correction
+Reopen only this change to address the independently reproduced P2: reject a retained RenderBudgetDiagnostic definition when all six governed MCP error properties are missing. Preserve historical inputs with neither fields nor definition, all predecessor pins, canonical catalogs and production behavior. This is verification-only and introduces no protocol or dependency change.

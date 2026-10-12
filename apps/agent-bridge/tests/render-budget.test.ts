@@ -81,3 +81,46 @@ it("rejects diagnostic schema drift without suppressing unrelated predecessor ch
     restoreRenderBudgetRaw(`${JSON.stringify(ordinary, null, 2)}\n`)
   ).toThrow("Unrelated");
 });
+
+it("rejects all missing budget fields with a retained definition and preserves historical catalogs", () => {
+  const source = JSON.parse(
+    readFileSync(
+      new URL("../../../contracts/mcp-surface-v1.json", import.meta.url),
+      "utf8"
+    )
+  );
+  const incomplete = structuredClone(source);
+  let removed = 0;
+  const walk = (value: unknown) => {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    const { properties } = value as {
+      properties?: Record<string, unknown>;
+    };
+    if (properties && Object.hasOwn(properties, "renderBudget")) {
+      Reflect.deleteProperty(properties, "renderBudget");
+      removed += 1;
+    }
+    for (const child of Object.values(value)) {
+      walk(child);
+    }
+  };
+  walk(incomplete);
+  expect(removed).toBe(6);
+  expect(incomplete.$defs.RenderBudgetDiagnostic).toEqual(CATALOG.schema);
+  expect(() => removeRenderBudgetMcpAddition(incomplete)).toThrow(
+    "Missing native budget schema addition"
+  );
+  expect(() => restoreRenderBudgetRaw(JSON.stringify(incomplete))).toThrow(
+    "Missing native budget schema addition"
+  );
+  const historicalRaw = restoreRenderBudgetRaw(JSON.stringify(source));
+  const historical = JSON.parse(historicalRaw);
+  expect(historical.$defs?.RenderBudgetDiagnostic).toBeUndefined();
+  expect(removeRenderBudgetMcpAddition(historical)).toEqual(historical);
+  expect(restoreRenderBudgetRaw(historicalRaw)).toBe(historicalRaw);
+  expect(createHash("sha256").update(historicalRaw).digest("hex")).toBe(
+    pins.rawSha256["mcp-surface-v1"]
+  );
+});

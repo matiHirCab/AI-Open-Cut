@@ -60,3 +60,11 @@ Budget diagnostics MUST preserve rejection before artifact/output preparation an
 #### Scenario: Healthy predecessor and revision conflict
 - **WHEN** a valid illustrated benchmark renders or an edit supplies a stale expected revision
 - **THEN** existing rendering evidence and revision conflict behavior remain effective without native budget diagnostics
+
+#### Scenario: Complete rollback of governed MCP budget metadata
+- **WHEN** the budget definition remains but all six governed MCP error fields are removed
+- **THEN** direct and raw rollback MUST reject missing budget metadata with budget-specific failure text rather than accept a predecessor
+
+#### Scenario: Historical catalog without budget metadata
+- **WHEN** an input has neither budget fields nor a budget definition
+- **THEN** rollback MUST preserve the historical input and all recorded predecessor pins unchanged

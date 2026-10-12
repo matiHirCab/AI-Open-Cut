@@ -18,3 +18,7 @@
 
 ## Mandatory post-archive milestones
 These follow the implementation checklist and remain completion gates: synchronize/archive only this verified change, pass final protected/strict spec gates, commit/push the verified scope, open a draft PR, require exact-head required platform CI, address scoped failures, and report commit/PR/check evidence plus dependency-ready candidates to the parent. Track actual results in verification/publication receipts and the PR; do not mark these future milestones complete during pre-archive verification. No merge/auto-merge/deploy is authorized.
+
+## 5. Independent rollback completeness correction
+- [x] 5.1 Add definition-aware budget completeness guard and all-six-missing direct/raw negative controls; preserve historical inputs and all pins.
+- [x] 5.2 Refresh affected checks, verify conformance and prepare the rearchive/final-gate publication handoff.

@@ -44,7 +44,14 @@ export const removeRenderBudgetMcpAddition = <T>(source: T, copy = true): T => {
   const withField = errors.filter((props) =>
     Object.hasOwn(props, "renderBudget")
   );
-  if (withField.length && withField.length !== errors.length) {
+  const hasDefinition = Object.hasOwn(
+    (result as { $defs?: Record<string, unknown> }).$defs ?? {},
+    "RenderBudgetDiagnostic"
+  );
+  if (
+    (withField.length || hasDefinition) &&
+    withField.length !== errors.length
+  ) {
     throw new Error("Missing native budget schema addition");
   }
   for (const props of withField) {
