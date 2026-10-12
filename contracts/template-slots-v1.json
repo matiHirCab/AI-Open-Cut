@@ -20,7 +20,10 @@
     "visual.hidden",
     "text.alignment",
     "item.durationMs",
-    "media.asset"
+    "media.asset",
+    "shape.fill.color",
+    "shape.stroke.color",
+    "grid.dot.paint.color"
   ],
   "limits": {
     "maxSlotsPerComponent": 128,

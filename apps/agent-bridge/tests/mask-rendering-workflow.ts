@@ -3,7 +3,7 @@ import { expect } from "vitest";
 import type { ZodType } from "zod/v4";
 import models from "../../../contracts/mask-models-v1.json";
 import rendering from "../../../contracts/mask-rendering-v1.json";
-import masterNormalization from "../../../contracts/master-normalization-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   editDraftSchema,
   maskSchema,
@@ -23,7 +23,7 @@ export const verifyMaskRenderingWorkflow = async (
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
   expect(status.projectSchemaVersion).toBe(
-    masterNormalization.projectSchemaVersion
+    solidGraphicSlots.projectSchemaVersion
   );
   expect(status.subsystems.editor.capabilities).toContain("mask_animation_v1");
   expect(status.subsystems.editor.capabilities).not.toContain(

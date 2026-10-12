@@ -11,6 +11,10 @@ Core MUST retain safe OS diagnostics when actual final FFmpeg process creation f
 - **WHEN** process creation yields a platform-specific raw code, an unlisted I/O kind, or a custom error containing hostile private text without a native code
 - **THEN** metadata preserves only the safe kind/native-code/platform values, unlisted kinds become other, missing codes remain null, and no private text is serialized
 
+#### Scenario: Preserve bare-name lookup without a native code
+- **WHEN** actual bare-name command lookup yields NotFound without a raw OS code
+- **THEN** core MUST preserve the actual kind and nullable raw code without inventing an OS value, while a separate absolute missing-executable witness retains available native-code and no-progress evidence
+
 ### Requirement: Compatible typed public forwarding
 Core/headless standalone and persistent worker/MCP errors and failed jobs SHALL preserve the same optional startup metadata from the owning core error. Existing FFMPEG_FAILED code, spawn stage, generic message, non-retryability, null child diagnostics, request meaning and project/protocol versions MUST remain unchanged. Ordinary, readiness, pipe and child-exit errors MUST retain their existing public shapes without fabricated startup metadata.
 
@@ -54,3 +58,7 @@ Verification MUST distinguish actual OS startup tests, deterministic injected ad
 #### Scenario: Document historical cause as unconfirmed
 - **WHEN** this fix is described without the original private project/media and installed-build commit
 - **THEN** documentation states the missing evidence and unconfirmed cause, and makes no path-length root-cause claim
+
+#### Scenario: Preserve reviewed main domains during startup verification correction
+- **WHEN** current main advances with approved color slots, persisted-schema migrations or another reviewed diagnostic domain
+- **THEN** startup diagnostic reconciliation MUST preserve its declarations, fixtures, registrations and strict predecessor proofs, reject missing metadata and unrelated drift without changing pins, and receive independent resolution review before publication

@@ -5,8 +5,8 @@ import { expect, it } from "vitest";
 import catalog from "../../../contracts/audio-bus-ducking-v1.json";
 import ownership from "../../../contracts/contract-ownership-v1.json";
 import headless from "../../../contracts/headless-protocol-v1.json";
-import current from "../../../contracts/master-normalization-v1.json";
 import mcp from "../../../contracts/mcp-surface-v1.json";
+import current from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   audioBusDuckingSchema,
   audioBusSchema,

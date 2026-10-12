@@ -1,0 +1,25 @@
+{
+  "base": "50ec842ca6c3c6bea72864b6878fecbc953a5a97",
+  "rawSha256": {
+    "contracts/mcp-surface-v1.json": "cecb14e18a57632125ad9a57773f6c21cee3fcc64f83d29cebf58a1a029886a4",
+    "contracts/headless-protocol-v1.json": "1a0d796fb3bb301e4b37ff51db4e241898b5a339acde52c32b5cd46a8b507437",
+    "contracts/template-slots-v1.json": "1c1118fea80aad4f0bf7df66a388861de88af8584be143ca84ced907c4ff3938",
+    "contracts/contract-ownership-v1.json": "be1dcf0247eb9f7cd246f9efc61e78618e285a0f35501bc191929d5a5b6a7505",
+    "contracts/animation-channels-v1.json": "aeaa65e8c08e3261ee478cf4771d55c5886cb5db15375395ee972b8fb7a66aaa",
+    "contracts/animation-presets-v1.json": "82f8d09358fea345a4d19a251f4337ca072af6c9cd804d1b3fc7acd80a0b328c",
+    "contracts/extended-visual-animation-v1.json": "f5c111410e832daa59f7df82e07addc19ed22efb403e33e4118ef184269327f6",
+    "contracts/inherited-animation-timing-v1.json": "65aea06b26eb4c60fcba0e41268c87667b05e0f47b9f1efda4dd8161ed76b148",
+    "contracts/motion-blur-sampling-v1.json": "76ce40b5010c76ccf3e4f869537fcca102f91288ea4ded281af7eedbc49419bc",
+    "contracts/initial-motion-preset-pack-v1.json": "2fd887b4b33af58a95ac3d67e2c56187700de6a30f7a230ea98e81bf265b31a4",
+    "contracts/mask-models-v1.json": "040d90ef446496ac308517ddc8e090e20f86d047416f317dd57eb9df0c31f33d"
+  },
+  "markerCatalogs": [
+    "contracts/animation-channels-v1.json",
+    "contracts/animation-presets-v1.json",
+    "contracts/extended-visual-animation-v1.json",
+    "contracts/inherited-animation-timing-v1.json",
+    "contracts/motion-blur-sampling-v1.json",
+    "contracts/initial-motion-preset-pack-v1.json",
+    "contracts/mask-models-v1.json"
+  ]
+}

@@ -47,7 +47,7 @@ const exampleSchema = z
       )
       .length(4),
     projectCreate: argumentsSchema,
-    projectSchemaVersion: z.literal(44),
+    projectSchemaVersion: z.literal(45),
     protocolVersion: z.literal(1),
     requiredEditorCapabilities: z.array(z.string()).length(4),
     standalone: z

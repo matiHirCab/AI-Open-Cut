@@ -56,6 +56,7 @@ import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifySoundEventWorkflow } from "./semantic-sound-events-workflow";
 import { verifyShapeWorkflow } from "./shape-workflow";
+import { verifySolidGraphicSlots } from "./solid-graphic-color-slots-workflow";
 import { verifySpeechMarkerWorkflow } from "./speech-markers-workflow";
 import { verifySvgWorkflow } from "./svg-workflow";
 import { verifyTrackMatteWorkflow } from "./track-matte-workflow";
@@ -1277,6 +1278,10 @@ it("creates and customizes native hero cards through discovered recipe data", as
 
 it("preserves component, instance, rule card and slot workflows through MCP", async () => {
   await verifyComponentWorkflow(client, call, media, projects);
+});
+
+it("preserves independent solid graphic color slots and draft lifecycle through MCP", async () => {
+  await verifySolidGraphicSlots(client, call, projects);
 });
 
 it("authors extended animation and motion blur through standalone and alias MCP edits", async () => {

@@ -45,7 +45,8 @@
     "audio_bus_ducking_v1",
     "audio_analysis_v1",
     "audio_master_normalization_v1",
-    "ephemeral_jobs_v1"
+    "ephemeral_jobs_v1",
+    "solid_graphic_color_slots_v1"
   ],
   "prompts": [
     "add_narration",
@@ -2450,7 +2451,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 44,
+            "const": 45,
             "type": "number"
           },
           "protocolVersion": {
@@ -12336,7 +12337,10 @@
               "visual.hidden",
               "text.alignment",
               "item.durationMs",
-              "media.asset"
+              "media.asset",
+              "shape.fill.color",
+              "shape.stroke.color",
+              "grid.dot.paint.color"
             ],
             "type": "string"
           },
@@ -29216,7 +29220,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 44,
+        "const": 45,
         "type": "number"
       },
       "settings": {

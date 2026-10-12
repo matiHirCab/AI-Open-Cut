@@ -4,6 +4,7 @@ import type { Client } from "@modelcontextprotocol/client";
 import { expect, vi } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/master-normalization-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -24,7 +25,9 @@ export const verifyMasterNormalizationWorkflow = async (
   call: Call
 ) => {
   const status = await call("editor_get_status", {}, statusSchema);
-  expect(status.projectSchemaVersion).toBe(catalog.projectSchemaVersion);
+  expect(status.projectSchemaVersion).toBe(
+    solidGraphicSlots.projectSchemaVersion
+  );
   expect(status.protocolVersion).toBe(1);
   expect(status.subsystems.rendering.capabilities).toContain(
     catalog.capability

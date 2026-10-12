@@ -1274,6 +1274,13 @@ fn validate_slot_definition(
         P::VisualHidden => slot.kind == K::Boolean && visual,
         P::ItemDuration => slot.kind == K::Duration,
         P::MediaAsset => slot.kind == K::Asset && matches!(target, TimelineItem::Media(_)),
+        P::ShapeFillColor | P::ShapeStrokeColor | P::GridDotPaintColor => {
+            slot.kind == K::Color
+                && matches!(
+                    graphic_slot_paint(target, slot.binding.property),
+                    Some(crate::Paint::Solid { .. })
+                )
+        }
     };
     if !compatible {
         return Err(slot_invalid("incompatible slot binding"));
@@ -1283,12 +1290,69 @@ fn validate_slot_definition(
     }
     Ok(())
 }
+fn graphic_slot_paint(item: &TimelineItem, property: SlotProperty) -> Option<&crate::Paint> {
+    match (property, item) {
+        (SlotProperty::ShapeFillColor, TimelineItem::Shape(shape)) => shape.fill.as_ref(),
+        (SlotProperty::ShapeStrokeColor, TimelineItem::Shape(shape)) => {
+            shape.stroke.as_ref().map(|stroke| &stroke.paint)
+        }
+        (SlotProperty::GridDotPaintColor, TimelineItem::Grid(grid)) => match &grid.grid.pattern {
+            crate::GridPattern::Dot { paint, .. } => Some(paint),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn graphic_slot_paint_mut(
+    item: &mut TimelineItem,
+    property: SlotProperty,
+) -> Option<&mut crate::Paint> {
+    match (property, item) {
+        (SlotProperty::ShapeFillColor, TimelineItem::Shape(shape)) => shape.fill.as_mut(),
+        (SlotProperty::ShapeStrokeColor, TimelineItem::Shape(shape)) => {
+            shape.stroke.as_mut().map(|stroke| &mut stroke.paint)
+        }
+        (SlotProperty::GridDotPaintColor, TimelineItem::Grid(grid)) => match &mut grid.grid.pattern
+        {
+            crate::GridPattern::Dot { paint, .. } => Some(paint),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn apply_slot_value(
     item: &mut TimelineItem,
     property: SlotProperty,
     value: &SlotValue,
 ) -> Result<(), CoreError> {
     match (property, value) {
+        (
+            SlotProperty::ShapeFillColor
+            | SlotProperty::ShapeStrokeColor
+            | SlotProperty::GridDotPaintColor,
+            SlotValue::Color(value),
+        ) => {
+            // Slot color validation precedes this operation. Retain paint alpha
+            // and replace only unassociated sRGB channels, without coercion.
+            let [r, g, b] = [1, 3, 5].map(|offset| {
+                u8::from_str_radix(&value[offset..offset + 2], 16)
+                    .map(|byte| f64::from(byte) / 255.0)
+                    .map_err(|_| slot_invalid("invalid graphic slot color"))
+            });
+            let color = match graphic_slot_paint_mut(item, property) {
+                Some(crate::Paint::Solid { color }) => color,
+                _ => {
+                    return Err(slot_invalid(
+                        "graphic color slot requires existing solid paint",
+                    ));
+                }
+            };
+            color.r = r?;
+            color.g = g?;
+            color.b = b?;
+        }
         (SlotProperty::TextDocument, SlotValue::Text(value)) => {
             if let TimelineItem::Text(t) = item {
                 t.text = value.clone();
@@ -1420,6 +1484,7 @@ fn validate_template_slots(
     project: &Project,
     definitions: &BTreeMap<&str, usize>,
 ) -> Result<(), CoreError> {
+    project.validate_graphic_slot_schema()?;
     let mut count = 0usize;
     let mut text = 0usize;
     for component in &project.components {
@@ -1557,6 +1622,62 @@ fn validate_instance(
 mod tests {
     use super::*;
     use crate::{Easing, TextItem};
+
+    #[test]
+    fn canonical_graphic_slots_replace_only_rgb_at_every_alpha() {
+        let catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/solid-graphic-color-slots-v1.json"
+        ))
+        .unwrap();
+        for (index, property) in [
+            SlotProperty::ShapeFillColor,
+            SlotProperty::ShapeStrokeColor,
+            SlotProperty::GridDotPaintColor,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            for alpha in catalog["alphaValues"].as_array().unwrap() {
+                let mut item: TimelineItem = serde_json::from_value(
+                    catalog["definition"]["tracks"][0]["items"][usize::from(index == 2)].clone(),
+                )
+                .unwrap();
+                let Some(crate::Paint::Solid { color }) =
+                    graphic_slot_paint_mut(&mut item, property)
+                else {
+                    panic!("canonical target missing");
+                };
+                color.a = alpha.as_f64().unwrap();
+                let before = item.clone();
+                apply_slot_value(&mut item, property, &SlotValue::Color("#12AbEf".into())).unwrap();
+                let Some(crate::Paint::Solid { color }) = graphic_slot_paint(&item, property)
+                else {
+                    panic!("target changed paint type");
+                };
+                assert_eq!(
+                    (color.r, color.g, color.b, color.a),
+                    (
+                        18.0 / 255.0,
+                        171.0 / 255.0,
+                        239.0 / 255.0,
+                        alpha.as_f64().unwrap()
+                    )
+                );
+                // Restore just the expected RGB modification and compare every
+                // geometry, stroke/grid metric and unrelated visual field.
+                *graphic_slot_paint_mut(&mut item, property).unwrap() =
+                    graphic_slot_paint(&before, property).unwrap().clone();
+                assert_eq!(
+                    serde_json::to_value(&item).unwrap(),
+                    serde_json::to_value(&before).unwrap()
+                );
+                assert_eq!(
+                    serde_json::to_value(property).unwrap(),
+                    catalog["properties"][index]
+                );
+            }
+        }
+    }
 
     #[test]
     fn covers_scalar_style_and_shape_validation() {

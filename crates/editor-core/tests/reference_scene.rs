@@ -224,7 +224,10 @@ fn complete_reference_coverage_rejects_removed_groups_operations_overrides_and_b
 fn witnesses(f: &fixture::Fixture) {
     let p = f.project();
     let c = recipe();
-    assert_eq!(p.schema_version, 44);
+    assert_eq!(
+        p.schema_version,
+        opencut_editor_core::PROJECT_SCHEMA_VERSION
+    );
     assert_eq!(p.duration_ms(), 6000);
     assert_eq!(p.components.len(), 1);
     assert_eq!(p.markers.len(), 6);

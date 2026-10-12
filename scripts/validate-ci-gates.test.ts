@@ -2327,3 +2327,17 @@ describe("integrated narration native coverage", () => {
     });
   }
 });
+
+
+describe("solid graphic color slot mandatory consumers", () => {
+  for (const consumer of [" --test solid_graphic_color_slots", " tests/solid-graphic-color-slots.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects solid graphic consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});

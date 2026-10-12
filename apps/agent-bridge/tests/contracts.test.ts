@@ -25,6 +25,7 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
+import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import STACKING from "../../../contracts/stacking-v1.json";
 import type SLOT_CATALOG from "../../../contracts/template-slots-v1.json";
@@ -461,7 +462,7 @@ describe("canonical public contracts", () => {
     });
     expect(PRESETS.compilerVersion).toBe(2);
     expect(PRESETS.projectSchemaVersion).toBe(
-      MASTER_NORMALIZATION.projectSchemaVersion
+      SOLID_GRAPHIC.projectSchemaVersion
     );
     expect(restoreAudioBusCatalogMarker(PRESETS).projectSchemaVersion).toBe(38);
     expect(PRESETS.examples.resolvedChannel.keyframes).toEqual([
@@ -478,7 +479,7 @@ describe("canonical public contracts", () => {
       predecessorDigest,
     } of ACTIVE_ANIMATION_CATALOGS) {
       expect(catalog.projectSchemaVersion, name).toBe(
-        MASTER_NORMALIZATION.projectSchemaVersion
+        SOLID_GRAPHIC.projectSchemaVersion
       );
       expect(
         restoreAudioBusCatalogMarker(catalog).projectSchemaVersion,
@@ -1096,7 +1097,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: MASTER_NORMALIZATION.projectSchemaVersion,
+      projectSchemaVersion: SOLID_GRAPHIC.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1165,6 +1166,7 @@ describe("canonical public contracts", () => {
       "audio_analysis_v1",
       MASTER_NORMALIZATION.capability,
       EPHEMERAL_JOBS_CAPABILITY,
+      SOLID_GRAPHIC.capability,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -1189,7 +1191,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: MASTER_NORMALIZATION.projectSchemaVersion,
+        projectSchemaVersion: SOLID_GRAPHIC.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

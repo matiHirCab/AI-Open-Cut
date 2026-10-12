@@ -10,11 +10,13 @@ import { errorBody, HeadlessClient } from "../src/headless";
 import { BridgeError, eventSchema } from "../src/headless-events";
 import { JobRegistry } from "../src/jobs";
 import { artifactSchema, publicErrorSchema } from "../src/schemas";
+import { restoreFfmpegSpawnGraphicRaw } from "./fixtures/ffmpeg-spawn-graphic-projection";
 import pins from "./fixtures/ffmpeg-spawn-predecessor-pins.json";
 import {
   removeFfmpegSpawnMcpAddition,
   restoreFfmpegSpawnRaw,
 } from "./fixtures/ffmpeg-spawn-projection";
+import { restoreSolidGraphicRaw } from "./fixtures/solid-graphic-color-slots-projection";
 
 it("retains canonical startup detail across overlapping worker/one-shot transport and failed jobs", async () => {
   const root = mkdtempSync(join(tmpdir(), "opencut-spawn-ipc-"));
@@ -162,4 +164,35 @@ it("retains exact predecessors and rejects malformed additions and unrelated dri
     "ffmpegSpawn"
   );
   expect(() => removeFfmpegSpawnMcpAddition(missing)).toThrow("Missing");
+  for (const restore of [
+    restoreFfmpegSpawnRaw,
+    restoreFfmpegSpawnGraphicRaw,
+    restoreSolidGraphicRaw,
+  ]) {
+    expect(() => restore(JSON.stringify(missing))).toThrow(
+      "Missing FFmpeg spawn schema addition"
+    );
+  }
+});
+
+it("preserves both merged owner proofs and historical identity without concealing drift", () => {
+  for (const [name, hash] of Object.entries(pins.rawSha256)) {
+    const source = readFileSync(
+      new URL(`../../../contracts/${name}.json`, import.meta.url),
+      "utf8"
+    );
+    for (const restore of [
+      restoreFfmpegSpawnRaw,
+      restoreFfmpegSpawnGraphicRaw,
+      restoreSolidGraphicRaw,
+    ]) {
+      const historical = restore(source);
+      expect(createHash("sha256").update(historical).digest("hex")).toBe(hash);
+      expect(restore(historical)).toBe(historical);
+      const drift = { ...JSON.parse(source), unauthorized: "unrelated drift" };
+      expect(() => restore(JSON.stringify(drift))).toThrow(
+        "predecessor contract drift"
+      );
+    }
+  }
 });

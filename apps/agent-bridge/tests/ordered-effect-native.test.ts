@@ -13,7 +13,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { expect, it } from "vitest";
 import type { ZodType } from "zod/v4";
 import catalog from "../../../contracts/extended-visual-animation-v1.json";
-import masterNormalization from "../../../contracts/master-normalization-v1.json";
+import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
   editDraftSchema,
   jobSchema,
@@ -220,7 +220,7 @@ fn main() {
       const f = catalog.orderedEffectCases;
       const status = await call("editor_get_status", {}, statusSchema);
       expect(status.projectSchemaVersion).toBe(
-        masterNormalization.projectSchemaVersion
+        solidGraphicSlots.projectSchemaVersion
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { projectId } = await call(

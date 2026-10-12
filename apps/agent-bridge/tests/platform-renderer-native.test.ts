@@ -27,6 +27,7 @@ import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyOrdinaryAudioTiming } from "./ordinary-audio-timing-workflow";
 import { verifyPreviewDisposal } from "./preview-disposal-workflow";
+import { verifySolidGraphicSlots } from "./solid-graphic-color-slots-workflow";
 
 const roots = new Set<string>();
 const SSIM = /All:([0-9.]+)/u;
@@ -502,6 +503,12 @@ for (const mode of ["source", "packaged"] as const) {
         mkdirSync(evidence, { recursive: true });
         copyFileSync(frame, join(evidence, `${mode}-frame.png`));
         copyFileSync(exported, join(evidence, `${mode}-export.mp4`));
+        await verifySolidGraphicSlots(client, call, projects, {
+          evidenceDirectory: evidence,
+          ffmpeg,
+          ffprobe,
+          mode,
+        });
         const timingEvidence = await verifyOrdinaryAudioTiming(
           client,
           ffmpeg,

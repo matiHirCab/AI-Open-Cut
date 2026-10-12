@@ -3620,8 +3620,22 @@ mod tests {
 
     #[test]
     fn process_spawn_and_exit_failures_are_structured() {
-        let mut missing = Command::new("definitely-missing-opencut-ffmpeg");
-        let spawn_error = run_to_completion(&mut missing, 1_000, |_| {}).unwrap_err();
+        let root = tempdir().unwrap();
+        let executable = root.path().join("private-missing-ffmpeg.exe");
+        assert!(executable.is_absolute());
+        assert!(!executable.exists());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        let mut progress = Vec::new();
+        let mut missing = Command::new(&executable);
+        let spawn_error = run_to_completion(&mut missing, 1_000, |event| {
+            progress.push(event.progress);
+        })
+        .unwrap_err();
+        assert!(progress.is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        let debug = format!("{spawn_error:?}");
+        assert!(!debug.contains(&executable.display().to_string()));
+        assert!(!debug.contains("private-missing-ffmpeg.exe"));
         assert_eq!(spawn_error.code, ErrorCode::FfmpegFailed);
         assert_eq!(spawn_error.failed_stage.as_deref(), Some(SPAWN_STAGE));
         assert_eq!(spawn_error.ffmpeg_exit_code, None);
@@ -3654,6 +3668,28 @@ mod tests {
                 .as_deref()
                 .is_some_and(|excerpt| excerpt.contains("final diagnostic"))
         );
+    }
+
+    #[test]
+    fn bare_name_startup_preserves_actual_io_code_without_fabrication() {
+        let executable = format!("opencut-missing-{}", uuid::Uuid::new_v4());
+        let actual = Command::new(&executable).spawn().unwrap_err();
+        assert_eq!(actual.kind(), std::io::ErrorKind::NotFound);
+        let mut progress = Vec::new();
+        let error = run_to_completion(&mut Command::new(&executable), 1_000, |value| {
+            progress.push(value);
+        })
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(error.failed_stage.as_deref(), Some(SPAWN_STAGE));
+        assert_eq!(error.ffmpeg_exit_code, None);
+        assert_eq!(error.ffmpeg_stderr_excerpt, None);
+        let diagnostic = error.ffmpeg_spawn.as_ref().unwrap();
+        assert_eq!(diagnostic.kind, crate::FfmpegSpawnKind::NotFound);
+        assert_eq!(diagnostic.platform, crate::FfmpegSpawnPlatform::current());
+        assert_eq!(diagnostic.native_code, actual.raw_os_error());
+        assert!(progress.is_empty());
+        assert!(!format!("{error:?}").contains(&executable));
     }
 
     #[cfg(unix)]
