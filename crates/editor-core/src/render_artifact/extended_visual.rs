@@ -673,6 +673,7 @@ pub(crate) fn prepare(
     resources: &mut PreparedRenderResources,
     intent: RenderIntent,
     preparation: &VisualPreparation<'_>,
+    on_frame: &mut dyn FnMut(u64, u64),
 ) -> Result<(), CoreError> {
     let VisualPreparation {
         decode,
@@ -751,7 +752,8 @@ pub(crate) fn prepare(
         .visual_layers
         .iter()
         .any(|l| l.extended.as_ref().is_some_and(|v| !v.masks.is_empty()));
-    let mut produce = |n| {
+    let mut completed_frames = 0_u64;
+    let mut produce = |n: u64| {
         let at = start + n * 1000 / u64::from(fps);
         let mut composed = Raster::empty(canvas.0 as usize, canvas.1 as usize)?;
         composed.pixels.fill([0.0, 0.0, 0.0, 1.0]);
@@ -1105,7 +1107,10 @@ pub(crate) fn prepare(
                 }
             }
         }
-        Ok(composed.pam_bytes())
+        let bytes = composed.pam_bytes();
+        completed_frames = completed_frames.saturating_add(1).min(frames);
+        on_frame(completed_frames, frames);
+        Ok(bytes)
     };
     if frame {
         io.write(&workspace.join(file), &produce(0)?)

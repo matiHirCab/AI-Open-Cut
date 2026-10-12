@@ -47,6 +47,55 @@ use crate::render_process::{
 #[cfg(test)]
 use crate::{KeyframeProperty, KeyframeValue};
 
+// The existing wire value measures reported work, with publication reserved for one.
+struct NativeRenderProgress<'a> {
+    callback: &'a mut dyn FnMut(RenderProgress),
+    last: f64,
+    sampled: bool,
+}
+
+impl<'a> NativeRenderProgress<'a> {
+    fn new(callback: &'a mut dyn FnMut(RenderProgress)) -> Self {
+        Self {
+            callback,
+            last: 0.0,
+            sampled: false,
+        }
+    }
+
+    fn preparation(&mut self, completed: u64, total: u64) {
+        if completed == 0 || total == 0 {
+            return;
+        }
+        self.sampled = true;
+        self.report(0.5 * (completed as f64 / total as f64).clamp(0.0, 1.0));
+    }
+
+    fn encoding(&mut self, value: f64) {
+        if !value.is_finite() {
+            return;
+        }
+        let value = value.clamp(0.0, 1.0);
+        self.report(if self.sampled {
+            0.5 + 0.49 * value
+        } else {
+            0.99 * value
+        });
+    }
+
+    fn published(&mut self) {
+        self.report(1.0);
+    }
+
+    fn report(&mut self, value: f64) {
+        let value = self.last.max(value);
+        if value > self.last {
+            self.last = value;
+            (self.callback)(RenderProgress { progress: value });
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Renderer {
     preview_cache: Arc<crate::render_artifact::preview_cache::PreviewCache>,
@@ -417,6 +466,7 @@ impl Renderer {
             preflight,
             project_dir,
             RenderIntent::Frame { at_ms: time_ms },
+            &mut |_, _| {},
         )?;
         if let Some(bytes) = cache_key.and_then(|key| self.preview_cache.get(key)) {
             if self.artifact_io.write(&temporary, &bytes).is_err() {
@@ -484,13 +534,19 @@ impl Renderer {
             options.output.parent().unwrap_or_else(|| Path::new(".")),
             "mp4",
         );
-        let built = self.materialize_render(preflight, project_dir, RenderIntent::Export)?;
+        let mut progress = NativeRenderProgress::new(&mut on_progress);
+        let built = self.materialize_render(
+            preflight,
+            project_dir,
+            RenderIntent::Export,
+            &mut |done, total| progress.preparation(done, total),
+        )?;
         if let Err(error) = self.process_executor.execute(
             &self.ffmpeg_path,
             &built.plan,
             &built.filter_path,
             &temporary,
-            &mut on_progress,
+            &mut |event| progress.encoding(event.progress),
         ) {
             let _ = self.artifact_io.remove(&temporary);
             return Err(error);
@@ -501,7 +557,7 @@ impl Renderer {
             options.output,
             options.overwrite,
         )?;
-        artifact_with(
+        let artifact = artifact_with(
             self.artifact_io.as_ref(),
             options.output,
             options
@@ -516,7 +572,9 @@ impl Renderer {
         .map(|mut artifact| {
             artifact.text_layouts = built.text_layouts.clone();
             artifact
-        })
+        })?;
+        progress.published();
+        Ok(artifact)
     }
 
     pub fn render_preview_range(
@@ -570,6 +628,8 @@ impl Renderer {
             output.parent().unwrap_or(project_dir),
             "mp4",
         );
+        let mut on_progress = on_progress;
+        let mut progress = NativeRenderProgress::new(&mut on_progress);
         let built = self.materialize_render(
             preflight,
             project_dir,
@@ -578,8 +638,8 @@ impl Renderer {
                 end_ms: options.end_ms,
                 include_audio: options.include_audio,
             },
+            &mut |done, total| progress.preparation(done, total),
         )?;
-        let mut on_progress = on_progress;
         if let Some(bytes) = cache_key.and_then(|key| self.preview_cache.get(key)) {
             if self.artifact_io.write(&temporary, &bytes).is_err() {
                 let _ = self.artifact_io.remove(&temporary);
@@ -589,14 +649,13 @@ impl Renderer {
                     None,
                 ));
             }
-            on_progress(RenderProgress { progress: 1.0 });
         } else {
             if let Err(error) = self.process_executor.execute(
                 &self.ffmpeg_path,
                 &built.plan,
                 &built.filter_path,
                 &temporary,
-                &mut on_progress,
+                &mut |event| progress.encoding(event.progress),
             ) {
                 let _ = self.artifact_io.remove(&temporary);
                 return Err(error);
@@ -615,6 +674,7 @@ impl Renderer {
             artifact
         })?;
         self.retain_preview(cache_key, &output);
+        progress.published();
         Ok(artifact)
     }
 
@@ -638,6 +698,7 @@ impl Renderer {
             )?,
             project_dir,
             intent,
+            &mut |_, _| {},
         )
     }
 
@@ -1065,6 +1126,7 @@ impl Renderer {
         preflight: RenderPreflight,
         project_dir: &Path,
         intent: RenderIntent,
+        on_preparation: &mut dyn FnMut(u64, u64),
     ) -> Result<PreparedRender, CoreError> {
         let RenderPreflight {
             audio_bus_dsp_readiness_completed,
@@ -1164,6 +1226,7 @@ impl Renderer {
                         .raster_source(&self.ffmpeg_path, &source, size)
                 },
             },
+            on_preparation,
         )?;
         let filter_path = workspace.path().join("filter.txt");
         let plan = build_render_plan(
@@ -1233,6 +1296,7 @@ mod golden;
 
 #[cfg(test)]
 mod tests {
+    mod preparation_progress;
     mod preview_caching;
     mod raster_caching;
     use super::*;
@@ -4819,6 +4883,7 @@ mod tests {
                             },
                             root.path(),
                             RenderIntent::Export,
+                            &mut |_, _| {},
                         )
                         .unwrap();
                 }
@@ -5123,6 +5188,7 @@ mod tests {
                                 end_ms: 913,
                                 include_audio: true,
                             },
+                            &mut |_, _| {},
                         )
                         .unwrap();
                     assert_eq!(

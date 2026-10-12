@@ -124,13 +124,25 @@ fn preview_cache_fresh_publication_clones_revision_intent_and_preflight() {
         .render_preview_range(&project, root.path(), options, |_| {})
         .unwrap();
     let mut progress = vec![];
+    let before_publications = std::fs::read_dir(root.path().join("previews"))
+        .unwrap()
+        .count();
     let hit = renderer
         .render_preview_range(&project, root.path(), options, |value| {
-            progress.push(value.progress)
+            progress.push(value.progress);
+            if value.progress == 1.0 {
+                assert_eq!(
+                    std::fs::read_dir(root.path().join("previews"))
+                        .unwrap()
+                        .count(),
+                    before_publications + 1
+                );
+            }
         })
         .unwrap();
     assert_ne!(cold.relative_path, hit.relative_path);
-    assert_eq!(progress, vec![1.0]);
+    // The adapter actually composes only first/last of the admitted15 frames.
+    assert_eq!(progress, vec![0.5 / 15.0, 1.0 / 15.0, 1.0]);
     assert_eq!(process.executions.load(Ordering::Relaxed), 5);
     assert_eq!(renderer.preview_cache.counts(), (2, 5));
     for variant in [

@@ -481,6 +481,7 @@ fn temporal_prepare_samples(
                 Ok([255, 0, 0, 255].repeat((size.0 * size.1) as usize))
             },
         },
+        &mut |_, _| {},
     )
     .unwrap();
     if frame {
@@ -1029,6 +1030,7 @@ fn epic6_caption_stream_caches_one_source_and_samples_half_open_activity() {
                 Ok([255, 0, 0, 255].repeat(64 * 64))
             },
         },
+        &mut |_, _| {},
     )
     .unwrap();
     assert_eq!(calls.get(), 1);

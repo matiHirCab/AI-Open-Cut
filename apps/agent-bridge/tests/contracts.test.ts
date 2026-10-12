@@ -25,6 +25,7 @@ import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
 import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
+import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import STACKING from "../../../contracts/stacking-v1.json";
@@ -60,7 +61,6 @@ import {
   timeExpressionSchema,
   ttsStatusSchema,
 } from "../src/schemas";
-
 import { ARTIFACT_RESOURCES_CAPABILITY } from "../src/server/artifacts";
 import {
   MCP_RESOURCE_URIS,
@@ -109,6 +109,13 @@ import {
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
 import { projectSchema36ParameterizedMcpPredecessor } from "./fixtures/parameterized-effect-projection";
+import PREPARATION_OWNER from "./fixtures/render-preparation-progress-ownership-addition.json";
+import PREPARATION_PINS from "./fixtures/render-preparation-progress-predecessor-pins.json";
+import {
+  assertRenderPreparationOwnership,
+  removeRenderPreparationOwnershipAddition,
+  restoreRenderPreparationOwnershipRaw,
+} from "./fixtures/render-preparation-progress-projection";
 import { removeSpeechAlignmentMcpAdditions } from "./fixtures/speech-alignment-projection";
 
 import {
@@ -1989,4 +1996,64 @@ it("matches canonical closed time expressions through the public timing decoder"
       ).toBe(fixture.accept);
     }
   }
+});
+
+it("governs native preparation numeric progress without changing prior public catalogs", () => {
+  const capturedHeadless = readFileSync(
+    new URL(
+      "./fixtures/render-preparation-progress-predecessor-headless.raw.txt",
+      import.meta.url
+    ),
+    "utf8"
+  );
+  expect(createHash("sha256").update(capturedHeadless).digest("hex")).toBe(
+    PREPARATION_PINS["headless-protocol-v1"]
+  );
+  expect(JSON.parse(capturedHeadless)).toEqual(HEADLESS_CONTRACT);
+  for (const name of ["headless-protocol-v1", "mcp-surface-v1"] as const) {
+    const rawCatalog = readFileSync(
+      new URL(`../../../contracts/${name}.json`, import.meta.url)
+    );
+    expect(createHash("sha256").update(rawCatalog).digest("hex")).toBe(
+      PREPARATION_PINS[name]
+    );
+  }
+  const ownership = JSON.parse(
+    readFileSync(
+      new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
+      "utf8"
+    )
+  );
+  assertRenderPreparationOwnership(ownership);
+  expect(ownership.categories.renderPreparationProgress).toEqual(
+    PREPARATION_OWNER
+  );
+  for (const progress of PREPARATION_PROGRESS.sampledProgress) {
+    expect(eventSchema.parse({ progress, type: "progress" })).toEqual({
+      progress,
+      type: "progress",
+    });
+  }
+  for (const invalid of PREPARATION_PROGRESS.invalidEvents) {
+    expect(eventSchema.safeParse(invalid).success).toBe(false);
+  }
+  const prior = removeRenderPreparationOwnershipAddition(ownership);
+  const raw = restoreRenderPreparationOwnershipRaw(JSON.stringify(ownership));
+  expect(JSON.parse(raw)).toEqual(prior);
+  expect(restoreRenderPreparationOwnershipRaw(raw)).toBe(raw);
+  const missing = structuredClone(ownership);
+  Reflect.deleteProperty(missing.categories, "renderPreparationProgress");
+  expect(() => assertRenderPreparationOwnership(missing)).toThrow(
+    "Missing or changed"
+  );
+  const partial = structuredClone(ownership);
+  partial.categories.renderPreparationProgress.consumers.pop();
+  expect(() => removeRenderPreparationOwnershipAddition(partial)).toThrow(
+    "Missing or changed"
+  );
+  const drift = structuredClone(ownership);
+  drift.reviewer = "unrelated";
+  expect(() =>
+    restoreRenderPreparationOwnershipRaw(JSON.stringify(drift))
+  ).toThrow("Unrelated");
 });

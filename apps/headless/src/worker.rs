@@ -200,4 +200,41 @@ mod tests {
         assert!(read_line(&mut io::Cursor::new(b"truncated")).is_err());
         assert!(read_line(&mut io::Cursor::new(b"")).unwrap().is_none());
     }
+    #[test]
+    fn canonical_native_preparation_progress_preserves_worker_envelopes() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/render-preparation-progress-v1.json"
+        ))
+        .unwrap();
+        let mut writer = Vec::new();
+        for value in fixture["sampledProgress"].as_array().unwrap() {
+            let event = serde_json::to_value(Event::<()>::Progress {
+                progress: value.as_f64().unwrap(),
+            })
+            .unwrap();
+            write_event(
+                &mut writer,
+                serde_json::json!({"requestId":"preparation","event":event}),
+            )
+            .unwrap();
+        }
+        let lines: Vec<_> = writer
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .collect();
+        assert_eq!(
+            lines.len(),
+            fixture["sampledProgress"].as_array().unwrap().len()
+        );
+        for (line, value) in lines
+            .iter()
+            .zip(fixture["sampledProgress"].as_array().unwrap())
+        {
+            let envelope: serde_json::Value = serde_json::from_slice(line).unwrap();
+            assert_eq!(
+                envelope,
+                serde_json::json!({"requestId":"preparation","event":{"type":"progress","progress":value.as_f64().unwrap()}})
+            );
+        }
+    }
 }

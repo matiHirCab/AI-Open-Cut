@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
+import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
 import pins from "./solid-graphic-color-slots-predecessor-pins.json";
@@ -78,7 +79,9 @@ export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
   return result;
 };
 export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = structuredClone(
+    removeRenderPreparationOwnershipAddition(source)
+  );
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "solidGraphicColorSlots")) {
     if (!equal(categories.solidGraphicColorSlots, category)) {

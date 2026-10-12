@@ -190,6 +190,8 @@ If status reports that TTS is unavailable, rerun the setup command and confirm t
 
 Run `codex mcp list`, then use `/mcp` and `editor_get_status`. Agents should read state first, make one edit at a time using the returned revision, re-read after conflicts, preview before export, poll jobs to completion, and never authorize overwrite implicitly.
 
+Native range/export jobs include completed sampled-frame preparation in their bounded numeric progress. The fixed work shares are not time estimates; see [render preparation progress](render-preparation-progress.md) for completion, cancellation and single-frame limits.
+
 ## MVP limitations
 
 - The GPUI panels remain placeholders and do not yet visually edit these project files.

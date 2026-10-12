@@ -4,6 +4,7 @@ import catalog from "../../../../contracts/render-budget-diagnostics-v1.json";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
 import ownership from "./render-budget-ownership-addition.json";
 import pins from "./render-budget-predecessor-pins.json";
+import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 
 const same = (a: unknown, b: unknown) => {
   const normalize = (value: unknown): unknown => {
@@ -77,7 +78,9 @@ export const removeRenderBudgetMcpAddition = <T>(source: T, copy = true): T => {
 };
 
 export const removeRenderBudgetOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = structuredClone(
+    removeRenderPreparationOwnershipAddition(source)
+  );
   const { categories } = result as { categories?: Record<string, unknown> };
   if (
     categories &&

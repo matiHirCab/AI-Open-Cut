@@ -1199,4 +1199,21 @@ mod tests {
             _ => panic!("unexpected request variant"),
         }
     }
+    #[test]
+    fn canonical_native_preparation_progress_preserves_numeric_event_shape() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/render-preparation-progress-v1.json"
+        ))
+        .unwrap();
+        for value in fixture["sampledProgress"].as_array().unwrap() {
+            let actual = serde_json::to_value(Event::<()>::Progress {
+                progress: value.as_f64().unwrap(),
+            })
+            .unwrap();
+            assert_eq!(
+                actual,
+                serde_json::json!({"type":"progress","progress":value.as_f64().unwrap()})
+            );
+        }
+    }
 }
