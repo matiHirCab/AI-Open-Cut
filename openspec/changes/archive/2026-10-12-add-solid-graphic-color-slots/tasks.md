@@ -17,3 +17,8 @@
 ## Administrative delivery after implementation verification
 
 Synchronize and archive only this verified change, then require the protected post-archive gate and pinned all-spec strict validation to pass. Re-fetch/reconcile authoritative main and inspect the scoped diff; commit/push, open a draft PR requesting @matiHirCab review, verify every required exact-head platform/native/foundation/duration CI job and record honest evidence/limits. These delivery obligations remain mandatory and are tracked in the PR/external receipt after the implementation tasks above, because the protected published-head gate requires archival first. Do not mark publication/CI complete in the implementation report before they happen. Do not merge, auto-merge, deploy or touch desktop tasks. Coordinate next dependency-ready candidates with parent.
+
+## 4. Exact-head observer correction
+
+- [x] 4.1 Preserve315firstattempt/retry failures; fix only passive owned current-command observation and add deterministic same-PID exec collector control, retaining every old assertion/selector/deadline/report/capture and runtime behavior.
+- [x] 4.2 Verify meaningful changed Rust collector tests/fmt/strict Clippy, document unchanged-input evidence reuse, strict/prearchive conformance, resynchronize/archive/protected gate before publishing corrected head; all exacthead CI remains mandatory administrative delivery.
