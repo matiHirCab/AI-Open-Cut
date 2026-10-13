@@ -54,6 +54,7 @@ import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 import { verifyPreviewReviewWorkflow } from "./preview-review-workflow";
 import { verifyReleaseDocumentationWorkflow } from "./release-documentation-workflow";
 import { verifyRenderBudgetWorkflow } from "./render-budget-workflow";
+import { verifyRenderPreparationProgressWorkflow } from "./render-preparation-progress-workflow";
 import { verifyRepeaterWorkflow } from "./repeater-workflow";
 import { verifyRichTextWorkflow } from "./rich-text-workflow";
 import { verifyRuleCardWorkflow } from "./rule-card-workflow";
@@ -735,4 +736,9 @@ it("preserves native budget diagnostics and failure atomicity through packaged M
 
 it("reconciles a committed job after actual bridge death and blocks orphan accumulation", async () => {
   await verifyJobRestartWorkflow(client, transport, bridgeParameters);
+});
+
+it("exposes preparation progress before completion through packaged MCP jobs", async () => {
+  await verifyRenderPreparationProgressWorkflow(bridgeParameters);
+  await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
 });

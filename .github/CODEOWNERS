@@ -468,3 +468,10 @@
 /apps/agent-bridge/tests/fixtures/ffmpeg-spawn-* @matiHirCab
 
 /apps/agent-bridge/tests/ffmpeg-spawn-workflow.ts @matiHirCab
+
+# Native sampled visual preparation progress (#179)
+/crates/editor-core/src/renderer/tests/preparation_progress.rs @matiHirCab
+/contracts/render-preparation-progress-v1.json @matiHirCab
+/apps/agent-bridge/tests/render-preparation-progress* @matiHirCab
+/apps/agent-bridge/tests/fixtures/render-preparation-progress-* @matiHirCab
+/docs/render-preparation-progress.md @matiHirCab

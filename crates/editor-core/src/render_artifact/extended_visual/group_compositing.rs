@@ -401,6 +401,7 @@ mod tests {
                 encode: &|_, _, _, _| panic!("frame must not encode stream"),
                 caption: &|_, _, _| panic!("solid sources must not paint text"),
             },
+            &mut |_, _| {},
         )
         .unwrap();
         let pixels =

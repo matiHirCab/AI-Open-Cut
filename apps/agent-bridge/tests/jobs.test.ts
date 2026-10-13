@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 
 import { BridgeError } from "../src/headless";
 import { JobRegistry } from "../src/jobs";
@@ -131,4 +132,78 @@ it("expires terminal jobs and reports process-local retention", async () => {
   expect(() => jobs.get(queued.jobId)).toThrowError(
     expect.objectContaining({ code: "JOB_NOT_FOUND" })
   );
+});
+
+it("keeps preparation visible while running and freezes it after cancellation", async () => {
+  const jobs = new JobRegistry();
+  let release: () => void = () => {
+    throw new Error("Preparation gate not initialized");
+  };
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let update: (value: number) => void = (_value: number) => {
+    throw new Error("Preparation observer not initialized");
+  };
+  const job = jobs.startTask(
+    "preview",
+    "preparation",
+    1,
+    async ({ onProgress }) => {
+      update = onProgress;
+      onProgress(PREPARATION_PROGRESS.sampledProgress[0] ?? 0);
+      await gate;
+      onProgress(0.99);
+      return {};
+    }
+  );
+  expect(jobs.get(job.jobId)).toMatchObject({
+    progress: 0.125,
+    status: "running",
+  });
+  update(0.25);
+  jobs.cancel(job.jobId);
+  const cancelled = jobs.get(job.jobId);
+  expect(cancelled).toMatchObject({ progress: 0.25, status: "cancelled" });
+  update(0.5);
+  release();
+  await jobs.close();
+  expect(jobs.get(job.jobId)).toMatchObject({
+    progress: 0.25,
+    status: "cancelled",
+  });
+});
+
+it("requires task completion after preparation and encoding progress", async () => {
+  const jobs = new JobRegistry();
+  let release: () => void = () => {
+    throw new Error("Preparation gate not initialized");
+  };
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const job = jobs.startTask(
+    "export",
+    "preparation",
+    1,
+    async ({ onProgress }) => {
+      for (const progress of PREPARATION_PROGRESS.sampledProgress.filter(
+        (value) => value < 1
+      )) {
+        onProgress(progress);
+      }
+      await gate;
+      return {};
+    }
+  );
+  expect(jobs.get(job.jobId)).toMatchObject({
+    progress: 0.99,
+    status: "running",
+  });
+  release();
+  expect(await waitForTerminal(jobs, job.jobId)).toMatchObject({
+    progress: 1,
+    status: "completed",
+  });
+  await jobs.close();
 });
