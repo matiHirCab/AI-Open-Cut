@@ -89,6 +89,7 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
         panel = panel.child(div().py_1().text_xs().child(text));
     }
     if let TimelineItem::ComponentInstance(instance) = item {
+        panel = panel.child(super::instance_slots::render(shell, project, selection, cx));
         panel = panel.child(
             div()
                 .text_sm()
