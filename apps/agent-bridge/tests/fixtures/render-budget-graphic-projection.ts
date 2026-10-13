@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import {
+  removeNativeMotifOwnershipAddition,
+  restoreNativeMotifRaw,
+} from "./native-motif-pack-projection";
 import pins from "./render-budget-predecessor-pins.json";
 import {
   removeRenderBudgetHeadlessAddition,
@@ -27,7 +31,8 @@ const sorted = (value: unknown): unknown => {
 };
 
 // Exact combined rollback to the independently captured shared predecessor.
-export const restoreRenderBudgetGraphicRaw = (source: string): string => {
+export const restoreRenderBudgetGraphicRaw = (input: string): string => {
+  const source = restoreNativeMotifRaw(input);
   const value = JSON.parse(source);
   let name: keyof typeof pins.rawSha256;
   let projected: unknown;
@@ -45,7 +50,9 @@ export const restoreRenderBudgetGraphicRaw = (source: string): string => {
   ) {
     name = "contract-ownership-v1";
     projected = removeSolidGraphicOwnershipAddition(
-      removeRenderBudgetOwnershipAddition(value)
+      removeRenderBudgetOwnershipAddition(
+        removeNativeMotifOwnershipAddition(value)
+      )
     );
   } else if (
     value.renderBudgetError ||

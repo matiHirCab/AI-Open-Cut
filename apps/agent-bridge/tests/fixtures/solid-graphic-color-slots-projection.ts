@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
+import {
+  removeNativeMotifOwnershipAddition,
+  restoreNativeMotifRaw,
+} from "./native-motif-pack-projection";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
@@ -78,7 +82,7 @@ export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
   return result;
 };
 export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNativeMotifOwnershipAddition(source);
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "solidGraphicColorSlots")) {
     if (!equal(categories.solidGraphicColorSlots, category)) {
@@ -88,7 +92,8 @@ export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
   }
   return result;
 };
-export const restoreSolidGraphicRaw = (source: string): string => {
+export const restoreSolidGraphicRaw = (input: string): string => {
+  const source = restoreNativeMotifRaw(input);
   const value = record(JSON.parse(source));
   if (
     Object.hasOwn(value.$defs ?? {}, "RenderBudgetDiagnostic") ||

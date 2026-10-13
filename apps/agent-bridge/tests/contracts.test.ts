@@ -60,7 +60,6 @@ import {
   timeExpressionSchema,
   ttsStatusSchema,
 } from "../src/schemas";
-
 import { ARTIFACT_RESOURCES_CAPABILITY } from "../src/server/artifacts";
 import {
   MCP_RESOURCE_URIS,
@@ -108,6 +107,7 @@ import {
   assertMalformedPayloadRegressions,
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
+import { assertCurrentNativeMotifOwnership } from "./fixtures/native-motif-pack-projection";
 import { projectSchema36ParameterizedMcpPredecessor } from "./fixtures/parameterized-effect-projection";
 import { removeSpeechAlignmentMcpAdditions } from "./fixtures/speech-alignment-projection";
 
@@ -1013,7 +1013,11 @@ describe("canonical public contracts", () => {
   });
   it("keeps every canonical owner and governed consumer checked in", () => {
     const repositoryRoot = resolve(import.meta.dirname, "../../..");
+    assertCurrentNativeMotifOwnership(OWNERSHIP);
     expect(OWNERSHIP.strategy).toBe("fixture-governed-manual-synchronization");
+    expect(OWNERSHIP.categories.nativeMotifPack.canonical).toBe(
+      "contracts/native-motif-pack-v1.json"
+    );
     expect(OWNERSHIP.reviewer).toBe("@matiHirCab");
     for (const [category, ownership] of Object.entries(OWNERSHIP.categories)) {
       expect(

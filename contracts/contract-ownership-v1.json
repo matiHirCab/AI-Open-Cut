@@ -1667,6 +1667,25 @@
         "apps/headless/tests/support/budget_readiness_fixture.rs",
         "apps/agent-bridge/tests/fixtures/render-budget-graphic-projection.ts"
       ]
+    },
+    "nativeMotifPack": {
+      "canonical": "contracts/native-motif-pack-v1.json",
+      "consumers": [
+        "crates/editor-core/tests/native_motifs.rs",
+        "apps/headless/tests/native_motifs.rs",
+        "apps/agent-bridge/src/server/context.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/native-motif-pack.test.ts",
+        "apps/agent-bridge/tests/native-motif-pack-workflow.ts",
+        "apps/agent-bridge/tests/native-motif-pack-native.ts",
+        "apps/agent-bridge/tests/platform-renderer-native.test.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "docs/native-motif-pack.md",
+        "apps/agent-bridge/package.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts"
+      ]
     }
   }
 }
