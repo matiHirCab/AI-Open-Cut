@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import pins from "./render-budget-predecessor-pins.json";
 import {
   removeRenderBudgetHeadlessAddition,
@@ -29,6 +30,13 @@ const sorted = (value: unknown): unknown => {
 // Exact combined rollback to the independently captured shared predecessor.
 export const restoreRenderBudgetGraphicRaw = (source: string): string => {
   const value = JSON.parse(source);
+  if (
+    value.$defs?.FfmpegSpawnDiagnostic ||
+    value.categories?.ffmpegSpawnDiagnostics ||
+    value.ffmpegSpawnError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   let name: keyof typeof pins.rawSha256;
   let projected: unknown;
   if (

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
-import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
+import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
 import pins from "./solid-graphic-color-slots-predecessor-pins.json";
@@ -91,11 +92,18 @@ export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
 export const restoreSolidGraphicRaw = (source: string): string => {
   const value = record(JSON.parse(source));
   if (
-    Object.hasOwn(value.$defs ?? {}, "RenderBudgetDiagnostic") ||
+    at(value, ["$defs", "RenderBudgetDiagnostic"]) ||
     at(value, ["categories", "nativeRenderBudgetDiagnostics"]) ||
     value.renderBudgetError
   ) {
-    return restoreRenderBudgetGraphicRaw(source);
+    return restoreDiagnosticUnionRaw(source);
+  }
+  if (
+    at(value, ["$defs", "FfmpegSpawnDiagnostic"]) ||
+    at(value, ["categories", "ffmpegSpawnDiagnostics"]) ||
+    value.ffmpegSpawnError
+  ) {
+    return restoreFfmpegSpawnGraphicRaw(source);
   }
   let path: keyof typeof pins.rawSha256;
   let projected: unknown;
