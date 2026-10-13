@@ -120,6 +120,10 @@ import {
   assertMalformedPayloadRegressions,
   validateMotionGraphicsCatalog as validateStrictMotionGraphicsCatalog,
 } from "./fixtures/motion-graphics-contract";
+import {
+  assertCurrentNativeMotifOwnership,
+  removeNativeMotifOwnershipAddition,
+} from "./fixtures/native-motif-pack-projection";
 import { projectSchema36ParameterizedMcpPredecessor } from "./fixtures/parameterized-effect-projection";
 import PREPARATION_OWNER from "./fixtures/render-preparation-progress-ownership-addition.json";
 import PREPARATION_PINS from "./fixtures/render-preparation-progress-predecessor-pins.json";
@@ -1048,7 +1052,11 @@ describe("canonical public contracts", () => {
   });
   it("keeps every canonical owner and governed consumer checked in", () => {
     const repositoryRoot = resolve(import.meta.dirname, "../../..");
+    assertCurrentNativeMotifOwnership(OWNERSHIP);
     expect(OWNERSHIP.strategy).toBe("fixture-governed-manual-synchronization");
+    expect(OWNERSHIP.categories.nativeMotifPack.canonical).toBe(
+      "contracts/native-motif-pack-v1.json"
+    );
     expect(OWNERSHIP.reviewer).toBe("@matiHirCab");
     for (const [category, ownership] of Object.entries(OWNERSHIP.categories)) {
       expect(
@@ -2082,8 +2090,12 @@ it("governs native preparation numeric progress without changing prior public ca
   for (const invalid of PREPARATION_PROGRESS.invalidEvents) {
     expect(eventSchema.safeParse(invalid).success).toBe(false);
   }
-  const prior = removeRenderPreparationOwnershipAddition(ownership);
-  const raw = restoreRenderPreparationOwnershipRaw(JSON.stringify(ownership));
+  assertCurrentNativeMotifOwnership(ownership);
+  const preparationOwnership = removeNativeMotifOwnershipAddition(ownership);
+  const prior = removeRenderPreparationOwnershipAddition(preparationOwnership);
+  const raw = restoreRenderPreparationOwnershipRaw(
+    JSON.stringify(preparationOwnership)
+  );
   expect(JSON.parse(raw)).toEqual(prior);
   expect(restoreRenderPreparationOwnershipRaw(raw)).toBe(raw);
   const missing = structuredClone(ownership);
@@ -2096,7 +2108,7 @@ it("governs native preparation numeric progress without changing prior public ca
   expect(() => removeRenderPreparationOwnershipAddition(partial)).toThrow(
     "Missing or changed"
   );
-  const drift = structuredClone(ownership);
+  const drift = structuredClone(preparationOwnership);
   drift.reviewer = "unrelated";
   expect(() =>
     restoreRenderPreparationOwnershipRaw(JSON.stringify(drift))

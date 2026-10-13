@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
 import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
+import {
+  removeNativeMotifOwnershipAddition,
+  restoreNativeMotifRaw,
+} from "./native-motif-pack-projection";
 import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
@@ -80,7 +84,7 @@ export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
   return result;
 };
 export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(
+  const result = removeNativeMotifOwnershipAddition(
     removeRenderPreparationOwnershipAddition(source)
   );
   const categories = record(record(result).categories);
@@ -92,7 +96,8 @@ export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
   }
   return result;
 };
-export const restoreSolidGraphicRaw = (source: string): string => {
+export const restoreSolidGraphicRaw = (input: string): string => {
+  const source = restoreNativeMotifRaw(input);
   const value = record(JSON.parse(source));
   if (
     at(value, ["$defs", "RenderBudgetDiagnostic"]) ||

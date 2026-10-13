@@ -2341,3 +2341,17 @@ describe("solid graphic color slot mandatory consumers", () => {
     }
   }
 });
+
+
+describe("native motif mandatory consumers", () => {
+  for (const consumer of [" --test native_motifs", " tests/native-motif-pack.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects native motif consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});

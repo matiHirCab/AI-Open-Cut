@@ -47,6 +47,7 @@ import { verifyMasterNormalizationWorkflow } from "./master-normalization-workfl
 import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
+import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -525,12 +526,13 @@ it("completes the packaged group workflow with aliases, rollback and history", a
 });
 
 it("creates and customizes native hero cards through discovered recipe data", async () => {
-  await verifyNativeHeroCardWorkflow(
+  const hero = await verifyNativeHeroCardWorkflow(
     client,
     call,
     directories.media,
     directories.projects
   );
+  await verifyNativeMotifWorkflow(client, call, hero.projectId);
 });
 
 it("completes the packaged rule-card workflow", async () => {

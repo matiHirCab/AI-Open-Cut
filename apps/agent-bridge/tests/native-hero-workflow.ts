@@ -581,4 +581,5 @@ export const verifyNativeHeroCardWorkflow = async (
     );
   }
   expect(await read()).toEqual(saved);
+  return { projectId };
 };
