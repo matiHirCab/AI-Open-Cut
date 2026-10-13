@@ -1,0 +1,21 @@
+# Current-main reconciliation of PR200
+
+The user merged PR199 into actual main `e3cc66b93f17daa9441c4097867155f9f72366d0` and explicitly requested resolving PR200's resulting conflict. This normal merge starts from verified PR200 head `6fd0145465332ee832a2e5836535b6dfdbed3207`; it preserves both parents and the user's current non-draft PR state. The original proposal, design, approval, specification and completed14tasks remain historical artifacts; their approved M13/M14 requirements cover compatible current-main diagnostic/progress unions and preservation of all pins/negative controls.
+
+## Completeness and correctness
+
+All five living native-motif-pack requirements and14scenarios remain implemented. Existing native motif data, original hero source, public catalogs/versions, canonical command, strict policy literal, budgets, references, tolerances, deadlines and ownership categories remain preserved. This reconciliation combines exact motif/preparation CODEOWNERS and registry sections and their strict predecessor inverses. The preparation unrelated-drift negative now starts from a valid strict projected baseline before its deliberate corruption. No issue185 recipe/category or issue190 desktop control is introduced.
+
+Independent reviewer `/root/review_issue178_corrected_union` accepted the source resolution: all six reconciled files are byte-identical to independently accepted cumulative foundation `17181bddb1c30a05a1e56c90348a35dd49532124`; main categories and old catalog/policy command bytes are preserved. Final exact-head independent resolution remains required before publication.
+
+## Source-attributed verification
+
+Fresh required checks on the stable reconciled source passed Rust formatting/strict all-target workspace Clippy; workspace1550/0 with12inheritedignored; bridge type/lint and unit921/0 with15inheritedskips; complete canonical477Rust/622TypeScript across40files; source MCP42/0; freshly assembled default-package smoke39/0; unchanged policy513/0; hermetic Python12/0 plus12/0; actual required source/default-package native renderer2/0 withzero pending; and actual desktop review native1/0 withzero ignored. Required optimized golden conformance executed1/0 withzero ignored (371.17seconds test runtime,559.82seconds total) using actual tools and the absolute reviewed fixture-font path, without reference updates/captures.
+
+The first canonical build exited101 because regenerable compiler artifacts exhausted the cloud filesystem. Its complete failure log is retained separately at `/tmp/issue200-reconcile-current-main-complete-canonical-first-enospc.log`. Only OpenCut devprofile generated build artifacts were cleaned;13.7GiB was recovered. The current headless binary was rebuilt and the complete failed canonical command rerun to success. Earlier passing source checks were retained while their inputs/toolchain/environment remained unchanged; the unchanged policy precheck was reused rather than unnecessarily repeated. No private installed desktop/video files, configuration, credentials or renders were accessed or changed.
+
+The complete motion run, final protected Moon/strict gates and published-head hosted checks are required separately. Their final results, exact commit, source/runtime identity, nonce and immutable remote18-job evidence are recorded in the PR and outside-repository receipts; this historical document does not claim pending work passed. The CLI does not accept archived directory names as live change IDs; full conformance was reviewed directly against these complete archived artifacts and living requirements, without reopening an unrelated active change or waiving strict validation.
+
+## Coherence and limits
+
+The change adds no new domain owner, public/persisted schema, migration, native engine, renderer optimization, CLI dependency or production behavior beyond preserving user-merged main. All checks and audit/default120-minute policy remain intact. Hosted Windows-startup retry evidence from the earlier PR199 head remains historical and its cause remains unconfirmed; this reconciliation does not claim a root-cause fix. Native checks establish controlled source/default-package behavior, not installed-desktop readiness or portable performance. Human CODEOWNER review remains separate. No PR merge, auto-merge, deployment or forcepush is authorized or performed.
