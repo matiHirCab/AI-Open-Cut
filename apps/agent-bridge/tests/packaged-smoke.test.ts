@@ -48,6 +48,7 @@ import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
+import { verifyNativeRoleTeamWorkflow } from "./native-role-team-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -533,6 +534,12 @@ it("creates and customizes native hero cards through discovered recipe data", as
     directories.projects
   );
   await verifyNativeMotifWorkflow(client, call, hero.projectId);
+  await verifyNativeRoleTeamWorkflow(
+    client,
+    call,
+    directories.media,
+    directories.projects
+  );
 });
 
 it("completes the packaged rule-card workflow", async () => {

@@ -27,6 +27,7 @@ import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyNativeMotifMedia } from "./native-motif-pack-native";
 import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
+import { verifyNativeRoleTeamWorkflow } from "./native-role-team-workflow";
 import { verifyOrdinaryAudioTiming } from "./ordinary-audio-timing-workflow";
 import { verifyPreviewDisposal } from "./preview-disposal-workflow";
 import { verifySolidGraphicSlots } from "./solid-graphic-color-slots-workflow";
@@ -538,6 +539,12 @@ for (const mode of ["source", "packaged"] as const) {
           hero.projectId
         );
         await verifyNativeMotifMedia(call, projects, motifs, {
+          evidence,
+          ffmpeg,
+          ffprobe,
+          mode,
+        });
+        await verifyNativeRoleTeamWorkflow(client, call, media, projects, {
           evidence,
           ffmpeg,
           ffprobe,

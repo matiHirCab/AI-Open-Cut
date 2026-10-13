@@ -2355,3 +2355,16 @@ describe("native motif mandatory consumers", () => {
     }
   }
 });
+
+describe("native role team mandatory consumers", () => {
+  for (const consumer of [" --test native_role_team", " tests/native-role-team.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects native role team consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});

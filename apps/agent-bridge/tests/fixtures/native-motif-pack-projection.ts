@@ -7,6 +7,7 @@ import {
 } from "./ffmpeg-spawn-projection";
 import addition from "./native-motif-pack-ownership-addition.json";
 import pins from "./native-motif-pack-predecessor-pins.json";
+import { removeRoleTeamOwnershipAddition } from "./native-role-team-projection";
 import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 
 const object = (value: unknown): Record<string, unknown> => {
@@ -58,6 +59,7 @@ export const restoreNativeMotifRaw = (source: string): string => {
   }
   projected = removeFfmpegSpawnOwnershipAddition(projected);
   projected = removeRenderPreparationOwnershipAddition(projected);
+  projected = removeRoleTeamOwnershipAddition(projected);
   const raw = `${JSON.stringify(projected, null, 2)}\n`;
   if (
     createHash("sha256").update(raw).digest("hex") !==

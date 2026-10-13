@@ -6,6 +6,7 @@ import {
   removeNativeMotifOwnershipAddition,
   restoreNativeMotifRaw,
 } from "./native-motif-pack-projection";
+import { removeRoleTeamOwnershipAddition } from "./native-role-team-projection";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
 import ownership from "./render-budget-ownership-addition.json";
 import pins from "./render-budget-predecessor-pins.json";
@@ -84,7 +85,9 @@ export const removeRenderBudgetMcpAddition = <T>(source: T, copy = true): T => {
 
 export const removeRenderBudgetOwnershipAddition = <T>(source: T): T => {
   const result = removeNativeMotifOwnershipAddition(
-    removeRenderPreparationOwnershipAddition(source)
+    removeRenderPreparationOwnershipAddition(
+      removeRoleTeamOwnershipAddition(source)
+    )
   );
   const { categories } = result as { categories?: Record<string, unknown> };
   if (
