@@ -7,6 +7,7 @@ import {
 } from "./ffmpeg-spawn-projection";
 import addition from "./native-motif-pack-ownership-addition.json";
 import pins from "./native-motif-pack-predecessor-pins.json";
+import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -56,6 +57,7 @@ export const restoreNativeMotifRaw = (source: string): string => {
     throw new Error("Missing merged ffmpegSpawnDiagnostics ownership");
   }
   projected = removeFfmpegSpawnOwnershipAddition(projected);
+  projected = removeRenderPreparationOwnershipAddition(projected);
   const raw = `${JSON.stringify(projected, null, 2)}\n`;
   if (
     createHash("sha256").update(raw).digest("hex") !==

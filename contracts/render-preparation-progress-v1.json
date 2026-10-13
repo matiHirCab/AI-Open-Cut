@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "sampledFrames": 4,
+  "shares": {
+    "preparationEnd": 0.5,
+    "encodingEnd": 0.99,
+    "published": 1
+  },
+  "preparationFractions": [
+    0.25,
+    0.5,
+    0.75,
+    1
+  ],
+  "encodingFractions": [
+    0,
+    0.25,
+    0.5,
+    1
+  ],
+  "sampledProgress": [
+    0.125,
+    0.25,
+    0.375,
+    0.5,
+    0.6225,
+    0.745,
+    0.99,
+    1
+  ],
+  "unsampledProgress": [
+    0.2475,
+    0.495,
+    0.99,
+    1
+  ],
+  "invalidEvents": [
+    {
+      "type": "progress",
+      "progress": null
+    },
+    {
+      "type": "progress",
+      "progress": "0.25"
+    },
+    {
+      "type": "progress",
+      "progress": 0.25,
+      "privatePath": "must reject"
+    }
+  ]
+}

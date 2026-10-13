@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod/v4";
+import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import FIXTURE from "../../../contracts/render-worker-v1.json";
 import { loadBridgeConfig } from "../src/config";
 import { HeadlessClient } from "../src/headless";
@@ -268,4 +269,19 @@ it("cancels a real overflow process tree before cleaning its temporary outputs",
     )
   ).toBe(false);
   expect((await client.call(request(), resultSchema)).worker).toBe(true);
+});
+
+it("retains canonical preparation progress in strict worker envelopes", () => {
+  for (const progress of PREPARATION_PROGRESS.sampledProgress) {
+    const envelope = {
+      event: { progress, type: "progress" },
+      requestId: "preparation",
+    };
+    expect(workerEventSchema.parse(envelope)).toEqual(envelope);
+  }
+  for (const event of PREPARATION_PROGRESS.invalidEvents) {
+    expect(
+      workerEventSchema.safeParse({ event, requestId: "preparation" }).success
+    ).toBe(false);
+  }
 });
