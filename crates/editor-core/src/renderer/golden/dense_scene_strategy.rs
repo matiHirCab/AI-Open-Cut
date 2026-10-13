@@ -314,7 +314,7 @@ fn verify(bytes: &[u8], name: &str, movie: bool) {
         illustrated_scene::strategy_verify_pixels(bytes, if movie { 8 } else { 2 });
         return;
     }
-    for (index, frame) in bytes.chunks_exact(PIXELS).enumerate() {
+    for (index, frame) in bytes.as_chunks::<PIXELS>().0.iter().enumerate() {
         let t = if movie {
             index as f64 * 1000. / 30.
         } else {
@@ -1056,7 +1056,7 @@ fn independent_output_oracles_reject_blank_truncated_and_wrong_paint() {
         }
     }
     let mut bytes = vec![0; PIXELS];
-    for rgb in bytes.chunks_exact_mut(3) {
+    for rgb in bytes.as_chunks_mut::<3>().0 {
         rgb.copy_from_slice(&[255, 0, 0]);
     }
     assert!(std::panic::catch_unwind(|| verify(&bytes, "grid4", false)).is_err());
