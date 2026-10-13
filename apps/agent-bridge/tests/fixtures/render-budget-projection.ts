@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import catalog from "../../../../contracts/render-budget-diagnostics-v1.json";
 import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
+import {
+  removeNativeMotifOwnershipAddition,
+  restoreNativeMotifRaw,
+} from "./native-motif-pack-projection";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
 import ownership from "./render-budget-ownership-addition.json";
 import pins from "./render-budget-predecessor-pins.json";
@@ -78,7 +82,7 @@ export const removeRenderBudgetMcpAddition = <T>(source: T, copy = true): T => {
 };
 
 export const removeRenderBudgetOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNativeMotifOwnershipAddition(source);
   const { categories } = result as { categories?: Record<string, unknown> };
   if (
     categories &&
@@ -103,7 +107,8 @@ export const removeRenderBudgetHeadlessAddition = <T>(source: T): T => {
   return result;
 };
 
-export const restoreRenderBudgetRaw = (source: string): string => {
+export const restoreRenderBudgetRaw = (input: string): string => {
+  const source = restoreNativeMotifRaw(input);
   const value = JSON.parse(source);
   if (
     value.$defs?.FfmpegSpawnDiagnostic ||

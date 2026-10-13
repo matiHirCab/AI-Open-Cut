@@ -468,3 +468,11 @@
 /apps/agent-bridge/tests/fixtures/ffmpeg-spawn-* @matiHirCab
 
 /apps/agent-bridge/tests/ffmpeg-spawn-workflow.ts @matiHirCab
+
+# Issue 184 canonical editable native motif data and conformance.
+/contracts/native-motif-pack-v1.json @matiHirCab
+/crates/editor-core/tests/native_motifs.rs @matiHirCab
+/apps/headless/tests/native_motifs.rs @matiHirCab
+/apps/agent-bridge/tests/native-motif-pack* @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-motif-pack* @matiHirCab
+/docs/native-motif-pack.md @matiHirCab

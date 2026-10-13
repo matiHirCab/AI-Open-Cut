@@ -1,0 +1,1997 @@
+{
+  "version": 1,
+  "contract": "native-motif-pack-v1",
+  "recipeId": "native-motif-pack-v1",
+  "projectSchemaVersion": 45,
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "durationMs": 1000,
+  "frameMs": 500,
+  "rangeMs": [
+    500,
+    600
+  ],
+  "caps": {
+    "definitions": 5,
+    "instancesPerMotif": 2,
+    "oneSetVisualLeaves": 8,
+    "galleryMotifVisualLeaves": 16,
+    "aroundHeroAddedLeaves": 8,
+    "aroundHeroTotalLeaves": 22
+  },
+  "provenance": {
+    "source": "Original literal native geometry authored as code for issue184 in this repository",
+    "construction": "Analytic shapes/lattice/translations and explicitly authored structured Bezier paths; eight ray contours are literal analytic rotations of the declared seed quad",
+    "externalArtwork": [],
+    "rasterMotifAssets": [],
+    "tracing": false,
+    "randomness": "none"
+  },
+  "phases": {
+    "A": "Create all five empty unused definitions atomically; retain returned aliases/IDs",
+    "B": "Replace exact component-ID placeholders with real returned IDs, populate definitions and add gallery or around-hero occurrences in one current-revision batch",
+    "failure": "Failed B retains exact pre-B bytes; committed A remains explicit"
+  },
+  "placeholders": {
+    "$overlay": "Existing root overlay track ID",
+    "$dotComponentId": "Actual phase-A alias motif_dot_backdrop",
+    "$stickerComponentId": "Actual phase-A alias motif_sticker_contour",
+    "$sunComponentId": "Actual phase-A alias motif_sun_rays",
+    "$fireComponentId": "Actual phase-A alias motif_fireball",
+    "$speedComponentId": "Actual phase-A alias motif_speed_lines"
+  },
+  "motifs": [
+    {
+      "id": "dot_backdrop",
+      "version": 1,
+      "componentIdPlaceholder": "$dotComponentId",
+      "phaseAAlias": "motif_dot_backdrop",
+      "roles": [
+        "dots"
+      ],
+      "parameters": {
+        "viewport": [
+          280,
+          200
+        ],
+        "origin": [
+          20,
+          20
+        ],
+        "spacing": [
+          40,
+          40
+        ],
+        "radius": 4,
+        "inclusiveCenters": 48,
+        "paintAlpha": 0.5
+      },
+      "expandedVisualLeaves": 1,
+      "seed": {
+        "operation": "component_create",
+        "name": "Dot Backdrop v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [],
+        "slots": [],
+        "resultAlias": "motif_dot_backdrop"
+      },
+      "populate": {
+        "operation": "component_update",
+        "componentId": "$dotComponentId",
+        "name": "Dot Backdrop v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "motif_local",
+            "name": "Editable native motif roles",
+            "trackType": "overlay",
+            "locked": false,
+            "hidden": false,
+            "muted": false,
+            "items": [
+              {
+                "type": "grid",
+                "id": "dots",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 0,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 20,
+                    "y": 20,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "grid": {
+                  "width": 280,
+                  "height": 200,
+                  "pattern": {
+                    "type": "dot",
+                    "spacingX": 40,
+                    "spacingY": 40,
+                    "radius": 4,
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "r": 0.0,
+                        "g": 0.8313725490196079,
+                        "b": 1.0,
+                        "a": 0.5
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "slots": [
+          {
+            "id": "dot_color",
+            "name": "dot_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#00D4FF"
+            },
+            "binding": {
+              "targetLayerId": "dots",
+              "property": "grid.dot.paint.color"
+            },
+            "constraints": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "sticker_contour",
+      "version": 1,
+      "componentIdPlaceholder": "$stickerComponentId",
+      "phaseAAlias": "motif_sticker_contour",
+      "roles": [
+        "paper",
+        "accent"
+      ],
+      "parameters": {
+        "pathEnvelope": [
+          20,
+          20,
+          300,
+          220
+        ],
+        "strokeWidth": 12,
+        "accentRect": [
+          128,
+          88,
+          64,
+          64
+        ],
+        "originalBezierContours": 1
+      },
+      "expandedVisualLeaves": 2,
+      "seed": {
+        "operation": "component_create",
+        "name": "Sticker Contour v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [],
+        "slots": [],
+        "resultAlias": "motif_sticker_contour"
+      },
+      "populate": {
+        "operation": "component_update",
+        "componentId": "$stickerComponentId",
+        "name": "Sticker Contour v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "motif_local",
+            "name": "Editable native motif roles",
+            "trackType": "overlay",
+            "locked": false,
+            "hidden": false,
+            "muted": false,
+            "items": [
+              {
+                "type": "shape",
+                "id": "paper",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 0,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 20,
+                    "y": 20,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "path",
+                  "path": {
+                    "fillRule": "nonzero",
+                    "commands": [
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 40,
+                          "y": 20
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 270,
+                          "y": 20
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 300,
+                          "y": 65
+                        },
+                        "control1": {
+                          "x": 300,
+                          "y": 20
+                        },
+                        "control2": {
+                          "x": 300,
+                          "y": 45
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 300,
+                          "y": 185
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 255,
+                          "y": 220
+                        },
+                        "control1": {
+                          "x": 300,
+                          "y": 215
+                        },
+                        "control2": {
+                          "x": 280,
+                          "y": 220
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 50,
+                          "y": 220
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 20,
+                          "y": 175
+                        },
+                        "control1": {
+                          "x": 20,
+                          "y": 220
+                        },
+                        "control2": {
+                          "x": 20,
+                          "y": 200
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 20,
+                          "y": 55
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 40,
+                          "y": 20
+                        },
+                        "control1": {
+                          "x": 20,
+                          "y": 25
+                        },
+                        "control2": {
+                          "x": 30,
+                          "y": 20
+                        }
+                      },
+                      {
+                        "type": "close"
+                      }
+                    ]
+                  }
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 0.9725490196078431,
+                    "g": 0.9764705882352941,
+                    "b": 0.9803921568627451,
+                    "a": 1
+                  }
+                },
+                "stroke": {
+                  "paint": {
+                    "type": "solid",
+                    "color": {
+                      "r": 0.13333333333333333,
+                      "g": 0.2,
+                      "b": 0.26666666666666666,
+                      "a": 1
+                    }
+                  },
+                  "width": 12,
+                  "dash": [],
+                  "dashOffset": 0,
+                  "lineCap": "round",
+                  "lineJoin": "round",
+                  "miterLimit": 4
+                }
+              },
+              {
+                "type": "shape",
+                "id": "accent",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 1,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 128,
+                    "y": 88,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "ellipse",
+                  "width": 64,
+                  "height": 64
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 1.0,
+                    "g": 0.8,
+                    "b": 0.0,
+                    "a": 1
+                  }
+                },
+                "stroke": null
+              }
+            ]
+          }
+        ],
+        "slots": [
+          {
+            "id": "paper_color",
+            "name": "paper_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#F8F9FA"
+            },
+            "binding": {
+              "targetLayerId": "paper",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          },
+          {
+            "id": "outline_color",
+            "name": "outline_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#223344"
+            },
+            "binding": {
+              "targetLayerId": "paper",
+              "property": "shape.stroke.color"
+            },
+            "constraints": {}
+          },
+          {
+            "id": "accent_color",
+            "name": "accent_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#FFCC00"
+            },
+            "binding": {
+              "targetLayerId": "accent",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "sun_rays",
+      "version": 1,
+      "componentIdPlaceholder": "$sunComponentId",
+      "phaseAAlias": "motif_sun_rays",
+      "roles": [
+        "rays",
+        "sun_disc"
+      ],
+      "parameters": {
+        "centre": [
+          160,
+          120
+        ],
+        "rayContours": 8,
+        "angleStepDeg": 45,
+        "literalSeedQuad": [
+          [
+            154,
+            25
+          ],
+          [
+            166,
+            25
+          ],
+          [
+            166,
+            65
+          ],
+          [
+            154,
+            65
+          ]
+        ],
+        "radialEnvelope": [
+          54,
+          96
+        ],
+        "discRect": [
+          128,
+          88,
+          64,
+          64
+        ]
+      },
+      "expandedVisualLeaves": 2,
+      "seed": {
+        "operation": "component_create",
+        "name": "Sun Rays v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [],
+        "slots": [],
+        "resultAlias": "motif_sun_rays"
+      },
+      "populate": {
+        "operation": "component_update",
+        "componentId": "$sunComponentId",
+        "name": "Sun Rays v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "motif_local",
+            "name": "Editable native motif roles",
+            "trackType": "overlay",
+            "locked": false,
+            "hidden": false,
+            "muted": false,
+            "items": [
+              {
+                "type": "shape",
+                "id": "rays",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 0,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 65,
+                    "y": 25,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "path",
+                  "path": {
+                    "fillRule": "nonzero",
+                    "commands": [
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 154.0,
+                          "y": 25.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 166.0,
+                          "y": 25.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 166.0,
+                          "y": 65.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 154.0,
+                          "y": 65.0
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 222.932503525603,
+                          "y": 48.582215100159
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 231.417784899841,
+                          "y": 57.067496474397
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 203.133513652379,
+                          "y": 85.351767721859
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 194.648232278141,
+                          "y": 76.866486347621
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 255.0,
+                          "y": 114.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 255.0,
+                          "y": 126.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 215.0,
+                          "y": 126.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 215.0,
+                          "y": 114.0
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 231.417784899841,
+                          "y": 182.932503525603
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 222.932503525603,
+                          "y": 191.417784899841
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 194.648232278141,
+                          "y": 163.133513652379
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 203.133513652379,
+                          "y": 154.648232278141
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 166.0,
+                          "y": 215.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 154.0,
+                          "y": 215.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 154.0,
+                          "y": 175.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 166.0,
+                          "y": 175.0
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 97.067496474397,
+                          "y": 191.417784899841
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 88.582215100159,
+                          "y": 182.932503525603
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 116.866486347621,
+                          "y": 154.648232278141
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 125.351767721859,
+                          "y": 163.133513652379
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 65.0,
+                          "y": 126.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 65.0,
+                          "y": 114.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 105.0,
+                          "y": 114.0
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 105.0,
+                          "y": 126.0
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 88.582215100159,
+                          "y": 57.067496474397
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 97.067496474397,
+                          "y": 48.582215100159
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 125.351767721859,
+                          "y": 76.866486347621
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 116.866486347621,
+                          "y": 85.351767721859
+                        }
+                      },
+                      {
+                        "type": "close"
+                      }
+                    ]
+                  }
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 1.0,
+                    "g": 0.8,
+                    "b": 0.0,
+                    "a": 1
+                  }
+                },
+                "stroke": null
+              },
+              {
+                "type": "shape",
+                "id": "sun_disc",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 1,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 128,
+                    "y": 88,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "ellipse",
+                  "width": 64,
+                  "height": 64
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 1.0,
+                    "g": 0.4196078431372549,
+                    "b": 0.0,
+                    "a": 1
+                  }
+                },
+                "stroke": null
+              }
+            ]
+          }
+        ],
+        "slots": [
+          {
+            "id": "ray_color",
+            "name": "ray_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#FFCC00"
+            },
+            "binding": {
+              "targetLayerId": "rays",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          },
+          {
+            "id": "disc_color",
+            "name": "disc_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#FF6B00"
+            },
+            "binding": {
+              "targetLayerId": "sun_disc",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "fireball",
+      "version": 1,
+      "componentIdPlaceholder": "$fireComponentId",
+      "phaseAAlias": "motif_fireball",
+      "roles": [
+        "flame_outer",
+        "flame_core"
+      ],
+      "parameters": {
+        "outerEnvelope": [
+          20,
+          20,
+          300,
+          220
+        ],
+        "coreEnvelope": [
+          90,
+          80,
+          250,
+          195
+        ],
+        "originalBezierContours": 2,
+        "paintOrder": [
+          "flame_outer",
+          "flame_core"
+        ]
+      },
+      "expandedVisualLeaves": 2,
+      "seed": {
+        "operation": "component_create",
+        "name": "Fireball v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [],
+        "slots": [],
+        "resultAlias": "motif_fireball"
+      },
+      "populate": {
+        "operation": "component_update",
+        "componentId": "$fireComponentId",
+        "name": "Fireball v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "motif_local",
+            "name": "Editable native motif roles",
+            "trackType": "overlay",
+            "locked": false,
+            "hidden": false,
+            "muted": false,
+            "items": [
+              {
+                "type": "shape",
+                "id": "flame_outer",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 0,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 20,
+                    "y": 20,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "path",
+                  "path": {
+                    "fillRule": "nonzero",
+                    "commands": [
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 20,
+                          "y": 120
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 100,
+                          "y": 100
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 140,
+                          "y": 20
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 220,
+                          "y": 40
+                        },
+                        "control1": {
+                          "x": 160,
+                          "y": 55
+                        },
+                        "control2": {
+                          "x": 180,
+                          "y": 60
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 300,
+                          "y": 100
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 220,
+                          "y": 220
+                        },
+                        "control1": {
+                          "x": 290,
+                          "y": 160
+                        },
+                        "control2": {
+                          "x": 280,
+                          "y": 200
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 100,
+                          "y": 220
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 20,
+                          "y": 120
+                        },
+                        "control1": {
+                          "x": 60,
+                          "y": 205
+                        },
+                        "control2": {
+                          "x": 20,
+                          "y": 175
+                        }
+                      },
+                      {
+                        "type": "close"
+                      }
+                    ]
+                  }
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 1.0,
+                    "g": 0.4196078431372549,
+                    "b": 0.0,
+                    "a": 1
+                  }
+                },
+                "stroke": null
+              },
+              {
+                "type": "shape",
+                "id": "flame_core",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 1,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 90,
+                    "y": 80,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "path",
+                  "path": {
+                    "fillRule": "nonzero",
+                    "commands": [
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 90,
+                          "y": 140
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 170,
+                          "y": 80
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 250,
+                          "y": 130
+                        },
+                        "control1": {
+                          "x": 185,
+                          "y": 110
+                        },
+                        "control2": {
+                          "x": 210,
+                          "y": 115
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 155,
+                          "y": 195
+                        },
+                        "control1": {
+                          "x": 240,
+                          "y": 170
+                        },
+                        "control2": {
+                          "x": 205,
+                          "y": 195
+                        }
+                      },
+                      {
+                        "type": "cubicTo",
+                        "to": {
+                          "x": 90,
+                          "y": 140
+                        },
+                        "control1": {
+                          "x": 120,
+                          "y": 185
+                        },
+                        "control2": {
+                          "x": 90,
+                          "y": 165
+                        }
+                      },
+                      {
+                        "type": "close"
+                      }
+                    ]
+                  }
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 1.0,
+                    "g": 0.8,
+                    "b": 0.0,
+                    "a": 1
+                  }
+                },
+                "stroke": null
+              }
+            ]
+          }
+        ],
+        "slots": [
+          {
+            "id": "outer_color",
+            "name": "outer_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#FF6B00"
+            },
+            "binding": {
+              "targetLayerId": "flame_outer",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          },
+          {
+            "id": "core_color",
+            "name": "core_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#FFCC00"
+            },
+            "binding": {
+              "targetLayerId": "flame_core",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "speed_lines",
+      "version": 1,
+      "componentIdPlaceholder": "$speedComponentId",
+      "phaseAAlias": "motif_speed_lines",
+      "roles": [
+        "speed_lines_shape"
+      ],
+      "parameters": {
+        "contours": 6,
+        "size": [
+          180,
+          6
+        ],
+        "origin": [
+          20,
+          50
+        ],
+        "translation": [
+          12,
+          24
+        ],
+        "paintAlpha": 0.75
+      },
+      "expandedVisualLeaves": 1,
+      "seed": {
+        "operation": "component_create",
+        "name": "Speed Lines v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [],
+        "slots": [],
+        "resultAlias": "motif_speed_lines"
+      },
+      "populate": {
+        "operation": "component_update",
+        "componentId": "$speedComponentId",
+        "name": "Speed Lines v1",
+        "width": 320,
+        "height": 240,
+        "durationMs": 1000,
+        "tracks": [
+          {
+            "id": "motif_local",
+            "name": "Editable native motif roles",
+            "trackType": "overlay",
+            "locked": false,
+            "hidden": false,
+            "muted": false,
+            "items": [
+              {
+                "type": "shape",
+                "id": "speed_lines_shape",
+                "startMs": 0,
+                "durationMs": 1000,
+                "stackOrder": 0,
+                "keyframes": [],
+                "transform2d": {
+                  "position": {
+                    "x": 20,
+                    "y": 50,
+                    "unit": "pixels"
+                  },
+                  "anchor": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "rotationDeg": 0,
+                  "skewXDeg": 0,
+                  "skewYDeg": 0,
+                  "opacity": 1
+                },
+                "geometry": {
+                  "type": "path",
+                  "path": {
+                    "fillRule": "nonzero",
+                    "commands": [
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 20,
+                          "y": 50
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 200,
+                          "y": 50
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 200,
+                          "y": 56
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 20,
+                          "y": 56
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 32,
+                          "y": 74
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 212,
+                          "y": 74
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 212,
+                          "y": 80
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 32,
+                          "y": 80
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 44,
+                          "y": 98
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 224,
+                          "y": 98
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 224,
+                          "y": 104
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 44,
+                          "y": 104
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 56,
+                          "y": 122
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 236,
+                          "y": 122
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 236,
+                          "y": 128
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 56,
+                          "y": 128
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 68,
+                          "y": 146
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 248,
+                          "y": 146
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 248,
+                          "y": 152
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 68,
+                          "y": 152
+                        }
+                      },
+                      {
+                        "type": "close"
+                      },
+                      {
+                        "type": "moveTo",
+                        "to": {
+                          "x": 80,
+                          "y": 170
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 260,
+                          "y": 170
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 260,
+                          "y": 176
+                        }
+                      },
+                      {
+                        "type": "lineTo",
+                        "to": {
+                          "x": 80,
+                          "y": 176
+                        }
+                      },
+                      {
+                        "type": "close"
+                      }
+                    ]
+                  }
+                },
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "r": 0.0,
+                    "g": 0.8313725490196079,
+                    "b": 1.0,
+                    "a": 0.75
+                  }
+                },
+                "stroke": null
+              }
+            ]
+          }
+        ],
+        "slots": [
+          {
+            "id": "line_color",
+            "name": "line_color",
+            "kind": "color",
+            "required": true,
+            "defaultValue": {
+              "type": "color",
+              "value": "#00D4FF"
+            },
+            "binding": {
+              "targetLayerId": "speed_lines_shape",
+              "property": "shape.fill.color"
+            },
+            "constraints": {}
+          }
+        ]
+      }
+    }
+  ],
+  "galleryInstances": [
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$dotComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 40,
+          "y": 40,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "dot_backdrop_default"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$dotComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 40,
+          "y": 360,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "dot_color": {
+          "type": "color",
+          "value": "#FFFFFF"
+        }
+      },
+      "resultAlias": "dot_backdrop_alternate"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$stickerComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 400,
+          "y": 40,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "sticker_contour_default"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$stickerComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 400,
+          "y": 360,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "paper_color": {
+          "type": "color",
+          "value": "#FFFFFF"
+        },
+        "outline_color": {
+          "type": "color",
+          "value": "#000000"
+        },
+        "accent_color": {
+          "type": "color",
+          "value": "#00FFFF"
+        }
+      },
+      "resultAlias": "sticker_contour_alternate"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$sunComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 760,
+          "y": 40,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "sun_rays_default"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$sunComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 760,
+          "y": 360,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "ray_color": {
+          "type": "color",
+          "value": "#FFFFFF"
+        },
+        "disc_color": {
+          "type": "color",
+          "value": "#000000"
+        }
+      },
+      "resultAlias": "sun_rays_alternate"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$fireComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1120,
+          "y": 40,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "fireball_default"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$fireComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1120,
+          "y": 360,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "outer_color": {
+          "type": "color",
+          "value": "#FF0000"
+        },
+        "core_color": {
+          "type": "color",
+          "value": "#FFFFFF"
+        }
+      },
+      "resultAlias": "fireball_alternate"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$speedComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1480,
+          "y": 40,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "speed_lines_default"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$speedComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1480,
+          "y": 360,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {
+        "line_color": {
+          "type": "color",
+          "value": "#FFFFFF"
+        }
+      },
+      "resultAlias": "speed_lines_alternate"
+    }
+  ],
+  "aroundHeroInstances": [
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$dotComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 40,
+          "y": -20,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "dot_backdrop_around_hero"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$stickerComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 850,
+          "y": 840,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "sticker_contour_around_hero"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$sunComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 900,
+          "y": 0,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "sun_rays_around_hero"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$fireComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 1600,
+          "y": 840,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "fireball_around_hero"
+    },
+    {
+      "operation": "add_component_instance",
+      "trackId": "$overlay",
+      "componentId": "$speedComponentId",
+      "startMs": 0,
+      "durationMs": 1000,
+      "trimStartMs": 0,
+      "timeScale": 1,
+      "transform2d": {
+        "position": {
+          "x": 180,
+          "y": 840,
+          "unit": "pixels"
+        },
+        "anchor": {
+          "x": 0,
+          "y": 0
+        },
+        "scaleX": 1,
+        "scaleY": 1,
+        "rotationDeg": 0,
+        "skewXDeg": 0,
+        "skewYDeg": 0,
+        "opacity": 1
+      },
+      "slotValues": {},
+      "resultAlias": "speed_lines_around_hero"
+    }
+  ]
+}

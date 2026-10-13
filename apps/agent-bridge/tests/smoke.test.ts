@@ -46,6 +46,7 @@ import { verifyMasterNormalizationWorkflow } from "./master-normalization-workfl
 import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
+import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
 import { verifyOrderedEffectWorkflow } from "./ordered-effect-workflow";
 import { verifyPackClockMigrationWorkflow } from "./pack-clock-migration-workflow";
 import { verifyPresetWorkflow } from "./preset-workflow";
@@ -1275,7 +1276,13 @@ it("ungroups through standalone and alias MCP edits with atomic failures and his
 });
 
 it("creates and customizes native hero cards through discovered recipe data", async () => {
-  await verifyNativeHeroCardWorkflow(client, call, media, projects);
+  const hero = await verifyNativeHeroCardWorkflow(
+    client,
+    call,
+    media,
+    projects
+  );
+  await verifyNativeMotifWorkflow(client, call, hero.projectId);
 });
 
 it("preserves component, instance, rule card and slot workflows through MCP", async () => {
