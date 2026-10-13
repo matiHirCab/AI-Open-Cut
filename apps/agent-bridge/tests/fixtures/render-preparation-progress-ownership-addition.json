@@ -1,0 +1,12 @@
+{
+  "canonical": "contracts/render-preparation-progress-v1.json",
+  "consumers": [
+    "crates/editor-core/src/renderer/tests/preparation_progress.rs",
+    "apps/headless/src/main.rs",
+    "apps/headless/src/worker.rs",
+    "apps/agent-bridge/tests/contracts.test.ts",
+    "apps/agent-bridge/tests/jobs.test.ts",
+    "apps/agent-bridge/tests/render-worker.test.ts",
+    "apps/agent-bridge/tests/render-preparation-progress-workflow.ts"
+  ]
+}
