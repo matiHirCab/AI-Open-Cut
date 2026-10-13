@@ -93,7 +93,11 @@ impl RasterCache {
         self.misses
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         // Never hold the lock during rasterization and never cache errors.
+        #[cfg(test)]
+        let started = std::time::Instant::now();
         let bytes: Arc<[u8]> = render()?.into();
+        #[cfg(test)]
+        record_raster_duration(started);
         let Some(cost) = bytes.len().checked_add(size_of::<Key>()) else {
             return Ok(bytes);
         };
@@ -120,6 +124,14 @@ impl RasterCache {
         });
         Ok(bytes)
     }
+}
+
+#[cfg(test)]
+fn record_raster_duration(started: std::time::Instant) {
+    crate::error::dense_scene_observations::elapsed(
+        "source_rasterization",
+        started.elapsed().as_secs_f64() * 1000.,
+    );
 }
 
 // Each typed JSON value is terminated with a byte JSON cannot contain literally.

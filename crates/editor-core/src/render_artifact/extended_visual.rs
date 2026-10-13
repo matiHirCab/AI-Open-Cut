@@ -666,6 +666,11 @@ pub(crate) struct VisualPreparation<'a> {
     pub(crate) caption: &'a CaptionRasterizer<'a>,
 }
 
+#[cfg(test)]
+fn preparation_measurement() -> Option<crate::error::dense_scene_observations::InclusiveTimer> {
+    crate::error::dense_scene_observations::InclusiveTimer::start("native_visual_preparation")
+}
+
 pub(crate) fn prepare(
     io: &dyn ArtifactIo,
     scene: &mut EvaluatedScene,
@@ -675,6 +680,8 @@ pub(crate) fn prepare(
     preparation: &VisualPreparation<'_>,
     on_frame: &mut dyn FnMut(u64, u64),
 ) -> Result<(), CoreError> {
+    #[cfg(test)]
+    let _measurement = preparation_measurement();
     let VisualPreparation {
         decode,
         encode,

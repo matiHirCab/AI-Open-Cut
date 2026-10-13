@@ -50,6 +50,7 @@ const PCM_RMS_MAXIMUM: f64 = 0.0001;
 mod audio_analysis;
 mod audio_bus_dsp;
 mod audio_bus_ducking;
+mod dense_scene_strategy;
 mod grids;
 mod illustrated_scene;
 mod inherited_timing;
@@ -2430,6 +2431,7 @@ fn native_golden_render_conformance() {
         ("repeaters", repeaters::conformance),
         ("rich_text", rich_text::conformance),
         ("illustrated_scene", illustrated_scene::conformance),
+        ("dense_scene_strategy", dense_scene_strategy::conformance),
     ];
     for (name, run) in suites {
         let started = Instant::now();

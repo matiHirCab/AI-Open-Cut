@@ -224,8 +224,13 @@ pub(crate) fn charge_render_work(
         CoreError::budget(message, budget, limit, attempted, contributors)
     })?;
     *total = value;
+    #[cfg(test)]
+    dense_scene_observations::charge(budget, limit, value);
     Ok(())
 }
+
+#[cfg(test)]
+pub(crate) mod dense_scene_observations;
 
 #[derive(Debug, Error)]
 #[error("{message}")]
