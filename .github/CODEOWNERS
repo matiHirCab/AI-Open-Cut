@@ -483,3 +483,26 @@
 /apps/agent-bridge/tests/render-preparation-progress* @matiHirCab
 /apps/agent-bridge/tests/fixtures/render-preparation-progress-* @matiHirCab
 /docs/render-preparation-progress.md @matiHirCab
+
+# Native role badges and bounded team example
+/contracts/native-role-team-v1.json @matiHirCab
+/apps/agent-bridge/src/server/context.ts @matiHirCab
+/crates/editor-core/tests/native_role_team.rs @matiHirCab
+/apps/agent-bridge/tests/native-role-team.test.ts @matiHirCab
+/apps/agent-bridge/tests/native-role-team-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/native-role-team-native.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-role-team-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-role-team-ownership-addition.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-role-team-predecessor-pins.json @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-role-team-predecessor-ownership.raw @matiHirCab
+/apps/agent-bridge/tests/fixtures/native-motif-pack-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/solid-graphic-color-slots-projection.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/render-budget-projection.ts @matiHirCab
+/apps/agent-bridge/tests/contracts.test.ts @matiHirCab
+/apps/agent-bridge/tests/smoke.test.ts @matiHirCab
+/apps/agent-bridge/tests/packaged-smoke.test.ts @matiHirCab
+/apps/agent-bridge/tests/platform-renderer-native.test.ts @matiHirCab
+/docs/native-role-team.md @matiHirCab
+/apps/agent-bridge/package.json @matiHirCab
+/scripts/validate-ci-gates.ts @matiHirCab
+/scripts/validate-ci-gates.test.ts @matiHirCab

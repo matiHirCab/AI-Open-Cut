@@ -1,0 +1,2141 @@
+{
+  "version": 1,
+  "recipeId": "native-role-team-v1",
+  "contract": "native-role-team-v1",
+  "projectSchemaVersion": 45,
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "durationMs": 1000,
+  "frameMs": 500,
+  "rangeMs": [
+    0,
+    400
+  ],
+  "caps": {
+    "minimumMembers": 1,
+    "maximumMembers": 4,
+    "badgeVisualLeaves": 9,
+    "maximumVisualLeaves": 36,
+    "groups": 1,
+    "maximumAnimationChannels": 4,
+    "labelScalars": 24,
+    "referenceArtworkDimension": 64
+  },
+  "provenance": {
+    "geometry": "Existing original native hero seven roles plus original native motif sun two roles, translated480px; editable literal shapes/text/media",
+    "artwork": "Original synthetic64x64 split white/red reference BMP; alternate split white/blue",
+    "externalArtwork": [],
+    "tracing": false
+  },
+  "placeholders": {
+    "$overlay": "Existing root overlay track ID",
+    "$artwork": "Already imported safe managed64x64 image in this project"
+  },
+  "roles": [
+    "background",
+    "device_frame",
+    "screen_panel",
+    "label_panel",
+    "accent",
+    "artwork",
+    "role_label",
+    "rays",
+    "sun_disc"
+  ],
+  "badgeCreate": {
+    "operation": "component_create",
+    "name": "Native role badge v1",
+    "width": 800,
+    "height": 600,
+    "durationMs": 1000,
+    "tracks": [
+      {
+        "id": "role_layers",
+        "name": "Native role badge layers",
+        "trackType": "overlay",
+        "items": [
+          {
+            "id": "background",
+            "stackOrder": 0,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "shape",
+            "geometry": {
+              "type": "rectangle",
+              "width": 800,
+              "height": 600
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 0.09411764705882353,
+                "g": 0.14901960784313725,
+                "b": 0.23921568627450981,
+                "a": 1
+              }
+            },
+            "stroke": null,
+            "transform2d": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "device_frame",
+            "stackOrder": 1,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "shape",
+            "geometry": {
+              "type": "rectangle",
+              "width": 720,
+              "height": 420
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 0.9333333333333333,
+                "g": 0.9333333333333333,
+                "b": 0.9333333333333333,
+                "a": 1
+              }
+            },
+            "stroke": null,
+            "transform2d": {
+              "position": {
+                "x": 40,
+                "y": 40,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "screen_panel",
+            "stackOrder": 2,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "shape",
+            "geometry": {
+              "type": "rectangle",
+              "width": 680,
+              "height": 380
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 0.08627450980392157,
+                "g": 0.12549019607843137,
+                "b": 0.2,
+                "a": 1
+              }
+            },
+            "stroke": null,
+            "transform2d": {
+              "position": {
+                "x": 60,
+                "y": 60,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "label_panel",
+            "stackOrder": 3,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "shape",
+            "geometry": {
+              "type": "rectangle",
+              "width": 720,
+              "height": 90
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 0.18823529411764706,
+                "g": 0.28627450980392155,
+                "b": 0.40784313725490196,
+                "a": 1
+              }
+            },
+            "stroke": null,
+            "transform2d": {
+              "position": {
+                "x": 40,
+                "y": 480,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "accent",
+            "stackOrder": 4,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "shape",
+            "geometry": {
+              "type": "rectangle",
+              "width": 180,
+              "height": 15
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 1.0,
+                "g": 0.8,
+                "b": 0.2,
+                "a": 1
+              }
+            },
+            "stroke": null,
+            "transform2d": {
+              "position": {
+                "x": 60,
+                "y": 435,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "artwork",
+            "stackOrder": 5,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "media",
+            "assetId": "$artwork",
+            "sourceInMs": 0,
+            "audio": {
+              "volume": 1,
+              "muted": true,
+              "fadeInMs": 0,
+              "fadeOutMs": 0
+            },
+            "transform2d": {
+              "position": {
+                "x": 272,
+                "y": 118,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 4,
+              "scaleY": 4,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "id": "role_label",
+            "stackOrder": 6,
+            "startMs": 0,
+            "durationMs": 1000,
+            "keyframes": [],
+            "type": "text",
+            "text": "ROLE 01",
+            "fontSize": 36,
+            "color": "#ffffff",
+            "style": {
+              "layout": {
+                "bounds": {
+                  "widthPx": 670,
+                  "heightPx": 68
+                },
+                "wrap": "none"
+              }
+            },
+            "transform2d": {
+              "position": {
+                "x": 64,
+                "y": 497,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            }
+          },
+          {
+            "type": "shape",
+            "id": "rays",
+            "startMs": 0,
+            "durationMs": 1000,
+            "stackOrder": 7,
+            "keyframes": [],
+            "transform2d": {
+              "position": {
+                "x": 545,
+                "y": 25,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "geometry": {
+              "type": "path",
+              "path": {
+                "fillRule": "nonzero",
+                "commands": [
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 154.0,
+                      "y": 25.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 166.0,
+                      "y": 25.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 166.0,
+                      "y": 65.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 154.0,
+                      "y": 65.0
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 222.932503525603,
+                      "y": 48.582215100159
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 231.417784899841,
+                      "y": 57.067496474397
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 203.133513652379,
+                      "y": 85.351767721859
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 194.648232278141,
+                      "y": 76.866486347621
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 255.0,
+                      "y": 114.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 255.0,
+                      "y": 126.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 215.0,
+                      "y": 126.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 215.0,
+                      "y": 114.0
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 231.417784899841,
+                      "y": 182.932503525603
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 222.932503525603,
+                      "y": 191.417784899841
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 194.648232278141,
+                      "y": 163.133513652379
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 203.133513652379,
+                      "y": 154.648232278141
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 166.0,
+                      "y": 215.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 154.0,
+                      "y": 215.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 154.0,
+                      "y": 175.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 166.0,
+                      "y": 175.0
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 97.067496474397,
+                      "y": 191.417784899841
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 88.582215100159,
+                      "y": 182.932503525603
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 116.866486347621,
+                      "y": 154.648232278141
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 125.351767721859,
+                      "y": 163.133513652379
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 65.0,
+                      "y": 126.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 65.0,
+                      "y": 114.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 105.0,
+                      "y": 114.0
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 105.0,
+                      "y": 126.0
+                    }
+                  },
+                  {
+                    "type": "close"
+                  },
+                  {
+                    "type": "moveTo",
+                    "to": {
+                      "x": 88.582215100159,
+                      "y": 57.067496474397
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 97.067496474397,
+                      "y": 48.582215100159
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 125.351767721859,
+                      "y": 76.866486347621
+                    }
+                  },
+                  {
+                    "type": "lineTo",
+                    "to": {
+                      "x": 116.866486347621,
+                      "y": 85.351767721859
+                    }
+                  },
+                  {
+                    "type": "close"
+                  }
+                ]
+              }
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 1.0,
+                "g": 0.8,
+                "b": 0.0,
+                "a": 1
+              }
+            },
+            "stroke": null
+          },
+          {
+            "type": "shape",
+            "id": "sun_disc",
+            "startMs": 0,
+            "durationMs": 1000,
+            "stackOrder": 8,
+            "keyframes": [],
+            "transform2d": {
+              "position": {
+                "x": 608,
+                "y": 88,
+                "unit": "pixels"
+              },
+              "anchor": {
+                "x": 0,
+                "y": 0
+              },
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotationDeg": 0,
+              "skewXDeg": 0,
+              "skewYDeg": 0,
+              "opacity": 1
+            },
+            "geometry": {
+              "type": "ellipse",
+              "width": 64,
+              "height": 64
+            },
+            "fill": {
+              "type": "solid",
+              "color": {
+                "r": 1.0,
+                "g": 0.4196078431372549,
+                "b": 0.0,
+                "a": 1
+              }
+            },
+            "stroke": null
+          }
+        ]
+      }
+    ],
+    "slots": [],
+    "resultAlias": "badge"
+  },
+  "badgeDefineSlots": {
+    "operation": "component_define_slots",
+    "componentId": "@badge",
+    "slots": [
+      {
+        "id": "role_label",
+        "name": "Role label",
+        "kind": "text",
+        "required": true,
+        "defaultValue": {
+          "type": "text",
+          "value": "ROLE 01"
+        },
+        "binding": {
+          "targetLayerId": "role_label",
+          "property": "text.document"
+        },
+        "constraints": {
+          "minLength": 1,
+          "maxLength": 24
+        }
+      },
+      {
+        "id": "artwork",
+        "name": "Artwork",
+        "kind": "asset",
+        "required": true,
+        "defaultValue": {
+          "type": "asset",
+          "value": {
+            "kind": "asset",
+            "scope": "project",
+            "id": "$artwork"
+          }
+        },
+        "binding": {
+          "targetLayerId": "artwork",
+          "property": "media.asset"
+        },
+        "constraints": {
+          "assetKinds": [
+            "image"
+          ]
+        }
+      },
+      {
+        "id": "background_color",
+        "name": "background color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#18263d"
+        },
+        "binding": {
+          "targetLayerId": "background",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "device_frame_color",
+        "name": "device_frame color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#eeeeee"
+        },
+        "binding": {
+          "targetLayerId": "device_frame",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "screen_panel_color",
+        "name": "screen_panel color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#162033"
+        },
+        "binding": {
+          "targetLayerId": "screen_panel",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "label_panel_color",
+        "name": "label_panel color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#304968"
+        },
+        "binding": {
+          "targetLayerId": "label_panel",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "accent_color",
+        "name": "accent color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#ffcc33"
+        },
+        "binding": {
+          "targetLayerId": "accent",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "rays_color",
+        "name": "rays color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#ffcc00"
+        },
+        "binding": {
+          "targetLayerId": "rays",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "sun_disc_color",
+        "name": "sun_disc color",
+        "kind": "color",
+        "required": false,
+        "defaultValue": {
+          "type": "color",
+          "value": "#ff6b00"
+        },
+        "binding": {
+          "targetLayerId": "sun_disc",
+          "property": "shape.fill.color"
+        },
+        "constraints": {}
+      },
+      {
+        "id": "rays_hidden",
+        "name": "Hide sun rays",
+        "kind": "boolean",
+        "required": false,
+        "defaultValue": {
+          "type": "boolean",
+          "value": false
+        },
+        "binding": {
+          "targetLayerId": "rays",
+          "property": "visual.hidden"
+        },
+        "constraints": {}
+      }
+    ]
+  },
+  "layouts": {
+    "row": {
+      "1": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 100,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "2": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 100,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 550,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "3": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 100,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 550,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1000,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 03"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#402040"
+            }
+          },
+          "resultAlias": "member_3"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_3",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_3",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 160,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 260,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "4": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 100,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 550,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1000,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 03"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#402040"
+            }
+          },
+          "resultAlias": "member_3"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_3",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_3",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 160,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 260,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1450,
+            "positionY": 390,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 04"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#403020"
+            }
+          },
+          "resultAlias": "member_4"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_4",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_4",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 240,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 340,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "grid": {
+      "1": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "2": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1040,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "3": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1040,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 560,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 03"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#402040"
+            }
+          },
+          "resultAlias": "member_3"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_3",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_3",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 160,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 260,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "4": [
+        {
+          "operation": "add_group",
+          "trackId": "$overlay",
+          "startMs": 0,
+          "durationMs": 1000,
+          "resultAlias": "team"
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 01"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#18263d"
+            }
+          },
+          "resultAlias": "member_1"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_1",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_1",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 0,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 100,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1040,
+            "positionY": 160,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 02"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#204040"
+            }
+          },
+          "resultAlias": "member_2"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_2",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_2",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 80,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 180,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 480,
+            "positionY": 560,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 03"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#402040"
+            }
+          },
+          "resultAlias": "member_3"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_3",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_3",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 160,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 260,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "operation": "add_component_instance",
+          "trackId": "$overlay",
+          "componentId": "@badge",
+          "startMs": 0,
+          "durationMs": 1000,
+          "trimStartMs": 0,
+          "timeScale": 1,
+          "transform": {
+            "positionX": 1040,
+            "positionY": 560,
+            "scale": 0.5,
+            "opacity": 1
+          },
+          "slotValues": {
+            "role_label": {
+              "type": "text",
+              "value": "ROLE 04"
+            },
+            "background_color": {
+              "type": "color",
+              "value": "#403020"
+            }
+          },
+          "resultAlias": "member_4"
+        },
+        {
+          "operation": "item_set_parent",
+          "itemId": "@member_4",
+          "parent": {
+            "scope": "root",
+            "id": "@team"
+          }
+        },
+        {
+          "operation": "set_animation_channels",
+          "itemId": "@member_4",
+          "animationChannels": [
+            {
+              "property": "transform.opacity",
+              "keyframes": [
+                {
+                  "timeMs": 240,
+                  "value": {
+                    "type": "scalar",
+                    "value": 0
+                  },
+                  "curve": "linear"
+                },
+                {
+                  "timeMs": 340,
+                  "value": {
+                    "type": "scalar",
+                    "value": 1
+                  },
+                  "curve": "hold"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "sampleTimesMs": [
+    0,
+    40,
+    80,
+    120,
+    200,
+    280,
+    500
+  ]
+}

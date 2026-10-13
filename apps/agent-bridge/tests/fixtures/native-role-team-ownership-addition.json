@@ -1,0 +1,25 @@
+{
+  "canonical": "contracts/native-role-team-v1.json",
+  "consumers": [
+    "apps/agent-bridge/src/server/context.ts",
+    "crates/editor-core/tests/native_role_team.rs",
+    "apps/agent-bridge/tests/native-role-team.test.ts",
+    "apps/agent-bridge/tests/native-role-team-workflow.ts",
+    "apps/agent-bridge/tests/native-role-team-native.ts",
+    "apps/agent-bridge/tests/fixtures/native-role-team-projection.ts",
+    "apps/agent-bridge/tests/fixtures/native-role-team-ownership-addition.json",
+    "apps/agent-bridge/tests/fixtures/native-role-team-predecessor-pins.json",
+    "apps/agent-bridge/tests/fixtures/native-role-team-predecessor-ownership.raw",
+    "apps/agent-bridge/tests/fixtures/native-motif-pack-projection.ts",
+    "apps/agent-bridge/tests/fixtures/solid-graphic-color-slots-projection.ts",
+    "apps/agent-bridge/tests/fixtures/render-budget-projection.ts",
+    "apps/agent-bridge/tests/contracts.test.ts",
+    "apps/agent-bridge/tests/smoke.test.ts",
+    "apps/agent-bridge/tests/packaged-smoke.test.ts",
+    "apps/agent-bridge/tests/platform-renderer-native.test.ts",
+    "docs/native-role-team.md",
+    "apps/agent-bridge/package.json",
+    "scripts/validate-ci-gates.ts",
+    "scripts/validate-ci-gates.test.ts"
+  ]
+}

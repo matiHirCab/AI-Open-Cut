@@ -6,6 +6,7 @@ import {
   removeNativeMotifOwnershipAddition,
   restoreNativeMotifRaw,
 } from "./native-motif-pack-projection";
+import { removeRoleTeamOwnershipAddition } from "./native-role-team-projection";
 import { removeRenderPreparationOwnershipAddition } from "./render-preparation-progress-projection";
 import changes from "./solid-graphic-color-slots-mcp-additions.json";
 import category from "./solid-graphic-color-slots-ownership-addition.json";
@@ -85,7 +86,9 @@ export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
 };
 export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
   const result = removeNativeMotifOwnershipAddition(
-    removeRenderPreparationOwnershipAddition(source)
+    removeRenderPreparationOwnershipAddition(
+      removeRoleTeamOwnershipAddition(source)
+    )
   );
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "solidGraphicColorSlots")) {

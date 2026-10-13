@@ -124,6 +124,7 @@ import {
   assertCurrentNativeMotifOwnership,
   removeNativeMotifOwnershipAddition,
 } from "./fixtures/native-motif-pack-projection";
+import { removeRoleTeamOwnershipAddition } from "./fixtures/native-role-team-projection";
 import { projectSchema36ParameterizedMcpPredecessor } from "./fixtures/parameterized-effect-projection";
 import PREPARATION_OWNER from "./fixtures/render-preparation-progress-ownership-addition.json";
 import PREPARATION_PINS from "./fixtures/render-preparation-progress-predecessor-pins.json";
@@ -2091,7 +2092,9 @@ it("governs native preparation numeric progress without changing prior public ca
     expect(eventSchema.safeParse(invalid).success).toBe(false);
   }
   assertCurrentNativeMotifOwnership(ownership);
-  const preparationOwnership = removeNativeMotifOwnershipAddition(ownership);
+  const preparationOwnership = removeRoleTeamOwnershipAddition(
+    removeNativeMotifOwnershipAddition(ownership)
+  );
   const prior = removeRenderPreparationOwnershipAddition(preparationOwnership);
   const raw = restoreRenderPreparationOwnershipRaw(
     JSON.stringify(preparationOwnership)
