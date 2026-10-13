@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  removeFfmpegSpawnMcpAddition,
+  removeFfmpegSpawnOwnershipAddition,
+} from "./ffmpeg-spawn-projection";
 import addition from "./job-restart-ownership-addition.json";
 import { orderedEffectDigest } from "./ordered-effect-projection";
 import {
@@ -18,8 +22,10 @@ const record = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
-  const result = removeRenderBudgetOwnershipAddition(
-    removeSolidGraphicOwnershipAddition(source)
+  const result = removeFfmpegSpawnOwnershipAddition(
+    removeRenderBudgetOwnershipAddition(
+      removeSolidGraphicOwnershipAddition(source)
+    )
   );
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "jobRestart")) {
@@ -34,8 +40,8 @@ export const removeJobRestartOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const removeJobRestartMcpAddition = <T>(source: T): T => {
-  const result = removeRenderBudgetMcpAddition(
-    removeSolidGraphicMcpAdditions(source)
+  const result = removeFfmpegSpawnMcpAddition(
+    removeRenderBudgetMcpAddition(removeSolidGraphicMcpAdditions(source))
   );
   const capabilities = record(result).capabilityIdentifiers;
   if (!Array.isArray(capabilities)) {

@@ -33,6 +33,7 @@ import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
+import { verifyFfmpegSpawnTransportWorkflow } from "./ffmpeg-spawn-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
@@ -306,6 +307,10 @@ it("parents groups through standalone and atomic MCP tools with history", async 
     projectStateSchema
   );
   expect(detached.project.tracks[1]?.items[1]?.parent).toBeUndefined();
+});
+
+it("preserves canonical startup failure through one-shot and MCP worker/job transport fixtures", async () => {
+  await verifyFfmpegSpawnTransportWorkflow(bridgeParameters);
 });
 
 beforeAll(async () => {

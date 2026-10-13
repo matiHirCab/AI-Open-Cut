@@ -18,7 +18,7 @@
 
 - [x] 4.1 Pass Rustfmt, strict all-target workspace Clippy, full workspace; bridge type/lint/unit, complete unchanged canonical, source integration and fresh packaged smoke; relevant hermetic Python. Record full logs and scope failures without changing deadlines/policy.
 - [x] 4.2 Pass actual native source/default package, complete optimized golden and full motion release with existing fixtures/fonts/references/guards.
-- [x] 4.3 Re-fetch main; preserve all merged domains through normal history and verify an exact-head disposable union with pending PR198, complete parity and independent specification/implementation resolution.
+- [x] 4.3 Re-fetch main; preserve all merged domains through normal history and incorporate actual main0f containing user-merged PR198 normally, preserve its complete FF domain and strict predecessor proofs, verify compatibility with pending2006fd using attributable unchanged joint components, and obtain complete affected parity plus independent specification/implementation resolution.
 - [x] 4.4 Pass pinned strict validation and inspect pre-archive protected rejection solely for this change; verify completeness/correctness/coherence and conformance handoff.
 
 ## Mandatory post-verification lifecycle

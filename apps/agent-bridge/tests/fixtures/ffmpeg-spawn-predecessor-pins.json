@@ -1,0 +1,8 @@
+{
+  "base": "84da152fac0378396099d8f01fc3b7339690361f",
+  "rawSha256": {
+    "mcp-surface-v1": "cecb14e18a57632125ad9a57773f6c21cee3fcc64f83d29cebf58a1a029886a4",
+    "headless-protocol-v1": "1a0d796fb3bb301e4b37ff51db4e241898b5a339acde52c32b5cd46a8b507437",
+    "contract-ownership-v1": "be1dcf0247eb9f7cd246f9efc61e78618e285a0f35501bc191929d5a5b6a7505"
+  }
+}

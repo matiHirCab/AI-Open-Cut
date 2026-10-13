@@ -33,6 +33,7 @@ import {
   verifyComponentDefinitionWorkflow,
   verifySlotRegressionWorkflow,
 } from "./component-workflow";
+import { verifyFfmpegSpawnTransportWorkflow } from "./ffmpeg-spawn-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
 import { verifyGroupWorkflow } from "./group-workflow";
@@ -151,6 +152,10 @@ const call = async <Output>(
   }
   return schema.parse(response.structuredContent);
 };
+
+it("preserves canonical startup failure through one-shot and MCP worker/job transport fixtures", async () => {
+  await verifyFfmpegSpawnTransportWorkflow(bridgeParameters);
+});
 
 beforeAll(async () => await client.connect(transport));
 afterAll(async () => {

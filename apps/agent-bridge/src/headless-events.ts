@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { retryableFor } from "./errors";
+import { type FfmpegSpawnDiagnostic, ffmpegSpawnSchema } from "./ffmpeg-spawn";
 import {
   type RenderBudgetDiagnostic,
   renderBudgetSchema,
@@ -10,6 +11,7 @@ const errorSchema = z
     code: z.string(),
     failedStage: z.string().nullable().default(null),
     ffmpegExitCode: z.number().int().nullable().default(null),
+    ffmpegSpawn: ffmpegSpawnSchema.optional(),
     ffmpegStderrExcerpt: z.string().nullable().default(null),
     message: z.string(),
     renderBudget: renderBudgetSchema.optional(),
@@ -28,6 +30,7 @@ export class BridgeError extends Error {
   readonly retryable: boolean;
   readonly failedStage: string | null;
   readonly ffmpegExitCode: number | null;
+  readonly ffmpegSpawn: FfmpegSpawnDiagnostic | undefined;
   readonly ffmpegStderrExcerpt: string | null;
   readonly renderBudget: RenderBudgetDiagnostic | undefined;
 
@@ -39,6 +42,7 @@ export class BridgeError extends Error {
     details: {
       failedStage?: string | null;
       ffmpegExitCode?: number | null;
+      ffmpegSpawn?: FfmpegSpawnDiagnostic | undefined;
       ffmpegStderrExcerpt?: string | null;
       renderBudget?: RenderBudgetDiagnostic | undefined;
     } = {}
@@ -49,6 +53,7 @@ export class BridgeError extends Error {
     this.retryable = _retryable;
     this.failedStage = details.failedStage ?? null;
     this.ffmpegExitCode = details.ffmpegExitCode ?? null;
+    this.ffmpegSpawn = details.ffmpegSpawn;
     this.ffmpegStderrExcerpt = details.ffmpegStderrExcerpt ?? null;
     this.renderBudget = details.renderBudget;
   }

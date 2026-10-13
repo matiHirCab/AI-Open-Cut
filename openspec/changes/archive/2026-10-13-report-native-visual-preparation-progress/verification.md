@@ -1,4 +1,16 @@
-# Implementation conformance and publication handoff
+# Current-main conflict-repair conformance
+
+Verification is complete before synchronization/archival:11/11 tasks,4/4 requirements,9/9 scenarios; no completeness,correctness or coherence mismatch. Normal local main0f integration preserves the user-merged FF domain and the approved preparation progress behavior. Final postarchive protected/strict gates and all18 new-published-head hosted jobs remain mandatory; this does not claim future publication/CI or human CODEOWNER approval.
+
+Fresh publishing proofs: Rustfmt/strict all-target Clippy; workspace1543/0/12existing ignores(1204.23s); typecheck/lint; fullunit914/0/15existing opt-in skips; complete canonical470Rust/615TS39files,zero failures/ignores/skips; source42; freshdefaultpackage39; rootpolicy509; required actualsource/defaultpackage native2/2zero pending; hermeticPython12unittest/12pytest; optimized requiredgolden1/0/0(319.96testseconds496.54total); complete motionPASS(493.70s), requireddefaultnative1/0/0(65.89s), actualsource/compiledMCP2/2zero pending(140.53s). Dirty-source reports truthfully identify oldpublishedc2fa plus tracked changes; these are not a future commit. No reference/deadline/tolerance/guard changed.
+
+Independent source resolution accepts a0d1cc37: affected implementation matches previously accepted exact198+179 union, apart from one descriptive comment; strict FF inverse, full ordered semantic/raw proof and every predecessor pin/control remain. Main catalog/FFfixture/helper/error/process/canonical bytes match actual0f; all55 existing predecessor files preserved; no pending motif import. Pending2006fd component compatibility is independently accepted: progressproduction/motifdata/prompt/workflows/oracle/catalogs/FFcode/pins agree with attributed joint; each registry is exact joint minus the other owned category. Existing joint477Rust/624TS/3startup results retain original provenance and fresh corrected motif6/6; no newly assembled exact joint snapshot or fresh full-joint claim.
+
+Protected prearchive:509policytests and69strictitems PASS, then exit1 rejects solely report-native-visual-preparation-progress. This expected rejection is not a protected-gate pass. Currentmain0f hostedCI passed; historical2a Windows timeout causes remain unconfirmed and separate. Firstpublishingc2fa's all18green evidence remains historical until the corrected head independently passes.
+
+Full currentphase external evidence: issue179-current-main-integration-evidence.json;issue179-current-main-check-progress.json;issue179-current-main-native-complete-progress.json;issue179-current-main-workspace-evidence.json;/tmp/issue179-current-main-protected-prearchive.log;issue179-current-main-platform-renderer-evidence;issue179-current-main-native-golden-report.json;motionnonce8b238181-f7a5-4338-b859-f2f29e848896. Original scenario mapping and retained failure limitations follow below. No installed/private-video reproduction, portable-performance or timeout-rootcause claim. Human CODEOWNER separate; no merge/auto-merge/deploy.
+
+# Historical initial-base conformance and publication handoff
 
 Implementation verification is complete before synchronization/archival:11/11 tasks,4/4 requirements and9/9 scenarios covered; no remaining completeness, correctness or coherence finding. Final post-archive protected/strict validation and published-head hosted acceptance remain mandatory. This document does not claim those future results.
 

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import catalog from "../../../../contracts/render-budget-diagnostics-v1.json";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreRenderBudgetGraphicRaw } from "./render-budget-graphic-projection";
 import ownership from "./render-budget-ownership-addition.json";
 import pins from "./render-budget-predecessor-pins.json";
@@ -107,6 +108,13 @@ export const removeRenderBudgetHeadlessAddition = <T>(source: T): T => {
 
 export const restoreRenderBudgetRaw = (source: string): string => {
   const value = JSON.parse(source);
+  if (
+    value.$defs?.FfmpegSpawnDiagnostic ||
+    value.categories?.ffmpegSpawnDiagnostics ||
+    value.ffmpegSpawnError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   if (
     value.capabilityIdentifiers?.includes("solid_graphic_color_slots_v1") ||
     value.categories?.solidGraphicColorSlots ||

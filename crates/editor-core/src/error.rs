@@ -44,6 +44,71 @@ impl ErrorCode {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FfmpegSpawnKind {
+    NotFound,
+    PermissionDenied,
+    InvalidInput,
+    InvalidFilename,
+    ArgumentListTooLong,
+    ResourceBusy,
+    OutOfMemory,
+    Other,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FfmpegSpawnPlatform {
+    Linux,
+    Macos,
+    Windows,
+    Other,
+}
+
+impl FfmpegSpawnPlatform {
+    pub const fn current() -> Self {
+        if cfg!(target_os = "linux") {
+            Self::Linux
+        } else if cfg!(target_os = "macos") {
+            Self::Macos
+        } else if cfg!(target_os = "windows") {
+            Self::Windows
+        } else {
+            Self::Other
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FfmpegSpawnDiagnostic {
+    pub kind: FfmpegSpawnKind,
+    pub native_code: Option<i32>,
+    pub platform: FfmpegSpawnPlatform,
+}
+
+impl FfmpegSpawnDiagnostic {
+    fn from_io(error: &std::io::Error) -> Self {
+        use std::io::ErrorKind;
+        let kind = match error.kind() {
+            ErrorKind::NotFound => FfmpegSpawnKind::NotFound,
+            ErrorKind::PermissionDenied => FfmpegSpawnKind::PermissionDenied,
+            ErrorKind::InvalidInput => FfmpegSpawnKind::InvalidInput,
+            ErrorKind::InvalidFilename => FfmpegSpawnKind::InvalidFilename,
+            ErrorKind::ArgumentListTooLong => FfmpegSpawnKind::ArgumentListTooLong,
+            ErrorKind::ResourceBusy => FfmpegSpawnKind::ResourceBusy,
+            ErrorKind::OutOfMemory => FfmpegSpawnKind::OutOfMemory,
+            _ => FfmpegSpawnKind::Other,
+        };
+        Self {
+            kind,
+            native_code: error.raw_os_error(),
+            platform: FfmpegSpawnPlatform::current(),
+        }
+    }
+}
+
 /// Closed native accounting identifiers. Values describe admission work, not RSS.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -171,6 +236,7 @@ pub struct CoreError {
     pub failed_stage: Option<String>,
     pub ffmpeg_exit_code: Option<i32>,
     pub ffmpeg_stderr_excerpt: Option<String>,
+    pub ffmpeg_spawn: Option<Box<FfmpegSpawnDiagnostic>>,
     pub render_budget: Option<Box<RenderBudgetDiagnostic>>,
 }
 
@@ -183,6 +249,7 @@ impl CoreError {
             failed_stage: None,
             ffmpeg_exit_code: None,
             ffmpeg_stderr_excerpt: None,
+            ffmpeg_spawn: None,
             render_budget: None,
         }
     }
@@ -195,8 +262,15 @@ impl CoreError {
             failed_stage: Some(stage.into()),
             ffmpeg_exit_code: exit_code,
             ffmpeg_stderr_excerpt: stderr,
+            ffmpeg_spawn: None,
             render_budget: None,
         }
+    }
+
+    pub fn ffmpeg_spawn_failure(error: std::io::Error) -> Self {
+        let mut result = Self::render_failure("spawn", None, None);
+        result.ffmpeg_spawn = Some(Box::new(FfmpegSpawnDiagnostic::from_io(&error)));
+        result
     }
 
     pub(crate) fn budget(
@@ -273,7 +347,6 @@ impl From<serde_json::Error> for CoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn native_budget_catalog_matches_typed_identifiers_and_lossless_error_payload() {
         let catalog: serde_json::Value = serde_json::from_str(include_str!(
@@ -385,6 +458,75 @@ mod tests {
         assert_eq!(values[1].kind, RenderContributorKind::Shape);
         assert_eq!(values[7].work, "20");
         assert!(!serde_json::to_string(&values).unwrap().contains("/"));
+    }
+
+    #[test]
+    fn spawn_kind_vocabulary_and_native_codes_match_the_canonical_fixture() {
+        use std::io::ErrorKind;
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/ffmpeg-spawn-diagnostics-v1.json"
+        ))
+        .unwrap();
+        let kinds = [
+            ErrorKind::NotFound,
+            ErrorKind::PermissionDenied,
+            ErrorKind::InvalidInput,
+            ErrorKind::InvalidFilename,
+            ErrorKind::ArgumentListTooLong,
+            ErrorKind::ResourceBusy,
+            ErrorKind::OutOfMemory,
+            ErrorKind::Other,
+        ];
+        for (index, kind) in kinds.into_iter().enumerate() {
+            let error = CoreError::ffmpeg_spawn_failure(std::io::Error::new(kind, "private"));
+            let value = serde_json::to_value(error.ffmpeg_spawn.unwrap()).unwrap();
+            assert_eq!(value["kind"], fixture["kinds"][index]);
+            assert!(value["nativeCode"].is_null());
+        }
+        let platform = serde_json::to_value(FfmpegSpawnPlatform::current()).unwrap();
+        if let Some(cases) = fixture["nativeCases"][platform.as_str().unwrap()].as_array() {
+            for case in cases {
+                let code = i32::try_from(case["nativeCode"].as_i64().unwrap()).unwrap();
+                let error =
+                    CoreError::ffmpeg_spawn_failure(std::io::Error::from_raw_os_error(code));
+                let value = serde_json::to_value(error.ffmpeg_spawn.unwrap()).unwrap();
+                assert_eq!(value["kind"], case["kind"]);
+                assert_eq!(value["nativeCode"], code);
+                assert_eq!(value["platform"], platform);
+                assert_eq!(value.as_object().unwrap().len(), 3);
+                assert_eq!(error.code, ErrorCode::FfmpegFailed);
+                assert_eq!(error.failed_stage.as_deref(), Some("spawn"));
+                assert!(!error.retryable);
+                assert!(error.ffmpeg_exit_code.is_none());
+                assert!(error.ffmpeg_stderr_excerpt.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn spawn_diagnostics_never_retain_custom_error_text_and_other_errors_stay_absent() {
+        for kind in [std::io::ErrorKind::BrokenPipe, std::io::ErrorKind::Other] {
+            let error = CoreError::ffmpeg_spawn_failure(std::io::Error::new(
+                kind,
+                "private /home/project/media C:\\secret\\clip.mp4 --password=secret ENV=secret",
+            ));
+            assert_eq!(error.message, "FFmpeg render failed");
+            let diagnostic = error.ffmpeg_spawn.as_ref().unwrap();
+            assert_eq!(diagnostic.kind, FfmpegSpawnKind::Other);
+            assert_eq!(diagnostic.native_code, None);
+            let text = format!("{error:?}");
+            assert!(!text.contains("secret"));
+            assert!(!text.contains("private"));
+            assert!(serde_json::to_vec(diagnostic).unwrap().len() < 128);
+        }
+        for error in [
+            CoreError::new(ErrorCode::RevisionConflict, "stale"),
+            CoreError::new(ErrorCode::DependencyUnavailable, "missing tooling"),
+            CoreError::render_failure("spawn", None, None),
+            CoreError::render_failure("render", Some(7), Some("safe child stderr".into())),
+        ] {
+            assert!(error.ffmpeg_spawn.is_none());
+        }
     }
 
     #[test]

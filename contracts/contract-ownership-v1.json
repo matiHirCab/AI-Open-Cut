@@ -1641,6 +1641,34 @@
         "crates/editor-core/tests/reference_scene.rs"
       ]
     },
+    "ffmpegSpawnDiagnostics": {
+      "canonical": "contracts/ffmpeg-spawn-diagnostics-v1.json",
+      "consumers": [
+        "crates/editor-core/src/error.rs",
+        "crates/editor-core/src/render_process.rs",
+        "crates/editor-core/src/renderer.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/src/worker.rs",
+        "apps/agent-bridge/src/ffmpeg-spawn.ts",
+        "apps/agent-bridge/src/headless-events.ts",
+        "apps/agent-bridge/src/headless.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/ffmpeg-spawn.test.ts",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-projection.ts",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-predecessor-pins.json",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-predecessor-headless.raw.txt",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-ownership-addition.json",
+        "contracts/headless-protocol-v1.json",
+        "contracts/mcp-surface-v1.json",
+        "crates/editor-core/src/lib.rs",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-headless.ts",
+        "apps/agent-bridge/tests/ffmpeg-spawn-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/tests/fixtures/ffmpeg-spawn-graphic-projection.ts"
+      ]
+    },
     "nativeRenderBudgetDiagnostics": {
       "canonical": "contracts/render-budget-diagnostics-v1.json",
       "consumers": [

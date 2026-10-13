@@ -16,3 +16,7 @@ Artifact SHA256 receipt before implementation:
   "tasks.md": "b5451d3febbeb6f9ae759ff350e464975796dd9834bb9434ae2700d0dad7abbe",
   "specs/rendering-export/spec.md": "082fd912b19207e581c499a65b08e43cdbbd13c3b133d4f68e5bdf2e18dda709"
 }
+
+Current-main conflict-repair context refresh2026-10-13: parent explicitly authorizes resolving PR199 against user-merged actualmain0f, then fresh verification/normalpush/newheadCI. No normative requirement/scenario changes: same4requirements9scenarios; tasks4.1–4.4 reopened. Context amendment is awaiting independent review before executable resolution. Original approval/hash history preserved.
+
+Independent reviewer `/root/review_issue178_corrected_union` approved the context-only amendment before executable conflict resolution; normative delta remains byte-identical to published199. Standing user/parent authorization approves normal current-main integration and verification/publication, with separate human CODEOWNER and no PR merge/deployment.

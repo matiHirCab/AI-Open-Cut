@@ -1,3 +1,4 @@
+import { deepStrictEqual } from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -14,6 +15,7 @@ import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.js
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import EXTENDED_VISUAL from "../../../contracts/extended-visual-animation-v1.json";
+import FFMPEG_SPAWN from "../../../contracts/ffmpeg-spawn-diagnostics-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import INHERITED_TIMING from "../../../contracts/inherited-animation-timing-v1.json";
@@ -33,6 +35,11 @@ import type SLOT_CATALOG from "../../../contracts/template-slots-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
+import {
+  FFMPEG_SPAWN_KINDS,
+  FFMPEG_SPAWN_PLATFORMS,
+  ffmpegSpawnSchema,
+} from "../src/ffmpeg-spawn";
 import type { HeadlessRequest } from "../src/headless-contract";
 import {
   EVALUATED_SCENE_RENDERING_CAPABILITY,
@@ -90,6 +97,11 @@ import {
   projectBlendMcpPredecessor,
   projectSchema35BlendMcpPredecessor,
 } from "./fixtures/blend-mode-projection";
+import {
+  removeFfmpegSpawnHeadlessAddition,
+  removeFfmpegSpawnMcpAddition,
+  removeFfmpegSpawnOwnershipAddition,
+} from "./fixtures/ffmpeg-spawn-projection";
 import { projectGroupMcpPredecessor } from "./fixtures/group-compositing-projection";
 import { projectKnownTextMcpPredecessor } from "./fixtures/known-text-projection";
 import { projectMaskMcpPredecessor } from "./fixtures/mask-mcp-projection";
@@ -457,6 +469,22 @@ describe("canonical public contracts", () => {
     );
   });
 
+  it("governs safe final FFmpeg startup metadata and its headless producer example", () => {
+    expect(FFMPEG_SPAWN_KINDS).toEqual(FFMPEG_SPAWN.kinds);
+    expect(FFMPEG_SPAWN_PLATFORMS).toEqual(FFMPEG_SPAWN.platforms);
+    for (const fixture of FFMPEG_SPAWN.fixtures) {
+      expect(
+        ffmpegSpawnSchema.safeParse(fixture.value).success,
+        fixture.name
+      ).toBe(fixture.valid);
+    }
+    expect(eventSchema.parse(HEADLESS_CONTRACT.ffmpegSpawnError)).toEqual(
+      FFMPEG_SPAWN.headlessErrorExample
+    );
+    expect(OWNERSHIP.categories.ffmpegSpawnDiagnostics.canonical).toBe(
+      "contracts/ffmpeg-spawn-diagnostics-v1.json"
+    );
+  });
   it("consumes the independent animation preset contract in the canonical gate", () => {
     expect(headlessEditSchema.parse(PRESETS.examples.apply)).toEqual({
       ...PRESETS.examples.apply,
@@ -2009,19 +2037,36 @@ it("governs native preparation numeric progress without changing prior public ca
   expect(createHash("sha256").update(capturedHeadless).digest("hex")).toBe(
     PREPARATION_PINS["headless-protocol-v1"]
   );
-  expect(JSON.parse(capturedHeadless)).toEqual(HEADLESS_CONTRACT);
+  expect(JSON.parse(capturedHeadless)).toEqual(
+    removeFfmpegSpawnHeadlessAddition(HEADLESS_CONTRACT)
+  );
   for (const name of ["headless-protocol-v1", "mcp-surface-v1"] as const) {
     const rawCatalog = readFileSync(
       new URL(`../../../contracts/${name}.json`, import.meta.url)
     );
-    expect(createHash("sha256").update(rawCatalog).digest("hex")).toBe(
+    // Merged main: invert only the separately governed exact178 addition.
+    const projected =
+      name === "mcp-surface-v1"
+        ? removeFfmpegSpawnMcpAddition(JSON.parse(rawCatalog.toString()))
+        : removeFfmpegSpawnHeadlessAddition(JSON.parse(rawCatalog.toString()));
+    const restored =
+      name === "headless-protocol-v1"
+        ? capturedHeadless
+        : `${JSON.stringify(projected, null, 2)}\n`;
+    deepStrictEqual(projected, JSON.parse(restored));
+    expect(createHash("sha256").update(restored).digest("hex")).toBe(
       PREPARATION_PINS[name]
     );
   }
-  const ownership = JSON.parse(
-    readFileSync(
-      new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
-      "utf8"
+  const ownership = removeFfmpegSpawnOwnershipAddition(
+    JSON.parse(
+      readFileSync(
+        new URL(
+          "../../../contracts/contract-ownership-v1.json",
+          import.meta.url
+        ),
+        "utf8"
+      )
     )
   );
   assertRenderPreparationOwnership(ownership);
