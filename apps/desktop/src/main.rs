@@ -8,6 +8,7 @@ mod components;
 mod compositing_inspector;
 mod hierarchy;
 mod inspector_edit;
+mod instance_slots;
 mod narration_inspector;
 mod panels;
 mod review;
@@ -20,11 +21,17 @@ mod compositing_predecessor;
 #[cfg(test)]
 mod compositing_tests;
 #[cfg(test)]
+mod instance_slot_fixture;
+#[cfg(test)]
+mod instance_slots_tests;
+#[cfg(test)]
 mod narration_tests;
 #[cfg(test)]
 mod review_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+use tests::fixture as rule_card_fixture_support;
 
 use shell::Shell;
 

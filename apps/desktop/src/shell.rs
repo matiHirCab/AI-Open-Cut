@@ -6,7 +6,7 @@ use crate::{
     compositing_inspector::{self, Action, Cursor as CompositingCursor},
     hierarchy::{Selection, editable},
     inspector_edit::{self, Field},
-    narration_inspector, panels,
+    instance_slots, narration_inspector, panels,
     review::{self, InspectorTab, Review},
     session::{Command, Session, Startup, parse_z_index},
     theme::ActiveTheme,
@@ -66,6 +66,8 @@ pub(crate) struct Shell {
     pub inspector_field: Option<usize>,
     pub inspector_text: String,
     inspector_source: Option<InspectorDraft>,
+    pub slot_draft: Option<instance_slots::Draft>,
+    pub slot_focus: FocusHandle,
     pub animation_cursor: Cursor,
     pub compositing_cursor: CompositingCursor,
     pub narration_cursor: narration_inspector::Cursor,
@@ -87,6 +89,8 @@ impl Shell {
             inspector_field: None,
             inspector_text: String::new(),
             inspector_source: None,
+            slot_draft: None,
+            slot_focus: cx.focus_handle(),
             animation_cursor: Cursor::default(),
             compositing_cursor: CompositingCursor::default(),
             narration_cursor: narration_inspector::Cursor::default(),
@@ -302,6 +306,7 @@ impl Shell {
         self.inspector_field = None;
         self.inspector_text.clear();
         self.inspector_source = None;
+        self.slot_draft = None;
     }
 
     fn resolve_compositing_cursor(&mut self) {
@@ -370,6 +375,7 @@ impl Shell {
         if self.session.busy || self.session.needs_refresh {
             return;
         }
+        self.slot_draft = None;
         self.resolve_compositing_cursor();
         let Some(project) = &self.session.project else {
             return;
@@ -525,6 +531,91 @@ impl Shell {
                 cx.notify();
             }
         }
+    }
+
+    pub fn choose_slot(&mut self, index: usize, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        self.reset_inspector();
+        self.slot_draft = self.session.project.as_ref().and_then(|project| {
+            let selection = self.session.selected.as_ref()?;
+            let slot = instance_slots::slots(project, selection).get(index)?;
+            instance_slots::Draft::new(project, selection, slot)
+        });
+        cx.notify();
+    }
+
+    pub fn apply_slot(&mut self, clear: bool, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        let Some((draft, project)) = self.slot_draft.as_ref().zip(self.session.project.as_ref())
+        else {
+            return;
+        };
+        match draft.build(
+            project,
+            self.session.selected.as_ref(),
+            clear,
+            self.session.busy,
+            self.session.needs_refresh,
+        ) {
+            Ok(edit) => self.dispatch(Command::Edit(project.revision, Box::new(edit)), cx),
+            Err(error) => {
+                self.session.error = Some(error);
+                cx.notify();
+            }
+        }
+    }
+
+    pub fn set_slot_text(&mut self, value: String, cx: &mut Context<Self>) {
+        if self.session.busy || self.session.needs_refresh {
+            return;
+        }
+        if let Some(draft) = &mut self.slot_draft {
+            draft.exhausted = value.len() > instance_slots::INPUT_BYTES;
+            draft.text = value;
+        }
+        cx.notify();
+    }
+
+    pub fn slot_key(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.session.busy
+            || self.session.needs_refresh
+            || !self
+                .slot_draft
+                .as_ref()
+                .zip(self.session.project.as_ref())
+                .is_some_and(|(draft, project)| {
+                    draft.matches(project, self.session.selected.as_ref())
+                })
+        {
+            return;
+        }
+        match event.keystroke.key.as_str() {
+            "enter" if event.keystroke.modifiers.shift => {
+                self.slot_draft.as_mut().unwrap().append("\n")
+            }
+            "enter" => self.apply_slot(false, cx),
+            "escape" => self.reset_inspector(),
+            "backspace" => {
+                let draft = self.slot_draft.as_mut().unwrap();
+                draft.text.pop();
+                draft.exhausted = false;
+            }
+            "a" if event.keystroke.modifiers.control || event.keystroke.modifiers.platform => {
+                let draft = self.slot_draft.as_mut().unwrap();
+                draft.text.clear();
+                draft.exhausted = false;
+            }
+            _ => {
+                if let Some(text) = &event.keystroke.key_char {
+                    self.slot_draft.as_mut().unwrap().append(text);
+                }
+            }
+        }
+        cx.notify();
     }
 
     pub fn inspector_key(
