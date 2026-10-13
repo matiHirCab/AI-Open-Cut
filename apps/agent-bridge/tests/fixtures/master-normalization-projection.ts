@@ -3,6 +3,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import catalog from "../../../../contracts/master-normalization-v1.json";
 import {
+  removeFfmpegSpawnHeadlessAddition,
+  removeFfmpegSpawnMcpAddition,
+  removeFfmpegSpawnOwnershipAddition,
+} from "./ffmpeg-spawn-projection";
+import {
   removeJobRestartOwnershipAddition,
   restoreJobRestartRaw,
 } from "./job-restart-projection";
@@ -64,9 +69,8 @@ const removeProperty = (
 };
 
 export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
-  const result = removeRenderBudgetMcpAddition(
-    removeMotionWorkflowPrompt(source),
-    false
+  const result = removeFfmpegSpawnMcpAddition(
+    removeRenderBudgetMcpAddition(removeMotionWorkflowPrompt(source), false)
   );
   const tools = record(at(result, ["toolDefinitions"]));
   const capabilities = at(result, ["capabilityIdentifiers"]);
@@ -98,8 +102,10 @@ export const removeMasterNormalizationMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
-  const result = removeRenderBudgetHeadlessAddition(
-    removeSolidGraphicHeadlessAddition(source)
+  const result = removeFfmpegSpawnHeadlessAddition(
+    removeRenderBudgetHeadlessAddition(
+      removeSolidGraphicHeadlessAddition(source)
+    )
   );
   const requests = record(at(result, ["requests"]));
   if (!Object.hasOwn(requests, "masterNormalizationSet")) {
@@ -114,7 +120,9 @@ export const removeMasterNormalizationHeadlessAdditions = <T>(source: T): T => {
 };
 export const removeMasterNormalizationOwnershipAddition = <T>(source: T): T => {
   const result = removeJobRestartOwnershipAddition(
-    removeRenderBudgetOwnershipAddition(source)
+    removeFfmpegSpawnOwnershipAddition(
+      removeRenderBudgetOwnershipAddition(source)
+    )
   );
   const categories = record(at(result, ["categories"]));
   if (Object.hasOwn(categories, "masterNormalization")) {

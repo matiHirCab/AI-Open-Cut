@@ -21,7 +21,7 @@
 
 - [x] 4.1 Pass Rustfmt, strict all-target workspace Clippy/workspace; bridge type/lint/full unit, complete canonical, source integration/fresh packaged smoke and relevant hermetic Python. Preserve full failure logs; do not weaken existing deadlines, guards, references or policy; the approved exact consumer-inventory synchronization and root policy/unit/real-Moon checks are required.
 - [x] 4.2 Pass new actual default native proof and required unchanged native/golden/motion checks on stable inputs; final exact-head three-platform hosted gates remain mandatory.
-- [x] 4.3 Re-fetch main, preserve all merged domains normally, and verify disposable exact1987f/199c2fa plus joint semantic overlaps with complete parity and independent specification/implementation resolution; no publishing dependency or lost pin/negative.
+- [x] 4.3 Re-fetch main, preserve all merged domains normally, and verify historical exact1987f/199c2fa plus joint overlaps, incorporate actual main0f containing198 through the reviewed strict inverse composition, and verify current-main plus pending199 with complete affected parity and independent specification/implementation resolution; no publishing dependency or lost pin/negative.
 - [x] 4.4 Pass pinned strict validation and inspect protected pre-archive rejection solely for this active change; verify all requirements/scenarios/tasks/design and accurate conformance handoff before synchronization/archival.
 
 ## Exact verification entry points

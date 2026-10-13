@@ -42,3 +42,28 @@ Standing authorization and independent read-only review explicitly approve this 
   "independentReviewer": "/root/review_issue178_corrected_union",
   "review": "Explicit independent approval of exact literal/inventory, missing/masked controls and three owned consumers; preserve all previous guards/pins/workflows/default120"
 }
+
+
+## Current-main context refresh under existing M13/M14
+
+```json
+{
+  "approvedAtUTC": "2026-10-13T00:48:27.119779+00:00",
+  "authorization": "Standing issue-scoped authorization and explicit parent current-main steering",
+  "independentReviewer": "/root/review_issue178_corrected_union",
+  "verdict": "Context-only amendment sufficient under existingM13/M14; no new normative scope or source blocker",
+  "main": "0f069ae4d23a356a60555aa71137ba9d92314b63",
+  "mergedDomain": "1987f7f2952",
+  "pendingDomain": "199c2fa914d",
+  "scope": "Preserve complete mergedFF production/catalogs/ownership/pins/commands; reuse reviewed strict inverses; exclude disposable-only tests/commands from publishing; unchangedM3 loop correction",
+  "requirements": 5,
+  "scenarios": 14,
+  "artifactSha256": {
+    "proposal.md": "0533a71b55437ccec8d4dc80a76f00f19912ccc977a06330fe9913ba00b66c67",
+    "design.md": "be2aa2acbca47282754592d55b840b12e7b465b6ab19186360f077a8989ffb7a",
+    "tasks.md": "451207b60280402524f69cbb06d0f3d887d7bd01fc595400ba851f1f1a358aa8",
+    "specs/native-motif-pack/spec.md": "15e745caeb372df4c9ee587d9ecae3ccde9bfdd5ea32b4e00397a242ba568b9b"
+  },
+  "deltaRequirementsUnchanged": true
+}
+```

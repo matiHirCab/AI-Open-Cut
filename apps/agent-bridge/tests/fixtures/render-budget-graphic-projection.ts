@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import {
   removeNativeMotifOwnershipAddition,
   restoreNativeMotifRaw,
@@ -34,6 +35,13 @@ const sorted = (value: unknown): unknown => {
 export const restoreRenderBudgetGraphicRaw = (input: string): string => {
   const source = restoreNativeMotifRaw(input);
   const value = JSON.parse(source);
+  if (
+    value.$defs?.FfmpegSpawnDiagnostic ||
+    value.categories?.ffmpegSpawnDiagnostics ||
+    value.ffmpegSpawnError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   let name: keyof typeof pins.rawSha256;
   let projected: unknown;
   if (

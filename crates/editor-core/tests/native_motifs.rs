@@ -336,7 +336,7 @@ fn reference_geometry_is_literal_bounded_and_has_independent_contour_counts() {
     let speed = &components[4]["tracks"][0]["items"][0];
     let contours = speed["geometry"]["path"]["commands"].as_array().unwrap();
     assert_eq!(contours.len(), 30);
-    for (i, contour) in contours.chunks_exact(5).enumerate() {
+    for (i, contour) in contours.as_chunks::<5>().0.iter().enumerate() {
         let x = 20. + 12. * i as f64;
         let y = 50. + 24. * i as f64;
         for (command, (cx, cy)) in

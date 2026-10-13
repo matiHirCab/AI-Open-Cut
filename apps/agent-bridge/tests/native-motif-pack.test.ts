@@ -11,6 +11,7 @@ import pins from "./fixtures/native-motif-pack-predecessor-pins.json";
 import {
   assertCurrentNativeMotifOwnership,
   removeNativeMotifOwnershipAddition,
+  restoreNativeMotifMergedCatalogRaw,
   restoreNativeMotifRaw,
 } from "./fixtures/native-motif-pack-projection";
 import { verifyMotifPixels } from "./native-motif-pack-native";
@@ -58,7 +59,12 @@ it("retains exact MCP/headless catalogs and original hero source bytes", () => {
   ] as const) {
     expect(
       createHash("sha256")
-        .update(readFileSync(new URL(path, import.meta.url)))
+        .update(
+          restoreNativeMotifMergedCatalogRaw(
+            readFileSync(new URL(path, import.meta.url), "utf8"),
+            path.split("/").at(-1)?.replace(".json", "") ?? ""
+          )
+        )
         .digest("hex")
     ).toBe(pin);
   }

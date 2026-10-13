@@ -14,6 +14,7 @@ import type LIFECYCLE_CATALOG from "../../../contracts/component-lifecycle-v1.js
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import ERROR_CATALOG from "../../../contracts/error-codes-v1.json";
 import EXTENDED_VISUAL from "../../../contracts/extended-visual-animation-v1.json";
+import FFMPEG_SPAWN from "../../../contracts/ffmpeg-spawn-diagnostics-v1.json";
 import GROUPS from "../../../contracts/group-parent-v1.json";
 import HEADLESS_CONTRACT from "../../../contracts/headless-protocol-v1.json";
 import INHERITED_TIMING from "../../../contracts/inherited-animation-timing-v1.json";
@@ -32,6 +33,11 @@ import type SLOT_CATALOG from "../../../contracts/template-slots-v1.json";
 import TRANSCRIPTION_CONTRACT from "../../../contracts/transcription-provider-v1.json";
 import AGENT_BRIDGE_PACKAGE from "../package.json";
 import { retryableFor } from "../src/errors";
+import {
+  FFMPEG_SPAWN_KINDS,
+  FFMPEG_SPAWN_PLATFORMS,
+  ffmpegSpawnSchema,
+} from "../src/ffmpeg-spawn";
 import type { HeadlessRequest } from "../src/headless-contract";
 import {
   EVALUATED_SCENE_RENDERING_CAPABILITY,
@@ -450,6 +456,22 @@ describe("canonical public contracts", () => {
     );
   });
 
+  it("governs safe final FFmpeg startup metadata and its headless producer example", () => {
+    expect(FFMPEG_SPAWN_KINDS).toEqual(FFMPEG_SPAWN.kinds);
+    expect(FFMPEG_SPAWN_PLATFORMS).toEqual(FFMPEG_SPAWN.platforms);
+    for (const fixture of FFMPEG_SPAWN.fixtures) {
+      expect(
+        ffmpegSpawnSchema.safeParse(fixture.value).success,
+        fixture.name
+      ).toBe(fixture.valid);
+    }
+    expect(eventSchema.parse(HEADLESS_CONTRACT.ffmpegSpawnError)).toEqual(
+      FFMPEG_SPAWN.headlessErrorExample
+    );
+    expect(OWNERSHIP.categories.ffmpegSpawnDiagnostics.canonical).toBe(
+      "contracts/ffmpeg-spawn-diagnostics-v1.json"
+    );
+  });
   it("consumes the independent animation preset contract in the canonical gate", () => {
     expect(headlessEditSchema.parse(PRESETS.examples.apply)).toEqual({
       ...PRESETS.examples.apply,

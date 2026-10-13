@@ -1311,9 +1311,7 @@ fn run_command(
     on_progress: &mut dyn FnMut(RenderProgress),
 ) -> Result<(), CoreError> {
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|_| CoreError::render_failure(SPAWN_STAGE, None, None))?;
+    let mut child = command.spawn().map_err(CoreError::ffmpeg_spawn_failure)?;
     let Some(stdout) = child.stdout.take() else {
         let _ = child.kill();
         let _ = child.wait();

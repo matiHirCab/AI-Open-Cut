@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import catalog from "../../../../contracts/render-budget-diagnostics-v1.json";
+import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import {
   removeNativeMotifOwnershipAddition,
   restoreNativeMotifRaw,
@@ -109,6 +110,13 @@ export const removeRenderBudgetHeadlessAddition = <T>(source: T): T => {
 export const restoreRenderBudgetRaw = (input: string): string => {
   const source = restoreNativeMotifRaw(input);
   const value = JSON.parse(source);
+  if (
+    value.$defs?.FfmpegSpawnDiagnostic ||
+    value.categories?.ffmpegSpawnDiagnostics ||
+    value.ffmpegSpawnError
+  ) {
+    return restoreDiagnosticUnionRaw(source);
+  }
   if (
     value.capabilityIdentifiers?.includes("solid_graphic_color_slots_v1") ||
     value.categories?.solidGraphicColorSlots ||

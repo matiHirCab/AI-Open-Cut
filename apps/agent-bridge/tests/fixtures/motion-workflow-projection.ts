@@ -1,8 +1,11 @@
+import { removeFfmpegSpawnMcpAddition } from "./ffmpeg-spawn-projection";
 import { removeJobRestartMcpAddition } from "./job-restart-projection";
 
 // Remove only the reviewed additive prompt; historical pins remain immutable.
 export const removeMotionWorkflowPrompt = <T>(source: T): T => {
-  const result = removeJobRestartMcpAddition(source);
+  const result = removeJobRestartMcpAddition(
+    removeFfmpegSpawnMcpAddition(source)
+  );
   const { prompts } = result as { prompts?: unknown };
   if (!Array.isArray(prompts)) {
     throw new Error("Malformed motion workflow prompt catalog");

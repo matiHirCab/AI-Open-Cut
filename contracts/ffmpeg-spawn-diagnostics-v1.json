@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "field": "ffmpegSpawn",
+  "kinds": [
+    "not_found",
+    "permission_denied",
+    "invalid_input",
+    "invalid_filename",
+    "argument_list_too_long",
+    "resource_busy",
+    "out_of_memory",
+    "other"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows",
+    "other"
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": [
+          "not_found",
+          "permission_denied",
+          "invalid_input",
+          "invalid_filename",
+          "argument_list_too_long",
+          "resource_busy",
+          "out_of_memory",
+          "other"
+        ]
+      },
+      "nativeCode": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "platform": {
+        "type": "string",
+        "enum": [
+          "linux",
+          "macos",
+          "windows",
+          "other"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "nativeCode",
+      "platform"
+    ],
+    "additionalProperties": false
+  },
+  "fixtures": [
+    {
+      "name": "not_found",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "permission_denied",
+      "valid": true,
+      "value": {
+        "kind": "permission_denied",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "invalid_input",
+      "valid": true,
+      "value": {
+        "kind": "invalid_input",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "invalid_filename",
+      "valid": true,
+      "value": {
+        "kind": "invalid_filename",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "argument_list_too_long",
+      "valid": true,
+      "value": {
+        "kind": "argument_list_too_long",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "resource_busy",
+      "valid": true,
+      "value": {
+        "kind": "resource_busy",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "out_of_memory",
+      "valid": true,
+      "value": {
+        "kind": "out_of_memory",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "other",
+      "valid": true,
+      "value": {
+        "kind": "other",
+        "nativeCode": null,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "linux-native-code",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "macos-native-code",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "macos"
+      }
+    },
+    {
+      "name": "windows-native-code",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "windows"
+      }
+    },
+    {
+      "name": "other-native-code",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "other"
+      }
+    },
+    {
+      "name": "signed32--2147483648",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": -2147483648,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "signed32-2147483647",
+      "valid": true,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2147483647,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "unknown-kind",
+      "valid": false,
+      "value": {
+        "kind": "private/path",
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "unknown-platform",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "private-machine"
+      }
+    },
+    {
+      "name": "fractional-code",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 1.5,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "above-signed32",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2147483648,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "below-signed32",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": -2147483649,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "string-code",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": "2",
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "private-message",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "linux",
+        "message": "private/path --secret"
+      }
+    },
+    {
+      "name": "null-kind",
+      "valid": false,
+      "value": {
+        "kind": null,
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "missing-kind",
+      "valid": false,
+      "value": {
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "missing-nativeCode",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "platform": "linux"
+      }
+    },
+    {
+      "name": "missing-platform",
+      "valid": false,
+      "value": {
+        "kind": "not_found",
+        "nativeCode": 2
+      }
+    }
+  ],
+  "nativeCases": {
+    "linux": [
+      {
+        "nativeCode": 2,
+        "kind": "not_found"
+      },
+      {
+        "nativeCode": 13,
+        "kind": "permission_denied"
+      }
+    ],
+    "macos": [
+      {
+        "nativeCode": 2,
+        "kind": "not_found"
+      },
+      {
+        "nativeCode": 13,
+        "kind": "permission_denied"
+      }
+    ],
+    "windows": [
+      {
+        "nativeCode": 2,
+        "kind": "not_found"
+      },
+      {
+        "nativeCode": 5,
+        "kind": "permission_denied"
+      }
+    ]
+  },
+  "headlessErrorExample": {
+    "type": "error",
+    "error": {
+      "code": "FFMPEG_FAILED",
+      "message": "FFmpeg render failed",
+      "retryable": false,
+      "failedStage": "spawn",
+      "ffmpegExitCode": null,
+      "ffmpegStderrExcerpt": null,
+      "ffmpegSpawn": {
+        "kind": "not_found",
+        "nativeCode": 2,
+        "platform": "linux"
+      }
+    }
+  }
+}
