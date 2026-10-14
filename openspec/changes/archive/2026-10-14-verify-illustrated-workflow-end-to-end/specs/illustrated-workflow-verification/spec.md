@@ -58,6 +58,8 @@ Documentation SHALL provide reproducible usage, supported parameters, actual tes
 ### Requirement: Required verification and exact-head completion
 Completion SHALL require meaningful automated scenario coverage, all repository-required local gates without failed/skipped required checks, independent conformance review, synchronization/archive of only this change, final protected strict validation, and all required published-head CI checks with unchanged prerequisite/default-120-minute foundation behavior. Failures and unavailable evidence SHALL be retained and reported; no merge or deployment is authorized.
 
+The inherited native cached-range golden SHALL require the already approved current-main ten-frame preparation progress[0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5] followed by publication1. Its exact cache hit/miss counts, encoded-byte reuse, changed-media invalidation, frozen visual/audio/layout/state checks and missing-input precedence MUST remain enforced; preparation events alone MUST NOT be interpreted as an encoding miss. No renderer, cache limit, reference, tolerance, deadline or policy changes are permitted.
+
 #### Scenario: Verified change reaches draft review
 - **WHEN** implementation checks and independent conformance pass
 - **THEN** only this change is archived, final protected validation passes, the verified commit is pushed to a draft PR, and exact-head CI evidence identifies all checks and unchanged budgets

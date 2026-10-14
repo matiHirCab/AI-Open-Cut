@@ -3,13 +3,13 @@
   "runtime": "linux-x86_64",
   "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
   "ffprobe": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers",
-  "sourceDesktopSha256": "cd738e713bfbc225077e641dd3e411698d059c0147fcc0cef62f0a140c72d056",
+  "sourceDesktopSha256": "61aa727f598e8172f76e1f495c434939b346660efc0ee7940eed49524c23d4f1",
   "nativeInputSourceSha256": {
     "apps/agent-bridge/tests/platform-renderer-native.test.ts": "53ec103ec9b405ccef452993a8de59d7779cc8061dc17209530f77abc8966f71",
-    "apps/agent-bridge/tests/fixtures/illustrated-targets.ts": "35ce339be033bc9c1f9e942bb006903f4678962bba0ffe7fed8c8cbf4bb6367e",
-    "apps/agent-bridge/tests/illustrated-workflow-native.ts": "d16d484e3ea87e0982f4976ba221fb8ec81caa2180d4fc5864e736a6dcfb0d02",
-    "apps/agent-bridge/tests/illustrated-media-oracle.ts": "cf57e042bf03d66469abbca41ab1b5aa8b9eb378435da9bcf48ad5f7b4be9bb0",
-    "apps/agent-bridge/tests/illustrated-target-oracle.ts": "8b9bc73b5c0eb7203cef8e9ce44b8742b865e00730873a35067c03e6e9ef5ccc"
+    "apps/agent-bridge/tests/fixtures/illustrated-targets.ts": "47b6e9ce274d3cd180ed9bf1025bf060326cf572eecabfb8f51094d36c5cb48a",
+    "apps/agent-bridge/tests/illustrated-workflow-native.ts": "41e288cd05c75da35606b4cb43e897271319a31a8a594cba43acd1d89f964c8d",
+    "apps/agent-bridge/tests/illustrated-media-oracle.ts": "750d647ba5f56591381813d8e2b7fe7365f6c9bba19fdd9d74793e5d1d969099",
+    "apps/agent-bridge/tests/illustrated-target-oracle.ts": "10b1e130279c1373aead267932cd26a4a2e2e9b93752a1a652ad72ea559fd3d4"
   },
   "nativeFontSha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
   "packageManifest": {
@@ -21,8 +21,8 @@
       },
       {
         "path": "opencut-headless",
-        "sha256": "5dae311a43f9c5ed4c6bf1e351c082a07b2f8e5e09f10373d248fa65da0da9a5",
-        "sizeBytes": 17090776
+        "sha256": "6bae575f2a9331e6570967566c69cd543dac61d261a851c828f3321d7cf69ffb",
+        "sizeBytes": 17091256
       },
       {
         "path": "kokoro-tts/worker.py",
@@ -37,11 +37,17 @@
     ],
     "version": 1
   },
-  "platformRawReportSha256": "fc50cdee57ff997b852d2c11738473b716fdd722b4d5919b508bcb2b755a6f37",
+  "platformRawReportSha256": "b48fc1ca409df38322b989b04b5fb59b8ce68346cb8dca13bae989d333f169e1",
   "rawEvidenceOutsideGit": [
-    "/workspace/issue191-platform-sixth-evidence",
-    "/workspace/issue191-gui-session"
+    "/workspace/issue191-current-platform",
+    "/workspace/issue191-fresh-gui",
+    "/workspace/issue191-recovery/extracted"
   ],
   "personalInstalledDesktopObserved": false,
-  "nonLinuxGuiObserved": false
+  "nonLinuxGuiObserved": false,
+  "recoveredImplementationCommit": "27041723c9ef84d924ad595b9e1954bc6728234d",
+  "defaultHeadlessSha256": "6bae575f2a9331e6570967566c69cd543dac61d261a851c828f3321d7cf69ffb",
+  "correctedNativeAssertionsObserved": true,
+  "actualCpuQuota": "400000/100000",
+  "actualMemoryQuotaBytes": 17179869184
 }

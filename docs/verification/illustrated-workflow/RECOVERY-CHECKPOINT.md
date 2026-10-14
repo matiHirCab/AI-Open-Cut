@@ -1,5 +1,12 @@
 # Unverified recovery checkpoint — issue 191
 
+Historical checkpoint at27041723. The replacement recovered this work and the
+evidence branch, completed fresh strengthened source/package and sparse sticker
+GUI acceptance, and received explicit approval for the inherited cache-progress
+test reconciliation. Follow README.md, recovery-verification.md and current
+receipts for replacement status; the original failure/history record below is
+preserved and does not describe final readiness.
+
 This checkpoint preserves interrupted work for an explicitly authorized replacement environment. It is NOT a completed or verified implementation, and is not ready for a PR or archive. Base: 2ccb3f0f831dee25a91647315eeb0bc1806ad8a3.
 
 Current authored sticker uses the reviewed nine-command bevel and dense 120px dot grid. Strengthened native source/package verification still exceeds the unchanged 600000ms per-case deadline. Earlier weaker native attempt six passed, but cannot establish acceptance of the current strengthened implementation. Attempt seven failed both required cases. Attempt eight source exceeded the deadline; packaged mode was interrupted on user-authorized transfer. Preserve all failures. Do not change guards, tolerances, deadlines, production renderer, or CI budgets.

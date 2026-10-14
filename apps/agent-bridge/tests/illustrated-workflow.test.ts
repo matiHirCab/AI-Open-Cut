@@ -425,3 +425,71 @@ it("authors the reviewed native bevel with exact original bounds and vertices", 
     { type: "close" },
   ]);
 });
+
+it("preserves the bounded native sparse dot lattice and rejects wrong dot or gap pixels", async () => {
+  const operation = headlessEditSchema.parse(
+    illustratedTargetOperations(
+      "sticker_motif_intro",
+      "original_art",
+      "overlay"
+    )[0]
+  );
+  if (operation.operation !== "component_create") {
+    throw new Error("Missing sticker source");
+  }
+  const dots = operation.tracks
+    .flatMap((track) => track.items)
+    .find((item) => item.id === "dot_backdrop");
+  expect(dots).toMatchObject({
+    grid: {
+      height: 1080,
+      pattern: { radius: 5, spacingX: 320, spacingY: 320, type: "dot" },
+      width: 1920,
+    },
+    type: "grid",
+  });
+  const centres = [0, 320, 640, 960, 1280, 1600, 1920].flatMap((x) =>
+    [0, 320, 640, 960].map((y) => [x, y])
+  );
+  expect(centres).toHaveLength(28);
+  expect(
+    centres.filter(([x = 0, y = 0]) => x > 5 && x < 1915 && y > 5 && y < 1075)
+  ).toHaveLength(15);
+  const { FRAME_BYTES, verifyIllustratedPixels } = await import(
+    "./illustrated-media-oracle"
+  );
+  const pixels = Buffer.alloc(FRAME_BYTES);
+  const set = (x: number, y: number, color: number[]) => {
+    pixels.set(color, (y * 1920 + x) * 3);
+  };
+  for (const [x, y, color] of [
+    [100, 100, [24, 38, 61]],
+    [120, 120, [24, 38, 61]],
+    [320, 320, [0, 212, 255]],
+    [960, 110, [255, 204, 51]],
+    [200, 396, [255, 107, 0]],
+    [600, 500, [48, 73, 104]],
+    [605, 185, [48, 73, 104]],
+    [585, 165, [24, 38, 61]],
+    [850, 450, [255, 255, 255]],
+    [1040, 450, [255, 0, 0]],
+    [1450, 500, [24, 38, 61]],
+  ] as const) {
+    set(x, y, [...color]);
+  }
+  for (let x = 650; x < 750; x += 1) {
+    set(x, 940, [255, 255, 255]);
+  }
+  expect(() =>
+    verifyIllustratedPixels("sticker_motif_intro", pixels, 0)
+  ).not.toThrow();
+  set(120, 120, [0, 212, 255]);
+  expect(() =>
+    verifyIllustratedPixels("sticker_motif_intro", pixels, 0)
+  ).toThrow("120,120");
+  set(120, 120, [24, 38, 61]);
+  set(320, 320, [24, 38, 61]);
+  expect(() =>
+    verifyIllustratedPixels("sticker_motif_intro", pixels, 0)
+  ).toThrow("320,320");
+});

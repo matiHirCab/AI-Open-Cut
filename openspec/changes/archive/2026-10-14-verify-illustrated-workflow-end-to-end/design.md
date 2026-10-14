@@ -69,4 +69,55 @@ cannot satisfy them. Reuse device/team checks only where relevant inputs are
 unchanged. Keep all prior platform assertions, 90-frame ranges/exports, existing
 600-second case/120-second polling limits, guards, fixed #187/#203 captures and CI
 budgets. This choice makes no claim that the curved contour meets the case budget
-or that arbitrary native curves render quickly. Final conformance is still pending.
+or that arbitrary native curves render quickly. Final independent recovery conformance is recorded in verification.md.
+
+## Reviewed sparse-grid fixture clarification after recovery
+
+The recovery handoff explicitly approves a fixture-only 320px spacing option.
+The original target requires a native dot backdrop but does not fix its density.
+Keep its 1920x1080 extent, cyan RGB(0,212,255), radius5, native grid role,
+beveled contour, other roles, bounds, samples, three-second duration and caps.
+This replaces authored test data only; no public motif recipe changes.
+
+Independent lattice accounting uses floor(extent/spacing)+1: seven x centres
+0,320,640,960,1280,1600,1920 and four y centres0,320,640,960, hence28 marks.
+The radius5 circles have15 fully interior centres (five interior x values times
+three nonzero y values) and13 boundary-clipped centres: seven on y0,
+and six on x0,1920 at y320,640,960. The two y0 corners are quarter circles;
+the other eleven boundary marks are half circles.
+All28 have nonzero viewport coverage. For the fixed original inputs, the opaque
+bevel covers six centres at x640,960,1280 and y320,640; the south ray additionally
+covers(960,960). The remaining21 visible marks comprise13 boundary clips and
+eight fully interior marks. Independent checks of all six actual sample PNGs
+(source/package at0/1500/2966ms) confirm those precomputed visible centres.
+This inventory is for the fixed fixtures, not arbitrary label replacements.
+The grid remains one visual leaf, not28 scene leaves. Visible unoccluded cyan
+witness (320,320) supplements the retained (120,120) witness, now independently
+expected backdrop RGB(24,38,61). Both witnesses must reject wrong pixels.
+
+Retain dense120px inputs and failed timing evidence. Combined sticker cost was
+observed; attributing it solely to the grid or contour would be an inference.
+Fresh required source/package2/0/0 and sticker GUI interaction/render/reopen
+remain mandatory. Preserve every earlier oracle, with this explicitly authored
+pixel expectation, all600-second/120-second bounds and120-minute CI policy.
+
+## Approved inherited cache-progress reconciliation
+
+Current-main native range materialization reports sampled preparation before
+encoded-cache lookup. The inherited cache golden incorrectly requires only
+progress[1.0], conflicting with the already approved rendering-export progress
+requirements at lines798–822. Both full and isolated required execution fail this
+unchanged assertion. Preparation events alone do not indicate final encoding.
+
+The proposed test-only correction requires the exact ten-frame preparation vector
+[0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,1.0]. All existing cache hit/miss
+counts, frozen byte/pixel/audio/layout/state checks, missing-input precedence,
+deadlines, budgets and policy remain enforced. No production or contract change.
+This is a specifically reviewable reconciliation of current-main semantics,
+not removal of the warm-cache acceptance requirement. The user explicitly approved
+the correction through the transcript recorded in approval.md. The exact packet
+is /workspace/issue191-recovery/proposed-cache-progress.patch. Verification MUST
+prove the existing(4,4) warm cache counts and(4,5) changed-media invalidation,
+unchanged encoded bytes, frozen AV/layout checks and missing-input precedence;
+progress alone is not cache-reuse evidence. Run the isolated exact native case
+and complete required gates before archive/publication.

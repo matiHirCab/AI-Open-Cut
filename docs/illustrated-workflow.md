@@ -109,18 +109,18 @@ third-party creative inputs. See the
 
 ## Capability and acceptance attribution
 
-The initial fresh source bridge and freshly assembled default package each passed all
-three final targets, including actual jobs, decoded media, history, native source
-edits, cancellation, and reconnect/reopen. After independent review, stronger inventory/exact-undo/transform/stereo assertions
-require a fresh two-mode run before final acceptance. Both initial required cases passed with zero
-failures/skips within the unchanged 600-second per-case timeout. Every target's
+The recovered source bridge and freshly assembled default package each passed
+all three final targets with the strengthened inventory/exact-undo/transform/stereo
+assertions, actual jobs, decoded media, history, native source edits, cancellation,
+and reconnect/reopen. The two required cases passed in496.228/569.704 seconds,
+with zero failures/skips within the unchanged600-second per-case timeout. Every target's
 range/export SSIM was 1, decoded route audio RMS was 0, and original waveform
 correlation was 0.9998788883 with zero measured clock displacement.
 
 | Target | Measured initial leaves / instances / text scalars / active artwork / distinct active images / stored images / image dimension / paths / channels |
 | --- | --- |
 | Device | 7 / 1 / 12 / 1 / 1 / 2 / 64 / 0 / 1 |
-| Sticker | 7 / 1 / 12 / 1 / 1 / 2 / 64 / 80 / 0 |
+| Sticker | 7 / 1 / 12 / 1 / 1 / 2 / 64 / 79 / 0 |
 | Team | 29 / 4 / 32 / 3 / 1 / 2 / 64 / 120 / 0 |
 
 The customized team has 37 text scalars and two distinct active artwork assets;
@@ -151,8 +151,8 @@ they are not replacement fixed samples or those original short-range targets.
 No portable performance, isolated optimization-stage effect, statistical tail,
 maximum-envelope, or personal installed-runtime claim follows from these samples.
 
-The authored 800-pixel curved sticker contour is a material workload limitation:
-source cold frame preparation took 22.0 seconds and the edited frame 25.3 seconds
+The historical curved sticker workload was slow: its source cold frame took
+22.0 seconds and the edited frame25.3 seconds
 (packaged: 21.1 and 22.2 seconds). Warm samples took approximately 2.4–3.0 seconds.
 The 90-frame sticker range/export took 64–68 seconds; device took 52–55 seconds
 and team took 68–71 seconds across these two modes. These are observed wall-clock
@@ -160,4 +160,13 @@ samples on this host, without a portable latency or general fast-frame claim.
 Source debug GUI full-resolution rendering took minutes and was verified through
 completed frames; those observations are not release latency measurements.
 The original fixed #203 performance proof is retained unchanged; its thresholds
-are not silently extended to this separate curved contour or full 90-frame range.
+are not silently extended to this separate curved contour or full90-frame range.
+
+The current original test fixture uses an800px beveled native path and a native
+1920x1080 cyan dot grid with320px spacing/radius5:28 marks, including13 clipped
+boundary marks. These fixture choices preserve the original roles, envelopes,
+three-second timeline and inclusive caps. Dense120px and curved input failures
+remain preserved; neither contour nor grid cost was independently isolated.
+Current strengthened source/package and sparse sticker GUI acceptance passed.
+Earlier timing/media receipts remain historical. All required local gates, independent conformance, own archival and protected
+validation passed. Exact published-head CI remains required before completion.

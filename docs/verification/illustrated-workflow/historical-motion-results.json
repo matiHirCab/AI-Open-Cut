@@ -1,0 +1,17 @@
+{
+  "accepted": {
+    "canonicalCases": 18,
+    "checkoutHead": "2ccb3f0f831dee25a91647315eeb0bc1806ad8a3",
+    "defaultNativeCases": 1,
+    "instrumentedMcpCases": 2,
+    "requestedHead": "2ccb3f0f831dee25a91647315eeb0bc1806ad8a3",
+    "runNonce": "5cb94f6c-d5a6-4810-af7c-f5f94e958d2b",
+    "sourceDirty": true,
+    "version": 1
+  },
+  "rawRootOutsideGit": "/workspace/issue191-motion-evidence/5cb94f6c-d5a6-4810-af7c-f5f94e958d2b",
+  "acceptedSha256": "9414bfbf259bb50cd20fe5c18966ec94ed09c5109f5d03252d35cdc76cca944b",
+  "runnerLog": "/workspace/issue191-final-independent-motion.log",
+  "runnerExit": 0,
+  "seconds": 704.2917903180005
+}

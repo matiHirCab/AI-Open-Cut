@@ -276,8 +276,8 @@ export const illustratedTargetOperations = (
             pattern: {
               paint: paint([0, 212, 255]),
               radius: 5,
-              spacingX: 120,
-              spacingY: 120,
+              spacingX: 320,
+              spacingY: 320,
               type: "dot",
             },
             width: 1920,

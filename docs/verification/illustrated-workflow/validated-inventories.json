@@ -26,7 +26,7 @@
       "textScalars": 12,
       "visualLeaves": 7
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64
       ],
@@ -115,7 +115,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "f7e3b33d-d28d-478f-85cc-86938be37c7f",
+          "artworkId": "4f912b27-ae8b-477e-9276-7b707566632f",
           "box": [
             620,
             360,
@@ -142,13 +142,13 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-illustrated_device_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/source-illustrated_device_intro-evidence.json"
   },
   {
     "mode": "source",
@@ -161,7 +161,7 @@
       "artworkDimension": 64,
       "distinctArtworkAssets": 1,
       "instances": 1,
-      "pathCommands": 80,
+      "pathCommands": 79,
       "storedArtworkAssets": 2,
       "textScalars": 12,
       "visualLeaves": 7
@@ -172,12 +172,12 @@
       "artworkDimension": 64,
       "distinctArtworkAssets": 1,
       "instances": 1,
-      "pathCommands": 80,
+      "pathCommands": 79,
       "storedArtworkAssets": 2,
       "textScalars": 12,
       "visualLeaves": 7
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64
       ],
@@ -261,12 +261,12 @@
           ],
           "id": "authored_sticker_contour",
           "kind": "shape",
-          "pathCommands": 10,
+          "pathCommands": 9,
           "text": ""
         },
         {
           "animatedChannels": 0,
-          "artworkId": "91acc326-de60-4670-a90b-55f979654392",
+          "artworkId": "50d1470b-f764-4ec9-ad65-cf875ee5e676",
           "box": [
             832,
             412,
@@ -293,13 +293,13 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-sticker_motif_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/source-sticker_motif_intro-evidence.json"
   },
   {
     "mode": "source",
@@ -328,7 +328,7 @@
       "textScalars": 37,
       "visualLeaves": 29
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64,
         64,
@@ -474,7 +474,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "84869348-c859-46ea-a9b8-1b4c078c4919",
+          "artworkId": "5454bfa0-b92f-4e3f-a859-f8e448d99761",
           "box": [
             323.2,
             473.8,
@@ -592,7 +592,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "7cf19de2-93ea-4c45-80cf-f6c75444d2af",
+          "artworkId": "64b6d654-9808-481d-8646-da73266d0cca",
           "box": [
             883.2,
             473.8,
@@ -710,7 +710,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "7cf19de2-93ea-4c45-80cf-f6c75444d2af",
+          "artworkId": "64b6d654-9808-481d-8646-da73266d0cca",
           "box": [
             1443.2,
             473.8,
@@ -763,13 +763,13 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-role_badge_team_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/source-role_badge_team_intro-evidence.json"
   },
   {
     "mode": "packaged",
@@ -798,7 +798,7 @@
       "textScalars": 12,
       "visualLeaves": 7
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64
       ],
@@ -887,7 +887,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "59f53967-898b-4c47-a511-d313857fc213",
+          "artworkId": "87fe9fbc-8dbf-457e-83f9-fb1abfcbdaee",
           "box": [
             620,
             360,
@@ -914,13 +914,13 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-illustrated_device_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/packaged-illustrated_device_intro-evidence.json"
   },
   {
     "mode": "packaged",
@@ -933,7 +933,7 @@
       "artworkDimension": 64,
       "distinctArtworkAssets": 1,
       "instances": 1,
-      "pathCommands": 80,
+      "pathCommands": 79,
       "storedArtworkAssets": 2,
       "textScalars": 12,
       "visualLeaves": 7
@@ -944,12 +944,12 @@
       "artworkDimension": 64,
       "distinctArtworkAssets": 1,
       "instances": 1,
-      "pathCommands": 80,
+      "pathCommands": 79,
       "storedArtworkAssets": 2,
       "textScalars": 12,
       "visualLeaves": 7
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64
       ],
@@ -1033,12 +1033,12 @@
           ],
           "id": "authored_sticker_contour",
           "kind": "shape",
-          "pathCommands": 10,
+          "pathCommands": 9,
           "text": ""
         },
         {
           "animatedChannels": 0,
-          "artworkId": "8cc9a2c0-8c26-45e7-8c5c-408bfd929cf6",
+          "artworkId": "7733d35b-9f68-445c-8a71-5dcba71b67a3",
           "box": [
             832,
             412,
@@ -1065,13 +1065,13 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-sticker_motif_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/packaged-sticker_motif_intro-evidence.json"
   },
   {
     "mode": "packaged",
@@ -1100,7 +1100,7 @@
       "textScalars": 37,
       "visualLeaves": 29
     },
-    "customizedObservation": {
+    "observation": {
       "artworkDimensions": [
         64,
         64,
@@ -1246,7 +1246,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "811cc757-e3c9-41d7-9fc9-2beb4f3ce948",
+          "artworkId": "82feb5c0-86c7-49b0-9f44-21de929d8ff0",
           "box": [
             323.2,
             473.8,
@@ -1364,7 +1364,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "7c9a6ad0-a500-4ebd-b92f-e0911743ae02",
+          "artworkId": "4efe28fc-378f-488d-a7aa-0477db853233",
           "box": [
             883.2,
             473.8,
@@ -1482,7 +1482,7 @@
         },
         {
           "animatedChannels": 0,
-          "artworkId": "7c9a6ad0-a500-4ebd-b92f-e0911743ae02",
+          "artworkId": "4efe28fc-378f-488d-a7aa-0477db853233",
           "box": [
             1443.2,
             473.8,
@@ -1535,12 +1535,12 @@
         }
       ],
       "settings": {
-        "fps": 30,
+        "width": 1920,
         "height": 1080,
-        "width": 1920
+        "fps": 30
       },
       "storedArtworkAssets": 2
     },
-    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-role_badge_team_intro-evidence.json"
+    "rawEvidencePath": "/workspace/issue191-current-platform/packaged-role_badge_team_intro-evidence.json"
   }
 ]

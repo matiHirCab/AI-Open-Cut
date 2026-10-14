@@ -69,7 +69,8 @@ export const verifyIllustratedPixels = (
     glyphs(pixels, [1230, 330, 1670, 430]);
   } else if (id === "sticker_motif_intro") {
     for (const [x, y, color] of [
-      [120, 120, [0, 212, 255]],
+      [120, 120, [24, 38, 61]],
+      [320, 320, [0, 212, 255]],
       [960, 110, [255, 204, 51]],
       [200, 396, [255, 107, 0]],
       [600, 500, [48, 73, 104]],

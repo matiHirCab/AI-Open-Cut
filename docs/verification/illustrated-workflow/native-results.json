@@ -1,16 +1,18 @@
 {
-  "nativeRunnerLog": "/workspace/issue191-platform-sixth.log",
+  "nativeRunnerLog": "/workspace/issue191-recovery/current-platform.log",
   "runnerExit": 0,
   "requiredCases": 2,
   "requiredFailed": 0,
   "requiredSkipped": 0,
   "caseTimesMs": [
-    555592,
-    548630
+    496227.631185,
+    569703.851818
   ],
   "unchangedCaseTimeoutMs": 600000,
   "unchangedPollingAttempts": 1200,
   "unchangedPollingIntervalMs": 100,
+  "correctedIndependentReviewAssertions": true,
+  "fixture": "original native bevel with320px dot grid",
   "rows": [
     {
       "mode": "source",
@@ -27,7 +29,7 @@
         "textScalars": 12,
         "visualLeaves": 7
       },
-      "projectId": "cd5a4c80-0f75-430b-baed-d2b501db807b",
+      "projectId": "8b8ac3e0-2516-44c7-a9fd-370125d41506",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -43,6 +45,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -53,55 +58,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 2900.4078579999914,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2301.3968220000097
         },
         {
-          "elapsedMs": 2171.029827999999,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 1686.7962070000067
         },
         {
-          "elapsedMs": 2249.1914490000054,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 1686.797888000001
         },
         {
-          "elapsedMs": 55435.495567999984,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 42477.140081000005
         },
         {
-          "elapsedMs": 54597.244989,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "source-illustrated_device_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 42345.708782999995
         },
         {
-          "elapsedMs": 3026.372988999996,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2071.093192999979
         }
       ],
-      "projectSha256": "d441920e1e77cf194ec0823afb79b53089740d53824a915c49ffa2e4e9a1fb36",
-      "evidenceSha256": "e990f12b790a841206220b2b9bfe705832dbd7dd219418c12fbcacd88cfe5039"
+      "projectSha256": "555d71bcd25fc86574bd8991e74f8a19dfe507d77809c4e79b9750f22ee43d87",
+      "evidenceSha256": "3eca1decd622fc65ad03b94c9483bdad51af5ea141289af7fced891aa77ee28e"
     },
     {
       "mode": "source",
@@ -113,12 +118,12 @@
         "artworkDimension": 64,
         "distinctArtworkAssets": 1,
         "instances": 1,
-        "pathCommands": 80,
+        "pathCommands": 79,
         "storedArtworkAssets": 2,
         "textScalars": 12,
         "visualLeaves": 7
       },
-      "projectId": "f661f3e1-ba67-40dd-9a3e-aa3ccf733045",
+      "projectId": "7008c171-6365-4d13-a577-f00055deae49",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -134,6 +139,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -144,55 +152,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 22013.41397600001,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 4517.554076
         },
         {
-          "elapsedMs": 3047.6773840000096,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 1779.4806680000038
         },
         {
-          "elapsedMs": 2427.378633000015,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 1783.3756390000053
         },
         {
-          "elapsedMs": 68371.99760400003,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 56049.22822300001
         },
         {
-          "elapsedMs": 64302.337769999984,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "source-sticker_motif_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 56389.59647799999
         },
         {
-          "elapsedMs": 25265.239866999967,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 4777.1716460000025
         }
       ],
-      "projectSha256": "2668dc0c0dde5871415a7bac8faf1a6799ce704aa079a5a1ff8252f211a40f78",
-      "evidenceSha256": "d3ef2d70179ca893b7aeaa2234b7ae449c76495b53dee8a847769a3fb79e2b27"
+      "projectSha256": "2ae3ffdbf3dedb040d0a75a70e8f81f5db423356b0544e8f8824e62f6529fa29",
+      "evidenceSha256": "adf95cc3cbb5d4015a294a82ec7bdd11bd7c156659749bd7ed5bd67f756a4b78"
     },
     {
       "mode": "source",
@@ -209,7 +217,7 @@
         "textScalars": 32,
         "visualLeaves": 29
       },
-      "projectId": "1c1a5fcc-5c94-4545-860b-0bf1d93661bb",
+      "projectId": "d842924c-54e1-41c9-94fa-52f48ee78de2",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -225,6 +233,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -235,55 +246,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 3335.2021229999955,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2775.3314289999544
         },
         {
-          "elapsedMs": 2638.250721999968,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3627.6211459999904
         },
         {
-          "elapsedMs": 2549.3018089999678,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3464.927984000009
         },
         {
-          "elapsedMs": 70396.62928299996,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 77464.79601599998
         },
         {
-          "elapsedMs": 69801.84002199996,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "source-role_badge_team_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 93483.34645200003
         },
         {
-          "elapsedMs": 3424.7015609999653,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3502.6998410000233
         }
       ],
-      "projectSha256": "b5b378a5ec6bc55ddc466d3f9c58a5518da5b8da08113ac5a32ab8d5167392da",
-      "evidenceSha256": "8ad99cfca019c34c5794fb3be02343d23214ade8cbbd363bf15820262dc770c2"
+      "projectSha256": "ff88b461c8064a53e2f07c82c8cd4e711452f401a3531a9415c644c90dc8f8e6",
+      "evidenceSha256": "3213e3c34881f573263fb4c0cde765e8a48adacc950c0b1c03074e50c9ca132a"
     },
     {
       "mode": "packaged",
@@ -300,7 +311,7 @@
         "textScalars": 12,
         "visualLeaves": 7
       },
-      "projectId": "ba150f1d-4190-49fc-9304-24d1766cb00e",
+      "projectId": "e786486d-83c5-4922-9174-8d593e1b41ef",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -316,6 +327,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -326,55 +340,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 3300.435734999948,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2824.26802399999
         },
         {
-          "elapsedMs": 2855.380819999962,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 1769.897796999896
         },
         {
-          "elapsedMs": 2158.0839249999262,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3486.340349999955
         },
         {
-          "elapsedMs": 51942.031680999906,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 44445.83168900001
         },
         {
-          "elapsedMs": 52115.539467999944,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "packaged-illustrated_device_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 57020.275246000034
         },
         {
-          "elapsedMs": 2909.7208049999317,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3048.2603290000698
         }
       ],
-      "projectSha256": "a4fff15482ffaa6b8e816ea6e22c762aff3badc4b53a51294ed02546110ebb3e",
-      "evidenceSha256": "7eb4b7dd9f654d540f679dbc996f1725e39ebf67e167d3bbe7a4a848b6309bee"
+      "projectSha256": "f32d59941458fd8a8d107d8441297a344f2d77d7a546a8b5c246051469015132",
+      "evidenceSha256": "58c53ce248b7f97c0e295d9beb1d32620f8a79331c2f9e02d2b1ec461db16033"
     },
     {
       "mode": "packaged",
@@ -386,12 +400,12 @@
         "artworkDimension": 64,
         "distinctArtworkAssets": 1,
         "instances": 1,
-        "pathCommands": 80,
+        "pathCommands": 79,
         "storedArtworkAssets": 2,
         "textScalars": 12,
         "visualLeaves": 7
       },
-      "projectId": "a88ac2f1-c6ca-4a99-9740-8aa52104d2a4",
+      "projectId": "2085ad0b-7c01-4dcf-a860-d52823587c6b",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -407,6 +421,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -417,55 +434,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 21117.918473999947,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 7458.002220000024
         },
         {
-          "elapsedMs": 2989.914155000006,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2121.24461100006
         },
         {
-          "elapsedMs": 2456.444436999969,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 2752.0451139999786
         },
         {
-          "elapsedMs": 66385.10355699994,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 67688.66762299999
         },
         {
-          "elapsedMs": 66011.93331400002,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "packaged-sticker_motif_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 67644.33950399992
         },
         {
-          "elapsedMs": 22205.20271500002,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 5650.171832000022
         }
       ],
-      "projectSha256": "f8fc3c221d41b3295bd022ec45c4b03c1fcb563d5af8cfe0fe1931a8574cece2",
-      "evidenceSha256": "5194bab200b633ffedae0704b670395037e8804e44821255d9b7640b38878e3f"
+      "projectSha256": "f2816593844bad835992024e97301f66087fef54bf41b87f76e8e4cd4967cfc1",
+      "evidenceSha256": "b3856091a7c3343de2fd0d8680c0d5c54565fcb9c0372395fb0583cc2e72e3b4"
     },
     {
       "mode": "packaged",
@@ -482,7 +499,7 @@
         "textScalars": 32,
         "visualLeaves": 29
       },
-      "projectId": "7159d627-be47-428a-b1f8-bbebec7ca173",
+      "projectId": "8515ad0c-b44c-4c5c-9107-b87e3f879e17",
       "revision": 9,
       "ssim": 1,
       "pcmRms": 0,
@@ -498,6 +515,9 @@
           "correlation": 0.9998788883233822
         }
       ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
       "lifecycle": {
         "lateAtomicFailure": true,
         "nativeSourceEdit": true,
@@ -508,55 +528,55 @@
       },
       "timings": [
         {
-          "elapsedMs": 4137.331631000037,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 0
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 4374.587672999944
         },
         {
-          "elapsedMs": 2997.4281249999767,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 4268.17825300002
         },
         {
-          "elapsedMs": 3834.1577030000044,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 2966
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 4281.424024999957
         },
         {
-          "elapsedMs": 71096.89209800004,
+          "name": "preview_review_range",
           "input": {
             "endMs": 3000,
             "resolution": "project",
             "startMs": 0
           },
-          "name": "preview_review_range"
+          "elapsedMs": 96289.155043
         },
         {
-          "elapsedMs": 68390.01749600004,
+          "name": "project_export_video",
           "input": {
             "format": "mp4",
             "overwrite": false,
             "relativePath": "packaged-role_badge_team_intro.mp4",
             "resolution": "project"
           },
-          "name": "project_export_video"
+          "elapsedMs": 76315.54411300004
         },
         {
-          "elapsedMs": 3569.65128599992,
+          "name": "preview_render_frame",
           "input": {
             "timeMs": 1500
           },
-          "name": "preview_render_frame"
+          "elapsedMs": 3839.6301209998783
         }
       ],
-      "projectSha256": "0480370da7e60584dd1f7cb233839ce87fb75e6cf715050c967a688bc3c746c9",
-      "evidenceSha256": "e6aaa8e2d0187d2f7b3e5daa4eb756609b336fe5b7ceadcfc4bc1a9910819e00"
+      "projectSha256": "3de782a642c2ebdea69955bf39ab6e3a63b7b20e2196c5f0ebeca5ba2123d4c6",
+      "evidenceSha256": "ac7422fcc79c93e6a06df672e983add368bc114a86eb44392e8ebac7ab6bd9d2"
     }
   ]
 }

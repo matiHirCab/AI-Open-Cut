@@ -8,6 +8,7 @@ Issue #191 requires release evidence for the completed illustrated workflow. Iss
 - Exercise customization, native source editing, independent overrides, persistence/reopen, revisions/history, atomic late failure, cancellation, and full-range/export through actual source and default packaged MCP bridges.
 - Add independent layout/pixel checks, omission/corruption controls, SSIM/audio/timing parity, and actual isolated source-desktop interaction evidence.
 - Publish reproducible usage, installed capability observations, dependency waivers, supported inputs, measured inventories, and evidence limitations. Preserve #187/#203 reference performance evidence and existing protected gates.
+- Reconcile the inherited native cached-range golden assertion with current-main sampled preparation progress, under explicit user approval. Preserve exact cache reuse/invalidation counts, frozen AV/layout/state checks and all limits; no production behavior changes.
 
 Compatibility classification: verification-only additions; no public or persisted contract changes. Existing recipes, native operations, error semantics, renderer, CI budgets, and canonical historical fixture inventories remain unchanged. Newly authored fixtures are test inputs, not new product capabilities.
 
