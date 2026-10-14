@@ -1060,6 +1060,8 @@ impl ProcessExecutor for SystemProcessExecutor {
     ) -> Result<(), CoreError> {
         #[cfg(feature = "raster-cache-test-hooks")]
         FINAL_RENDER_EXECUTIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        #[cfg(test)]
+        let _measurement = backend_measurement();
         let mut command = build_render_command(ffmpeg_path, plan, filter_path, output);
         let progress_duration = match plan.intent {
             RenderIntent::Range {
@@ -1069,6 +1071,11 @@ impl ProcessExecutor for SystemProcessExecutor {
         };
         run_command(&mut command, progress_duration, on_progress)
     }
+}
+
+#[cfg(test)]
+fn backend_measurement() -> Option<crate::error::dense_scene_observations::InclusiveTimer> {
+    crate::error::dense_scene_observations::InclusiveTimer::start("final_backend_execution")
 }
 
 pub(crate) fn build_render_command(

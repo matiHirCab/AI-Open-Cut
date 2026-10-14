@@ -20,6 +20,15 @@ fn recipe() -> Value {
     serde_json::from_slice(RECIPE).unwrap()
 }
 
+pub(super) fn strategy_fixture() -> (tempfile::TempDir, EditorCore, String) {
+    let fixture = Fixture::new(&recipe());
+    (fixture.root, fixture.core, fixture.id)
+}
+
+pub(super) fn strategy_verify_pixels(bytes: &[u8], tolerance: i16) {
+    assert_pixels(&recipe(), bytes, tolerance);
+}
+
 fn validate(value: &Value) -> Result<(), &'static str> {
     if value["version"] != 1
         || value["fixtureId"] != "illustrated-hero-card-v1"

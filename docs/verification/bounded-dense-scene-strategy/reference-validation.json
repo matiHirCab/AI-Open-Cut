@@ -1,0 +1,426 @@
+{
+  "kind": "original capture with separately corrected validator replay; no replacement measurements",
+  "rawReportSha256": "01194abacd1fdb644d9a6dda0d0922e6f751b1b9d2b16a6072dc317b9326bd7c",
+  "capturedDriverSha256": "dfa3f4cc305eaf48b974f7edbd8cde8d58dae312af8578def6e10e72fa215ff8",
+  "validatorDriverSha256": "bff38f8bd1c4c1007ac9f6c5166b6f7f4523d25c84a4f7a67d9f96f158018731",
+  "capturedHead": "7043c4496458341aebc38dfa68ea7c352d5e8943",
+  "sourceDirty": true,
+  "referenceHostMatches": true,
+  "referenceEnvironmentComparison": {
+    "os": {
+      "baseline": "linux",
+      "observed": "linux",
+      "equal": true
+    },
+    "architecture": {
+      "baseline": "x86_64",
+      "observed": "x86_64",
+      "equal": true
+    },
+    "osVersion": {
+      "baseline": "Linux (Debian GNU/Linux 13)",
+      "observed": "Linux (Debian GNU/Linux 13)",
+      "equal": true
+    },
+    "cpu": {
+      "baseline": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "observed": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "equal": true
+    },
+    "logicalCpus": {
+      "baseline": 5,
+      "observed": 5,
+      "equal": true
+    },
+    "cpuMax": {
+      "baseline": "400000 100000",
+      "observed": "400000 100000",
+      "equal": true
+    },
+    "memoryMax": {
+      "baseline": "17179869184",
+      "observed": "17179869184",
+      "equal": true
+    },
+    "debugAssertions": {
+      "baseline": false,
+      "observed": false,
+      "equal": true
+    },
+    "ffmpeg": {
+      "baseline": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+      "observed": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+      "equal": true
+    },
+    "ffprobe": {
+      "baseline": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers",
+      "observed": "ffprobe version 7.1.5-0+deb13u1 Copyright (c) 2007-2026 the FFmpeg developers",
+      "equal": true
+    },
+    "fontSha256": {
+      "baseline": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+      "observed": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+      "equal": true
+    }
+  },
+  "freshDecisionStatistic": "maximum of3fresh samples, all14cells, unchanged5s/8s",
+  "all14FreshPass": false,
+  "passedFreshCells": 13,
+  "cellSummaries": [
+    {
+      "workload": "baseline",
+      "intent": "frame",
+      "expandedVisualLeaves": 7,
+      "fresh": {
+        "maxMs": 3475.296584,
+        "medianMs": 2811.946045,
+        "minMs": 2603.0249310000004,
+        "maxSampledProcessTreeResidentBytes": 486625280
+      },
+      "repeated": {
+        "maxMs": 1427.6423320000001,
+        "medianMs": 1372.64283,
+        "minMs": 1292.092953,
+        "maxSampledProcessTreeResidentBytes": 155496448
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 1966.68306,
+        "medianMs": 1934.304208,
+        "minMs": 1800.9860469999999,
+        "maxSampledProcessTreeResidentBytes": 434044928
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "baseline",
+      "intent": "range",
+      "expandedVisualLeaves": 7,
+      "fresh": {
+        "maxMs": 4261.550468,
+        "medianMs": 4259.620541,
+        "minMs": 4176.599798,
+        "maxSampledProcessTreeResidentBytes": 554754048
+      },
+      "repeated": {
+        "maxMs": 3346.927738,
+        "medianMs": 3279.231728,
+        "minMs": 3256.488826,
+        "maxSampledProcessTreeResidentBytes": 555376640
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 4090.629278,
+        "medianMs": 3699.796829,
+        "minMs": 3550.2589150000003,
+        "maxSampledProcessTreeResidentBytes": 555364352
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "hero",
+      "intent": "frame",
+      "expandedVisualLeaves": 14,
+      "fresh": {
+        "maxMs": 2213.5955630000003,
+        "medianMs": 2174.702033,
+        "minMs": 2139.7462,
+        "maxSampledProcessTreeResidentBytes": 478937088
+      },
+      "repeated": {
+        "maxMs": 1157.871844,
+        "medianMs": 1145.171255,
+        "minMs": 1114.061088,
+        "maxSampledProcessTreeResidentBytes": 117714944
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 1998.412554,
+        "medianMs": 1934.822274,
+        "minMs": 1827.341918,
+        "maxSampledProcessTreeResidentBytes": 485113856
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "hero",
+      "intent": "range",
+      "expandedVisualLeaves": 14,
+      "fresh": {
+        "maxMs": 3333.120739,
+        "medianMs": 3161.701379,
+        "minMs": 3160.706717,
+        "maxSampledProcessTreeResidentBytes": 521699328
+      },
+      "repeated": {
+        "maxMs": 2786.77319,
+        "medianMs": 2613.708157,
+        "minMs": 2574.8856450000003,
+        "maxSampledProcessTreeResidentBytes": 521728000
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 3345.6943269999997,
+        "medianMs": 3122.039414,
+        "minMs": 3011.499765,
+        "maxSampledProcessTreeResidentBytes": 521678848
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "motif_gallery",
+      "intent": "frame",
+      "expandedVisualLeaves": 16,
+      "fresh": {
+        "maxMs": 1689.89202,
+        "medianMs": 1579.287061,
+        "minMs": 1480.409587,
+        "maxSampledProcessTreeResidentBytes": 463278080
+      },
+      "repeated": {
+        "maxMs": 901.443613,
+        "medianMs": 546.742085,
+        "minMs": 492.528412,
+        "maxSampledProcessTreeResidentBytes": 115298304
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 1235.292248,
+        "medianMs": 1147.230129,
+        "minMs": 1127.645353,
+        "maxSampledProcessTreeResidentBytes": 462659584
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "motif_gallery",
+      "intent": "range",
+      "expandedVisualLeaves": 16,
+      "fresh": {
+        "maxMs": 2451.232006,
+        "medianMs": 1873.499048,
+        "minMs": 1790.4081710000003,
+        "maxSampledProcessTreeResidentBytes": 504164352
+      },
+      "repeated": {
+        "maxMs": 1317.6286770000002,
+        "medianMs": 1162.684061,
+        "minMs": 1116.473968,
+        "maxSampledProcessTreeResidentBytes": 512458752
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2403.3888810000003,
+        "medianMs": 1894.78737,
+        "minMs": 1773.1266429999998,
+        "maxSampledProcessTreeResidentBytes": 512462848
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "row1",
+      "intent": "frame",
+      "expandedVisualLeaves": 9,
+      "fresh": {
+        "maxMs": 2429.724415,
+        "medianMs": 2157.262968,
+        "minMs": 2134.6010450000003,
+        "maxSampledProcessTreeResidentBytes": 551108608
+      },
+      "repeated": {
+        "maxMs": 937.3902589999999,
+        "medianMs": 801.288271,
+        "minMs": 768.778431,
+        "maxSampledProcessTreeResidentBytes": 117919744
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 1511.350707,
+        "medianMs": 1483.882103,
+        "minMs": 1471.864132,
+        "maxSampledProcessTreeResidentBytes": 424554496
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "row1",
+      "intent": "range",
+      "expandedVisualLeaves": 9,
+      "fresh": {
+        "maxMs": 3049.545802,
+        "medianMs": 2264.56092,
+        "minMs": 2241.747369,
+        "maxSampledProcessTreeResidentBytes": 521768960
+      },
+      "repeated": {
+        "maxMs": 2469.269257,
+        "medianMs": 1643.045937,
+        "minMs": 1552.018208,
+        "maxSampledProcessTreeResidentBytes": 515829760
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2126.1453229999997,
+        "medianMs": 1999.1032610000002,
+        "minMs": 1933.812817,
+        "maxSampledProcessTreeResidentBytes": 521764864
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "row4",
+      "intent": "frame",
+      "expandedVisualLeaves": 36,
+      "fresh": {
+        "maxMs": 5414.023545,
+        "medianMs": 4017.6063610000006,
+        "minMs": 3544.6536229999997,
+        "maxSampledProcessTreeResidentBytes": 548347904
+      },
+      "repeated": {
+        "maxMs": 1702.950586,
+        "medianMs": 1593.630194,
+        "minMs": 1562.1181960000001,
+        "maxSampledProcessTreeResidentBytes": 118452224
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2872.142765,
+        "medianMs": 2540.0346630000004,
+        "minMs": 2409.503891,
+        "maxSampledProcessTreeResidentBytes": 542179328
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": false
+    },
+    {
+      "workload": "row4",
+      "intent": "range",
+      "expandedVisualLeaves": 36,
+      "fresh": {
+        "maxMs": 4661.637428999999,
+        "medianMs": 4546.816218,
+        "minMs": 4537.920674000001,
+        "maxSampledProcessTreeResidentBytes": 522051584
+      },
+      "repeated": {
+        "maxMs": 4581.914958,
+        "medianMs": 3524.44952,
+        "minMs": 3404.783101,
+        "maxSampledProcessTreeResidentBytes": 522653696
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 4078.8415269999996,
+        "medianMs": 3957.433736,
+        "minMs": 3833.1503040000002,
+        "maxSampledProcessTreeResidentBytes": 522502144
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "grid1",
+      "intent": "frame",
+      "expandedVisualLeaves": 9,
+      "fresh": {
+        "maxMs": 1772.853859,
+        "medianMs": 1625.249693,
+        "minMs": 1600.500412,
+        "maxSampledProcessTreeResidentBytes": 435150848
+      },
+      "repeated": {
+        "maxMs": 879.978327,
+        "medianMs": 813.262475,
+        "minMs": 800.552821,
+        "maxSampledProcessTreeResidentBytes": 118054912
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2172.810026,
+        "medianMs": 1767.84631,
+        "minMs": 1608.277223,
+        "maxSampledProcessTreeResidentBytes": 464068608
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "grid1",
+      "intent": "range",
+      "expandedVisualLeaves": 9,
+      "fresh": {
+        "maxMs": 2287.515472,
+        "medianMs": 2171.194528,
+        "minMs": 2170.1322539999996,
+        "maxSampledProcessTreeResidentBytes": 515510272
+      },
+      "repeated": {
+        "maxMs": 1623.871018,
+        "medianMs": 1519.937101,
+        "minMs": 1487.57921,
+        "maxSampledProcessTreeResidentBytes": 521887744
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2101.519588,
+        "medianMs": 1925.7163529999998,
+        "minMs": 1873.4180920000001,
+        "maxSampledProcessTreeResidentBytes": 521969664
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "grid4",
+      "intent": "frame",
+      "expandedVisualLeaves": 36,
+      "fresh": {
+        "maxMs": 3353.924111,
+        "medianMs": 3210.527073,
+        "minMs": 3157.190542,
+        "maxSampledProcessTreeResidentBytes": 680824832
+      },
+      "repeated": {
+        "maxMs": 1675.629684,
+        "medianMs": 1585.0688320000002,
+        "minMs": 1562.057148,
+        "maxSampledProcessTreeResidentBytes": 118603776
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 2707.957187,
+        "medianMs": 2542.5413089999997,
+        "minMs": 2519.928822,
+        "maxSampledProcessTreeResidentBytes": 581754880
+      },
+      "targetMs": 5000,
+      "freshTargetPassed": true
+    },
+    {
+      "workload": "grid4",
+      "intent": "range",
+      "expandedVisualLeaves": 36,
+      "fresh": {
+        "maxMs": 4672.18167,
+        "medianMs": 4640.2002729999995,
+        "minMs": 4559.745455,
+        "maxSampledProcessTreeResidentBytes": 522084352
+      },
+      "repeated": {
+        "maxMs": 3878.858213,
+        "medianMs": 3606.9146299999998,
+        "minMs": 3503.817429,
+        "maxSampledProcessTreeResidentBytes": 522526720
+      },
+      "rasterWarmEncodedCold": {
+        "maxMs": 5240.275263,
+        "medianMs": 4435.644891,
+        "minMs": 4290.362583,
+        "maxSampledProcessTreeResidentBytes": 522805248
+      },
+      "targetMs": 8000,
+      "freshTargetPassed": true
+    }
+  ],
+  "validationLog": "/tmp/issue187-classification-controls-and-retained-validation.log",
+  "initialWholeCommandExit": 101,
+  "initialValidatorFailure": "assumed encoded hit skipped native preparation; actual production performs it before cache lookup",
+  "acceptedValidationReplayExit": 0,
+  "nativeOutputClaims": "all140 original capture calls passed independent output, glyph omission, decoded parity and full preexisting-state/output assertions before report validation; fresh final required native suite remains pending"
+}

@@ -827,6 +827,12 @@ pub(crate) fn certify_composition_memory(
                 vec![],
             )
         })?;
+    #[cfg(test)]
+    crate::error::dense_scene_observations::charge(
+        RenderBudget::CompositionBytes,
+        MAX_COMPOSITION_BYTES,
+        bytes,
+    );
     Ok(bytes)
 }
 
