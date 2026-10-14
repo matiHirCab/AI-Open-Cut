@@ -1,0 +1,361 @@
+{
+  "implementationChecks": [
+    {
+      "check": "rustfmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 4.63,
+      "log": "/tmp/issue203-final-rustfmt.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "check": "strict-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 50.38,
+      "log": "/tmp/issue203-final-strict-clippy.log",
+      "logSha256": "cf6d76b3df385f1581ed048b705c44a34aa5b501ea75e3c9d63275908246386e"
+    },
+    {
+      "check": "workspace",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 1453.98,
+      "log": "/tmp/issue203-final-workspace.log",
+      "logSha256": "0ff13c39cf48898744a6a45f73c36aa0b255c9cb69149f055f7dd67763332dae"
+    },
+    {
+      "check": "typecheck",
+      "command": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 92.79,
+      "log": "/tmp/issue203-final-typecheck.log",
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "check": "lint",
+      "command": [
+        "bun",
+        "run",
+        "lint"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 15.13,
+      "log": "/tmp/issue203-final-lint.log",
+      "logSha256": "a5389e1e41167c9cc011d0634b780e929d68094bdf89d1f5ea76d4c4545e6ccc"
+    },
+    {
+      "check": "full-unit",
+      "command": [
+        "bun",
+        "run",
+        "test:unit"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 215.81,
+      "log": "/tmp/issue203-final-full-unit.log",
+      "logSha256": "e5551e526546986641bd5cc1fc50e0a5b576ba3a6c905305e5ea1efcb21c2e59"
+    },
+    {
+      "check": "complete-canonical",
+      "command": [
+        "bun",
+        "run",
+        "contracts:check"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 597.45,
+      "log": "/tmp/issue203-final-complete-canonical.log",
+      "logSha256": "742643295a27433d51012a3c8e13ff8b2393d0d12a487db3c7dd539cd6503405"
+    },
+    {
+      "check": "source-integration",
+      "command": [
+        "bun",
+        "run",
+        "test:integration"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 134.31,
+      "log": "/tmp/issue203-final-source-integration.log",
+      "logSha256": "573fba62d50ab542c7a0ff212f840ce8ceb1552a8e492d03ca12a047a4531eab"
+    },
+    {
+      "check": "fresh-default-package-smoke",
+      "command": [
+        "bun",
+        "run",
+        "test:smoke"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 184.0,
+      "log": "/tmp/issue203-final-fresh-default-package-smoke.log",
+      "logSha256": "f4889ec4b442e43018f867f9e5ddc59692426a9e613938dca5ade52ef73ff920"
+    },
+    {
+      "check": "root-policy",
+      "command": [
+        "bun",
+        "test",
+        "scripts/ci-duration.test.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "scripts/run-ci-policy.test.ts",
+        "scripts/run-ci-policy.integration.test.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 1.32,
+      "log": "/tmp/issue203-final-root-policy.log",
+      "logSha256": "2b4d0f2ad98cb550530d4b44ecacb08fdf5c3e8118306edef9dab0410a8136a4"
+    },
+    {
+      "check": "hermetic-python",
+      "command": [
+        "bun",
+        "run",
+        "apps/agent-bridge/scripts/run-python-tests.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 11.65,
+      "log": "/tmp/issue203-final-hermetic-python.log",
+      "logSha256": "0621042642621329cd98436ac8e11ce06fb925d490b75c26a864b227858e17f6"
+    },
+    {
+      "check": "required-default-native",
+      "command": [
+        "bun",
+        "run",
+        "apps/agent-bridge/scripts/run-platform-renderer.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 204.78,
+      "log": "/tmp/issue203-final-required-default-native.log",
+      "logSha256": "d7a0ff65bb5319c873be0fcda85bb7982d90c90c3505abdcb127bb26a6917480"
+    },
+    {
+      "check": "actual-desktop-review-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "opencut-desktop",
+        "review_tests::desktop_review_native_frame_audio_range_history_and_reopen",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+      "exit": 0,
+      "seconds": 41.43,
+      "log": "/tmp/issue203-final-actual-desktop-review-native.log",
+      "logSha256": "6a86d206a1f12640f4580ca0062157613d4eacfbadf8eaf64a15df1bcb0c644c"
+    },
+    {
+      "check": "focused-release-final",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "opencut-editor-core",
+        "--lib",
+        "byte_transfer",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 171.3,
+      "log": "/tmp/issue203-final-focused-release-final.log",
+      "logSha256": "c9db578395b8f4fefa2e3ac33736695eb39d141c46be730ac9c094e5d54f702b"
+    },
+    {
+      "check": "required-golden",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "opencut-editor-core",
+        "--lib",
+        "renderer::golden::native_golden_render_conformance",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 737.12,
+      "log": "/tmp/issue203-final-required-golden.log",
+      "logSha256": "25b6b836ae2485bf4ccf1ce0c030b2127f326998f43c8fc7302be85b59b34c86"
+    },
+    {
+      "check": "complete-motion",
+      "command": [
+        "bun",
+        "run",
+        "apps/agent-bridge/scripts/run-motion-release.ts"
+      ],
+      "exit": 0,
+      "seconds": 553.33,
+      "log": "/tmp/issue203-final-complete-motion.log",
+      "logSha256": "1b599ccae4415d98ccc963c84b42d6cc1cc8b30f8f100fee3dff1da79fd0cecf"
+    },
+    {
+      "check": "strict-openspec",
+      "command": [
+        "bunx",
+        "@fission-ai/openspec@1.5.0",
+        "validate",
+        "--all",
+        "--strict",
+        "--no-interactive"
+      ],
+      "exit": 0,
+      "log": "/tmp/issue203-final-implementation-strict.log",
+      "logSha256": "ad75cc70322c69390f2b78360eeff9c3653e53ae5199aa81aba5b30fa0c69f14"
+    }
+  ],
+  "supportingSourceInventories": {
+    "check": "headless-source-inventory",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "opencut-headless",
+      "--bin",
+      "opencut-headless",
+      "--",
+      "--list"
+    ],
+    "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+    "exit": 0,
+    "seconds": 32.71,
+    "log": "/tmp/issue203-final-headless-source-inventory.log"
+  },
+  "additionalCoreSourceInventory": {
+    "check": "core-source-inventory",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "opencut-editor-core",
+      "--lib",
+      "--",
+      "--list"
+    ],
+    "cwd": "/workspace/AI-Open-Cut-issue203-stack",
+    "exit": 0,
+    "seconds": 72.15,
+    "log": "/tmp/issue203-final-core-source-inventory.log"
+  },
+  "nativeEvidence": {
+    "dense": {
+      "path": "/workspace/issue203-final-native-dense-report.json",
+      "sha256": "27f91ef7d9626939ef742f3f3c4172e28f282d0aaa1d139dcdcce71814efb5af"
+    },
+    "golden": {
+      "path": "/workspace/issue203-final-native-golden-report.json",
+      "sha256": "95f01341e3be1043bfce6653d1bcf2ad64fce56f44e1f2d660dbeae247e9dbaf"
+    },
+    "motion": {
+      "directory": "/workspace/issue203-final-motion-release-evidence",
+      "sourceIdentityFiles": [
+        "/workspace/issue203-final-motion-release-evidence/a8880016-4ea6-429f-9f31-4510ee6e690d/source-identity.json"
+      ],
+      "caseInventoryFiles": [
+        "/workspace/issue203-final-motion-release-evidence/a8880016-4ea6-429f-9f31-4510ee6e690d/case-inventory.json"
+      ]
+    }
+  },
+  "prearchiveProtectedGate": {
+    "command": [
+      "moon",
+      "run",
+      "root:openspec-validate"
+    ],
+    "exit": 1,
+    "expected": "only this active203change blocked readiness; strict73/0",
+    "log": "/tmp/issue203-prearchive-protected.log",
+    "logSha256": "76d54fb21078ae1442dec3283b8b9e4a37be6703768b6ffdb305cb300076f148"
+  },
+  "independentConformance": {
+    "verdict": "ACCEPT SPECIFICATION AND IMPLEMENTATION CONFORMANCE",
+    "reviewer": "/root/review_issue178_corrected_union",
+    "requirements": 4,
+    "scenarios": 8,
+    "record": "openspec/changes/archive/2026-10-14-optimize-exact-byte-linear-transfer/conformance.md"
+  },
+  "postarchiveProtectedGate": {
+    "command": [
+      "moon",
+      "run",
+      "root:openspec-validate"
+    ],
+    "exit": 0,
+    "log": "/tmp/issue203-postarchive-protected.log",
+    "logSha256": "7aa269ae865b12ca70f4ee97b6837ab64d997e8644e6db38ad340b80813aac2d"
+  },
+  "exactHeadCI": "pending after delivery commit",
+  "initialClippyFailure": {
+    "log": "Original full stdout filename was overwritten by passing rerun; failed invocation receipt retained separately and diagnostic excerpt retained from conversation tool output.",
+    "exit": 101,
+    "reason": "redundant_comparisons in test-only storage assertion",
+    "resolution": "split into separate assertions; strict rerun and final focused release/workspace/native checks pass",
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "diagnosticExcerpt": {
+      "path": "/tmp/issue203-initial-clippy-diagnostic-excerpt.txt",
+      "sha256": "2d87eaafe0c378f78aab7f0add6c6aeed094053b31345712bef3149983da327d"
+    },
+    "failedInvocationReceipt": {
+      "path": "/workspace/issue203-pre-clippy-correction-check-progress.json",
+      "sha256": "28fb87cdd390e001963b82e04923a59ff74770dae591b260af8c1b84c006f8d2"
+    }
+  },
+  "archive": "openspec/changes/archive/2026-10-14-optimize-exact-byte-linear-transfer",
+  "postarchiveStrict": {
+    "exit": 0,
+    "log": "/tmp/issue203-postarchive-strict.log",
+    "logSha256": "4b7f0dc05aa19216dd2e28e7c3e8a6ab9227e6b65196d184d35aced58d05c662"
+  }
+}

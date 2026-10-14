@@ -910,8 +910,8 @@ pub(super) fn conformance(tools: &NativeTools) {
     system.refresh_memory();
     system.refresh_cpu_all();
     let report = json!({"version":1,"canvas":{"width":1920,"height":1080,"fps":30},"durationMs":1000,"frameMs":500,"rangeMs":[0,100],"decisionRule":"maximum of three fresh samples; all fourteen cells; 5000ms frame/8000ms range",
-        "source":{"gitRevision":String::from_utf8(git(&["rev-parse","HEAD"])).unwrap().trim(),"trackedDiffSha256":hash_bytes(&git(&["diff","HEAD","--"])),"sourceDirty":!git(&["diff","HEAD","--"]).is_empty(),"driverSha256":hash_bytes(include_bytes!("dense_scene_strategy.rs")),"testBinarySha256":hash_bytes(&fs::read(env::current_exe().unwrap()).unwrap()),"runtimeCheckout":root.canonicalize().unwrap(),"fixtureSha256":{"baseline":hash_bytes(BASELINE),"hero":hash_bytes(HERO),"motifs":hash_bytes(MOTIFS),"team":hash_bytes(TEAM)}},
-        "environment":{"os":env::consts::OS,"architecture":env::consts::ARCH,"osVersion":System::long_os_version(),"cpu":system.cpus().first().map(|c|c.brand()),"logicalCpus":system.cpus().len(),"totalMemoryBytes":system.total_memory(),"cpuMax":fs::read_to_string("/sys/fs/cgroup/cpu.max").ok().map(|s|s.trim().to_owned()),"memoryMax":fs::read_to_string("/sys/fs/cgroup/memory.max").ok().map(|s|s.trim().to_owned()),"debugAssertions":cfg!(debug_assertions),"ffmpeg":tools.ffmpeg_version,"ffprobe":tools.ffprobe_version,"fontSha256":tools.font_sha256},
+        "source":{"gitRevision":String::from_utf8(git(&["rev-parse","HEAD"])).unwrap().trim(),"trackedDiffSha256":hash_bytes(&git(&["diff","HEAD","--"])),"sourceDirty":!git(&["diff","HEAD","--"]).is_empty(),"driverSha256":hash_bytes(include_bytes!("dense_scene_strategy.rs")),"byteTransferSourceSha256":hash_bytes(include_bytes!("../../render_artifact/extended_visual.rs")),"testBinarySha256":hash_bytes(&fs::read(env::current_exe().unwrap()).unwrap()),"runtimeCheckout":root.canonicalize().unwrap(),"fixtureSha256":{"baseline":hash_bytes(BASELINE),"hero":hash_bytes(HERO),"motifs":hash_bytes(MOTIFS),"team":hash_bytes(TEAM)}},
+        "environment":{"rustc":String::from_utf8(std::process::Command::new("rustc").arg("--version").output().unwrap().stdout).unwrap().trim(),"os":env::consts::OS,"architecture":env::consts::ARCH,"osVersion":System::long_os_version(),"cpu":system.cpus().first().map(|c|c.brand()),"logicalCpus":system.cpus().len(),"totalMemoryBytes":system.total_memory(),"cpuMax":fs::read_to_string("/sys/fs/cgroup/cpu.max").ok().map(|s|s.trim().to_owned()),"memoryMax":fs::read_to_string("/sys/fs/cgroup/memory.max").ok().map(|s|s.trim().to_owned()),"debugAssertions":cfg!(debug_assertions),"ffmpeg":tools.ffmpeg_version,"ffprobe":tools.ffprobe_version,"fontSha256":tools.font_sha256},
         "semantics":{"fresh":"new Renderer; OS caches not flushed","repeated":"same Renderer/request; encoded preview cache eligible","rasterWarmEncodedCold":"same immutable project/request and shared raster cache; independently empty encoded cache each control","timings":"direct inclusive non-additive; no sum/subtraction; absent stage unobserved","memory":"maximum sampled resident bytes; parent plus recursive process descendants;5ms; includes allocator/cache retention, excludes independent output decode","charges":"maxima observed at original owner admission calls; not a full scene estimator or RSS; conservative memory certificates separate","portablePerformance":"report-only; fixed reference host only","quotaMetadata":"null quota means unavailable, not unbounded or reference-equivalent","roadmap":"unimplemented96-leaf/six-instance/3000ms targets not measured"},"cells":cells});
     eprintln!("dense_scene_candidate_observation={report}");
     validate_report(&report).unwrap();
@@ -1099,4 +1099,313 @@ fn checkout_and_preexisting_output_controls_fail_closed() {
         ))
         .is_err()
     );
+}
+
+/// Test-only issue203 paired evidence gate; inclusive stages are never summed.
+fn compare_byte_transfer_reports(before: &Value, after: &Value) -> Result<Value, &'static str> {
+    validate_report(before)?;
+    validate_report(after)?;
+    for key in [
+        "canvas",
+        "durationMs",
+        "frameMs",
+        "rangeMs",
+        "decisionRule",
+        "environment",
+        "semantics",
+    ] {
+        if before[key] != after[key] {
+            return Err("measurement identity drift");
+        }
+    }
+    for key in ["driverSha256", "fixtureSha256", "runtimeCheckout"] {
+        if before["source"][key] != after["source"][key] {
+            return Err("source driver/input drift");
+        }
+    }
+    for key in ["byteTransferSourceSha256", "testBinarySha256"] {
+        let valid = |v: &Value| {
+            v.as_str()
+                .is_some_and(|s| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit()))
+        };
+        if !valid(&before["source"][key])
+            || !valid(&after["source"][key])
+            || before["source"][key] == after["source"][key]
+        {
+            return Err("missing or unchanged compiled source identity");
+        }
+    }
+    let reference: Value = serde_json::from_slice(include_bytes!(
+        "../../../../../docs/verification/bounded-dense-scene-strategy/reference-observation.json"
+    ))
+    .unwrap();
+    for key in [
+        "os",
+        "architecture",
+        "osVersion",
+        "cpu",
+        "logicalCpus",
+        "totalMemoryBytes",
+        "cpuMax",
+        "memoryMax",
+        "debugAssertions",
+        "ffmpeg",
+        "ffprobe",
+        "fontSha256",
+    ] {
+        if after["environment"][key] != reference["environment"][key] {
+            return Err("not the bounded reference host");
+        }
+    }
+    if after["environment"]["rustc"] != "rustc 1.97.0 (2d8144b78 2026-07-07)" {
+        return Err("not the reference Rust toolchain");
+    }
+    for (old, new) in before["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(after["cells"].as_array().unwrap())
+    {
+        for key in [
+            "workload",
+            "intent",
+            "expandedVisualLeaves",
+            "componentDefinitions",
+        ] {
+            if old[key] != new[key] {
+                return Err("cell identity drift");
+            }
+        }
+        for kind in ["fresh", "warmup", "repeated", "rasterWarmEncodedCold"] {
+            let old_samples: Vec<&Value> = if kind == "warmup" {
+                vec![&old[kind]]
+            } else {
+                old[kind].as_array().unwrap().iter().collect()
+            };
+            let new_samples: Vec<&Value> = if kind == "warmup" {
+                vec![&new[kind]]
+            } else {
+                new[kind].as_array().unwrap().iter().collect()
+            };
+            for (a, b) in old_samples.iter().zip(&new_samples) {
+                for key in ["decodedSha256", "artifactSha256", "frameCount", "cacheWork"] {
+                    if a[key] != b[key] {
+                        return Err("output or actual cache-work drift");
+                    }
+                }
+                if a["ownerObservations"]["ownerChargeMaxima"]
+                    != b["ownerObservations"]["ownerChargeMaxima"]
+                {
+                    return Err("owner charge drift");
+                }
+                let stages = |sample: &Value| {
+                    sample["ownerObservations"]["directInclusiveTimings"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|stage| (stage["name"].clone(), stage["calls"].clone()))
+                        .collect::<Vec<_>>()
+                };
+                if stages(a) != stages(b) {
+                    return Err("direct stage-work drift");
+                }
+            }
+        }
+        let limit = if new["intent"] == "frame" {
+            5000.0
+        } else {
+            8000.0
+        };
+        if new["fresh"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["facadeMilliseconds"].as_f64().unwrap() > limit)
+        {
+            return Err("fresh target failure");
+        }
+    }
+    let row = |report: &Value| {
+        report["cells"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["workload"] == "row4" && c["intent"] == "frame")
+            .unwrap()["fresh"]
+            .as_array()
+            .unwrap()
+            .clone()
+    };
+    let facade = |samples: &[Value]| {
+        samples
+            .iter()
+            .map(|s| s["facadeMilliseconds"].as_f64().unwrap())
+            .fold(0.0, f64::max)
+    };
+    let prep = |samples: &[Value]| -> Result<f64, &'static str> {
+        let mut values = Vec::new();
+        for sample in samples {
+            let stage = sample["ownerObservations"]["directInclusiveTimings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == "native_visual_preparation")
+                .ok_or("missing preparation evidence")?;
+            values.push(
+                stage["milliseconds"]
+                    .as_f64()
+                    .ok_or("invalid preparation evidence")?,
+            );
+        }
+        values.sort_by(f64::total_cmp);
+        Ok(values[1])
+    };
+    let old = row(before);
+    let new = row(after);
+    let old_facade = facade(&old);
+    let new_facade = facade(&new);
+    let old_prep = prep(&old)?;
+    let new_prep = prep(&new)?;
+    if old_facade <= 0.0
+        || new_facade > old_facade * 0.95
+        || old_prep <= 0.0
+        || new_prep > old_prep * 0.90
+    {
+        return Err("predeclared actual improvement failure");
+    }
+    Ok(
+        json!({"cells":14,"requestsPerCapture":140,"row4FrameFreshFacadeMaximumBeforeMs":old_facade,"row4FrameFreshFacadeMaximumAfterMs":new_facade,"row4FramePreparationMedianBeforeMs":old_prep,"row4FramePreparationMedianAfterMs":new_prep,"semantics":"direct inclusive stage; no sum/subtraction; single fixed pair"}),
+    )
+}
+
+#[test]
+fn byte_transfer_comparison_rejects_drift_and_failed_numeric_proof() {
+    let mut before: Value = serde_json::from_slice(include_bytes!(
+        "../../../../../docs/verification/bounded-dense-scene-strategy/reference-observation.json"
+    ))
+    .unwrap();
+    before["source"]["byteTransferSourceSha256"] = json!("a".repeat(64));
+    before["environment"]["rustc"] = json!("rustc 1.97.0 (2d8144b78 2026-07-07)");
+    let mut after = before.clone();
+    after["source"]["byteTransferSourceSha256"] = json!("b".repeat(64));
+    after["source"]["testBinarySha256"] = json!("c".repeat(64));
+    for cell in after["cells"].as_array_mut().unwrap() {
+        for sample in cell["fresh"].as_array_mut().unwrap() {
+            sample["facadeMilliseconds"] =
+                json!(sample["facadeMilliseconds"].as_f64().unwrap() * 0.8);
+            for stage in sample["ownerObservations"]["directInclusiveTimings"]
+                .as_array_mut()
+                .unwrap()
+            {
+                if stage["name"] == "native_visual_preparation" {
+                    stage["milliseconds"] = json!(stage["milliseconds"].as_f64().unwrap() * 0.8);
+                }
+            }
+        }
+    }
+    compare_byte_transfer_reports(&before, &after).unwrap();
+    for (pointer, value) in [
+        ("/source/byteTransferSourceSha256", Value::Null),
+        (
+            "/source/testBinarySha256",
+            before["source"]["testBinarySha256"].clone(),
+        ),
+        ("/source/driverSha256", json!("d".repeat(64))),
+        ("/environment/cpuMax", json!("max 100000")),
+        ("/cells/0/fresh/0/decodedSha256", json!("d".repeat(64))),
+        ("/cells/0/fresh/0/facadeMilliseconds", json!(5001.0)),
+        ("/cells/8/fresh", before["cells"][8]["fresh"].clone()),
+        (
+            "/cells/8/fresh/0/ownerObservations/directInclusiveTimings",
+            json!([]),
+        ),
+        ("/cells/0/fresh/0/cacheWork/rasterMisses", json!(0)),
+        (
+            "/cells/0/fresh/0/ownerObservations/ownerChargeMaxima/0/work",
+            json!("1"),
+        ),
+    ] {
+        let mut bad = after.clone();
+        *bad.pointer_mut(pointer).unwrap() = value;
+        assert!(
+            compare_byte_transfer_reports(&before, &bad).is_err(),
+            "accepted {pointer}"
+        );
+    }
+    for key in [
+        "os",
+        "architecture",
+        "osVersion",
+        "ffmpeg",
+        "ffprobe",
+        "fontSha256",
+        "rustc",
+    ] {
+        let mut bad_before = before.clone();
+        let mut bad_after = after.clone();
+        bad_before["environment"][key] = json!("same incorrect identity");
+        bad_after["environment"][key] = json!("same incorrect identity");
+        assert!(
+            compare_byte_transfer_reports(&bad_before, &bad_after).is_err(),
+            "accepted both-sides {key} drift"
+        );
+    }
+    let mut small_before = before.clone();
+    let mut small_after = after.clone();
+    for sample in small_before["cells"][8]["fresh"].as_array_mut().unwrap() {
+        sample["facadeMilliseconds"] = json!(4000.0);
+    }
+    for sample in small_after["cells"][8]["fresh"].as_array_mut().unwrap() {
+        sample["facadeMilliseconds"] = json!(3840.0);
+    }
+    assert_eq!(
+        compare_byte_transfer_reports(&small_before, &small_after),
+        Err("predeclared actual improvement failure")
+    );
+    let mut insufficient_stage_gain = after.clone();
+    for (old, new) in before["cells"][8]["fresh"].as_array().unwrap().iter().zip(
+        insufficient_stage_gain["cells"][8]["fresh"]
+            .as_array_mut()
+            .unwrap(),
+    ) {
+        for (old_stage, new_stage) in old["ownerObservations"]["directInclusiveTimings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(
+                new["ownerObservations"]["directInclusiveTimings"]
+                    .as_array_mut()
+                    .unwrap(),
+            )
+        {
+            if old_stage["name"] == "native_visual_preparation" {
+                new_stage["milliseconds"] =
+                    json!(old_stage["milliseconds"].as_f64().unwrap() * 0.91);
+            }
+        }
+    }
+    assert_eq!(
+        compare_byte_transfer_reports(&before, &insufficient_stage_gain),
+        Err("predeclared actual improvement failure")
+    );
+    match (
+        env::var_os("OPENCUT_BYTE_LINEAR_BEFORE_REPORT"),
+        env::var_os("OPENCUT_BYTE_LINEAR_AFTER_REPORT"),
+    ) {
+        (Some(before), Some(after)) => {
+            let old = fs::read(before).unwrap();
+            let new = fs::read(after).unwrap();
+            let receipt = compare_byte_transfer_reports(
+                &serde_json::from_slice(&old).unwrap(),
+                &serde_json::from_slice(&new).unwrap(),
+            )
+            .unwrap();
+            eprintln!(
+                "byte_transfer_comparison={}",
+                json!({"beforeSha256":hash_bytes(&old),"afterSha256":hash_bytes(&new),"proof":receipt})
+            );
+        }
+        (None, None) => {}
+        _ => panic!("paired reports require both paths"),
+    }
 }

@@ -1,0 +1,6 @@
+{
+  "capturedAfterDecoderSha256": "2bd511e607669ed109a0e5dca4ec5c6f53e802142d976151c69c34bd0cdbd9bf",
+  "finalDecoderSha256": "8572c3b793ba011217c8f4f4559766227ba83dfbee5d87a4ad4cd11cf9e32c6c",
+  "inverseSingleTestAssertionEditReconstructsCapturedAfterBytes": true,
+  "correction": "Clippy redundant_comparisons: split test-only total<=4096 && total<=1048576 into separate assertions. Production implementation and frozen driver unchanged; no replacement performance capture."
+}

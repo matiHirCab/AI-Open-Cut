@@ -1,0 +1,3 @@
+Independent specification review: ACCEPT, reviewer /root/review_issue178_corrected_union. Four requirements and X1–X8 accepted before executable edits. Exact immutable f64 transfer, preserved validation/alpha/cast order, exhaustive bit/storage/concurrency proof, frozen single BEFORE/AFTER captures, all fourteen targets and predeclared gains. Implementation and conformance remain unverified.
+
+Independent corrected-controls review: ACCEPT before frozen BEFORE. Asymmetric exhaustive lanes, typed error/precedence checks, reference identity pinning and isolated insufficient-facade/stage gain negatives accepted. Runtime improvement and final conformance unverified.
