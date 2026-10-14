@@ -1,0 +1,131 @@
+{
+  "deliveryComplete": false,
+  "passedChecks": [
+    {
+      "name": "rust-format",
+      "command": "cargo fmt --all -- --check",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-rustfmt.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "strict-clippy",
+      "command": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-strict-clippy.log",
+      "logSha256": "29d6f76e7b40d0fa7e236dac195ef2a2d8339262a98f5bfba0c1849ca8ea678c"
+    },
+    {
+      "name": "full-workspace",
+      "command": "cargo test --workspace",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-full-workspace.log",
+      "logSha256": "4415468020e4e1fe0401366b94dff19bcb2e0dbbba766bc2888b3559607f0567",
+      "counts": {
+        "passed": 1570,
+        "failed": 0,
+        "existingIgnored": 12
+      }
+    },
+    {
+      "name": "strict-spec",
+      "command": "bunx @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-prearchive-strict.log",
+      "logSha256": "3f01095b5caf3d7d04128c5fa0dbfeff779438a5f63346dfa08b073f3df29040",
+      "counts": {
+        "passed": 74,
+        "failed": 0
+      }
+    },
+    {
+      "name": "root-policy",
+      "command": "bun test scripts/ci-duration.test.ts scripts/validate-ci-gates.test.ts scripts/run-ci-policy.test.ts scripts/run-ci-policy.integration.test.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-root-policy.log",
+      "logSha256": "3ca4ebb7454b78be5310f7522b5337efcb677c77cc1d653881fdcacdbdce2084",
+      "counts": {
+        "passed": 517,
+        "failed": 0
+      }
+    },
+    {
+      "name": "hermetic-python",
+      "command": "bun run apps/agent-bridge/scripts/run-python-tests.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-hermetic-python.log",
+      "logSha256": "00a99d99dc8af9be304ed4bcf0ddf2b5e11ae470ab3d248cc644fc07077ffa5b",
+      "counts": {
+        "unittestPassed": 12,
+        "pytestPassed": 12
+      }
+    },
+    {
+      "name": "required-default-platform",
+      "command": "bun run apps/agent-bridge/scripts/run-platform-renderer.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-platform-sixth.log",
+      "logSha256": "45f545949ba9d1f2e969567da9f88471b17b42cc6b7b68a537fb4f45d0ae9e4e",
+      "counts": {
+        "requiredPassed": 2,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "bridge-typecheck",
+      "command": "bun run typecheck",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-bridge-typecheck.log",
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "name": "bridge-lint",
+      "command": "bun run lint",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-bridge-lint.log",
+      "logSha256": "59db7a3c12859025c6d7095055128dd3236c2943dc35125827b1c6949f998279"
+    },
+    {
+      "name": "bridge-unit",
+      "command": "bun run test:unit",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-final-bridge-reaped-test-unit.log",
+      "logSha256": "7c2c2262c70e778fb00237b93cbe4cdf2d631059cc31e9bb2aab073eb91869c1",
+      "counts": {
+        "passed": 931,
+        "failed": 0,
+        "existingOptionalSkipped": 15
+      }
+    }
+  ],
+  "remainingRequiredChecks": [
+    "fresh replacement sticker GUI",
+    "fresh beveled source/default-package native2/0/0",
+    "complete motion release",
+    "final independent conformance and protected spec gate"
+  ],
+  "prearchiveProtectedExpectedRejection": "Only active verify-illustrated-workflow-end-to-end; strict74/0, no other rejection",
+  "retainedFailures": [
+    "/workspace/issue191-final-bridge-test-unit.log: external subreaper deferred adopted child reaping",
+    "/workspace/issue191-final-bridge-retry-test-unit.log: intermediate collector aborted on /proc task path; not accepted",
+    "Three /workspace/issue191-final-remaining-bridge-*-corrected.log wrappers printed Bun help; excluded from acceptance, actual cwd-based final frontend collector required",
+    "/workspace/issue191-final-remaining-native-corrected.log: strengthened curved source/package cases each timeout600000ms; cannot satisfy replacement acceptance",
+    "/workspace/issue191-final-frontend-test-unit.log: fixture edited during run; cached curved geometry/new bevel test mismatch, superseded stable933PASS"
+  ],
+  "noRepositoryAssertionsOrBudgetsRelaxed": true,
+  "initialNativeAssertionsSupersededPendingFreshRun": true,
+  "latestStableBevelUnit": {
+    "log": "/workspace/issue191-stable-bevel-test-unit.log",
+    "passed": 933,
+    "failed": 0,
+    "existingOptionalSkipped": 15
+  },
+  "requiredGolden": {
+    "log": "/workspace/issue191-final-independent-golden.log",
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  }
+}

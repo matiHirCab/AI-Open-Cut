@@ -1,0 +1,562 @@
+{
+  "nativeRunnerLog": "/workspace/issue191-platform-sixth.log",
+  "runnerExit": 0,
+  "requiredCases": 2,
+  "requiredFailed": 0,
+  "requiredSkipped": 0,
+  "caseTimesMs": [
+    555592,
+    548630
+  ],
+  "unchangedCaseTimeoutMs": 600000,
+  "unchangedPollingAttempts": 1200,
+  "unchangedPollingIntervalMs": 100,
+  "rows": [
+    {
+      "mode": "source",
+      "target": "illustrated_device_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 1,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 0,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "cd5a4c80-0f75-430b-baed-d2b501db807b",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 2900.4078579999914,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2171.029827999999,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2249.1914490000054,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 55435.495567999984,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 54597.244989,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-illustrated_device_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 3026.372988999996,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "d441920e1e77cf194ec0823afb79b53089740d53824a915c49ffa2e4e9a1fb36",
+      "evidenceSha256": "e990f12b790a841206220b2b9bfe705832dbd7dd219418c12fbcacd88cfe5039"
+    },
+    {
+      "mode": "source",
+      "target": "sticker_motif_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 80,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "f661f3e1-ba67-40dd-9a3e-aa3ccf733045",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 22013.41397600001,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 3047.6773840000096,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2427.378633000015,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 68371.99760400003,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 64302.337769999984,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-sticker_motif_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 25265.239866999967,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "2668dc0c0dde5871415a7bac8faf1a6799ce704aa079a5a1ff8252f211a40f78",
+      "evidenceSha256": "d3ef2d70179ca893b7aeaa2234b7ae449c76495b53dee8a847769a3fb79e2b27"
+    },
+    {
+      "mode": "source",
+      "target": "role_badge_team_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 3,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 4,
+        "pathCommands": 120,
+        "storedArtworkAssets": 2,
+        "textScalars": 32,
+        "visualLeaves": 29
+      },
+      "projectId": "1c1a5fcc-5c94-4545-860b-0bf1d93661bb",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": true,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 3335.2021229999955,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2638.250721999968,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2549.3018089999678,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 70396.62928299996,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 69801.84002199996,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-role_badge_team_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 3424.7015609999653,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "b5b378a5ec6bc55ddc466d3f9c58a5518da5b8da08113ac5a32ab8d5167392da",
+      "evidenceSha256": "8ad99cfca019c34c5794fb3be02343d23214ade8cbbd363bf15820262dc770c2"
+    },
+    {
+      "mode": "packaged",
+      "target": "illustrated_device_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 1,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 0,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "ba150f1d-4190-49fc-9304-24d1766cb00e",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 3300.435734999948,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2855.380819999962,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2158.0839249999262,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 51942.031680999906,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 52115.539467999944,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-illustrated_device_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 2909.7208049999317,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "a4fff15482ffaa6b8e816ea6e22c762aff3badc4b53a51294ed02546110ebb3e",
+      "evidenceSha256": "7eb4b7dd9f654d540f679dbc996f1725e39ebf67e167d3bbe7a4a848b6309bee"
+    },
+    {
+      "mode": "packaged",
+      "target": "sticker_motif_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 80,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "a88ac2f1-c6ca-4a99-9740-8aa52104d2a4",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 21117.918473999947,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2989.914155000006,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2456.444436999969,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 66385.10355699994,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 66011.93331400002,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-sticker_motif_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 22205.20271500002,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "f8fc3c221d41b3295bd022ec45c4b03c1fcb563d5af8cfe0fe1931a8574cece2",
+      "evidenceSha256": "5194bab200b633ffedae0704b670395037e8804e44821255d9b7640b38878e3f"
+    },
+    {
+      "mode": "packaged",
+      "target": "role_badge_team_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 3,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 4,
+        "pathCommands": 120,
+        "storedArtworkAssets": 2,
+        "textScalars": 32,
+        "visualLeaves": 29
+      },
+      "projectId": "7159d627-be47-428a-b1f8-bbebec7ca173",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": true,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "elapsedMs": 4137.331631000037,
+          "input": {
+            "timeMs": 0
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 2997.4281249999767,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 3834.1577030000044,
+          "input": {
+            "timeMs": 2966
+          },
+          "name": "preview_render_frame"
+        },
+        {
+          "elapsedMs": 71096.89209800004,
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "name": "preview_review_range"
+        },
+        {
+          "elapsedMs": 68390.01749600004,
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-role_badge_team_intro.mp4",
+            "resolution": "project"
+          },
+          "name": "project_export_video"
+        },
+        {
+          "elapsedMs": 3569.65128599992,
+          "input": {
+            "timeMs": 1500
+          },
+          "name": "preview_render_frame"
+        }
+      ],
+      "projectSha256": "0480370da7e60584dd1f7cb233839ce87fb75e6cf715050c967a688bc3c746c9",
+      "evidenceSha256": "e6aaa8e2d0187d2f7b3e5daa4eb756609b336fe5b7ceadcfc4bc1a9910819e00"
+    }
+  ]
+}

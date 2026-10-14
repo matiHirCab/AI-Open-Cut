@@ -24,6 +24,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
+import { verifyIllustratedWorkflow } from "./illustrated-workflow-native";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyNativeMotifMedia } from "./native-motif-pack-native";
 import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
@@ -550,6 +551,15 @@ for (const mode of ["source", "packaged"] as const) {
           ffprobe,
           mode,
         });
+        const illustrated = await verifyIllustratedWorkflow(
+          client,
+          call,
+          media,
+          projects,
+          exports,
+          { evidence, ffmpeg, ffprobe, mode }
+        );
+        records.push(...illustrated.map((result) => result.evidence));
         await call(
           "project_undo",
           { expectedRevision: saved.project.revision, projectId },
@@ -570,6 +580,21 @@ for (const mode of ["source", "packaged"] as const) {
         await client.close();
         validator.clear();
         client = await connect();
+        await sequence(illustrated, async (result) => {
+          expect(
+            await call(
+              "project_open",
+              { projectId: result.projectId },
+              projectStateSchema
+            )
+          ).toEqual(result.state);
+          result.recordReopened();
+        });
+        records.push({
+          kind: "illustrated-reconnect-reopen",
+          projectIds: illustrated.map((result) => result.projectId),
+          verified: true,
+        });
         expect(
           await call(
             "project_open",

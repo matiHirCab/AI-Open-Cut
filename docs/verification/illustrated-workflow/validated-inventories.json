@@ -1,0 +1,1546 @@
+[
+  {
+    "mode": "source",
+    "id": "illustrated_device_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 1,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 0,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedInventory": {
+      "animatedChannels": 1,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 0,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 0,
+      "id": "illustrated_device_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 1,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            260,
+            180,
+            880,
+            680
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            300,
+            220,
+            800,
+            520
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1200,
+            260,
+            500,
+            360
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 1,
+          "box": [
+            300,
+            770,
+            220,
+            32
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "f7e3b33d-d28d-478f-85cc-86938be37c7f",
+          "box": [
+            620,
+            360,
+            256,
+            256
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1230,
+            330,
+            440,
+            100
+          ],
+          "id": "label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-illustrated_device_intro-evidence.json"
+  },
+  {
+    "mode": "source",
+    "id": "sticker_motif_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 80,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 80,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 0,
+      "id": "sticker_motif_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 1,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "dot_backdrop",
+          "kind": "grid",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            520,
+            100,
+            880,
+            880
+          ],
+          "id": "sun_rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            160,
+            390,
+            280,
+            222
+          ],
+          "id": "speed_lines",
+          "kind": "shape",
+          "pathCommands": 30,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            560,
+            140,
+            800,
+            800
+          ],
+          "id": "authored_sticker_contour",
+          "kind": "shape",
+          "pathCommands": 10,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "91acc326-de60-4670-a90b-55f979654392",
+          "box": [
+            832,
+            412,
+            256,
+            256
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            650,
+            940,
+            700,
+            80
+          ],
+          "id": "label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-sticker_motif_intro-evidence.json"
+  },
+  {
+    "mode": "source",
+    "id": "role_badge_team_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 3,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 4,
+      "pathCommands": 120,
+      "storedArtworkAssets": 2,
+      "textScalars": 32,
+      "visualLeaves": 29
+    },
+    "customizedInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 3,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 2,
+      "instances": 4,
+      "pathCommands": 120,
+      "storedArtworkAssets": 2,
+      "textScalars": 37,
+      "visualLeaves": 29
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64,
+        64,
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 1,
+      "id": "role_badge_team_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 4,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            600,
+            100,
+            900,
+            100
+          ],
+          "id": "team_title",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "NATIVE TEAM"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            160,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            184,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            196,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            184,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            196,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "84869348-c859-46ea-a9b8-1b4c078c4919",
+          "box": [
+            323.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            198.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            487,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            524.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            720,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            744,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            756,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            744,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            756,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "7cf19de2-93ea-4c45-80cf-f6c75444d2af",
+          "box": [
+            883.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            758.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "ROLE 02"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1047,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1084.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1280,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1304,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1316,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1304,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1316,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "7cf19de2-93ea-4c45-80cf-f6c75444d2af",
+          "box": [
+            1443.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1318.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "ROLE 03"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1607,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1644.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/source-role_badge_team_intro-evidence.json"
+  },
+  {
+    "mode": "packaged",
+    "id": "illustrated_device_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 1,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 0,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedInventory": {
+      "animatedChannels": 1,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 0,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 0,
+      "id": "illustrated_device_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 1,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            260,
+            180,
+            880,
+            680
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            300,
+            220,
+            800,
+            520
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1200,
+            260,
+            500,
+            360
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 1,
+          "box": [
+            300,
+            770,
+            220,
+            32
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "59f53967-898b-4c47-a511-d313857fc213",
+          "box": [
+            620,
+            360,
+            256,
+            256
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1230,
+            330,
+            440,
+            100
+          ],
+          "id": "label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-illustrated_device_intro-evidence.json"
+  },
+  {
+    "mode": "packaged",
+    "id": "sticker_motif_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 80,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 1,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 1,
+      "pathCommands": 80,
+      "storedArtworkAssets": 2,
+      "textScalars": 12,
+      "visualLeaves": 7
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 0,
+      "id": "sticker_motif_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 1,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "dot_backdrop",
+          "kind": "grid",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            520,
+            100,
+            880,
+            880
+          ],
+          "id": "sun_rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            160,
+            390,
+            280,
+            222
+          ],
+          "id": "speed_lines",
+          "kind": "shape",
+          "pathCommands": 30,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            560,
+            140,
+            800,
+            800
+          ],
+          "id": "authored_sticker_contour",
+          "kind": "shape",
+          "pathCommands": 10,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "8cc9a2c0-8c26-45e7-8c5c-408bfd929cf6",
+          "box": [
+            832,
+            412,
+            256,
+            256
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            650,
+            940,
+            700,
+            80
+          ],
+          "id": "label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-sticker_motif_intro-evidence.json"
+  },
+  {
+    "mode": "packaged",
+    "id": "role_badge_team_intro",
+    "metadataValidated": true,
+    "nativeProjectRevision": 9,
+    "initialInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 3,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 1,
+      "instances": 4,
+      "pathCommands": 120,
+      "storedArtworkAssets": 2,
+      "textScalars": 32,
+      "visualLeaves": 29
+    },
+    "customizedInventory": {
+      "animatedChannels": 0,
+      "artworkCount": 3,
+      "artworkDimension": 64,
+      "distinctArtworkAssets": 2,
+      "instances": 4,
+      "pathCommands": 120,
+      "storedArtworkAssets": 2,
+      "textScalars": 37,
+      "visualLeaves": 29
+    },
+    "customizedObservation": {
+      "artworkDimensions": [
+        64,
+        64,
+        64
+      ],
+      "durationMs": 3000,
+      "groups": 1,
+      "id": "role_badge_team_intro",
+      "instanceAnimatedChannels": 0,
+      "instances": 4,
+      "itemDurations": [
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000,
+        3000
+      ],
+      "leaves": [
+        {
+          "animatedChannels": 0,
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ],
+          "id": "backdrop",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            600,
+            100,
+            900,
+            100
+          ],
+          "id": "team_title",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "NATIVE TEAM"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            160,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            184,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            196,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            184,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            196,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "811cc757-e3c9-41d7-9fc9-2beb4f3ce948",
+          "box": [
+            323.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            198.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "EDITED INTRO"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            487,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            524.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            720,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            744,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            756,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            744,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            756,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "7c9a6ad0-a500-4ebd-b92f-e0911743ae02",
+          "box": [
+            883.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            758.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "ROLE 02"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1047,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1084.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1280,
+            403,
+            480,
+            360
+          ],
+          "id": "background",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1304,
+            427,
+            432,
+            252
+          ],
+          "id": "device_frame",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1316,
+            439,
+            408,
+            228
+          ],
+          "id": "screen_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1304,
+            691,
+            432,
+            54
+          ],
+          "id": "label_panel",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1316,
+            664,
+            108,
+            9
+          ],
+          "id": "accent",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "artworkId": "7c9a6ad0-a500-4ebd-b92f-e0911743ae02",
+          "box": [
+            1443.2,
+            473.8,
+            153.6,
+            153.6
+          ],
+          "id": "artwork",
+          "kind": "media",
+          "pathCommands": 0,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1318.4,
+            701.2,
+            402,
+            40.8
+          ],
+          "id": "role_label",
+          "kind": "text",
+          "pathCommands": 0,
+          "text": "ROLE 03"
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1607,
+            418,
+            114,
+            114
+          ],
+          "id": "rays",
+          "kind": "shape",
+          "pathCommands": 40,
+          "text": ""
+        },
+        {
+          "animatedChannels": 0,
+          "box": [
+            1644.8,
+            455.8,
+            38.4,
+            38.4
+          ],
+          "id": "sun_disc",
+          "kind": "shape",
+          "pathCommands": 0,
+          "text": ""
+        }
+      ],
+      "settings": {
+        "fps": 30,
+        "height": 1080,
+        "width": 1920
+      },
+      "storedArtworkAssets": 2
+    },
+    "sourceEvidence": "/workspace/issue191-platform-sixth-evidence/packaged-role_badge_team_intro-evidence.json"
+  }
+]

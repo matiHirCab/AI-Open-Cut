@@ -1,0 +1,20 @@
+[
+  {
+    "id": "illustrated_device_intro",
+    "authoredInputsUnchanged": true,
+    "beforeSha256": "c499b98b92ee7f67302b1dbc5b727fceba2cb824e8a36afe76c9f06d44cd9266",
+    "afterSha256": "c499b98b92ee7f67302b1dbc5b727fceba2cb824e8a36afe76c9f06d44cd9266"
+  },
+  {
+    "id": "sticker_motif_intro",
+    "authoredInputsUnchanged": false,
+    "beforeSha256": "323ceb898d225563734b6af06fdd5b0f34dc7a55bec6da83aa75aa3ef4e8f8f4",
+    "afterSha256": "5783835732d8adc5b6b2e9fdea2a0e399adc0830ccabbb1c902cc2c6baa0e902"
+  },
+  {
+    "id": "role_badge_team_intro",
+    "authoredInputsUnchanged": true,
+    "beforeSha256": "1951bd9df23eb35ad9ad466c8d13d85395c7d7c3ed0143ff4ae35bb2e783a3d4",
+    "afterSha256": "1951bd9df23eb35ad9ad466c8d13d85395c7d7c3ed0143ff4ae35bb2e783a3d4"
+  }
+]
