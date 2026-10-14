@@ -4,7 +4,7 @@ mod group_compositing;
 use crate::evaluated_scene::{EvaluatedScene, EvaluatedVisualSource, extended_visual};
 use crate::render_plan::{MediaInputRequest, RenderIntent};
 use crate::{CoreError, ErrorCode, MediaCrop, MediaType, VisualEffect};
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, sync::LazyLock};
 
 fn matte_sample(
     raster: Raster,
@@ -49,6 +49,11 @@ fn srgb(v: f64) -> f64 {
         1.055 * v.powf(1.0 / 2.4) - 0.055
     }
 }
+// One immutable process-wide byte transfer. Build with the original f64
+// expression on this runtime; premultiplication and the f32 cast stay at use.
+static BYTE_TO_LINEAR: LazyLock<[f64; 256]> =
+    LazyLock::new(|| std::array::from_fn(|byte| linear(f64::from(byte as u8) / 255.0)));
+
 const MAX_PIXELS: usize = 16_777_216;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -79,12 +84,13 @@ impl Raster {
         if bytes.len() != width * height * 4 {
             return Err(invalid("decoded raster size mismatch"));
         }
+        let transfer = &*BYTE_TO_LINEAR;
         for (pixel, bytes) in raster.pixels.iter_mut().zip(bytes.as_chunks::<4>().0) {
             let a = f64::from(bytes[3]) / 255.0;
             *pixel = [
-                (linear(f64::from(bytes[0]) / 255.0) * a) as f32,
-                (linear(f64::from(bytes[1]) / 255.0) * a) as f32,
-                (linear(f64::from(bytes[2]) / 255.0) * a) as f32,
+                (transfer[usize::from(bytes[0])] * a) as f32,
+                (transfer[usize::from(bytes[1])] * a) as f32,
+                (transfer[usize::from(bytes[2])] * a) as f32,
                 a as f32,
             ];
         }
@@ -1159,6 +1165,112 @@ pub(crate) fn prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn byte_transfer_all_channel_alpha_pairs_match_retained_expression() {
+        let mut bytes = Vec::with_capacity(256 * 256 * 4);
+        for alpha in 0..=255u8 {
+            for channel in 0..=255u8 {
+                bytes.extend_from_slice(&[
+                    channel,
+                    channel.wrapping_add(85),
+                    channel.wrapping_add(171),
+                    alpha,
+                ]);
+            }
+        }
+        let raster = Raster::rgba(256, 256, &bytes).unwrap();
+        for (pixel, input) in raster.pixels.iter().zip(bytes.as_chunks::<4>().0) {
+            let alpha = f64::from(input[3]) / 255.0;
+            for (actual, channel) in pixel[..3].iter().zip(&input[..3]) {
+                let value = f64::from(*channel) / 255.0;
+                let transfer = if value <= 0.04045 {
+                    value / 12.92
+                } else {
+                    ((value + 0.055) / 1.055).powf(2.4)
+                };
+                assert_eq!(actual.to_bits(), ((transfer * alpha) as f32).to_bits());
+            }
+            assert_eq!(pixel[3].to_bits(), (alpha as f32).to_bits());
+        }
+    }
+
+    #[test]
+    fn byte_transfer_preserves_empty_malformed_and_dimension_error_precedence() {
+        let assert_invalid = |error: CoreError, message: &str| {
+            assert_eq!(error.code, ErrorCode::InvalidArgument);
+            assert!(!error.retryable);
+            assert_eq!(error.message, message);
+        };
+        for (width, height) in [(0, 0), (0, 16), (16, 0)] {
+            assert!(Raster::rgba(width, height, &[]).unwrap().pixels.is_empty());
+            assert_invalid(
+                Raster::rgba(width, height, &[0]).unwrap_err(),
+                "decoded raster size mismatch",
+            );
+        }
+        for bytes in [&[][..], &[0; 3][..], &[0; 5][..]] {
+            assert_invalid(
+                Raster::rgba(1, 1, bytes).unwrap_err(),
+                "decoded raster size mismatch",
+            );
+        }
+        for (width, height) in [(16385, 0), (0, 16385), (4097, 4096), (usize::MAX, 2)] {
+            assert_invalid(
+                Raster::rgba(width, height, &[]).unwrap_err(),
+                "effect raster exceeds limits",
+            );
+        }
+        for (bytes, message) in [
+            (&b"P7\n"[..], "missing PAM header"),
+            (&b"\xffENDHDR\n"[..], "invalid PAM header"),
+            (
+                &b"P7\nWIDTH bad\nHEIGHT 1\nENDHDR\n"[..],
+                "invalid PAM dimensions",
+            ),
+            (
+                &b"P7\nWIDTH 1\nHEIGHT 1\nENDHDR\n"[..],
+                "decoded raster size mismatch",
+            ),
+            (
+                &b"P7\nWIDTH 16385\nHEIGHT 0\nENDHDR\n"[..],
+                "effect raster exceeds limits",
+            ),
+        ] {
+            assert_invalid(Raster::pam(bytes).unwrap_err(), message);
+        }
+        let mut pam = b"P7\nWIDTH 1\nHEIGHT 1\nENDHDR\n".to_vec();
+        pam.extend_from_slice(&[10, 11, 255, 127]);
+        assert_eq!(
+            Raster::pam(&pam).unwrap(),
+            Raster::rgba(1, 1, &[10, 11, 255, 127]).unwrap()
+        );
+    }
+
+    #[test]
+    fn byte_transfer_storage_and_concurrent_identity_are_bounded() {
+        let payload = std::mem::size_of::<[f64; 256]>();
+        let total = std::mem::size_of_val(&BYTE_TO_LINEAR);
+        assert_eq!(payload, 2048);
+        assert!(total <= 4096);
+        assert!(total <= 1_048_576);
+        let address = (&*BYTE_TO_LINEAR as *const [f64; 256]) as usize;
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    let address = (&*BYTE_TO_LINEAR as *const [f64; 256]) as usize;
+                    byte_transfer_all_channel_alpha_pairs_match_retained_expression();
+                    address
+                })
+            })
+            .collect();
+        for thread in threads {
+            assert_eq!(thread.join().unwrap(), address);
+        }
+        eprintln!(
+            "byte_transfer_storage payload_bytes={payload} total_bytes={total} existing_fixed_overhead_bytes=1048576 threads=8 shared_immutable_identity=true"
+        );
+    }
+
     fn grade(exposure_stops: f64, contrast: f64, saturation: f64) -> VisualEffect {
         VisualEffect::ColorAdjustment {
             id: "grade".into(),

@@ -1,0 +1,13 @@
+{
+  "afterSha256": "05526b3ac626d1578d81a87d32806ec9930a7a43b534e3550be2ccc203badcd5",
+  "beforeSha256": "4db8bb38ce063a5d7614e97e1ca3b6371e8ca1d396c71c86f34a896d7d55a8e6",
+  "proof": {
+    "cells": 14,
+    "requestsPerCapture": 140,
+    "row4FrameFreshFacadeMaximumAfterMs": 2739.85354,
+    "row4FrameFreshFacadeMaximumBeforeMs": 3087.754082,
+    "row4FramePreparationMedianAfterMs": 703.771614,
+    "row4FramePreparationMedianBeforeMs": 1016.182302,
+    "semantics": "direct inclusive stage; no sum/subtraction; single fixed pair"
+  }
+}
