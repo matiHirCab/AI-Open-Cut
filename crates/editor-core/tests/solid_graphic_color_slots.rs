@@ -393,3 +393,164 @@ fn schema44_adoption_and_future_or_mislabeled_history_are_atomic() {
         assert_eq!(files(&core, &id), before);
     }
 }
+
+// Genuine pre-graphic-slot data. Do not migrate with a read before exercising the
+// rejected request: the persisted generation itself is the regression oracle.
+fn legacy_slot_edit_fixture() -> (tempfile::TempDir, EditorCore, String, String, String) {
+    let (root, core, id, track) = setup();
+    let mut definition = catalog()["definition"].clone();
+    definition["slots"] = json!([]);
+    definition["resultAlias"] = json!("legacy_card");
+    let seed: Vec<BatchEditOperation> = serde_json::from_value(json!([
+        definition,
+        {"operation":"add_component_instance","resultAlias":"legacy_instance",
+         "trackId":track,"componentId":"@legacy_card","startMs":0,
+         "trimStartMs":0,"durationMs":1000,"timeScale":1,"slotValues":{}}
+    ]))
+    .unwrap();
+    let aliases = core.edit_batch(&id, 0, seed).unwrap().aliases;
+    let dir = core.paths().project_dir(&id).unwrap();
+    let mut project: Value = serde_json::from_slice(&files(&core, &id).0).unwrap();
+    project["schemaVersion"] = json!(44);
+    let mut retained = project.clone();
+    retained["revision"] = json!(0);
+    std::fs::write(
+        dir.join("project.json"),
+        serde_json::to_vec(&project).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("history.json"),
+        serde_json::to_vec(&json!({
+            "undo":[retained.clone()],"redo":[retained]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    (
+        root,
+        core,
+        id,
+        aliases["legacy_card"].clone(),
+        aliases["legacy_instance"].clone(),
+    )
+}
+
+fn legacy_slot_definition(component: &str, invalid: bool) -> Value {
+    json!({"operation":"component_define_slots","componentId":component,"slots":[{
+        "id":"opacity","name":"Opacity","kind":"number","required":true,
+        "defaultValue":{"type":"number","value":0.75},
+        "binding":{"targetLayerId":if invalid {"missing_layer"} else {"shape"},"property":"visual.opacity"},
+        "constraints":{}
+    }]})
+}
+
+#[test]
+fn rejected_schema44_slot_definition_preserves_project_and_history_bytes() {
+    let (_root, core, id, component, _instance) = legacy_slot_edit_fixture();
+    reject(
+        &core,
+        &id,
+        1,
+        legacy_slot_definition(&component, true),
+        ErrorCode::ItemNotFound,
+    );
+    let persisted: Value = serde_json::from_slice(&files(&core, &id).0).unwrap();
+    assert_eq!(persisted["schemaVersion"], 44);
+    assert_eq!(persisted["revision"], 1);
+}
+
+#[test]
+fn rejected_schema44_instance_update_preserves_project_and_history_bytes() {
+    let (_root, core, id, component, instance) = legacy_slot_edit_fixture();
+    reject(
+        &core,
+        &id,
+        1,
+        update(
+            &instance,
+            &component,
+            json!({"missing_slot":{"type":"number","value":0.5}}),
+        ),
+        ErrorCode::ItemNotFound,
+    );
+    let persisted: Value = serde_json::from_slice(&files(&core, &id).0).unwrap();
+    assert_eq!(persisted["schemaVersion"], 44);
+    assert_eq!(persisted["revision"], 1);
+}
+
+#[test]
+fn rejected_schema44_late_slot_batch_preserves_project_and_history_bytes() {
+    let (_root, core, id, component, instance) = legacy_slot_edit_fixture();
+    let mut valid = update(&instance, &component, json!({}));
+    valid["startMs"] = json!(50);
+    let before = files(&core, &id);
+    let batch: Vec<BatchEditOperation> =
+        serde_json::from_value(json!([valid, legacy_slot_definition(&component, true)])).unwrap();
+    assert_eq!(
+        core.edit_batch(&id, 1, batch).unwrap_err().code,
+        ErrorCode::ItemNotFound
+    );
+    assert_eq!(files(&core, &id), before);
+    let persisted: Value = serde_json::from_slice(&before.0).unwrap();
+    assert_eq!(persisted["schemaVersion"], 44);
+    assert_eq!(persisted["revision"], 1);
+}
+
+#[test]
+fn valid_schema44_slot_edits_migrate_once_and_keep_history_reopen_and_revisions() {
+    for route in 0..3 {
+        let (_root, core, id, component, instance) = legacy_slot_edit_fixture();
+        let before = files(&core, &id);
+        let valid = if route == 0 {
+            legacy_slot_definition(&component, false)
+        } else {
+            update(&instance, &component, json!({}))
+        };
+        assert_eq!(
+            core.edit(&id, 0, op(valid.clone())).unwrap_err().code,
+            ErrorCode::RevisionConflict
+        );
+        assert_eq!(files(&core, &id), before);
+        let result = if route == 2 {
+            core.edit_batch(
+                &id,
+                1,
+                vec![op(legacy_slot_definition(&component, false)), op(valid)],
+            )
+            .unwrap()
+        } else {
+            core.edit(&id, 1, op(valid)).unwrap()
+        };
+        assert_eq!(result.revision, 2);
+        let dir = core.paths().project_dir(&id).unwrap();
+        let (project, history) = files(&core, &id);
+        let project: Value = serde_json::from_slice(&project).unwrap();
+        let history: Value = serde_json::from_slice(&history).unwrap();
+        assert_eq!(project["schemaVersion"], PROJECT_SCHEMA_VERSION);
+        assert_eq!(project["revision"], 2);
+        for snapshot in history["undo"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(history["redo"].as_array().unwrap())
+        {
+            assert_eq!(snapshot["schemaVersion"], PROJECT_SCHEMA_VERSION);
+        }
+        assert!(history["redo"].as_array().unwrap().is_empty());
+        if route != 1 {
+            assert_eq!(project["components"][0]["slots"][0]["id"], "opacity");
+        }
+        let reopened = EditorCore::new(core.paths().clone());
+        let stable = files(&core, &id);
+        reopened.get_project(&id).unwrap();
+        reopened.get_project(&id).unwrap();
+        assert_eq!(files(&core, &id), stable);
+        reopened.undo(&id, 2).unwrap();
+        reopened.redo(&id, 3).unwrap();
+        let restored: Value = serde_json::to_value(reopened.get_project(&id).unwrap()).unwrap();
+        assert_eq!(restored["components"], project["components"]);
+        assert_eq!(restored["tracks"], project["tracks"]);
+        assert!(!dir.join("transaction.json").exists());
+    }
+}
