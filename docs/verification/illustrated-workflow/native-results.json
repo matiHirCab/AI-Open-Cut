@@ -1,0 +1,582 @@
+{
+  "nativeRunnerLog": "/workspace/issue191-recovery/current-platform.log",
+  "runnerExit": 0,
+  "requiredCases": 2,
+  "requiredFailed": 0,
+  "requiredSkipped": 0,
+  "caseTimesMs": [
+    496227.631185,
+    569703.851818
+  ],
+  "unchangedCaseTimeoutMs": 600000,
+  "unchangedPollingAttempts": 1200,
+  "unchangedPollingIntervalMs": 100,
+  "correctedIndependentReviewAssertions": true,
+  "fixture": "original native bevel with320px dot grid",
+  "rows": [
+    {
+      "mode": "source",
+      "target": "illustrated_device_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 1,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 0,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "8b8ac3e0-2516-44c7-a9fd-370125d41506",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 2301.3968220000097
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 1686.7962070000067
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 1686.797888000001
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 42477.140081000005
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-illustrated_device_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 42345.708782999995
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 2071.093192999979
+        }
+      ],
+      "projectSha256": "555d71bcd25fc86574bd8991e74f8a19dfe507d77809c4e79b9750f22ee43d87",
+      "evidenceSha256": "3eca1decd622fc65ad03b94c9483bdad51af5ea141289af7fced891aa77ee28e"
+    },
+    {
+      "mode": "source",
+      "target": "sticker_motif_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 79,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "7008c171-6365-4d13-a577-f00055deae49",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 4517.554076
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 1779.4806680000038
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 1783.3756390000053
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 56049.22822300001
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-sticker_motif_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 56389.59647799999
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 4777.1716460000025
+        }
+      ],
+      "projectSha256": "2ae3ffdbf3dedb040d0a75a70e8f81f5db423356b0544e8f8824e62f6529fa29",
+      "evidenceSha256": "adf95cc3cbb5d4015a294a82ec7bdd11bd7c156659749bd7ed5bd67f756a4b78"
+    },
+    {
+      "mode": "source",
+      "target": "role_badge_team_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 3,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 4,
+        "pathCommands": 120,
+        "storedArtworkAssets": 2,
+        "textScalars": 32,
+        "visualLeaves": 29
+      },
+      "projectId": "d842924c-54e1-41c9-94fa-52f48ee78de2",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": true,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 2775.3314289999544
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 3627.6211459999904
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 3464.927984000009
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 77464.79601599998
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "source-role_badge_team_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 93483.34645200003
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 3502.6998410000233
+        }
+      ],
+      "projectSha256": "ff88b461c8064a53e2f07c82c8cd4e711452f401a3531a9415c644c90dc8f8e6",
+      "evidenceSha256": "3213e3c34881f573263fb4c0cde765e8a48adacc950c0b1c03074e50c9ca132a"
+    },
+    {
+      "mode": "packaged",
+      "target": "illustrated_device_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 1,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 0,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "e786486d-83c5-4922-9174-8d593e1b41ef",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 2824.26802399999
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 1769.897796999896
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 3486.340349999955
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 44445.83168900001
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-illustrated_device_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 57020.275246000034
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 3048.2603290000698
+        }
+      ],
+      "projectSha256": "f32d59941458fd8a8d107d8441297a344f2d77d7a546a8b5c246051469015132",
+      "evidenceSha256": "58c53ce248b7f97c0e295d9beb1d32620f8a79331c2f9e02d2b1ec461db16033"
+    },
+    {
+      "mode": "packaged",
+      "target": "sticker_motif_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 79,
+        "storedArtworkAssets": 2,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "projectId": "2085ad0b-7c01-4dcf-a860-d52823587c6b",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": false,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 7458.002220000024
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 2121.24461100006
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 2752.0451139999786
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 67688.66762299999
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-sticker_motif_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 67644.33950399992
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 5650.171832000022
+        }
+      ],
+      "projectSha256": "f2816593844bad835992024e97301f66087fef54bf41b87f76e8e4cd4967cfc1",
+      "evidenceSha256": "b3856091a7c3343de2fd0d8680c0d5c54565fcb9c0372395fb0583cc2e72e3b4"
+    },
+    {
+      "mode": "packaged",
+      "target": "role_badge_team_intro",
+      "fullNativeWorkflowPassed": true,
+      "inventory": {
+        "animatedChannels": 0,
+        "artworkCount": 3,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 4,
+        "pathCommands": 120,
+        "storedArtworkAssets": 2,
+        "textScalars": 32,
+        "visualLeaves": 29
+      },
+      "projectId": "8515ad0c-b44c-4c5c-9107-b87e3f879e17",
+      "revision": 9,
+      "ssim": 1,
+      "pcmRms": 0,
+      "originalAudio": [
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        },
+        {
+          "alignmentMs": 0,
+          "alignmentSamples": 0,
+          "correlation": 0.9998788883233822
+        }
+      ],
+      "bothAuthoredStereoChannelsIndependentlyVerified": true,
+      "exactUndoPredecessorAndRedo": true,
+      "preexistingProjectAndExportBytesPreserved": true,
+      "lifecycle": {
+        "lateAtomicFailure": true,
+        "nativeSourceEdit": true,
+        "overrideIsolation": true,
+        "reconnectReopen": true,
+        "staleRevision": true,
+        "undoRedo": true
+      },
+      "timings": [
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 0
+          },
+          "elapsedMs": 4374.587672999944
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 4268.17825300002
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 2966
+          },
+          "elapsedMs": 4281.424024999957
+        },
+        {
+          "name": "preview_review_range",
+          "input": {
+            "endMs": 3000,
+            "resolution": "project",
+            "startMs": 0
+          },
+          "elapsedMs": 96289.155043
+        },
+        {
+          "name": "project_export_video",
+          "input": {
+            "format": "mp4",
+            "overwrite": false,
+            "relativePath": "packaged-role_badge_team_intro.mp4",
+            "resolution": "project"
+          },
+          "elapsedMs": 76315.54411300004
+        },
+        {
+          "name": "preview_render_frame",
+          "input": {
+            "timeMs": 1500
+          },
+          "elapsedMs": 3839.6301209998783
+        }
+      ],
+      "projectSha256": "3de782a642c2ebdea69955bf39ab6e3a63b7b20e2196c5f0ebeca5ba2123d4c6",
+      "evidenceSha256": "ac7422fcc79c93e6a06df672e983add368bc114a86eb44392e8ebac7ab6bd9d2"
+    }
+  ]
+}

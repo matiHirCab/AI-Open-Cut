@@ -1,0 +1,135 @@
+{
+  "freshSparseSticker": {
+    "projectId": "696d2c8c-ba6e-4339-a472-714c7f9a50df",
+    "revision": 7,
+    "exactTextOverride": "GUI SPARSE",
+    "editRevision": 5,
+    "undoRevision": 6,
+    "redoRevision": 7,
+    "actualGuiFrame": true,
+    "independentFramePixelValidation": true,
+    "exactReopenAfterFrame": true,
+    "noLiveOwnedDesktop": true,
+    "personalInstalledDesktopTouched": false,
+    "diagnosticSecondAuthorProjectExcluded": true,
+    "eventsSha256": "cd84560cc9a3a93e4f3f92ca6390ce56723141f8fef0af700041b4e59ff66aea",
+    "sourceDesktopSha256": "61aa727f598e8172f76e1f495c434939b346660efc0ee7940eed49524c23d4f1",
+    "runtime": "owned Linux cloud Xorg dummy :195, software Vulkan Mesa25 lavapipe",
+    "eventLogOutsideGit": "/workspace/issue191-fresh-gui/events.jsonl",
+    "screenshots": [
+      {
+        "name": "label-applied.png",
+        "sha256": "18b2a986389ec98d4b15eb57c18c7937bb60d68f79bebfe31cea01056cb781dc",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "label-editor.png",
+        "sha256": "142ee01a863c27c694fe0861dacc92f95edb29998fb897019f8b19677dc63ce3",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "label-redone.png",
+        "sha256": "3e82ae1d34f02254023c8702ba80d111189c122f866a5e2292c0ab1c37b4e6ce",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "mapped.png",
+        "sha256": "8c6e242d978c14f34cd31360e5d30edbcb8759792d21ee0b2a2db29866cc60ff",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "opened.png",
+        "sha256": "68b6d4349668ee8c916da423db512604ac528f5de88675b64d6794b25e8819fe",
+        "acceptanceRole": "diagnostic unmapped-window capture; excluded",
+        "excludedFromAcceptance": true
+      },
+      {
+        "name": "project-frame-completed.png",
+        "sha256": "1be6858728c98e1e7b5caba6405e4b51dcb66e7e12b9251a48ecf15c7b3da12a",
+        "acceptanceRole": "native frame inspected and independently decoded",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "project-frame-request.png",
+        "sha256": "d18737d246d2d3e5d18a0836dc77458579eed99c4daaa23e5de454f81c40e2e2",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "reopened-after-frame-exact-state.png",
+        "sha256": "6402985f90a3d192dc72ebf9afd1b6f0c88b492c42be523e7e7c991a5b7f178e",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "reopened-exact-state.png",
+        "sha256": "6402985f90a3d192dc72ebf9afd1b6f0c88b492c42be523e7e7c991a5b7f178e",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      },
+      {
+        "name": "selected-instance.png",
+        "sha256": "414bdb1614f80756515f4d57ab3d6e0533e3d505e48685462d6e3d9eb30f565b",
+        "acceptanceRole": "supporting actual control/lifecycle observation",
+        "excludedFromAcceptance": false
+      }
+    ],
+    "nativeFrameValidationLog": "/workspace/issue191-fresh-gui/independent-frame-validation.log",
+    "guiProjectSha256": "021898acc5351a93c19d149fb64c71d8011c1dfd5b9c99b0d487df4654ef0358",
+    "eventCounts": {
+      "actual-GUI-native-frame-completed": 1,
+      "actual-GUI-redo": 1,
+      "actual-GUI-render-input": 1,
+      "actual-GUI-undo": 1,
+      "actual-XTest": 31,
+      "exact-GUI-reopen": 1,
+      "exact-GUI-reopen-after-frame": 1,
+      "manual-visible-frame-inspection": 1,
+      "owned-GUI-process-exited": 2,
+      "settled-visible-GUI": 8,
+      "verified-owned-GUI-close": 2,
+      "whole-project-transition": 1
+    }
+  },
+  "historicalDeviceAndTeam": {
+    "sourceDesktopSha256": "cd738e713bfbc225077e641dd3e411698d059c0147fcc0cef62f0a140c72d056",
+    "eventLogSha256": "a1b91807405b5a33c13ba9c93b1be26863ee7c5aa646d3004c3e23744d367439",
+    "actualChecks": {
+      "device": {
+        "textEdit": "GUI INTRO",
+        "artworkClearOverride": true,
+        "undoRedoExact": true,
+        "invalid25ScalarLabelNoProjectHistoryWrite": true,
+        "capturedRevisions": [
+          12,
+          13
+        ],
+        "exactReopenedRevision": 13
+      },
+      "team": {
+        "backgroundColorOverride": "#00ff00",
+        "raysHiddenOverride": true,
+        "otherMemberConcurrentLabel": "CONCURRENT",
+        "staleRevisionConflictNoProjectHistoryWrite": true,
+        "draftResetNoProjectHistoryWrite": true,
+        "trackLockedTypedRejectionNoProjectHistoryWrite": true,
+        "lockedButtonsDisabledClaim": false,
+        "capturedRevision": 14,
+        "exactReopenedRevision": 14
+      }
+    },
+    "rawRecoveredEvidenceOutsideGit": "/workspace/issue191-recovery/extracted/issue191-gui-session",
+    "independentlyInspectedHistoricalScreenshots": [
+      "device-gui-native-project-frame-settled.png",
+      "team-gui-project-frame-settled.png"
+    ],
+    "reuseCondition": "authored device/team inputs and production desktop sources unchanged; old observations are not new environment runs"
+  },
+  "inputCompatibilityProof": "sparse-grid-input-comparison.json",
+  "privateInstalledDesktopTouched": false,
+  "nonLinuxGuiObserved": false
+}

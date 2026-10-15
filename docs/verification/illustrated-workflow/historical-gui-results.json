@@ -1,0 +1,113 @@
+{
+  "sourceDesktopSha256": "cd738e713bfbc225077e641dd3e411698d059c0147fcc0cef62f0a140c72d056",
+  "runtime": "owned Linux cloud GUI, Xorg dummy :191, software Vulkan Mesa25 lavapipe",
+  "privateInstalledDesktopTouched": false,
+  "eventLogSha256": "a1b91807405b5a33c13ba9c93b1be26863ee7c5aa646d3004c3e23744d367439",
+  "eventCounts": {
+    "actual-XTest": 124,
+    "settled-visible-GUI": 50,
+    "whole-project-transition": 7,
+    "actual-GUI-undo": 1,
+    "actual-GUI-redo": 1,
+    "actual-GUI-invalid-label": 1,
+    "actual-GUI-review-request": 1,
+    "diagnostic-input-correction": 1,
+    "actual-GUI-render-input": 4,
+    "actual-GUI-native-frame-completed": 2,
+    "owned-GUI-close-for-reopen": 1,
+    "actual-GUI-reopen": 1,
+    "owned-GUI-device-closed": 1,
+    "actual-GUI-revision-conflict": 1,
+    "actual-GUI-draft-reset": 1,
+    "actual-GUI-locked-readonly": 1,
+    "manual-visible-frame-inspection": 3,
+    "verified-owned-GUI-close": 6,
+    "fresh-owned-source-GUI-launch": 5,
+    "exact-GUI-reopen": 3
+  },
+  "actualChecks": {
+    "device": {
+      "textEdit": "GUI INTRO",
+      "artworkClearOverride": true,
+      "undoRedoExact": true,
+      "invalid25ScalarLabelNoProjectHistoryWrite": true,
+      "capturedRevisions": [
+        12,
+        13
+      ],
+      "exactReopenedRevision": 13
+    },
+    "team": {
+      "backgroundColorOverride": "#00ff00",
+      "raysHiddenOverride": true,
+      "otherMemberConcurrentLabel": "CONCURRENT",
+      "staleRevisionConflictNoProjectHistoryWrite": true,
+      "draftResetNoProjectHistoryWrite": true,
+      "trackLockedTypedRejectionNoProjectHistoryWrite": true,
+      "lockedButtonsDisabledClaim": false,
+      "capturedRevision": 14,
+      "exactReopenedRevision": 14
+    },
+    "sticker": {
+      "fixture": "reviewed eight-vertex native bevel",
+      "projectId": "aa780b7c-f18e-4b2b-9534-2c71f47b9ba4",
+      "mcpAuthoredRevision": 4,
+      "textEdit": "GUI BEVEL",
+      "exactOnlySelectedSlotRevisionTimestampTransition": true,
+      "capturedRevision": 5,
+      "exactReopenedRevision": 5,
+      "sourceMcpPixelProbePassed": true,
+      "sourceMcpInventory": {
+        "animatedChannels": 0,
+        "artworkCount": 1,
+        "artworkDimension": 64,
+        "distinctArtworkAssets": 1,
+        "instances": 1,
+        "pathCommands": 79,
+        "storedArtworkAssets": 1,
+        "textScalars": 12,
+        "visualLeaves": 7
+      },
+      "defaultSourceHeadlessSha256": "5dae311a43f9c5ed4c6bf1e351c082a07b2f8e5e09f10373d248fa65da0da9a5",
+      "GUIArtifact": "previews/preview-45cbb066-2775-40f3-bfd3-fa584aef5cce.png",
+      "GUIArtifactSha256": "e0f61b51d12dfa3d344e28ad9b76696b20b50b1042acbbfeab467de615a38d4e"
+    }
+  },
+  "manuallyInspectedSettledScreenshots": [
+    {
+      "path": "/workspace/issue191-gui-session/evidence/device-gui-native-project-frame-settled.png",
+      "sha256": "87ad256105608d8f067ccc21a192f7e82ceed734f38ce3b2c366e05c3e7c8692"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/device-gui-red-default-frame-settled.png",
+      "sha256": "26d684407b3255a2610ee5e03cfa92c356d12b7ef665bcc6ceb9f54bd5d1582e"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/team-gui-project-frame-settled.png",
+      "sha256": "0171dc23b641e4a5af639283acf106145a9b979f3bcdad2636b1cc6749cce1e6"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/team-gui-reopened-exact-state.png",
+      "sha256": "6bddb0ba179b232b1a175d11e730e4ef9874dc55aa0c72391b5a406b55898cd1"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/bevel-sticker-gui-frame-completed.png",
+      "sha256": "6ae8db14f9a2b732583093e94f4dba9dd6113d69d7d971ae7c8844746c2853a3"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/bevel-sticker-gui-reopened-exact-state.png",
+      "sha256": "1a0d9dacb7faf627303897084c28e866ba5178d45f9dabcf08c4431952a2a341"
+    }
+  ],
+  "finalPersistedProjectSha256": {
+    "device": "787e06f7fc019861b8a6b3b19517e87319494a5d355e459a1eb40dd0abee59e6",
+    "team": "26eb413249d80c50024cf1b466f675f69485f82e1830f85d4a39ae834fbf844d",
+    "sticker": "f62636db0b9ab83b4aa8de31a2b5e32a45660d0494b4d197cc51cb6e86cb0e68"
+  },
+  "calibrationAndWorkingCapturesExcluded": true,
+  "debugRenderTiming": "Frame completion observed through settled captures; debug fullresolution rendering took minutes and is not a measured release performance sample. Working/cropped captures are retained and excluded from complete-frame acceptance.",
+  "rawGuiEvidenceOutsideGit": "/workspace/issue191-gui-session",
+  "reusedDeviceTeamInputsProvenUnchanged": "target-input-comparison.json",
+  "curvedStickerScreenshotsHistoricalOnly": true,
+  "guiSourceMediaScope": "Replacement sticker GUI uses original red artwork and synthetic stereo audio; one stored image. Source/package native acceptance imports both red and blue managed images and separately tests replacement."
+}

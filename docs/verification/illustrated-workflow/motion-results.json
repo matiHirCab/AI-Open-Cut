@@ -1,0 +1,15 @@
+{
+  "canonicalCases": 18,
+  "checkoutHead": "27041723c9ef84d924ad595b9e1954bc6728234d",
+  "defaultNativeCases": 1,
+  "instrumentedMcpCases": 2,
+  "requestedHead": "27041723c9ef84d924ad595b9e1954bc6728234d",
+  "runNonce": "3b1519a6-1dee-4c48-8077-24958f663e10",
+  "sourceDirty": true,
+  "version": 1,
+  "runnerExit": 0,
+  "runnerLog": "/workspace/issue191-recovery/fresh-motion.log",
+  "runnerLogSha256": "9838c0ab7e07368579a2fdd1a5380ef8f58bda4c9d7b87ad9d616a43486ccaa9",
+  "sourceDirtyExplained": "local test/doc/spec inputs not yet archived/committed; production inputs unchanged by the subsequent approved cfg(test)-only progress assertion",
+  "defaultHeadlessRestoredSha256": "6bae575f2a9331e6570967566c69cd543dac61d261a851c828f3321d7cf69ffb"
+}

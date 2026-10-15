@@ -1,0 +1,94 @@
+{
+  "sourceDesktopSha256": "cd738e713bfbc225077e641dd3e411698d059c0147fcc0cef62f0a140c72d056",
+  "runtime": "owned Linux cloud GUI, Xorg dummy :191, software Vulkan Mesa25 lavapipe",
+  "privateInstalledDesktopTouched": false,
+  "eventLogSha256": "e26b7d4575cafee42472c92092f9c336b60b1e0542ec0291eafe7657e2f16e9f",
+  "eventCounts": {
+    "actual-XTest": 95,
+    "settled-visible-GUI": 43,
+    "whole-project-transition": 6,
+    "actual-GUI-undo": 1,
+    "actual-GUI-redo": 1,
+    "actual-GUI-invalid-label": 1,
+    "actual-GUI-review-request": 1,
+    "diagnostic-input-correction": 1,
+    "actual-GUI-render-input": 3,
+    "actual-GUI-native-frame-completed": 2,
+    "owned-GUI-close-for-reopen": 1,
+    "actual-GUI-reopen": 1,
+    "owned-GUI-device-closed": 1,
+    "actual-GUI-revision-conflict": 1,
+    "actual-GUI-draft-reset": 1,
+    "actual-GUI-locked-readonly": 1,
+    "manual-visible-frame-inspection": 2,
+    "verified-owned-GUI-close": 4,
+    "fresh-owned-source-GUI-launch": 3,
+    "exact-GUI-reopen": 2
+  },
+  "actualChecks": {
+    "device": {
+      "textEdit": "GUI INTRO",
+      "artworkClearOverride": true,
+      "undoRedoExact": true,
+      "invalid25ScalarLabelNoProjectHistoryWrite": true,
+      "capturedRevisions": [
+        12,
+        13
+      ],
+      "exactReopenedRevision": 13
+    },
+    "team": {
+      "backgroundColorOverride": "#00ff00",
+      "raysHiddenOverride": true,
+      "otherMemberConcurrentLabel": "CONCURRENT",
+      "staleRevisionConflictNoProjectHistoryWrite": true,
+      "draftResetNoProjectHistoryWrite": true,
+      "trackLockedTypedRejectionNoProjectHistoryWrite": true,
+      "lockedButtonsDisabledClaim": false,
+      "capturedRevision": 14,
+      "exactReopenedRevision": 14
+    },
+    "sticker": {
+      "textEdit": "GUI STICKER",
+      "exactOnlySelectedSlotRevisionTimestampTransition": true,
+      "capturedRevision": 10,
+      "exactReopenedRevision": 10
+    }
+  },
+  "manuallyInspectedSettledScreenshots": [
+    {
+      "path": "/workspace/issue191-gui-session/evidence/device-gui-native-project-frame-settled.png",
+      "sha256": "87ad256105608d8f067ccc21a192f7e82ceed734f38ce3b2c366e05c3e7c8692"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/device-gui-red-default-frame-settled.png",
+      "sha256": "26d684407b3255a2610ee5e03cfa92c356d12b7ef665bcc6ceb9f54bd5d1582e"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/team-gui-project-frame-settled.png",
+      "sha256": "0171dc23b641e4a5af639283acf106145a9b979f3bcdad2636b1cc6749cce1e6"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/team-gui-reopened-exact-state.png",
+      "sha256": "6bddb0ba179b232b1a175d11e730e4ef9874dc55aa0c72391b5a406b55898cd1"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/sticker-gui-full-visible-frame.png",
+      "sha256": "c437049983570c663be96d82977200e1c11534fac6eda513a608caf7a4cfd590"
+    },
+    {
+      "path": "/workspace/issue191-gui-session/evidence/sticker-gui-reopened-exact-state.png",
+      "sha256": "0431c7eda752458f54f32daa26c25e93d2f272c6bf682894df894781b77fed1e"
+    }
+  ],
+  "finalPersistedProjectSha256": {
+    "device": "787e06f7fc019861b8a6b3b19517e87319494a5d355e459a1eb40dd0abee59e6",
+    "team": "26eb413249d80c50024cf1b466f675f69485f82e1830f85d4a39ae834fbf844d",
+    "sticker": "45d1acf55f17dca33328454fc46ab23fbcd582688713b19dd0933303beb49cad"
+  },
+  "calibrationAndWorkingCapturesExcluded": true,
+  "debugRenderTiming": "Frame completion observed through settled captures; debug fullresolution rendering took minutes and is not a measured release performance sample. Working/cropped captures are retained and excluded from complete-frame acceptance.",
+  "rawGuiEvidenceOutsideGit": "/workspace/issue191-gui-session",
+  "historicalOnly": true,
+  "replacementStickerAcceptance": false
+}

@@ -1,0 +1,172 @@
+{
+  "declaredGridMarks": 28,
+  "fullyInteriorBeforeOcclusion": 15,
+  "boundaryClippedBeforeOcclusion": 13,
+  "independentlyDerivedHiddenCentres": [
+    [
+      640,
+      320
+    ],
+    [
+      640,
+      640
+    ],
+    [
+      960,
+      320
+    ],
+    [
+      960,
+      640
+    ],
+    [
+      960,
+      960
+    ],
+    [
+      1280,
+      320
+    ],
+    [
+      1280,
+      640
+    ]
+  ],
+  "visibleCentres": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      320
+    ],
+    [
+      0,
+      640
+    ],
+    [
+      0,
+      960
+    ],
+    [
+      320,
+      0
+    ],
+    [
+      320,
+      320
+    ],
+    [
+      320,
+      640
+    ],
+    [
+      320,
+      960
+    ],
+    [
+      640,
+      0
+    ],
+    [
+      640,
+      960
+    ],
+    [
+      960,
+      0
+    ],
+    [
+      1280,
+      0
+    ],
+    [
+      1280,
+      960
+    ],
+    [
+      1600,
+      0
+    ],
+    [
+      1600,
+      320
+    ],
+    [
+      1600,
+      640
+    ],
+    [
+      1600,
+      960
+    ],
+    [
+      1920,
+      0
+    ],
+    [
+      1920,
+      320
+    ],
+    [
+      1920,
+      640
+    ],
+    [
+      1920,
+      960
+    ]
+  ],
+  "scope": "fixed original sample PNGs; foreground occlusion separately accounted, no maximum-envelope or arbitrary-label claim",
+  "rows": [
+    {
+      "mode": "source",
+      "timeMs": 0,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    },
+    {
+      "mode": "source",
+      "timeMs": 1500,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    },
+    {
+      "mode": "source",
+      "timeMs": 2966,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    },
+    {
+      "mode": "packaged",
+      "timeMs": 0,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    },
+    {
+      "mode": "packaged",
+      "timeMs": 1500,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    },
+    {
+      "mode": "packaged",
+      "timeMs": 2966,
+      "visibleGridMarks": 21,
+      "boundaryClippedVisibleMarks": 13,
+      "fullyInteriorVisibleMarks": 8,
+      "sha256": "3401a6f1599c77519f0d2d30a4e6f3d8cf03be8241622c77a7e8fab5ff0cf860"
+    }
+  ]
+}

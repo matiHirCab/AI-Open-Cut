@@ -64,7 +64,13 @@ fn native_preview_cache_preserves_frozen_av_references_dependencies_and_metadata
     assert_ne!(cold.relative_path, warm.relative_path);
     assert_eq!(cold.warnings, warm.warnings);
     assert_eq!(cold.text_layouts, warm.text_layouts);
-    assert_eq!(progress, vec![1.0]);
+    // Native preparation precedes the encoded-cache lookup. Reuse is proved by
+    // the unchanged cache counts and frozen-byte/AV checks below, not by hiding
+    // the ten completed preparation samples from progress.
+    assert_eq!(
+        progress,
+        vec![0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.0]
+    );
     let path = root.path().join(&warm.relative_path);
     assert_eq!(fs::read(&path).unwrap(), encoded);
     for time in SAMPLE_TIMESTAMPS_MS {

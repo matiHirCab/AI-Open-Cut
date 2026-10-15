@@ -1,0 +1,350 @@
+{
+  "state": "all required local checks, independent recovery conformance, own synchronization/archive and final protected validation passed; exact published-head CI pending",
+  "passedFreshChecks": [
+    {
+      "name": "rustfmt",
+      "command": "cargo fmt --all -- --check",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-rustfmt.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "strict-clippy",
+      "command": "cargo clippy --workspace --all-targets -- -D warnings",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-clippy.log",
+      "logSha256": "837cbd5ddf5a4c143c07fc91f7773f522c375acde062db187c318a8a6dbf558a"
+    },
+    {
+      "name": "bridge-typecheck",
+      "command": "bun run typecheck",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/current-typecheck.log",
+      "logSha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "name": "bridge-lint",
+      "command": "bun run lint",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/current-lint.log",
+      "logSha256": "9acdf3098a9bacb5e58bebdd670d4d97407a2d9fd5f77ddc39c124a3c84b7ab2"
+    },
+    {
+      "name": "focused-illustrated",
+      "command": "bun x vitest run --config vitest.unit.config.ts tests/illustrated-workflow.test.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/sparse-focused.log",
+      "logSha256": "8b7f40d5f3e3ca73c9d15fe53aa456d5eadde872aa180355adf65658c2ebdfc4",
+      "counts": {
+        "passed": 8,
+        "failed": 0
+      }
+    },
+    {
+      "name": "bridge-unit",
+      "command": "bun run test:unit",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/current-unit-corrected.log",
+      "logSha256": "6052d2e741b74c76879fba7a6d1c3155c8fda547ba3db794aa61f5cf90ecb440",
+      "counts": {
+        "passed": 934,
+        "failed": 0,
+        "existingOptionalSkipped": 15
+      }
+    },
+    {
+      "name": "required-default-platform",
+      "command": "bun run apps/agent-bridge/scripts/run-platform-renderer.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/current-platform.log",
+      "logSha256": "33feb24d99e90258acf0d9d44ab394333c5b318194035a924c7c14b1caee4225",
+      "counts": {
+        "requiredPassed": 2,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "six-native-evidence-validation",
+      "command": "bun run /workspace/issue191-tools/validate-native-evidence.ts",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/current-six-evidence-validation.log",
+      "logSha256": "6b849756783d027afecea079c17f155fdee79c7631ef56562011719fe828b84e",
+      "counts": {
+        "completeReportsAndProjects": 6
+      }
+    },
+    {
+      "name": "independent-visible-grid",
+      "command": "python /workspace/issue191-tools/verify-grid-visible.py",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/grid-visible-validation.log",
+      "logSha256": "611deeea427b3e95fa04548c93c068f65043680de3ae3541ef8a1c4bacd55223",
+      "counts": {
+        "nativeSamplePngs": 6,
+        "visibleMarksEach": 21
+      }
+    },
+    {
+      "name": "contracts",
+      "command": [
+        "bun",
+        "run",
+        "contracts:check"
+      ],
+      "cwd": "/workspace/AI-Open-Cut/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 952.6554333269996,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-contracts.log",
+      "logSha256": "9df82e237de13b4de51841c6b1c6517c4c83f887426f9b5e7353c1c529ccf2da",
+      "counts": {
+        "bridgePassed": 627
+      }
+    },
+    {
+      "name": "integration",
+      "command": [
+        "bun",
+        "run",
+        "test:integration"
+      ],
+      "cwd": "/workspace/AI-Open-Cut/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 102.89677551000023,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-integration.log",
+      "logSha256": "6405e3d165699541239bf92eb797b4da0f9a603930e00ed5c239f0633e594ed5",
+      "counts": {
+        "passed": 42
+      }
+    },
+    {
+      "name": "smoke",
+      "command": [
+        "bun",
+        "run",
+        "test:smoke"
+      ],
+      "cwd": "/workspace/AI-Open-Cut/apps/agent-bridge",
+      "exit": 0,
+      "seconds": 42.52625824499955,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-smoke.log",
+      "logSha256": "5866eebfcafae8464c94c21d26e428f9e0f2c7d12328303bab2d187845e67d00",
+      "counts": {
+        "passed": 39
+      }
+    },
+    {
+      "name": "python",
+      "command": [
+        "bun",
+        "run",
+        "apps/agent-bridge/scripts/run-python-tests.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut",
+      "exit": 0,
+      "seconds": 9.673795853000229,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-python.log",
+      "logSha256": "5865a4d80ea16abb58c55a99f011dbf3b1af41f8665bdeaa5ef31af1af63c0a6",
+      "counts": {
+        "unittestPassed": 12,
+        "pytestPassed": 12
+      }
+    },
+    {
+      "name": "agent-context",
+      "command": [
+        "bun",
+        "test",
+        "scripts/agent-context-efficiency.test.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut",
+      "exit": 0,
+      "seconds": 0.22207294899999397,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-agent-context.log",
+      "logSha256": "0c7a5690519db25a49ab2bb17c31d2d4fc2375ad06aa101f3151bd7a78d8f5e0",
+      "counts": {
+        "passed": 18
+      }
+    },
+    {
+      "name": "desktop-review",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "opencut-desktop",
+        "review_tests::desktop_review_native_frame_audio_range_history_and_reopen",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "cwd": "/workspace/AI-Open-Cut",
+      "exit": 0,
+      "seconds": 27.73241086300004,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-desktop-review.log",
+      "logSha256": "f703941d8573fe0fdc2ecf113aa3dfe8ee016afd82513288de3e0eacaf81923a",
+      "counts": {
+        "requiredPassed": 1,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "golden",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "-p",
+        "opencut-editor-core",
+        "--lib",
+        "renderer::golden::native_golden_render_conformance",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/workspace/AI-Open-Cut",
+      "exit": 0,
+      "seconds": 709.8552696529996,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-golden.log",
+      "logSha256": "a14f84ef1acee0b08469341aacfb15fcef094a5f6ecd2d10c1ad83ee45518172",
+      "counts": {
+        "requiredPassed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "configuredFontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+      "reportOutsideGit": "/workspace/issue191-recovery/fresh-golden-report.json"
+    },
+    {
+      "name": "motion",
+      "command": [
+        "bun",
+        "run",
+        "apps/agent-bridge/scripts/run-motion-release.ts"
+      ],
+      "cwd": "/workspace/AI-Open-Cut",
+      "exit": 0,
+      "seconds": 510.47732325299876,
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-motion.log",
+      "logSha256": "9838c0ab7e07368579a2fdd1a5380ef8f58bda4c9d7b87ad9d616a43486ccaa9",
+      "counts": {
+        "canonicalCases": 18,
+        "defaultNativeCases": 1,
+        "instrumentedMcpCases": 2
+      }
+    },
+    {
+      "name": "approved-cached-range-progress",
+      "command": "cargo test -p opencut-editor-core --lib renderer::golden::preview_caching::native_preview_cache_preserves_frozen_av_references_dependencies_and_metadata -- --exact --nocapture",
+      "exit": 0,
+      "logOutsideGit": "/workspace/issue191-recovery/approved-cache-focused.log",
+      "logSha256": "e283e0e848b195f1f978482d3d73823270e3ed71a4eaa4e4617f6ea3f27b3e91",
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "actualReuseAndInvalidationCountsPreserved": true,
+      "frozenByteVisualAudioAndStateAssertionsPreserved": true
+    },
+    {
+      "name": "approved-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 18.37702322699988,
+      "logOutsideGit": "/workspace/issue191-recovery/approved-clippy.log",
+      "logSha256": "8709dfaad0a88855c5e5e146f85f3cfce91dd4a6472f894cf557a1ea7388b1cd"
+    },
+    {
+      "name": "approved-workspace",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit": 0,
+      "seconds": 4225.987752931,
+      "logOutsideGit": "/workspace/issue191-recovery/approved-workspace.log",
+      "logSha256": "b89eff280ac9ec1a00d5775338f67465b92ac667a4a3e45157215ee67f99c716",
+      "counts": {
+        "passed": 1561,
+        "failed": 0,
+        "existingIgnored": 12,
+        "primaryHarnesses": 72,
+        "isolatedChildHarnesses": 9
+      },
+      "configuredFontSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280"
+    },
+    {
+      "name": "final-prearchive-strict",
+      "exit": 0,
+      "command": "bun x @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive",
+      "counts": {
+        "passed": 74,
+        "failed": 0
+      },
+      "logOutsideGit": "/workspace/issue191-recovery/final-prearchive-strict.log",
+      "logSha256": "8f7d25f68dd1bab8a388eaa6b1fb6fca9d78fc4edb3af84afa412fa915f5dc5b"
+    },
+    {
+      "name": "final-postarchive-protected",
+      "exit": 0,
+      "command": "moon run root:openspec-validate",
+      "logOutsideGit": "/workspace/issue191-recovery/final-postarchive-protected.log",
+      "logSha256": "6b155e1cdcfaf4428ff87fafcc9ad13b07243e58f01b82d018557a641ffaec9c",
+      "counts": {
+        "strictPassed": 74,
+        "strictFailed": 0
+      }
+    },
+    {
+      "name": "final-postarchive-strict",
+      "exit": 0,
+      "command": "bun x @fission-ai/openspec@1.5.0 validate --all --strict --no-interactive",
+      "logOutsideGit": "/workspace/issue191-recovery/final-postarchive-strict.log",
+      "logSha256": "1ba32becab5631754251a128d9df783e767c1ae0c4f257f81e0dc3503cce3a51",
+      "counts": {
+        "strictPassed": 74,
+        "strictFailed": 0
+      }
+    }
+  ],
+  "freshGuiReceipt": "gui-results.json",
+  "historicalVerifiedReceipt": "historical-local-checks.json",
+  "failedAttemptsRetained": [
+    {
+      "logOutsideGit": "/workspace/issue191-recovery/current-unit.log",
+      "cause": "incorrect Python path/missing debug sidecar; corrected complete934-test rerun passed"
+    },
+    {
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-workspace.log",
+      "exit": 101,
+      "cause": "configured example font disagreed with existing reviewed golden fixture; corrected environment and complete rerun passed"
+    },
+    {
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-workspace-reviewed-font.log",
+      "exit": 101,
+      "cause": "inherited cached-range completion-only expectation conflicted with current-main preparation-before-cache behavior; explicit approved assertion correction passes isolated native case and complete workspace"
+    },
+    {
+      "logOutsideGit": "/workspace/issue191-recovery/fresh-native-cache-isolated.log",
+      "exit": 101,
+      "cause": "same progress expectation mismatch reproduced in isolated exact native case; no production/cache/limit changes made"
+    }
+  ],
+  "pendingFreshChecks": [
+    "exact-published-head-CI"
+  ],
+  "explicitCorrectionApproval": "openspec/changes/archive/2026-10-14-verify-illustrated-workflow-end-to-end/approval.md",
+  "conformanceReport": "openspec/changes/archive/2026-10-14-verify-illustrated-workflow-end-to-end/verification.md"
+}
