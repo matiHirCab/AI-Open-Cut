@@ -194,7 +194,7 @@ export async function verifySolidGraphicSlots(
     throw new Error("Graphic batch aliases missing");
   }
   const seeded = await read();
-  expect(seeded.project.schemaVersion).toBe(45);
+  expect(seeded.project.schemaVersion).toBe(catalog.projectSchemaVersion);
   const update = (slotValues: unknown) => ({
     componentId: card,
     durationMs: 1000,

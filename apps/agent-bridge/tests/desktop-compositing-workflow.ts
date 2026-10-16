@@ -97,6 +97,11 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
     const addedTools = [
+      "narration_profile_apply",
+      "narration_profile_create",
+      "narration_profile_get",
+      "narration_profile_list",
+      "narration_profile_update",
       "speech_markers_generate",
       "audio_bus_set_route",
       "audio_track_route",

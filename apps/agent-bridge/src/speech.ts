@@ -7,8 +7,14 @@ import type { JobTaskContext } from "./jobs";
 import { type Logger, NOOP_LOGGER } from "./logger";
 import {
   commitGeneratedAssetResultSchema,
+  type narrationProfileApplicationSchema,
+  type narrationProfileAttributionSchema,
+  narrationProfileSchema,
+  type narrationProfileSelectionSchema,
+  type narrationProfileSettingsSchema,
   projectStateSchema,
   replaceGeneratedAssetResultSchema,
+  resolvedNarrationRequestSchema,
   type schemas,
   speechAlignmentSchema,
   speechEstimateSchema,
@@ -26,6 +32,7 @@ const WHITESPACE_PATTERN = /\s+/gu;
 
 export interface SpeechSynthesisRequest {
   language: string;
+  narrationProfile?: z.infer<typeof narrationProfileAttributionSchema>;
   speed: number;
   text: string;
   textOptions?: z.infer<typeof speechTextOptionsSchema>;
@@ -153,6 +160,119 @@ export class SpeechApplicationService {
             );
   }
 
+  #profileClient() {
+    if (!this.#headless) {
+      throw new BridgeError(
+        "INTERNAL_ERROR",
+        "Narration profile core transport is unavailable"
+      );
+    }
+    return this.#headless;
+  }
+
+  async listNarrationProfiles() {
+    return await this.#profileClient().call(
+      { operation: "narration_profile_list" },
+      narrationProfileSchema.array()
+    );
+  }
+
+  async getNarrationProfile(profileId: string) {
+    return await this.#profileClient().call(
+      { operation: "narration_profile_get", profileId },
+      narrationProfileSchema
+    );
+  }
+
+  async createNarrationProfile(
+    settings: z.infer<typeof narrationProfileSettingsSchema>
+  ) {
+    return await this.#profileClient().call(
+      { operation: "narration_profile_create", settings },
+      narrationProfileSchema
+    );
+  }
+
+  async updateNarrationProfile(
+    profileId: string,
+    expectedVersion: number,
+    settings: z.infer<typeof narrationProfileSettingsSchema>
+  ) {
+    return await this.#profileClient().call(
+      {
+        expectedVersion,
+        operation: "narration_profile_update",
+        profileId,
+        settings,
+      },
+      narrationProfileSchema
+    );
+  }
+
+  async applyNarrationProfile(
+    application: z.infer<typeof narrationProfileApplicationSchema>
+  ) {
+    const status = await this.status();
+    if (!status.ready) {
+      throw new BridgeError(
+        "TTS_UNAVAILABLE",
+        `Speech provider ${status.providerId} is not ready; inspect tts_get_status`
+      );
+    }
+    const resolved = await this.#profileClient().call(
+      { application, operation: "narration_profile_resolve" },
+      resolvedNarrationRequestSchema
+    );
+    const voices = speechVoiceListSchema.parse(
+      await this.#provider.listVoices()
+    );
+    validateVoiceCatalog(status, voices);
+    try {
+      const request = resolveRequest(
+        { ...resolved, voice: resolved.voiceId },
+        status,
+        voices
+      );
+      return {
+        ...request,
+        narrationProfile: resolved.narrationProfile,
+        textOptions: resolved.textOptions,
+      };
+    } catch (error) {
+      if (error instanceof BridgeError && error.code === "VALIDATION_FAILED") {
+        // biome-ignore lint/style/useErrorCause: BridgeError takes ErrorOptions in its fourth argument.
+        throw new BridgeError(
+          "VALIDATION_FAILED",
+          `${error.message}; inspect speech_list_voices and tts_get_status, then explicitly override or update the profile`,
+          false,
+          { cause: error }
+        );
+      }
+      throw error;
+    }
+  }
+
+  async #resolveProfile(input: {
+    text: string;
+    language?: string | undefined;
+    voice?: string | undefined;
+    speed?: number | undefined;
+    textOptions?: z.infer<typeof speechTextOptionsSchema> | undefined;
+    profile: z.infer<typeof narrationProfileSelectionSchema>;
+  }) {
+    return await this.applyNarrationProfile({
+      expectedVersion: input.profile.version,
+      profileId: input.profile.id,
+      text: input.text,
+      ...(input.language === undefined ? {} : { language: input.language }),
+      ...(input.voice === undefined ? {} : { voiceId: input.voice }),
+      ...(input.speed === undefined ? {} : { speed: input.speed }),
+      ...(input.textOptions === undefined
+        ? {}
+        : { textOptions: input.textOptions }),
+    });
+  }
+
   async status() {
     this.#cleanupExpired();
     const parsed = ttsStatusSchema.safeParse(await this.#provider.status());
@@ -214,6 +334,9 @@ export class SpeechApplicationService {
     try {
       generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
+      if (request.narrationProfile) {
+        generated = { ...generated, request: structuredClone(request) };
+      }
       const retained = this.#retain(generated);
       context.onProgress(1);
       return speechPreviewResultSchema.parse({
@@ -294,6 +417,9 @@ export class SpeechApplicationService {
     try {
       generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
+      if (request.narrationProfile) {
+        generated = { ...generated, request: structuredClone(request) };
+      }
       context.markNonCancellable();
       const result = await this.#commitReplace(
         input.projectId,
@@ -355,13 +481,18 @@ export class SpeechApplicationService {
       await this.#provider.listVoices()
     );
     validateVoiceCatalog(status, voices);
-    const request = resolveRequest(input, status, voices);
+    const request = input.profile
+      ? await this.#resolveProfile({ ...input, profile: input.profile })
+      : resolveRequest(input, status, voices);
 
     context.onProgress(0.05);
     let generated = await this.#synthesize(request, context);
     try {
       generated = snapshotSpeechAlignment(generated);
       validateSynthesis(status, request, generated);
+      if (request.narrationProfile) {
+        generated = { ...generated, request: structuredClone(request) };
+      }
       context.onProgress(0.7);
       if (context.signal.aborted) {
         throw new BridgeError(
@@ -437,7 +568,9 @@ export class SpeechApplicationService {
     );
     validateVoiceCatalog(status, voices);
     if (source.type === "request") {
-      return resolveRequest(source, status, voices);
+      return source.profile
+        ? await this.#resolveProfile({ ...source, profile: source.profile })
+        : resolveRequest(source, status, voices);
     }
     if (!this.#headless) {
       throw new BridgeError(
@@ -465,7 +598,14 @@ export class SpeechApplicationService {
       );
     }
     const persisted = asset.origin.generation.request;
-    return resolveRequest(
+    if (source.profile) {
+      return await this.#resolveProfile({
+        ...source,
+        profile: source.profile,
+        text: source.text ?? persisted.text,
+      });
+    }
+    const resolved = resolveRequest(
       {
         language: source.language ?? persisted.language,
         speed: source.speed ?? persisted.speed,
@@ -476,6 +616,12 @@ export class SpeechApplicationService {
       status,
       voices
     );
+    return {
+      ...resolved,
+      ...(persisted.narrationProfile
+        ? { narrationProfile: structuredClone(persisted.narrationProfile) }
+        : {}),
+    };
   }
 
   #artifact(token: string) {
@@ -653,9 +799,11 @@ export class SpeechApplicationService {
       jobId: context.jobId,
       providerId: (await this.#provider.status()).providerId,
     });
+    const { narrationProfile: _profile, ...providerRequest } =
+      structuredClone(request);
     try {
       const generated = await this.#provider.synthesize(
-        request,
+        providerRequest,
         context.signal
       );
       this.#logger.info("speech.synthesis.completed", {
@@ -666,7 +814,7 @@ export class SpeechApplicationService {
         status: "completed",
         synthesisDurationMs: Math.round(performance.now() - startedAt),
       });
-      return generated;
+      return { ...generated, request: structuredClone(generated.request) };
     } catch (error) {
       this.#logger.error("speech.synthesis.failed", {
         code: error instanceof BridgeError ? error.code : "TTS_PROVIDER_FAILED",
@@ -908,7 +1056,20 @@ const validateSynthesis = (
   request: SpeechSynthesisRequest,
   generated: SynthesizedSpeech
 ) => {
+  const generatedOptions = speechTextOptionsSchema.safeParse(
+    generated.request.textOptions ?? {}
+  );
+  const expectedOptions = speechTextOptionsSchema.safeParse(
+    request.textOptions ?? {}
+  );
+  const profileOptionsMatch =
+    !request.narrationProfile ||
+    (generatedOptions.success &&
+      expectedOptions.success &&
+      JSON.stringify(generatedOptions.data) ===
+        JSON.stringify(expectedOptions.data));
   if (
+    !profileOptionsMatch ||
     generated.durationMs <= 0 ||
     generated.providerId !== status.providerId ||
     generated.modelId !== status.modelId ||

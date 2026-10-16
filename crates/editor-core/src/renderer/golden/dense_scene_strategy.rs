@@ -1284,6 +1284,17 @@ fn byte_transfer_comparison_rejects_drift_and_failed_numeric_proof() {
         "../../../../../docs/verification/bounded-dense-scene-strategy/reference-observation.json"
     ))
     .unwrap();
+    // This is a synthetic comparison, not a new performance observation.
+    // Current schema markers can change authored fixture bytes; keep the frozen
+    // observation untouched and bind this synthetic input to exact current data.
+    for (name, bytes) in [
+        ("baseline", BASELINE),
+        ("hero", HERO),
+        ("motifs", MOTIFS),
+        ("team", TEAM),
+    ] {
+        before["source"]["fixtureSha256"][name] = json!(hash_bytes(bytes));
+    }
     before["source"]["byteTransferSourceSha256"] = json!("a".repeat(64));
     before["environment"]["rustc"] = json!("rustc 1.97.0 (2d8144b78 2026-07-07)");
     let mut after = before.clone();
@@ -1311,6 +1322,7 @@ fn byte_transfer_comparison_rejects_drift_and_failed_numeric_proof() {
             before["source"]["testBinarySha256"].clone(),
         ),
         ("/source/driverSha256", json!("d".repeat(64))),
+        ("/source/fixtureSha256/motifs", json!("d".repeat(64))),
         ("/environment/cpuMax", json!("max 100000")),
         ("/cells/0/fresh/0/decodedSha256", json!("d".repeat(64))),
         ("/cells/0/fresh/0/facadeMilliseconds", json!(5001.0)),

@@ -20,6 +20,8 @@ import type {
   masterNormalizationSchema,
   mediaCropSchema,
   motionBlurSchema,
+  narrationProfileApplicationSchema,
+  narrationProfileSettingsSchema,
   richTextDocumentSchema,
   speechAlignmentSchema,
   speechMarkerPolicySchema,
@@ -382,6 +384,22 @@ export type HeadlessEdit =
   | { operation: "set_item_visibility"; hidden: boolean; itemId: string };
 
 export type HeadlessRequest =
+  | { operation: "narration_profile_list" }
+  | { operation: "narration_profile_get"; profileId: string }
+  | {
+      operation: "narration_profile_create";
+      settings: z.infer<typeof narrationProfileSettingsSchema>;
+    }
+  | {
+      operation: "narration_profile_update";
+      profileId: string;
+      expectedVersion: number;
+      settings: z.infer<typeof narrationProfileSettingsSchema>;
+    }
+  | {
+      operation: "narration_profile_resolve";
+      application: z.infer<typeof narrationProfileApplicationSchema>;
+    }
   | (Revisioned & {
       operation: "analyze_audio";
       startMs: number;

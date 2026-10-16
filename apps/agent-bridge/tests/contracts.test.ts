@@ -26,6 +26,7 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
+import NARRATION_PROFILES from "../../../contracts/narration-profiles-v1.json";
 import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
 import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
@@ -569,7 +570,7 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(87);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(92);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -1103,6 +1104,11 @@ describe("canonical public contracts", () => {
       get_state: true,
       import_asset: true,
       list_projects: true,
+      narration_profile_create: true,
+      narration_profile_get: true,
+      narration_profile_list: true,
+      narration_profile_resolve: true,
+      narration_profile_update: true,
       open_project: true,
       rebase_draft: true,
       redo: true,
@@ -1137,7 +1143,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: SOLID_GRAPHIC.projectSchemaVersion,
+      projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1231,7 +1237,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: SOLID_GRAPHIC.projectSchemaVersion,
+        projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

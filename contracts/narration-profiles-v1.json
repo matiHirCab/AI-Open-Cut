@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "schemaVersion": 46,
+  "limits": {
+    "profiles": 100,
+    "nameScalars": 80,
+    "identifierScalars": 256,
+    "pronunciations": 100,
+    "termScalars": 128,
+    "spokenScalars": 256,
+    "sentencePauseMs": 5000,
+    "libraryBytes": 67108864
+  },
+  "settings": {
+    "name": "Narración ñ 🎙",
+    "language": "es-UY",
+    "voiceId": "voice-uy",
+    "speed": 1.1,
+    "textOptions": {
+      "normalization": "basic",
+      "pronunciations": [
+        {
+          "term": "AI",
+          "spoken": "a i"
+        },
+        {
+          "term": "AI Open",
+          "spoken": "editor"
+        }
+      ],
+      "chunking": "sentence",
+      "sentencePauseMs": 120
+    }
+  },
+  "attribution": {
+    "id": "00000000-0000-4000-8000-000000000207",
+    "version": 1,
+    "name": "Narración ñ 🎙"
+  },
+  "precedence": "explicit fields replace profile defaults; textOptions replaces the whole object; no list merge",
+  "ownership": "local configured projects root; no automatic application or provider-owned storage",
+  "operations": [
+    "narration_profile_create",
+    "narration_profile_get",
+    "narration_profile_list",
+    "narration_profile_resolve",
+    "narration_profile_update"
+  ]
+}

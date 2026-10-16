@@ -39,6 +39,14 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
                 "speech alignment requires schema 38",
             ));
         }
+        if project.schema_version < 46
+            && matches!(&asset.origin, Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation)) if generation.request.narration_profile.is_some())
+        {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "narration profile attribution requires schema 46",
+            ));
+        }
         asset.validate_speech_provenance()?;
     }
     if project.schema_version < 37
@@ -393,7 +401,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=44 => {
+        9..=45 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

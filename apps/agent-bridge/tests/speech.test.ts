@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 
+import PROFILE_CONTRACT from "../../../contracts/narration-profiles-v1.json";
 import SPEECH_CONTRACT from "../../../contracts/speech-provider-v1.json";
 import { BridgeError, type HeadlessClient } from "../src/headless";
 import type { HeadlessRequest } from "../src/headless-contract";
@@ -769,4 +770,176 @@ it("retries provider shutdown after failed cleanup so crash admission can remain
   provider.cleanupFailure = undefined;
   await expect(service.close()).resolves.toBeUndefined();
   expect(provider.failedCleanupPaths).toEqual([]);
+});
+
+it("rejects provider mutation of profiled effective options and cleans its artifact", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  const resolved = {
+    language: "es-UY",
+    narrationProfile: structuredClone(PROFILE_CONTRACT.attribution),
+    speed: 1.1,
+    text: "Hola",
+    textOptions: structuredClone(PROFILE_CONTRACT.settings.textOptions),
+    voiceId: "voice-uy",
+  };
+  const call = vi.fn(async () => structuredClone(resolved));
+  const service = new SpeechApplicationService(provider, {
+    call,
+  } as unknown as HeadlessClient);
+  const synthesize = provider.synthesize.bind(provider);
+  vi.spyOn(provider, "synthesize").mockImplementation(async (request) => {
+    expect(request).not.toHaveProperty("narrationProfile");
+    if (!request.textOptions) {
+      throw new Error("Expected profile options");
+    }
+    request.textOptions.pronunciations = [];
+    return await synthesize(request);
+  });
+  try {
+    await expect(
+      service.preview(
+        {
+          profile: { id: resolved.narrationProfile.id, version: 1 },
+          text: "Hola",
+          type: "request",
+        },
+        taskContext()
+      )
+    ).rejects.toMatchObject({ code: "TTS_INVALID_OUTPUT" });
+    expect(resolved.textOptions.pronunciations).toHaveLength(2);
+    expect(provider.cleaned).toEqual(["generated.wav"]);
+    expect(call).toHaveBeenCalledTimes(1);
+  } finally {
+    await service.close();
+  }
+});
+
+it("returns actionable saved-voice readiness without synthesis or project mutation", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  provider.voiceUyAvailable = false;
+  const call = vi.fn(async () => ({
+    language: "es-UY",
+    narrationProfile: structuredClone(PROFILE_CONTRACT.attribution),
+    speed: 1.1,
+    text: "Hola",
+    textOptions: structuredClone(PROFILE_CONTRACT.settings.textOptions),
+    voiceId: "voice-uy",
+  }));
+  const service = new SpeechApplicationService(provider, {
+    call,
+  } as unknown as HeadlessClient);
+  try {
+    await expect(
+      service.applyNarrationProfile({
+        expectedVersion: 1,
+        profileId: PROFILE_CONTRACT.attribution.id,
+        text: "Hola",
+      })
+    ).rejects.toThrow("inspect speech_list_voices and tts_get_status");
+    expect(provider.requests).toEqual([]);
+    expect(call).toHaveBeenCalledTimes(1);
+  } finally {
+    await service.close();
+  }
+});
+
+it("pins profiled preview intent across library edits and revision-conflict retries", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  const current = {
+    language: "es-UY",
+    narrationProfile: structuredClone(PROFILE_CONTRACT.attribution),
+    speed: 1.1,
+    text: "Hola",
+    textOptions: structuredClone(PROFILE_CONTRACT.settings.textOptions),
+    voiceId: "voice-uy",
+  };
+  const expected = structuredClone(current);
+  const commits: HeadlessRequest[] = [];
+  const call = vi.fn((request: HeadlessRequest) => {
+    if (request.operation === "narration_profile_resolve") {
+      return Promise.resolve(structuredClone(current));
+    }
+    if (request.operation !== "commit_generated_asset") {
+      throw new Error("Unexpected headless call");
+    }
+    commits.push(structuredClone(request));
+    if (commits.length === 1) {
+      throw new BridgeError("REVISION_CONFLICT", "refresh revision", true);
+    }
+    return Promise.resolve({
+      assetId: "asset",
+      itemId: "item",
+      projectId: "project",
+      revision: 6,
+      summary: "done",
+      warnings: [],
+    });
+  });
+  const service = new SpeechApplicationService(provider, {
+    call,
+  } as unknown as HeadlessClient);
+  try {
+    const preview = await service.preview(
+      {
+        profile: { id: current.narrationProfile.id, version: 1 },
+        text: "Hola",
+        type: "request",
+      },
+      taskContext()
+    );
+    current.narrationProfile.version = 2;
+    current.speed = 1.4;
+    current.textOptions.pronunciations = [];
+    await expect(
+      service.commitPreview(preview.token, "project", 4, {
+        startMs: 0,
+        trackId: "audio",
+        type: "insert",
+      })
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    expect(provider.cleaned).toEqual([]);
+    await expect(
+      service.commitGeneratedArtifact(preview.token, 5)
+    ).resolves.toMatchObject({ revision: 6 });
+    expect(commits).toHaveLength(2);
+    for (const commit of commits) {
+      expect(commit).toMatchObject({
+        origin: { generation: { request: expected } },
+      });
+    }
+    expect(
+      call.mock.calls.filter(
+        ([request]) => request.operation === "narration_profile_resolve"
+      )
+    ).toHaveLength(1);
+    expect(provider.requests).toHaveLength(1);
+    expect(provider.cleaned).toEqual(["generated.wav"]);
+  } finally {
+    await service.close();
+  }
+});
+
+it("rejects profile application before resolution when the provider is unavailable", async () => {
+  const provider = new FakeSpeechSynthesizer();
+  vi.spyOn(provider, "status").mockResolvedValue({ ...status, ready: false });
+  const call = vi.fn();
+  const service = new SpeechApplicationService(provider, {
+    call,
+  } as unknown as HeadlessClient);
+  try {
+    await expect(
+      service.applyNarrationProfile({
+        expectedVersion: 1,
+        profileId: PROFILE_CONTRACT.attribution.id,
+        text: "Hola",
+      })
+    ).rejects.toMatchObject({
+      code: "TTS_UNAVAILABLE",
+      message: expect.stringContaining("tts_get_status"),
+    });
+    expect(call).not.toHaveBeenCalled();
+    expect(provider.requests).toEqual([]);
+  } finally {
+    await service.close();
+  }
 });

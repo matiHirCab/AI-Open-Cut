@@ -1,3 +1,4 @@
+mod narration_profiles;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -4620,6 +4621,7 @@ mod tests {
         GeneratedAssetOrigin::SpeechSynthesis(crate::SpeechGeneration {
             alignment: None,
             request: crate::SpeechSynthesisRequest {
+                narration_profile: None,
                 text: "Local speech".into(),
                 language: "en-US".into(),
                 voice_id: crate::SpeechVoiceId("af_heart".into()),
@@ -4640,10 +4642,10 @@ mod tests {
         {
             let GeneratedAssetOrigin::SpeechSynthesis(generation) = &mut origin;
             generation.request.voice_id = crate::SpeechVoiceId("provider_voice_one".into());
-            generation.request.text = "  Héllo   ../ AUX:\nworld***  and a deliberately very long Unicode excerpt that must be shortened  ".into();
+            generation.request.text = "  HÃ©llo   ../ AUX:\nworld***  and a deliberately very long Unicode excerpt that must be shortened  ".into();
         }
         let name = generated_display_name(&origin);
-        assert!(name.starts_with("Provider Voice One - Héllo"));
+        assert!(name.starts_with("Provider Voice One - HÃ©llo"));
         assert!(name.ends_with(".wav"));
         assert!(!name.chars().any(|character| {
             character.is_control()
@@ -7133,7 +7135,7 @@ mod tests {
             }
             if version == 17 {
                 legacy["tracks"][1]["items"] = serde_json::json!([{
-                    "type":"text","id":"legacy-text","text":"Unicode é\nbody",
+                    "type":"text","id":"legacy-text","text":"Unicode Ã©\nbody",
                     "fontSize":24,"color":"#ffffff","startMs":0,"durationMs":1000,
                     "keyframes":[],"zIndex":0,"stackOrder":0
                 }]);

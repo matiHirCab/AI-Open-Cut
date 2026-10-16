@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 45,
+  "projectSchemaVersion": 46,
   "limits": {
     "maxChannelsPerItem": 64,
     "maxKeyframesPerChannel": 1000,

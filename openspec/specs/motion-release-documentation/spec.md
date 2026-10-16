@@ -7,11 +7,11 @@ Provide current canonical release guidance and executable actual source/default-
 ## Requirements
 
 ### Requirement: Discoverable canonical current release documentation
-Release documentation SHALL distinguish headless protocol1, current persisted schema44, individually reported feature support, catalog/example versions and artifact content policy2. It MUST link canonical owners for public operations, coordinates, timing, ordering, fallback and errors rather than introduce a parallel model catalog. Historical activation-schema and fixture-only statements SHALL remain clearly historical. README and bridge guidance SHALL expose this entry point with valid repository-local links.
+Release documentation SHALL distinguish headless protocol1, the current canonical persisted project schema, individually reported feature support, catalog/example versions and artifact content policy2. It MUST link canonical owners for public operations, coordinates, timing, ordering, fallback and errors rather than introduce a parallel model catalog. Historical activation-schema and fixture-only statements SHALL remain clearly historical. README and bridge guidance SHALL expose this entry point with valid repository-local links.
 
 #### Scenario: D1 Discover current versions and owners
 - **WHEN** a reader follows the release entry point and executes its example against the current source or default compiled MCP bridge
-- **THEN** actual status reports protocol1/schema44 and required editor capabilities, documented current tool/alias names are discoverable and all repository-local owner/example links resolve
+- **THEN** actual status reports protocol1 and the current canonical project schema and required editor capabilities, documented current tool/alias names are discoverable and all repository-local owner/example links resolve
 
 #### Scenario: D2 Refuse stale or incomplete teaching metadata
 - **WHEN** the private example format, required case identity/count, error claim or runtime binding is missing, unknown, duplicated or inconsistent
@@ -33,14 +33,14 @@ Documentation MUST identify editor-core as the atomic current/retained-history m
 
 #### Scenario: D5 Explain schema compatibility without changing storage
 - **WHEN** a reader needs to open older state or retained history, or encounters a future schema
-- **THEN** the guide points to canonical atomic migration/future-refusal tests and current schema44 without introducing a migration, manual JSON rewriting or changed public/persisted fields
+- **THEN** the guide points to canonical atomic migration/future-refusal tests and the current canonical schema with supported schema45/schema44 predecessors without introducing a migration, manual JSON rewriting or changed public/persisted fields
 
 #### Scenario: D6 Distinguish optional readiness and compatibility
 - **WHEN** dependencies or a requested optional renderer capability are unavailable, or an older alias/content flow is used
 - **THEN** the guide describes existing subsystem readiness, stable refusal, retained alias semantics and explicit artifact reads without promising inference quality, silent renderer degradation or durable process-local handles
 
 ### Requirement: Preserve independent complete release acceptance
-Documentation examples MUST remain distinct from #70 synthetic marker fixtures, #77's complete ten-group scene, #78 default-package proof and #79's all-platform canonical/native/stress gates. Existing preview/export semantics, fixtures, golden tolerances, schema44/protocol1, public/provider catalogs, deadlines and protected workflows SHALL remain unchanged. #15 remains report-only; creative rescue-video proposals and broad fixture cleanup remain separate. Publication SHALL require verified/archive/final protected gates and successful exact-head required CI, with unavailable evidence disclosed and no merge/deployment.
+Documentation examples MUST remain distinct from #70 synthetic marker fixtures, #77's complete ten-group scene, #78 default-package proof and #79's all-platform canonical/native/stress gates. Existing preview/export semantics, fixtures, golden tolerances, the current canonical schema/protocol1 and retained schema45/schema44 compatibility, public/provider catalogs, deadlines and protected workflows SHALL remain unchanged. #15 remains report-only; creative rescue-video proposals and broad fixture cleanup remain separate. Publication SHALL require verified/archive/final protected gates and successful exact-head required CI, with unavailable evidence disclosed and no merge/deployment.
 
 #### Scenario: D7 Publish a bounded verified documentation change
 - **WHEN** current examples and documentation are prepared for review

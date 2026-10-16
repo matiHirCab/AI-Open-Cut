@@ -1,0 +1,1242 @@
+{
+  "mcp-surface-v1": [
+    {
+      "path": [
+        "toolDefinitions",
+        "editor_get_status",
+        "outputSchema",
+        "properties",
+        "projectSchemaVersion",
+        "const"
+      ],
+      "before": 45,
+      "after": 46
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "speech_generate_and_insert",
+        "inputSchema",
+        "properties",
+        "profile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "version"],
+        "type": "object"
+      }
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "speech_regenerate",
+        "inputSchema",
+        "properties",
+        "profile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "version"],
+        "type": "object"
+      }
+    },
+    {
+      "path": [
+        "toolDefinitions",
+        "tts_generate_and_insert",
+        "inputSchema",
+        "properties",
+        "profile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "version"],
+        "type": "object"
+      }
+    },
+    {
+      "path": ["toolDefinitions", "narration_profile_apply"],
+      "after": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "application": {
+              "additionalProperties": false,
+              "properties": {
+                "expectedVersion": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "profileId": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": ["expectedVersion", "profileId", "text"],
+              "type": "object"
+            }
+          },
+          "required": ["application"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "type": "string"
+            },
+            "narrationProfile": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": ["id", "name", "version"],
+              "type": "object"
+            },
+            "speed": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "text": {
+              "type": "string"
+            },
+            "textOptions": {
+              "additionalProperties": false,
+              "default": {
+                "chunking": "sentence",
+                "normalization": "basic",
+                "pronunciations": [],
+                "sentencePauseMs": 120
+              },
+              "properties": {
+                "chunking": {
+                  "enum": ["none", "sentence"],
+                  "type": "string"
+                },
+                "normalization": {
+                  "enum": ["none", "basic"],
+                  "type": "string"
+                },
+                "pronunciations": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "spoken": {
+                        "type": "string"
+                      },
+                      "term": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["spoken", "term"],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "sentencePauseMs": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "chunking",
+                "normalization",
+                "pronunciations",
+                "sentencePauseMs"
+              ],
+              "type": "object"
+            },
+            "voiceId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "language",
+            "narrationProfile",
+            "speed",
+            "text",
+            "textOptions",
+            "voiceId"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["toolDefinitions", "narration_profile_create"],
+      "after": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "settings": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "default": {
+                    "chunking": "sentence",
+                    "normalization": "basic",
+                    "pronunciations": [],
+                    "sentencePauseMs": 120
+                  },
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": ["language", "name", "speed", "voiceId"],
+              "type": "object"
+            }
+          },
+          "required": ["settings"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "settings": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "default": {
+                    "chunking": "sentence",
+                    "normalization": "basic",
+                    "pronunciations": [],
+                    "sentencePauseMs": 120
+                  },
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "language",
+                "name",
+                "speed",
+                "textOptions",
+                "voiceId"
+              ],
+              "type": "object"
+            },
+            "version": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": ["id", "settings", "version"],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["toolDefinitions", "narration_profile_get"],
+      "after": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "profileId": {
+              "type": "string"
+            }
+          },
+          "required": ["profileId"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "settings": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "default": {
+                    "chunking": "sentence",
+                    "normalization": "basic",
+                    "pronunciations": [],
+                    "sentencePauseMs": 120
+                  },
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "language",
+                "name",
+                "speed",
+                "textOptions",
+                "voiceId"
+              ],
+              "type": "object"
+            },
+            "version": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": ["id", "settings", "version"],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["toolDefinitions", "narration_profile_list"],
+      "after": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "profiles": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "settings": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "language": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "speed": {
+                        "type": "number"
+                      },
+                      "textOptions": {
+                        "additionalProperties": false,
+                        "default": {
+                          "chunking": "sentence",
+                          "normalization": "basic",
+                          "pronunciations": [],
+                          "sentencePauseMs": 120
+                        },
+                        "properties": {
+                          "chunking": {
+                            "enum": ["none", "sentence"],
+                            "type": "string"
+                          },
+                          "normalization": {
+                            "enum": ["none", "basic"],
+                            "type": "string"
+                          },
+                          "pronunciations": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "spoken": {
+                                  "type": "string"
+                                },
+                                "term": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["spoken", "term"],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "sentencePauseMs": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "chunking",
+                          "normalization",
+                          "pronunciations",
+                          "sentencePauseMs"
+                        ],
+                        "type": "object"
+                      },
+                      "voiceId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "language",
+                      "name",
+                      "speed",
+                      "textOptions",
+                      "voiceId"
+                    ],
+                    "type": "object"
+                  },
+                  "version": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "required": ["id", "settings", "version"],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": ["profiles"],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["toolDefinitions", "narration_profile_update"],
+      "after": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "expectedVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "profileId": {
+              "type": "string"
+            },
+            "settings": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "default": {
+                    "chunking": "sentence",
+                    "normalization": "basic",
+                    "pronunciations": [],
+                    "sentencePauseMs": 120
+                  },
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": ["language", "name", "speed", "voiceId"],
+              "type": "object"
+            }
+          },
+          "required": ["expectedVersion", "profileId", "settings"],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "settings": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "speed": {
+                  "type": "number"
+                },
+                "textOptions": {
+                  "additionalProperties": false,
+                  "default": {
+                    "chunking": "sentence",
+                    "normalization": "basic",
+                    "pronunciations": [],
+                    "sentencePauseMs": 120
+                  },
+                  "properties": {
+                    "chunking": {
+                      "enum": ["none", "sentence"],
+                      "type": "string"
+                    },
+                    "normalization": {
+                      "enum": ["none", "basic"],
+                      "type": "string"
+                    },
+                    "pronunciations": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "spoken": {
+                            "type": "string"
+                          },
+                          "term": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["spoken", "term"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "sentencePauseMs": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "chunking",
+                    "normalization",
+                    "pronunciations",
+                    "sentencePauseMs"
+                  ],
+                  "type": "object"
+                },
+                "voiceId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "language",
+                "name",
+                "speed",
+                "textOptions",
+                "voiceId"
+              ],
+              "type": "object"
+            },
+            "version": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": ["id", "settings", "version"],
+          "type": "object"
+        }
+      }
+    },
+    {
+      "path": ["tools"],
+      "before": [
+        "add_component_instance",
+        "add_group",
+        "asset_delete",
+        "asset_import",
+        "audio_analyze_mix",
+        "audio_bus_set_dsp",
+        "audio_bus_set_ducking",
+        "audio_bus_set_route",
+        "audio_master_set_normalization",
+        "audio_track_route",
+        "component_create",
+        "component_define_slots",
+        "component_delete",
+        "component_instance_duplicate",
+        "component_instance_update",
+        "component_update",
+        "draft_commit",
+        "draft_create",
+        "draft_discard",
+        "draft_get",
+        "draft_preview_frame",
+        "draft_rebase",
+        "draft_update",
+        "editor_get_status",
+        "group_ungroup",
+        "item_reorder",
+        "item_set_parent",
+        "item_set_z_index",
+        "job_cancel",
+        "job_get_status",
+        "marker_create",
+        "marker_delete",
+        "marker_update",
+        "preview_render_frame",
+        "preview_render_range",
+        "preview_review_range",
+        "project_create",
+        "project_export_video",
+        "project_get_state",
+        "project_open",
+        "project_redo",
+        "project_undo",
+        "set_item_start_time",
+        "sound_event_register",
+        "speech_commit_preview",
+        "speech_discard_preview",
+        "speech_estimate",
+        "speech_generate_and_insert",
+        "speech_list_voices",
+        "speech_markers_generate",
+        "speech_preview",
+        "speech_regenerate",
+        "timeline_add_audio_event",
+        "timeline_add_grid",
+        "timeline_add_media",
+        "timeline_add_rectangle",
+        "timeline_add_repeater",
+        "timeline_add_shape",
+        "timeline_add_solid_color",
+        "timeline_add_svg",
+        "timeline_add_text",
+        "timeline_add_transition",
+        "timeline_apply_animation_preset",
+        "timeline_batch_edit",
+        "timeline_delete_item",
+        "timeline_duplicate_items",
+        "timeline_get_items",
+        "timeline_move_item",
+        "timeline_set_animation_channels",
+        "timeline_set_audio",
+        "timeline_set_item_visibility",
+        "timeline_set_keyframes",
+        "timeline_split_item",
+        "timeline_trim_item",
+        "timeline_update_item",
+        "track_create",
+        "track_delete",
+        "track_reorder",
+        "track_update",
+        "transcription_commit_preview",
+        "transcription_discard_preview",
+        "transcription_estimate",
+        "transcription_get_status",
+        "transcription_preview",
+        "tts_commit_generated_artifact",
+        "tts_generate_and_insert",
+        "tts_get_status"
+      ],
+      "after": [
+        "add_component_instance",
+        "add_group",
+        "asset_delete",
+        "asset_import",
+        "audio_analyze_mix",
+        "audio_bus_set_dsp",
+        "audio_bus_set_ducking",
+        "audio_bus_set_route",
+        "audio_master_set_normalization",
+        "audio_track_route",
+        "component_create",
+        "component_define_slots",
+        "component_delete",
+        "component_instance_duplicate",
+        "component_instance_update",
+        "component_update",
+        "draft_commit",
+        "draft_create",
+        "draft_discard",
+        "draft_get",
+        "draft_preview_frame",
+        "draft_rebase",
+        "draft_update",
+        "editor_get_status",
+        "group_ungroup",
+        "item_reorder",
+        "item_set_parent",
+        "item_set_z_index",
+        "job_cancel",
+        "job_get_status",
+        "marker_create",
+        "marker_delete",
+        "marker_update",
+        "narration_profile_apply",
+        "narration_profile_create",
+        "narration_profile_get",
+        "narration_profile_list",
+        "narration_profile_update",
+        "preview_render_frame",
+        "preview_render_range",
+        "preview_review_range",
+        "project_create",
+        "project_export_video",
+        "project_get_state",
+        "project_open",
+        "project_redo",
+        "project_undo",
+        "set_item_start_time",
+        "sound_event_register",
+        "speech_commit_preview",
+        "speech_discard_preview",
+        "speech_estimate",
+        "speech_generate_and_insert",
+        "speech_list_voices",
+        "speech_markers_generate",
+        "speech_preview",
+        "speech_regenerate",
+        "timeline_add_audio_event",
+        "timeline_add_grid",
+        "timeline_add_media",
+        "timeline_add_rectangle",
+        "timeline_add_repeater",
+        "timeline_add_shape",
+        "timeline_add_solid_color",
+        "timeline_add_svg",
+        "timeline_add_text",
+        "timeline_add_transition",
+        "timeline_apply_animation_preset",
+        "timeline_batch_edit",
+        "timeline_delete_item",
+        "timeline_duplicate_items",
+        "timeline_get_items",
+        "timeline_move_item",
+        "timeline_set_animation_channels",
+        "timeline_set_audio",
+        "timeline_set_item_visibility",
+        "timeline_set_keyframes",
+        "timeline_split_item",
+        "timeline_trim_item",
+        "timeline_update_item",
+        "track_create",
+        "track_delete",
+        "track_reorder",
+        "track_update",
+        "transcription_commit_preview",
+        "transcription_discard_preview",
+        "transcription_estimate",
+        "transcription_get_status",
+        "transcription_preview",
+        "tts_commit_generated_artifact",
+        "tts_generate_and_insert",
+        "tts_get_status"
+      ]
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "schemaVersion",
+        "const"
+      ],
+      "before": 45,
+      "after": 46
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesAssetsItemsProperties",
+        "origin",
+        "anyOf",
+        0,
+        "oneOf",
+        0,
+        "properties",
+        "generation",
+        "properties",
+        "request",
+        "properties",
+        "narrationProfile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "name", "version"],
+        "type": "object"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "SpeechEstimateInput",
+        "properties",
+        "source",
+        "oneOf",
+        0,
+        "properties",
+        "profile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "version"],
+        "type": "object"
+      }
+    },
+    {
+      "path": [
+        "$defs",
+        "SpeechEstimateInput",
+        "properties",
+        "source",
+        "oneOf",
+        1,
+        "properties",
+        "profile"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": ["id", "version"],
+        "type": "object"
+      }
+    }
+  ],
+  "headless-protocol-v1": [
+    {
+      "path": ["operations"],
+      "before": [
+        "analyze_audio",
+        "commit_draft",
+        "commit_generated_asset",
+        "commit_transcription",
+        "create_draft",
+        "create_project",
+        "delete_asset",
+        "discard_draft",
+        "edit",
+        "edit_batch",
+        "export_video",
+        "get_draft",
+        "get_draft_state",
+        "get_state",
+        "import_asset",
+        "list_projects",
+        "open_project",
+        "rebase_draft",
+        "redo",
+        "render_draft_preview",
+        "render_preview",
+        "render_preview_range",
+        "render_review_range",
+        "replace_generated_asset",
+        "resolve_asset_input",
+        "status",
+        "undo",
+        "update_draft",
+        "validate_speech_alignment"
+      ],
+      "after": [
+        "analyze_audio",
+        "commit_draft",
+        "commit_generated_asset",
+        "commit_transcription",
+        "create_draft",
+        "create_project",
+        "delete_asset",
+        "discard_draft",
+        "edit",
+        "edit_batch",
+        "export_video",
+        "get_draft",
+        "get_draft_state",
+        "get_state",
+        "import_asset",
+        "list_projects",
+        "narration_profile_create",
+        "narration_profile_get",
+        "narration_profile_list",
+        "narration_profile_resolve",
+        "narration_profile_update",
+        "open_project",
+        "rebase_draft",
+        "redo",
+        "render_draft_preview",
+        "render_preview",
+        "render_preview_range",
+        "render_review_range",
+        "replace_generated_asset",
+        "resolve_asset_input",
+        "status",
+        "undo",
+        "update_draft",
+        "validate_speech_alignment"
+      ]
+    }
+  ],
+  "contract-ownership-v1": [
+    {
+      "path": ["categories", "narrationProfiles"],
+      "after": {
+        "canonical": "contracts/narration-profiles-v1.json",
+        "consumers": [
+          "crates/editor-core/src/model/narration_profiles.rs",
+          "crates/editor-core/src/model.rs",
+          "crates/editor-core/src/store/narration_profiles.rs",
+          "crates/editor-core/src/migrations.rs",
+          "crates/editor-core/tests/narration_profiles.rs",
+          "apps/headless/src/main.rs",
+          "apps/agent-bridge/src/schemas.ts",
+          "apps/agent-bridge/src/headless-contract.ts",
+          "apps/agent-bridge/src/speech.ts",
+          "apps/agent-bridge/src/server/speech.ts",
+          "apps/agent-bridge/tests/narration-profiles.test.ts",
+          "apps/agent-bridge/tests/contracts.test.ts",
+          "docs/narration-profiles.md",
+          "crates/editor-core/src/persistence.rs",
+          "docs/adr/0003-editor-core-module-boundaries.md",
+          "apps/agent-bridge/tests/speech.test.ts",
+          "apps/agent-bridge/tests/narration-profiles-workflow.ts",
+          "apps/agent-bridge/tests/smoke.test.ts",
+          "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+          "apps/agent-bridge/package.json",
+          "scripts/validate-ci-gates.ts",
+          "scripts/validate-ci-gates.test.ts",
+          "docs/agent-bridge.md",
+          "crates/editor-core/src/render_plan.rs",
+          "apps/agent-bridge/tests/packaged-smoke.test.ts",
+          "apps/agent-bridge/src/tts.ts",
+          "apps/agent-bridge/tests/tts-preflight.test.ts",
+          "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
+        ]
+      }
+    }
+  ]
+}

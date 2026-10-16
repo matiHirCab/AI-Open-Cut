@@ -62,7 +62,7 @@ const report = () => ({
   platform: "linux",
   runNonce: identity.nonce,
   sampleIntervalMs: 5,
-  schemaVersion: 45,
+  schemaVersion: 46,
   timingScope: "direct_whole_capture_including_preparation_and_oracles",
   tools: { ffmpeg: "ffmpeg version actual", ffprobe: "ffprobe version actual" },
   version: 1,
@@ -79,6 +79,18 @@ const report = () => ({
 });
 
 describe("private release measurement report", () => {
+  it("requires current schema46 and refuses stale future absent or malformed identity", () => {
+    const current = { ...report(), schemaVersion: 46 };
+    expect(() => requireMotionCoreReport(current, identity)).not.toThrow();
+    for (const schemaVersion of [45, 47, undefined, "46"]) {
+      const value: Record<string, unknown> = { ...current, schemaVersion };
+      if (schemaVersion === undefined) {
+        Reflect.deleteProperty(value, "schemaVersion");
+      }
+      expect(() => requireMotionCoreReport(value, identity)).toThrow();
+    }
+  });
+
   it("accepts exact inclusive Linux envelope and refuses one unit over in every capture", () => {
     expect(() => requireMotionCoreReport(report(), identity)).not.toThrow();
     for (const index of [0, 1, 2]) {

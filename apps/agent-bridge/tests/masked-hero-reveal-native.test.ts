@@ -20,6 +20,7 @@ import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
 import masterNormalization from "../../../contracts/master-normalization-v1.json";
+import mcpSurface from "../../../contracts/mcp-surface-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
 import {
@@ -296,7 +297,21 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       );
       expect(status.subsystems.rendering.ready).toBe(true);
       const { tools } = await client.request({ method: "tools/list" });
+      expect(tools.map((tool) => tool.name).sort()).toEqual(
+        [...mcpSurface.tools].sort()
+      );
+      const narrationProfileTools = [
+        "narration_profile_apply",
+        "narration_profile_create",
+        "narration_profile_get",
+        "narration_profile_list",
+        "narration_profile_update",
+      ];
+      for (const name of narrationProfileTools) {
+        expect(tools.filter((tool) => tool.name === name)).toHaveLength(1);
+      }
       const addedTools = [
+        ...narrationProfileTools,
         "speech_markers_generate",
         "audio_bus_set_route",
         "audio_track_route",

@@ -2368,3 +2368,16 @@ describe("native role team mandatory consumers", () => {
     }
   }
 });
+
+describe("narration profile mandatory consumers", () => {
+  for (const consumer of [" --test narration_profiles", " tests/narration-profiles.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects narration profile consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});

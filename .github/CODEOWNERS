@@ -506,3 +506,35 @@
 /apps/agent-bridge/package.json @matiHirCab
 /scripts/validate-ci-gates.ts @matiHirCab
 /scripts/validate-ci-gates.test.ts @matiHirCab
+
+# Shared versioned narration profiles (NP1)
+/contracts/narration-profiles-v1.json @matiHirCab
+/crates/editor-core/src/model/narration_profiles.rs @matiHirCab
+/crates/editor-core/src/model.rs @matiHirCab
+/crates/editor-core/src/store/narration_profiles.rs @matiHirCab
+/crates/editor-core/src/migrations.rs @matiHirCab
+/crates/editor-core/tests/narration_profiles.rs @matiHirCab
+/apps/headless/src/main.rs @matiHirCab
+/apps/agent-bridge/src/schemas.ts @matiHirCab
+/apps/agent-bridge/src/headless-contract.ts @matiHirCab
+/apps/agent-bridge/src/speech.ts @matiHirCab
+/apps/agent-bridge/src/server/speech.ts @matiHirCab
+/apps/agent-bridge/tests/narration-profiles.test.ts @matiHirCab
+/apps/agent-bridge/tests/contracts.test.ts @matiHirCab
+/docs/narration-profiles.md @matiHirCab
+/crates/editor-core/src/persistence.rs @matiHirCab
+/docs/adr/0003-editor-core-module-boundaries.md @matiHirCab
+/apps/agent-bridge/tests/speech.test.ts @matiHirCab
+/apps/agent-bridge/tests/narration-profiles-workflow.ts @matiHirCab
+/apps/agent-bridge/tests/smoke.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts @matiHirCab
+/apps/agent-bridge/package.json @matiHirCab
+/scripts/validate-ci-gates.ts @matiHirCab
+/scripts/validate-ci-gates.test.ts @matiHirCab
+/docs/agent-bridge.md @matiHirCab
+
+# NP1 pure render-plan equivalence coverage
+/crates/editor-core/src/render_plan.rs @matiHirCab
+/apps/agent-bridge/tests/packaged-smoke.test.ts @matiHirCab
+/apps/agent-bridge/src/tts.ts @matiHirCab
+/apps/agent-bridge/tests/tts-preflight.test.ts @matiHirCab

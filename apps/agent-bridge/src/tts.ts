@@ -466,7 +466,8 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
             voice: queued.request.voiceId,
           },
           this.#config.ttsSynthesisTimeoutMs,
-          "TTS_TIMEOUT"
+          "TTS_TIMEOUT",
+          queued.signal
         )
       );
       if (
@@ -521,7 +522,8 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
   async #request(
     request: Record<string, unknown>,
     timeoutMs: number,
-    timeoutCode = "TTS_TIMEOUT"
+    timeoutCode = "TTS_TIMEOUT",
+    signal?: AbortSignal
   ) {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: Shutdown can occur between asynchronous provider requests.
     if (this.#isClosed()) {
@@ -532,6 +534,14 @@ export class KokoroSpeechSynthesizer implements SpeechSynthesizer {
       );
     }
     const pythonPath = await this.#preflight();
+    // Cancellation may occur while executable inspection is awaiting the filesystem.
+    if (signal?.aborted) {
+      throw new BridgeError(
+        "JOB_CANCELLED",
+        "Speech synthesis was cancelled",
+        true
+      );
+    }
     const child = this.#ensureChild(pythonPath);
     const id = randomUUID();
     return await new Promise<unknown>((resolvePromise, rejectPromise) => {

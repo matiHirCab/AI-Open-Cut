@@ -577,6 +577,30 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
             "../../../apps/agent-bridge/tests/fixtures/audio-buses-predecessor-pins.json"
         ))
         .unwrap();
+        let current = if current.contains("\"projectSchemaVersion\": 46") {
+            let narration_pins: Value = serde_json::from_str(include_str!(
+                "../../../apps/agent-bridge/tests/fixtures/narration-profiles-marker-pins.json"
+            ))
+            .unwrap();
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 46").count(),
+                1,
+                "{name}"
+            );
+            let previous = current.replacen(
+                "\"projectSchemaVersion\": 46",
+                "\"projectSchemaVersion\": 45",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(previous.as_bytes())),
+                narration_pins[name],
+                "{name}"
+            );
+            previous
+        } else {
+            current
+        };
         let current = if matches!(
             name,
             "animation-channels-v1.json"

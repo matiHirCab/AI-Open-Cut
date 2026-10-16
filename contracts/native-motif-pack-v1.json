@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "native-motif-pack-v1",
   "recipeId": "native-motif-pack-v1",
-  "projectSchemaVersion": 45,
+  "projectSchemaVersion": 46,
   "canvas": {
     "width": 1920,
     "height": 1080,

@@ -41,6 +41,21 @@ enum Request {
         #[serde(default)]
         styled_text_layers_version: Option<u32>,
     },
+    NarrationProfileList {},
+    NarrationProfileGet {
+        profile_id: String,
+    },
+    NarrationProfileCreate {
+        settings: opencut_editor_core::NarrationProfileSettings,
+    },
+    NarrationProfileUpdate {
+        profile_id: String,
+        expected_version: u64,
+        settings: opencut_editor_core::NarrationProfileSettings,
+    },
+    NarrationProfileResolve {
+        application: opencut_editor_core::NarrationProfileApplication,
+    },
     ListProjects {},
     CreateProject {
         name: String,
@@ -371,6 +386,21 @@ fn dispatch(
                 ));
             }
             sink.value(status(renderer))
+        }
+        Request::NarrationProfileList {} => sink.value(core.list_narration_profiles()?),
+        Request::NarrationProfileGet { profile_id } => {
+            sink.value(core.get_narration_profile(&profile_id)?)
+        }
+        Request::NarrationProfileCreate { settings } => {
+            sink.value(core.create_narration_profile(settings)?)
+        }
+        Request::NarrationProfileUpdate {
+            profile_id,
+            expected_version,
+            settings,
+        } => sink.value(core.update_narration_profile(&profile_id, expected_version, settings)?),
+        Request::NarrationProfileResolve { application } => {
+            sink.value(core.resolve_narration_profile(application)?)
         }
         Request::ListProjects {} => sink.value(core.list_projects()?),
         Request::CreateProject { name, settings } => {
