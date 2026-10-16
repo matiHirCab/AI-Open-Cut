@@ -2906,8 +2906,8 @@ fn finish_persistence(
     warnings
 }
 
-// Typed component Normal may be omitted on serialization. Stage adoption so
-// later failures cannot publish an incidental legacy migration.
+// Stage composition adoption until the complete mutation validates. Slot edits
+// can fail on missing bindings/overrides after an otherwise valid migration.
 fn requires_composition_staging(
     operations: &[crate::EditOperation],
 ) -> Result<bool, crate::CoreError> {
@@ -2923,6 +2923,8 @@ fn requires_composition_staging(
                 | crate::EditOperation::AudioTrackRoute { .. }
                 | crate::EditOperation::ComponentCreate { .. }
                 | crate::EditOperation::ComponentUpdate { .. }
+                | crate::EditOperation::ComponentDefineSlots { .. }
+                | crate::EditOperation::ComponentInstanceUpdate { .. }
                 | crate::EditOperation::UpdateItem {
                     effects: Some(_),
                     ..
@@ -2933,6 +2935,10 @@ fn requires_composition_staging(
 
 #[cfg(test)]
 mod tests {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/slot_migration.rs"
+    ));
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/tests/support/font_migration.rs"
