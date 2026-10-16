@@ -1,3 +1,5 @@
+import { headlessStatusSchema } from "../src/schemas";
+
 export const RELEASE_RECIPE_SHA =
   "41deb91f35ccbbf379e7d3ffd0e4d402077fbaa37bee3a9253363fe8221e9cc0";
 export const RELEASE_FONTS = {
@@ -132,7 +134,8 @@ export const requireMotionCoreReport = (
     platform: identity.platform,
     runNonce: identity.nonce,
     sampleIntervalMs: 5,
-    schemaVersion: 45,
+    schemaVersion:
+      headlessStatusSchema.shape.projectSchemaVersion.unwrap().value,
     timingScope: "direct_whole_capture_including_preparation_and_oracles",
     version: 1,
     warmupCaptures: 1,

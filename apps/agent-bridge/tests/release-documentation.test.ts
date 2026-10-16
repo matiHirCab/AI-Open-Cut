@@ -11,6 +11,20 @@ import {
 } from "./release-documentation-fixture";
 
 describe("release documentation corpus", () => {
+  it("requires the current project schema marker rather than inheriting optional status metadata", () => {
+    const value: Record<string, unknown> = structuredClone(
+      readDocumentationExample()
+    );
+    expect(value.projectSchemaVersion).toBe(46);
+    for (const projectSchemaVersion of [45, 47, undefined, "46"]) {
+      const invalid = { ...value, projectSchemaVersion };
+      if (projectSchemaVersion === undefined) {
+        Reflect.deleteProperty(invalid, "projectSchemaVersion");
+      }
+      expect(() => parseDocumentationExample(invalid)).toThrow();
+    }
+  });
+
   it("accepts the complete private corpus", () => {
     expect(readDocumentationExample().failures).toHaveLength(4);
   });

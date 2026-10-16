@@ -1781,7 +1781,8 @@
         "crates/editor-core/src/render_plan.rs",
         "apps/agent-bridge/tests/packaged-smoke.test.ts",
         "apps/agent-bridge/src/tts.ts",
-        "apps/agent-bridge/tests/tts-preflight.test.ts"
+        "apps/agent-bridge/tests/tts-preflight.test.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
       ]
     }
   }

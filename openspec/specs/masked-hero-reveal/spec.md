@@ -10,11 +10,15 @@ The regression suite MUST maintain canonical masked-hero-reveal-v1 as the exact 
 
 #### Scenario: H1 Author the exact standalone and alias recipe
 - **WHEN** core, headless and MCP create fresh projects using frozen operations, generated-ID bindings and standalone or @alias batches
-- **THEN** complete authored records, identities/order/topology/source metadata and current schema38/protocol1/78tools match the canonical authority, with exact38→37 projection preserving its verified historical recipe
+- **THEN** complete authored records, identities/order/topology/source metadata and the current canonical schema/protocol1/tool-name inventory match the current authority while preserving the historical schema38/protocol1/78-tool authority, with exact38→37 projection preserving its verified historical recipe
 
 #### Scenario: H2 Reject recipe reference or authority drift
 - **WHEN** a canonical scalar, ID, array order, mask coordinate, source WAV, plate byte/hash or consumer differs from approved authority
 - **THEN** governed conformance fails without rewriting expected references or accepting changed production output
+
+#### Scenario: H1a Verify explicit additive narration API inventory
+- **WHEN** either actual native MCP hero case discovers the current tool surface
+- **THEN** names match the full canonical MCP inventory, each of the five explicitly named narration profile APIs occurs once, and excluding only the explicitly approved additions preserves the original78-tool assertion without changing any native recipe, reference or deadline
 
 ### Requirement: Independent complete feature and order reference evidence
 The suite MUST consume independently specified full16baseline/reversed64²RGBA plates at0/100/200/300/400/500/600/700ms and independently reviewed eight mask/matte/glow/tint/flash/particle/clip/order counterfactual witnesses with exact sample/pixel/color/deltas. The oracle MUST use normative scalar equations/frozen independently verified particle words/source PAM8 boundary and no production evaluator/raster/helper/output. Private provider preparation, pre-effect owner clip, original owner clock, correct signed origins/anchors and final black flattening MUST be explicit. Independent conversion/encoding reference commands MUST preserve existing FFmpeg boundaries/profile and unchanged tolerances. Pure test-only memoization MAY reuse complete-input-keyed independently calculated raster values only when cached results are immutable and each mutable caller receives a fresh copy; it MUST preserve every scalar equation, complete reference/witness/PCM comparison and existing test deadline.

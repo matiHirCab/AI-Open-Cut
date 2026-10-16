@@ -48,7 +48,8 @@ const exampleSchema = z
       )
       .length(4),
     projectCreate: argumentsSchema,
-    projectSchemaVersion: headlessStatusSchema.shape.projectSchemaVersion,
+    projectSchemaVersion:
+      headlessStatusSchema.shape.projectSchemaVersion.unwrap(),
     protocolVersion: z.literal(1),
     requiredEditorCapabilities: z.array(z.string()).length(4),
     standalone: z
